@@ -2,11 +2,27 @@
 
 from __future__ import annotations
 
+import inspect
 import logging
 from dataclasses import dataclass, field, fields
-from typing import Any
+from typing import Any, Callable
 
 logger = logging.getLogger(__name__)
+
+
+def require_config_value(config: dict[str, Any], key: str, expected: Any) -> None:
+    """Require one serialized configuration value to match its supported ABI."""
+
+    actual = config.get(key)
+    if actual != expected:
+        raise ValueError(f"Config value {key} is {actual}, expected {expected}")
+
+
+def build_kwargs_from_config(config: dict[str, Any], target: Callable[..., Any]) -> dict[str, Any]:
+    """Keep only configuration keys accepted by a callable."""
+
+    parameters = inspect.signature(target).parameters
+    return {key: value for key, value in config.items() if key in parameters}
 
 
 @dataclass
@@ -105,4 +121,11 @@ class DiTConfig(ModelConfig):
         return parser
 
 
-__all__ = ["ArchConfig", "DiTArchConfig", "DiTConfig", "ModelConfig"]
+__all__ = [
+    "ArchConfig",
+    "DiTArchConfig",
+    "DiTConfig",
+    "ModelConfig",
+    "build_kwargs_from_config",
+    "require_config_value",
+]

@@ -7,7 +7,6 @@ within WorldFoundry.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import time
@@ -15,8 +14,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from worldfoundry.core.io import file_sha256
 from worldfoundry.runtime.env import resolve_ckpt_dir, resolve_hfd_root
-from worldfoundry.synthesis.action_generation.gr00t.architecture import load_checkpoint_architecture, load_embodiment_ids
+from worldfoundry.synthesis.action_generation.gr00t.architecture import (
+    load_checkpoint_architecture,
+    load_embodiment_ids,
+)
 
 
 def _jsonable(value: Any) -> Any:
@@ -478,7 +481,7 @@ class GR00TRuntime:
         # Write the action trace to the specified output path
         target.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         # Calculate SHA256 hash of the generated artifact
-        artifact_sha256 = hashlib.sha256(target.read_bytes()).hexdigest()
+        artifact_sha256 = file_sha256(target)
         # Return a summary of the action trace artifact
         return {
             "status": "success",

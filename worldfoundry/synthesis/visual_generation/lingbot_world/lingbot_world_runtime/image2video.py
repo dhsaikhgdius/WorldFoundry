@@ -18,15 +18,15 @@ from worldfoundry.core import autocast_context
 from worldfoundry.core.distributed.block_fsdp import shard_model
 from worldfoundry.core.attention.causal_rope_sequence_parallel import sp_attn_forward, sp_dit_forward
 from worldfoundry.core.distributed.sequence_ops import get_world_size
-from worldfoundry.base_models.diffusion_model.video.wan.wan_2p2.modules.lingbot_model import WanModel
-from worldfoundry.base_models.diffusion_model.video.wan.wan_2p1.modules.t5 import T5EncoderModel
-from worldfoundry.base_models.diffusion_model.video.wan.wan_2p2.modules.vae2_1 import Wan2_1_VAE
-from worldfoundry.base_models.diffusion_model.video.wan.wan_2p1.utils.fm_solvers import (
+from worldfoundry.base_models.diffusion_model.models.networks.wan.variants.lingbot.model import WanModel
+from worldfoundry.base_models.diffusion_model.models.encoders.wan.reference import T5EncoderModel
+from worldfoundry.base_models.diffusion_model.models.autoencoders.wan.reference_21_streaming import Wan2_1_VAE
+from worldfoundry.base_models.diffusion_model.schedulers.flow_dpm import (
     FlowDPMSolverMultistepScheduler,
     get_sampling_sigmas,
     retrieve_timesteps,
 )
-from worldfoundry.base_models.diffusion_model.video.wan.wan_2p1.utils.fm_solvers_unipc import FlowUniPCMultistepScheduler
+from worldfoundry.base_models.diffusion_model.schedulers.flow_unipc import FlowUniPCMultistepScheduler
 from .utils.cam_utils import (
     compute_relative_poses,
     interpolate_camera_poses,
@@ -439,6 +439,23 @@ class WanI2V:
             dit_cond_dict = {
                 "c2ws_plucker_emb": c2ws_plucker_emb.chunk(1, dim=0),
             }
+
+        # With sequence parallelism enabled, both replicated DiTs are placed
+        # on every GPU during construction.  Waiting until the first denoising
+        # timestep to offload the inactive model leaves too little headroom
+        # for the full-resolution VAE encode (and for a sharded GPU T5).  The
+        # camera/text conditions above do not use either DiT, so release both
+        # here and let ``_prepare_model_for_timestep`` load only the active one
+        # after preprocessing.  FSDP-wrapped DiTs retain the official sharded
+        # residency policy; their default route does not request offloading.
+        if offload_model:
+            for model in (self.low_noise_model, self.high_noise_model):
+                if (
+                    not hasattr(model, "_fsdp_wrapped_module")
+                    and next(model.parameters()).device.type == "cuda"
+                ):
+                    model.to("cpu")
+            torch.cuda.empty_cache()
 
         y = self.vae.encode([
             torch.concat([

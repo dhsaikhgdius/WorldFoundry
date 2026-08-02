@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from worldfoundry.core.io import materialize_file
 from worldfoundry.evaluation.tasks.execution.runners.ipv_bench.ipv_bench_metrics import (
     METRIC_ORDER,
 )
@@ -91,7 +92,7 @@ def _artifact_results_path(*, generated_artifact_dir: Path | None, output_dir: P
 def _copy_artifact_results(*, source_path: Path, output_dir: Path) -> Path:
     suffix = source_path.suffix if source_path.suffix else ".json"
     output_path = output_dir / f"ipv_bench_results{suffix}"
-    output_path.write_bytes(source_path.read_bytes())
+    materialize_file(source_path, output_path)
     return output_path
 
 

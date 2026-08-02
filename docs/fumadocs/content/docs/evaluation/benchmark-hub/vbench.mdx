@@ -17,7 +17,7 @@ Official references:
 - In-tree runner: `worldfoundry/evaluation/tasks/execution/runners/vbench/run_vbench_official_runner.py`
 - In-tree runtime: `worldfoundry/evaluation/tasks/execution/runners/vbench/runtime`
 
-## Evaluation Protocol
+## Evaluation protocol
 
 The bundled prompt and metadata assets live under `worldfoundry/data/benchmarks/assets/vbench`:
 
@@ -37,7 +37,7 @@ Primary metric: `overall_quality`, computed from the official VBench quality and
 
 For `custom_input` mode, upstream VBench only supports `subject_consistency`, `background_consistency`, `motion_smoothness`, `dynamic_degree`, `aesthetic_quality`, and `imaging_quality`.
 
-## Data Preparation
+## Data preparation
 
 For official-suite scoring, generate videos from the bundled prompt lists. The expected VBench filename format is:
 
@@ -66,7 +66,7 @@ export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/vbench/generated_videos
 
 Candidate model training and inference are outside VBench itself. Train or run the generator through its own WorldFoundry model package, then export the final videos into the layout above.
 
-## Checkpoints And Runtime
+## Checkpoints and runtime
 
 Use the unified CUDA environment for the WorldFoundry runner. VBench metric models are loaded from the VBench cache path:
 
@@ -79,7 +79,7 @@ The full metric stack uses CLIP, ViCLIP, UMT, AMT, LAION aesthetic predictor, MU
 
 Your video generator checkpoint is separate from the evaluator checkpoints.
 
-## Run A Custom-Input Metric
+## Run a custom-input metric
 
 Use this when you have arbitrary generated videos and want to score one of the six VBench dimensions that support custom input:
 
@@ -110,7 +110,7 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
 
 For per-video prompts, provide a JSON mapping from relative video path to prompt with `--prompt-file`.
 
-## Run The Official Prompt Suite
+## Run the official prompt suite
 
 Use this path when your generated videos follow the official VBench prompt filenames:
 
@@ -141,7 +141,7 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
   --json
 ```
 
-## Import Existing Results
+## Import existing results
 
 If the in-tree runtime or another official-compatible run already produced `*_eval_results.json`, import it into WorldFoundry:
 
@@ -164,4 +164,4 @@ Each run writes:
 - `upstream/*_eval_results.json`: official runtime result JSON when metrics are computed.
 - `upstream_stdout.log` and `upstream_stderr.log`: logs from the in-tree VBench runtime.
 
-[Back to Benchmark Hub](/docs/evaluation/benchmark-hub)
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

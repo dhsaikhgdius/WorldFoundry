@@ -29,7 +29,7 @@ Studio exposes multiple frontends:
 
 By default, Studio hides most advanced panels. Use `--show-aux-panels` for history, notes, catalog, 3DGS import, and low-level runtime controls.
 
-## Workspace Mode
+## Workspace mode
 
 For multi-model validation and release QA, run the workspace app instead of a single-model Studio process:
 
@@ -164,7 +164,7 @@ Turn checks on only for setup debugging or release preflight:
 | `WORLDFOUNDRY_STUDIO_RUNTIME_CHECKS=strict` | skipped | Validate runtime imports and local model paths before loading a pipeline. |
 | `WORLDFOUNDRY_STUDIO_CHECK_RUNTIME_COMPLETENESS=1` | skipped | Recheck in-tree 3D/4D entrypoints while building the Studio catalog. |
 | `WORLDFOUNDRY_STUDIO_RESIDENT_WORKERS=0` | `auto` | Disable long-lived conda workers and return to subprocess-per-job dispatch. |
-| `WORLDFOUNDRY_STUDIO_RESIDENT_WORKER_MODELS=matrix-game-2` | all eligible | Limit resident workers to selected model ids; torchrun/multi-GPU jobs still use one-shot subprocesses. |
+| `WORLDFOUNDRY_STUDIO_RESIDENT_WORKER_MODELS=matrix-game-2` | all eligible | Limit resident workers to selected model IDs; torchrun/multi-GPU jobs still use one-shot subprocesses. |
 | `WORLDFOUNDRY_STUDIO_ARTIFACT_SCAN_MODE=missing` | `missing` | Scan the output directory only when required artifacts are missing from the run record. |
 | `WORLDFOUNDRY_STUDIO_ARTIFACT_SCAN_MODE=always` | off by default | Force a full recursive output scan for models that do not return artifact paths. |
 | `WORLDFOUNDRY_STUDIO_ARTIFACT_SCAN_MODE=off` | off by default | Never scan the output directory; rely on `preview_*`, `artifact_paths`, and `rrd_path`. |
@@ -184,10 +184,10 @@ you need every job to release GPU memory immediately after completion.
 
 Use **Visualizers**, **Gallery**, and **Artifacts** for quick visual QA.
 They expose recent generated videos, images, manifests, and direct artifact
-links. Before making release claims, record the verified run in the model
-inference validation page.
+links. Before making release claims, check the run against the release gates in
+[Validation](/docs/reference/validation) and keep its run manifest and scorecard.
 
-## Workspace Visualizers
+## Workspace visualizers
 
 The `7870` Workspace is the browser entrypoint for the visualization stack.
 Open the **Visualizers** tab, then use each card's **Launch**, **Open**, and
@@ -218,10 +218,107 @@ profiles:
 | `WORLDFOUNDRY_REALTIME_CHUNK_FRAMES` | `9` | Target frames per generated chunk; known model temporal contracts may override it. |
 | `WORLDFOUNDRY_REALTIME_INFERENCE_STEPS` | model default; LingBot Fast `4` | Explicit latency/quality override. Non-distilled models are not silently reduced to four steps. |
 | `WORLDFOUNDRY_REALTIME_FRAME_QUEUE` | `max(chunk, 8)` | One steady-state chunk of bounded playback buffering. |
+| `WORLDFOUNDRY_REALTIME_FRAME_QUEUE_POLICY` | `latest-interactive` | Use `latest-interactive` to bound latency under congestion or `ordered-quality` to preserve every frame. Count-exact prompt/segment sessions always enforce `ordered-quality`. |
 | `WORLDFOUNDRY_REALTIME_BACKPRESSURE_MS` | half a chunk | Preserve every frame during normal playback; evict stale frames only after this congestion budget expires. |
 | `WORLDFOUNDRY_REALTIME_WARMUP_CHUNKS` | `1` | Background stream warmup; set `0` to disable or raise it for compile/autotune experiments. |
+| `WORLDFOUNDRY_REALTIME_PREWARM_TIMEOUT_SECONDS` | unset | Optional deadline for configure plus warmup chunks. The server reports an overrun after the current non-cancellable model call returns; `0` disables it. |
+| `WORLDFOUNDRY_REALTIME_POSTPROCESS_PRESET` | `identity` | Select `identity`, `rtx-super-resolution`, `rtx-super-resolution-ultra`, or `rtx-deblur-ultra`. RTX choices are explicit opt-ins and fail before serving if their runtime is unavailable. |
+| `WORLDFOUNDRY_REALTIME_RTX_SCALE` | preset default (`2`, or `1` for deblur) | Spatial VSR scale. NVIDIA VFX supports up to 4x; same-resolution denoise/deblur modes require `1`. |
+| `WORLDFOUNDRY_REALTIME_RTX_OUTPUT_WIDTH` / `WORLDFOUNDRY_REALTIME_RTX_OUTPUT_HEIGHT` | unset | Optional explicit RTX output dimensions. Set both or neither. |
+| `WORLDFOUNDRY_REALTIME_RTX_QUALITY` | preset default | Override the NVIDIA VFX quality enum, for example `HIGH`, `ULTRA`, `DEBLUR_ULTRA`, or `HIGHBITRATE_HIGH`. |
+| `WORLDFOUNDRY_REALTIME_RTX_DEVICE` | index from Studio device, otherwise `0` | CUDA device index owned by the VFX effect. |
+| `WORLDFOUNDRY_REALTIME_RTX_NON_BLOCKING` | `false` | Request asynchronous VFX execution. WorldFoundry still synchronizes before cloning the borrowed DLPack output, so this does not weaken memory safety. |
+| `WORLDFOUNDRY_REALTIME_RTX_USE_CURRENT_STREAM` | `true` | Pass the current PyTorch CUDA stream pointer to NVIDIA VFX; disable only when diagnosing stream interop. |
+| `WORLDFOUNDRY_REALTIME_PERF_LOG_INTERVAL_CHUNKS` | `5` | Emit a structured timing summary with stage p50/p90 values every N chunks; set `0` to disable periodic summaries. |
+| `WORLDFOUNDRY_REALTIME_PERF_WARMUP_CHUNKS` | `0` | Mark and exclude the first N session chunks from timing summaries. Raw JSONL events retain the warmup marker. |
+| `WORLDFOUNDRY_REALTIME_PERF_JSONL` | unset | Optional path for one canonical `realtime.chunk_timing` JSONL event per chunk. Use only while profiling to avoid hot-path file I/O. |
 | `WORLDFOUNDRY_REALTIME_LIVENESS_TIMEOUT_SECONDS` | `30` | Reclaim a session whose browser heartbeats disappear without killing a slow in-flight chunk. |
 | `WORLDFOUNDRY_REALTIME_ICE_SERVERS_JSON` | unset | Optional browser-compatible STUN/TURN `iceServers` JSON for hosts that are not directly reachable. |
+
+### Optional NVIDIA RTX post-processing
+
+RTX Video Super Resolution is outside the model's causal state: it transforms
+decoded RGB frames immediately before transport and preserves frame count,
+ordering, dtype, and numeric range. Studio advertises the postprocessed size as
+the transport's **Native** resolution and derives smaller transport choices
+from it. The package is intentionally absent from
+the default and `all` extras because `nvidia-vfx` uses NVIDIA's proprietary
+license. Install and select it explicitly:
+
+```bash
+pip install 'worldfoundry[studio_realtime,rtx_postprocess]'
+
+export WORLDFOUNDRY_REALTIME_POSTPROCESS_PRESET=rtx-super-resolution
+export WORLDFOUNDRY_REALTIME_RTX_SCALE=1.5
+python -m worldfoundry.studio.app <model-id> --frontend world --device cuda:0
+```
+
+The adapter validates the installed package, CUDA visibility, device index,
+Turing-or-newer compute capability, and the Linux NGX driver library before the
+server starts. It then loads the selected native effect and processes one
+representative frame, so an incomplete driver image fails before Studio begins
+serving. The backend receives contiguous CHW `float32` CUDA frames in `[0, 1]`,
+and its borrowed DLPack output is cloned before the next effect call. Inspect
+static prerequisites or run the full native probe without starting Studio:
+
+```bash
+python -c 'from worldfoundry.core.video_postprocess_rtx import inspect_rtx_vfx_capability as check; print(check(device=0).to_payload())'
+python -c 'from worldfoundry.core.video_postprocess_rtx import probe_rtx_vfx_runtime as probe; print(probe(device=0).to_payload())'
+```
+
+On Linux, `VideoSuperRes` also needs `libnvidia-ngx.so.1`. Compute-only or
+headless driver images can omit it even when CUDA and `nvidia-smi` work. Install
+the NGX/OpenGL userspace component from the **exact same driver release**
+(commonly `libnvidia-gl-<driver-major>`) and make it visible to the dynamic
+linker before Python starts; do not mix driver-library versions.
+
+Supported OS and driver versions are controlled by NVIDIA; check the current
+[NVIDIA VFX Python requirements](https://pypi.org/project/nvidia-vfx/) before
+deployment. VSR increases transport pixels and adds work to `postprocess_ms`,
+so capture an A/B trace and keep the regression gate below. For low-latency
+control, start at 1.5x `HIGH`; reserve `ULTRA` and 2–4x output for GPUs with
+measured headroom. `rtx-deblur-ultra` is same-resolution and therefore avoids
+the bandwidth increase.
+
+### Realtime performance regression gate
+
+Capture a representative interaction with raw timing enabled, then check the
+latest matching session against an explicit JSON manifest. Warmup chunks remain
+in the trace for diagnosis but are excluded when their `warmup` marker is true.
+
+```bash
+export WORLDFOUNDRY_REALTIME_PERF_JSONL=outputs/realtime-timing.jsonl
+export WORLDFOUNDRY_REALTIME_PERF_WARMUP_CHUNKS=1
+```
+
+```json title="realtime-regression.json"
+{
+  "schema_version": "worldfoundry-realtime-regression-v1",
+  "cases": [{
+    "name": "lingbot-webrtc",
+    "selectors": {"model_id": "lingbot-world", "transport": "webrtc"},
+    "thresholds": {
+      "min_chunks": 10,
+      "min_throughput_fps": 16,
+      "max_dropped_frames": 0,
+      "max_queue_depth": 16,
+      "max_stage_p90_ms": {"generation_ms": 650, "model_ms": 500}
+    }
+  }]
+}
+```
+
+```bash
+python scripts/benchmark_zoo/check_realtime_regression.py \
+  --manifest realtime-regression.json \
+  --trace outputs/realtime-timing.jsonl \
+  --output outputs/realtime-regression-result.json
+```
+
+The command exits with status `1` when any limit fails or a required stage is
+missing from any measured chunk. Its JSON output includes every actual value,
+comparator, and limit, and can also be converted to the shared
+`PerformanceManifest` API by Python tooling.
 
 For remote workstations, expose the Workspace port and the viewer ports you use.
 For example:
@@ -234,7 +331,7 @@ ssh -L 7870:127.0.0.1:7870 \
     user@host
 ```
 
-## Artifact Visualization Routing
+## Artifact visualization routing
 
 When an inference job finishes, the Workspace scans the run record and output
 directory for visualizable artifacts. The **Artifacts** tab shows **Open** and
@@ -355,7 +452,7 @@ console errors. Preserve an official viewer as a small visualization plugin;
 do not copy its inference runtime or build a per-model frontend when shared
 Viser/Rerun scene layers are sufficient.
 
-## Studio Screenshots
+## Studio screenshots
 
 These screenshots are from the `7870` workspace used for model release
 validation.
@@ -367,7 +464,7 @@ validation.
 | Catalog | World-model filtering and model metadata. |
 | Gallery | Recent visual outputs for side-by-side QA. |
 
-### Inference Jobs
+### Inference jobs
 
 The queue shows submitted runs, final status, and inline preview video or image
 when the run record exposes them.
@@ -378,7 +475,8 @@ when the run record exposes them.
 
 The form should expose the model's actual input contract.
 The screenshot below is only a UI-shape example; release demo claims should be
-checked against the validation reference and the matching run manifest.
+checked against the [release gates](/docs/reference/validation) and the matching
+run manifest.
 
 ![Studio Create Job dialog](/images/studio/screens/studio-create-job-ltx2-3.png)
 
@@ -395,12 +493,13 @@ The Gallery gives a compact visual pass over recent inference outputs and previe
 artifacts.
 
 
-## Inference Demo Results
+## Inference demo results
 
 The gallery below is for visual orientation. It shows representative artifacts
 from in-tree Studio or Studio-compatible API runs. It is not a release-claim
-table; exact parameters, environment notes, run ids, and remaining gaps live in
-the validation reference. Only curated nontrivial examples are embedded here.
+table; exact parameters, environment notes, run IDs, and remaining gaps live in
+each run's own manifest and scorecard. Only curated nontrivial examples are
+embedded here.
 
 <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
   <figure className="m-0">
@@ -673,7 +772,7 @@ fullscreen permission.
 | `WORLDFOUNDRY_WORKSPACE_MAX_JOBS` | Concurrent job worker limit. |
 | `WORLDFOUNDRY_STUDIO_SETTINGS_FILE` | Optional JSON file loaded into `/api/settings` for Create Job defaults. |
 | `WORLDFOUNDRY_STUDIO_PORT` | Single-model Studio server port. |
-| `WORLDFOUNDRY_STUDIO_MODEL` | Default model id. |
+| `WORLDFOUNDRY_STUDIO_MODEL` | Default model ID. |
 | `WORLDFOUNDRY_STUDIO_VARIANT` | Default variant. |
 | `WORLDFOUNDRY_STUDIO_BACKEND` | Default backend. |
 | `WORLDFOUNDRY_STUDIO_DEVICE` | Default device. |
@@ -693,7 +792,7 @@ fullscreen permission.
 
 Only `WORLDFOUNDRY_*` Studio environment variables are supported.
 
-## Release Evidence
+## Release evidence
 
 Only add public demo media after the matching official configuration has run
 through the in-tree Studio or Studio-compatible API path. Keep the run manifest,

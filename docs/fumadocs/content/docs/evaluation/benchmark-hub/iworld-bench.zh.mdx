@@ -76,7 +76,7 @@ ${WORLDFOUNDRY_IWORLD_BENCH_DATASET_ROOT}/
     `-- ...
 ```
 
-视频文件 stem 应该匹配 metadata 中的 `prompt_id` / sample id。如果你的生成器使用 CSV 里的其他 official video name，就保留该文件名，并在评测时传同一份 metadata 文件。
+视频文件 stem 应该匹配 metadata 中的 `prompt_id` / sample ID。如果你的生成器使用 CSV 里的其他 official video name，就保留该文件名，并在评测时传同一份 metadata 文件。
 
 ### Metric 资产
 
@@ -203,4 +203,4 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
 
 优先查看 `scorecard.json`。只有 requested split 视频覆盖完整，并且该 metric family 需要的资产都可用时，结果才适合和 public leaderboard 对比。
 
-[返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)
+[← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

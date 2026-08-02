@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
-import re
 from typing import Any, Iterable, Mapping
 
 from worldfoundry.evaluation.tasks.catalog.benchmark_catalog import (
@@ -13,7 +13,6 @@ from worldfoundry.evaluation.tasks.catalog.benchmark_catalog import (
     formal_benchmark_ids,
 )
 from worldfoundry.evaluation.utils import BENCHMARK_RUNTIME_PROFILE_DIR, BENCHMARK_ZOO_DIR, REPO_ROOT, load_manifest
-
 
 _RUNNER_SCRIPT_RE = re.compile(r"worldfoundry/evaluation/tasks/execution/[A-Za-z0-9_./-]+\.py")
 _BENCHMARK_ID_ARG_RE = re.compile(r"--benchmark-id(?:=|\s+)([A-Za-z0-9_.-]+)")

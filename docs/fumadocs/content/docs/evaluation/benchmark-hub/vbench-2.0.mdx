@@ -18,7 +18,7 @@ Official references:
 - Human annotation: [Vchitect/VBench-2.0_human_annotation](https://huggingface.co/datasets/Vchitect/VBench-2.0_human_annotation)
 - In-tree runner: `worldfoundry/evaluation/tasks/execution/runners/vbench_2_0/run_vbench_2_0_official_runner.py`
 
-## Evaluation Protocol
+## Evaluation protocol
 
 VBench-2.0 has 18 fine-grained dimensions grouped into five categories.
 
@@ -38,7 +38,7 @@ The prompt assets are checked in:
 - `worldfoundry/data/benchmarks/assets/vbench-2.0/vbench2_prompts/prompt/*.txt`
 - `worldfoundry/data/benchmarks/assets/vbench-2.0/vbench2_prompts/meta_info/*.json`
 
-## Data Preparation
+## Data preparation
 
 For leaderboard-style reproduction, generate videos for the official VBench-2.0 prompts and keep the same dimension split. Put all generated videos under one root and pass it with `--videos-path`.
 
@@ -80,7 +80,7 @@ hf download Vchitect/VBench-2.0_human_anomaly \
 
 Candidate model training is model-specific. Train or run the generator through its own package, then export videos into `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR`.
 
-## Checkpoints And Runtime
+## Checkpoints and runtime
 
 Use the unified CUDA environment. The VBench-2.0 evaluator needs the VBench perception stack plus additional judge/perception assets for LLaVA-Video, Qwen, YOLO-World, ArcFace, anomaly detection, CoTracker, RAFT, CLIP/DINO, GroundingDINO, and SAM-family segmentation. Reusable code for many of these lives under `worldfoundry/base_models`.
 
@@ -94,7 +94,7 @@ export WORLDFOUNDRY_VBENCH_RETINAFACE_CKPT=/path/to/retinaface.pth
 
 `human_identity`, `gender_bias`, and `skin_bias` style face-related metrics require RetinaFace-compatible assets when those dimensions are selected.
 
-## Run A Single Dimension
+## Run a single dimension
 
 Use this command to score generated videos with one VBench-2.0 dimension:
 
@@ -127,7 +127,7 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
   --json
 ```
 
-## Run Multiple Dimensions
+## Run multiple dimensions
 
 Run the five category groups only after all corresponding metric assets are staged:
 
@@ -153,7 +153,7 @@ do
 done
 ```
 
-## Import Existing Results
+## Import existing results
 
 Import an official-compatible VBench-2.0 `*_eval_results.json`:
 
@@ -178,4 +178,4 @@ Each run writes:
 - `vbench2_video_coverage.json`: generated-video coverage against discovered references.
 - `upstream_stdout.log` and `upstream_stderr.log`: logs from the in-tree runtime.
 
-[Back to Benchmark Hub](/docs/evaluation/benchmark-hub)
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

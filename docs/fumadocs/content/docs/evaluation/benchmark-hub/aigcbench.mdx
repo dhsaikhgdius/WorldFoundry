@@ -3,13 +3,13 @@ title: AIGCBench
 description: "AIGCBench in WorldFoundry: data layout, supported runners, and metric outputs."
 ---
 
-## What It Measures
+## What it measures
 
 AIGCBench evaluates image-to-video generation quality across four families from the official paper and project assets: control-video alignment, motion effects, temporal consistency, and video quality. The official dataset combines WebVid validation videos, LAION-aesthetics image-text pairs, and an "Ours" generated image-text set. WorldFoundry uses the in-tree runner to materialize prompt records and to import metric rows produced by the AIGCBench scoring pipeline.
 
 The in-tree surface is not a standalone reimplementation of every CLIP, DOVER, optical-flow, and reference-video calculation. It expects either a caller-provided metric result file or a WorldFoundry scorer output produced by the local evaluation stack.
 
-## Data And Artifacts
+## Data and artifacts
 
 WorldFoundry looks for the AIGCBench prompt suite in this order:
 
@@ -41,7 +41,7 @@ For full metric production, the scoring side needs the same assets implied by AI
 
 HF dataset downloads are supported. External repository checkouts are not required for these docs because the WorldFoundry integration lives in-tree.
 
-## Supported Commands
+## Supported commands
 
 Set the generated artifact directory once:
 
@@ -86,14 +86,14 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
   --json
 ```
 
-## Import Paths
+## Import paths
 
 - Runner: `worldfoundry.evaluation.tasks.execution.runners.aigcbench.run_aigcbench_official_runner`
 - Metrics: `worldfoundry.evaluation.tasks.execution.runners.aigcbench.aigcbench_metrics`
 - Prompts and artifact layout: `worldfoundry.evaluation.tasks.execution.runners.aigcbench.aigcbench_prompts`
 - Runtime adapter: `worldfoundry.evaluation.tasks.execution.runners.aigcbench.aigcbench_runtime`
 
-## Result File Shape
+## Result file shape
 
 The importer accepts JSON or CSV-style result rows. It can read summary rows with `metric_id` and `score` or per-sample rows with metric columns. Metric aliases such as `mse`, `ssim`, `clip_per`, and AIGCBench display names are normalized to the canonical ids below.
 
@@ -101,7 +101,7 @@ Outputs written under `--output-dir` include:
 
 - `scorecard.json`: benchmark status, coverage, metric table, and output paths.
 - `raw_metric_table.jsonl`: one row per declared metric.
-- `per_sample_scores.jsonl`: per-sample subset when the input result file contains sample ids.
+- `per_sample_scores.jsonl`: per-sample subset when the input result file contains sample IDs.
 
 ## Metrics
 

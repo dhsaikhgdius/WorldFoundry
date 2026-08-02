@@ -82,6 +82,12 @@ class AliasRegistryStore(Generic[ItemT]):
             self._aliases[alias_key] = canonical_key
         return item, None, None
 
+    def discard_alias(self, alias: str) -> bool:
+        """Remove one alias without ever removing a canonical entry."""
+
+        alias_key = lookup_key(alias, self._field_name)
+        return self._aliases.pop(alias_key, None) is not None
+
     def resolve_key(self, key: str) -> str:
         normalized = lookup_key(key, self._field_name)
         if normalized in self._entries:

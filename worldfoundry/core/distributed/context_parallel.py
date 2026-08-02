@@ -31,6 +31,7 @@ from torch.distributed import (
 from torch.distributed.utils import _verify_param_shape_across_processes
 
 from worldfoundry.core.distributed import torch_process_group as distributed
+from worldfoundry.core.distributed.tensor_collectives import all_gather_concat
 
 try:
     from worldfoundry.core.distributed.megatron_compat import parallel_state
@@ -93,16 +94,10 @@ def cat_outputs_cp(x: Tensor, seq_dim: int, cp_group: ProcessGroup | None = None
     if cp_group is None:
         return x
 
-    x = x.contiguous()
-    world_size = get_world_size(cp_group)
-    gathered_tensors = [torch.zeros_like(x) for _ in range(world_size)]
-
     try:
-        all_gather(gathered_tensors, x, group=cp_group)
+        return all_gather_concat(x, dim=seq_dim, group=cp_group)
     except RuntimeError as e:
         raise RuntimeError("Failed to gather tensors") from e
-
-    return torch.cat(gathered_tensors, dim=seq_dim)
 
 
 def cat_outputs_cp_with_grad(x: Tensor, seq_dim: int, cp_group: ProcessGroup | None = None) -> Tensor:
@@ -134,7 +129,7 @@ def robust_broadcast(
     """Broadcast a tensor even when non-source ranks start with different shapes."""
 
     if tensor.device.type != "cuda" and torch.cuda.is_available():
-        tensor = tensor.cuda()
+        tensor = tensor.to(torch.device("cuda", torch.cuda.current_device()))
 
     if distributed.get_rank() == src:
         shape = torch.tensor(tensor.shape, dtype=torch.long, device=tensor.device)

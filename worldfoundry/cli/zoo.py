@@ -5,8 +5,8 @@ from __future__ import annotations
 import argparse
 import json
 import shlex
-import sys
 from pathlib import Path
+from types import ModuleType
 from typing import Any, Mapping
 
 from worldfoundry.core.io.paths import (
@@ -18,7 +18,6 @@ from worldfoundry.evaluation.utils import (
     BENCHMARK_ZOO_DIR,
     MODEL_ZOO_DIR,
     REPO_ROOT,
-    TMP_ROOT,
     manifest_paths,
     worldfoundry_hfd_dataset_root,
 )

@@ -149,7 +149,7 @@ def _scorecard(
     # protocol completed.  Do not promote adapter success to official evidence.
     official_verified = False
     integration_evidence = False
-    normalizer_only = True
+    normalizer_only = not official_runtime_executed
     return {
         "schema_version": SCORECARD_SCHEMA_VERSION,
         "official_benchmark_verified": official_verified,
@@ -179,7 +179,7 @@ def _scorecard(
         },
         "evaluation": {
             "available": normalization_ok,
-            "kind": "mirabench_result_normalizer",
+            "kind": "mirabench_official_in_tree" if official_runtime_executed else "mirabench_result_normalizer",
             "blocked_count": len(METRIC_ORDER) - len(available_rows),
         },
         "artifacts": {

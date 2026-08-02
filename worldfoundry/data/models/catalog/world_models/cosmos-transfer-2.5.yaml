@@ -2,19 +2,29 @@ runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipel
 availability: open_source
 checkpoints:
 - nvidia/Cosmos-Transfer2.5-2B
+- nvidia/Cosmos-Predict2.5-2B
+- nvidia/Cosmos-Reason1-7B
 family: NVIDIA Cosmos
 id: cosmos-transfer-2.5
 integration:
   notes:
-  - Cosmos Transfer 2.5 pipeline source is vendored in-tree and exposes a plan wrapper.
-  - Real Transfer inference remains blocked until local nvidia/Cosmos-Transfer2.5-2B
-    and control variant checkpoints are staged.
-  status: runtime_ported
+  - Transfer 2.5 uses the same native runner, Reason1 conditioner, flow-UniPC scheduler,
+    Wan VAE codec, checkpoint loader, and offload policies as Predict 2.5.
+  - The VACE network adds only the checkpoint-shaped four-block control branch at base
+    layers 0/7/14/21 and 8-modality control embedder; no Diffusers or model-specific
+    runner is retained.
+  - A tiny native control forward passes, while exact weight structure and end-to-end GPU
+    parity remain pending because the general/edge checkpoint is not staged locally.
+  status: integrated
 license: other:nvidia-open-model-license
 modalities:
 - controlled-video
 - world-generation
 - spatial-control
+tasks:
+- controlled-video
+- edge-conditioned-video
+- world-generation
 name: Cosmos Transfer 2.5
 pipeline_binding: cosmos-transfer-2.5
 official_sources:
@@ -37,27 +47,29 @@ starred: true
 variants:
 - runner_parity:
     blocked_reasons:
-    - Requires accepted NVIDIA model license, control-input fixture, official demo
-      artifact, and WorldFoundry runner parity run.
-    status: planned
+    - Requires the exact general/edge checkpoint, accepted NVIDIA license, a control-input
+      fixture, official demo artifact, and end-to-end GPU parity run.
+    status: pending
   checkpoint_refs:
   - gated: auto
     license: other:nvidia-open-model-license
     private: false
     repo_id: nvidia/Cosmos-Transfer2.5-2B
     requires_auth: true
-    revision: bbaeedb2b57cc8b14a44653099e2551adb69dcc7
+    revision: bd963eabcfc2d61dc4ea365cacf41d45ac480aa5
+    filename: general/edge/ecd0ba00-d598-4f94-aa09-e8627899c431_ema_bf16.pt
   demo_parity:
-    status: pending_demo
+    status: pending_native_gpu
   id: cosmos-transfer-2.5-2b
+  integration_status: integrated
   provider: official_repo
   runtime_profile: cosmos-transfer2.5-2b-controlled-video
   task: controlled-video
 runner_parity:
   notes:
-  - In-tree CosmosTransfer2p5Pipeline resolves the vendored Transfer pipeline source
-    and emits a blocked runtime plan until local gated checkpoints are staged.
-  status: implemented_checkpoint_pending
+  - CosmosTransfer2p5Pipeline directly invokes the native VACE recipe; checkpoint-key and
+    output parity remain gated by the unavailable local general/edge weights.
+  status: pending
 catalog_category: world_models
 catalog_scope: world-model/interactive starred models
 catalog_policy:

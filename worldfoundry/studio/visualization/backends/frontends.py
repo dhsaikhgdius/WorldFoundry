@@ -11,8 +11,8 @@ import contextlib
 import mimetypes
 import os
 import re
-import shutil
 import shlex
+import shutil
 import socket
 import subprocess
 import sys
@@ -43,6 +43,7 @@ from worldfoundry.studio.visualization.core.registry import (
     EMBODIED_VISUALIZATION,
     INTERACTIVE_WORLD_VISUALIZATION,
     MEDIA_VISUALIZATION,
+    NATIVE_WORLD_EXPLORER_VISUALIZATION,
     RERUN_VISUALIZATION,
     SPARK_VISUALIZATION,
     UNIFIED_VISUALIZATION,
@@ -55,6 +56,7 @@ from worldfoundry.studio.visualization.core.registry import (
 )
 
 WORLD_FRONTEND = INTERACTIVE_WORLD_VISUALIZATION
+NATIVE_WORLD_FRONTEND = NATIVE_WORLD_EXPLORER_VISUALIZATION
 POINTS_FRONTEND = VISER_VISUALIZATION
 EMBODIED_FRONTEND = EMBODIED_VISUALIZATION
 SPARK_FRONTEND = SPARK_VISUALIZATION
@@ -77,6 +79,13 @@ def _world_backend(request) -> StudioVisualizationLaunch | None:
         port=port_for_frontend(request.launch_config, WORLD_FRONTEND),
         access_printer=print_remote_access,
     )
+    return None
+
+
+def _native_world_backend(request) -> StudioVisualizationLaunch | None:
+    from worldfoundry.studio.native.world_explorer.launcher import launch_from_studio
+
+    launch_from_studio(request.entry, request.launch_config)
     return None
 
 
@@ -107,6 +116,18 @@ def _rerun_backend(request) -> StudioVisualizationLaunch | None:
 
 STUDIO_VISUALIZATIONS = StudioVisualizationRegistry(
     (
+        StudioVisualizationBackend(
+            mode=NATIVE_WORLD_FRONTEND,
+            title="Native World Explorer",
+            default_port=8000,
+            aliases=("world-explorer", "imgui"),
+            match=_profile_mode(NATIVE_WORLD_FRONTEND),
+            serve=_native_world_backend,
+            capabilities=BackendCapabilities(
+                frozenset({"image", "video", "camera", "trajectory"}),
+                score=95,
+            ),
+        ),
         StudioVisualizationBackend(
             mode=WORLD_FRONTEND,
             title="Interactive World Model",

@@ -4,7 +4,7 @@ import torch
 import numpy as np
 from diffusers.video_processor import VideoProcessor
 
-from worldfoundry.base_models.diffusion_model.video.wan.wan_2p2.configs import (
+from worldfoundry.base_models.diffusion_model.recipes.wan_configs.wan22 import (
     WAN_CONFIGS,
     SIZE_CONFIGS,
     MAX_AREA_CONFIGS

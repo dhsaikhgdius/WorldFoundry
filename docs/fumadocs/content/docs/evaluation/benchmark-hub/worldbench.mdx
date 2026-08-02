@@ -9,11 +9,11 @@ WorldBench is represented in WorldFoundry as a physical-understanding benchmark 
 
 WorldFoundry already includes the WorldBench runner under `worldfoundry/evaluation/tasks/execution/runners/worldbench`. Do not clone official repos for this page. The current in-tree runner imports caller-provided JSON/JSONL/CSV/TSV results or materializes scores from a WorldFoundry artifact-score directory; no source-confirmed upstream evaluator was found in the local GitHub/Hugging Face references.
 
-## What It Measures
+## What it measures
 
 WorldBench asks how close generative world models are to the **physical world**. It evaluates video continuation from a short input clip and text-based physics reasoning, measuring whether models preserve object permanence, support relations, motion physics, and scale/perspective over time.
 
-## Benchmark Design
+## Benchmark design
 
 | Track | Scenarios | Assets | Evaluation |
 | --- | --- | --- | --- |
@@ -23,18 +23,18 @@ WorldBench asks how close generative world models are to the **physical world**.
 
 The official project uses Kubric (PyBullet + Blender) for physically accurate ground truth. Performance degrades with prediction horizon — the sharpest drop occurs after the first predicted frames.
 
-## Official References
+## Official references
 
 - Paper: [arXiv:2601.21282](https://arxiv.org/abs/2601.21282)
 - Project page: [world-bench.github.io](https://world-bench.github.io/)
 - Dataset: [worldbenchmark/WorldBench](https://huggingface.co/datasets/worldbenchmark/WorldBench) (redirects to `worldbenchmark/IntuitivePhysics`)
 - In-tree runner: `worldfoundry/evaluation/tasks/execution/runners/worldbench/run_worldbench_official_runner.py`
 
-## Leaderboard Notes
+## Leaderboard notes
 
 The official site reports per-category mIoU for world foundation models and per-category accuracy for vision-language models. WorldFoundry does not currently ship a source-confirmed upstream evaluator; it imports caller-provided result tables or materializes scores from artifact-score directories. Leaderboard parity remains pending until the complete upstream scoring workflow is audited.
 
-## Prepare Data And Assets
+## Prepare data and assets
 
 Run from the WorldFoundry repository root:
 
@@ -87,7 +87,7 @@ export WORLDFOUNDRY_WORLDBENCH_RESULTS_PATH=/path/to/worldbench/results.csv
 export WORLDFOUNDRY_WORLDBENCH_ARTIFACT_SCORE_DIR=/path/to/worldbench/artifact_scores
 ```
 
-## Run With WorldFoundry
+## Run with WorldFoundry
 
 Public command for importing a completed WorldBench result file:
 

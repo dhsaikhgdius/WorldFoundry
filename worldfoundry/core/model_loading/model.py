@@ -10,6 +10,43 @@ from worldfoundry.core.vram.initialization import skip_model_initialization
 from worldfoundry.core.vram.layers import enable_vram_management
 
 
+def _restore_checkpoint_buffers(
+    model: torch.nn.Module,
+    disk_map: DiskMap,
+    *,
+    torch_dtype: torch.dtype,
+) -> None:
+    """Materialize checkpoint-backed buffers before installing disk wrappers.
+
+    ``skip_model_initialization`` redirects parameters to ``meta`` but leaves
+    buffers on CPU.  Buffers created with ``torch.empty`` therefore contain
+    uninitialized data unless they are explicitly restored from the
+    checkpoint.  Disk-backed wrappers load parameters lazily, so a normal
+    ``load_state_dict`` call is intentionally unavailable in this path.
+
+    Only persistent buffers present in the converted checkpoint mapping are
+    replaced.  Deterministic, non-checkpoint buffers keep the values produced
+    by their constructors.
+    """
+
+    for name, current in model.named_buffers():
+        if name not in disk_map:
+            continue
+        value = disk_map[name]
+        if not isinstance(value, torch.Tensor):
+            raise TypeError(f"checkpoint buffer {name!r} is not a tensor")
+        if current.shape != value.shape:
+            raise ValueError(
+                f"checkpoint buffer {name!r} has shape {tuple(value.shape)}, "
+                f"expected {tuple(current.shape)}"
+            )
+        target_dtype = torch_dtype if value.is_floating_point() or value.is_complex() else value.dtype
+        target_device = current.device if current.device.type != "meta" else torch.device("cpu")
+        owner_name, separator, local_name = name.rpartition(".")
+        owner = model.get_submodule(owner_name) if separator else model
+        owner._buffers[local_name] = value.to(device=target_device, dtype=target_dtype)
+
+
 def load_model(
     model_class,
     path,
@@ -22,6 +59,7 @@ def load_model(
     vram_config=None,
     vram_limit=None,
     state_dict=None,
+    strict=True,
 ):
     """Construct a model, assign checkpoint weights, and finalize inference placement.
 
@@ -38,6 +76,9 @@ def load_model(
         vram_config: Offload/onload/preparing/computation placement dictionary.
         vram_limit: Optional used-memory limit in GiB for wrappers.
         state_dict: Already-loaded weights; takes precedence over ``path``.
+        strict: Require an exact parameter match.  When false, construct a
+            materialized module, retain its initialization for missing keys,
+            and call ``initialize(missing_keys)`` when the model provides it.
 
     Returns:
         An eval-mode model with weights assigned.
@@ -47,8 +88,11 @@ def load_model(
         ZeRO-3 receives its specialized state-dict assignment path.
     """
     config = {} if config is None else config
+    if not strict and module_map is not None:
+        raise ValueError("non-strict loading is not supported with wrapped VRAM modules")
+    init_contexts = get_init_context(torch_dtype=torch_dtype, device=device) if strict else []
     try:
-        with ContextManagers(get_init_context(torch_dtype=torch_dtype, device=device)):
+        with ContextManagers(init_contexts):
             model = model_class(**config)
     except NotImplementedError as exc:
         # Some third-party-compatible modules move their parameters inside
@@ -114,11 +158,18 @@ def load_model(
         # Because at this stage, model parameters are partitioned across multiple GPUs.
         # Loading them directly could lead to excessive GPU memory consumption.
         if is_deepspeed_zero3_enabled():
+            if not strict:
+                raise NotImplementedError("non-strict checkpoint loading is not supported with DeepSpeed ZeRO-3")
             from transformers.integrations.deepspeed import _load_state_dict_into_zero3_model
 
             _load_state_dict_into_zero3_model(model, state_dict)
         else:
-            model.load_state_dict(state_dict, assign=True)
+            if strict:
+                model.load_state_dict(state_dict, assign=True)
+            else:
+                incompatible = model.load_state_dict(state_dict, strict=False)
+                if incompatible.missing_keys and hasattr(model, "initialize"):
+                    model.initialize(incompatible.missing_keys)
         # Why do we call `to()`?
         # Because some models override the behavior of `to()`,
         # especially those from libraries like Transformers.
@@ -153,6 +204,7 @@ def load_model_with_disk_offload(
     if hasattr(model, "eval"):
         model = model.eval()
     disk_map = DiskMap(path, device, state_dict_converter=state_dict_converter)
+    _restore_checkpoint_buffers(model, disk_map, torch_dtype=torch_dtype)
     vram_config = {
         "offload_dtype": "disk",
         "offload_device": "disk",

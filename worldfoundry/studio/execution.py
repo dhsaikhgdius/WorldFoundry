@@ -773,6 +773,17 @@ def guess_intrinsics(image_path: str) -> list[list[float]]:
     ]
 
 
+def _tensor_to_numpy(tensor: Any) -> np.ndarray:
+    """Move a tensor to CPU and bridge dtypes unsupported by NumPy."""
+    tensor = tensor.detach().cpu()
+    try:
+        return tensor.numpy()
+    except TypeError:
+        if tensor.is_floating_point():
+            return tensor.float().numpy()
+        raise
+
+
 def _to_uint8_rgb(frame: Any) -> np.ndarray:
     torch = _torch_module()
     if isinstance(frame, Image.Image):
@@ -783,7 +794,7 @@ def _to_uint8_rgb(frame: Any) -> np.ndarray:
             tensor = tensor.permute(1, 2, 0)
         elif tensor.ndim == 4 and tensor.shape[1] in {1, 3, 4}:
             tensor = tensor.permute(0, 2, 3, 1)
-        arr = tensor.numpy()
+        arr = _tensor_to_numpy(tensor)
     else:
         arr = np.asarray(frame)
     if arr.ndim == 2:
@@ -816,7 +827,7 @@ def _normalize_frame_list(value: Any) -> Optional[list[np.ndarray]]:
         try:
             torch = _torch_module()
             arrays = [
-                item.detach().cpu().numpy() if torch is not None and isinstance(item, torch.Tensor) else np.asarray(item)
+                _tensor_to_numpy(item) if torch is not None and isinstance(item, torch.Tensor) else np.asarray(item)
                 for item in value
             ]
             shapes = {tuple(arr.shape) for arr in arrays}
@@ -836,11 +847,22 @@ def _normalize_frame_list(value: Any) -> Optional[list[np.ndarray]]:
         if tensor.ndim == 5:
             tensor = tensor[0]
         if tensor.ndim == 4:
-            if tensor.shape[0] in {1, 3, 4}:
-                tensor = tensor.permute(1, 2, 3, 0)
+            # Prefer an explicit RGB tail unless dimension 1 is also RGB.
+            # The latter is the ambiguous TCHW case where W happens to be 3.
+            # Checking the leading dimension first misclassifies common THWC
+            # chunks containing exactly 1, 3, or 4 frames.
+            if tensor.shape[-1] == 3 and tensor.shape[1] != 3:
+                pass
             elif tensor.shape[1] in {1, 3, 4}:
                 tensor = tensor.permute(0, 2, 3, 1)
-            return [_to_uint8_rgb(frame) for frame in tensor]
+            elif tensor.shape[0] in {1, 3, 4}:
+                tensor = tensor.permute(1, 2, 3, 0)
+            elif tensor.shape[-1] not in {1, 3, 4}:
+                return None
+            # Layout is explicitly frame-major HWC at this point. Bridge each
+            # frame to NumPy first so small heights such as 3 or 4 are not
+            # reinterpreted as CHW by the generic single-frame helper.
+            return [_to_uint8_rgb(_tensor_to_numpy(frame)) for frame in tensor]
         return None
     if isinstance(value, np.ndarray) and value.ndim == 5:
         value = value[0]
@@ -863,7 +885,7 @@ def _save_preview_image_sequence(
         return []
     torch = _torch_module()
     if torch is not None and isinstance(value, torch.Tensor):
-        value = value.detach().cpu().numpy()
+        value = _tensor_to_numpy(value)
 
     frames: list[Any]
     if isinstance(value, np.ndarray):
@@ -1874,17 +1896,25 @@ class BaseRuntimeDriver:
         base_kwargs = dict(request.call_kwargs)
         names = _signature_names(method)
         accepts_var_kwargs = _accepts_var_kwargs(method)
+        declares_visual_modalities = hasattr(ctx.pipeline, "ACCEPTS_IMAGES") or hasattr(
+            ctx.pipeline, "ACCEPTS_VIDEO"
+        )
+        accepts_images = getattr(ctx.pipeline, "ACCEPTS_IMAGES", True) is not False
+        accepts_video = getattr(ctx.pipeline, "ACCEPTS_VIDEO", True) is not False
+        accepts_generic_input = not declares_visual_modalities or accepts_images or accepts_video
         input_path_as_video = _input_path_should_bind_as_video(request.input_path, names)
         if input_path_as_video and ctx.entry.family in _NO_VIDEO_BIND_FAMILIES:
             input_path_as_video = False
 
         if request.prompt and ("prompt" in names or accepts_var_kwargs):
             base_kwargs.setdefault("prompt", request.prompt)
-        if request.image is not None and ("images" in names or accepts_var_kwargs):
+        if accepts_images and request.image is not None and ("images" in names or accepts_var_kwargs):
             base_kwargs.setdefault("images", request.image)
-        elif request.image_path and ("images" in names or accepts_var_kwargs) and request.image is None:
+        elif accepts_images and request.image_path and ("images" in names or accepts_var_kwargs) and request.image is None:
             base_kwargs.setdefault("images", request.image_path)
         elif (
+            accepts_images
+            and
             request.video_path
             and "images" in names
             and request.image is None
@@ -1892,25 +1922,25 @@ class BaseRuntimeDriver:
             and not ({"video", "videos", "video_path"} & names)
         ):
             base_kwargs.setdefault("images", request.video_path)
-        elif request.input_path and not input_path_as_video and ("images" in names or accepts_var_kwargs) and request.image is None:
+        elif accepts_images and request.input_path and not input_path_as_video and ("images" in names or accepts_var_kwargs) and request.image is None:
             base_kwargs.setdefault("images", request.input_path)
-        if request.image_path and ("image_path" in names or accepts_var_kwargs):
+        if accepts_images and request.image_path and ("image_path" in names or accepts_var_kwargs):
             base_kwargs.setdefault("image_path", request.image_path)
-        elif request.input_path and not input_path_as_video and ("image_path" in names or accepts_var_kwargs):
+        elif accepts_images and request.input_path and not input_path_as_video and ("image_path" in names or accepts_var_kwargs):
             base_kwargs.setdefault("image_path", request.input_path)
-        if request.video_path and ("videos" in names or accepts_var_kwargs):
+        if accepts_video and request.video_path and ("videos" in names or accepts_var_kwargs):
             base_kwargs.setdefault("videos", request.video_path)
-        elif request.input_path and input_path_as_video and ("videos" in names or accepts_var_kwargs):
+        elif accepts_video and request.input_path and input_path_as_video and ("videos" in names or accepts_var_kwargs):
             base_kwargs.setdefault("videos", request.input_path)
-        if request.video_path and ("video" in names or accepts_var_kwargs):
+        if accepts_video and request.video_path and ("video" in names or accepts_var_kwargs):
             base_kwargs.setdefault("video", request.video_path)
-        elif request.input_path and input_path_as_video and ("video" in names or accepts_var_kwargs):
+        elif accepts_video and request.input_path and input_path_as_video and ("video" in names or accepts_var_kwargs):
             base_kwargs.setdefault("video", request.input_path)
-        if request.video_path and ("video_path" in names or accepts_var_kwargs):
+        if accepts_video and request.video_path and ("video_path" in names or accepts_var_kwargs):
             base_kwargs.setdefault("video_path", request.video_path)
-        elif request.input_path and input_path_as_video and ("video_path" in names or accepts_var_kwargs):
+        elif accepts_video and request.input_path and input_path_as_video and ("video_path" in names or accepts_var_kwargs):
             base_kwargs.setdefault("video_path", request.input_path)
-        if request.input_path and ("input_path" in names or accepts_var_kwargs):
+        if accepts_generic_input and request.input_path and ("input_path" in names or accepts_var_kwargs):
             base_kwargs.setdefault("input_path", request.input_path)
         if "data_path" in names:
             data_path = request.input_path or request.image_path or request.video_path
@@ -1949,7 +1979,7 @@ class BaseRuntimeDriver:
             base_kwargs.setdefault("num_frames", request.num_frames)
         if request.fps and "fps" in names:
             base_kwargs.setdefault("fps", request.fps)
-        if mode == "run" and "return_dict" in names:
+        if mode == "run" and ("return_dict" in names or accepts_var_kwargs):
             base_kwargs.setdefault("return_dict", True)
         if mode == "stream" and "images" in names and "images" not in base_kwargs:
             # Some stream() entry points require the images argument even after
@@ -3426,13 +3456,24 @@ class StudioManager:
                 value = result.get(key)
                 if isinstance(value, str) and Path(value).exists():
                     saved_artifacts.append(value)
-            for key in ("sr_videos", "videos", "frames", "video"):
-                if key not in result:
-                    continue
-                frames = _normalize_frame_list(result[key])
-                if frames:
-                    saved_artifacts.append(export_frames_to_video(frames, request.output_path, fps=request.fps))
-                    break
+            # Pipelines that return both an already encoded video path and the
+            # source tensor have finished materializing their output. Re-encoding
+            # that tensor can overwrite the valid artifact at the same path, and
+            # is especially unsafe for model-specific sample ranges/layouts.
+            has_encoded_video = any(
+                Path(path).suffix.lower() in VIDEO_EXTS and Path(path).is_file()
+                for path in saved_artifacts
+            )
+            if not has_encoded_video:
+                for key in ("sr_videos", "videos", "frames", "video"):
+                    if key not in result:
+                        continue
+                    frames = _normalize_frame_list(result[key])
+                    if frames:
+                        saved_artifacts.append(
+                            export_frames_to_video(frames, request.output_path, fps=request.fps)
+                        )
+                        break
             if "recon_info" in result:
                 recon_path = str(
                     _core_write_json(Path(output_dir) / "recon_info.json", _safe_json(result["recon_info"]), atomic=False)

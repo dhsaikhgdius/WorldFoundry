@@ -3,8 +3,6 @@
 from .pipeline_official_video import (
     Emu35Pipeline,
     FramePackPipeline,
-    HunyuanVideo15I2VPipeline,
-    HunyuanVideo15T2VPipeline,
     I2VGenXLPipeline,
     KreaRealtimeVideoPipeline,
     MAGI1Pipeline,
@@ -16,19 +14,15 @@ from .pipeline_official_video import (
     OpenSoraPlanPipeline,
     Qwen25OmniPipeline,
     SAMA14BPipeline,
-    SkyReelsV2Pipeline,
     SpatialLadderPipeline,
     SpatialReasonerPipeline,
     ThinkSoundPipeline,
     UniAnimateDiTPipeline,
-    Wan21VACEPipeline,
 )
 
 __all__ = [
     "Emu35Pipeline",
     "FramePackPipeline",
-    "HunyuanVideo15I2VPipeline",
-    "HunyuanVideo15T2VPipeline",
     "I2VGenXLPipeline",
     "KreaRealtimeVideoPipeline",
     "MAGI1Pipeline",
@@ -40,10 +34,8 @@ __all__ = [
     "OpenSoraPlanPipeline",
     "Qwen25OmniPipeline",
     "SAMA14BPipeline",
-    "SkyReelsV2Pipeline",
     "SpatialLadderPipeline",
     "SpatialReasonerPipeline",
     "ThinkSoundPipeline",
     "UniAnimateDiTPipeline",
-    "Wan21VACEPipeline",
 ]

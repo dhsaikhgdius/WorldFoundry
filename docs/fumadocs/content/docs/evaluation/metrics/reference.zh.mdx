@@ -207,7 +207,7 @@ dreamsim_dist = compute_dreamsim(ref, gen)
 | `worldfoundry-eval metric show <id>` | 查看单条 entry、别名、参数化前缀。 |
 | `worldfoundry-eval metric validate <id>...` | 批量解析 id；未知 id 时 exit 1。 |
 | `worldfoundry-eval evaluate --metric ...` | **仅内置 existing-results 指标**（`artifact_count`、`required_artifacts_present`、`has_artifact:<name>`、`numeric`、`numeric:<name>`）。 |
-| `worldfoundry-eval plan create --metric ...` | 构造 run plan JSON 时使用相同内置 metric id。 |
+| `worldfoundry-eval plan create --metric ...` | 构造 run plan JSON 时使用相同内置 metric ID。 |
 
 分布与感知类指标目前通过 Python 调用。Benchmark runner 在计算官方 metric stack 时可能复用相同底层实现（EvalCrafter IS/FID、MiraBench FVD 等）。多模态 scorer（CLIPScore、VQAScore、ITMScore）通过 `worldfoundry.evaluation.tasks.metrics.get_score_model(...)` 暴露，实现位于 `execution/runners/_scorers/`。
 

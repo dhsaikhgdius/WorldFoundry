@@ -12,7 +12,6 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from typing import Any, Mapping, Protocol, runtime_checkable
 
-
 DEFAULT_REALTIME_CONTROLS = (
     "forward",
     "backward",
@@ -35,17 +34,59 @@ class RealtimeSpec:
     controls: tuple[str, ...] = DEFAULT_REALTIME_CONTROLS
     transport: str = "in-memory-rgb"
     stateful: bool = True
+    input_fps: float | None = None
+    first_input_frames: int | None = None
+    steady_input_frames: int | None = None
 
     def __post_init__(self) -> None:
         if self.fps < 1:
             raise ValueError("RealtimeSpec.fps must be positive.")
         if self.first_chunk_frames < 1 or self.steady_chunk_frames < 1:
             raise ValueError("RealtimeSpec chunk frame counts must be positive.")
+        if self.input_fps is not None and self.input_fps <= 0.0:
+            raise ValueError("RealtimeSpec.input_fps must be positive when provided.")
+        if self.first_input_frames is not None and self.first_input_frames < 1:
+            raise ValueError("RealtimeSpec.first_input_frames must be positive when provided.")
+        if self.steady_input_frames is not None and self.steady_input_frames < 1:
+            raise ValueError("RealtimeSpec.steady_input_frames must be positive when provided.")
         if not self.controls:
             raise ValueError("RealtimeSpec.controls must not be empty.")
 
+    @property
+    def resolved_input_fps(self) -> float:
+        """Control/input sampling FPS, defaulting to the playback clock."""
+
+        return float(self.input_fps if self.input_fps is not None else self.fps)
+
+    @property
+    def resolved_first_input_frames(self) -> int:
+        """First control chunk size, defaulting to first output frames."""
+
+        return int(
+            self.first_input_frames
+            if self.first_input_frames is not None
+            else self.first_chunk_frames
+        )
+
+    @property
+    def resolved_steady_input_frames(self) -> int:
+        """Steady control chunk size, defaulting to steady output frames."""
+
+        return int(
+            self.steady_input_frames
+            if self.steady_input_frames is not None
+            else self.steady_chunk_frames
+        )
+
     def to_payload(self) -> dict[str, Any]:
         payload = asdict(self)
+        for optional_name in (
+            "input_fps",
+            "first_input_frames",
+            "steady_input_frames",
+        ):
+            if payload[optional_name] is None:
+                payload.pop(optional_name)
         payload["controls"] = list(self.controls)
         return payload
 
@@ -69,6 +110,15 @@ class RealtimeSpec:
                 controls = tuple(item.strip() for item in controls.split(",") if item.strip())
             else:
                 controls = tuple(str(item) for item in controls)
+            input_fps = value.get("input_fps", default.input_fps)
+            first_input_frames = value.get(
+                "first_input_frames",
+                default.first_input_frames,
+            )
+            steady_input_frames = value.get(
+                "steady_input_frames",
+                default.steady_input_frames,
+            )
             return cls(
                 fps=int(value.get("fps", default.fps)),
                 first_chunk_frames=int(
@@ -76,6 +126,17 @@ class RealtimeSpec:
                 ),
                 steady_chunk_frames=int(
                     value.get("steady_chunk_frames", default.steady_chunk_frames)
+                ),
+                input_fps=float(input_fps) if input_fps is not None else None,
+                first_input_frames=(
+                    int(first_input_frames)
+                    if first_input_frames is not None
+                    else None
+                ),
+                steady_input_frames=(
+                    int(steady_input_frames)
+                    if steady_input_frames is not None
+                    else None
                 ),
                 controls=controls or default.controls,
                 transport=str(value.get("transport", default.transport)),

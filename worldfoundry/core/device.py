@@ -52,6 +52,20 @@ def get_device_name() -> str:
     return f"{get_device_type()}:{get_device_id()}"
 
 
+def get_current_torch_device() -> torch.device:
+    """Return the accelerator selected for this process, or CPU.
+
+    Distributed launchers select a process-local device with ``set_device``.
+    Using that current index avoids collapsing every local rank onto CUDA 0.
+    """
+
+    if torch.cuda.is_available():
+        return torch.device("cuda", torch.cuda.current_device())
+    if IS_NPU_AVAILABLE:
+        return torch.device("npu", torch.npu.current_device())
+    return torch.device("cpu")
+
+
 def synchronize() -> None:
     """Execute torch synchronize operation."""
     get_torch_device().synchronize()
@@ -158,14 +172,14 @@ def get_available_device_type() -> str:
 def resolve_inference_device(device: str | torch.device | None = "cuda", *, allow_cpu_fallback: bool = False) -> str:
     """Resolve a concrete inference device without silently selecting the wrong GPU.
 
-    Bare ``cuda`` resolves to the process-local ``cuda:0``. Explicit indices are
-    preserved, which is important when a caller deliberately selects (for
-    example) ``cuda:4`` under an eight-GPU workspace.
+    Bare ``cuda`` resolves to the CUDA device currently selected for this
+    process. Explicit indices are preserved, which is important when a caller
+    deliberately selects (for example) ``cuda:4`` under an eight-GPU workspace.
     """
 
     requested = str(device or "cuda").strip().lower()
     if requested == "cuda":
-        requested = "cuda:0"
+        requested = f"cuda:{torch.cuda.current_device()}" if torch.cuda.is_available() else "cuda:0"
     if requested.startswith("cuda") and not torch.cuda.is_available():
         if allow_cpu_fallback:
             return "cpu"
@@ -236,6 +250,7 @@ __all__ = [
     "empty_cache",
     "enable_high_precision_for_bf16",
     "get_available_device_type",
+    "get_current_torch_device",
     "get_device_id",
     "get_device_name",
     "get_device_type",

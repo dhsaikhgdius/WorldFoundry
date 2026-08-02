@@ -1599,8 +1599,8 @@ def _param_key_aliases(key: str) -> tuple[str, ...]:
         "guidance": ("guidance_scale", "cfg_scale", "scale"),
         "seed": ("seed",),
         "fps": ("fps",),
-        "num_inference_steps": ("num_inference_steps", "sampling_steps", "infer_steps", "num_steps"),
-        "steps": ("num_inference_steps", "sampling_steps", "infer_steps", "num_steps"),
+        "num_inference_steps": ("num_inference_steps", "sampling_steps", "infer_steps", "num_steps", "steps"),
+        "steps": ("num_inference_steps", "sampling_steps", "infer_steps", "num_steps", "steps"),
         "negative_prompt": ("negative_prompt",),
         "interactions": ("interactions", "interaction_signal", "interaction", "action"),
     }
@@ -3100,10 +3100,52 @@ WORKSPACE_HTML = r"""
       line-height: 1.5;
     }
     .split {
+      --split-left: 360px;
+      --split-handle: 10px;
       display: grid;
-      grid-template-columns: minmax(420px, 1fr) 400px;
-      gap: 20px;
-      align-items: start;
+      grid-template-columns: var(--split-left) var(--split-handle) minmax(0, 1fr);
+      gap: 0;
+      align-items: stretch;
+      min-width: 0;
+    }
+    .splitHandle {
+      position: relative;
+      width: var(--split-handle);
+      cursor: col-resize;
+      touch-action: none;
+      user-select: none;
+      border-radius: 999px;
+      background: transparent;
+      align-self: stretch;
+      z-index: 2;
+    }
+    .splitHandle::before {
+      content: "";
+      position: absolute;
+      top: 12px;
+      bottom: 12px;
+      left: 50%;
+      width: 3px;
+      transform: translateX(-50%);
+      border-radius: 999px;
+      background: var(--line);
+      transition: background 0.15s ease, box-shadow 0.15s ease;
+    }
+    .splitHandle:hover::before,
+    .splitHandle:focus-visible::before,
+    .split.is-resizing .splitHandle::before {
+      background: var(--accent);
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.18);
+    }
+    .splitHandle:focus-visible {
+      outline: none;
+    }
+    .split.is-resizing {
+      cursor: col-resize;
+      user-select: none;
+    }
+    .split.is-resizing .panel {
+      pointer-events: none;
     }
     .panel {
       border: 1px solid var(--line);
@@ -3111,6 +3153,7 @@ WORKSPACE_HTML = r"""
       border-radius: var(--radius);
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
       overflow: hidden;
+      min-width: 0;
     }
     .panelHead {
       display: flex;
@@ -3164,10 +3207,139 @@ WORKSPACE_HTML = r"""
     .muted { color: var(--muted); }
     .tiny { font-size: 12px; }
     .detail {
+      align-content: start;
       display: grid;
-      gap: 16px;
-      padding: 20px;
+      gap: 14px;
+      padding: 16px 20px 20px;
+      min-height: 0;
     }
+    .detailTabs {
+      align-items: center;
+      align-self: start;
+      display: flex;
+      flex-wrap: wrap;
+      flex: none;
+      gap: 8px;
+      margin: 0;
+    }
+    .detailTab {
+      appearance: none;
+      align-items: center;
+      border: 1px solid var(--line);
+      background: #111214;
+      color: var(--muted);
+      border-radius: 999px;
+      display: inline-flex;
+      flex: none;
+      gap: 2px;
+      height: auto;
+      line-height: 1.2;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+    .detailTab:hover { border-color: var(--line-hover); color: var(--text); }
+    .detailTab.active {
+      background: rgba(16, 185, 129, 0.12);
+      border-color: rgba(16, 185, 129, 0.45);
+      color: #34d399;
+    }
+    .detailTabPanel { display: none; gap: 16px; min-width: 0; }
+    .detailTabPanel.active { display: grid; align-content: start; }
+    .logToolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+    .logFilter {
+      appearance: none;
+      border: 1px solid var(--line);
+      background: #111214;
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .logFilter.active {
+      color: var(--text);
+      border-color: var(--line-hover);
+      background: #1a1c1e;
+    }
+    .logFilter.system.active { color: #fbbf24; border-color: rgba(251, 191, 36, 0.35); }
+    .logFilter.stdout.active { color: #60a5fa; border-color: rgba(96, 165, 250, 0.35); }
+    .logFilter.stderr.active { color: #f87171; border-color: rgba(248, 113, 113, 0.35); }
+    .logFollow {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: auto;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      user-select: none;
+    }
+    .logFollow input {
+      width: 14px;
+      height: 14px;
+      min-height: 0;
+      margin: 0;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+    .logPanel {
+      margin: 0;
+      border: 1px solid var(--line);
+      background: #09090b;
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      color: #e5e7eb;
+      overflow: auto;
+      min-height: 50vh;
+      max-height: min(72vh, 900px);
+      font-family: 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', monospace;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+    .logLine {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 8px;
+      align-items: start;
+      padding: 2px 0;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    .logMeta {
+      color: #71717a;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .logLine.log-stream-system .logMeta { color: #fbbf24; }
+    .logLine.log-stream-stdout .logMeta { color: #60a5fa; }
+    .logLine.log-stream-stderr .logMeta { color: #f87171; }
+    .logText { color: #e5e7eb; }
+    .logBadge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 18px;
+      height: 18px;
+      margin-left: 4px;
+      padding: 0 5px;
+      border-radius: 999px;
+      background: #232529;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+    }
+    .detailTab.active .logBadge { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; }
     .detailGrid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -3182,6 +3354,36 @@ WORKSPACE_HTML = r"""
     }
     .metric span { display: block; color: var(--muted); font-size: 12px; margin-bottom: 6px; font-weight: 500; }
     .metric strong { font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
+    .metric-wide { grid-column: 1 / -1; }
+    .pathMetric { min-height: 0; }
+    .pathRow {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .pathBasename {
+      font-size: 14px;
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      min-width: 0;
+      flex: 1;
+    }
+    .pathParent {
+      margin-top: 6px;
+      font-family: 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', monospace;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .btn.tiny {
+      min-height: 28px;
+      padding: 4px 10px;
+      font-size: 11px;
+      flex-shrink: 0;
+    }
     .artifactLinks {
       display: flex;
       flex-wrap: wrap;
@@ -3210,7 +3412,8 @@ WORKSPACE_HTML = r"""
       padding: 16px;
       color: #e5e7eb;
       overflow: auto;
-      max-height: 320px;
+      min-height: 240px;
+      max-height: min(72vh, 900px);
       font-family: 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', monospace;
       font-size: 12px;
       line-height: 1.6;
@@ -3392,14 +3595,12 @@ WORKSPACE_HTML = r"""
       grid-area: 1 / 1;
     }
     .mediaBox video, .mediaBox img {
+      position: absolute;
+      inset: 0;
       width: 100%;
       height: 100%;
-      max-width: 100%;
-      max-height: 100%;
-      display: block;
       object-fit: contain;
       background: #09090b;
-      place-self: stretch;
     }
     .mediaBox video:not([src]):not([poster]) { visibility: hidden; }
     .mediaLoad {
@@ -3485,7 +3686,8 @@ WORKSPACE_HTML = r"""
       .navGroup { display: flex; align-items: center; gap: 8px; }
       .navLabel { display: none; }
       .navBtn { white-space: nowrap; }
-      .split { grid-template-columns: 1fr; }
+      .split { grid-template-columns: 1fr; gap: 16px; }
+      .splitHandle { display: none; }
       .formGrid, .checks, .visualizerControls { grid-template-columns: 1fr; }
     }
   </style>
@@ -3518,7 +3720,7 @@ WORKSPACE_HTML = r"""
       <div class="content">
         <section id="view-inference" class="view active">
           <div class="toolbar"><div class="filters"><label>Type<select id="jobTypeFilter"><option value="all">All jobs</option><option value="inference">Inference</option><option value="evaluation">Evaluation</option></select></label><label>Status<select id="statusFilter"><option value="all">All status</option><option>queued</option><option>running</option><option>completed</option><option>failed</option><option>cancelled</option></select></label></div><button class="btn" id="refreshJobs">Refresh</button></div>
-          <div class="split"><div class="panel"><div class="panelHead"><strong>Job Queue</strong><span class="muted tiny" id="jobCount">0 jobs</span></div><div class="jobList" id="jobList"></div></div><div class="panel"><div class="panelHead"><strong>Job Detail</strong><button class="btn danger" id="stopJob">Stop</button></div><div class="detail" id="jobDetail"><span class="muted">Select a job.</span></div></div></div>
+          <div class="split" id="jobSplit" data-split-key="worldfoundry.studio.jobSplitLeft" data-split-default="360" data-split-min-left="240" data-split-min-right="360"><div class="panel"><div class="panelHead"><strong>Job Queue</strong><span class="muted tiny" id="jobCount">0 jobs</span></div><div class="jobList" id="jobList"></div></div><div class="splitHandle" role="separator" aria-orientation="vertical" aria-label="Resize job queue and detail" title="Drag to resize · double-click to reset" tabindex="0"></div><div class="panel"><div class="panelHead"><strong>Job Detail</strong><button class="btn danger" id="stopJob">Stop</button></div><div class="detail" id="jobDetail"><span class="muted">Select a job.</span></div></div></div>
         </section>
         <section id="view-catalog" class="view"><div class="toolbar"><div class="filters"><label>Search<input id="catalogSearch" placeholder="model, tag, family" /></label><label>Workload<select id="catalogWorkload"><option value="all">All</option><option value="t2v">T2V</option><option value="i2v">I2V</option><option value="v2v">V2V</option><option value="3d">3D</option><option value="geometry">Geometry</option><option value="action">Action</option><option value="api">API</option><option value="world">World</option></select></label></div></div><div class="gridCards" id="catalogGrid"></div></section>
         <section id="view-gallery" class="view"><div class="gridCards" id="galleryGrid"></div></section>
@@ -3599,7 +3801,7 @@ WORKSPACE_HTML = r"""
     </form>
   </dialog>
   <script>
-    const state = { view: "inference", jobs: [], models: [], evaluationCatalog: {benchmarks: [], metrics: [], models: []}, visualizers: [], visualizerPreviewMode: "", activeJob: "", detailRenderKey: "", settings: {}, lazyVideoObserver: null, autoVideoPreloads: 0, visualizerRefreshInFlight: false, visualizerLastSync: 0 };
+    const state = { view: "inference", jobs: [], models: [], evaluationCatalog: {benchmarks: [], metrics: [], models: []}, visualizers: [], visualizerPreviewMode: "", activeJob: "", detailRenderKey: "", detailTab: "preview", detailLogCount: 0, logStreamFilter: "all", logFollowTail: true, settings: {}, lazyVideoObserver: null, autoVideoPreloads: 0, visualizerRefreshInFlight: false, visualizerLastSync: 0 };
     const MAX_AUTO_VIDEO_PRELOADS = 4;
     const JOB_VIEWS = new Set(["inference", "evaluation"]);
     const INFER_INFRA_FIELDS = ["workloadType","modelSelect","variantSelect","taskProfile","device","backend","attention","modelRef","endpoint","apiKey","callJson","loadJson"];
@@ -3745,10 +3947,45 @@ WORKSPACE_HTML = r"""
       if (prompt) return prompt;
       const runId = String(row.run_id || "").trim();
       if (runId) return runId;
-      const outputDir = String(row.output_dir || "").replace(/\/+$/, "");
-      if (!outputDir) return "";
-      const parts = outputDir.split("/");
-      return parts[parts.length - 1] || outputDir;
+      return pathBasename(row.output_dir || "");
+    }
+    function normalizePathText(path) {
+      return String(path || "").trim().replace(/\/+$/, "");
+    }
+    function pathBasename(path) {
+      const cleaned = normalizePathText(path);
+      if (!cleaned) return "";
+      const parts = cleaned.split("/");
+      return parts[parts.length - 1] || cleaned;
+    }
+    function pathParentText(path) {
+      const cleaned = normalizePathText(path);
+      const parts = cleaned.split("/");
+      if (parts.length <= 1) return cleaned;
+      parts.pop();
+      return parts.join("/");
+    }
+    function pathParentDisplay(path) {
+      const parent = pathParentText(path);
+      if (!parent) return "";
+      if (parent.length <= 56) return parent;
+      return "…" + parent.slice(-55);
+    }
+    function renderOutputPath(path) {
+      const value = normalizePathText(path);
+      if (!value) {
+        return `<div class="metric metric-wide pathMetric"><span>Output</span><strong class="muted">pending</strong></div>`;
+      }
+      const base = pathBasename(value);
+      const parent = pathParentDisplay(value);
+      return `<div class="metric metric-wide pathMetric">
+        <span>Output directory</span>
+        <div class="pathRow">
+          <strong class="pathBasename" title="${escapeHtml(value)}">${escapeHtml(base)}</strong>
+          <button type="button" class="btn tiny" data-copy-path="${escapeHtml(value)}">Copy path</button>
+        </div>
+        ${parent ? `<div class="pathParent muted tiny" title="${escapeHtml(value)}">${escapeHtml(parent)}</div>` : ""}
+      </div>`;
     }
     function renderImageBox(url) {
       return `<div class="mediaBox"><img loading="lazy" decoding="async" src="${escapeHtml(url)}" /></div>`;
@@ -4059,6 +4296,123 @@ WORKSPACE_HTML = r"""
       $("pageTitle").textContent = VIEW_TITLES[view] || (view[0].toUpperCase() + view.slice(1));
     }
     function statusClass(status) { return "pill " + safeClassToken(status); }
+    function logStreamClass(stream) { return "log-stream-" + safeClassToken(stream || "log"); }
+    function logRowsFiltered(logRows) {
+      const filter = state.logStreamFilter || "all";
+      if (filter === "all") return logRows;
+      return logRows.filter(row => String(row.stream || "log") === filter);
+    }
+    function renderLogLine(row) {
+      const stream = String(row.stream || "log");
+      return `<div class="logLine ${logStreamClass(stream)}"><span class="logMeta">[${escapeHtml(stream)}]</span><span class="logText">${escapeHtml(row.text || "")}</span></div>`;
+    }
+    function renderLogPanelHtml(logRows) {
+      const rows = logRowsFiltered(logRows);
+      if (!rows.length) {
+        const filter = state.logStreamFilter || "all";
+        if (filter !== "all") return `<span class="muted">No ${escapeHtml(filter)} logs.</span>`;
+        return `<span class="muted">No logs yet.</span>`;
+      }
+      return rows.map(renderLogLine).join("");
+    }
+    function logPanelNearBottom(panel) {
+      if (!panel) return true;
+      return panel.scrollHeight - panel.scrollTop - panel.clientHeight < 48;
+    }
+    function scrollLogPanelToBottom(panel) {
+      if (!panel) return;
+      panel.scrollTop = panel.scrollHeight;
+    }
+    function updateLogBadge(count) {
+      const badge = $("jobLogBadge");
+      if (badge) badge.textContent = String(count || 0);
+    }
+    function setDetailTab(tab) {
+      state.detailTab = tab;
+      document.querySelectorAll("[data-detail-tab]").forEach(btn => btn.classList.toggle("active", btn.dataset.detailTab === tab));
+      document.querySelectorAll("[data-detail-panel]").forEach(panel => panel.classList.toggle("active", panel.dataset.detailPanel === tab));
+    }
+    function bindDetailTabs(root = document) {
+      root.querySelectorAll("[data-detail-tab]").forEach(btn => {
+        btn.onclick = () => setDetailTab(btn.dataset.detailTab || "preview");
+      });
+      root.querySelectorAll("[data-log-filter]").forEach(btn => {
+        btn.onclick = () => {
+          state.logStreamFilter = btn.dataset.logFilter || "all";
+          state.detailLogCount = -1;
+          root.querySelectorAll("[data-log-filter]").forEach(el => el.classList.toggle("active", el.dataset.logFilter === state.logStreamFilter));
+          const panel = $("jobLogPanel");
+          if (panel && panel.dataset.logSource) {
+            try {
+              updateJobLogs(JSON.parse(panel.dataset.logSource), { forceRebuild: true });
+            } catch {}
+          }
+        };
+      });
+      const follow = $("jobLogFollow");
+      if (follow) {
+        follow.checked = state.logFollowTail;
+        follow.onchange = () => { state.logFollowTail = follow.checked; };
+      }
+      const copyBtn = $("jobLogCopy");
+      if (copyBtn) {
+        copyBtn.onclick = async () => {
+          const panel = $("jobLogPanel");
+          if (!panel) return;
+          const text = panel.innerText || "";
+          try {
+            await navigator.clipboard.writeText(text);
+            copyBtn.textContent = "Copied";
+            setTimeout(() => { copyBtn.textContent = "Copy"; }, 1200);
+          } catch {
+            alert("Copy failed.");
+          }
+        };
+      }
+      root.querySelectorAll("[data-copy-path]").forEach(btn => {
+        btn.onclick = async () => {
+          const text = btn.dataset.copyPath || "";
+          if (!text) return;
+          try {
+            await navigator.clipboard.writeText(text);
+            const label = btn.textContent;
+            btn.textContent = "Copied";
+            setTimeout(() => { btn.textContent = label; }, 1200);
+          } catch {
+            alert("Copy failed.");
+          }
+        };
+      });
+      setDetailTab(state.detailTab || "preview");
+    }
+    function updateJobLogs(full, options = {}) {
+      const panel = $("jobLogPanel");
+      if (!panel) return false;
+      const logRows = full.logs || [];
+      const forceRebuild = !!options.forceRebuild;
+      updateLogBadge(logRows.length);
+      panel.dataset.logSource = JSON.stringify(logRows);
+      const prevCount = state.detailLogCount || 0;
+      const filterChanged = panel.dataset.logFilter !== state.logStreamFilter;
+      if (filterChanged || forceRebuild || prevCount > logRows.length || state.logStreamFilter !== panel.dataset.activeFilter) {
+        const nearBottom = logPanelNearBottom(panel);
+        panel.innerHTML = renderLogPanelHtml(logRows);
+        panel.dataset.logFilter = state.logStreamFilter;
+        panel.dataset.activeFilter = state.logStreamFilter;
+        state.detailLogCount = logRows.length;
+        if (state.logFollowTail && (nearBottom || full.status === "running" || full.status === "queued")) scrollLogPanelToBottom(panel);
+        return true;
+      }
+      if (logRows.length <= prevCount) return false;
+      const nearBottom = logPanelNearBottom(panel);
+      logRows.slice(prevCount).forEach(row => {
+        if (state.logStreamFilter !== "all" && String(row.stream || "log") !== state.logStreamFilter) return;
+        panel.insertAdjacentHTML("beforeend", renderLogLine(row));
+      });
+      state.detailLogCount = logRows.length;
+      if (state.logFollowTail && (nearBottom || full.status === "running" || full.status === "queued")) scrollLogPanelToBottom(panel);
+      return true;
+    }
     function renderJobs() {
       const type = $("jobTypeFilter").value;
       const status = $("statusFilter").value;
@@ -4071,7 +4425,17 @@ WORKSPACE_HTML = r"""
           <div class="jobTitleLine"><strong>${escapeHtml(job.title)}</strong><span class="${statusClass(job.status)}">${escapeHtml(job.status)}</span></div>
           <div class="muted tiny">${escapeHtml(job.model_name)} · ${escapeHtml(job.elapsed)} · ${escapeHtml(job.id)}</div>
         </button>`).join("") : `<div class="detail muted">No jobs yet. Create one above.</div>`;
-      document.querySelectorAll("[data-job]").forEach(btn => btn.onclick = () => { state.activeJob = btn.dataset.job; state.detailRenderKey = ""; renderJobs(); renderDetail(); });
+      document.querySelectorAll("[data-job]").forEach(btn => btn.onclick = () => {
+        const nextJob = btn.dataset.job;
+        if (nextJob !== state.activeJob) {
+          state.activeJob = nextJob;
+          state.detailRenderKey = "";
+          state.detailLogCount = 0;
+          const selected = state.jobs.find(item => item.id === nextJob);
+          state.detailTab = (selected && (selected.status === "running" || selected.status === "queued")) ? "logs" : "preview";
+        }
+        renderJobs();
+      });
       renderDetail();
     }
     async function refreshJobs() {
@@ -4081,37 +4445,75 @@ WORKSPACE_HTML = r"""
     }
     async function renderDetail() {
       const job = state.jobs.find(j => j.id === state.activeJob);
-      if (!job) { state.detailRenderKey = ""; $("jobDetail").innerHTML = `<span class="muted">Select a job.</span>`; return; }
+      if (!job) {
+        state.detailRenderKey = "";
+        state.detailLogCount = 0;
+        $("jobDetail").innerHTML = `<span class="muted">Select a job.</span>`;
+        return;
+      }
       let full = job;
       try { full = await api("/api/jobs/" + job.id); } catch {}
       const logRows = full.logs || [];
-      const lastLog = logRows.length ? logRows[logRows.length - 1] : {};
       const result = full.result || {};
       const actionKey = (full.visualization_actions || []).map(action => [action.mode, action.path, action.label].join(":")).join("|");
-      const detailKey = [job.id, full.status, full.error || "", result.preview_video || "", result.preview_image || "", result.preview_model || "", result.preview_splat || "", actionKey, logRows.length, lastLog.stream || "", lastLog.text || ""].join("|");
-      if (state.detailRenderKey === detailKey) return;
-      state.detailRenderKey = detailKey;
-      const video = result.preview_video ? renderVideoBox(`/api/jobs/${job.id}/video`, { eager: true }) : "";
-      const image = result.preview_image ? renderImageBox(`/api/jobs/${job.id}/image`) : "";
-      const evaluationSummary = renderEvaluationSummary(result);
-      const resultActions = renderResultActions(full, result);
-      const logs = logRows.map(row => `[${row.stream}] ${row.text}`).join("");
-      const resultJson = full.result ? JSON.stringify(full.result, null, 2) : "";
-      $("jobDetail").innerHTML = `
-        ${video || image}
-        ${resultActions}
-        <div class="detailGrid">
-          <div class="metric"><span>Status</span><strong>${escapeHtml(full.status)}</strong></div>
-          <div class="metric"><span>Model</span><strong>${escapeHtml(full.model_name)}</strong></div>
-          <div class="metric"><span>Type</span><strong>${escapeHtml(full.job_type)}</strong></div>
-          <div class="metric"><span>Output</span><strong>${escapeHtml(full.output_dir || "pending")}</strong></div>
-        </div>
-        ${full.error ? `<div class="metric"><span>Error</span><strong>${escapeHtml(full.error)}</strong></div>` : ""}
-        ${evaluationSummary}
-        ${resultJson ? `<pre>${escapeHtml(resultJson)}</pre>` : ""}
-        <pre>${escapeHtml(logs || "No logs yet.")}</pre>`;
-      hydrateLazyMedia($("jobDetail"));
-      bindArtifactVisualizerButtons($("jobDetail"));
+      const detailKey = [job.id, full.status, full.error || "", result.preview_video || "", result.preview_image || "", result.preview_model || "", result.preview_splat || "", actionKey].join("|");
+      const needsShellRender = state.detailRenderKey !== detailKey;
+      if (needsShellRender) {
+        state.detailRenderKey = detailKey;
+        state.detailLogCount = 0;
+        const video = result.preview_video ? renderVideoBox(`/api/jobs/${job.id}/video`, { eager: true }) : "";
+        const image = result.preview_image ? renderImageBox(`/api/jobs/${job.id}/image`) : "";
+        const evaluationSummary = renderEvaluationSummary(result);
+        const resultActions = renderResultActions(full, result);
+        const resultJson = full.result ? JSON.stringify(full.result, null, 2) : "";
+        const logFilterBtn = (filter, label) => `<button type="button" class="logFilter ${safeClassToken(filter)} ${state.logStreamFilter === filter ? "active" : ""}" data-log-filter="${escapeHtml(filter)}">${escapeHtml(label)}</button>`;
+        $("jobDetail").innerHTML = `
+          <div class="detailTabs">
+            <button type="button" class="detailTab ${state.detailTab === "preview" ? "active" : ""}" data-detail-tab="preview">Preview</button>
+            <button type="button" class="detailTab ${state.detailTab === "logs" ? "active" : ""}" data-detail-tab="logs">Logs<span class="logBadge" id="jobLogBadge">${logRows.length}</span></button>
+            <button type="button" class="detailTab ${state.detailTab === "result" ? "active" : ""}" data-detail-tab="result">Result</button>
+          </div>
+          <div class="detailTabPanel ${state.detailTab === "preview" ? "active" : ""}" data-detail-panel="preview">
+            ${video || image || `<span class="muted">No preview yet.</span>`}
+            ${resultActions}
+            <div class="detailGrid">
+              <div class="metric"><span>Status</span><strong>${escapeHtml(full.status)}</strong></div>
+              <div class="metric"><span>Model</span><strong>${escapeHtml(full.model_name)}</strong></div>
+              <div class="metric"><span>Type</span><strong>${escapeHtml(full.job_type)}</strong></div>
+            </div>
+            ${renderOutputPath(full.output_dir)}
+            ${full.error ? `<div class="metric"><span>Error</span><strong>${escapeHtml(full.error)}</strong></div>` : ""}
+            ${evaluationSummary}
+          </div>
+          <div class="detailTabPanel ${state.detailTab === "logs" ? "active" : ""}" data-detail-panel="logs">
+            <div class="logToolbar">
+              ${logFilterBtn("all", "All")}
+              ${logFilterBtn("system", "System")}
+              ${logFilterBtn("stdout", "Stdout")}
+              ${logFilterBtn("stderr", "Stderr")}
+              <button type="button" class="btn" id="jobLogCopy">Copy</button>
+              <label class="logFollow"><input type="checkbox" id="jobLogFollow" ${state.logFollowTail ? "checked" : ""} />Follow tail</label>
+            </div>
+            <div class="logPanel" id="jobLogPanel">${renderLogPanelHtml(logRows)}</div>
+          </div>
+          <div class="detailTabPanel ${state.detailTab === "result" ? "active" : ""}" data-detail-panel="result">
+            ${resultJson ? `<pre>${escapeHtml(resultJson)}</pre>` : `<span class="muted">No structured result yet.</span>`}
+          </div>`;
+        hydrateLazyMedia($("jobDetail"));
+        bindArtifactVisualizerButtons($("jobDetail"));
+        bindDetailTabs($("jobDetail"));
+        const panel = $("jobLogPanel");
+        if (panel) {
+          panel.dataset.logSource = JSON.stringify(logRows);
+          panel.dataset.logFilter = state.logStreamFilter;
+          panel.dataset.activeFilter = state.logStreamFilter;
+          state.detailLogCount = logRows.length;
+          if (state.logFollowTail && (full.status === "running" || full.status === "queued")) scrollLogPanelToBottom(panel);
+        }
+      } else {
+        updateJobLogs(full);
+        updateLogBadge(logRows.length);
+      }
     }
     async function loadModels() {
       state.models = await api("/api/models");
@@ -4840,6 +5242,9 @@ WORKSPACE_HTML = r"""
       }
       const job = await api("/api/jobs", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(payload) });
       state.activeJob = job.id;
+      state.detailRenderKey = "";
+      state.detailLogCount = 0;
+      state.detailTab = "logs";
       $("createDialog").close();
       setView(jobType);
       await refreshJobs();
@@ -4863,6 +5268,138 @@ WORKSPACE_HTML = r"""
     $("catalogSearch").oninput = renderCatalog;
     $("catalogWorkload").onchange = renderCatalog;
     $("stopJob").onclick = async () => { if (!state.activeJob) return; await api(`/api/jobs/${state.activeJob}/stop`, {method:"POST"}); await refreshJobs(); };
+    function readStoredSplitLeft(key) {
+      if (!key) return null;
+      try {
+        const raw = localStorage.getItem(key);
+        if (raw == null || raw === "") return null;
+        const value = Number(raw);
+        return Number.isFinite(value) && value > 0 ? value : null;
+      } catch (_) {
+        return null;
+      }
+    }
+    function splitHandleWidth(split) {
+      const raw = getComputedStyle(split).getPropertyValue("--split-handle");
+      const value = Number.parseFloat(raw);
+      return Number.isFinite(value) && value > 0 ? value : 10;
+    }
+    function clampSplitLeft(split, width) {
+      const minLeft = Number(split.dataset.splitMinLeft || 240);
+      const minRight = Number(split.dataset.splitMinRight || 360);
+      const handle = splitHandleWidth(split);
+      const total = split.getBoundingClientRect().width;
+      const available = Math.max(0, total - handle);
+      // Absolute floors so a narrow container never forces an impossible layout.
+      const hardMinLeft = Math.min(minLeft, Math.max(160, Math.floor(available * 0.25)));
+      const hardMinRight = Math.min(minRight, Math.max(240, Math.floor(available * 0.35)));
+      const maxLeft = Math.max(hardMinLeft, available - hardMinRight);
+      const minAllowed = Math.min(hardMinLeft, maxLeft);
+      return Math.round(Math.min(Math.max(Number(width) || minAllowed, minAllowed), maxLeft));
+    }
+    function applySplitLeft(split, width, { persist = true } = {}) {
+      if (!split || split.clientWidth <= 0) return null;
+      const handle = split.querySelector(".splitHandle");
+      if (handle && getComputedStyle(handle).display === "none") return null;
+      const next = clampSplitLeft(split, width);
+      split.style.setProperty("--split-left", `${next}px`);
+      if (persist && split.dataset.splitKey) {
+        try { localStorage.setItem(split.dataset.splitKey, String(next)); } catch (_) {}
+      }
+      return next;
+    }
+    function currentSplitLeft(split, fallback) {
+      const inline = Number.parseFloat(split.style.getPropertyValue("--split-left"));
+      if (Number.isFinite(inline) && inline > 0) return inline;
+      const computed = Number.parseFloat(getComputedStyle(split).getPropertyValue("--split-left"));
+      if (Number.isFinite(computed) && computed > 0) return computed;
+      return fallback;
+    }
+    function initResizableSplits() {
+      document.querySelectorAll(".split[data-split-key]").forEach(split => {
+        const handle = split.querySelector(".splitHandle");
+        if (!handle || handle.dataset.splitBound === "1") return;
+        handle.dataset.splitBound = "1";
+        const defaultWidth = Number(split.dataset.splitDefault || 360);
+        const stored = readStoredSplitLeft(split.dataset.splitKey);
+        const syncFromStorageOrDefault = () => {
+          applySplitLeft(split, stored == null ? defaultWidth : stored, { persist: false });
+        };
+        // Layout may not be ready on first paint; sync now and on next frames.
+        syncFromStorageOrDefault();
+        requestAnimationFrame(syncFromStorageOrDefault);
+
+        let dragging = false;
+        let activePointerId = null;
+
+        const onPointerMove = (event) => {
+          if (!dragging || event.pointerId !== activePointerId) return;
+          const left = event.clientX - split.getBoundingClientRect().left;
+          applySplitLeft(split, left);
+        };
+        const stopDrag = (event) => {
+          if (!dragging) return;
+          if (event && activePointerId != null && event.pointerId !== activePointerId) return;
+          dragging = false;
+          const pointerId = activePointerId;
+          activePointerId = null;
+          split.classList.remove("is-resizing");
+          handle.removeEventListener("pointermove", onPointerMove);
+          handle.removeEventListener("pointerup", stopDrag);
+          handle.removeEventListener("pointercancel", stopDrag);
+          if (pointerId != null) {
+            try { handle.releasePointerCapture(pointerId); } catch (_) {}
+          }
+        };
+        handle.addEventListener("pointerdown", (event) => {
+          if (event.button !== 0) return;
+          if (getComputedStyle(handle).display === "none") return;
+          event.preventDefault();
+          dragging = true;
+          activePointerId = event.pointerId;
+          split.classList.add("is-resizing");
+          handle.setPointerCapture(event.pointerId);
+          handle.addEventListener("pointermove", onPointerMove);
+          handle.addEventListener("pointerup", stopDrag);
+          handle.addEventListener("pointercancel", stopDrag);
+          onPointerMove(event);
+        });
+        handle.addEventListener("dblclick", () => {
+          if (getComputedStyle(handle).display === "none") return;
+          applySplitLeft(split, defaultWidth);
+        });
+        handle.addEventListener("keydown", (event) => {
+          if (getComputedStyle(handle).display === "none") return;
+          const current = currentSplitLeft(split, defaultWidth);
+          if (event.key === "ArrowLeft") {
+            event.preventDefault();
+            applySplitLeft(split, current - 24);
+          } else if (event.key === "ArrowRight") {
+            event.preventDefault();
+            applySplitLeft(split, current + 24);
+          } else if (event.key === "Home") {
+            event.preventDefault();
+            applySplitLeft(split, defaultWidth);
+          }
+        });
+      });
+
+      // One shared resize listener reclamps all splits when the viewport changes.
+      if (!window.__wfSplitResizeBound) {
+        window.__wfSplitResizeBound = true;
+        let resizeTimer = 0;
+        window.addEventListener("resize", () => {
+          window.clearTimeout(resizeTimer);
+          resizeTimer = window.setTimeout(() => {
+            document.querySelectorAll(".split[data-split-key]").forEach(split => {
+              const fallback = Number(split.dataset.splitDefault || 360);
+              applySplitLeft(split, currentSplitLeft(split, fallback), { persist: false });
+            });
+          }, 50);
+        });
+      }
+    }
+    initResizableSplits();
     initializeWorkspace()
       .catch(err => { $("serverState").textContent = err.message; });
     setInterval(refreshJobs, 3000);

@@ -1,0 +1,66 @@
+id: causal-rcm
+name: Causal-rCM
+aliases:
+- rcm
+- causal_rcm
+- rcm-causal
+- causal-rcm-wan2.1
+tasks:
+- autoregressive-video-generation
+- streaming-video-generation
+- interactive-world-model
+- text-to-video
+- image-to-video
+output_artifacts:
+- generated_world
+- generated_video
+provider: official_repo
+source:
+  status: open_source
+  official_repo_url: https://github.com/NVlabs/rcm
+  license: apache-2.0
+official_sources:
+  project_page: https://research.nvidia.com/labs/dir/rcm
+  paper: https://arxiv.org/abs/2510.08431
+  causal_paper: https://arxiv.org/abs/2606.25473
+  github:
+    url: https://github.com/NVlabs/rcm
+    revision: ed3cb14dd936f92cdc9f9381af7369991509b41f
+  huggingface:
+  - repo_id: worstcoder/rcm-Wan
+    type: model
+    status: public_community_checkpoint
+    provenance: community_reproduction
+  - repo_id: worstcoder/Wan
+    type: model
+    role: wan2pt1_vae_and_text_encoder
+base_model_refs:
+- role: wan2_1_t2v_1_3b
+  repo_id: Wan-AI/Wan2.1-T2V-1.3B
+- role: wan2_1_t2v_14b
+  repo_id: Wan-AI/Wan2.1-T2V-14B
+integration:
+  status: runtime_ported
+  notes:
+  - WorldFoundry vendors the official Apache-2.0 causal inference stack under
+    synthesis/visual_generation/rcm/rcm_runtime; the adapter owns checkpoint gating, command
+    construction, and pipeline/catalog exposure.
+  - The upstream `imaginaire` framework package is not vendored. WorldFoundry's own lazy_config,
+    easy_io, rank-aware logging, and selective activation checkpointing back the vendored code.
+  - BlockPattern/AttnMaskSpec and the block-causal and teacher-forcing mask predicates were lifted into
+    worldfoundry/core/attention/block_pattern.py so causal chunk schedules are one shared primitive.
+  blocked_reasons:
+  - Execution requires the public Causal-rCM DiT checkpoint plus the Wan2.1 VAE and umT5 text encoder to be staged locally.
+runner_parity:
+  status: implemented_public_checkpoint_not_staged
+  notes:
+  - The pipeline resolves the vendored causal entrypoint and returns blocked runtime diagnostics until
+    the DiT, VAE, and text-encoder checkpoints are staged.
+  - Extracted block-mask primitives are verified against the upstream implementation across 702 mask
+    configurations and 162 chunk-schedule configurations.
+runtime_profile: runtime-profile:causal-rcm
+runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
+pipeline_binding: causal-rcm
+catalog_category: world_models
+catalog_scope: World-model catalog entries. Integrated entries expose in-tree WorldFoundry runtimes; blocked
+  entries retain upstream provenance without runnable backends.

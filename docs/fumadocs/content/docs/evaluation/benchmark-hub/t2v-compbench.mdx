@@ -17,7 +17,7 @@ Official references:
 - Released videos dataset: [Kaiyue/T2V-CompBench-Videos](https://huggingface.co/datasets/Kaiyue/T2V-CompBench-Videos)
 - Official source reference: [KaiyueSun98/T2V-CompBench](https://github.com/KaiyueSun98/T2V-CompBench)
 
-## Evaluation Protocol
+## Evaluation protocol
 
 Primary metric: `t2v_compbench_average`.
 
@@ -52,7 +52,7 @@ Each category expects 200 generated videos named like the official prompts:
 
 The runner also accepts common official dataset aliases such as `consistent_attr_1`, `dynamic_attr_2`, `spatial_3`, `motion_4`, `interaction_6`, and `numeracy_7`.
 
-## Data And Checkpoint Preparation
+## Data and checkpoint preparation
 
 Start from the WorldFoundry repository root:
 
@@ -88,7 +88,7 @@ worldfoundry/evaluation/tasks/execution/runners/t2v_compbench/runtime/t2v_compbe
 
 The LLaVA, GroundingDINO, SAM, depth, and DOT code paths reuse WorldFoundry base-model packages instead of external source trees. Checkpoint files can still be downloaded or staged locally.
 
-## Generate Candidate Videos
+## Generate candidate videos
 
 Use the prompt files under `WORLDFOUNDRY_T2V_COMPBENCH_ASSETS/prompts/` to run your candidate text-to-video model. Put outputs into the category layout shown above, then set:
 
@@ -99,7 +99,7 @@ export WORLDFOUNDRY_T2V_COMPBENCH_MODEL_NAME=my_t2v_model
 
 Candidate model inference and training are model-specific. For a WorldFoundry-integrated generator, run the model's synthesis workflow on each category prompt file, then export the final videos into the expected category folders.
 
-## Run Category Scoring
+## Run category scoring
 
 Run an MLLM category:
 
@@ -168,7 +168,7 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
   --json
 ```
 
-## Import Existing CSV Results
+## Import existing CSV results
 
 The official leaderboard submission is a folder or zip containing up to eight CSV files:
 
@@ -210,4 +210,23 @@ The run writes:
 - `dataset_manifest.json`: local reference dataset summary.
 - `upstream_stdout.log` and `upstream_stderr.log`: logs from in-tree category scripts.
 
-[Back to Benchmark Hub](/docs/evaluation/benchmark-hub)
+## Leaderboard notes
+
+T2V-CompBench maintains a live leaderboard at [Kaiyue/T2V-CompBench_Leaderboard](https://huggingface.co/spaces/Kaiyue/T2V-CompBench_Leaderboard). A submission zip contains at most eight CSVs:
+
+```text
+<model>_consistent_attr_score.csv
+<model>_dynamic_attr_score.csv
+<model>_spatial_score.csv
+<model>_motion_score.csv
+<model>_motion_back_fore.csv
+<model>_action_binding_score.csv
+<model>_object_interactions_score.csv
+<model>_numeracy_video.csv
+```
+
+The upstream paper evaluates 17 open-source and 6 commercial T2V systems across seven compositional categories. Each category expects 200 videos; the leaderboard backend drops any category with fewer than 200 scored rows. The final CSV for each category must end with a line starting `score:` or `Score:`.
+
+WorldFoundry's `t2v_compbench_average` is the mean of the category scores available in the local scorecard. Treat the live leaderboard as authoritative for current rankings.
+
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

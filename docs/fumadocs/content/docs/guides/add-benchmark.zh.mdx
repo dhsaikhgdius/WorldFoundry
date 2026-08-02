@@ -5,7 +5,7 @@ description: Benchmark manifests、runners、datasets、official runs 和 leader
 
 ## 介绍
 
-WorldFoundry 当前公开支持的 benchmark surface 是 Benchmark Zoo。新增 benchmark 支持时，通过 catalog manifest、external task manifest、runner contract 和 readiness evidence 完成。
+WorldFoundry 当前公开支持的 benchmark surface 是 Benchmark Zoo。新增 benchmark 支持要走同一条路径：catalog manifest、external task manifest、runner contract 与 readiness evidence。
 
 多数 benchmark 工作遵循同一条路径：在 catalog 里记录 official provenance，声明 task contract，证明 runner 能写出 scorecard shape，再在真实资产和 official scorer 证据齐全后提升状态。
 
@@ -36,9 +36,9 @@ Catalog entry 是公开 contract。按职责分组填写字段，而不是堆成
 
 - **Identity** — `benchmark_id`、aliases、family、modalities、normalized tasks。
 - **Source** — 官方仓库、论文、项目页、license、clone target。
-- **Dataset** — Dataset ids、access state、cache expectation、filters、unsafe flags。
+- **Dataset** — Dataset IDs、access state、cache expectation、filters、unsafe flags。
 - **Runner** — Runner target、official validation、official benchmark command、expected artifacts。
-- **Metrics** — Metric ids、direction、aggregation、score ranges、leaderboard keys。
+- **Metrics** — Metric IDs、direction、aggregation、score ranges、leaderboard keys。
 - **Evidence** — Check notes、report paths、blockers、executed commands。
 
 检查和导出 specs：
@@ -50,7 +50,7 @@ conda run -p "${WORLDFOUNDRY_UNIFIED_ENV_PREFIX}" worldfoundry-eval zoo benchmar
   --json
 ```
 
-## Runnable Evaluator
+## Runnable evaluator
 
 Official validation 用于导入 official-shaped results 并写出可审查的 scorecard，之后才能声明 full benchmark parity：
 
@@ -64,7 +64,7 @@ conda run -p "${WORLDFOUNDRY_UNIFIED_ENV_PREFIX}" worldfoundry-eval zoo benchmar
   --json
 ```
 
-Benchmark runner 会分开 framework integration 和 leaderboard eligibility。Official-validation import 通过只是有用的开发证据；leaderboard 声明仍需要 official scorer 或 judge、声明清楚的资产和完整 scorecard evidence。
+Benchmark runner 把 framework integration 与 leaderboard eligibility 分开。Official-validation import 通过，只能算有用的开发证据；leaderboard 声明仍然需要 official scorer 或 judge、声明清楚的资产，以及完整的 scorecard evidence。
 
 ## Readiness checks
 
@@ -94,7 +94,7 @@ Normalizer-only integration 可以是 `integrated`，前提是 CLI 命令、arti
 
 ## PR 证据
 
-Reviewer 应能把 catalog 声明追到命令和产物：
+Reviewer 应该能把 catalog 里的声明一路追溯到具体命令与产物：
 
 - **Manifest diff** — `worldfoundry/data/benchmarks/catalog/*.yaml`、`worldfoundry/data/benchmarks/tasks/external/*.yaml` 或 benchmark runner/normalizer 文件。
 - **Metadata checks** — `tasks show`、`benchmark-specs` 或 `benchmark-show` output。

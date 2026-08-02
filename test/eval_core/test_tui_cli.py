@@ -1,0 +1,645 @@
+from __future__ import annotations
+
+import asyncio
+import json
+import importlib
+import sys
+
+import pytest
+
+from worldfoundry import cli
+from worldfoundry.cli.tui import main as tui_main
+from worldfoundry.cli.tui_discovery import (
+    INFER_MODEL_VARIANTS,
+    INFER_VARIANT_GROUPS,
+    build_model_benchmark_command,
+    build_model_infer_command,
+    build_suite_command,
+    format_shell_command,
+    build_training_command,
+    infer_control_specs,
+    infer_model_variant_ids,
+    is_infer_model_row,
+    load_tui_catalog,
+)
+
+
+def _assert_worldfoundry_cli_prefix(command: tuple[str, ...]) -> None:
+    assert command[:3] == (sys.executable, "-m", "worldfoundry.cli")
+
+
+def _parse_worldfoundry_cli_command(command: tuple[str, ...]):
+    _assert_worldfoundry_cli_prefix(command)
+    return cli._build_parser().parse_args(list(command[3:]))
+
+
+def test_tui_catalog_loads_model_and_benchmark_rows() -> None:
+    catalog = load_tui_catalog()
+
+    assert any(row.model_id == "openvla" for row in catalog.models)
+    assert any(row.benchmark_id == "libero" for row in catalog.benchmarks)
+    summary = catalog.to_dict()["summary"]
+    assert summary["models"] == len(catalog.models)
+    assert summary["benchmarks"] == len(catalog.benchmarks)
+    assert summary["training_targets"] == len(catalog.training_targets)
+    assert summary["training_stages"] >= len(catalog.training_targets)
+    assert summary["runtime_profiles"] == len(catalog.runtime_profiles)
+    assert "leaderboard_ready_benchmarks" in summary
+    assert any(row.profile_id == "openvla" for row in catalog.runtime_profiles)
+    assert any(row.target_id == "wan-action2v" for row in catalog.training_targets)
+    assert not [row.model_id for row in catalog.models if row.integration_status == "infer"]
+    robotwin = next(row for row in catalog.benchmarks if row.benchmark_id == "robotwin")
+    assert robotwin.maturity
+    assert robotwin.leaderboard_valid is False
+    assert robotwin.to_dict()["official_benchmark_verified"] is False
+    assert catalog.conda_status["env_specs"] >= 1
+
+
+def test_model_benchmark_command_uses_unified_run_surface() -> None:
+    command = build_model_benchmark_command(
+        model_id="openvla",
+        benchmark_id="libero",
+        output_dir="runs/tui/openvla__libero",
+        mode="contract",
+        model_variant="openvla-7b",
+        json_output=True,
+    )
+
+    _assert_worldfoundry_cli_prefix(command)
+    assert command[3] == "run"
+    assert "--model" in command
+    assert "--benchmark" in command
+    assert "--model-variant" in command
+    assert "--json" in command
+    assert "openvla" in format_shell_command(command)
+    parsed = _parse_worldfoundry_cli_command(command)
+    assert parsed.command == "run"
+    assert parsed.model_ids == ["openvla"]
+    assert parsed.benchmark_ids == ["libero"]
+    assert parsed.benchmark_mode == "contract"
+
+
+def test_tui_infer_catalog_uses_official_script_models_by_default() -> None:
+    catalog = load_tui_catalog()
+    depth_row = next(row for row in catalog.models if row.model_id == "depth-anything-v2")
+
+    assert is_infer_model_row(depth_row)
+    assert depth_row.runner_kind == "infer_script"
+    assert any("scripts/inference/run_infer.sh" in note for note in depth_row.notes)
+    command = build_model_infer_command(
+        model_id="depth-anything-v2",
+        output_dir="runs/tui/infer",
+        input_path="/tmp/input.png",
+    )
+    command_text = format_shell_command(command)
+    assert "scripts/inference/run_infer.sh" in command_text
+    assert "--category depth" in command_text
+    assert "--model depth-anything-v2" in command_text
+    assert "--input /tmp/input.png" in command_text
+    assert "--gpu" not in command_text
+
+    explicit_gpu_command = build_model_infer_command(
+        model_id="depth-anything-v2",
+        output_dir="runs/tui/infer",
+        input_path="/tmp/input.png",
+        gpu="0",
+    )
+    assert "--gpu 0" in format_shell_command(explicit_gpu_command)
+
+
+def test_tui_infer_control_schema_is_variant_specific() -> None:
+    depth_specs = {spec.field_id: spec for spec in infer_control_specs("depth-anything-v2", "depth-anything-v2-small")}
+    flash_specs = {spec.field_id: spec for spec in infer_control_specs("flash-world", "flash-world")}
+    lingbot_specs = {spec.field_id: spec for spec in infer_control_specs("lingbot-world", "base-act-preview")}
+    recam_specs = {spec.field_id: spec for spec in infer_control_specs("recammaster", "recammaster")}
+    neoverse_specs = {spec.field_id: spec for spec in infer_control_specs("neoverse", "neoverse")}
+    vggt_specs = {spec.field_id: spec for spec in infer_control_specs("vggt", "vggt-omega")}
+    cut3r_specs = {spec.field_id: spec for spec in infer_control_specs("cut3r", "cut3r")}
+    wan22_specs = {spec.field_id: spec for spec in infer_control_specs("wan2.2", "wan2.2-ti2v-5b")}
+    hy2_specs = {spec.field_id: spec for spec in infer_control_specs("hunyuan", "hy-world-2.0")}
+    lyra2_specs = {spec.field_id: spec for spec in infer_control_specs("lyra", "lyra2")}
+    worldcam_specs = {spec.field_id: spec for spec in infer_control_specs("worldcam", "worldcam")}
+    dynamicrafter_specs = {spec.field_id: spec for spec in infer_control_specs("dynamicrafter", "dynamicrafter-512-i2v")}
+
+    assert set(depth_specs) == {"input"}
+    assert depth_specs["input"].label == "Input image"
+    assert {"input", "input_dir", "output_formats"}.issubset(flash_specs)
+    assert flash_specs["input_dir"].label == "JSON config"
+    assert lingbot_specs["input_dir"].label == "Action/example directory"
+    assert lingbot_specs["mode"].label == "Control mode"
+    assert "size" not in lingbot_specs
+    assert recam_specs["video"].label == "Input video"
+    assert recam_specs["trajectory"].placeholder == "100,100,0,0,30"
+    assert {"trajectory_file", "resize_mode", "disable_lora", "vis_rendering"}.issubset(neoverse_specs)
+    assert {"input", "input_dir", "task"}.issubset(vggt_specs)
+    assert {"input", "input_dir", "task"}.issubset(cut3r_specs)
+    assert wan22_specs["mode"].placeholder == "ti2v-5B"
+    assert {"input", "input_dir", "task", "output_path"} == set(hy2_specs)
+    assert {"size", "steps", "guidance_scale"}.issubset(lyra2_specs)
+    assert "frames" not in lyra2_specs
+    assert worldcam_specs["input"].label == "Conditioning video"
+    assert "frames" not in worldcam_specs
+    assert not {"negative_prompt", "guidance_scale", "dtype", "max_sequence_length"} & set(dynamicrafter_specs)
+
+
+def test_tui_keeps_studio_runtime_for_non_script_infer_models() -> None:
+    catalog = load_tui_catalog()
+
+    for model_id in ("hy-worldplay", "multiworld"):
+        row = next(row for row in catalog.models if row.model_id == model_id)
+        assert row.integration_status == "integrated"
+        assert row.runner_status == "ready"
+        assert row.runner_kind == "studio_runtime"
+        assert is_infer_model_row(row)
+        command = build_model_infer_command(
+            model_id=model_id,
+            output_dir="runs/tui/infer",
+        )
+        assert "worldfoundry.studio.workspace_job infer" in format_shell_command(command)
+
+
+def test_tui_script_infer_variants_all_build_official_commands() -> None:
+    for model_id, variants in INFER_MODEL_VARIANTS.items():
+        assert set(infer_model_variant_ids(model_id)) == set(variants)
+        for variant_id in variants:
+            command = build_model_infer_command(
+                model_id=model_id,
+                ckpt_type=variant_id,
+                output_dir="runs/tui/infer",
+                ckpt_root="/ckpt",
+                conda_envs_root="/conda/envs",
+            )
+            command_text = format_shell_command(command)
+
+            assert "scripts/inference/run_infer.sh" in command_text
+            assert f"--category {INFER_VARIANT_GROUPS[variant_id]}" in command_text
+            assert f"--model {model_id}" in command_text
+            assert "--ckpt-root /ckpt" in command_text
+            assert "--env-root /conda/envs" in command_text
+            assert "--gpu" not in command_text
+
+
+def test_tui_training_command_uses_workspace_training_runtime() -> None:
+    command = build_training_command(
+        target_id="wan-action2v",
+        stage_id="ar-teacher-forcing",
+        output_dir="runs/tui/training/wan-action2v__ar-teacher-forcing",
+        config_path="configs/train.yaml",
+        env_overrides=("CUDA_VISIBLE_DEVICES=0",),
+        extra_args=("--max-steps", "1"),
+    )
+    command_text = format_shell_command(command)
+
+    assert "worldfoundry.studio.workspace_job train" in command_text
+    assert "--training-target-id wan-action2v" in command_text
+    assert "--training-stage-id ar-teacher-forcing" in command_text
+    assert "--config-path configs/train.yaml" in command_text
+    assert "--env CUDA_VISIBLE_DEVICES=0" in command_text
+    assert "--extra-arg=--max-steps" in command_text
+    assert "--execute" not in command
+
+    execute_command = build_training_command(
+        target_id="wan-action2v",
+        stage_id="ar-teacher-forcing",
+        output_dir="runs/tui/training/wan-action2v__ar-teacher-forcing",
+        execute=True,
+    )
+    assert "--execute" in execute_command
+
+
+def test_tui_training_env_parser_keeps_comma_values_when_available() -> None:
+    pytest.importorskip("textual")
+
+    from worldfoundry.cli.tui_app import _parse_training_env_overrides, _split_env_assignments
+
+    value = "CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7,WORLDFOUNDRY_VISUAL_GENERATION_NPROC_PER_NODE=8"
+
+    assert _split_env_assignments(value) == (
+        "CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7",
+        "WORLDFOUNDRY_VISUAL_GENERATION_NPROC_PER_NODE=8",
+    )
+    assert _parse_training_env_overrides(value) == {
+        "CUDA_VISIBLE_DEVICES": "0,1,2,3,4,5,6,7",
+        "WORLDFOUNDRY_VISUAL_GENERATION_NPROC_PER_NODE": "8",
+    }
+
+
+def test_suite_command_defaults_to_plan_only() -> None:
+    command = build_suite_command(
+        output_dir="runs/tui/suite",
+        model_ids=("openvla",),
+        benchmark_ids=("libero",),
+    )
+
+    _assert_worldfoundry_cli_prefix(command)
+    assert command[3] == "run"
+    assert "--plan-only" in command
+    assert command.count("--model") == 1
+    assert command.count("--benchmark") == 1
+    parsed = _parse_worldfoundry_cli_command(command)
+    assert parsed.command == "run"
+    assert parsed.plan_only is True
+    assert parsed.model_ids == ["openvla"]
+    assert parsed.benchmark_ids == ["libero"]
+
+
+
+
+def test_tui_cli_catalog_json_does_not_import_textual(capsys) -> None:
+    assert tui_main(["--catalog-json"]) == 0
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["summary"]["models"] >= 1
+    assert payload["summary"]["benchmarks"] >= 1
+    assert payload["summary"]["training_targets"] >= 1
+    assert payload["summary"]["runtime_profiles"] >= 1
+    assert "conda_status" in payload
+
+
+def test_cli_tui_print_command(capsys) -> None:
+    assert (
+        cli.main(
+            [
+                "tui",
+                "--model-id",
+                "openvla",
+                "--benchmark-id",
+                "libero",
+                "--print-command",
+            ]
+        )
+        == 0
+    )
+
+    output = capsys.readouterr().out.strip()
+    assert "eval:" in output
+    assert "-m worldfoundry.cli run" in output
+    assert "--model openvla" in output
+    assert "--benchmark libero" in output
+
+
+def test_tui_fallback_lists_catalog_runtime_and_conda(capsys) -> None:
+    assert (
+        tui_main(
+            [
+                "--fallback",
+                "--model-id",
+                "openvla",
+                "--benchmark-id",
+                "robotwin",
+            ]
+        )
+        == 0
+    )
+
+    output = capsys.readouterr().out
+    assert "WorldFoundry TUI fallback" in output
+    assert "Runtime Profiles" in output
+    assert "Conda" in output
+    assert "Training Targets" in output
+    assert "Suite plan command" in output
+    assert "Benchmark contract command" in output
+    assert "-m worldfoundry.cli zoo benchmark-run" in output
+    assert "--benchmark-id robotwin" in output
+    assert "Runtime preflight command" in output
+    assert "-m worldfoundry.cli preflight runtime" in output
+    assert "--plan-only" in output
+
+
+def test_textual_app_headless_generates_action_commands_when_available() -> None:
+    pytest.importorskip("textual")
+    from worldfoundry.cli.tui_app import WorldFoundryTui
+
+    async def run_app() -> dict[str, str]:
+        app = WorldFoundryTui(
+            initial_model_id="open-magvit2",
+            initial_benchmark_id="libero",
+            output_dir="runs/tui-headless",
+            prompt="A small official demo inference sample.",
+            steps="1",
+        )
+        async with app.run_test(size=(140, 45)) as pilot:
+            await pilot.pause()
+            commands: dict[str, str] = {}
+            for action in ("infer", "eval", "training", "ui"):
+                app.action = action
+                if action == "infer":
+                    app.selected_model_id = "open-magvit2"
+                elif action == "eval":
+                    app.selected_model_id = "openvla"
+                    app.selected_benchmark_id = "libero"
+                elif action == "training" and app.training_rows:
+                    app.selected_training_target_id = app.training_rows[0].target_id
+                    app._sync_training_stage_for_selected_target()
+                    app._refresh_training_stage_select()
+                app._sync_ckpt_type_for_selected_model()
+                app._refresh_ckpt_type_select()
+                app._sync_action_layout()
+                app._populate_tables()
+                app._update_command()
+                commands[action] = app._command_text()
+                await pilot.pause()
+            return commands
+
+    commands = asyncio.run(run_app())
+
+    assert "scripts/inference/run_infer.sh" in commands["infer"]
+    assert "--model open-magvit2" in commands["infer"]
+    assert "-m worldfoundry.cli run" in commands["eval"]
+    assert "--model openvla" in commands["eval"]
+    assert "worldfoundry.studio.workspace_job train" in commands["training"]
+    assert "worldfoundry.studio.cli" in commands["ui"]
+
+
+def test_textual_app_training_preflight_accepts_multi_gpu_env_when_available() -> None:
+    pytest.importorskip("textual")
+
+    from textual.widgets import Input
+    from worldfoundry.cli.tui_app import WorldFoundryTui
+
+    async def run_app() -> tuple[str, ...]:
+        app = WorldFoundryTui(
+            initial_training_target_id="wan-action2v",
+            initial_training_stage_id="ar-teacher-forcing",
+            output_dir="runs/tui-headless",
+        )
+        async with app.run_test(size=(140, 45)) as pilot:
+            await pilot.pause()
+            app.action = "training"
+            app._sync_action_layout()
+            app._refresh_training_stage_select()
+            app.query_one("#training-env", Input).value = (
+                "CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7,"
+                "WORLDFOUNDRY_VISUAL_GENERATION_NPROC_PER_NODE=8"
+            )
+            return app._training_preflight_lines()
+
+    lines = asyncio.run(run_app())
+
+    assert "  env overrides: 7" in lines
+    assert "  component checks: 7/7 ok" in lines
+
+
+def test_textual_app_training_minwm_fields_build_command_when_available(tmp_path) -> None:
+    pytest.importorskip("textual")
+
+    from textual.widgets import Input, Select
+    from worldfoundry.cli.tui_app import WorldFoundryTui
+
+    async def run_app() -> str:
+        app = WorldFoundryTui(
+            initial_training_target_id="wan-action2v",
+            initial_training_stage_id="bidirectional-sft",
+            output_dir="runs/tui-headless",
+        )
+        async with app.run_test(size=(150, 50)) as pilot:
+            await pilot.pause()
+            app.action = "training"
+            app._sync_action_layout()
+            app._refresh_training_stage_select()
+            app.query_one("#training-devices", Input).value = "4,5,6,7"
+            app.query_one("#training-gpus-per-node", Input).value = "4"
+            app.query_one("#training-sp-size", Input).value = "4"
+            app.query_one("#training-data-root", Input).value = str(tmp_path / "data")
+            app.query_one("#training-ckpt-root", Input).value = str(tmp_path / "ckpt")
+            app.query_one("#training-max-train-steps", Input).value = "1"
+            app.query_one("#training-no-save", Select).value = "no-save"
+            app.query_one("#training-no-visualize", Select).value = "no-visualize"
+            app.query_one("#training-disable-wandb", Select).value = "disable-wandb"
+            return format_shell_command(app._command())
+
+    command_text = asyncio.run(run_app())
+
+    assert "--env CUDA_VISIBLE_DEVICES=4,5,6,7" in command_text
+    assert "--env WORLDFOUNDRY_VISUAL_GENERATION_NPROC_PER_NODE=4" in command_text
+    assert "--env WORLDFOUNDRY_VISUAL_GENERATION_SP_SIZE=4" in command_text
+    assert f"--env WORLDFOUNDRY_VISUAL_GENERATION_DATA_ROOT={tmp_path / 'data'}" in command_text
+    assert f"--env WORLDFOUNDRY_WAN_MODEL_ROOT={tmp_path / 'ckpt'}" in command_text
+    assert "--extra-arg=--max_train_steps=1" in command_text
+    assert "--extra-arg=--no_save" in command_text
+    assert "--extra-arg=--no_visualize" in command_text
+    assert "--extra-arg=--disable-wandb" in command_text
+
+
+def test_textual_app_training_sp_size_defaults_to_runner_auto_when_available() -> None:
+    pytest.importorskip("textual")
+
+    from textual.widgets import Input
+    from worldfoundry.cli.tui_app import WorldFoundryTui
+
+    async def run_app() -> tuple[str, str]:
+        app = WorldFoundryTui(
+            initial_training_target_id="hy-ti2v",
+            initial_training_stage_id="bidirectional-sft",
+            output_dir="runs/tui-headless",
+        )
+        async with app.run_test(size=(150, 50)) as pilot:
+            await pilot.pause()
+            app.action = "training"
+            app._sync_action_layout()
+            app._refresh_training_stage_select()
+            sp_input = app.query_one("#training-sp-size", Input)
+            return format_shell_command(app._command()), sp_input.placeholder
+
+    command_text, placeholder = asyncio.run(run_app())
+
+    assert "WORLDFOUNDRY_VISUAL_GENERATION_SP_SIZE" not in command_text
+    assert "WORLDFOUNDRY_HUNYUAN_WORLDPLAY_MODEL_ROOT=" in command_text
+    assert placeholder == "auto (2)"
+
+
+def test_textual_app_wan_lmdb_stage_defaults_to_data_dir_when_available(tmp_path, monkeypatch) -> None:
+    pytest.importorskip("textual")
+
+    from worldfoundry.cli.tui_app import WorldFoundryTui
+
+    monkeypatch.setenv("WORLDFOUNDRY_DATA_DIR", str(tmp_path / "dataset"))
+    app = WorldFoundryTui(
+        initial_training_target_id="wan-action2v",
+        initial_training_stage_id="prepare-lmdb",
+        output_dir="runs/tui-headless",
+    )
+    app.action = "training"
+
+    assert app._default_output_dir() == tmp_path / "dataset" / "Wan21" / "Action2V"
+
+
+def test_textual_app_headless_button_interactions_when_available(tmp_path) -> None:
+    pytest.importorskip("textual")
+    from textual.widgets import Button, Collapsible
+    from worldfoundry.cli.tui_app import WorldFoundryTui
+
+    async def wait_until(predicate, timeout: float = 5.0) -> bool:
+        end = asyncio.get_running_loop().time() + timeout
+        while asyncio.get_running_loop().time() < end:
+            if predicate():
+                return True
+            await asyncio.sleep(0.05)
+        return predicate()
+
+    async def run_app() -> dict[str, bool]:
+        output_dir = tmp_path / "artifacts"
+        output_dir.mkdir()
+        (output_dir / "sample.txt").write_text("ok\n", encoding="utf-8")
+        app = WorldFoundryTui(
+            initial_model_id="open-magvit2",
+            initial_benchmark_id="libero",
+            output_dir=output_dir,
+            prompt="A small official demo inference sample.",
+            steps="1",
+        )
+        async with app.run_test(size=(150, 45)) as pilot:
+            await pilot.pause()
+            results: dict[str, bool] = {}
+            await pilot.click("#toggle-command", offset=(1, 1))
+            await pilot.pause()
+            results["command_preview_open"] = not app.query_one("#command-preview", Collapsible).collapsed
+            results["buttons_remain_visible"] = app.query_one("#run-controls").region.y >= 0
+            for selector in ("#copy", "#preflight", "#artifacts", "#gpu-status", "#refresh"):
+                await pilot.click(selector, offset=(1, 1))
+                await pilot.pause()
+                results[f"{selector}_clicked"] = True
+
+            app._command = lambda: (
+                sys.executable,
+                "-c",
+                "import time; print('button-test-started', flush=True); time.sleep(30)",
+            )
+            await pilot.click("#run", offset=(1, 1))
+            results["run_started"] = await wait_until(lambda: app.running_process is not None)
+            results["run_disabled_while_running"] = app.query_one("#run", Button).disabled
+            results["stop_enabled_while_running"] = not app.query_one("#stop", Button).disabled
+            await pilot.click("#stop", offset=(1, 1))
+            results["stop_cleared_process"] = await wait_until(
+                lambda: app.running_task is None and app.running_process is None,
+                timeout=8.0,
+            )
+            results["run_enabled_after_stop"] = not app.query_one("#run", Button).disabled
+            results["stop_disabled_after_stop"] = app.query_one("#stop", Button).disabled
+
+            await pilot.press("ctrl+r")
+            results["shortcut_run_started"] = await wait_until(lambda: app.running_process is not None)
+            await pilot.press("ctrl+s")
+            results["shortcut_stop_cleared_process"] = await wait_until(
+                lambda: app.running_task is None and app.running_process is None,
+                timeout=8.0,
+            )
+            return results
+
+    results = asyncio.run(run_app())
+
+    assert all(results.values()), results
+
+
+def test_textual_app_headless_selects_and_tables_when_available() -> None:
+    pytest.importorskip("textual")
+    from textual.widgets import DataTable, Input, Label, Select
+    from worldfoundry.cli.tui_app import WorldFoundryTui
+
+    async def run_app() -> dict[str, bool]:
+        app = WorldFoundryTui(
+            initial_model_id="open-magvit2",
+            initial_benchmark_id="libero",
+            output_dir="runs/tui-select-headless",
+        )
+        async with app.run_test(size=(150, 45)) as pilot:
+            await pilot.pause()
+            results: dict[str, bool] = {}
+            action = app.query_one("#action", Select)
+            for value in ("eval", "training", "ui", "infer"):
+                action.value = value
+                await pilot.pause()
+                results[f"action_{value}"] = app.action == value
+
+            app.selected_model_id = "open-magvit2"
+            app._sync_ckpt_type_for_selected_model()
+            app._refresh_ckpt_type_select()
+            app.query_one("#ckpt-type", Select).value = "open-magvit2-b"
+            await pilot.pause()
+            results["ckpt_select"] = app.ckpt_type == "open-magvit2-b"
+
+            app.selected_model_id = "depth-anything-v2"
+            app._sync_ckpt_type_for_selected_model()
+            app._sync_infer_control_layout()
+            results["depth_input_label"] = str(app.query_one("#input-path-label", Label).render()) == "Input image"
+            app.selected_model_id = "flash-world"
+            app._sync_ckpt_type_for_selected_model()
+            app._sync_infer_control_layout()
+            results["flash_input_dir_label"] = str(app.query_one("#input-dir-label", Label).render()) == "JSON config"
+            app.selected_model_id = "lingbot-world"
+            app._sync_ckpt_type_for_selected_model()
+            app._sync_infer_control_layout()
+            results["lingbot_input_dir_label"] = (
+                str(app.query_one("#input-dir-label", Label).render()) == "Action/example directory"
+            )
+
+            action.value = "training"
+            await pilot.pause()
+            stage_values = [value for _label, value in app._training_stage_options() if value]
+            if stage_values:
+                app.query_one("#training-stage", Select).value = stage_values[-1]
+                await pilot.pause()
+                results["training_stage_select"] = app.training_stage_id == stage_values[-1]
+            else:
+                results["training_stage_select"] = True
+
+            filter_input = app.query_one("#filter", Input)
+            filter_input.value = "openvla"
+            await pilot.pause()
+            results["filter_updates"] = filter_input.value == "openvla"
+            filter_input.value = ""
+            action.value = "eval"
+            await pilot.pause()
+            models = app.query_one("#models-table", DataTable)
+            benchmarks = app.query_one("#benchmarks-table", DataTable)
+            results["tables_have_rows"] = models.row_count > 0 and benchmarks.row_count > 0
+            models.focus()
+            models.move_cursor(row=0)
+            await pilot.press("enter")
+            benchmarks.focus()
+            benchmarks.move_cursor(row=0)
+            await pilot.press("enter")
+            await pilot.pause()
+            results["selection_still_valid"] = bool(app.selected_model_id and app.selected_benchmark_id)
+            return results
+
+    results = asyncio.run(run_app())
+
+    assert all(results.values()), results
+
+
+def test_tui_cli_writes_suite_plan(tmp_path, capsys) -> None:
+    assert (
+        tui_main(
+            [
+                "--model-id",
+                "openvla",
+                "--benchmark-id",
+                "robotwin",
+                "--output-dir",
+                str(tmp_path / "tui"),
+                "--write-suite-plan",
+            ]
+        )
+        == 0
+    )
+
+    output = capsys.readouterr().out
+    assert "suite-plan: status=planned" in output
+    manifest_path = tmp_path / "tui" / "suite-plan" / "suite_manifest.json"
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert payload["summary"]["total"] == 1
+    assert payload["cells"][0]["model_id"] == "openvla"
+    assert payload["cells"][0]["benchmark_id"] == "robotwin"
+    assert payload["cells"][0]["status"] == "planned"
+    assert payload["cells"][0]["compatibility"] == "compatible"
+    assert payload["cells"][0]["output_artifact"] == "action_trace"
+
+
+def test_robotics_framework_imports_use_embodied_owner() -> None:
+    embodied = importlib.import_module("worldfoundry.evaluation.tasks.embodied")
+    normalizer = importlib.import_module("worldfoundry.evaluation.tasks.embodied.normalizer")
+
+    assert hasattr(embodied, "EmbodiedGenerationSpec")
+    assert hasattr(embodied, "run_vla_va_wam")
+    assert hasattr(normalizer, "normalize_results")

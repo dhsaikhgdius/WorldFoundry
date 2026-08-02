@@ -11,9 +11,14 @@ import os
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from worldfoundry.core.io.serialization import iter_jsonl_objects
 from worldfoundry.evaluation.utils import (
     escape_markdown_cell as _escape_markdown_cell,
+)
+from worldfoundry.evaluation.utils import (
     format_value as _format_value,
+)
+from worldfoundry.evaluation.utils import (
     read_json_object,
     write_json,
     write_jsonl,
@@ -21,7 +26,6 @@ from worldfoundry.evaluation.utils import (
 
 from .run_report import (
     _dedupe_labels,
-    _int_or_zero,
     _mapping,
     _normalise_roots,
     _row_from_summary,
@@ -81,14 +85,7 @@ def load_run_index(path: str | Path) -> dict[str, Any]:
     if not source_path.exists():
         raise FileNotFoundError(f"run index path does not exist: {source_path}")
     if source_path.suffix.lower() == ".jsonl":
-        rows: list[dict[str, Any]] = []
-        for line_number, line in enumerate(source_path.read_text(encoding="utf-8").splitlines(), start=1):
-            if not line.strip():
-                continue
-            row = json.loads(line)
-            if not isinstance(row, Mapping):
-                raise TypeError(f"run index JSONL line {line_number} must be a JSON object in {source_path}")
-            rows.append(dict(row))
+        rows = list(iter_jsonl_objects(source_path))
         return _index_summary_from_rows(source_path, rows)
 
     payload = read_json_object(source_path)

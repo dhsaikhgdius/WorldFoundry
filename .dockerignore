@@ -1,8 +1,26 @@
 .git
 .github
+.codex
+.codex/
+.claude/
+.agents/
+.cursor/
+.vscode/
+.idea/
+.env*
+.envrc
+**/.env*
+**/.envrc
+**/.direnv/
+credentials/*.secret
+**/credentials/*.secret
+token
+*.token
+**/*.token
 .mypy_cache
 .pytest_cache
 .ruff_cache
+.runtime/
 __pycache__/
 *.py[cod]
 *.egg-info/
@@ -17,6 +35,9 @@ runs/
 tmp/
 inspatio_world_output/
 worldfoundry_outputs/
+*.log
+*.out
+*.err
 
 node_modules/
 docs/fumadocs/.next/

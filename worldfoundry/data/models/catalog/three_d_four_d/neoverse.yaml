@@ -20,7 +20,8 @@ integration:
   kind: pipeline_runner
   status: integrated
   notes:
-  - WorldFoundry exposes the in-tree NeoVerse pipeline and vendored DiffSynth runtime adapter.
+  - WorldFoundry exposes a native NeoVerse assembly over canonical Wan components
+    plus its model-specific control and reconstruction roles.
   - Real inference remains checkpoint/GPU gated; no metadata-only runner shim is used.
 confirmation: Official GitHub repo reports Apache-2.0 and says inference scripts/model checkpoints are released.
 output_artifacts:

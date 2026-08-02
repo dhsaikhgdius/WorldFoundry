@@ -196,7 +196,7 @@ def usp_dit_forward_avatar(
     c = self.dim // self.num_heads // 2
 
     # Divide base frequencies into [T, H, W] axes for 3D RoPE
-    freqs = self.freqs.cuda().split([c - 2 * (c // 3), c // 3, c // 3], dim=1)
+    freqs = self.freqs.split([c - 2 * (c // 3), c // 3, c // 3], dim=1)
 
     freqs_l = []
     for i, (f, h, w) in enumerate(grid_sizes.tolist()):

@@ -19,7 +19,7 @@ Official references:
 - In-tree runner: `worldfoundry/evaluation/tasks/execution/runners/videophy2/run_videophy2_official_runner.py`
 
 
-## Official References
+## Official references
 
 | Resource | Link |
 | --- | --- |
@@ -30,7 +30,7 @@ Official references:
 | AutoEval weights | [videophysics/videophy_2_auto](https://huggingface.co/videophysics/videophy_2_auto) |
 | In-tree runner | `worldfoundry/evaluation/tasks/execution/runners/videophy2/run_videophy2_official_runner.py` |
 
-## Evaluation Protocol
+## Evaluation protocol
 
 WorldFoundry uses the bundled prompt manifest at `worldfoundry/data/benchmarks/assets/videophy2/prompts.json`. It contains the 200 prompt IDs, captions, and physical-rule metadata needed to reproduce the VideoPhy-2 test protocol.
 
@@ -54,7 +54,7 @@ Primary metric: `videophy2_average`.
 
 The official AutoEval model runs three tasks internally: `sa` for semantic adherence, `pc` for physical commonsense, and `rule` for physical-rule grounding.
 
-## Data And Checkpoint Preparation
+## Data and checkpoint preparation
 
 The prompt manifest is already checked in:
 
@@ -81,7 +81,7 @@ hf download videophysics/videophy2_test \
 
 The benchmark reproduction path does not require training the AutoEval model. The official training dataset is public, but WorldFoundry only vendors the AutoEval inference runtime needed for scoring. If you retrain or fine-tune an evaluator, pass the resulting checkpoint directory with `--autoeval-checkpoint`.
 
-## Generate Candidate Videos
+## Generate candidate videos
 
 Run your candidate text-to-video model on the 200 prompts in `WORLDFOUNDRY_VIDEOPHY2_PROMPT_MANIFEST`, then write the videos into one directory using the official names:
 
@@ -101,7 +101,7 @@ export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/videophy2/generated_videos
 
 Candidate model training and inference are model-specific. For WorldFoundry-integrated generators, use the model's synthesis page or package entrypoint, then copy or export the final video for each prompt ID into the layout above.
 
-## Run AutoEval Scoring
+## Run AutoEval scoring
 
 Run the in-tree VideoPhy-2 AutoEval path:
 
@@ -131,7 +131,7 @@ export WORLDFOUNDRY_VIDEOPHY2_NUM_FRAMES=32
 export WORLDFOUNDRY_VIDEOPHY2_AUTOEVAL_PYTHON="${WORLDFOUNDRY_UNIFIED_PYTHON:-python}"
 ```
 
-## Import Existing Results
+## Import existing results
 
 If AutoEval has already produced a VideoPhy-2 result file, import it through the same runner:
 
@@ -171,4 +171,4 @@ The run writes:
 - `videophy2_autoeval_outputs/`: raw AutoEval CSV outputs.
 - `logs/`: AutoEval stdout/stderr logs.
 
-[Back to Benchmark Hub](/docs/evaluation/benchmark-hub)
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

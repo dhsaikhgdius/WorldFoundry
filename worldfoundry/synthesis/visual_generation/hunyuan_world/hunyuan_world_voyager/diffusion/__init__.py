@@ -1,4 +1,4 @@
-from worldfoundry.base_models.diffusion_model.video.hunyuan_video.diffusion import (
+from worldfoundry.synthesis.visual_generation.hunyuan_world.hunyuan_worldplay.schedulers.scheduling_flow_match_discrete import (
     FlowMatchDiscreteScheduler,
 )
 from .pipelines import HunyuanVideoPipeline

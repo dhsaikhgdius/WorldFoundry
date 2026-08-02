@@ -14,7 +14,7 @@ except ImportError:
 from packaging import version
 from transformers.utils.import_utils import _is_package_available
 
-from worldfoundry.base_models.diffusion_model.video.hunyuan_video.modules.norm_layers import get_norm_layer
+from worldfoundry.core.nn import normalization_layer as get_norm_layer
 from worldfoundry.core.attention import scaled_dot_product_attention as _worldfoundry_scaled_dot_product_attention
 
 

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import csv
-import hashlib
 import json
 import os
 import shutil
@@ -10,6 +9,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from worldfoundry.base_models.three_dimensions.point_clouds.pi3 import SOURCE_ROOT as PI3_SOURCE_ROOT
+from worldfoundry.core.io import file_sha256
 
 from .variants import (
     WARP_AS_HISTORY_VARIANTS,
@@ -153,7 +153,7 @@ class WarpAsHistoryRuntime:
 
     @staticmethod
     def _sha256(path: Path) -> str:
-        return hashlib.sha256(path.read_bytes()).hexdigest()
+        return file_sha256(path)
 
     @staticmethod
     def _copy_artifact(source: Path, target: Path) -> Path:
@@ -174,8 +174,8 @@ class WarpAsHistoryRuntime:
                 raise FileNotFoundError(f"Warp-as-History input image not found: {path}")
             return path.resolve()
 
-        from PIL import Image
         import numpy as np
+        from PIL import Image
 
         work_dir.mkdir(parents=True, exist_ok=True)
         target = work_dir / "first_frame.png"

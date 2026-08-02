@@ -16,6 +16,7 @@ this engine guarantees:
 from __future__ import annotations
 
 import os
+import sysconfig
 from importlib.util import find_spec
 from pathlib import Path
 from typing import Mapping, Sequence
@@ -24,6 +25,25 @@ from typing import Mapping, Sequence
 def package_root() -> Path:
     """Returns the resolved absolute path of the installed `worldfoundry` package root."""
     return Path(__file__).resolve().parents[2]
+
+
+def package_data_root() -> Path:
+    """Resolve bundled WorldFoundry model and benchmark metadata."""
+
+    candidates = (
+        package_root() / "data",
+        Path(sysconfig.get_path("data")) / "worldfoundry" / "data",
+    )
+    for candidate in candidates:
+        if (candidate / "models").is_dir() or (candidate / "benchmarks").is_dir():
+            return candidate
+    return candidates[0]
+
+
+def package_data_path(*parts: str | Path) -> Path:
+    """Resolve a path below the bundled WorldFoundry data root."""
+
+    return package_data_root().joinpath(*(Path(part) for part in parts))
 
 
 def package_module_root(package: str) -> Path:
@@ -236,6 +256,7 @@ def resolve_local_hf_model_path(
     model_id_or_path: str | Path,
     *,
     required_files: Sequence[str] = (),
+    revision: str | None = None,
     env: Mapping[str, str] | None = None,
 ) -> Path:
     """Resolve a Hugging Face model strictly from WorldFoundry-local storage.
@@ -281,8 +302,18 @@ def resolve_local_hf_model_path(
 
     environ = dict(os.environ if env is None else env)
     ckpt_root = checkpoint_root_path(env=environ)
-    hf_home = Path(environ["HF_HOME"]).expanduser() if environ.get("HF_HOME") else None
-    hf_hub_cache = Path(environ["HF_HUB_CACHE"]).expanduser() if environ.get("HF_HUB_CACHE") else None
+    injected_home = Path(environ.get("HOME") or Path.home()).expanduser()
+    xdg_cache_home = Path(
+        environ.get("XDG_CACHE_HOME") or injected_home / ".cache"
+    ).expanduser()
+    hf_home = Path(
+        environ.get("HF_HOME") or xdg_cache_home / "huggingface"
+    ).expanduser()
+    hf_hub_cache = Path(
+        environ.get("HF_HUB_CACHE")
+        or environ.get("HUGGINGFACE_HUB_CACHE")
+        or hf_home / "hub"
+    ).expanduser()
     roots = [
         hfd_root_path(env=environ),
         ckpt_root / "hfd_models",
@@ -291,10 +322,8 @@ def resolve_local_hf_model_path(
         ckpt_root / "hf_cache" / "hub",
         ckpt_root,
     ]
-    if hf_hub_cache is not None:
-        roots.insert(0, hf_hub_cache)
-    if hf_home is not None:
-        roots.insert(0, hf_home / "hub")
+    roots.insert(0, hf_home / "hub")
+    roots.insert(0, hf_hub_cache)
     normalized = value.replace("/", "--")
     leaf = value.rsplit("/", 1)[-1]
     names = tuple(dict.fromkeys((normalized, f"models--{normalized}", value, leaf)))
@@ -307,17 +336,26 @@ def resolve_local_hf_model_path(
         snapshots = directory / "snapshots"
         if snapshots.is_dir():
             revisions: list[Path] = []
-            main_ref = directory / "refs" / "main"
-            if main_ref.is_file():
-                revision = main_ref.read_text(encoding="utf-8").strip()
-                if revision:
-                    revisions.append(snapshots / revision)
-            revisions.extend(sorted(snapshots.iterdir(), reverse=True))
-            for revision in revisions:
-                if revision.is_dir() and all(
-                    (revision / name).is_file() for name in required_files
-                ):
-                    return revision.resolve()
+            if revision is not None:
+                requested = str(revision).strip()
+                if not requested:
+                    raise ValueError("Hugging Face revision cannot be empty")
+                revisions.append(snapshots / requested)
+                revision_ref = directory / "refs" / requested
+                if revision_ref.is_file():
+                    resolved_ref = revision_ref.read_text(encoding="utf-8").strip()
+                    if resolved_ref:
+                        revisions.append(snapshots / resolved_ref)
+            else:
+                main_ref = directory / "refs" / "main"
+                if main_ref.is_file():
+                    main_revision = main_ref.read_text(encoding="utf-8").strip()
+                    if main_revision:
+                        revisions.append(snapshots / main_revision)
+                revisions.extend(sorted(snapshots.iterdir(), reverse=True))
+            for snapshot in dict.fromkeys(revisions):
+                if snapshot.is_dir() and all((snapshot / name).is_file() for name in required_files):
+                    return snapshot.resolve()
             return None
         if all((directory / name).is_file() for name in required_files):
             return directory.resolve()
@@ -343,9 +381,7 @@ def resolve_local_hf_model_path(
                     return resolved
 
     locations = "\n".join(f"  - {path}" for path in checked)
-    raise FileNotFoundError(
-        f"Local Hugging Face assets for {value!r} are missing. Checked:\n{locations}"
-    )
+    raise FileNotFoundError(f"Local Hugging Face assets for {value!r} are missing. Checked:\n{locations}")
 
 
 def resolve_local_checkpoint_file(
@@ -367,8 +403,7 @@ def resolve_local_checkpoint_file(
         if direct.name.endswith((".aria2", ".incomplete", ".gstmp")):
             raise FileNotFoundError(f"Checkpoint transfer is incomplete: {direct}")
         partial_markers = tuple(
-            direct.with_name(f"{direct.name}{suffix}")
-            for suffix in (".aria2", ".incomplete", ".gstmp", "_.gstmp")
+            direct.with_name(f"{direct.name}{suffix}") for suffix in (".aria2", ".incomplete", ".gstmp", "_.gstmp")
         )
         if direct.stat().st_size <= 0 or any(marker.exists() for marker in partial_markers):
             raise FileNotFoundError(f"Checkpoint transfer is incomplete: {direct}")

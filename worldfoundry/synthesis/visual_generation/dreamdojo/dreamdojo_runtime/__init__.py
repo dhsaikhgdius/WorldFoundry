@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import sys
 
-from worldfoundry.base_models.diffusion_model.video.cosmos.cosmos2.runtime.cosmos_oss_dreamdojo import cosmos_oss as _cosmos_oss
-from worldfoundry.base_models.diffusion_model.video.cosmos.cosmos2.runtime.cosmos_predict2 import cosmos_predict2 as _cosmos_predict2
+from worldfoundry.base_models.diffusion_model.models.networks import cosmos2 as _cosmos_predict2
+
+from . import cosmos_oss as _cosmos_oss
 from . import external as _external
 from . import groot_dreams as _groot_dreams
 

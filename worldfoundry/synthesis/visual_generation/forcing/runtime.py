@@ -203,17 +203,6 @@ def _default_wan_models_root() -> str:
     return str(local or _wan_root_candidates()[0])
 
 
-def _canonical_wan_variant_parent(model_id: str, runtime_root: str | Path) -> str:
-    if model_id == "self-forcing":
-        variant = "self_forcing"
-    elif model_id == "rolling-forcing" or Path(runtime_root).expanduser().name == "long_video":
-        variant = "causal_forcing_long_video"
-    else:
-        variant = "causal_forcing"
-    package = f"worldfoundry.base_models.diffusion_model.video.wan.variants.{variant}.wan"
-    return str(package_root(package).parent)
-
-
 def _load_video_frames(video_path: str | Path) -> np.ndarray:
     import imageio.v3 as iio
 
@@ -471,7 +460,6 @@ class _ForcingRuntime:
         pythonpath = [
             str(compat_dir) if compat_dir is not None else "",
             str(package_root("worldfoundry").parent),
-            _canonical_wan_variant_parent(self.model_id, self.runtime_root),
             self.runtime_root,
             env.get("PYTHONPATH", ""),
         ]
@@ -479,6 +467,7 @@ class _ForcingRuntime:
         env["WORLDFOUNDRY_WAN_MODELS_ROOT"] = str(
             Path(self.wan_models_root).expanduser().resolve()
         )
+        env["WORLDFOUNDRY_FORCING_VARIANT"] = self.model_id
         env.setdefault("TOKENIZERS_PARALLELISM", "false")
         env.setdefault("PYTHONUNBUFFERED", "1")
         if self.device.startswith("cuda:"):

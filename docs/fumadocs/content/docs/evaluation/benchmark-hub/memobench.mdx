@@ -15,9 +15,9 @@ The in-tree MemoBench runtime and source docs live under:
 
 WorldFoundry includes the runtime code, docs, result-import surface, and small static evaluation assets under `worldfoundry/data/benchmarks/assets/memobench/data`. Large dataset assets, model checkpoints, SAM-3, and VLM/API credentials remain explicit setup inputs for full-suite execution.
 
-## What To Prepare
+## What to prepare
 
-### Official Data Layout
+### Official data layout
 
 Prepare the MemoBench data assets in the layout used by the official runtime:
 
@@ -42,7 +42,7 @@ data/
 
 The release data can be stored outside the repository. When running the MemoBench scripts from the in-tree runtime, point their data arguments or working directory at the prepared asset root. The full suite needs SAM-3-compatible segmentation assets for Object Revisit Score and a Gemini or compatible VLM setup for VQA.
 
-### Generated Output Layout
+### Generated output layout
 
 MemoBench expects frame directories rather than a single video file per clip:
 
@@ -65,7 +65,7 @@ Frames should be PNG files with zero-padded numeric filenames. The upstream eval
 
 ## Metrics
 
-### Automated Metrics
+### Automated metrics
 
 | Metric | WorldFoundry ID | Backbone / source | Scope |
 | --- | --- | --- | --- |
@@ -90,7 +90,7 @@ Frames should be PNG files with zero-padded numeric filenames. The upstream eval
 | SSIM | `gt_all_ssim` | 0-1 | Higher is better |
 | LPIPS | `gt_all_lpips` | 0-1 | Lower is better |
 
-### VQA Metrics
+### VQA metrics
 
 | Metric | WorldFoundry ID | Question focus |
 | --- | --- | --- |
@@ -101,9 +101,9 @@ Frames should be PNG files with zero-padded numeric filenames. The upstream eval
 
 `memobench_average` is the WorldFoundry aggregate over available normalized component metrics. It is useful for local validation, but leaderboard claims still require full MemoBench evidence coverage.
 
-## Run Evaluation
+## Run evaluation
 
-### Step 1: Automated Metrics Through WorldFoundry
+### Step 1: automated metrics through WorldFoundry
 
 ```bash
 export WORLDFOUNDRY_MEMOBENCH_MODEL_NAME=MyModel
@@ -122,7 +122,7 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
 
 This launches the in-tree `evaluation/run_eval.py` stage and writes a WorldFoundry scorecard from the resulting `eval_both.csv`.
 
-### Step 1 Through The Public CLI
+### Step 1 through the public CLI
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
@@ -135,7 +135,7 @@ worldfoundry-eval zoo benchmark-run \
 
 Use the direct runner when you want to pass separate synthetic and real roots, `--device`, `--max-side`, or `--sample-step`.
 
-### Import Existing MemoBench Outputs
+### Import existing MemoBench outputs
 
 ```bash
 PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
@@ -161,9 +161,9 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
   --json
 ```
 
-## Official Stage Details
+## Official stage details
 
-### Step 1: Automated Metrics
+### Step 1: automated metrics
 
 From the in-tree runtime directory:
 
@@ -193,7 +193,7 @@ Useful options:
 
 Step 1 writes one row per clip and includes composite metrics, diagnostics, and per-phase pixel fidelity.
 
-### Step 2: Object Revisit Score
+### Step 2: Object Revisit score
 
 From the same in-tree runtime directory:
 
@@ -205,7 +205,7 @@ python evaluation/compute_ors.py \
 
 The script uses object descriptions from `worldfoundry/data/benchmarks/assets/memobench/data/sam3_metadata/` by default, identifies Reappear-phase frames from MemoBench phase-boundary files, and runs SAM-3 text-prompted segmentation. Override the metadata directory with `WORLDFOUNDRY_MEMOBENCH_SAM3_METADATA_DIR` when needed. The resulting `ors_scores.csv` includes the clip id, data type, scene, Reappear start index, ORS, detection rate, mean confidence, and evaluated frame counts.
 
-### Step 3: VQA Evaluation
+### Step 3: VQA evaluation
 
 From the same in-tree runtime directory:
 
@@ -264,4 +264,4 @@ WorldFoundry can import the generated leaderboard CSV, but local comparisons are
 - `per_sample_scores.jsonl`
 - Upstream Step 1 `eval_*.csv` when `--run-official` is used
 
-[Back to Benchmark Hub](/docs/evaluation/benchmark-hub)
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

@@ -18,7 +18,7 @@ Official references:
 - Model: [TIGER-Lab/VideoScore-v1.1](https://huggingface.co/TIGER-Lab/VideoScore-v1.1)
 - In-tree runner: `worldfoundry/evaluation/tasks/execution/runners/videoscore/run_videoscore_official_runner.py`
 
-## Evaluation Protocol
+## Evaluation protocol
 
 VideoScore predicts five aspect scores on a 1-4 scale:
 
@@ -33,7 +33,7 @@ VideoScore predicts five aspect scores on a 1-4 scale:
 
 WorldFoundry normalizes 1-4 raw scores to 0-1 in the scorecard.
 
-## Data And Frames Preparation
+## Data and frames preparation
 
 VideoScore benchmark evaluation consumes extracted frame directories, not a flat directory of mp4 files. Prepare either:
 
@@ -63,7 +63,7 @@ export WORLDFOUNDRY_VIDEOSCORE_FRAMES_DIR=/path/to/videoscore/frames
 
 `--bench-name` selects the split inside VideoScore-Bench. The default is `video_feedback`; other official splits come from the VideoScore-Bench release.
 
-## Checkpoint Preparation
+## Checkpoint preparation
 
 Use the official VideoScore-v1.1 reward model or a local mirror:
 
@@ -75,7 +75,7 @@ hf download TIGER-Lab/VideoScore-v1.1 \
 
 If `WORLDFOUNDRY_VIDEOSCORE_MODEL_REPO` is not set, the runner falls back to the Hugging Face id `TIGER-Lab/VideoScore-v1.1`.
 
-## Run A Full Frame-Tree Evaluation
+## Run a full frame-tree evaluation
 
 Run VideoScore on a prepared frame tree:
 
@@ -96,7 +96,7 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
 
 This path calls the in-tree `benchmark/eval_videoscore.py` runtime and writes the official result JSON under `upstream/`.
 
-## Run A Bounded Validation
+## Run a bounded validation
 
 For a small local check using the downloaded benchmark data:
 
@@ -116,7 +116,7 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
 
 The bounded path materializes frames for a small number of benchmark rows and runs the same VideoScore normalization pipeline. Use full frame-tree evaluation for benchmark-scale results.
 
-## Import Existing Results
+## Import existing results
 
 Import an existing official-compatible VideoScore result JSON:
 
@@ -146,4 +146,17 @@ Each run writes:
 - `upstream/eval_<bench_name>_videoscore.json`: raw official result JSON.
 - `upstream_stdout.log` and `upstream_stderr.log`: runtime logs.
 
-[Back to Benchmark Hub](/docs/evaluation/benchmark-hub)
+## Leaderboard notes
+
+VideoScore is primarily a **reward model / automatic metric**, not a prompt-suite generation leaderboard. The key validation results reported in the paper:
+
+| Setting | Spearman correlation with humans |
+| --- | ---: |
+| VideoFeedback-test | 77.1% |
+| Previous best automatic metric | about 27% lower on average |
+
+VideoScore-Bench aggregates roughly **7,000** videos drawn from [VideoFeedback](https://huggingface.co/datasets/TIGER-Lab/VideoFeedback), EvalCrafter, GenAI-Bench, and VBench splits. The official bench configs are `video_feedback`, `eval_crafter`, `genaibench`, and `vbench`.
+
+WorldFoundry normalizes the five 1–4 aspect scores to 0–1 and reports `videoscore_average`. Use the full frame-tree evaluation for benchmark-level evidence; the bounded-sample path is for local validation only.
+
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

@@ -27,6 +27,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
+from worldfoundry.core.logging_setup import configure_logging, get_logger
 from worldfoundry.evaluation.tasks.catalog.zoo_registry import load_benchmark_zoo_registry
 from worldfoundry.evaluation.tasks.execution.framework.io import (
     env_path,
@@ -822,7 +823,16 @@ def runner_result_payload(config: BenchRunnerConfig, scorecard: dict[str, Any], 
 
 def run_main(config: BenchRunnerConfig, hooks: RunnerHooks, argv: list[str] | None = None) -> int:
     args = build_common_parser(config, hooks).parse_args(argv)
+    # Official runners can run either beneath the main CLI or as standalone
+    # subprocesses, so initialize the central logger in both cases.
+    configure_logging()
+    logger = get_logger(__name__).bind(
+        benchmark_id=config.benchmark_id,
+        output_dir=None if args.output_dir is None else str(args.output_dir),
+        phase="official_runner",
+    )
     if args.output_dir is None:
+        logger.event("ERROR", "official_runner.invalid_arguments", "Official runner requires an output directory")
         print("error: --output-dir or WORLDFOUNDRY_BENCHMARK_OUTPUT_DIR is required", file=sys.stderr)
         return 2
     if getattr(args, "run_fixture", False):
@@ -830,6 +840,7 @@ def run_main(config: BenchRunnerConfig, hooks: RunnerHooks, argv: list[str] | No
 
         sample_path = benchmark_task_sample_path(config.benchmark_id)
         if sample_path is None:
+            logger.event("ERROR", "official_runner.fixture_missing", "Official runner fixture is unavailable")
             print(
                 f"error: no checked-in sample for {config.benchmark_id} under {BENCHMARK_ASSETS_ROOT / config.benchmark_id}",
                 file=sys.stderr,
@@ -839,6 +850,7 @@ def run_main(config: BenchRunnerConfig, hooks: RunnerHooks, argv: list[str] | No
     elif args.from_upstream_results is None and not args.run_official:
         env_results = resolve_results_path(config, None)
         if env_results is None:
+            logger.event("ERROR", "official_runner.results_missing", "Official runner results path is unavailable")
             print(
                 f"error: --official-results-path or {config.results_path_env} is required unless --run-official is set",
                 file=sys.stderr,
@@ -846,8 +858,15 @@ def run_main(config: BenchRunnerConfig, hooks: RunnerHooks, argv: list[str] | No
             return 2
         args.from_upstream_results = env_results
     try:
+        logger.event("INFO", "official_runner.started", "Official runner started")
         scorecard = run_official_pipeline(config=config, hooks=hooks, args=args)
     except (OSError, ValueError, json.JSONDecodeError, ImportError) as exc:
+        logger.event(
+            "ERROR",
+            "official_runner.failed",
+            "Official runner failed",
+            exc_info=True,
+        )
         print(f"error: {exc}", file=sys.stderr)
         return 1
     result = runner_result_payload(config, scorecard, output_dir=args.output_dir)
@@ -857,4 +876,12 @@ def run_main(config: BenchRunnerConfig, hooks: RunnerHooks, argv: list[str] | No
         status = "ok" if result["ok"] or result["normalization_ok"] else "failed"
         print(f"{config.benchmark_id}: official validation {status}")
         print(f"scorecard: {result['scorecard']}")
-    return 0 if result["ok"] or result["normalization_ok"] else 1
+    exit_code = 0 if result["ok"] or result["normalization_ok"] else 1
+    logger.event(
+        "INFO" if exit_code == 0 else "ERROR",
+        "official_runner.finished",
+        "Official runner finished",
+        exit_code=exit_code,
+        normalization_ok=result["normalization_ok"],
+    )
+    return exit_code

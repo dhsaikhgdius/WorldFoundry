@@ -3,24 +3,30 @@
 #
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
-#from distributed import init_distributed
 import torch
+
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
 
 import argparse
 import os
+
 import numpy as np
-
-from config_paths import load_runtime_yaml
-from diffusion import create_diffusion
 from diffusers.models import AutoencoderKL
-
-import misc
-from worldfoundry.core.distributed import metric_sync as dist
-from models import CDiT_models
-from eval_inputs import EvalDataset
 from PIL import Image
+
+from worldfoundry.core.distributed import metric_sync as dist
+from worldfoundry.synthesis.visual_generation.world_model.nwm import misc
+from worldfoundry.synthesis.visual_generation.world_model.nwm.config_paths import (
+    load_runtime_yaml,
+)
+from worldfoundry.synthesis.visual_generation.world_model.nwm.diffusion import (
+    create_diffusion,
+)
+from worldfoundry.synthesis.visual_generation.world_model.nwm.eval_inputs import (
+    EvalDataset,
+)
+from worldfoundry.synthesis.visual_generation.world_model.nwm.models import CDiT_models
 
 
 def save_image(output_file, img, unnormalize_img):
@@ -115,7 +121,7 @@ def generate_time(args, output_dir, idxs, all_models, obs_image, gt_output, delt
         write_prediction_frames(output_dir, idxs, sec, x_pred_pixels)
 
 def write_prediction_frames(output_dir, idxs, sec, x_pred_pixels):
-    for batch_idx, sample_idx in enumerate(idxs.squeeze()):
+    for batch_idx, sample_idx in enumerate(idxs.flatten()):
         sample_idx = int(sample_idx.item())
         sample_folder = os.path.join(output_dir, f'id_{sample_idx}')
         os.makedirs(sample_folder, exist_ok=True)
@@ -124,7 +130,7 @@ def write_prediction_frames(output_dir, idxs, sec, x_pred_pixels):
 
 @torch.no_grad()
 def main(args):
-    _, _, device, _ = init_distributed()
+    _, _, device, _ = dist.init_distributed()
     print(args)
     device = torch.device(device)
     num_tasks = dist.get_world_size()

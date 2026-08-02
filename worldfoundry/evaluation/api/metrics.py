@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Protocol, Sequence, runtime_checkable
 
@@ -9,7 +10,6 @@ from worldfoundry.evaluation.api.json_contract import JsonContract, copy_mapping
 
 from .artifacts import ArtifactRef, coerce_artifact_refs
 from .generation import GenerationRequest, GenerationResult
-
 
 METRIC_SPEC_SCHEMA_VERSION = "worldfoundry-metric-spec"
 METRIC_RESULT_SCHEMA_VERSION = "worldfoundry-metric-result"
@@ -240,3 +240,40 @@ class Metric(Protocol):
 
     def aggregate(self, results: Sequence[MetricResult]) -> AggregateResult:
         ...
+
+
+@runtime_checkable
+class BatchMetric(Metric, Protocol):
+    """Optional metric extension for accelerator-efficient sample batches."""
+
+    def compute_batch(
+        self,
+        requests: Sequence[GenerationRequest],
+        results: Sequence[GenerationResult],
+    ) -> Sequence[Any] | Mapping[str, Any]:
+        """Return one metric output per request, in order or keyed by sample id."""
+        ...
+
+
+def align_batch_metric_outputs(outputs: Any, sample_ids: Sequence[str]) -> tuple[Any, ...]:
+    """Validate and align ordered or sample-id-keyed batch metric outputs."""
+
+    expected_ids = tuple(str(sample_id) for sample_id in sample_ids)
+    if isinstance(outputs, Mapping):
+        keyed = {str(sample_id): value for sample_id, value in outputs.items()}
+        missing = [sample_id for sample_id in expected_ids if sample_id not in keyed]
+        unexpected = sorted(set(keyed).difference(expected_ids))
+        if missing or unexpected:
+            raise ValueError(
+                "batch metric output sample ids do not match requests: "
+                f"missing={missing}, unexpected={unexpected}"
+            )
+        return tuple(keyed[sample_id] for sample_id in expected_ids)
+    if not isinstance(outputs, Iterable) or isinstance(outputs, (str, bytes, bytearray)):
+        raise TypeError("batch metric output must be an iterable or a sample-id mapping")
+    aligned = tuple(outputs)
+    if len(aligned) != len(expected_ids):
+        raise ValueError(
+            f"batch metric returned {len(aligned)} outputs for {len(expected_ids)} requests"
+        )
+    return aligned

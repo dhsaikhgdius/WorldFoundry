@@ -55,9 +55,12 @@
     "videoscience-bench",
     "phyeduvideo",
     "phyground",
+    "likephys",
     "phyfps-bench-gen",
     "visual-chronometer",
     "memobench",
+    "mind",
+    "rbench",
     "---World Models---",
     "worldmodelbench",
     "worldscore",
@@ -70,6 +73,8 @@
     "ewmbench",
     "4dworldbench",
     "worldreasonbench",
-    "wrbench"
+    "worldolympiad",
+    "wrbench",
+    "sana-wm-bench"
   ]
 }

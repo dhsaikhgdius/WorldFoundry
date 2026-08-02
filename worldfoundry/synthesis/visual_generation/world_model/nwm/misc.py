@@ -4,16 +4,19 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 #
-import matplotlib.pyplot as plt
-import torch
-import numpy as np
 import os
+
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+import torchvision.transforms.functional as TF
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from PIL import Image
 from torchvision import transforms
-import torchvision.transforms.functional as TF
 
-from config_paths import load_runtime_yaml
+from worldfoundry.synthesis.visual_generation.world_model.nwm.config_paths import (
+    load_runtime_yaml,
+)
 
 IMAGE_ASPECT_RATIO = (4 / 3)  # all images are centered cropped to a 4:3 aspect ratio in training
 

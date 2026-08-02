@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-import hashlib
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from worldfoundry.core.io.paths import package_module_root as package_root
-from worldfoundry.core.io import write_json
+from worldfoundry.core.io import file_sha256, write_json
 from worldfoundry.core.io.paths import hfd_root_path
-
+from worldfoundry.core.io.paths import package_module_root as package_root
 
 DEFAULT_SPLATT3R_REPO = "brandonsmart/splatt3r_v1.0"
 DEFAULT_SPLATT3R_FILENAME = "epoch=19-step=1200.ckpt"
@@ -138,10 +136,11 @@ class Splatt3RRuntime:
         from worldfoundry.base_models.three_dimensions.general_3d.mast3r import ensure_import_paths
 
         ensure_import_paths()
+        from omegaconf import OmegaConf
+
         from worldfoundry.base_models.three_dimensions.general_3d.splatt3r.splatt3r_runtime.model import (
             MAST3RGaussians,
         )
-        from omegaconf import OmegaConf
 
         device = self.device if str(self.device).startswith("cuda") and torch.cuda.is_available() else "cpu"
         checkpoint = torch.load(self._resolve_checkpoint(), map_location="cpu", weights_only=False)
@@ -249,6 +248,7 @@ class Splatt3RRuntime:
 
         model = self._ensure_model()
         from dust3r.utils.image import load_images
+
         from worldfoundry.base_models.three_dimensions.general_3d.splatt3r.splatt3r_runtime.utils import export
 
         image_paths = self._image_paths(images, interactions)
@@ -268,7 +268,7 @@ class Splatt3RRuntime:
             "model_id": self.model_id,
             "artifact_kind": "generated_3d_asset",
             "artifact_path": str(target),
-            "artifact_sha256": hashlib.sha256(target.read_bytes()).hexdigest(),
+            "artifact_sha256": file_sha256(target),
             "runtime": "worldfoundry.splatt3r.in_tree_runtime",
             "backend_quality": "in_tree_runtime",
             "image_paths": image_paths,

@@ -51,10 +51,18 @@ def _env_flag(name: str, default: bool) -> bool:
     if raw is None:
         return default
     return raw.strip().lower() in {"1", "true", "yes", "on"}
-def _c2w(position: np.ndarray, pitch_degrees: float, yaw_degrees: float) -> np.ndarray:
-    rotation = euler_angles_to_rotation_matrix_zyx(
+
+
+def _rotation_matrix(pitch_degrees: float, yaw_degrees: float) -> np.ndarray:
+    """Return the native DreamX camera rotation for pitch/yaw controls."""
+
+    return euler_angles_to_rotation_matrix_zyx(
         np.radians([pitch_degrees, yaw_degrees, 0.0])
     ).astype(np.float32)
+
+
+def _c2w(position: np.ndarray, pitch_degrees: float, yaw_degrees: float) -> np.ndarray:
+    rotation = _rotation_matrix(pitch_degrees, yaw_degrees)
     w2c = np.eye(4, dtype=np.float32)
     w2c[:3, :3] = rotation
     w2c[:3, 3] = -rotation @ position
@@ -145,7 +153,7 @@ class DreamXWorldARRealtimeSession:
         self.last_metrics: dict[str, float] = {}
 
     def _load_components(self) -> tuple[Any, Any, Any, torch.Tensor]:
-        from worldfoundry.base_models.diffusion_model.video.wan.variants.dreamx_world import (
+        from worldfoundry.base_models.diffusion_model.models.denoisers.wan_dreamx import (
             WanDiffusionCameraWrapper,
             WanTextEncoder,
             WanVAEWrapper,

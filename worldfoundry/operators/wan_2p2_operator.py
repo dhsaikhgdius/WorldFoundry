@@ -77,7 +77,7 @@ class Wan2p2Operator(BaseOperator):
         # 仅在 ti2v 任务下，且打开 use_prompt_extend 时做扩写
         if "ti2v" in mode and use_prompt_extend:
             logging.info("Extending prompt ...")
-            from ..base_models.diffusion_model.video.wan.wan_2p2.utils.prompt_extend import (
+            from ..base_models.diffusion_model.models.encoders.wan.prompt_expander import (
                 DashScopePromptExpander,
                 QwenPromptExpander,
             )

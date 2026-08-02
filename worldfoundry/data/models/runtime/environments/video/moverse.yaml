@@ -57,7 +57,7 @@ validation_imports:
 - transformers
 - worldfoundry.base_models.three_dimensions.general_3d.geocalib.autolevel
 - worldfoundry.base_models.three_dimensions.depth.depth_anything.depth_anything_v3.api
-- worldfoundry.base_models.diffusion_model.video.wan.variants.moverse
+- worldfoundry.base_models.diffusion_model.models.networks.wan.variants.moverse
 - gsplat
 - cv2
 notes:

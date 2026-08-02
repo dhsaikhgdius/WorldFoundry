@@ -1,4 +1,5 @@
 include .pre-commit-config.yaml
+include THIRD-PARTY-NOTICES
 recursive-include requirements *.txt *.md
 include worldfoundry/data/benchmarks/*.yaml
 include worldfoundry/data/benchmarks/*.md
@@ -14,6 +15,7 @@ include worldfoundry/synthesis/visual_generation/moverse/UPSTREAM.md
 recursive-include worldfoundry/synthesis/visual_generation/moverse/moverse_runtime *
 recursive-include worldfoundry/synthesis/visual_generation/uni3c/uni3c_runtime *
 recursive-include worldfoundry/synthesis/visual_generation/world_model/mira_wm *.py *.md *.txt LICENSE .worldfoundry_upstream_commit
+recursive-include worldfoundry/synthesis/visual_generation/rcm/rcm_runtime *.py *.md
 recursive-include worldfoundry/evaluation/tasks/execution/runners/physics_iq/official *.py
 recursive-include worldfoundry/evaluation/tasks/execution/runners/chronomagic_bench/runtime/chronomagic_bench/MTScore/configs *.json
 include worldfoundry/evaluation/tasks/execution/runners/devil_dynamics/runtime/official/cal_temporal_info.sh
@@ -33,6 +35,7 @@ recursive-include worldfoundry/base_models/three_dimensions/general_3d/vipe/csrc
 include worldfoundry/base_models/three_dimensions/general_3d/vipe/LICENSE
 include worldfoundry/base_models/three_dimensions/general_3d/vipe/THIRD_PARTY_LICENSES.md
 include worldfoundry/base_models/three_dimensions/general_3d/vipe/UPSTREAM.md
+recursive-include worldfoundry/studio/native/world_explorer *
 recursive-include worldfoundry/data/models/catalog *.yaml
 recursive-include worldfoundry/data/models/runtime *.yaml
 recursive-include worldfoundry/data/models/runtime *.json
@@ -41,7 +44,6 @@ recursive-include worldfoundry/data/models/runtime/configs *.yaml
 recursive-include worldfoundry/data/models/runtime/configs *.yml
 recursive-include worldfoundry/data/models/runtime/configs *.json
 recursive-include worldfoundry/data/models/runtime/environments *.yaml
-include worldfoundry/base_models/diffusion_model/video/cosmos3/UPSTREAM*.txt
 recursive-include worldfoundry/base_models/diffusion_model/diffsynth/tokenizer_configs *
 # Keep source distributions reproducible from a dirty development checkout.
 prune tmp
@@ -58,6 +60,12 @@ prune worldfoundry/data/test_cases
 prune docs/fumadocs/.next
 prune docs/fumadocs/out
 prune docs/fumadocs/node_modules
+prune worldfoundry/studio/native/world_explorer/build
+prune worldfoundry/studio/native/world_explorer/dependencies/fmt
+prune worldfoundry/studio/native/world_explorer/dependencies/glfw
+prune worldfoundry/studio/native/world_explorer/dependencies/imgui
+prune worldfoundry/studio/native/world_explorer/dependencies/pybind11
+prune worldfoundry/studio/native/world_explorer/dependencies/tinylogger
 
 # License-gated upstream runtimes are allowed as ignored local checkouts only.
 prune worldfoundry/base_models/three_dimensions/depth/dvlt/dvlt_runtime
@@ -81,10 +89,6 @@ prune thirdparty/simple-knn
 
 # Upstream runtime mirrors should ship source code, not demo galleries, notebooks,
 # eval question dumps, or bundled sample media.
-prune worldfoundry/base_models/diffusion_model/video/cosmos/cosmos1/cosmos_predict1_gen3c/cosmos_predict1/tokenizer/notebook
-prune worldfoundry/base_models/diffusion_model/video/cosmos/cosmos1/cosmos_predict1_gen3c/cosmos_predict1/tokenizer/test_data
-prune worldfoundry/base_models/diffusion_model/video/cosmos/cosmos2/runtime/cosmos_predict2/cosmos_predict2/_src/imaginaire/attention/tests
-prune worldfoundry/base_models/diffusion_model/video/cosmos/cosmos2/runtime/cosmos_predict2/cosmos_predict2/_src/predict2/tests
 prune worldfoundry/synthesis/visual_generation/pandora/pandora_runtime/ChatUniVi/eval
 prune worldfoundry/synthesis/visual_generation/pandora/pandora_runtime/ChatUniVi/train
 prune worldfoundry/synthesis/visual_generation/dynamicrafter_pandora/DynamiCrafter/assets

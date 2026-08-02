@@ -1,0 +1,116 @@
+schema: worldfoundry-post-training
+execution_owner: worldfoundry-native
+run:
+  id: wan-1p3b-videoalign-flow-grpo
+  output_dir: runs/wan-1p3b-videoalign-flow-grpo
+model:
+  recipe: wan2.1-t2v-1.3b
+  checkpoint: default
+tuning:
+  mode: full
+data:
+  manifest: data/post_training/wan-rl-prompts.jsonl
+  cache: cache/post_training/wan-rl-conditioning
+  split: train
+  shuffle: true
+  shuffle_seed: 42
+  tail_policy: pad
+  options:
+    prompt_batch_size: 1
+    rollout_forward_batch_size: 1
+    replay_microbatch_size: 1
+    generation:
+      height: 480
+      width: 480
+      num_frames: 9
+algorithm:
+  type: flow-grpo
+  num_train_timesteps: 1000
+  sigmas:
+    - 1.0
+    - 0.97826087474823
+    - 0.9545454382896423
+    - 0.9285714030265808
+    - 0.8999999761581421
+    - 0.8684210777282715
+    - 0.8333333134651184
+    - 0.7941176295280457
+    - 0.75
+    - 0.699999988079071
+    - 0.6428571343421936
+    - 0.5769230723381042
+    - 0.5
+    - 0.40909090638160706
+    - 0.30000001192092896
+    - 0.1666666716337204
+    - 0.0
+  sde_timestep_fraction: [0.0, 0.6]
+  num_sde_steps: 8
+  guidance_scale: 5.0
+  init_same_noise: true
+  eta: 0.25
+  sigma_max: 0.97826087474823
+  clip_range: 0.0001
+  updates_per_trajectory: 1
+  group_size: 24
+  old_log_prob_source: rollout
+  reference_kl_weight: 0.0
+  advantage_epsilon: 0.00000001
+  advantage_normalization: group-population-variance
+  trajectory_dtype: float32
+  reward_weights:
+    video_quality: 1.0
+    motion_quality: 1.0
+    text_alignment: 1.0
+  reward_model:
+    type: videoalign
+    base_model_repository: Qwen/Qwen2-VL-2B-Instruct
+    base_model_revision: 895c3a49bc3fa70a340399125c650a463535e71c
+    checkpoint_repository: KlingTeam/VideoReward
+    checkpoint_revision: b8e421fe21aec3dde5f61fdd1dc44e1d603b9727
+    checkpoint_file: checkpoint-11352/model.pth
+    checkpoint_sha256: 48375908e6112de9f0248402db156a23b480709a6960b091c598c6f4c88d21b9
+    checkpoint_size_bytes: 5031072529
+    source_fps: 24.0
+    target_fps: 2.0
+    min_frames: 4
+    max_frames: 768
+    frame_factor: 2
+    max_frame_pixels: 200704
+    batch_size: 1
+    dtype: bfloat16
+    quantize_to_uint8: true
+    input_range: minus-one-to-one
+    calibration_mean:
+      video_quality: 3.6757
+      motion_quality: 1.1646
+      text_alignment: 2.8105
+    calibration_std:
+      video_quality: 2.2476
+      motion_quality: 1.3811
+      text_alignment: 2.5121
+    normalization_epsilon: 0.0
+optimizer:
+  type: adamw
+  learning_rate: 0.00005
+  weight_decay: 0.0
+  betas: [0.9, 0.999]
+  epsilon: 0.00000001
+  max_grad_norm: 1.0
+runtime:
+  param_dtype: bfloat16
+  reduce_dtype: float32
+  activation_checkpoint: full
+  compile: false
+distributed:
+  backend: fsdp2
+  dp_replicate: 1
+  dp_shard: auto
+  cp: 1
+  tp: 1
+checkpoint:
+  save_every_steps: 50
+  async: true
+  export_every_steps: 50
+export:
+  format: distributed-checkpoint

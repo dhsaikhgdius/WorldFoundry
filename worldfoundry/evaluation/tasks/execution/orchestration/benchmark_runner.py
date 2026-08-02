@@ -26,22 +26,24 @@ from typing import Any, Iterable, Iterator, Mapping
 
 from worldfoundry.core.io.paths import resolve_worldfoundry_path
 from worldfoundry.core.io.serialization import write_json
+from worldfoundry.core.logging_setup import get_logger, log_context
+from worldfoundry.core.process import run_logged_subprocess
 from worldfoundry.core.time import utc_now_iso
 from worldfoundry.evaluation.reporting import inspect_scorecard_runtime_flags
+from worldfoundry.evaluation.tasks.execution.framework.result_normalizer import OfficialResultsNormalizer
 from worldfoundry.runtime.env import benchmark_repo_cache_root
 
 from ....utils import BENCHMARK_ZOO_DIR
 from ...catalog.schema import BenchmarkZooEntry, load_entries
 from ...catalog.zoo_registry import BenchmarkZooRegistry, UnknownBenchmarkZooKeyError, load_benchmark_zoo_registry
 from ...contracts.external import get_external_benchmark_contract
-from ..runners._benchmark_metrics import evaluate_external_metric, list_external_metric_evaluators
 from ...execution.framework.benchmark_contract_registry import (
     BENCHMARK_CONTRACT_EVALUATOR_KINDS,
     has_benchmark_contract_evaluator,
     write_benchmark_contract_evaluation,
 )
-from worldfoundry.evaluation.tasks.execution.framework.result_normalizer import OfficialResultsNormalizer
 from ..framework.runner_registry import specialized_result_normalizer_scripts
+from ..runners._benchmark_metrics import evaluate_external_metric, list_external_metric_evaluators
 from .interfaces import (
     BenchmarkSample,
     DatasetMaterializationPlan,
@@ -248,15 +250,6 @@ def _timeout_seconds(value: JsonValue) -> float | None:
     if isinstance(value, (int, float)):
         return float(value)
     return None
-
-
-def _subprocess_output(value: str | bytes | None) -> str:
-    """Decode captured subprocess stdout/stderr bytes."""
-    if value is None:
-        return ""
-    if isinstance(value, bytes):
-        return value.decode("utf-8", errors="replace")
-    return value
 
 
 def _env_mapping(value: JsonValue) -> dict[str, str]:
@@ -635,18 +628,15 @@ def _run_specialized_result_normalizer(
     timeout = kwargs.get("timeout_seconds", kwargs.get("timeout"))
     timeout_seconds = float(timeout) if isinstance(timeout, (int, float)) and not isinstance(timeout, bool) else None
     start = time.monotonic()
-    completed = subprocess.run(
+    completed = run_logged_subprocess(
         command,
+        stdout_path=stdout_path,
+        stderr_path=stderr_path,
         cwd=REPO_ROOT,
         env=env,
-        text=True,
-        capture_output=True,
         timeout=timeout_seconds,
-        check=False,
     )
     duration_seconds = time.monotonic() - start
-    stdout_path.write_text(completed.stdout, encoding="utf-8")
-    stderr_path.write_text(completed.stderr, encoding="utf-8")
     scorecard_path = output_dir / "scorecard.json"
     if not scorecard_path.is_file():
         return {
@@ -1211,19 +1201,16 @@ class ManifestBenchmarkRunner:
         timeout_seconds = _timeout_seconds(kwargs.get("timeout_seconds", kwargs.get("timeout")))
         start = time.monotonic()
         try:
-            completed = subprocess.run(
+            completed = run_logged_subprocess(
                 _subprocess_command(resolved_command),
+                stdout_path=stdout_path,
+                stderr_path=stderr_path,
                 cwd=workdir,
                 env=env,
-                text=True,
-                capture_output=True,
                 timeout=timeout_seconds,
-                check=False,
                 shell=isinstance(resolved_command, str),
             )
             duration_seconds = time.monotonic() - start
-            stdout_path.write_text(completed.stdout, encoding="utf-8")
-            stderr_path.write_text(completed.stderr, encoding="utf-8")
             status = "succeeded" if completed.returncode == 0 else "failed"
             if completed.returncode == 0:
                 emitted_scorecard_path = prepared.output_dir / "scorecard.json"
@@ -1260,10 +1247,8 @@ class ManifestBenchmarkRunner:
                 data=data,
                 metadata={**metadata, "run_status": status, "returncode": completed.returncode},
             )
-        except subprocess.TimeoutExpired as exc:
+        except subprocess.TimeoutExpired:
             duration_seconds = time.monotonic() - start
-            stdout_path.write_text(_subprocess_output(exc.stdout), encoding="utf-8")
-            stderr_path.write_text(_subprocess_output(exc.stderr), encoding="utf-8")
             status = "timeout"
             error = f"official command timed out after {timeout_seconds} seconds"
         except OSError as exc:
@@ -2111,11 +2096,39 @@ def run_benchmark_execution(
     **kwargs: JsonValue,
 ) -> OfficialRunResult:
     """Run full benchmark lifecycle for ``benchmark_id``."""
-    registry = build_benchmark_runner_registry(manifest_path)
-    runner = registry.get_runner(benchmark_id)
-    return runner.evaluate(
-        output_dir=output_dir,
-        mode=mode,
-        generated_artifact_dir=generated_artifact_dir,
-        **kwargs,
-    )
+    with log_context(benchmark_id=benchmark_id, phase="benchmark.execution"):
+        logger = get_logger(__name__)
+        logger.event(
+            "INFO",
+            "benchmark.execution.started",
+            "Benchmark execution started",
+            output_dir=str(output_dir),
+            mode=mode,
+        )
+        try:
+            registry = build_benchmark_runner_registry(manifest_path)
+            runner = registry.get_runner(benchmark_id)
+            result = runner.evaluate(
+                output_dir=output_dir,
+                mode=mode,
+                generated_artifact_dir=generated_artifact_dir,
+                **kwargs,
+            )
+        except Exception:
+            logger.event(
+                "ERROR",
+                "benchmark.execution.failed",
+                "Benchmark execution failed",
+                exc_info=True,
+                output_dir=str(output_dir),
+                mode=mode,
+            )
+            raise
+        logger.event(
+            "INFO" if result.ok else "ERROR",
+            "benchmark.execution.finished",
+            "Benchmark execution finished",
+            status=result.status,
+            output_dir=str(result.output_dir),
+        )
+        return result

@@ -47,16 +47,20 @@ integration:
   status: integrated
   notes:
   - WorldFoundry ports the official SVI 2.0 inference-only conditioning path in-tree at the pinned upstream revision.
-  - The adapter reuses WorldFoundry's in-tree DiffSynth Wan2.1 implementation and preserves five-frame continuation,
-    per-clip seed changes, reference-frame padding, and prompt-stream repetition.
+  - The adapter reuses WorldFoundry's canonical Wan2.1 components and staged runner,
+    preserving five-frame continuation, per-clip seed changes, reference-frame padding,
+    and prompt-stream repetition.
+  - Released training-pipeline LoRA keys are normalized to bare Wan DiT module names, and runtime
+    loading fails unless every discovered LoRA pair is merged.
   - Training launchers, datasets, demo media, and checkpoints remain outside the source tree.
 runner_parity:
-  status: implemented_pending_gpu_parity
+  status: full_default_gpu_parity_verified
   notes:
   - Static and fake-runtime integration tests cover prompt streaming, frame overlap removal, seeds, and registry wiring.
-  - A checkpoint-backed A100 smoke run completed with the Wan2.1 14B base and SVI 2.0 LoRA, including FP32 VAE
-    conditioning, DiT denoising, decode, and H.264 output.
-  - Full default-resolution, 81-frame, 50-step visual parity with the official examples remains pending.
+  - A full A100 Workspace default run generated two linked 81-frame, 50-step clips at 832x544 and
+    emitted the expected 157-frame H.264 artifact after removing the five-frame overlap.
+  - Exact-setting parity against the pinned official native runtime reached 31.03 dB PSNR, 4.05 pixel MAE,
+    and 0.993 luma correlation across all 81 frames; visual contact-sheet review passed.
 runtime_profile: runtime-profile:stable-video-infinity
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 pipeline_binding: stable-video-infinity

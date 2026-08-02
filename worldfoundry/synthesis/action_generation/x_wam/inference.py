@@ -430,12 +430,12 @@ def _runner_class() -> type[Any]:
     import torch
     from einops import rearrange
 
-    from worldfoundry.base_models.diffusion_model.video.wan.wan_2p1.modules.t5 import umt5_xxl
-    from worldfoundry.base_models.diffusion_model.video.wan.wan_2p1.modules.tokenizers import HuggingfaceTokenizer
-    from worldfoundry.base_models.diffusion_model.video.wan.wan_2p1.utils.fm_solvers_unipc import (
+    from worldfoundry.base_models.diffusion_model.models.encoders.wan.reference import umt5_xxl
+    from worldfoundry.base_models.diffusion_model.models.encoders.wan.model import HuggingfaceTokenizer
+    from worldfoundry.base_models.diffusion_model.schedulers.flow_unipc import (
         FlowUniPCMultistepScheduler,
     )
-    from worldfoundry.base_models.diffusion_model.video.wan.wan_2p2.modules.vae2_2 import WanVAE_
+    from worldfoundry.base_models.diffusion_model.models.autoencoders.wan.reference_22 import WanVAE_
 
     from .modeling import XWAMModel
 

@@ -22,7 +22,8 @@ input_schema:
   video: true
 integration_status: integrated
 notes:
-- WorldFoundry vendors the official LongVie DiffSynth runtime under worldfoundry/synthesis/visual_generation/longvie/longvie_runtime.
+- LongVie runs on canonical Wan components and the shared staged diffusion runner;
+  its synthesis package is a thin product assembly boundary.
 - Default calls fail fast unless execute=True is supplied; staged checkpoints are
   required for the official-equivalent GPU path.
 - The LongVie-1 adapter uses the control-weight path without requiring the LongVie

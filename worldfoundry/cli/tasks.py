@@ -7,8 +7,9 @@ import os
 import sys
 from pathlib import Path
 
-from .utils import json_dump
 from worldfoundry.evaluation.utils import BENCHMARK_TASK_ROOT, write_json, write_jsonl
+
+from .utils import json_dump
 
 DEFAULT_TASK_ROOT = BENCHMARK_TASK_ROOT
 DEFAULT_BENCHMARK_TASK_ROOT = DEFAULT_TASK_ROOT

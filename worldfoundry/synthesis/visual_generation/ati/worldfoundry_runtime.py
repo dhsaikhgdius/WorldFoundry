@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import os
 import tempfile
 from pathlib import Path
@@ -10,8 +9,8 @@ from typing import Any, Mapping
 
 import numpy as np
 
+from worldfoundry.core.io import file_sha256
 from worldfoundry.core.io.paths import hfd_root_path
-
 
 DEFAULT_ATI_REPO = "bytedance-research/ATI"
 DEFAULT_WAN_I2V_REPO = "Wan-AI/Wan2.1-I2V-14B-480P"
@@ -115,7 +114,8 @@ class ATIRuntime:
         _symlink_union(self.checkpoint_path, self.base_model_path, checkpoint_view)
 
         import torch
-        from worldfoundry.base_models.diffusion_model.video.wan.official_wan2_1_runtime.wan.configs import i2v_14B
+
+        from worldfoundry.base_models.diffusion_model.recipes.wan_configs.wan21 import i2v_14B
 
         from .ati_runtime.image2video import WanATI
 
@@ -162,7 +162,7 @@ class ATIRuntime:
             "runtime": "independent_in_tree_ati",
             "checkpoint_path": str(self.checkpoint_path),
             "base_model_path": str(self.base_model_path),
-            "wan_base_code": "worldfoundry/base_models/diffusion_model/video/wan/official_wan2_1_runtime",
+            "wan_base_code": "worldfoundry/base_models/diffusion_model/models",
         }
 
     @staticmethod
@@ -248,7 +248,7 @@ class ATIRuntime:
             "artifact_path": str(artifact),
             "generated_video_path": str(artifact),
             "video": video,
-            "video_sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
+            "video_sha256": file_sha256(artifact),
             "runtime_plan": self.plan(),
         }
         return result if return_dict else video

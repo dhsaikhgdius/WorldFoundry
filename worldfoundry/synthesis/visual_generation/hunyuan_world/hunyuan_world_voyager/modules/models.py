@@ -1,21 +1,28 @@
-from typing import Any, List, Tuple, Optional, Union, Dict
+from typing import Any, Dict, List, Optional, Tuple, Union
+
 import torch
 import torch.nn as nn
+from diffusers.configuration_utils import register_to_config
 from einops import rearrange
 
-from diffusers.configuration_utils import register_to_config
-
 # 从基础模块导入原始类
-from worldfoundry.base_models.diffusion_model.video.hunyuan_video.modules.models import (
+from worldfoundry.base_models.diffusion_model.models.networks.hunyuan_video.i2v.model import (
     HYVideoDiffusionTransformer as BaseHYVideoDiffusionTransformer,
+)
+from worldfoundry.base_models.diffusion_model.models.networks.hunyuan_video.i2v.model import (
     MMDoubleStreamBlock as BaseMMDoubleStreamBlock,
+)
+from worldfoundry.base_models.diffusion_model.models.networks.hunyuan_video.i2v.model import (
     MMSingleStreamBlock as BaseMMSingleStreamBlock,
 )
-from worldfoundry.base_models.diffusion_model.video.hunyuan_video.modules.activation_layers import get_activation_layer
-from worldfoundry.base_models.diffusion_model.video.hunyuan_video.modules.embed_layers import PatchEmbed
-from worldfoundry.base_models.diffusion_model.video.hunyuan_video.modules.attenion import get_cu_seqlens
+from worldfoundry.base_models.diffusion_model.models.networks.hunyuan_video.layers.embed_layers import PatchEmbed
 from worldfoundry.core.attention import apply_nd_rotary_embedding as apply_rotary_emb
-from worldfoundry.base_models.diffusion_model.video.hunyuan_video.modules.modulate_layers import modulate, apply_gate, ckpt_wrapper
+from worldfoundry.core.attention import get_cu_seqlens
+from worldfoundry.core.gradient import create_custom_forward as ckpt_wrapper
+from worldfoundry.core.nn import (
+    apply_gate_with_prefix as apply_gate,
+    modulate_sequence_with_prefix as modulate,
+)
 
 
 class MMDoubleStreamBlock(BaseMMDoubleStreamBlock):
@@ -49,7 +56,7 @@ class MMDoubleStreamBlock(BaseMMDoubleStreamBlock):
         
         # Token replace specific logic
         img_mod1, token_replace_img_mod1 = self.img_mod(
-            vec, condition_type=condition_type, token_replace_vec=token_replace_vec
+            vec, secondary_value=token_replace_vec
         )
         (img_mod1_shift, img_mod1_scale, img_mod1_gate,
          img_mod2_shift, img_mod2_scale, img_mod2_gate) = img_mod1.chunk(6, dim=-1)
@@ -63,9 +70,8 @@ class MMDoubleStreamBlock(BaseMMDoubleStreamBlock):
         img_modulated = self.img_norm1(img)
         img_modulated = modulate(
             img_modulated, shift=img_mod1_shift, scale=img_mod1_scale,
-            condition_type=condition_type,
-            tr_shift=tr_img_mod1_shift, tr_scale=tr_img_mod1_scale,
-            frist_frame_token_num=frist_frame_token_num
+            prefix_shift=tr_img_mod1_shift, prefix_scale=tr_img_mod1_scale,
+            prefix_length=frist_frame_token_num
         )
         img_qkv = self.img_attn_qkv(img_modulated)
         img_q, img_k, img_v = rearrange(
@@ -93,7 +99,7 @@ class MMDoubleStreamBlock(BaseMMDoubleStreamBlock):
         k = torch.cat((img_k, txt_k), dim=1)
         v = torch.cat((img_v, txt_v), dim=1)
 
-        from worldfoundry.base_models.diffusion_model.video.hunyuan_video.modules.attenion import attention, parallel_attention
+        from worldfoundry.core.attention.hybrid import attention, parallel_attention
         
         if not self.hybrid_seq_parallel_attn:
             attn = attention(
@@ -114,19 +120,18 @@ class MMDoubleStreamBlock(BaseMMDoubleStreamBlock):
         # Calculate img blocks with token replace
         img = img + apply_gate(
             self.img_attn_proj(img_attn), gate=img_mod1_gate,
-            condition_type=condition_type, tr_gate=tr_img_mod1_gate,
-            frist_frame_token_num=frist_frame_token_num
+            prefix_gate=tr_img_mod1_gate,
+            prefix_length=frist_frame_token_num
         )
         img = img + apply_gate(
             self.img_mlp(
                 modulate(
                     self.img_norm2(img), shift=img_mod2_shift, scale=img_mod2_scale,
-                    condition_type=condition_type, tr_shift=tr_img_mod2_shift,
-                    tr_scale=tr_img_mod2_scale, frist_frame_token_num=frist_frame_token_num
+                    prefix_shift=tr_img_mod2_shift,
+                    prefix_scale=tr_img_mod2_scale, prefix_length=frist_frame_token_num
                 )
             ),
-            gate=img_mod2_gate, condition_type=condition_type,
-            tr_gate=tr_img_mod2_gate, frist_frame_token_num=frist_frame_token_num
+            gate=img_mod2_gate, prefix_gate=tr_img_mod2_gate, prefix_length=frist_frame_token_num
         )
 
         # Calculate txt blocks (unchanged)
@@ -169,16 +174,15 @@ class MMSingleStreamBlock(BaseMMSingleStreamBlock):
 
         # Token replace specific logic
         mod, tr_mod = self.modulation(
-            vec, condition_type=condition_type, token_replace_vec=token_replace_vec
+            vec, secondary_value=token_replace_vec
         )
         mod_shift, mod_scale, mod_gate = mod.chunk(3, dim=-1)
         tr_mod_shift, tr_mod_scale, tr_mod_gate = tr_mod.chunk(3, dim=-1)
 
         x_mod = modulate(
             self.pre_norm(x), shift=mod_shift, scale=mod_scale,
-            condition_type=condition_type,
-            tr_shift=tr_mod_shift, tr_scale=tr_mod_scale,
-            frist_frame_token_num=frist_frame_token_num
+            prefix_shift=tr_mod_shift, prefix_scale=tr_mod_scale,
+            prefix_length=frist_frame_token_num
         )
         qkv, mlp = torch.split(
             self.linear1(x_mod), [3 * self.hidden_size, self.mlp_hidden_dim], dim=-1
@@ -196,7 +200,7 @@ class MMSingleStreamBlock(BaseMMSingleStreamBlock):
             q = torch.cat((img_q, txt_q), dim=1)
             k = torch.cat((img_k, txt_k), dim=1)
 
-        from worldfoundry.base_models.diffusion_model.video.hunyuan_video.modules.attenion import attention, parallel_attention
+        from worldfoundry.core.attention.hybrid import attention, parallel_attention
 
         if not self.hybrid_seq_parallel_attn:
             attn = attention(
@@ -214,8 +218,7 @@ class MMSingleStreamBlock(BaseMMSingleStreamBlock):
 
         output = self.linear2(torch.cat((attn, self.mlp_act(mlp)), 2))
         return x + apply_gate(
-            output, gate=mod_gate, condition_type=condition_type,
-            tr_gate=tr_mod_gate, frist_frame_token_num=frist_frame_token_num
+            output, gate=mod_gate, prefix_gate=tr_mod_gate, prefix_length=frist_frame_token_num
         )
 
 

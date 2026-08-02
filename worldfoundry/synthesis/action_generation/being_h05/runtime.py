@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from worldfoundry.core.io import file_sha256
 from worldfoundry.core.io.paths import project_root, resolve_worldfoundry_path
+
 
 def _jsonable(value: Any) -> Any:
     """Recursively converts a value to a JSON-serializable type.
@@ -477,7 +478,7 @@ class BeingH05Runtime:
             "model_id": "being-h05",
             "artifact_kind": "action_trace",
             "artifact_path": str(target),
-            "artifact_sha256": hashlib.sha256(target.read_bytes()).hexdigest(),
+            "artifact_sha256": file_sha256(target),
             "duration_seconds": round(time.monotonic() - start, 3),
             "runtime": trace["runtime"],
             "prediction": trace["prediction"],

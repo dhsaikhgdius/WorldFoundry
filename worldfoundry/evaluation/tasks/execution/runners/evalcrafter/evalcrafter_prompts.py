@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 from pathlib import Path
 from typing import Any
 
+from worldfoundry.core.io.file_utils import materialize_file
 from worldfoundry.evaluation.api import GenerationRequest, GenerationResult
 from worldfoundry.evaluation.tasks.execution.framework.benchmark_assets import (
     bundled_benchmark_asset,
@@ -228,7 +228,7 @@ def copy_evalcrafter_generated_videos(
         target_path = generated_artifact_dir / official_video_filename_for_record(
             record_by_id.get(sample_id, {"prompt_id": sample_id})
         )
-        shutil.copy2(source_path, target_path)
+        materialize_file(source_path, target_path, writable=False)
         materialized += 1
         manifest_rows.append({"sample_id": sample_id, "artifact": output_artifact, "path": str(target_path)})
 
@@ -250,7 +250,7 @@ def copy_evalcrafter_generated_videos(
             target_path = generated_artifact_dir / official_video_filename_for_record(record)
             if target_path.is_file():
                 continue
-            shutil.copy2(source_path, target_path)
+            materialize_file(source_path, target_path, writable=False)
             materialized += 1
             manifest_rows.append(
                 {"sample_id": result.sample_id, "artifact": output_artifact, "path": str(target_path)}

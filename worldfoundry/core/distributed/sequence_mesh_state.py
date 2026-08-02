@@ -11,12 +11,18 @@ class ParallelDims:
     world_size: int = -1
 
     def __post_init__(self):
+        self.sp = int(self.sp)
+        if self.sp < 1:
+            raise ValueError("sp must be at least 1")
         if self.world_size == -1:
             if dist.is_initialized():
                 self.world_size = dist.get_world_size()
             else:
                 self.world_size = int(os.getenv("WORLD_SIZE", "1"))
-        self.build_mesh("cuda")
+        self.world_size = int(self.world_size)
+        self.world_mesh = None
+        if dist.is_initialized() or self.world_size > 1:
+            self.build_mesh("cuda")
 
     def build_mesh(self, device_type):
         assert self.world_size % self.sp == 0, "world_size must be divisible by sp"
@@ -34,22 +40,27 @@ class ParallelDims:
 
     @property
     def sp_group(self):
+        if self.world_mesh is None:
+            return None
         return self.world_mesh["sp"].get_group()
 
     @property
     def sp_mesh(self):
+        if self.world_mesh is None:
+            return None
         return self.world_mesh["sp"]
 
     @property
     def sp_rank(self):
         if self.sp_enabled:
             return self.world_mesh["sp"].get_local_rank()
-        else:
+        if dist.is_initialized():
             return dist.get_rank()
+        return 0
 
     @property
     def dp_enabled(self):
-        return self.sp > 1
+        return self.world_size // self.sp > 1
 
 
 __parallel_dims = None

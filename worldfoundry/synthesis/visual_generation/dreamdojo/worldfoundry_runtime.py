@@ -133,7 +133,9 @@ import sys
 runtime_root = Path({str(runtime_root)!r})
 src_root = Path({str(self._repo_src_root())!r})
 sys.path.insert(0, str(src_root))
-sys.path.insert(0, str(runtime_root))
+# ``dreamdojo_runtime`` is a package rooted at ``runtime_root``.  Python needs
+# its parent on sys.path in order to import the package by name.
+sys.path.insert(0, str(runtime_root.parent))
 import dreamdojo_runtime  # noqa: F401
 from cosmos_predict2.action_conditioned import inference
 from cosmos_predict2.action_conditioned_config import ActionConditionedInferenceArguments, ActionConditionedSetupArguments

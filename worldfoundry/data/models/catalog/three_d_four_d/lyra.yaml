@@ -24,6 +24,8 @@ integration:
   notes:
   - WorldFoundry exposes in-tree Lyra-1 and Lyra-2 pipelines backed by vendored runtime adapters.
   - Default catalog runner targets Lyra-2; Lyra-1 remains available as an explicit variant.
+  - The native World Explorer vendors the upstream CUDA/C++/ImGui interaction and
+    rendering implementation behind a model-neutral inference adapter.
 confirmation: Official GitHub repo reports Apache-2.0 and describes official implementations of Lyra 1.0 and 2.0.
 output_artifacts:
 - generated_world

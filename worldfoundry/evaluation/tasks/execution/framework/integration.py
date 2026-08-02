@@ -68,6 +68,13 @@ def _runner_path(benchmark_id: str) -> str:
 # ---------------------------------------------------------------------------
 
 BENCHMARK_INTEGRATION_REGISTRY: dict[str, BenchmarkIntegrationSpec] = {
+    "apple-pi": BenchmarkIntegrationSpec(
+        "apple-pi",
+        IntegrationTier.MODEL_BACKED,
+        _runner_path("apple-pi"),
+        hf_dataset_id="yaorunmao/Apple-PI-GT",
+        judge_model_id="gemini-3-flash-preview",
+    ),
     "aigcbench": BenchmarkIntegrationSpec(
         "aigcbench",
         IntegrationTier.IN_TREE,
@@ -116,6 +123,12 @@ BENCHMARK_INTEGRATION_REGISTRY: dict[str, BenchmarkIntegrationSpec] = {
     "iworld-bench": BenchmarkIntegrationSpec(
         "iworld-bench", IntegrationTier.IN_TREE, _runner_path("iworld-bench"),
     ),
+    "likephys": BenchmarkIntegrationSpec(
+        "likephys",
+        IntegrationTier.IN_TREE,
+        _runner_path("likephys"),
+        hf_dataset_id="JianhaoDYDY/LikePhys-Benchmark",
+    ),
     "mirabench": BenchmarkIntegrationSpec(
         "mirabench", IntegrationTier.IN_TREE, _runner_path("mirabench"),
     ),
@@ -123,6 +136,12 @@ BENCHMARK_INTEGRATION_REGISTRY: dict[str, BenchmarkIntegrationSpec] = {
         "memobench",
         IntegrationTier.IN_TREE,
         _runner_path("memobench"),
+    ),
+    "mind": BenchmarkIntegrationSpec(
+        "mind",
+        IntegrationTier.IN_TREE,
+        _runner_path("mind"),
+        hf_dataset_id="CSU-JPG/MIND",
     ),
     "phyeduvideo": BenchmarkIntegrationSpec(
         "phyeduvideo", IntegrationTier.IN_TREE, _runner_path("phyeduvideo"),
@@ -174,6 +193,13 @@ BENCHMARK_INTEGRATION_REGISTRY: dict[str, BenchmarkIntegrationSpec] = {
         IntegrationTier.MODEL_BACKED,
         _runner_path("physvidbench"),
         judge_model_id="models/gemini-2.0-flash",
+    ),
+    "rbench": BenchmarkIntegrationSpec(
+        "rbench",
+        IntegrationTier.MODEL_BACKED,
+        _runner_path("rbench"),
+        hf_dataset_id="DAGroup-PKU/RBench",
+        judge_model_id="gpt-4o+Qwen3-VL",
     ),
     "t2v-compbench": BenchmarkIntegrationSpec(
         "t2v-compbench", IntegrationTier.IN_TREE, _runner_path("t2v-compbench"),

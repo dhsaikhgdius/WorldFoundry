@@ -114,11 +114,11 @@ def resolve_hf_path(path: str | PathLike[str] | None) -> str | Any:
     Accepts either:
 
     * a local path (returned unchanged if it exists), or
-    * ``hf://<owner>/<repo>[/<subpath>]`` — resolves an already materialized
-      WorldFoundry-local snapshot and returns the requested file or directory.
+    * ``hf://<owner>/<repo>[/<subpath>]`` — reuses an already materialized
+      WorldFoundry-local snapshot, otherwise downloads only the requested
+      subtree through the configured Hugging Face endpoint.
 
-    Runtime I/O is deliberately offline. Repository acquisition belongs to the
-    explicit preparation workflow, never to model inference.
+    Set ``HF_HUB_OFFLINE=1`` when runtime I/O must remain strictly offline.
     """
     if not isinstance(path, str) or not path:
         return path
@@ -130,13 +130,16 @@ def resolve_hf_path(path: str | PathLike[str] | None) -> str | Any:
     repo_id, subpath = _parse_hf_uri(path)
     from worldfoundry.core.io.paths import resolve_local_hf_model_path
 
-    local_root = resolve_local_hf_model_path(repo_id)
-    resolved = local_root / subpath if subpath else local_root
-    if not resolved.exists():
-        raise FileNotFoundError(
-            f"Local Hugging Face asset for {path!r} is missing under {local_root}. "
-            "Pre-download the pinned repository before inference."
+    try:
+        local_root = resolve_local_hf_model_path(repo_id)
+    except FileNotFoundError:
+        local_root = Path(
+            _snapshot_download(
+                repo_id=repo_id,
+                allow_patterns=_allow_patterns_for_subpath(subpath),
+            )
         )
+    resolved = local_root / subpath if subpath else local_root
     return str(resolved.resolve())
 
 

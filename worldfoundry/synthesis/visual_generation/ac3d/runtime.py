@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 import shutil
@@ -14,9 +13,9 @@ from typing import Any, Mapping, Sequence
 import imageio.v3 as iio
 import numpy as np
 
+from worldfoundry.core.io import file_sha256
 from worldfoundry.core.io.paths import checkpoint_root_path
 from worldfoundry.core.io.video import materialize_video_input
-
 
 DEFAULT_AC3D_REPO_ID = "snap-research/ac3d"
 DEFAULT_COGVIDEOX_2B_REPO = "THUDM/CogVideoX-2b"
@@ -599,7 +598,7 @@ class AC3DRuntime:
             "generated_video_path": str(artifact_path),
             "video": frames,
             "frames": frames,
-            "video_sha256": hashlib.sha256(artifact_path.read_bytes()).hexdigest(),
+            "video_sha256": file_sha256(artifact_path),
             "runtime": "worldfoundry.ac3d.official_in_tree_runtime",
             "backend_quality": "official_in_tree_runtime",
             "runtime_plan": plan,
@@ -617,8 +616,8 @@ def _prepend_sys_path(path_value: str | Path) -> None:
 
 def _run_official(args: argparse.Namespace) -> None:
     _prepend_sys_path(args.runtime_root)
-    import torch
     import inference.cli_demo_camera as cli_demo_camera
+    import torch
 
     # Upstream's generate_video reads the parsed CLI namespace as a module global
     # for a few ControlNet transformer options. Mirror the official CLI execution

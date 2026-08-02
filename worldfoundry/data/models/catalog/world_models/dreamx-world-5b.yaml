@@ -7,6 +7,8 @@ integration:
   status: integrated
   notes:
   - In-tree resident causal AR runtime with latent, attention, cross-attention and VAE caches.
+  - The Workspace default includes a staged fixture and non-empty prompt; a 2026-07-28
+    single-A100 run generated a finite, decodable native nine-frame 1280x704 block.
 license: apache-2.0
 modalities:
 - interactive-world-model

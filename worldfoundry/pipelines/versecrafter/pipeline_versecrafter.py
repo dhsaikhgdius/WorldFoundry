@@ -39,9 +39,10 @@ class VerseCrafterPipeline(PipelineABC):
         **kwargs: Any,
     ) -> Any:
         kwargs.pop("operator_kwargs", None)
+        kw_image_path = kwargs.pop("image_path", None)
         result = self.synthesis_model.predict(
             prompt=prompt,
-            image_path=images or kwargs.pop("image_path", None),
+            image_path=images or kw_image_path,
             output_path=output_path,
             return_dict=True,
             **kwargs,

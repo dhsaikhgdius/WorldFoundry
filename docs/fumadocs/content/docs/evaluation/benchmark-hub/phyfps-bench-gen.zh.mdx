@@ -136,9 +136,9 @@ Visual Chronometer 是内置在本 benchmark 中的 PhyFPS 预测器。它估计
 
 当你有官方 100-prompt 套件并需要 Meta FPS 对齐指标（`avg_error_fps`、`pct_error`、`phyfps_bench_gen_average`）时，使用 **PhyFPS-Bench-Gen**。
 
-当你只需要对任意生成视频目录做 PhyFPS 预测和时序一致性指标、不需要 prompt manifest 或 Meta FPS 目标时，使用 **Visual Chronometer** benchmark id。
+当你只需要对任意生成视频目录做 PhyFPS 预测和时序一致性指标、不需要 prompt manifest 或 Meta FPS 目标时，使用 **Visual Chronometer** benchmark ID。
 
-| 场景 | Benchmark id | Runner |
+| 场景 | Benchmark ID | Runner |
 | --- | --- | --- |
 | 完整 prompt 套件 + Meta FPS 对齐 | `phyfps-bench-gen` | `run_phyfps_bench_gen_official_runner.py` |
 | 任意视频目录，仅 PhyFPS | `visual-chronometer` | `run_visual_chronometer_official_runner.py` |

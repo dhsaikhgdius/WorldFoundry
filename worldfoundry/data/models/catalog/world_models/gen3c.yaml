@@ -18,16 +18,19 @@ official_sources:
     type: model
     status: confirmed
 integration:
-  status: verified_official_8gpu_workspace
+  status: integrated
   notes:
-  - In-tree Cosmos Predict1 GEN3C runtime is registered; inference follows the dedicated gen3c conda profile.
-  - Official single-image Workspace demo passed on 8 A100 GPUs with local Cosmos/MoGe assets.
+  - Cosmos Predict1/GEN3C is assembled through the same native denoiser, T5 conditioner,
+    latent initializer, Karras x0 AB2 scheduler, codec, loader, and standard runner contracts as other models.
+  - Named camera trajectories, MoGe depth, and RGBD forward warping are native preprocessing
+    inside the latent-initializer role; callers may also provide pre-rendered 3D-cache tensors.
+  - The previous official-runtime demo evidence does not establish parity for the new native path.
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 pipeline_binding: gen3c
 runner_parity:
-  status: verified_official_8gpu_workspace
+  status: pending
   notes:
-  - Workspace CLI validation uses the upstream single-image demo parameters: 121 frames, 1280x704, 24 fps.
-  - Visual QA shows the expected futuristic city camera-control scene with smooth left motion.
+  - Transformer and T5 checkpoint structure, native camera geometry, registry, and scheduler
+    contracts pass local validation; full-resolution native GPU output parity remains pending.
 catalog_category: world_models
 catalog_scope: world-model/interactive starred models

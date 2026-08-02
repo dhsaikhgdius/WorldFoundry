@@ -2,20 +2,20 @@ import Link from 'next/link';
 import {
   ArrowRight,
   CircleDot,
+  GitCompareArrows,
   Layers3,
   MessageCircle,
   MessagesSquare,
   Puzzle,
-  ShieldCheck,
   UserPlus,
 } from 'lucide-react';
 import { CatalogCoverage } from '@/components/catalog-coverage';
+import { HomeConfigureSection } from '@/components/home-configure-section';
 import { HomeHeroMedia } from '@/components/home-hero-media';
-import { HomeRunConfigurator, type HomeRecipeOption } from '@/components/home-run-configurator';
-import { SiteNav } from '@/components/site-nav';
-import { SiteSearchTrigger } from '@/components/site-search-trigger';
+import { type HomeRecipeOption } from '@/components/home-run-configurator';
+import { SiteFooter } from '@/components/site-footer';
+import { SiteHeader } from '@/components/site-header';
 import { WorldFoundryWorkflow } from '@/components/worldfoundry-system-map';
-import { WorldFoundryWordmarkLink } from '@/components/worldfoundry-wordmark';
 import {
   OPENENVISION_AWESOME_WORLD_MODELING,
   OPENENVISION_BLOGXIV_SITE,
@@ -42,15 +42,16 @@ const pillars = [
     Icon: Layers3,
   },
   {
-    title: 'Honest',
+    title: 'Comparable',
     description:
-      'Catalog coverage, runnable integration, official validation, and leaderboard eligibility stay separate—not collapsed into one ambiguous “supported” label.',
-    Icon: ShieldCheck,
+      'Runs, artifacts, and scorecards share stable IDs and provenance, so teams can compare models and benchmarks on the same evidence.',
+    Icon: GitCompareArrows,
   },
 ];
 
 const capabilities = [
   {
+    index: '01',
     title: 'Know what exists',
     description:
       'Manifests expose stable IDs, sources, capabilities, assets, runtime bindings, readiness, and blockers before compute is allocated.',
@@ -58,6 +59,7 @@ const capabilities = [
     link: 'See what is included',
   },
   {
+    index: '02',
     title: 'Run through shared boundaries',
     description:
       'Pipelines preserve model-native I/O while TUI, CLI, Studio, Python, and MCP reuse the same execution contracts.',
@@ -65,6 +67,7 @@ const capabilities = [
     link: 'Understand the design',
   },
   {
+    index: '03',
     title: 'Inspect before scoring',
     description:
       'Videos, geometry, actions, trajectories, and traces stay visible on disk and in Studio instead of disappearing inside scripts.',
@@ -72,6 +75,7 @@ const capabilities = [
     link: 'Explore Studio',
   },
   {
+    index: '04',
     title: 'Evidence, not headlines',
     description:
       'Benchmark runners preserve per-sample outcomes, coverage, provenance, blockers, reports, and scorecards.',
@@ -81,12 +85,14 @@ const capabilities = [
 ];
 
 const featuredModelIds = [
-  'hunyuanvideo-1.5',
-  'bernini',
   'wan2.2',
+  'ltx-video',
+  'cosmos-predict-2.5',
+  'hunyuanvideo-1.5',
+  'longcat-video',
+  'lingbot-video',
+  'bernini',
   'matrix-game-2',
-  'flashworld',
-  'openvla',
 ];
 
 const featuredModels: HomeRecipeOption[] = [
@@ -183,72 +189,60 @@ export default function HomePage() {
   return (
     <main className="pi-home-shell wf-home-shell">
       <div className="wf-home-stage">
-        <header className="wf-home-site-header">
-          <div className="wf-home-site-header-inner">
-            <div className="pi-doc-header-brand">
-              <WorldFoundryWordmarkLink variant="compact" className="wf-home-wordmark" />
-            </div>
-            <div className="wf-home-site-header-tools">
-              <SiteNav active="home" />
-              <SiteSearchTrigger />
-              <div className="pi-language-switch" aria-label="Language">
-                <Link href="/" aria-current="true">
-                  English
-                </Link>
-                <Link href="/zh/docs">中文</Link>
-              </div>
-            </div>
-          </div>
-        </header>
+        <SiteHeader
+          variant="hero"
+          active="home"
+          wordmarkClassName="wf-home-wordmark"
+          languageLinks={[
+            { href: '/', label: 'English', current: true },
+            { href: '/zh/docs', label: '中文' },
+          ]}
+        />
 
         <section className="wf-home-hero" aria-labelledby="wf-home-title">
-          <HomeHeroMedia />
-          <div className="wf-home-hero-scrim" aria-hidden="true" />
-          <div className="wf-home-hero-grain" aria-hidden="true" />
-
-          <div className="wf-home-hero-content">
-            <h1 id="wf-home-title">WorldFoundry</h1>
-            <p className="wf-home-hero-lead">
-              Run, inspect, and evaluate world models in one reproducible workflow.
-            </p>
-            <div className="wf-home-hero-actions">
-              <Link href="/docs/guides/supported-models" className="wf-home-button wf-home-button-primary">
-                <span>Explore model recipes</span>
-                <ArrowRight aria-hidden="true" size={16} strokeWidth={1.8} />
-              </Link>
-              <Link href="/docs/quickstart" className="wf-home-button wf-home-button-secondary">
-                <span>Start the quickstart</span>
-              </Link>
-            </div>
-            <Link className="wf-home-hero-catalog-link" href="/docs/guides/supported-models">
-              {modelRecipeIndex.total} manifest-backed model recipes
-              <ArrowRight aria-hidden="true" size={13} strokeWidth={1.7} />
-            </Link>
+          <div className="wf-home-hero-showcase">
+            <HomeHeroMedia>
+              <div className="wf-home-hero-content">
+                <p className="wf-home-hero-kicker">Infrastructure for world models</p>
+                <h1 id="wf-home-title">WorldFoundry</h1>
+                <p className="wf-home-hero-lead">
+                  Run, inspect, and evaluate world models in one reproducible workflow.
+                </p>
+                <div className="wf-home-hero-actions">
+                  <Link href="/docs/guides/supported-models" className="wf-home-button wf-home-button-primary">
+                    <span>Explore model recipes</span>
+                    <ArrowRight aria-hidden="true" size={16} strokeWidth={1.8} />
+                  </Link>
+                  <Link href="/docs/quickstart" className="wf-home-button wf-home-button-secondary">
+                    <span>Start the quickstart</span>
+                  </Link>
+                </div>
+                <Link className="wf-home-hero-catalog-link" href="/docs/guides/supported-models">
+                  {modelRecipeIndex.total} manifest-backed model recipes
+                  <ArrowRight aria-hidden="true" size={13} strokeWidth={1.7} />
+                </Link>
+              </div>
+            </HomeHeroMedia>
           </div>
-
         </section>
       </div>
 
       <div className="wf-home-main">
-        <section className="wf-home-configure wf-home-reveal" aria-labelledby="wf-configure-title">
-          <header className="wf-home-configure-heading">
-            <div>
-              <h2 id="wf-configure-title">Configure a run</h2>
-            </div>
-            <p>
-              Choose a real catalog entry. Runtime and version facts come from the repository
-              manifests, and the command stays copyable.
-            </p>
-          </header>
-          <HomeRunConfigurator models={featuredModels} />
-        </section>
+        <HomeConfigureSection models={featuredModels} />
 
         <section className="wf-home-pillars wf-home-reveal" aria-labelledby="wf-pillars-title">
           <header className="wf-home-center-intro">
-            <h2 id="wf-pillars-title" className="sr-only">
+            <p className="wf-home-section-badge">
+              <span aria-hidden="true" />
               Why WorldFoundry
+            </p>
+            <h2 id="wf-pillars-title">
+              Infrastructure for <span>operating</span> world models.
             </h2>
-            <p className="wf-home-center-lead">Infrastructure for operating world models.</p>
+            <p>
+              Shared setup, durable artifacts, and comparable evidence — without forcing every model
+              into the same internals.
+            </p>
           </header>
           <div className="wf-home-pillar-grid">
             {pillars.map(({ title, description, Icon }) => (
@@ -274,8 +268,14 @@ export default function HomePage() {
           aria-labelledby="wf-catalog-title"
         >
           <header className="wf-home-center-intro">
-            <h2 id="wf-catalog-title">Universal Compatibility</h2>
-            <p>One engine, endless possibilities. Browse integrated models and benchmarks.</p>
+            <p className="wf-home-section-badge">
+              <span aria-hidden="true" />
+              Catalog
+            </p>
+            <h2 id="wf-catalog-title">
+              One engine, <span>many</span> models.
+            </h2>
+            <p>Browse integrated models and benchmarks with the same manifest contracts.</p>
           </header>
           <CatalogCoverage />
         </section>
@@ -285,14 +285,23 @@ export default function HomePage() {
           aria-labelledby="wf-capabilities-title"
         >
           <header className="wf-home-center-intro">
-            <h2 id="wf-capabilities-title">Operate end to end</h2>
+            <p className="wf-home-section-badge">
+              <span aria-hidden="true" />
+              End to end
+            </p>
+            <h2 id="wf-capabilities-title">
+              Operate with <span>shared</span> contracts.
+            </h2>
             <p>
-              Catalog, runtime, workspace, and evaluation share identities and durable contracts.
+              Catalog, runtime, workspace, and evaluation share identities and durable outputs.
             </p>
           </header>
           <div className="wf-home-capability-grid">
             {capabilities.map((capability) => (
               <article className="wf-home-capability-card" key={capability.title}>
+                <span className="wf-home-capability-index" aria-hidden="true">
+                  {capability.index}
+                </span>
                 <h3>{capability.title}</h3>
                 <p>{capability.description}</p>
                 <Link href={capability.href}>
@@ -405,8 +414,14 @@ export default function HomePage() {
 
         <section className="wf-home-resources wf-home-reveal" aria-labelledby="wf-resources-title">
           <header className="wf-home-center-intro">
-            <h2 id="wf-resources-title">Resources</h2>
-            <p>Notes, events, and lab context around the project.</p>
+            <p className="wf-home-section-badge">
+              <span aria-hidden="true" />
+              Around the project
+            </p>
+            <h2 id="wf-resources-title">
+              Resources &amp; <span>ecosystem</span>
+            </h2>
+            <p>Notes, events, and sibling projects in the OpenEnvision network.</p>
           </header>
           <div className="wf-home-resource-grid">
             {resourceLinks.map((item) => (
@@ -419,14 +434,7 @@ export default function HomePage() {
               </Link>
             ))}
           </div>
-        </section>
-
-        <section className="wf-home-ecosystem wf-home-reveal" aria-labelledby="wf-ecosystem-title">
-          <header className="wf-home-center-intro">
-            <h2 id="wf-ecosystem-title">Ecosystem</h2>
-            <p>Sibling projects and source links in the OpenEnvision ecosystem.</p>
-          </header>
-          <ul className="wf-home-ecosystem-chips">
+          <ul className="wf-home-ecosystem-chips" aria-label="Ecosystem links">
             {ecosystemLinks.map((item) => (
               <li key={item.label}>
                 <a href={item.href} target="_blank" rel="noreferrer">
@@ -438,6 +446,8 @@ export default function HomePage() {
           </ul>
         </section>
       </div>
+
+      <SiteFooter />
     </main>
   );
 }

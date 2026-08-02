@@ -1,6 +1,5 @@
 import { getPageMarkdownUrl, source } from '@/lib/source';
-import { SiteSearchTrigger } from '@/components/site-search-trigger';
-import { SiteNav } from '@/components/site-nav';
+import { SiteHeader } from '@/components/site-header';
 import { notFound } from 'next/navigation';
 import { getMDXComponents } from '@/components/mdx';
 import { createRelativeLink } from 'fumadocs-ui/mdx';
@@ -22,10 +21,11 @@ import { DocsReadingProgress } from '@/components/docs-reading-progress';
 import { DocsScrollBridge } from '@/components/docs-scroll-bridge';
 import { DocsSidebarApiTree } from '@/components/docs-sidebar-api-tree';
 import { DocsSidebarArchitectureTree } from '@/components/docs-sidebar-architecture-tree';
+import { DocsSidebarFooter } from '@/components/docs-sidebar-footer';
+import { DocsSidebarIcon } from '@/components/docs-sidebar-icon';
 import { DocsSidebarMetricsTree } from '@/components/docs-sidebar-metrics-tree';
 import { DocsTocRail } from '@/components/docs-toc-rail';
 import { DocsWelcomeHero } from '@/components/docs-welcome-hero';
-import { WorldFoundryWordmarkLink } from '@/components/worldfoundry-wordmark';
 import { getDocsLastUpdated } from '@/lib/docs-last-updated';
 import { getDocsPagination } from '@/lib/docs-pagination';
 import { getDocsRelatedLinks } from '@/lib/docs-related-links';
@@ -100,43 +100,31 @@ export async function DocsPage({ slug, locale }: { slug: string[] | undefined; l
       lang={normalized}
     >
       <DocsScrollBridge />
-      <header className="pi-header pi-doc-header">
-        <DocsReadingProgress />
-        <div className="pi-doc-header-inner flex flex-wrap items-center justify-between w-full">
-          <div className="pi-doc-header-brand">
-            <DocsMobileNavToggle openLabel={t.openMenu} closeLabel={t.closeMenu} />
-            <WorldFoundryWordmarkLink variant="compact" />
-          </div>
-          <div className="pi-doc-header-tools ml-auto">
-            <SiteNav
-              active={
-                page.slugs[0] === 'guides' && page.slugs[1] === 'supported-models'
-                  ? 'models'
-                  : page.slugs[0] === 'evaluation' && page.slugs[1] === 'benchmark-hub'
-                    ? 'benchmarks'
-                    : 'docs'
-              }
-              ariaLabel={t.nav}
-              docsHref={docsHref}
-              docsLabel={t.docs}
-              homeLabel={t.home}
-              openEnvisionLabel={t.openEnvision}
-            />
-            <SiteSearchTrigger />
-            <div className="pi-language-switch" aria-label={t.language}>
-              {i18n.languages.map((item) => (
-                <Link
-                  href={getPageUrl(page.slugs, item)}
-                  aria-current={item === normalized ? 'true' : undefined}
-                  key={item}
-                >
-                  {localeNames[item]}
-                </Link>
-              ))}
-            </div>
-          </div>
-        </div>
-      </header>
+      <SiteHeader
+        variant="solid"
+        active={
+          page.slugs[0] === 'guides' && page.slugs[1] === 'supported-models'
+            ? 'models'
+            : page.slugs[0] === 'evaluation' && page.slugs[1] === 'benchmark-hub'
+              ? 'benchmarks'
+              : 'docs'
+        }
+        navAriaLabel={t.nav}
+        docsHref={docsHref}
+        docsLabel={t.docs}
+        homeLabel={t.home}
+        openEnvisionLabel={t.openEnvision}
+        languageAriaLabel={t.language}
+        beforeInner={<DocsReadingProgress />}
+        brandLeading={
+          <DocsMobileNavToggle openLabel={t.openMenu} closeLabel={t.closeMenu} />
+        }
+        languageLinks={i18n.languages.map((item) => ({
+          href: getPageUrl(page.slugs, item),
+          label: localeNames[item],
+          current: item === normalized,
+        }))}
+      />
 
       <div className="pi-doc-frame">
         <aside className="pi-doc-sidebar" id="pi-doc-sidebar" aria-label={t.sidebar}>
@@ -227,6 +215,9 @@ export async function DocsPage({ slug, locale }: { slug: string[] | undefined; l
                         key={item.link.url}
                       >
                         <span className="pi-doc-link-row">
+                          {item.depth === 0 ? (
+                            <DocsSidebarIcon url={item.link.url} active={active} />
+                          ) : null}
                           <span className="pi-doc-link-title">{item.link.label}</span>
                           {item.badges.length > 0 ? (
                             <span className="pi-doc-link-badges">
@@ -243,6 +234,7 @@ export async function DocsPage({ slug, locale }: { slug: string[] | undefined; l
               );
             })}
           </nav>
+          <DocsSidebarFooter />
         </aside>
 
         <div className="pi-doc-main">
@@ -255,12 +247,15 @@ export async function DocsPage({ slug, locale }: { slug: string[] | undefined; l
                 />
                 <div className="pi-doc-article-inner pi-doc-welcome-body">
                   <DocsPageActions
+                    copyMarkdownCopiedLabel={t.askAiCopied}
+                    copyMarkdownLabel={t.askAiCopy}
                     editLabel={t.editPage}
                     githubUrl={githubUrl}
                     lastUpdated={lastUpdated}
                     lastUpdatedLabel={t.lastUpdated}
                     markdownLabel={t.markdown}
                     markdownUrl={markdownUrl}
+                    pageTitle={page.data.title}
                   />
 
                   {showToc ? (
@@ -303,12 +298,15 @@ export async function DocsPage({ slug, locale }: { slug: string[] | undefined; l
                 ) : null}
 
                 <DocsPageActions
+                  copyMarkdownCopiedLabel={t.askAiCopied}
+                  copyMarkdownLabel={t.askAiCopy}
                   editLabel={t.editPage}
                   githubUrl={githubUrl}
                   lastUpdated={lastUpdated}
                   lastUpdatedLabel={t.lastUpdated}
                   markdownLabel={t.markdown}
                   markdownUrl={markdownUrl}
+                  pageTitle={page.data.title}
                 />
 
                 {showToc ? (

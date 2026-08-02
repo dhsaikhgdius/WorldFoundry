@@ -3,39 +3,41 @@ title: WorldFoundry
 description: Unified World Model Inference & Evaluation Infrastructure
 ---
 
-WorldFoundry is open-source infrastructure for running and evaluating world models. It does not propose one new model architecture. It brings model discovery, runtime preparation, inference, artifact inspection, benchmark execution, and evidence reporting into one workflow across video, 3D/4D, interactive-world, and embodied systems:
+WorldFoundry is open-source infrastructure for running and evaluating world models. It is not another model architecture. It connects model discovery, runtime preparation, inference, artifact inspection, benchmark execution, and evidence reporting into a single workflow that spans video, 3D/4D, interactive-world, and embodied systems:
 
 > Discover a model, prepare its runtime and assets, generate inspectable artifacts, evaluate those artifacts, and preserve the result as reviewable evidence.
 
-That distinction matters. A model catalog is not the same thing as a working runtime. A convincing demo is not the same thing as benchmark evidence. A successfully imported score is not automatically leaderboard parity. WorldFoundry keeps those states separate and visible.
+That distinction matters. A model listed in a catalog is not a model with a working runtime. A convincing demo is not benchmark evidence. A score that imported cleanly is not leaderboard parity. WorldFoundry keeps those states separate and visible.
 
-It is built for a practical research problem: every upstream project can produce something useful, but each uses different environments, checkpoints, inputs, launch commands, output layouts, and evaluation protocols. WorldFoundry preserves those native differences while standardizing the boundaries around them.
+<GithubInfo />
+
+The problem it addresses is practical. Every upstream project produces something worth using, but each arrives with its own environments, checkpoints, inputs, launch commands, output layouts, and evaluation protocols. WorldFoundry preserves those native differences and standardizes the boundaries around them.
 
 <TeaserImage alt="WorldFoundry unifies world-model discovery, inference, inspection, and evaluation" />
 
 ## The problem it solves
 
-World-model projects usually arrive as independent repositories. Each one makes different choices for environments, checkpoints, input schemas, launch scripts, output layouts, preview tools, and evaluation code. A team that wants to compare several systems ends up rebuilding the same integration layer for every model.
+World-model projects usually arrive as independent repositories. Each makes its own choices about environments, checkpoints, input schemas, launch scripts, output layouts, preview tools, and evaluation code. A team that wants to compare several systems ends up rebuilding the same integration layer for every model.
 
-The fragmentation begins with discovery. The same model may be referred to by a paper name, a repository name, a checkpoint name, or a local folder. WorldFoundry gives models and benchmarks stable IDs and declarative manifests so the source, intended capability, runtime binding, required assets, and known blockers can be inspected before anything expensive runs.
+The fragmentation starts at discovery. The same model may go by a paper name, a repository name, a checkpoint name, or a local folder. WorldFoundry gives models and benchmarks stable IDs and declarative manifests, so the source, intended capability, runtime binding, required assets, and known blockers can all be inspected before anything expensive runs.
 
-It continues through execution. Instead of placing checkpoints and datasets wherever an upstream script happens to expect them, WorldFoundry defines reusable local asset roots and model-specific runtime profiles. Pipelines and operators keep native model differences explicit while presenting a consistent request, result, and artifact boundary to the rest of the system.
+It continues at execution. Rather than scattering checkpoints and datasets wherever an upstream script happens to expect them, WorldFoundry defines reusable local asset roots and model-specific runtime profiles. Pipelines and operators keep native model differences explicit while presenting one consistent request, result, and artifact boundary to the rest of the system.
 
-Finally, it affects evaluation. Videos, meshes, actions, and traces should not disappear into custom folders or one-off notebooks. WorldFoundry preserves what was requested, what ran, what was produced, how it was scored, which samples were covered, and which conditions still block an official claim.
+It ends at evaluation, where evidence is easiest to lose. Videos, meshes, actions, and traces should not disappear into ad-hoc folders or one-off notebooks. WorldFoundry records what was requested, what ran, what was produced, how it was scored, which samples were covered, and which conditions still block an official claim.
 
-The goal is not to hide every model difference behind one tiny API. The goal is to keep those differences in the correct layer while making the end-to-end research workflow consistent.
+The goal is not to hide every model difference behind one small API. It is to keep those differences in the layer where they belong, and to make the end-to-end research workflow consistent.
 
 ## How the project works
 
 <WorldFoundryWorkflow />
 
-The central boundary is the **artifact**. A model runner turns a normalized request into a result containing videos, geometry, action traces, or other outputs. A benchmark runner consumes those outputs and produces metrics and evidence. This separation lets one model output be inspected, reused, or scored by more than one compatible benchmark without coupling the model implementation to evaluator internals.
+The central boundary is the **artifact**. A model runner turns a normalized request into a result: videos, geometry, action traces, or other outputs. A benchmark runner consumes those outputs and produces metrics and evidence. Because of that separation, one model output can be inspected, reused, or scored by several compatible benchmarks without coupling the model implementation to evaluator internals.
 
-Catalogs form the control plane around that boundary. They describe what exists, where it came from, what it needs, how it can be dispatched, and what evidence supports its current readiness. TUI, CLI, Studio, Python, and MCP are different ways to operate the same underlying system rather than separate implementations.
+Catalogs form the control plane around that boundary. They describe what exists, where it came from, what it needs, how it can be dispatched, and what evidence supports its current readiness. TUI, CLI, Studio, Python, and MCP are five ways to operate the same underlying system, not five separate implementations.
 
 ### A concrete run: Matrix-Game 2
 
-For a first `matrix-game-2` run, let catalog and local-asset checks answer which model is selected and whether its checkpoint is ready, then generate one small result:
+For a first `matrix-game-2` run, let the catalog and local-asset checks confirm which model is selected and whether its checkpoint is ready, then generate one small result:
 
 ```bash
 bash scripts/inference/prepare_model_infer.sh matrix-game-2 --download
@@ -46,7 +48,7 @@ bash scripts/inference/test_nav_video_gen.sh matrix-game-2 \
   --output-dir tmp/matrix_game2_first_run
 ```
 
-The last command runs the model with action-conditioned input and writes the video plus its run records to the selected directory. At this point the justified claim is that this configuration produced an inspectable artifact. The motion and continuity can be reviewed in Studio or a local player, and compatible metrics can consume the artifact. One video alone does not establish that a complete benchmark ran. This is why WorldFoundry separates generation, inspection, scoring, and eligibility.
+The last command runs the model on action-conditioned input and writes the video and its run records to the chosen directory. What that justifies is one claim: this configuration produced an inspectable artifact. Motion and continuity can be reviewed in Studio or a local player, and compatible metrics can consume the artifact. A single video still does not establish that a complete benchmark ran — which is why WorldFoundry separates generation, inspection, scoring, and eligibility.
 
 Read [Design](/docs/overview/design) for the layers, contracts, and rationale behind this workflow.
 

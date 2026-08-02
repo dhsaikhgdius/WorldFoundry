@@ -10,7 +10,7 @@ PhyEduVideo evaluates text-to-video models as physics-education video generators
 WorldFoundry includes the runnable PhyEduVideo integration under `worldfoundry/evaluation/tasks/execution/runners/phyeduvideo` and bundles the prompt/rubric JSON files under `worldfoundry/data/benchmarks/assets/phyeduvideo`. Do not clone the upstream repository for a WorldFoundry run. Hugging Face checkpoint downloads are fine for any external judge stack you choose to run, but the benchmark wrapper code is in-tree.
 
 
-## Official References
+## Official references
 
 | Resource | Link |
 | --- | --- |
@@ -19,7 +19,7 @@ WorldFoundry includes the runnable PhyEduVideo integration under `worldfoundry/e
 | GitHub | [github.com/meghamariamkm/PhyEduVideo](https://github.com/meghamariamkm/PhyEduVideo) |
 | In-tree runner | `worldfoundry/evaluation/tasks/execution/runners/phyeduvideo/run_phyeduvideo_official_runner.py` |
 
-## Prepare Assets
+## Prepare assets
 
 - Prompt suite: `worldfoundry/data/benchmarks/assets/phyeduvideo/Prompts/Prompts.json` contains 60 concepts and 205 teaching-point prompts.
 - Rubric files: bundled `SA.json`, `PC-1.json`, `PC-2.json`, `PC-3.json`, and `cap.json`.
@@ -27,7 +27,7 @@ WorldFoundry includes the runnable PhyEduVideo integration under `worldfoundry/e
 - Existing result import: pass `--official-results-path` or set `WORLDFOUNDRY_PHYEDUVIDEO_RESULTS_PATH`. CSV and JSON result files are accepted.
 - Judge/checkpoint assets: full parity with the README requires the upstream InternVL / CLIP or VQA / video-quality judging stack. WorldFoundry currently imports those scores instead of running every upstream judge.
 
-## Generated Artifact Layout
+## Generated artifact layout
 
 Prompt IDs are built as `Id{concept_id}_{teaching_point_id}`. The generated-artifact directory should be flat:
 
@@ -41,7 +41,7 @@ generated_videos/
 
 WorldFoundry materializes integrated model outputs into that filename layout before scoring. Coverage checks compare video stems with prompt IDs from `Prompts.json`.
 
-## Run With WorldFoundry
+## Run with WorldFoundry
 
 Import an existing PhyEduVideo result file through the public CLI:
 

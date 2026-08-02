@@ -28,14 +28,20 @@ integration:
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 runtime_profile: runtime-profile:vchitect-2-t2v
 runner_parity:
-  status: verified
+  status: native_checkpoint_validated
   notes:
-  - The in-tree runtime exposes generated_video directly through the Vchitect pipeline.
-  - Per-run visual QA and artifact checks are tracked outside the model catalog.
+  - The native DiT matches all 1019 checkpoint tensors and the native SD3 decoder matches all 138 decoder tensors.
 pipeline_binding: vchitect-2-t2v
 notes:
-- Use id vchitect-2-t2v. The in-tree Vchitect runtime emits generated_video when
-  local checkpoints and runtime dependencies are available.
+- Use id vchitect-2-t2v. The public pipeline is assembled from native role-based components.
+native_diffusion:
+  recipe_id: vchitect-2-t2v
+  architecture: vchitect-2-mmdit
+  backend: worldfoundry-native-diffusion
+  shared_components:
+  - native shifted flow Euler scheduler
+  - native SD3 frame decoder
+  - native checkpoint loader and block offload policy
 catalog_category: video
 catalog_scope: Video-generation and video-token catalog entries. Integrated entries
   expose WorldFoundry pipeline targets; metadata-only entries retain upstream provenance

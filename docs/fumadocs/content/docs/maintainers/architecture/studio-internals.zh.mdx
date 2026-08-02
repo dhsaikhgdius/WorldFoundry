@@ -28,8 +28,13 @@ launch args
 | `studio/execution.py` | 准备输入、加载 pipeline classes、选择 runtime driver strategy、写 run records、导出 previews。 | `PreparedInputs`、`RunRecord`、`PipelineContext`、`BaseRuntimeDriver`、`StudioManager`。 |
 | `studio/app.py` | Gradio UI、launch config、preset handling、callbacks、run buttons、recent-run loading。 | `StudioLaunchConfig`、`parse_launch_config()`、`build_demo()`、`main()`。 |
 | `studio/theme.py` | Theme constants 和 UI styling hooks。 | 只服务 app shell。 |
+| `studio/serving/realtime/` | 与 transport 无关的输入重采样、RGB 归一化、JPEG 编码和有界帧队列。 | `RealtimeControlResampler`、`FrameQueuePolicy`、`LatestFrameBuffer`。 |
+| `studio/visualization/backends/world_realtime.py` | 管理 resident model thread 以及 WebRTC/WebSocket 会话生命周期。 | `ResidentWorldRuntime`、`RealtimePeerManager`。 |
+| `core/video_postprocess.py` | 位于模型 encode/diffuse/decode 契约之外的有状态链式输出处理。 | `VideoPostprocessStream`、`VideoPostProcessorSession`。 |
+| `core/video_postprocess_rtx.py` | 可选、保持布局的 NVIDIA VFX adapter 与启动前诊断；只有显式选择后才 import 专有 runtime。 | `RTXVideoSuperResolutionPostProcessor`、`inspect_rtx_vfx_capability()`。 |
+| `runtime/realtime_regression.py` | 用显式性能阈值检查规范化 chunk-timing JSONL。 | `RealtimeRegressionManifest`、`evaluate_realtime_manifest()`。 |
 
-## Catalog Discovery
+## Catalog discovery
 
 Catalog 构建刻意做成静态过程。`discover_catalog()` 用 AST helpers 扫描 pipeline 模块，从而在不 import 重型 CUDA 栈或可选依赖的情况下列出模型。它合并三路来源：`pipeline_*.py` 类、component-pipeline 工厂、action-synthesis 类，再叠加 curated overrides 与 canonical runtime entries（aliases、默认 kwargs、checkpoint、`runtime_kind`）。去重键是 `(module_path, class_name)`；隐藏或抽象 id 不会进入 UI 列表。
 
@@ -43,7 +48,7 @@ Catalog 构建刻意做成静态过程。`discover_catalog()` 用 AST helpers �
 | 构建 entries | `discover_catalog()` | 产出 `CatalogEntry[]`，包含 family、class path、category、backend、aliases、examples。 |
 | 过滤 entries | `filter_catalog()` | 对 UI 列表应用 search 和 category filters。 |
 
-## Execution Core
+## Execution core
 
 `StudioManager` 是编排中枢。典型的 `run` / `stream` / `init` / `reset` 路径会准备 request、把输入落到 run 目录、按 `entry.runtime_kind` 选择 driver、加载 pipeline（LRU 缓存）、调用 driver，再物化为 `RunRecord`。Driver 存在是因为并非每个家族都是一次 `__call__`：two-stage 3DGS 先重建再 orbit，point-cloud nav 先重建再渲染视角，WorldFM 需要自定义相机与 panorama 处理；其余走 `BaseRuntimeDriver`。
 
@@ -52,7 +57,7 @@ Catalog 构建刻意做成静态过程。`discover_catalog()` 用 AST helpers �
 | Class / function | 作用 |
 | --- | --- |
 | `PreparedInputs` | 保存 staged prompt、images、videos、interactions、runtime kwargs 和 metadata。 |
-| `RunRecord` | 保存 run id、model id、inputs、outputs、artifacts、preview paths、status 和 manifest export。 |
+| `RunRecord` | 保存 run ID、model ID、inputs、outputs、artifacts、preview paths、status 和 manifest export。 |
 | `PipelineContext` | 保存 imported pipeline class、model ref、device、variant、load kwargs、output root。 |
 | `BaseRuntimeDriver` | 默认 driver：load pipeline、run fresh request、可选 initialize/continue streaming、reset state。 |
 | `TwoStage3DGSRuntimeDriver` | Two-stage 3DGS flows 的专用 driver。 |
@@ -87,6 +92,34 @@ Preview 空白通常意味着 pipeline 把文件写到了预期 key 之外、返
 | Callback glue | Button handlers 和 component updates。 | 它加载模型、触碰文件或转换 artifacts。 |
 | Presets | UI-specific prompt/interactions defaults。 | Preset 语义需要和 evaluation 共享。 |
 
+## 实时服务边界
+
+实时路径刻意把模型状态与展示状态分开：
+
+```text
+浏览器按键边沿
+  -> RealtimeControlResampler
+  -> ResidentWorldRuntime（单一 worker thread）
+  -> realtime_frames_from_result()
+  -> VideoPostprocessStream（会话级状态链）
+  -> 分辨率/JPEG transport 处理
+  -> latest-interactive 或 ordered-quality 队列
+  -> WebRTC / WebSocket
+```
+
+模型通过 `RealtimeSpec` 拥有因果时序；transport 不应猜测 latent stride，也不能
+静默改变严格 segment 帧数。`latest-interactive` 会在有界 backpressure 后丢弃旧帧，
+保护控制延迟；`ordered-quality` 从不丢帧，凡是 `chunk_done` 帧数属于播放契约的
+prompt-scheduled 或 queued segment 都必须使用它。
+
+Postprocessor 位于解码 RGB 提取之后，持有隔离的会话状态，可以暂存一个 chunk，
+并按 chain 顺序 flush 尾帧。默认 identity processor 也走同一条生产边界但不改变
+输出，因此未来接 VSR、去噪或插帧时不需要侵入模型专属推理循环。RTX adapter
+保持 layout/container/dtype/range，每条 stream 独占一个 VFX effect，复用前先 clone
+借用的 DLPack 输出，并由单独授权的 `rtx_postprocess` extra 控制。每个完成的 chunk
+都会记录归一化阶段 timing；用 `runtime/realtime_regression.py` 可以对 trace 中的
+p50/p90、吞吐、队列深度和掉帧做门禁。
+
 ## 调试路径
 
 多数 Studio bug 是契约错位，而不是 Gradio 本身。缺模型几乎总是 catalog discovery、aliases 或隐藏 id。device / variant 错通常来自 launch config 与 `PipelineContext` overrides。输入到不了模型，问题在 `prepare_inputs()` 或 driver kwargs 绑定。Streaming 失败常见于没有 memory state 就调用 `init`/`stream`，或 two-stage driver 尚无先验重建。Recent run 无法 reload，说明 `materialize_run()` 之后 manifest 或 artifact 路径漂移了。
@@ -100,4 +133,4 @@ Preview 空白通常意味着 pipeline 把文件写到了预期 key 之外、返
 | Streaming 坏了 | `BaseRuntimeDriver.run_init()`、`BaseRuntimeDriver.run_continue()`、pipeline `stream()`、memory state。 |
 | Recent run 无法 reload | `RunRecord.to_manifest()`、`materialize_run()`、`load_run()`、artifact paths。 |
 
-面向用户的启动与 frontend 路由见 [Studio](/zh/docs/guides/studio)。Studio 所依赖的 pipeline / operator / `GenerationResult` 契约见 [模型运行时](/zh/docs/maintainers/architecture/model-runtime)。
+面向用户的启动与 frontend 路由见 [Studio](/zh/docs/guides/studio)。Studio 作为使用界面如何把用户意图编译为与 CLI、MCP 相同的 request，见 [使用界面与编排](/zh/docs/maintainers/architecture/surfaces-orchestration)。Studio 所依赖的 pipeline / operator / `GenerationResult` 契约见 [模型运行时](/zh/docs/maintainers/architecture/model-runtime)。

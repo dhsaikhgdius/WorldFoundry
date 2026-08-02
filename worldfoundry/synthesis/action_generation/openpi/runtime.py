@@ -9,15 +9,14 @@ handles necessary environment setups like installing OpenPI aliases.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from worldfoundry.core.io import file_sha256
 from worldfoundry.core.io.paths import project_root, resolve_worldfoundry_path
-
 
 _PARTIAL_CHECKPOINT_SUFFIXES = (".aria2", ".incomplete", ".gstmp")
 
@@ -719,7 +718,7 @@ class OpenPIRuntime:
         # Write the JSON payload to the target file.
         target.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         # Calculate SHA256 hash of the created artifact.
-        artifact_sha256 = hashlib.sha256(target.read_bytes()).hexdigest()
+        artifact_sha256 = file_sha256(target)
         # Return a summary dictionary of the created artifact.
         return {
             "status": "success",

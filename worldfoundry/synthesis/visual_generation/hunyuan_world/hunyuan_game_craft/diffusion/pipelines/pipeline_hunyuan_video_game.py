@@ -31,8 +31,8 @@ from ...modules import HYVideoDiffusionTransformer
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
-from worldfoundry.base_models.diffusion_model.video.hunyuan_video.vae.autoencoder_kl_causal_3d import AutoencoderKLCausal3D
-from worldfoundry.base_models.diffusion_model.video.hunyuan_video.diffusion.pipelines.pipeline_hunyuan_video import (
+from worldfoundry.base_models.diffusion_model.models.autoencoders.hunyuan_video import AutoencoderKLCausal3D
+from worldfoundry.synthesis.visual_generation.hunyuan_world.hunyuan_video_pipeline_compat import (
     HunyuanVideoPipeline,
     HunyuanVideoPipelineOutput,
     rescale_noise_cfg,

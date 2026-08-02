@@ -10,7 +10,7 @@ Physics-IQ evaluates whether generated videos follow real physical behavior acro
 The benchmark code used by WorldFoundry is already in this repository under `worldfoundry/evaluation/tasks/execution/runners/physics_iq`. Do not clone the upstream repositories for a WorldFoundry run; use upstream project files only as data provenance or as the source of dataset assets. Downloading benchmark data from the project storage is fine when you need full leaderboard-style evaluation assets.
 
 
-## Official References
+## Official references
 
 | Resource | Link |
 | --- | --- |
@@ -19,7 +19,7 @@ The benchmark code used by WorldFoundry is already in this repository under `wor
 | GitHub | [github.com/google-deepmind/physics-IQ-benchmark](https://github.com/google-deepmind/physics-IQ-benchmark) |
 | In-tree runner | `worldfoundry/evaluation/tasks/execution/runners/physics_iq/run_physics_iq_official_runner.py` |
 
-## Prepare Assets
+## Prepare assets
 
 - Prompt descriptions: bundled at `worldfoundry/data/benchmarks/assets/physics-iq/descriptions/descriptions.csv`; override with `WORLDFOUNDRY_PHYSICS_IQ_DESCRIPTIONS` or `--descriptions-file`.
 - Candidate videos: set `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR` to a directory of `.mp4` files.
@@ -27,7 +27,7 @@ The benchmark code used by WorldFoundry is already in this repository under `wor
 - Result file for current WorldFoundry scoring: provide a CSV or JSON result file with summary metric rows or per-scenario rows. Set `WORLDFOUNDRY_PHYSICS_IQ_RESULTS_PATH`, pass `--official-results-path`, or place a matching `physics_iq_results*.csv/json` or `results_summary.csv` under the generated-artifact directory.
 - Checkpoints: none are needed by the WorldFoundry result importer. Any segmentation or mask-generation stack required for full Physics-IQ parity must be prepared separately.
 
-## Generated Artifact Layout
+## Generated artifact layout
 
 The generated-video directory is flat. Filenames are matched by stem against the `generated_video_name` values from the descriptions file:
 
@@ -41,7 +41,7 @@ generated_videos/
 
 The runner checks coverage against the 198 take-1 stems. Physics-IQ videos should contain exactly the model-generated 5 seconds after the switch frame; extra conditioning time changes the meaning of the score.
 
-## Run With WorldFoundry
+## Run with WorldFoundry
 
 Import an existing Physics-IQ result file through the public CLI:
 

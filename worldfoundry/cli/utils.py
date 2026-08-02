@@ -7,17 +7,19 @@ import re
 from pathlib import Path
 from typing import Any
 
-
 _JSON_NUMBER_RE = re.compile(r"-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?\Z")
 
 
 def json_dump(payload: object) -> None:
-    """Print a CLI JSON response.
+    """Print the sole machine-readable payload for a CLI ``--json`` response.
+
+    Operational progress, warnings, and logs must use stderr/the logging
+    pipeline instead; callers use this helper only for their final result.
 
     Args:
         payload: JSON-serializable command response payload.
     """
-    print(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
+    print(json.dumps(payload, indent=2, ensure_ascii=False, default=str), flush=True)
 
 
 def parse_json_value(value: str) -> object:

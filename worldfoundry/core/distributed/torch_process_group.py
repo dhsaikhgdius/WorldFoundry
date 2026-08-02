@@ -262,20 +262,22 @@ def collate_batches(data_batches: list[dict[str, torch.Tensor]]) -> torch.Tensor
         data_concat = torch.cat(data_batches, dim=0)  # type: ignore[arg-type]
         if get_world_size() == 1:
             return data_concat
-        max_num_local_samples = torch.tensor(len(data_concat), device="cuda")
+        max_num_local_samples = torch.tensor(len(data_concat), device=data_concat.device)
         dist.all_reduce(max_num_local_samples, op=dist.ReduceOp.MAX)
-        if len(data_concat) < max_num_local_samples:
-            assert len(data_concat) + 1 == max_num_local_samples
+        max_num_local_samples_value = int(max_num_local_samples.item())
+        if len(data_concat) < max_num_local_samples_value:
+            assert len(data_concat) + 1 == max_num_local_samples_value
             dummy = torch.empty_like(data_concat[:1])
             data_concat = torch.cat([data_concat, dummy], dim=0)
-            dummy_count = torch.tensor(1, device="cuda")
+            dummy_count = torch.tensor(1, device=data_concat.device)
         else:
-            dummy_count = torch.tensor(0, device="cuda")
+            dummy_count = torch.tensor(0, device=data_concat.device)
         dist.all_reduce(dummy_count, op=dist.ReduceOp.SUM)
+        dummy_count_value = int(dummy_count.item())
         gathered = all_gather_tensor(data_concat.contiguous())
         data_collate = torch.stack(gathered, dim=1).flatten(start_dim=0, end_dim=1)
-        if dummy_count > 0:
-            data_collate = data_collate[:-dummy_count]
+        if dummy_count_value > 0:
+            data_collate = data_collate[:-dummy_count_value]
     elif isinstance(data_batches[0], collections.abc.Mapping):
         data_collate = {}
         for key in data_batches[0].keys():

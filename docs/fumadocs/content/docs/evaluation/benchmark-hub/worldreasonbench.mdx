@@ -80,17 +80,17 @@ World-state reasoning QA and reward-model evaluation for generated videos.
 - `OPENAI_MODEL`
 - `HF_ENDPOINT`
 
-## Run Evaluation
+## Run evaluation
 
 After preparing the assets and candidate artifacts listed on this page, use the public run entry points below.
 
-### Set Candidate Artifacts
+### Set candidate artifacts
 
 ```bash
 export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/generated/artifacts
 ```
 
-### Import Official Results
+### Import official results
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
@@ -102,7 +102,7 @@ worldfoundry-eval zoo benchmark-run \
   --json
 ```
 
-### Validate or Normalize Existing Results
+### Validate or normalize existing results
 
 ```bash
 worldfoundry-eval zoo benchmark-run --benchmark-id worldreasonbench --mode official-validation --official-results-path <official_results_dir> --output-dir <out> --json

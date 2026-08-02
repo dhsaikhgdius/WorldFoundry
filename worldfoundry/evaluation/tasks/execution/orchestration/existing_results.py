@@ -21,23 +21,25 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 from uuid import uuid4
 
+from worldfoundry.core.io.serialization import JsonlWriter
 from worldfoundry.evaluation.api import (
     ArtifactRef,
     GenerationRequest,
     GenerationResult,
     MetricResult,
+    align_batch_metric_outputs,
     is_generation_result_successful,
 )
 from worldfoundry.evaluation.reporting import write_run_manifest_artifacts, write_run_report_artifacts
 from worldfoundry.evaluation.reporting.scorecard import write_scorecard
 from worldfoundry.evaluation.utils import (
-    append_jsonl,
     build_run_fingerprint,
     build_version_context,
     jsonable,
     read_json_or_jsonl,
     reset_jsonl,
     write_json,
+    write_jsonl,
 )
 
 from .cache import generation_cache_hit_metadata
@@ -384,7 +386,7 @@ def _run_metric(
         return {"sample_id": request.sample_id, "status": "not_run", "metrics": {}}, []
 
     try:
-        metric_results = _normalize_metric_output(metric(request, result), request.sample_id)
+        return _metric_row_from_output(metric(request, result), request.sample_id)
     except Exception as exc:  # noqa: BLE001 - per-sample metric isolation is the contract.
         return (
             {
@@ -396,6 +398,9 @@ def _run_metric(
             [],
         )
 
+
+def _metric_row_from_output(output: Any, sample_id: str) -> tuple[JsonRow, list[MetricResult]]:
+    metric_results = _normalize_metric_output(output, sample_id)
     metrics = {
         metric_result.metric_id: _metric_value(metric_result)
         for metric_result in metric_results
@@ -403,13 +408,63 @@ def _run_metric(
     }
     return (
         {
-            "sample_id": request.sample_id,
+            "sample_id": sample_id,
             "status": "succeeded",
             "metrics": metrics,
             "metric_results": [metric_result.to_dict() for metric_result in metric_results],
         },
         metric_results,
     )
+
+
+def _run_metric_batch(
+    metric: ExistingResultsMetric | None,
+    requests: Sequence[GenerationRequest],
+    results: Sequence[GenerationResult],
+) -> list[tuple[JsonRow, list[MetricResult]]]:
+    """Use an optional metric batch surface while retaining sample isolation."""
+
+    rows: list[tuple[JsonRow, list[MetricResult]] | None] = [None] * len(requests)
+    pending_indices: list[int] = []
+    for index, (request, result) in enumerate(zip(requests, results)):
+        if metric is None or _is_failed(result):
+            rows[index] = _run_metric(metric, request, result)
+        else:
+            pending_indices.append(index)
+
+    compute_batch = getattr(metric, "compute_batch", None)
+    if not pending_indices or not callable(compute_batch):
+        for index in pending_indices:
+            rows[index] = _run_metric(metric, requests[index], results[index])
+        return [row for row in rows if row is not None]
+
+    batch_requests = tuple(requests[index] for index in pending_indices)
+    batch_results = tuple(results[index] for index in pending_indices)
+    try:
+        outputs = align_batch_metric_outputs(
+            compute_batch(batch_requests, batch_results),
+            [request.sample_id for request in batch_requests],
+        )
+    except Exception:  # noqa: BLE001 - fall back to the sample-isolated contract.
+        for index in pending_indices:
+            rows[index] = _run_metric(metric, requests[index], results[index])
+        return [row for row in rows if row is not None]
+
+    for index, output in zip(pending_indices, outputs):
+        request = requests[index]
+        try:
+            rows[index] = _metric_row_from_output(output, request.sample_id)
+        except Exception as exc:  # noqa: BLE001 - isolate malformed output to its sample.
+            rows[index] = (
+                {
+                    "sample_id": request.sample_id,
+                    "status": "failed",
+                    "metrics": {},
+                    "error": f"{type(exc).__name__}: {exc}",
+                },
+                [],
+            )
+    return [row for row in rows if row is not None]
 
 
 def _build_summary(
@@ -655,62 +710,65 @@ def run_existing_results(
         env_requirements_path=paths["env_requirements"],
     )
 
-    # Materialize requests/results JSONL and per-sample metric rows.
-    for request_row in requests:
-        append_jsonl(paths["requests"], request_row.to_dict())
-    for result in results:
-        append_jsonl(paths["results"], result.to_dict())
+    # Materialize immutable stage outputs with one CPFS open/close cycle each.
+    write_jsonl(paths["requests"], (request_row.to_dict() for request_row in requests), atomic=False)
+    write_jsonl(paths["results"], (result.to_dict() for result in results), atomic=False)
     if artifact_rows and run_request.write_artifacts_index:
-        for row in artifact_rows:
-            append_jsonl(paths["artifacts"], row)
+        write_jsonl(paths["artifacts"], artifact_rows, atomic=False)
 
     per_sample_rows: list[JsonRow] = []
     all_metric_results: list[MetricResult] = []
+    metric_outputs = _run_metric_batch(run_request.metric, requests, results)
     
     # Per-sample metric loop (isolated failures unless fail_on_sample_error).
-    for index, request_row in enumerate(requests):
-        result = results[index]
-        generation_status = "failed" if _is_failed(result) else "succeeded"
-        generation_cache_metadata = generation_cache_hit_metadata(result)
-        
-        # Metric callable (skipped when generation result failed).
-        metric_row, metric_results = _run_metric(run_request.metric, request_row, result)
-        metric_status = str(metric_row.get("status") or "succeeded").lower()
-        per_sample_rows.append(metric_row)
-        all_metric_results.extend(metric_results)
+    # Periodic flushes retain resumable progress without reopening CPFS files
+    # for every sample.
+    with (
+        JsonlWriter(paths["sample_ledger"]) as ledger_writer,
+        JsonlWriter(paths["per_sample"]) as per_sample_writer,
+    ):
+        for index, request_row in enumerate(requests):
+            result = results[index]
+            generation_status = "failed" if _is_failed(result) else "succeeded"
+            generation_cache_metadata = generation_cache_hit_metadata(result)
 
-        errors = []
-        if generation_status == "failed":
-            errors.append({"stage": "normalize_existing_results", "message": result.error or "generation failed"})
-        if metric_status in {"failed", "failure", "error", "errored", "skipped"}:
-            errors.append({"stage": "evaluate", "message": str(metric_row.get("error") or "metric failed")})
+            # Metric callable (skipped when generation result failed).
+            metric_row, metric_results = metric_outputs[index]
+            metric_status = str(metric_row.get("status") or "succeeded").lower()
+            per_sample_rows.append(metric_row)
+            all_metric_results.extend(metric_results)
 
-        ledger_status = "failed" if errors else "succeeded"
-        append_jsonl(
-            paths["sample_ledger"],
-            {
-                "run_id": run_id,
-                "sample_id": request_row.sample_id,
-                "index": index,
-                "status": ledger_status,
-                "generation_status": generation_status,
-                "metrics_status": metric_status,
-                "started_at": started_at,
-                "finished_at": _utcnow_iso(),
-                **(
-                    {
-                        "cached": True,
-                        "cache_source": "generation_result_cache",
-                        "source_run_id": generation_cache_metadata.get("source_run_id"),
-                        "cache_key_hash": generation_cache_metadata.get("key_hash"),
-                    }
-                    if generation_cache_metadata
-                    else {}
-                ),
-                **({"errors": errors} if errors else {}),
-            },
-        )
-        append_jsonl(paths["per_sample"], metric_row)
+            errors = []
+            if generation_status == "failed":
+                errors.append({"stage": "normalize_existing_results", "message": result.error or "generation failed"})
+            if metric_status in {"failed", "failure", "error", "errored", "skipped"}:
+                errors.append({"stage": "evaluate", "message": str(metric_row.get("error") or "metric failed")})
+
+            ledger_status = "failed" if errors else "succeeded"
+            ledger_writer.write(
+                {
+                    "run_id": run_id,
+                    "sample_id": request_row.sample_id,
+                    "index": index,
+                    "status": ledger_status,
+                    "generation_status": generation_status,
+                    "metrics_status": metric_status,
+                    "started_at": started_at,
+                    "finished_at": _utcnow_iso(),
+                    **(
+                        {
+                            "cached": True,
+                            "cache_source": "generation_result_cache",
+                            "source_run_id": generation_cache_metadata.get("source_run_id"),
+                            "cache_key_hash": generation_cache_metadata.get("key_hash"),
+                        }
+                        if generation_cache_metadata
+                        else {}
+                    ),
+                    **({"errors": errors} if errors else {}),
+                }
+            )
+            per_sample_writer.write(metric_row)
 
     summary = _build_summary(
         requests=requests,

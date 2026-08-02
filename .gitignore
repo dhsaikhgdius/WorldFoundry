@@ -1,7 +1,4 @@
-# Test directories (not part of open source release)
-test/
-test_stream/
-tests/
+# Test source is versioned. Generated test artifacts are ignored below.
 
 # Project-specific local files
 .develop_references.py
@@ -33,6 +30,7 @@ out/
 .idea/
 .trae/
 .cursor/
+# Local agent configuration, authentication, and sessions
 .codex/
 .claude/
 .agents/
@@ -74,6 +72,8 @@ wheels/
 *.egg-info/
 pip-wheel-metadata/
 *.so
+*.a
+*.o
 
 # Logs and coverage reports
 *.log
@@ -262,8 +262,40 @@ skyseg.onnx
 # worldfoundry package: version source tree and bundled assets (override global media/binary rules above).
 !worldfoundry/
 !worldfoundry/**
+# Re-apply local-only rules after the package-tree negation above.
+worldfoundry/**/.env*
+worldfoundry/**/.envrc
+worldfoundry/**/.direnv/
+worldfoundry/**/.codex/
+worldfoundry/**/.claude/
+worldfoundry/**/.agents/
+worldfoundry/**/credentials/*.secret
+worldfoundry/**/token
+worldfoundry/**/*.token
+worldfoundry/**/.DS_Store
+worldfoundry/**/.pytest_cache/
+worldfoundry/**/.mypy_cache/
+worldfoundry/**/.ruff_cache/
+worldfoundry/**/.pyre/
+worldfoundry/**/.hypothesis/
+worldfoundry/**/.ipynb_checkpoints/
+worldfoundry/**/.cache/
+worldfoundry/**/.venv/
+worldfoundry/**/venv/
+worldfoundry/**/node_modules/
+worldfoundry/**/.next/
+worldfoundry/**/build/
+worldfoundry/**/build-*/
+worldfoundry/**/dist/
+worldfoundry/**/*.egg-info/
+worldfoundry/**/*.log
+worldfoundry/**/*.out
+worldfoundry/**/*.err
 worldfoundry/**/__pycache__/
 worldfoundry/**/*.py[cod]
+worldfoundry/**/*.so
+worldfoundry/**/*.a
+worldfoundry/**/*.o
 worldfoundry/**/checkpoints
 worldfoundry/**/outputs/
 worldfoundry/**/output/

@@ -12,7 +12,7 @@ from diffusers.video_processor import VideoProcessor
 from diffusers.image_processor import PipelineImageInput
 from transformers import AutoTokenizer, UMT5EncoderModel
 
-from worldfoundry.base_models.diffusion_model.video.cosmos.shared.scheduling_flow_match_euler_discrete import FlowMatchEulerDiscreteScheduler
+from .scheduling_flow_match_euler import FlowMatchEulerDiscreteScheduler
 from .modules.autoencoder_kl_wan import AutoencoderKLWan
 from .modules.longcat_video_dit import LongCatVideoTransformer3DModel
 from worldfoundry.core.distributed import context_parallel_util

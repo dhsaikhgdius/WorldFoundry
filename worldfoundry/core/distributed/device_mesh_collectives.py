@@ -9,6 +9,8 @@ import torch
 import torch.distributed as dist
 from torch.distributed.device_mesh import DeviceMesh
 
+from worldfoundry.core.distributed.tensor_collectives import all_to_all_concat
+
 try:
     from torch.distributed.tensor import Replicate, distribute_tensor
 except ImportError:  # pragma: no cover - optional torch feature.
@@ -16,10 +18,16 @@ except ImportError:  # pragma: no cover - optional torch feature.
     distribute_tensor = None
 
 
+def _mesh_device(mesh: DeviceMesh) -> torch.device:
+    if mesh.device_type == "cuda":
+        return torch.device("cuda", torch.cuda.current_device())
+    return torch.device(mesh.device_type)
+
+
 def broadcast(tensor: torch.Tensor, cp_or_tp_mesh: DeviceMesh) -> torch.Tensor:
     if Replicate is None or distribute_tensor is None:
         raise ImportError("torch.distributed.tensor is required for DeviceMesh broadcast.")
-    tensor = tensor.to("cuda")
+    tensor = tensor.to(_mesh_device(cp_or_tp_mesh))
     if cp_or_tp_mesh.size() > 1:
         tensor = distribute_tensor(tensor, cp_or_tp_mesh, [Replicate()]).to_local()
     return tensor
@@ -28,8 +36,9 @@ def broadcast(tensor: torch.Tensor, cp_or_tp_mesh: DeviceMesh) -> torch.Tensor:
 def broadcast_with_shape_check(tensor: torch.Tensor, cp_or_tp_mesh: DeviceMesh) -> torch.Tensor:
     """Broadcast a tensor and resize non-source ranks when rank-0 shape differs."""
 
-    original_shape = torch.tensor(tensor.shape, device="cuda")
-    final_shape = broadcast(torch.tensor(tensor.shape, device="cuda"), cp_or_tp_mesh)
+    device = _mesh_device(cp_or_tp_mesh)
+    original_shape = torch.tensor(tensor.shape, device=device)
+    final_shape = broadcast(torch.tensor(tensor.shape, device=device), cp_or_tp_mesh)
     if final_shape.ne(original_shape).any():
         tensor = torch.zeros(final_shape.tolist(), dtype=tensor.dtype, device=tensor.device)
     return broadcast(tensor, cp_or_tp_mesh)
@@ -50,10 +59,17 @@ def all_to_all_tensor(
 ) -> torch.Tensor:
     """Exchange equal tensor chunks and concatenate them along another dimension."""
 
-    input_chunks = [chunk.contiguous() for chunk in torch.tensor_split(tensor, world_size, scatter_dim)]
-    output_chunks = [torch.empty_like(input_chunks[0]) for _ in range(world_size)]
-    dist.all_to_all(output_chunks, input_chunks, group=group)
-    return torch.cat(output_chunks, dim=gather_dim).contiguous()
+    actual_world_size = dist.get_world_size(group) if dist.is_available() and dist.is_initialized() else 1
+    if int(world_size) != int(actual_world_size):
+        raise ValueError(
+            f"configured world size {world_size} does not match process-group size {actual_world_size}"
+        )
+    return all_to_all_concat(
+        tensor,
+        scatter_dim=scatter_dim,
+        gather_dim=gather_dim,
+        group=group,
+    )
 
 
 class DTensorFastEmaModelUpdater:
@@ -120,7 +136,7 @@ def broadcast_dtensor_model_states(model: torch.nn.Module, mesh: DeviceMesh) -> 
         if local_tensor.device.type == "cpu":
             if not torch.cuda.is_available():
                 raise RuntimeError("NCCL DTensor broadcast requires CUDA for CPU-resident model state.")
-            broadcast_tensor = local_tensor.cuda()
+            broadcast_tensor = local_tensor.to(torch.device("cuda", torch.cuda.current_device()))
             dist.broadcast(broadcast_tensor, src=src_rank, group=replicate_group)
             local_tensor.copy_(broadcast_tensor.cpu())
         else:

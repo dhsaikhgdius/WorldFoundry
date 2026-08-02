@@ -56,6 +56,15 @@ class WorkspaceRunnerSpec:
 
 
 CLI_RUNNERS: dict[str, WorkspaceRunnerSpec] = {
+    "apple-pi": WorkspaceRunnerSpec(
+        "apple-pi",
+        "worldfoundry.evaluation.tasks.execution.runners.apple_pi.run_apple_pi_official_runner",
+        generated_arg="--pred-dir",
+        dataset_root_arg="--gt-dir",
+        supports_official_runtime=True,
+        accepts_generated_artifacts=True,
+        input_kind="apple_pi_prediction_dir_or_official_results",
+    ),
     "4dworldbench": WorkspaceRunnerSpec(
         "4dworldbench",
         "worldfoundry.evaluation.tasks.execution.runners.four_d_worldbench.run_four_d_worldbench_official_runner",
@@ -164,6 +173,18 @@ CLI_RUNNERS: dict[str, WorkspaceRunnerSpec] = {
         default_metrics=("top1_accuracy",),
         input_kind="dataset_root_or_official_results",
     ),
+    "likephys": WorkspaceRunnerSpec(
+        "likephys",
+        "worldfoundry.evaluation.tasks.execution.runners.likephys.run_likephys_official_runner",
+        generated_arg="--generated-artifact-dir",
+        dataset_root_arg="--benchmark-data-root",
+        model_arg="--probe-model",
+        limit_arg="--limit",
+        benchmark_id_arg="--benchmark-id",
+        supports_official_runtime=True,
+        default_metrics=("likephys_misrank_rate",),
+        input_kind="likephys_results_root_or_probe_dataset",
+    ),
     "mirabench": WorkspaceRunnerSpec(
         "mirabench",
         "worldfoundry.evaluation.tasks.execution.runners.mirabench.run_mirabench_official_runner",
@@ -177,6 +198,17 @@ CLI_RUNNERS: dict[str, WorkspaceRunnerSpec] = {
         supports_fixture=True,
         supports_official_runtime=True,
         accepts_generated_artifacts=True,
+    ),
+    "mind": WorkspaceRunnerSpec(
+        "mind",
+        "worldfoundry.evaluation.tasks.execution.runners.mind.run_mind_official_runner",
+        generated_arg="--generated-artifact-dir",
+        dataset_root_arg="--gt-root",
+        supports_fixture=True,
+        supports_official_runtime=True,
+        accepts_generated_artifacts=True,
+        default_metrics=("mind_average",),
+        input_kind="mind_results_or_generated_videos",
     ),
     "phyeduvideo": WorkspaceRunnerSpec(
         "phyeduvideo",
@@ -212,6 +244,17 @@ CLI_RUNNERS: dict[str, WorkspaceRunnerSpec] = {
         generated_arg=None,
         limit_arg="--limit",
         supports_fixture=True,
+    ),
+    "rbench": WorkspaceRunnerSpec(
+        "rbench",
+        "worldfoundry.evaluation.tasks.execution.runners.rbench.run_rbench_official_runner",
+        generated_arg="--generated-artifact-dir",
+        dataset_root_arg="--benchmark-data-root",
+        prompt_manifest_arg="--prompt-manifest",
+        model_arg="--result-model-id",
+        benchmark_id_arg="--benchmark-id",
+        default_metrics=("rbench_overall",),
+        input_kind="rbench_official_results_tree",
     ),
     "physics-iq": WorkspaceRunnerSpec(
         "physics-iq",
@@ -278,6 +321,17 @@ CLI_RUNNERS: dict[str, WorkspaceRunnerSpec] = {
         limit_arg="--limit",
         supports_official_runtime=True,
         accepts_generated_artifacts=True,
+    ),
+    "sana-wm-bench": WorkspaceRunnerSpec(
+        "sana-wm-bench",
+        "worldfoundry.evaluation.tasks.execution.runners.sana_wm_bench.run_sana_wm_bench_official_runner",
+        generated_arg="--generated-video-dir",
+        dataset_root_arg="--dataset-root",
+        split_arg="--split",
+        supports_official_runtime=True,
+        accepts_generated_artifacts=True,
+        supports_fixture=True,
+        input_kind="sana_wm_bench_dataset_and_generated_videos",
     ),
     "t2vworldbench": WorkspaceRunnerSpec(
         "t2vworldbench",
@@ -403,6 +457,16 @@ CLI_RUNNERS: dict[str, WorkspaceRunnerSpec] = {
         supports_official_runtime=True,
         accepts_generated_artifacts=True,
         input_kind="worldscore_output_dir_or_official_results",
+    ),
+    "worldolympiad": WorkspaceRunnerSpec(
+        "worldolympiad",
+        "worldfoundry.evaluation.tasks.execution.runners.worldolympiad.run_worldolympiad_official_runner",
+        generated_arg="--generated-artifact-dir",
+        limit_arg="--limit",
+        supports_fixture=True,
+        supports_official_runtime=True,
+        accepts_generated_artifacts=True,
+        input_kind="worldolympiad_case_root_or_official_results",
     ),
     "worldreasonbench": WorkspaceRunnerSpec(
         "worldreasonbench",

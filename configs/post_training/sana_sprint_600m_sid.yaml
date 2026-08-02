@@ -1,0 +1,80 @@
+schema: worldfoundry-post-training
+execution_owner: worldfoundry-native
+run:
+  id: sana-sprint-600m-sid
+  output_dir: runs/sana-sprint-600m-sid
+model:
+  recipe: sana-sprint-600m-1024px
+  checkpoint: default
+tuning:
+  mode: full
+data:
+  manifest: data/post_training/sana-sprint-600m/manifest.jsonl
+  cache: data/post_training/sana-sprint-600m/cache
+  split: train
+  shuffle: true
+  shuffle_seed: 42
+  tail_policy: drop
+  options:
+    height: 1024
+    width: 1024
+    microbatch_size: 1
+    num_workers: 4
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 2
+    snapshot_every_n_steps: 1
+algorithm:
+  type: sid
+  student_timesteps: [999.0, 749.0, 499.0, 249.0]
+  student_sigmas: [0.999, 0.749, 0.499, 0.249]
+  teacher_checkpoint: default
+  fake_score_checkpoint: default
+  alpha: 1.0
+  noise_policy: fresh
+  score_weighting: 1-minus-sigma
+  num_train_timesteps: 1000
+  score_logit_mean: 0.6931471805599453
+  score_logit_std: 1.6
+  weighting_epsilon: 0.00001
+  teacher_guidance_scale: 4.5
+  fake_score_guidance_scale: 4.5
+  score_identity_weight: 100.0
+  fake_score_flow_weight: 1.0
+  generator_adversarial_weight: 0.0
+  fake_score_adversarial_weight: 0.0
+optimizer:
+  type: adamw
+  learning_rate: 0.000005
+  weight_decay: 0.0
+  betas: [0.9, 0.999]
+  epsilon: 0.00000001
+  max_grad_norm: 1.0
+  gradient_accumulation_steps: 1
+fake_score_optimizer:
+  type: adamw
+  learning_rate: 0.000005
+  weight_decay: 0.0
+  betas: [0.9, 0.999]
+  epsilon: 0.00000001
+  max_grad_norm: 1.0
+  gradient_accumulation_steps: 1
+runtime:
+  param_dtype: bfloat16
+  reduce_dtype: float32
+  activation_checkpoint: none
+  compile: false
+distributed:
+  backend: fsdp2
+  dp_replicate: 1
+  dp_shard: auto
+  cp: 1
+  tp: 1
+checkpoint:
+  save_every_steps: 50
+  async: true
+  export_every_steps: 50
+export:
+  format: safetensors
+  options:
+    max_shard_size_bytes: 5368709120

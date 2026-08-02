@@ -60,10 +60,6 @@ STUDIO_HIDDEN_CATALOG_MODEL_IDS: frozenset[str] = frozenset(
         "shape-of-motion",
         "spatial-ladder",
         "spatial-reasoner",
-        # The source tree is vendored, but the current wrapper only prepares a
-        # multi-process execution plan and still requires caption/VAE services.
-        # Keep it out of Studio infer until it returns a real video artifact.
-        "step-video-t2v",
         "thinksound",
     }
 )
@@ -504,6 +500,48 @@ def _matrix_game_3_default_call_kwargs() -> Dict[str, Any]:
     }
 
 
+def _matrix_game_35_third_person_default_camera() -> Dict[str, Any]:
+    """Return a deterministic one-block c2w dolly trajectory for the Studio demo.
+
+    Matrix-Game 3.5 consumes 84 generated poses plus its anchor/padding poses.
+    Keeping the camera payload as JSON lets Workspace expose a complete default
+    without checking a generated binary NPZ file into the source tree; the
+    runtime materializes the mapping as ``camera.npz`` in the run directory.
+    Intrinsics are expressed in pixels of the 1152x1536 portrait demo image.
+    """
+
+    pose_count = 86
+    extrinsics_c2w = []
+    for index in range(pose_count):
+        progress = index / (pose_count - 1)
+        # A gentle right-and-forward camera dolly keeps the reference subject
+        # in frame while exercising non-static third-person camera control.
+        extrinsics_c2w.append(
+            [
+                [1.0, 0.0, 0.0, 0.08 * progress],
+                [0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.35 * progress],
+                [0.0, 0.0, 0.0, 1.0],
+            ]
+        )
+    return {
+        "extrinsics_c2w": extrinsics_c2w,
+        "intrinsics": [1100.0, 1100.0, 576.0, 768.0],
+    }
+
+
+def _matrix_game_35_third_person_default_call_kwargs() -> Dict[str, Any]:
+    return {
+        "camera": _matrix_game_35_third_person_default_camera(),
+        "num_blocks": 1,
+        "steps": 25,
+        "cfg_scale": 5.0,
+        "seed": 3407,
+        "camera_convention": "c2w",
+        "fps": 16,
+    }
+
+
 def _matrix_game_3_default_load_kwargs() -> Dict[str, Any]:
     return {
         "required_components": {
@@ -534,6 +572,64 @@ def _matrix_game_1_default_load_kwargs() -> Dict[str, Any]:
             str(_project_root().parent / "conda" / "envs" / "worldfoundry-unified-cu128"),
             str(_project_root().parent / "conda" / "envs" / "matrix-game-1.0"),
         ),
+    }
+
+
+def _causal_rcm_default_load_kwargs() -> Dict[str, Any]:
+    checkpoint_dir = checkpoint_root_path("rcm")
+    return {
+        "checkpoint_dir": str(checkpoint_dir),
+        "dit_path": str(checkpoint_dir / "Causal_rCM_Wan2.1_T2V_1.3B_480p_TF-dCM-init_SF-DMD_c1-1_step4.pt"),
+        "vae_path": str(checkpoint_dir / "Wan2.1_VAE.pth"),
+        "text_encoder_path": str(checkpoint_dir / "models_t5_umt5-xxl-enc-bf16.pth"),
+    }
+
+
+def _causal_rcm_default_call_kwargs() -> Dict[str, Any]:
+    return {
+        # Frame-wise c1-1 chunks: the lowest-latency streaming schedule in the
+        # Causal-rCM recipe, with the recommended 4-step distilled midpoints.
+        "distilled": True,
+        "first_chunk_t": 1,
+        "chunk_t": 1,
+        "num_steps": 4,
+        "mid_t": ["15/16", "5/6", "5/8"],
+        "num_frames": 81,
+        "resolution": "480p",
+        "aspect_ratio": "16:9",
+        "model_size": "1.3B",
+        "seed": 0,
+        # The checkpoint is not bundled with WorldFoundry, so Studio plans by
+        # default. Set plan_only=False after staging a DiT checkpoint.
+        "plan_only": True,
+        "timeout_seconds": 21600,
+    }
+
+
+def _open_dreamer_default_load_kwargs() -> Dict[str, Any]:
+    load_kwargs: Dict[str, Any] = {"checkpoint_path": str(checkpoint_root_path("open-dreamer"))}
+    # Only pin an interpreter once the checkout's uv venv exists. Otherwise leave
+    # the key unset so the runtime adapter re-probes at call time.
+    venv_python = official_runtime_repo_path("open-dreamer-inference") / ".venv" / "bin" / "python"
+    if venv_python.is_file():
+        load_kwargs["python_executable"] = str(venv_python)
+    return load_kwargs
+
+
+def _open_dreamer_default_call_kwargs() -> Dict[str, Any]:
+    return {
+        # Matches the official larger-rollout example in the upstream inference README.
+        "context_frames": 16,
+        "horizon": 64,
+        "num_steps": 4,
+        "decode_chunk_size": 16,
+        "seed": 0,
+        "use_ema": True,
+        "camera_step_degrees": 5.0,
+        # Upstream publishes no downloadable weights, so Studio plans by default and
+        # only executes once a checkout plus checkpoint are staged.
+        "plan_only": True,
+        "timeout_seconds": 21600,
     }
 
 
@@ -1028,6 +1124,51 @@ def _official_video_call_params() -> tuple[str, ...]:
     )
 
 
+def _native_diffusion_video_load_params() -> tuple[str, ...]:
+    return (
+        "model_path",
+        "required_components",
+        "device",
+        "model_id",
+        "checkpoint_path",
+        "torch_dtype",
+        "weight_dtype",
+        "dtype",
+        "offload_mode",
+        "vae_tiling",
+        *DISPATCH_LOAD_PARAMS,
+    )
+
+
+def _native_diffusion_video_call_params() -> tuple[str, ...]:
+    return (
+        "prompt",
+        "images",
+        "image",
+        "image_path",
+        "video",
+        "interactions",
+        "negative_prompt",
+        "output_path",
+        "output_dir",
+        "num_frames",
+        "frames",
+        "frame_num",
+        "height",
+        "width",
+        "num_inference_steps",
+        "infer_steps",
+        "guidance_scale",
+        "cfg_scale",
+        "embedded_guidance_scale",
+        "shift",
+        "seed",
+        "fps",
+        "output_type",
+        "return_dict",
+    )
+
+
 def _echo_infinity_default_ref() -> str:
     return _checkpoint_model_ref(
         "Echo-Infinity/echo_infinity.pt",
@@ -1155,6 +1296,7 @@ def _dreamx_world_default_load_kwargs() -> Dict[str, Any]:
             "Wan2.2-TI2V-5B",
             fallback="Wan-AI/Wan2.2-TI2V-5B",
         ),
+        "nproc_per_node": 8,
     }
 
 
@@ -1256,10 +1398,10 @@ def _sana_checkpoint_ref(repo_dir: str, checkpoint_name: str, repo_id: str) -> s
 
 
 def _sana_video_480p_default_ref() -> str:
-    return _checkpoint_model_ref(
-        "Sana-Video_2B_480p_diffusers",
-        "hfd/Efficient-Large-Model--Sana-Video_2B_480p_diffusers",
-        fallback="Efficient-Large-Model/Sana-Video_2B_480p_diffusers",
+    return _sana_checkpoint_ref(
+        "SANA-Video_2B_480p",
+        "SANA_Video_2B_480p.pth",
+        "Efficient-Large-Model/SANA-Video_2B_480p",
     )
 
 
@@ -1302,7 +1444,10 @@ def _sana_video_call_params() -> tuple[str, ...]:
 
 
 def _longsana_video_call_params() -> tuple[str, ...]:
-    return tuple(param for param in _sana_video_call_params() if param != "cfg_scale")
+    return (
+        "negative_prompt",
+        *(param for param in _sana_video_call_params() if param != "cfg_scale"),
+    )
 
 
 def _sana_video_load_params() -> tuple[str, ...]:
@@ -1405,7 +1550,7 @@ def _solaris_default_load_kwargs() -> Dict[str, Any]:
 
 def _wow_default_ref() -> str:
     local = checkpoint_root_path("WoW-1-Wan-14B-600k")
-    return str(local) if local.exists() else "WoW-world-model/WoW-1-Wan-14B-600k"
+    return str(local) if local.exists() else "X-Humanoid/WoW-1-Wan-14B-600k"
 
 
 def _gr00t_default_ref() -> str:
@@ -1752,6 +1897,17 @@ def _neoverse_default_call_kwargs() -> Dict[str, Any]:
         "static_scene": False,
         "num_inference_steps": 4,
         "cfg_scale": 1.0,
+    }
+
+
+def _neoverse_default_load_kwargs() -> Dict[str, Any]:
+    return {
+        "height": 336,
+        "width": 560,
+        "num_inference_steps": 4,
+        "cfg_scale": 1.0,
+        "disable_lora": False,
+        "enable_vram_management": True,
     }
 
 
@@ -2183,10 +2339,17 @@ def _gen3c_default_load_kwargs() -> Dict[str, Any]:
 
 
 def _gen3c_default_call_kwargs() -> Dict[str, Any]:
+    """Native GEN3C quality defaults; legacy official-subprocess flags are omitted."""
+
+    from worldfoundry.pipelines.gen3c.constants import (
+        DEFAULT_GEN3C_NEGATIVE_PROMPT,
+    )
+
     return {
         "trajectory": "left",
         "camera_rotation": "center_facing",
         "movement_distance": 0.3,
+        "negative_prompt": DEFAULT_GEN3C_NEGATIVE_PROMPT,
         "guidance": 1.0,
         "num_steps": 35,
         "num_video_frames": 121,
@@ -2194,18 +2357,6 @@ def _gen3c_default_call_kwargs() -> Dict[str, Any]:
         "height": 704,
         "width": 1280,
         "seed": 1,
-        "num_gpus": 8,
-        "noise_aug_strength": 0.0,
-        "filter_points_threshold": 0.05,
-        "foreground_masking": True,
-        "disable_prompt_upsampler": True,
-        "disable_guardrail": True,
-        "disable_prompt_encoder": True,
-        "offload_diffusion_transformer": False,
-        "offload_tokenizer": False,
-        "offload_text_encoder_model": False,
-        "offload_prompt_upsampler": False,
-        "offload_guardrail_models": False,
     }
 
 
@@ -2777,8 +2928,8 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
         "default_prompt": "Move forward through the scene while preserving geometry and appearance.",
         "default_input_path": str(_data_path("test_cases", "studio_demo", "00", "image.jpg")),
         "default_call_kwargs": {
-            "num_frames": 9,
-            "num_blocks": 1,
+            "num_frames": 57,
+            "num_blocks": 5,
             "seed": 42,
             "fps": 16,
         },
@@ -2799,7 +2950,7 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
         "default_backend": "from_pretrained",
         "aliases": ("abot-world", "abot"),
         "tags": ("world-model", "action-control", "causal-video", "in-tree-runtime"),
-        "notes": "The Workspace smoke preset emits one complete nine-frame causal block.",
+        "notes": "Uses the released full 57-frame rollout: one nine-frame warmup block followed by four twelve-frame causal blocks.",
     },
     "wan21-fun-1p3b-cam": {
         "display_name": "Wan2.1-Fun V1.1 1.3B Control Camera",
@@ -2813,11 +2964,11 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
         "default_input_path": str(_data_path("test_cases", "video_x_fun", "firework.png")),
         "default_call_kwargs": {
             "pose_txt": str(_data_path("test_cases", "video_x_fun", "camera_pose.txt")),
-            "width": 672,
-            "height": 384,
-            "num_frames": 9,
+            "width": 832,
+            "height": 480,
+            "num_frames": 49,
             "fps": 16,
-            "num_inference_steps": 4,
+            "num_inference_steps": 50,
             "seed": 43,
         },
         "call_params": (
@@ -2839,7 +2990,127 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
         "default_backend": "from_pretrained",
         "aliases": ("wan2.1-fun-1.3b-camera",),
         "tags": ("camera-control", "i2v", "wan2.1", "in-tree-runtime"),
-        "notes": "Split official transformer/base assets are composed with symlinks inside each run directory; the strict 989-tensor camera schema and nine-frame A100 Workspace output are validated.",
+        "notes": "Split official transformer/base assets are composed with symlinks inside each run directory; the full upstream camera demo uses 49 frames at 832x480 with 50 denoising steps.",
+    },
+    "wan21-fun-14b-cam": {
+        "display_name": "Wan2.1-Fun V1.1 14B Control Camera",
+        "category": "Video Generation",
+        "summary": "In-tree VideoX-Fun 14B image-to-video generation with CameraCtrl pose conditioning.",
+        "default_model_ref": lambda: _hf_checkpoint_model_ref(
+            "hfd/alibaba-pai--Wan2.1-Fun-V1.1-14B-Control-Camera",
+            "alibaba-pai/Wan2.1-Fun-V1.1-14B-Control-Camera",
+        ),
+        "default_prompt": "Colorful fireworks bloom above a city skyline as the camera moves forward.",
+        "default_input_path": str(_data_path("test_cases", "video_x_fun", "firework.png")),
+        "default_call_kwargs": {
+            "pose_txt": str(_data_path("test_cases", "video_x_fun", "camera_pose.txt")),
+            "width": 832,
+            "height": 480,
+            "num_frames": 49,
+            "fps": 16,
+            "num_inference_steps": 50,
+            "seed": 43,
+        },
+        "call_params": (
+            "prompt",
+            "images",
+            "image_path",
+            "pose_txt",
+            "width",
+            "height",
+            "num_frames",
+            "fps",
+            "num_inference_steps",
+            "seed",
+            "output_path",
+            "return_dict",
+        ),
+        "supports_stream": False,
+        "supports_from_pretrained": True,
+        "default_backend": "from_pretrained",
+        "aliases": ("wan2.1-fun-14b-camera",),
+        "tags": ("camera-control", "i2v", "wan2.1", "in-tree-runtime"),
+        "notes": "The full upstream Wan2.1 camera demo uses 49 frames at 832x480 with 50 denoising steps.",
+    },
+    "wan22-fun-5b-cam": {
+        "display_name": "Wan2.2-Fun 5B Control Camera",
+        "category": "Video Generation",
+        "summary": "In-tree VideoX-Fun 5B image-to-video generation with CameraCtrl pose conditioning.",
+        "default_model_ref": lambda: _hf_checkpoint_model_ref(
+            "hfd/alibaba-pai--Wan2.2-Fun-5B-Control-Camera",
+            "alibaba-pai/Wan2.2-Fun-5B-Control-Camera",
+        ),
+        "default_prompt": "Colorful fireworks bloom above a city skyline as the camera moves forward.",
+        "default_input_path": str(_data_path("test_cases", "video_x_fun", "firework.png")),
+        "default_call_kwargs": {
+            "pose_txt": str(_data_path("test_cases", "video_x_fun", "camera_pose.txt")),
+            "width": 1280,
+            "height": 704,
+            "num_frames": 121,
+            "fps": 24,
+            "num_inference_steps": 50,
+            "seed": 43,
+        },
+        "call_params": (
+            "prompt",
+            "images",
+            "image_path",
+            "pose_txt",
+            "width",
+            "height",
+            "num_frames",
+            "fps",
+            "num_inference_steps",
+            "seed",
+            "output_path",
+            "return_dict",
+        ),
+        "supports_stream": False,
+        "supports_from_pretrained": True,
+        "default_backend": "from_pretrained",
+        "aliases": ("wan2.2-fun-5b-camera",),
+        "tags": ("camera-control", "i2v", "wan2.2", "in-tree-runtime"),
+        "notes": "The full upstream Wan2.2 5B camera demo uses 121 frames at 1280x704 and 24 FPS with 50 denoising steps.",
+    },
+    "wan22-fun-a14b-cam": {
+        "display_name": "Wan2.2-Fun A14B Control Camera",
+        "category": "Video Generation",
+        "summary": "In-tree VideoX-Fun A14B image-to-video generation with CameraCtrl pose conditioning.",
+        "default_model_ref": lambda: _hf_checkpoint_model_ref(
+            "hfd/alibaba-pai--Wan2.2-Fun-A14B-Control-Camera",
+            "alibaba-pai/Wan2.2-Fun-A14B-Control-Camera",
+        ),
+        "default_prompt": "Colorful fireworks bloom above a city skyline as the camera moves forward.",
+        "default_input_path": str(_data_path("test_cases", "video_x_fun", "firework.png")),
+        "default_call_kwargs": {
+            "pose_txt": str(_data_path("test_cases", "video_x_fun", "camera_pose.txt")),
+            "width": 832,
+            "height": 480,
+            "num_frames": 81,
+            "fps": 16,
+            "num_inference_steps": 50,
+            "seed": 43,
+        },
+        "call_params": (
+            "prompt",
+            "images",
+            "image_path",
+            "pose_txt",
+            "width",
+            "height",
+            "num_frames",
+            "fps",
+            "num_inference_steps",
+            "seed",
+            "output_path",
+            "return_dict",
+        ),
+        "supports_stream": False,
+        "supports_from_pretrained": True,
+        "default_backend": "from_pretrained",
+        "aliases": ("wan2.2-fun-a14b-camera",),
+        "tags": ("camera-control", "i2v", "wan2.2", "in-tree-runtime"),
+        "notes": "The full upstream Wan2.2 A14B camera demo uses 81 frames at 832x480 with 50 denoising steps.",
     },
     "xiaomi-robotics-0": {
         "display_name": "Xiaomi-Robotics-0",
@@ -3240,8 +3511,13 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
         "display_name": "Stable Video Infinity 2.0",
         "category": "Video Generation",
         "summary": "Generate coherent long video from one image and a segment-level prompt stream.",
-        "default_prompt": "A cinematic forward camera journey through a detailed, coherent world.",
-        "default_input_path": str(_data_path("test_cases", "studio_demo", "00", "image.jpg")),
+        "default_prompt": (
+            "The water shimmers with dancing caustics as gentle bubbles rise; "
+            "the camera dolly-ins through a blue haze."
+        ),
+        "default_input_path": str(
+            _data_path("test_cases", "stable-video-infinity", "svi-2.0", "frame.jpg")
+        ),
         "default_task_type": "i2v",
         "supports_from_pretrained": True,
         "default_backend": "from_pretrained",
@@ -3866,7 +4142,10 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
         "default_load_kwargs": {
             "dataset_path": str(local_data_root_path() / "rocket-science" / "test"),
         },
-        "default_prompt": "",
+        "default_prompt": (
+            "A cat and a dog baking a cake together in a cozy sunlit kitchen. The cat carefully measures flour "
+            "while the dog stirs the batter with a wooden spoon, cinematic lighting, detailed natural motion."
+        ),
         "supports_stream": False,
         "supports_from_pretrained": True,
         "default_backend": "from_pretrained",
@@ -3928,6 +4207,127 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
         "tags": ("interactive-world", "navigation", "minecraft", "wmfactory"),
         "notes": "WMFactory-compatible MineWorld id. Uses the in-tree runtime-manifest route when launched from WorldFoundry.",
     },
+    "causal-rcm": {
+        "display_name": "Causal-rCM",
+        "default_model_ref": lambda: str(checkpoint_root_path("rcm")),
+        "default_load_kwargs": _causal_rcm_default_load_kwargs,
+        "default_call_kwargs": _causal_rcm_default_call_kwargs,
+        "default_prompt": "A cinematic shot of a snowy mountain at sunrise",
+        "supports_stream": False,
+        "supports_from_pretrained": True,
+        "default_backend": "from_pretrained",
+        "default_task_type": "autoregressive-video-generation",
+        "call_params": (
+            "prompt",
+            "negative_prompt",
+            "images",
+            "output_path",
+            "fps",
+            "dit_path",
+            "checkpoint_path",
+            "vae_path",
+            "text_encoder_path",
+            "image_path",
+            "model_size",
+            "distilled",
+            "first_chunk_t",
+            "chunk_t",
+            "num_steps",
+            "steps_per_chunk",
+            "mid_t",
+            "mid_t_schedules",
+            "sigma_max",
+            "guidance_scale",
+            "timestep_shift",
+            "num_frames",
+            "num_samples",
+            "resolution",
+            "aspect_ratio",
+            "adaptive_resolution",
+            "context_from_last_step",
+            "context_from_last_step_start_chunk",
+            "kv_cache_policy",
+            "kv_cache_window_blocks",
+            "kv_cache_sink_blocks",
+            "warmup_iters",
+            "num_runs",
+            "seed",
+            "plan_only",
+            "timeout_seconds",
+            "return_dict",
+        ),
+        "load_params": (
+            "model_path",
+            "required_components",
+            "device",
+            "model_id",
+            "dit_path",
+            "checkpoint_path",
+            "checkpoint_dir",
+            "vae_path",
+            "text_encoder_path",
+        ),
+        "aliases": ("rcm", "causal_rcm", "rcm-causal"),
+        "tags": ("interactive-world", "streaming", "autoregressive-video", "distillation", "wan"),
+        "notes": (
+            "Vendored NVlabs Causal-rCM streaming runtime (Apache-2.0). Block-causal Wan2.1 distilled to "
+            "1-4 steps per chunk; chunk_t selects the streaming schedule. Requires a distilled DiT "
+            "checkpoint plus the Wan2.1 VAE and umT5 text encoder."
+        ),
+    },
+    "open-dreamer": {
+        "display_name": "Open Dreamer",
+        "default_model_ref": lambda: str(checkpoint_root_path("open-dreamer")),
+        "default_load_kwargs": _open_dreamer_default_load_kwargs,
+        "default_call_kwargs": _open_dreamer_default_call_kwargs,
+        "default_prompt": "",
+        "default_interactions": ("forward", "forward_camera_l", "forward", "forward_camera_r"),
+        "supports_stream": False,
+        "supports_from_pretrained": True,
+        "default_backend": "from_pretrained",
+        "default_task_type": "minecraft-world-rollout",
+        "call_params": (
+            "prompt",
+            "images",
+            "video",
+            "interactions",
+            "output_path",
+            "fps",
+            "input_mp4",
+            "actions_path",
+            "checkpoint_path",
+            "context_frames",
+            "horizon",
+            "num_steps",
+            "decode_chunk_size",
+            "seed",
+            "parallel_strategy",
+            "use_ema",
+            "no_kv_cache",
+            "camera_step_degrees",
+            "python_executable",
+            "plan_only",
+            "timeout_seconds",
+            "return_dict",
+        ),
+        "load_params": (
+            "model_path",
+            "required_components",
+            "device",
+            "model_id",
+            "checkpoint_path",
+            "input_mp4",
+            "actions_path",
+            "python_executable",
+        ),
+        "aliases": ("open_dreamer", "opendreamer", "dreamer-4", "dreamer4"),
+        "tags": ("interactive-world", "minecraft", "action-conditioned", "world-model", "jax"),
+        "notes": (
+            "Dreamer 4 rollout route bound to a user-staged official checkout; upstream is all-rights-reserved, "
+            "so no source is vendored. Requires the checkout, its CUDA-12 JAX environment, and a trained Orbax "
+            "checkpoint. WorldFoundry interactions are rendered into Minecraft/VPT action JSONL."
+        ),
+    },
     "longvie-1": {
         "display_name": "LongVie",
         "category": "Video Generation",
@@ -3941,15 +4341,19 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
         "supports_from_pretrained": True,
         "default_task_type": "image-to-video",
         "default_prompt": (
-            "First-person cinematic motion through a lush jungle path toward a distant stone castle, "
-            "preserving the reference scene."
+            "A young man holds a bright sparkler at night while the camera moves slowly around him, "
+            "preserving his identity, pose, and the reference scene."
         ),
+        "default_input_path": str(_data_path("test_cases", "studio_demo", "00", "image.jpg")),
         "default_call_kwargs": {
             "execute": True,
-            "num_frames": 5,
+            "dense_video": str(_data_path("test_cases", "longvie", "dense_control.mp4")),
+            "sparse_video": str(_data_path("test_cases", "longvie", "sparse_control.mp4")),
+            "num_frames": 81,
             "height": 352,
             "width": 640,
-            "fps": 8,
+            "fps": 16,
+            "num_inference_steps": 50,
             "seed": 0,
         },
         "call_params": (
@@ -3966,6 +4370,7 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
             "num_frames",
             "height",
             "width",
+            "num_inference_steps",
             "seed",
             "dense_video",
             "sparse_video",
@@ -4007,9 +4412,15 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
         "supports_from_pretrained": True,
         "supports_stream": True,
         "default_task_type": "image-to-video",
-        "default_prompt": "",
+        "default_prompt": (
+            "A young man holds a bright sparkler at night while the camera moves slowly around him, "
+            "preserving his identity, pose, and the reference scene."
+        ),
+        "default_input_path": str(_data_path("test_cases", "studio_demo", "00", "image.jpg")),
         "default_call_kwargs": {
             "execute": True,
+            "dense_video": str(_data_path("test_cases", "longvie", "dense_control.mp4")),
+            "sparse_video": str(_data_path("test_cases", "longvie", "sparse_control.mp4")),
             "num_frames": 81,
             "height": 352,
             "width": 640,
@@ -4156,6 +4567,7 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
     "matrix-game-1": {
         "display_name": "Matrix-Game-1",
         "default_model_ref": _matrix_game_1_default_ref,
+        "default_input_path": "worldfoundry/data/test_cases/matrix-game-1/official_initial_image/forest_00.jpg",
         "default_load_kwargs": _matrix_game_1_default_load_kwargs,
         "default_interactions": ("forward", "left", "right", "camera_l", "camera_r"),
         "default_call_kwargs": {
@@ -4210,6 +4622,47 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
         "aliases": ("matrixgame3", "matrix-game3"),
         "tags": ("navigation", "stream", "wmfactory", "state-init", "official-demo"),
         "notes": "Defaults mirror the Matrix-Game-3 README cityscape demo: 12 iterations, 3 denoising steps, seed 42, 704*1280, INT8 LightVAE. Async VAE remains off by default because it fails when CUDA_VISIBLE_DEVICES remaps GPUs.",
+    },
+    "matrix-game-3.5-third-person": {
+        "display_name": "Matrix-Game 3.5 Third-Person Base",
+        "default_task_type": "camera-controlled-image-to-video",
+        "default_prompt": (
+            "A young man holds a bright sparkler at night while the camera moves gently around him, "
+            "preserving his identity, clothing, and the illuminated architecture."
+        ),
+        "default_input_path": str(_data_path("test_cases", "studio_demo", "00", "image.jpg")),
+        "default_interactions": (),
+        "default_call_kwargs": _matrix_game_35_third_person_default_call_kwargs,
+        "input_params": ("image_path", "camera"),
+        "call_params": (
+            "prompt",
+            "images",
+            "image",
+            "image_path",
+            "input_path",
+            "camera_path",
+            "camera",
+            "trajectory_npz",
+            "refs",
+            "subject_refs",
+            "caption_path",
+            "output_path",
+            "fps",
+            "num_blocks",
+            "steps",
+            "cfg_scale",
+            "seed",
+            "camera_convention",
+            "keep_workspace",
+            "timeout_seconds",
+            "return_dict",
+        ),
+        "aliases": ("matrix-game-3.5-tp", "matrix-game-35-third-person"),
+        "tags": ("world-model", "camera-control", "subject-reference", "official-default-steps"),
+        "notes": (
+            "Studio uses the released one-block 25-step base-model defaults and a deterministic 86-pose "
+            "c2w dolly trajectory materialized by the runtime. Subject references remain optional."
+        ),
     },
     "dualcamctrl": {
         "display_name": "DualCamCtrl",
@@ -4401,7 +4854,10 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
         "display_name": "GEN3C",
         "default_model_ref": _gen3c_default_ref,
         "default_input_path": "worldfoundry/data/test_cases/gen3c/image.png",
-        "default_prompt": "",
+        "default_prompt": (
+            "A cinematic view of a futuristic science-fiction city with coherent structures, realistic "
+            "lighting, and smooth natural camera motion."
+        ),
         "default_load_kwargs": _gen3c_default_load_kwargs,
         "default_interactions": ("left",),
         "default_call_kwargs": _gen3c_default_call_kwargs,
@@ -4409,9 +4865,16 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
             "images",
             "interactions",
             "prompt",
+            "negative_prompt",
             "trajectory",
+            "camera_path",
+            "region_hint",
             "camera_rotation",
             "movement_distance",
+            "rendered_warp_images",
+            "rendered_warp_masks",
+            "camera_to_world",
+            "camera_intrinsics",
             "scene_name",
             "output_dir",
             "return_dict",
@@ -4436,6 +4899,7 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
             "offload_prompt_upsampler",
             "offload_guardrail_models",
         ),
+        "stream_params": ("camera_path", "prompt", "region_hint", "fps", "seed"),
         "load_params": (
             "model_path",
             "required_components",
@@ -4443,7 +4907,17 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
             "weight_dtype",
             *DISPATCH_LOAD_PARAMS,
         ),
-        "tags": ("navigation", "stream", "camera-control"),
+        "tags": (
+            "navigation",
+            "stream",
+            "camera-control",
+            "world-explorer",
+            "native-imgui",
+        ),
+        "notes": (
+            "The native World Explorer adapter preserves arbitrary authored camera poses and "
+            "renders the resident RGBD cache into GEN3C conditioning buffers."
+        ),
     },
     "ac3d": {
         "display_name": "AC3D",
@@ -4544,6 +5018,42 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
             "and materializes the output."
         ),
     },
+    "uni3c": {
+        "display_name": "Uni3C",
+        "default_backend": "from_pretrained",
+        "supports_from_pretrained": True,
+        "default_task_type": "image-to-video",
+        "default_prompt": (
+            "The video features a cartoonish bear sitting at a school desk in a classroom setting."
+        ),
+        "call_params": (
+            "prompt",
+            "images",
+            "interactions",
+            "render_path",
+            "mode",
+            "num_frames",
+            "max_area",
+            "seed",
+            "fps",
+            "num_gpus",
+            "output_path",
+            "plan_only",
+            "return_dict",
+        ),
+        "load_params": (
+            "controller_path",
+            "base_model_path",
+            "model_path",
+            "device",
+            *DISPATCH_LOAD_PARAMS,
+        ),
+        "tags": ("image-to-video", "camera-control", "official-stage-two-runtime"),
+        "notes": (
+            "Requires a reference image and the matching official stage-one render bundle containing "
+            "render.mp4, render_mask.mp4, and cam_info.json."
+        ),
+    },
     "sana-wm": {
         "display_name": "SANA-WM",
         "category": "Video Generation",
@@ -4587,8 +5097,11 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
         "default_backend": "from_pretrained",
         "default_model_ref": _dreamx_world_default_ref,
         "default_load_kwargs": _dreamx_world_default_load_kwargs,
-        "default_prompt": "",
-        "default_input_path": "",
+        "default_prompt": (
+            "A young man holding a bright sparkler gently turns his head as sparks scatter "
+            "through the night air, cinematic lighting, realistic motion, stable facial detail."
+        ),
+        "default_input_path": str(_data_path("test_cases", "dreamx_world", "007.jpg")),
         "default_task_type": "image-camera-video",
         "default_interactions": (),
         "default_call_kwargs": {
@@ -4646,8 +5159,11 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
         "default_backend": "from_pretrained",
         "default_model_ref": _dreamx_world_ar_default_ref,
         "default_load_kwargs": _dreamx_world_ar_default_load_kwargs,
-        "default_prompt": "",
-        "default_input_path": "",
+        "default_prompt": (
+            "A young man holding a bright sparkler gently turns his head as sparks scatter "
+            "through the night air, cinematic lighting, realistic motion, stable facial detail."
+        ),
+        "default_input_path": str(_data_path("test_cases", "dreamx_world", "007.jpg")),
         "default_task_type": "image-camera-video",
         "default_interactions": (),
         "default_call_kwargs": {
@@ -4858,7 +5374,7 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
         ),
         "aliases": ("wow-world-model", "world-omniscient-world-model", "wow-world-model/wow-1-wan-14b-600k"),
         "tags": ("world-model", "image-to-video", "robotics", "official-runtime"),
-        "notes": "Defaults match the official WoW Wan demo checkpoint WoW-world-model/WoW-1-Wan-14B-600k. Use a local Hugging Face cache or repo id with image conditioning, prompt text, seed 42, and video generation.",
+        "notes": "Defaults match the official WoW Wan demo checkpoint X-Humanoid/WoW-1-Wan-14B-600k. Use a local Hugging Face cache or repo id with image conditioning, prompt text, seed 42, and video generation.",
     },
     "cameractrl": {
         "display_name": "CameraCtrl",
@@ -5042,7 +5558,9 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
         "call_params": (
             "images",
             "interactions",
+            "camera_path",
             "prompt",
+            "region_hint",
             "fps",
             "resolution",
             "reconstruct_3d",
@@ -5057,6 +5575,8 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
             "offload",
             "offload_when_prompt",
         ),
+        "supports_stream": True,
+        "stream_params": ("camera_path", "prompt", "region_hint", "fps", "seed"),
         "load_params": (
             "model_path",
             "required_components",
@@ -5069,7 +5589,13 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
             *DISPATCH_LOAD_PARAMS,
         ),
         "aliases": ("lyra2", "nvidia/lyra"),
-        "tags": ("novel-view", "camera-control", "official-runtime"),
+        "tags": (
+            "novel-view",
+            "camera-control",
+            "official-runtime",
+            "world-explorer",
+            "native-imgui",
+        ),
     },
     "lyra-2": {
         "display_name": "Lyra-2",
@@ -5084,7 +5610,9 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
         "call_params": (
             "images",
             "interactions",
+            "camera_path",
             "prompt",
+            "region_hint",
             "fps",
             "resolution",
             "reconstruct_3d",
@@ -5099,6 +5627,8 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
             "offload",
             "offload_when_prompt",
         ),
+        "supports_stream": True,
+        "stream_params": ("camera_path", "prompt", "region_hint", "fps", "seed"),
         "load_params": (
             "model_path",
             "required_components",
@@ -5111,7 +5641,13 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
             *DISPATCH_LOAD_PARAMS,
         ),
         "aliases": ("lyra2",),
-        "tags": ("novel-view", "camera-control", "official-runtime"),
+        "tags": (
+            "novel-view",
+            "camera-control",
+            "official-runtime",
+            "world-explorer",
+            "native-imgui",
+        ),
     },
     "hunyuanvideo-t2v": {
         "display_name": "HunyuanVideo T2V",
@@ -5123,7 +5659,7 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
         "default_backend": "from_pretrained",
         "supports_from_pretrained": True,
         "default_prompt": "A cat walks on the grass, realistic style.",
-        "call_params": _official_video_call_params(),
+        "call_params": _native_diffusion_video_call_params(),
         "input_params": (
             "prompt",
             "num_frames",
@@ -5131,29 +5667,23 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
             "width",
             "num_inference_steps",
             "fps",
-            "flow_shift",
-            "embedded_cfg_scale",
+            "guidance_scale",
+            "embedded_guidance_scale",
             "seed",
-            "nproc_per_node",
-            "ulysses_degree",
-            "ring_degree",
         ),
-        "load_params": _official_video_load_params(),
+        "load_params": _native_diffusion_video_load_params(),
         "default_call_kwargs": {
             "num_frames": 129,
             "height": 720,
             "width": 1280,
             "num_inference_steps": 50,
             "fps": 24,
-            "flow_shift": 7.0,
-            "embedded_cfg_scale": 6.0,
+            "guidance_scale": 6.0,
+            "embedded_guidance_scale": 6.0,
             "seed": 42,
-            "nproc_per_node": 8,
-            "ulysses_degree": 8,
-            "ring_degree": 1,
         },
         "aliases": ("hunyuanvideo", "hunyuan-video", "hunyuanvideo-t2v"),
-        "tags": ("text-to-video", "official-runtime", "local-checkpoint"),
+        "tags": ("text-to-video", "native-diffusion", "local-checkpoint"),
     },
     "hunyuanvideo-i2v": {
         "display_name": "HunyuanVideo I2V",
@@ -5166,7 +5696,7 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
         "supports_from_pretrained": True,
         "default_task_type": "image-to-video",
         "default_prompt": "An Asian man with short hair in black tactical uniform and white clothes waves a firework stick.",
-        "call_params": _official_video_call_params(),
+        "call_params": _native_diffusion_video_call_params(),
         "input_params": (
             "prompt",
             "image_path",
@@ -5175,16 +5705,11 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
             "width",
             "num_inference_steps",
             "fps",
-            "flow_shift",
-            "embedded_cfg_scale",
+            "guidance_scale",
+            "embedded_guidance_scale",
             "seed",
-            "nproc_per_node",
-            "ulysses_degree",
-            "ring_degree",
-            "i2v_resolution",
-            "i2v_stability",
         ),
-        "load_params": _official_video_load_params(),
+        "load_params": _native_diffusion_video_load_params(),
         "default_call_kwargs": {
             "image_path": str(_data_path("test_cases", "hunyuanvideo_i2v", "0.jpg")),
             "num_frames": 129,
@@ -5192,17 +5717,12 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
             "width": 1280,
             "num_inference_steps": 50,
             "fps": 24,
-            "flow_shift": 7.0,
-            "embedded_cfg_scale": 6.0,
+            "guidance_scale": 6.0,
+            "embedded_guidance_scale": 6.0,
             "seed": 0,
-            "nproc_per_node": 8,
-            "ulysses_degree": 8,
-            "ring_degree": 1,
-            "i2v_resolution": "720p",
-            "i2v_stability": True,
         },
         "aliases": ("hunyuanvideo-i2v", "hunyuan-video-i2v"),
-        "tags": ("image-to-video", "official-runtime", "local-checkpoint"),
+        "tags": ("image-to-video", "native-diffusion", "local-checkpoint"),
     },
     "framepack": {
         "display_name": "FramePack",
@@ -5215,9 +5735,10 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
         "default_backend": "from_pretrained",
         "supports_from_pretrained": True,
         "default_prompt": (
-            "First-person cinematic motion through a lush jungle path toward a distant stone castle, "
-            "preserving the reference scene."
+            "A young man holds a bright sparkler at night while the camera moves slowly around him, "
+            "preserving his identity, pose, and the reference scene."
         ),
+        "default_input_path": str(_data_path("test_cases", "studio_demo", "00", "image.jpg")),
         "default_interactions": ("camera_path",),
         "call_params": _official_video_call_params(),
         "load_params": _official_video_load_params(),
@@ -5234,29 +5755,20 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
         "default_backend": "from_pretrained",
         "supports_from_pretrained": True,
         "default_prompt": "A cat walks on a snowy street, cinematic, high quality.",
-        "call_params": _official_video_call_params(),
-        "load_params": _official_video_load_params(),
+        "call_params": _native_diffusion_video_call_params(),
+        "load_params": _native_diffusion_video_load_params(),
+        "default_load_kwargs": {"attention_backend": "flash"},
         "default_call_kwargs": {
-            "resolution": "480p",
-            "aspect_ratio": "16:9",
-            "num_frames": 9,
-            "video_length": 9,
-            "num_inference_steps": 8,
+            "height": 720,
+            "width": 1280,
+            "num_frames": 121,
+            "num_inference_steps": 50,
+            "guidance_scale": 6.0,
             "fps": 24,
             "seed": 42,
-            "nproc_per_node": 8,
-            "rewrite": False,
-            "cfg_distilled": True,
-            "enable_step_distill": False,
-            "sparse_attn": False,
-            "use_sageattn": False,
-            "enable_cache": False,
-            "sr": False,
-            "save_pre_sr_video": False,
-            "overlap_group_offloading": False,
         },
         "aliases": ("hunyuanvideo-1.5", "hunyuanvideo15", "hunyuanvideo15-t2v"),
-        "tags": ("text-to-video", "official-runtime", "local-checkpoint"),
+        "tags": ("text-to-video", "native-diffusion", "local-checkpoint"),
     },
     "hunyuanvideo-1.5-i2v": {
         "display_name": "HunyuanVideo 1.5 I2V",
@@ -5270,30 +5782,21 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
         "default_task_type": "image-to-video",
         "default_prompt": "A young man holds a sparkling firework at night, cinematic lighting, realistic motion.",
         "default_input_path": str(_data_path("test_cases", "hunyuanvideo_i2v", "0.jpg")),
-        "call_params": _official_video_call_params(),
-        "load_params": _official_video_load_params(),
+        "call_params": _native_diffusion_video_call_params(),
+        "load_params": _native_diffusion_video_load_params(),
+        "default_load_kwargs": {"attention_backend": "flash"},
         "default_call_kwargs": {
             "image_path": str(_data_path("test_cases", "hunyuanvideo_i2v", "0.jpg")),
-            "resolution": "480p",
-            "aspect_ratio": "16:9",
-            "num_frames": 9,
-            "video_length": 9,
-            "num_inference_steps": 8,
+            "height": 720,
+            "width": 544,
+            "num_frames": 121,
+            "num_inference_steps": 50,
+            "guidance_scale": 6.0,
             "fps": 24,
             "seed": 0,
-            "nproc_per_node": 8,
-            "rewrite": False,
-            "cfg_distilled": True,
-            "enable_step_distill": True,
-            "sparse_attn": False,
-            "use_sageattn": False,
-            "enable_cache": False,
-            "sr": False,
-            "save_pre_sr_video": False,
-            "overlap_group_offloading": False,
         },
         "aliases": ("hunyuanvideo-1.5-i2v", "hunyuanvideo15-i2v"),
-        "tags": ("image-to-video", "official-runtime", "local-checkpoint"),
+        "tags": ("image-to-video", "native-diffusion", "local-checkpoint"),
     },
     "i2vgen-xl": {
         "display_name": "I2VGen-XL",
@@ -5349,6 +5852,19 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
         ),
         "default_backend": "from_pretrained",
         "supports_from_pretrained": True,
+        "default_prompt": (
+            "Close-up of a chameleon's eye as its detailed scaly skin slowly changes color, "
+            "photorealistic natural motion, shallow depth of field, ultra high resolution 4K."
+        ),
+        "default_call_kwargs": {
+            "height": 480,
+            "width": 848,
+            "num_frames": 84,
+            "num_inference_steps": 64,
+            "guidance_scale": 4.5,
+            "fps": 30,
+            "seed": 12345,
+        },
         "call_params": _official_video_call_params(),
         "load_params": _official_video_load_params(),
         "aliases": ("mochi-1", "mochi", "mochi-1-preview"),
@@ -5579,34 +6095,41 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
             "prompt",
             "images",
             "video",
-            "interactions",
+            "negative_prompt",
             "output_path",
             "return_dict",
             "fps",
             "num_frames",
             "height",
             "width",
-            "infer_steps",
-            "cfg_scale",
+            "num_inference_steps",
+            "guidance_scale",
             "time_shift",
-            "parallel",
-            "tensor_parallel_degree",
-            "ulysses_degree",
+            "positive_magic",
+            "negative_magic",
+            "seed",
+            "output_type",
         ),
         "load_params": (
             "model_path",
-            "pretrained_model_path",
             "checkpoint_dir",
             "device",
-            "parallel",
-            "tensor_parallel_degree",
-            "ulysses_degree",
+            "torch_dtype",
+            "offload_mode",
             *DISPATCH_LOAD_PARAMS,
         ),
-        "default_load_kwargs": {"parallel": 4, "tensor_parallel_degree": 2, "ulysses_degree": 2},
-        "default_call_kwargs": {"fps": 24},
+        "default_load_kwargs": {"offload_mode": "block"},
+        "default_call_kwargs": {
+            "fps": 25,
+            "num_frames": 204,
+            "height": 544,
+            "width": 992,
+            "num_inference_steps": 50,
+            "guidance_scale": 9.0,
+            "time_shift": 13.0,
+        },
         "aliases": ("stepvideo", "step-video"),
-        "tags": ("text-to-video", "in-tree-runtime", "local-checkpoint"),
+        "tags": ("text-to-video", "native-diffusion", "local-checkpoint"),
     },
     "skyreels-v2": {
         "display_name": "SkyReels-V2",
@@ -5624,22 +6147,39 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
         "default_backend": "from_pretrained",
         "supports_from_pretrained": True,
         "default_call_kwargs": {
-            "task": "df",
             "num_frames": 97,
             "num_inference_steps": 30,
-            "base_num_frames": 97,
-            "ar_step": 0,
-            "causal_block_size": 1,
-            "addnoise_condition": 0,
             "guidance_scale": 6.0,
             "shift": 8.0,
             "fps": 24,
             "seed": 42,
         },
-        "call_params": _official_video_call_params(),
-        "load_params": _official_video_load_params(),
+        "call_params": (
+            "prompt",
+            "negative_prompt",
+            "output_path",
+            "return_dict",
+            "fps",
+            "num_frames",
+            "height",
+            "width",
+            "num_inference_steps",
+            "guidance_scale",
+            "shift",
+            "seed",
+            "output_type",
+        ),
+        "load_params": (
+            "model_path",
+            "checkpoint_dir",
+            "device",
+            "torch_dtype",
+            "offload_mode",
+            *DISPATCH_LOAD_PARAMS,
+        ),
+        "default_load_kwargs": {"offload_mode": "block"},
         "aliases": ("skyreels2", "skyreels-v2-t2v"),
-        "tags": ("text-to-video", "official-runtime"),
+        "tags": ("text-to-video", "native-diffusion", "local-checkpoint"),
     },
     "helios": {
         "display_name": "Helios",
@@ -5647,16 +6187,21 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
             "Helios-Distilled",
             fallback="BestWishYsh/Helios-Distilled",
         ),
-        "default_prompt": "",
+        "default_prompt": (
+            "A cat and a dog baking a cake together in a cozy sunlit kitchen. The cat carefully measures flour "
+            "while the dog stirs the batter with a wooden spoon, cinematic lighting, detailed natural motion."
+        ),
         "default_task_type": "t2v",
         "default_backend": "from_pretrained",
         "supports_from_pretrained": True,
         "supports_stream": True,
         "default_call_kwargs": {
-            "num_frames": 33,
+            "num_frames": 240,
             "height": 384,
             "width": 640,
-            "fps": 12,
+            "fps": 24,
+            "num_inference_steps": 50,
+            "guidance_scale": "auto",
             "seed": 42,
         },
         "call_params": (
@@ -5792,41 +6337,61 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
         "default_model_ref": _wan_2p1_t2v_default_ref,
         "default_backend": "from_pretrained",
         "supports_from_pretrained": True,
+        "default_load_kwargs": {"offload_mode": "block"},
+        "default_call_kwargs": {
+            "height": 480,
+            "width": 832,
+            "num_frames": 81,
+            "num_inference_steps": 50,
+            "guidance_scale": 6.0,
+            "fps": 16,
+            "seed": 42,
+        },
+        "call_params": _native_diffusion_video_call_params(),
+        "load_params": _native_diffusion_video_load_params(),
         "aliases": ("wan2.1", "wan-2.1", "wan2p1", "wan2.1-t2v", "wan2p1-t2v"),
-        "tags": ("text-to-video", "wan2.1", "official-runtime", "local-checkpoint"),
+        "tags": ("text-to-video", "wan2.1", "native-diffusion", "local-checkpoint"),
     },
     "wan-2p1-i2v": {
         "display_name": "Wan 2.1 I2V",
         "default_model_ref": _wan_2p1_i2v_default_ref,
         "default_backend": "from_pretrained",
         "supports_from_pretrained": True,
+        "default_load_kwargs": {"offload_mode": "block"},
+        "default_call_kwargs": {
+            "height": 480,
+            "width": 832,
+            "num_frames": 81,
+            "num_inference_steps": 40,
+            "guidance_scale": 5.0,
+            "fps": 16,
+            "seed": 42,
+        },
+        "call_params": _native_diffusion_video_call_params(),
+        "load_params": _native_diffusion_video_load_params(),
         "aliases": ("wan-2.1-i2v", "wan2p1-i2v", "wan2.1-i2v"),
-        "tags": ("image-to-video", "wan2.1", "official-runtime", "local-checkpoint"),
+        "tags": ("image-to-video", "wan2.1", "native-diffusion", "local-checkpoint"),
     },
     "wan-2p2": {
         "display_name": "Wan 2.2",
         "default_model_ref": _wan_2p2_default_ref,
-        "default_load_kwargs": {"mode": "ti2v-5B"},
-        "default_call_kwargs": {"size": "1280*704"},
+        "default_backend": "from_pretrained",
+        "supports_from_pretrained": True,
+        "default_load_kwargs": {"offload_mode": "block"},
+        "default_call_kwargs": {
+            "height": 704,
+            "width": 1280,
+            "num_frames": 121,
+            "num_inference_steps": 50,
+            "guidance_scale": 5.0,
+            "fps": 24,
+            "seed": 42,
+        },
         "suggested_task_types": ("ti2v-5b", "interactive-video"),
-        "call_params": (
-            "prompt",
-            "images",
-            "size",
-            "frame_num",
-            "sample_solver",
-            "sample_steps",
-            "sample_shift",
-            "sample_guide_scale",
-            "base_seed",
-            "offload_model",
-            "use_prompt_extend",
-            "prompt_extend_method",
-            "prompt_extend_model",
-            "prompt_extend_target_lang",
-        ),
+        "call_params": _native_diffusion_video_call_params(),
+        "load_params": _native_diffusion_video_load_params(),
         "aliases": ("wan2.2", "wan-2.2", "wan2p2"),
-        "tags": ("video", "image-to-video", "text-to-video"),
+        "tags": ("video", "image-to-video", "text-to-video", "native-diffusion"),
     },
     "echo-infinity": {
         "display_name": "Echo-Infinity",
@@ -6049,9 +6614,9 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
         "default_load_kwargs": _pusa_vidgen_default_load_kwargs,
         "default_call_kwargs": {
             "mode": "t2v",
-            "height": 480,
-            "width": 832,
-            "num_frames": 7,
+            "height": 720,
+            "width": 1280,
+            "num_frames": 81,
             "num_inference_steps": 4,
             "guidance_scale": 1.0,
             "lightx2v": True,
@@ -6142,12 +6707,58 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
         "default_backend": "from_pretrained",
         "supports_from_pretrained": True,
         "default_task_type": "t2v",
-        "default_call_kwargs": {"cfg_scale": 1.0},
+        "default_prompt": (
+            "Evening backlight and soft side lighting in a forest. A young man in a light shirt stands among the "
+            "trees while golden sunlight filters through the leaves; wind gently moves his hair and collar, the "
+            "camera holds a clean emotional mid-shot with a softly blurred background."
+        ),
+        "default_call_kwargs": {
+            "negative_prompt": (
+                "Bright tones, overexposed, static, blurred details, subtitles, paintings, overall gray, worst "
+                "quality, low quality, JPEG artifacts, deformed limbs, fused fingers, messy background, walking backwards"
+            ),
+            "num_frames": 161,
+            "height": 480,
+            "width": 832,
+            "num_inference_steps": 50,
+            "guidance_scale": 1.0,
+            "fps": 16,
+            "seed": 42,
+        },
         "call_params": _longsana_video_call_params(),
         "stream_params": _longsana_video_call_params(),
         "load_params": _sana_video_load_params(),
         "aliases": ("longsana-video", "sana-video-longlive"),
         "tags": ("text-to-video", "official-runtime", "local-checkpoint"),
+    },
+    "wan2.1-t2v-14b": {
+        "display_name": "Wan2.1 T2V 14B",
+        "default_model_ref": lambda: _checkpoint_model_ref(
+            "Wan2.1-T2V-14B",
+            "Wan-AI--Wan2.1-T2V-14B",
+            fallback="Wan-AI/Wan2.1-T2V-14B",
+        ),
+        "default_backend": "from_pretrained",
+        "supports_from_pretrained": True,
+        "default_task_type": "t2v",
+        "default_prompt": (
+            "Two anthropomorphic cats in comfortable boxing gear and bright gloves fight intensely on a "
+            "spotlighted stage, cinematic motion, detailed fur, stable anatomy."
+        ),
+        "default_call_kwargs": {
+            "num_frames": 81,
+            "height": 720,
+            "width": 1280,
+            "num_inference_steps": 50,
+            "guidance_scale": 6.0,
+            "shift": 5.0,
+            "fps": 16,
+            "seed": 42,
+        },
+        "call_params": _native_diffusion_video_call_params(),
+        "load_params": _native_diffusion_video_load_params(),
+        "aliases": ("wan2.1-t2v-14b-720p",),
+        "tags": ("text-to-video", "native-diffusion", "local-checkpoint", "720p"),
     },
     "zeroscope": {
         "display_name": "ZeroScope",
@@ -6157,11 +6768,12 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
         "default_task_type": "t2v",
         "default_prompt": "research rover red desert under dusty sunset, slow cinematic pan, stable vehicle geometry",
         "default_call_kwargs": {
-            "num_frames": 8,
+            "num_frames": 24,
             "fps": 8,
-            "height": 256,
-            "width": 448,
-            "num_inference_steps": 8,
+            "height": 320,
+            "width": 576,
+            "num_inference_steps": 40,
+            "guidance_scale": 9.0,
             "seed": 301,
         },
         "default_load_kwargs": lambda: {"model_path": _zeroscope_default_ref()},
@@ -6200,11 +6812,12 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
         "default_task_type": "t2v",
         "default_prompt": "snowy street market at night with lanterns, cinematic camera movement, detailed people silhouettes",
         "default_call_kwargs": {
-            "num_frames": 8,
+            "num_frames": 16,
             "fps": 8,
             "height": 256,
-            "width": 448,
-            "num_inference_steps": 8,
+            "width": 256,
+            "num_inference_steps": 25,
+            "guidance_scale": 8.0,
             "seed": 303,
         },
         "default_load_kwargs": _animatediff_default_load_kwargs,
@@ -6302,46 +6915,44 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
         "supports_from_pretrained": True,
         "default_task_type": "reference_to_video",
         "default_prompt": (
-            "First-person cinematic motion through a lush jungle path toward a distant stone castle, "
-            "preserving the reference scene."
+            "A young man holds a bright sparkler at night while the camera moves slowly around him, "
+            "preserving his identity, pose, and the reference scene."
         ),
+        "default_input_path": str(_data_path("test_cases", "studio_demo", "00", "image.jpg")),
         "default_call_kwargs": {
             "task_type": "reference_to_video",
             "duration": 5,
             "resolution": "720P",
             "seed": 42,
-            "use_usp": True,
-            "nproc_per_node": 8,
-            "torchrun_nproc_per_node": 8,
         },
         "call_params": (
             "prompt",
             "images",
-            "video",
-            "audio",
             "output_path",
             "return_dict",
             "task_type",
             "duration",
             "seed",
             "resolution",
-            "use_usp",
-            "nproc_per_node",
-            "torchrun_nproc_per_node",
-            "torchrun_nproc",
-            "offload",
-            "low_vram",
+            "height",
+            "width",
+            "num_frames",
+            "num_inference_steps",
+            "guidance_scale",
+            "image_guidance_scale",
+            "negative_prompt",
+            "fps",
+            "output_type",
+            "shift",
         ),
         "load_params": (
             "model_path",
             "required_components",
             "device",
-            "task_type",
-            "load_engine",
             *DISPATCH_LOAD_PARAMS,
         ),
         "aliases": ("skyreels-v3-r2v", "skyreels-v3-reference-to-video"),
-        "tags": ("reference-to-video", "official-runtime", "local-checkpoint"),
+        "tags": ("reference-to-video", "native-diffusion", "local-checkpoint"),
     },
     "kairos-sensenova": {
         "display_name": "Kairos Sensenova",
@@ -6537,7 +7148,11 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
         "display_name": "Solaris",
         "default_model_ref": _solaris_default_ref,
         "default_load_kwargs": _solaris_default_load_kwargs,
-        "default_call_kwargs": {"eval_types": "translation", "eval_num_samples": 8},
+        # Leave eval_num_samples unset so Solaris derives it inside the leased
+        # worker from CUDA_VISIBLE_DEVICES. Hard-coding the host's eight-sample
+        # upstream batch on a one-GPU Workspace lease exhausts the card during
+        # the first 257-frame evaluation step.
+        "default_call_kwargs": {"eval_types": "translation"},
         "call_params": (
             "eval_types",
             "experiment_name",
@@ -6649,6 +7264,7 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
         "default_task_type": "video-to-video",
         "suggested_task_types": ("video-to-video",),
         "default_model_ref": _neoverse_default_ref,
+        "default_load_kwargs": _neoverse_default_load_kwargs,
         "default_prompt": NEOVERSE_OFFICIAL_PROMPT,
         "default_interactions": ("forward", "left", "camera_r"),
         "default_call_kwargs": _neoverse_default_call_kwargs,
@@ -6677,7 +7293,15 @@ CURATED_OVERRIDES: Dict[str, Dict[str, Any]] = {
             "alpha_threshold",
             "use_first_frame",
             "static_scene",
-            "low_vram",
+        ),
+        "load_params": (
+            "height",
+            "width",
+            "num_inference_steps",
+            "cfg_scale",
+            "disable_lora",
+            "enable_vram_management",
+            *DISPATCH_LOAD_PARAMS,
         ),
         "tags": ("stream", "camera-control"),
     },
@@ -8029,8 +8653,9 @@ def _canonical_runtime_entries() -> Iterable[CatalogEntry]:
             "default_call_kwargs": {
                 "fps": 8,
                 "height": 480,
-                "num_frames": 17,
-                "num_inference_steps": 10,
+                "num_frames": 49,
+                "num_inference_steps": 50,
+                "guidance_scale": 6.0,
                 "seed": 42,
                 "width": 720,
             },
@@ -8044,9 +8669,9 @@ def _canonical_runtime_entries() -> Iterable[CatalogEntry]:
             "generation_type": "i2v",
             "aliases": ("cogvideox-5b-i2v",),
             "default_prompt": (
-                "First-person cinematic flight on a dragon through a lush jungle toward "
-                "a towering ancient stone castle, with smooth forward camera motion, "
-                "detailed fantasy world, natural lighting."
+                "A young man holding a bright sparkler gently turns his head and smiles as "
+                "sparks scatter through the night air, with a subtle cinematic camera dolly, "
+                "stable facial details, and natural motion."
             ),
             "default_input_path": str(_data_path("test_cases", "studio_demo", "00", "image.jpg")),
             "default_call_kwargs": {
@@ -8071,8 +8696,9 @@ def _canonical_runtime_entries() -> Iterable[CatalogEntry]:
             "default_call_kwargs": {
                 "fps": 8,
                 "height": 480,
-                "num_frames": 17,
-                "num_inference_steps": 10,
+                "num_frames": 49,
+                "num_inference_steps": 50,
+                "guidance_scale": 6.0,
                 "seed": 43,
                 "width": 720,
             },
@@ -8085,7 +8711,7 @@ def _canonical_runtime_entries() -> Iterable[CatalogEntry]:
         "dynamicrafter_1024_i2v": {
             "generation_type": "i2v",
             "aliases": ("dynamicrafter-1024-i2v",),
-            "default_prompt": "A first-person cinematic flight toward an ancient stone castle through a lush jungle, smooth camera motion.",
+            "default_prompt": "A young man holding a bright sparkler gently turns his head as sparks scatter through the night air, with natural motion and stable facial details.",
             "default_input_path": str(_data_path("test_cases", "studio_demo", "00", "image.jpg")),
             "default_model_ref": lambda: _checkpoint_model_ref(
                 "DynamiCrafter_1024/model.ckpt",
@@ -8095,7 +8721,7 @@ def _canonical_runtime_entries() -> Iterable[CatalogEntry]:
         "dynamicrafter_512_i2v": {
             "generation_type": "i2v",
             "aliases": ("dynamicrafter", "dynamicrafter-512-i2v"),
-            "default_prompt": "A first-person cinematic flight toward an ancient stone castle through a lush jungle, smooth camera motion.",
+            "default_prompt": "A young man holding a bright sparkler gently turns his head as sparks scatter through the night air, with natural motion and stable facial details.",
             "default_input_path": str(_data_path("test_cases", "studio_demo", "00", "image.jpg")),
             "default_model_ref": lambda: _checkpoint_model_ref(
                 "DynamiCrafter_512/model.ckpt",
@@ -8105,6 +8731,11 @@ def _canonical_runtime_entries() -> Iterable[CatalogEntry]:
         "easyanimate_i2v": {
             "generation_type": "i2v",
             "aliases": ("easyanimate-i2v", "easyanimate"),
+            "default_prompt": (
+                "A young man holding a bright sparkler gently turns his head and smiles as sparks scatter "
+                "through the night air, with natural motion, stable facial details, and a steady camera."
+            ),
+            "default_input_path": str(_data_path("test_cases", "studio_demo", "00", "image.jpg")),
             "default_model_ref": lambda: _checkpoint_model_ref(
                 "hfd/alibaba-pai--EasyAnimateV5.1-7b-zh-InP",
                 "alibaba-pai--EasyAnimateV5.1-7b-zh-InP",
@@ -8120,7 +8751,7 @@ def _canonical_runtime_entries() -> Iterable[CatalogEntry]:
         "ltx_video_i2v": {
             "generation_type": "i2v",
             "aliases": ("ltx-video-i2v", "ltx-video"),
-            "default_prompt": "A first-person cinematic flight toward an ancient stone castle through a lush jungle, smooth camera motion.",
+            "default_prompt": "A young man holding a bright sparkler gently turns his head as sparks scatter through the night air, with natural motion and stable facial details.",
             "default_input_path": str(_data_path("test_cases", "studio_demo", "00", "image.jpg")),
             "default_model_ref": lambda: _checkpoint_model_ref(
                 "LTX-Video",
@@ -8131,14 +8762,14 @@ def _canonical_runtime_entries() -> Iterable[CatalogEntry]:
         "ltx2_i2v": {
             "generation_type": "i2v",
             "aliases": ("ltx2-i2v", "ltx2", "ltx-2", "ltx-2-i2v"),
-            "default_prompt": "A first-person cinematic flight toward an ancient stone castle through a lush jungle, smooth camera motion.",
+            "default_prompt": "A young man holding a bright sparkler gently turns his head as sparks scatter through the night air, with natural motion and stable facial details.",
             "default_input_path": str(_data_path("test_cases", "studio_demo", "00", "image.jpg")),
             "default_call_kwargs": {
                 "num_frames": 121,
                 "fps": 24,
                 "height": 512,
                 "width": 768,
-                "num_inference_steps": 8,
+                "num_inference_steps": 11,
                 "guidance_scale": 1.0,
                 "seed": 171198,
             },
@@ -8179,14 +8810,14 @@ def _canonical_runtime_entries() -> Iterable[CatalogEntry]:
         "ltx2_3_i2v": {
             "generation_type": "i2v",
             "aliases": ("ltx-2.x", "ltx2.3", "ltx-2.3", "ltx2.3-i2v", "ltx-2.3-i2v"),
-            "default_prompt": "A first-person cinematic flight toward an ancient stone castle through a lush jungle, smooth camera motion.",
+            "default_prompt": "A young man holding a bright sparkler gently turns his head as sparks scatter through the night air, with natural motion and stable facial details.",
             "default_input_path": str(_data_path("test_cases", "studio_demo", "00", "image.jpg")),
             "default_call_kwargs": {
                 "num_frames": 121,
                 "fps": 24,
                 "height": 512,
                 "width": 768,
-                "num_inference_steps": 30,
+                "num_inference_steps": 11,
                 "guidance_scale": 1.0,
                 "seed": 0,
             },
@@ -8240,9 +8871,6 @@ def _canonical_runtime_entries() -> Iterable[CatalogEntry]:
                 "num_inference_steps": 8,
                 "guidance_scale": 7.5,
                 "seed": 0,
-                "motion_gs": 0.05,
-                "use_motion_cond": False,
-                "percentage": 0.3,
                 "lcm_origin_steps": 200,
             },
         },
@@ -8281,138 +8909,44 @@ def _canonical_runtime_entries() -> Iterable[CatalogEntry]:
         },
         "wan2.1_i2v": {
             "generation_type": "i2v",
-            "ast_slug": "wan-2p1-i2v",
+            "ast_slug": "wan2.1-i2v-14b-480p",
             "display_name": "Wan2.1 I2V",
             "aliases": ("wan2.1-i2v", "wan2p1-i2v", "wan2-1-i2v"),
             "default_model_ref": _wan_2p1_i2v_default_ref,
-            "default_prompt": "A first-person cinematic flight toward an ancient stone castle through a lush jungle, smooth camera motion.",
+            "default_prompt": "A young man holding a bright sparkler gently turns his head as sparks scatter through the night air, with natural motion and stable facial details.",
             "default_input_path": str(_data_path("test_cases", "studio_demo", "00", "image.jpg")),
             "default_call_kwargs": {
-                "task": "i2v-14B",
-                "size": "832*480",
-                "frames": 81,
+                "height": 480,
+                "width": 832,
+                "num_frames": 81,
                 "fps": 16,
-                "sample_steps": 40,
-                "sample_shift": 3.0,
-                "sample_guide_scale": 5.0,
-                "base_seed": 42,
-                "offload_model": True,
-                "t5_cpu": True,
+                "num_inference_steps": 40,
+                "shift": 3.0,
+                "guidance_scale": 5.0,
+                "seed": 42,
             },
-            "call_params": (
-                "prompt",
-                "images",
-                "output_path",
-                "fps",
-                "return_dict",
-                "task",
-                "size",
-                "frames",
-                "num_frames",
-                "frame_num",
-                "sample_steps",
-                "steps",
-                "num_inference_steps",
-                "sample_shift",
-                "shift",
-                "time_shift",
-                "sample_guide_scale",
-                "guidance_scale",
-                "base_seed",
-                "seed",
-                "sample_solver",
-                "offload_model",
-                "t5_cpu",
-            ),
-            "load_params": (
-                "model_path",
-                "required_components",
-                "device",
-                "lazy",
-                "task",
-                "size",
-                "frames",
-                "fps",
-                "sample_steps",
-                "sample_shift",
-                "sample_guide_scale",
-                "base_seed",
-                "sample_solver",
-                "offload_model",
-                "t5_cpu",
-                "t5_fsdp",
-                "dit_fsdp",
-                "ulysses_size",
-                "ring_size",
-                *DISPATCH_LOAD_PARAMS,
-            ),
+            "call_params": _native_diffusion_video_call_params(),
+            "load_params": _native_diffusion_video_load_params(),
         },
         "wan2.1_t2v": {
             "generation_type": "t2v",
-            "ast_slug": "wan-2p1-t2v",
+            "ast_slug": "wan2.1-t2v-1.3b",
             "display_name": "Wan2.1 T2V",
             "aliases": ("wan2.1", "wan2.1-t2v", "wan2p1-t2v", "wan2-1-t2v"),
             "default_model_ref": _wan_2p1_t2v_default_ref,
             "default_prompt": "Two anthropomorphic cats in comfy boxing gear and bright gloves fight intensely on a spotlighted stage.",
             "default_call_kwargs": {
-                "task": "t2v-1.3B",
-                "size": "832*480",
-                "frames": 81,
+                "height": 480,
+                "width": 832,
+                "num_frames": 81,
                 "fps": 16,
-                "sample_steps": 50,
-                "sample_shift": 8.0,
-                "sample_guide_scale": 6.0,
-                "base_seed": 42,
-                "offload_model": True,
-                "t5_cpu": True,
+                "num_inference_steps": 50,
+                "shift": 8.0,
+                "guidance_scale": 6.0,
+                "seed": 42,
             },
-            "call_params": (
-                "prompt",
-                "images",
-                "output_path",
-                "fps",
-                "return_dict",
-                "task",
-                "size",
-                "frames",
-                "num_frames",
-                "frame_num",
-                "sample_steps",
-                "steps",
-                "num_inference_steps",
-                "sample_shift",
-                "shift",
-                "time_shift",
-                "sample_guide_scale",
-                "guidance_scale",
-                "base_seed",
-                "seed",
-                "sample_solver",
-                "offload_model",
-                "t5_cpu",
-            ),
-            "load_params": (
-                "model_path",
-                "required_components",
-                "device",
-                "lazy",
-                "task",
-                "size",
-                "frames",
-                "fps",
-                "sample_steps",
-                "sample_shift",
-                "sample_guide_scale",
-                "base_seed",
-                "sample_solver",
-                "offload_model",
-                "t5_cpu",
-                "t5_fsdp",
-                "dit_fsdp",
-                "ulysses_size",
-                "ring_size",
-                *DISPATCH_LOAD_PARAMS,
-            ),
+            "call_params": _native_diffusion_video_call_params(),
+            "load_params": _native_diffusion_video_load_params(),
         },
     }
 
@@ -8555,6 +9089,41 @@ def _resolve_class_methods(
     return dict(methods)
 
 
+def _class_inherits_any(
+    class_nodes: Mapping[str, ast.ClassDef],
+    class_name: str,
+    expected_bases: frozenset[str],
+    seen: frozenset[str] = frozenset(),
+) -> bool:
+    """Resolve local inheritance far enough to recognize shared infra bases.
+
+    Catalog discovery deliberately parses pipeline modules without importing
+    heavyweight model dependencies.  Model-specific native pipelines commonly
+    inherit their implementation from a base imported from another module, and
+    variants then inherit from that local model class.  Looking only at methods
+    declared in the leaf class therefore produced empty Workspace contracts.
+    """
+
+    if class_name in seen:
+        return False
+    node = class_nodes.get(class_name)
+    if node is None:
+        return class_name in expected_bases
+    next_seen = seen | {class_name}
+    for base in node.bases:
+        base_name = base.id if isinstance(base, ast.Name) else getattr(base, "attr", "")
+        if base_name in expected_bases:
+            return True
+        if base_name in class_nodes and _class_inherits_any(
+            class_nodes,
+            base_name,
+            expected_bases,
+            next_seen,
+        ):
+            return True
+    return False
+
+
 def _class_string_constant(node: ast.ClassDef, name: str) -> str | None:
     for item in node.body:
         if not isinstance(item, ast.Assign):
@@ -8562,6 +9131,17 @@ def _class_string_constant(node: ast.ClassDef, name: str) -> str | None:
         if not any(isinstance(target, ast.Name) and target.id == name for target in item.targets):
             continue
         if isinstance(item.value, ast.Constant) and isinstance(item.value.value, str):
+            return item.value.value
+    return None
+
+
+def _class_bool_constant(node: ast.ClassDef, name: str) -> bool | None:
+    for item in node.body:
+        if not isinstance(item, ast.Assign):
+            continue
+        if not any(isinstance(target, ast.Name) and target.id == name for target in item.targets):
+            continue
+        if isinstance(item.value, ast.Constant) and isinstance(item.value.value, bool):
             return item.value.value
     return None
 
@@ -8727,6 +9307,8 @@ def _discover_ast_pipelines() -> tuple[_AstPipelineInfo, ...]:
                 continue
             if not node.name.endswith("Pipeline"):
                 continue
+            if _class_bool_constant(node, "ABSTRACT_PIPELINE") is True:
+                continue
             methods = _resolve_class_methods(class_nodes, node.name, method_cache)
 
             slug = _normalize_model_id(_class_string_constant(node, "MODEL_ID") or _slug_from_filename(path))
@@ -8736,8 +9318,19 @@ def _discover_ast_pipelines() -> tuple[_AstPipelineInfo, ...]:
                 for base in node.bases
             )
             inherits_official_video = "OfficialVideoPipeline" in base_names
+            inherits_native_diffusion = _class_inherits_any(
+                class_nodes,
+                node.name,
+                frozenset({"NativeVisualDiffusionPipeline", "NativeTextToVideoPipeline"}),
+            )
             inherited_official_call = _official_video_call_params() if inherits_official_video else tuple()
             inherited_official_load = _official_video_load_params() if inherits_official_video else tuple()
+            inherited_native_call = (
+                _native_diffusion_video_call_params() if inherits_native_diffusion else tuple()
+            )
+            inherited_native_load = (
+                _native_diffusion_video_load_params() if inherits_native_diffusion else tuple()
+            )
             discovered.append(
                 _AstPipelineInfo(
                     model_id=slug,
@@ -8745,11 +9338,16 @@ def _discover_ast_pipelines() -> tuple[_AstPipelineInfo, ...]:
                     module_path=module_path,
                     class_name=node.name,
                     family=family,
-                    call_params=methods.get("__call__", inherited_official_call),
-                    stream_params=methods.get("stream", inherited_official_call),
-                    load_params=methods.get("from_pretrained", methods.get("api_init", inherited_official_load)),
-                    supports_stream="stream" in methods or inherits_official_video,
-                    supports_from_pretrained="from_pretrained" in methods or inherits_official_video,
+                    call_params=methods.get("__call__", inherited_native_call or inherited_official_call),
+                    stream_params=methods.get("stream", inherited_native_call or inherited_official_call),
+                    load_params=methods.get(
+                        "from_pretrained",
+                        methods.get("api_init", inherited_native_load or inherited_official_load),
+                    ),
+                    supports_stream="stream" in methods or inherits_official_video or inherits_native_diffusion,
+                    supports_from_pretrained=(
+                        "from_pretrained" in methods or inherits_official_video or inherits_native_diffusion
+                    ),
                     supports_api_init="api_init" in methods,
                     base_names=base_names,
                 )

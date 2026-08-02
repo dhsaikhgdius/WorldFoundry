@@ -29,6 +29,12 @@ export type DocsChromeLabels = {
   navGroups: Record<DocsNavGroupId, string>;
   openEnvision: string;
   onThisPage: string;
+  askAi: string;
+  askAiCopy: string;
+  askAiCopied: string;
+  askAiOpenMarkdown: string;
+  askAiChatGpt: string;
+  askAiHint: string;
   previousPage: string;
   nextPage: string;
   relatedPages: string;
@@ -246,6 +252,13 @@ export const docsLabels: Record<Locale, DocsChromeLabels> = {
     },
     openEnvision: 'OpenEnvision',
     onThisPage: 'On this page',
+    askAi: 'Ask AI',
+    askAiCopy: 'Copy page markdown',
+    askAiCopied: 'Copied',
+    askAiOpenMarkdown: 'Open markdown',
+    askAiChatGpt: 'Ask in ChatGPT',
+    askAiHint:
+      'Use this page as context for an AI assistant. No in-site chat backend is configured yet.',
     previousPage: 'Previous',
     nextPage: 'Next',
     relatedPages: 'Related',
@@ -283,6 +296,12 @@ export const docsLabels: Record<Locale, DocsChromeLabels> = {
     },
     openEnvision: 'OpenEnvision',
     onThisPage: '本页内容',
+    askAi: 'Ask AI',
+    askAiCopy: '复制本页 Markdown',
+    askAiCopied: '已复制',
+    askAiOpenMarkdown: '打开 Markdown',
+    askAiChatGpt: '在 ChatGPT 中提问',
+    askAiHint: '把本页当作 AI 上下文。站内对话后端尚未接入。',
     previousPage: '上一页',
     nextPage: '下一页',
     relatedPages: '相关页面',

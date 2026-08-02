@@ -9,11 +9,12 @@ from __future__ import annotations
 
 import base64
 import json
-import shutil
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
+from worldfoundry.core.io.file_utils import materialize_file
+from worldfoundry.core.io.serialization import read_jsonl_objects
 from worldfoundry.evaluation.api import GenerationRequest, GenerationResult
 from worldfoundry.evaluation.api.artifacts import local_path_for_uri
 from worldfoundry.evaluation.reporting import (
@@ -178,7 +179,7 @@ def _read_jsonl(path: Path) -> list[dict[str, Any]]:
     """Safely decodes and parses list records from a JSONL file."""
     if not path.is_file():
         return []
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return read_jsonl_objects(path)
 
 
 def _default_task_roots(benchmark_manifest_path: str | Path) -> tuple[Path, ...]:
@@ -244,7 +245,14 @@ def _task_plan_path(root: Path) -> Path:
     return root / "task_run_plan.json"
 
 
-def _run_generation_from_task_registry(request: ModelBenchmarkRunRequest, root: Path) -> EvaluateRunResult:
+def _run_generation_from_task_registry(
+    request: ModelBenchmarkRunRequest,
+    root: Path,
+    *,
+    resolved_runner: Any | None = None,
+    runner_factory: Callable[[], Any] | None = None,
+    cleanup_runner: bool = True,
+) -> EvaluateRunResult:
     """Materializes requests and runs model generations utilising the local task catalog registry."""
     if not request.task_name:
         raise ValueError("task_name is required for task-registry materialization")
@@ -290,7 +298,15 @@ def _run_generation_from_task_registry(request: ModelBenchmarkRunRequest, root: 
             "split, and num_samples"
         )
     write_run_plan(plan, _task_plan_path(root))
-    return execute_evaluate_run(evaluate_request_from_run_plan(plan))
+    evaluate_request = evaluate_request_from_run_plan(plan)
+    if resolved_runner is not None or runner_factory is not None or not cleanup_runner:
+        evaluate_request = replace(
+            evaluate_request,
+            runner=resolved_runner,
+            runner_factory=runner_factory,
+            cleanup_runner=cleanup_runner,
+        )
+    return execute_evaluate_run(evaluate_request)
 
 
 def _materialize_generated_artifacts(
@@ -335,7 +351,9 @@ def _materialize_generated_artifacts(
             }
             if source_path is not None and source_path.is_file():
                 if source_path.resolve() != destination.resolve():
-                    shutil.copy2(source_path, destination)
+                    row["materialization"] = materialize_file(source_path, destination, writable=False)
+                else:
+                    row["materialization"] = "existing"
                 row["status"] = "copied"
             elif allow_placeholders:
                 _write_placeholder_artifact(
@@ -395,7 +413,14 @@ def _materialize_contract_validation_artifacts(
     return 1, 1
 
 
-def _run_generation(request: ModelBenchmarkRunRequest, root: Path) -> EvaluateRunResult | None:
+def _run_generation(
+    request: ModelBenchmarkRunRequest,
+    root: Path,
+    *,
+    resolved_runner: Any | None = None,
+    runner_factory: Callable[[], Any] | None = None,
+    cleanup_runner: bool = True,
+) -> EvaluateRunResult | None:
     """Materialize benchmark requests and run the selected in-tree model."""
     if request.generated_artifact_dir is not None:
         return None
@@ -403,7 +428,13 @@ def _run_generation(request: ModelBenchmarkRunRequest, root: Path) -> EvaluateRu
     requests = request.requests
     if requests is None and request.requests_path is None:
         if request.task_name:
-            return _run_generation_from_task_registry(request, root)
+            return _run_generation_from_task_registry(
+                request,
+                root,
+                resolved_runner=resolved_runner,
+                runner_factory=runner_factory,
+                cleanup_runner=cleanup_runner,
+            )
         if request.contract_fixture:
             return None
         if request.benchmark_mode == "contract":
@@ -450,6 +481,9 @@ def _run_generation(request: ModelBenchmarkRunRequest, root: Path) -> EvaluateRu
             model_parameters=request.model_parameters,
             model_runtime=request.model_runtime,
             model_config=request.model_config,
+            runner=resolved_runner,
+            runner_factory=runner_factory,
+            cleanup_runner=cleanup_runner,
             generation_cache_dir=request.generation_cache_dir,
             generation_cache_mode=request.generation_cache_mode,
             generation_cache_namespace=request.generation_cache_namespace,
@@ -646,7 +680,12 @@ def _model_benchmark_leaderboard_blockers(status: str, benchmark_payload: Mappin
 
 
 def run_model_benchmark(
-    request: ModelBenchmarkRunRequest | Mapping[str, Any] | None = None, **kwargs: Any
+    request: ModelBenchmarkRunRequest | Mapping[str, Any] | None = None,
+    *,
+    resolved_runner: Any | None = None,
+    runner_factory: Callable[[], Any] | None = None,
+    cleanup_runner: bool = True,
+    **kwargs: Any,
 ) -> ModelBenchmarkRunResult:
     """Executes a complete 1:1 model generation and benchmark scoring sequence.
 
@@ -655,6 +694,12 @@ def run_model_benchmark(
 
     Args:
         request: Configured ModelBenchmarkRunRequest payload.
+        resolved_runner: Optional already-resolved runner lease. This is used
+            by suite execution to keep one model resident across benchmarks.
+        runner_factory: Optional lazy lease acquisition callback. Suite runs
+            use this so model resolution happens only after request
+            materialization has succeeded.
+        cleanup_runner: Whether this call owns and cleans up the runner.
         **kwargs: Inline overrides merged directly into request properties.
 
     Returns:
@@ -709,7 +754,13 @@ def run_model_benchmark(
     summary_path = root / "summary.json"
     artifact_manifest_path = root / "generated_artifacts.jsonl"
 
-    generation_result = _run_generation(request, root)
+    generation_result = _run_generation(
+        request,
+        root,
+        resolved_runner=resolved_runner,
+        runner_factory=runner_factory,
+        cleanup_runner=cleanup_runner,
+    )
     if generation_result is not None and generation_result.successful_sample_count == 0:
         raise RuntimeError(
             "model generation produced no successful samples; benchmark evaluation was not started. "

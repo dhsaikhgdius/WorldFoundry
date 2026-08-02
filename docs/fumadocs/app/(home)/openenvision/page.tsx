@@ -1,8 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { SiteNav } from '@/components/site-nav';
-import { SiteSearchTrigger } from '@/components/site-search-trigger';
-import { WorldFoundryWordmarkLink } from '@/components/worldfoundry-wordmark';
+
+import { SiteHeader } from '@/components/site-header';
 import { withBasePath } from '@/lib/site-path';
 import type { Metadata } from 'next';
 
@@ -15,18 +14,17 @@ export const metadata: Metadata = {
 
 export default function OpenEnvisionPage() {
   return (
-    <main className="pi-home-shell">
-      <div className="mx-auto w-full max-w-7xl px-4 py-8 md:px-8 md:py-12">
-        <header className="pi-header">
-          <div className="flex flex-wrap items-center justify-between w-full">
-            <WorldFoundryWordmarkLink variant="header" />
-            <div className="pi-site-header-tools ml-auto">
-              <SiteNav active="openenvision" />
-              <SiteSearchTrigger />
-            </div>
-          </div>
-        </header>
+    <main className="pi-home-shell wf-home-shell">
+      <SiteHeader
+        variant="solid"
+        active="openenvision"
+        languageLinks={[
+          { href: '/openenvision', label: 'English', current: true },
+          { href: '/zh/docs', label: '中文' },
+        ]}
+      />
 
+      <div className="mx-auto w-full max-w-7xl px-4 py-8 md:px-8 md:py-12">
         <section className="pi-open-hero" aria-labelledby="openenvision-title">
           <Image
             src={openEnvisionLogoSrc}

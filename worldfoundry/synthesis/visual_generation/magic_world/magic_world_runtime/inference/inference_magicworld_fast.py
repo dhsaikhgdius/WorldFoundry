@@ -26,12 +26,12 @@ from torch.utils.data.distributed import DistributedSampler
 
 from pipeline import CausalInferencePipeline
 
-from worldfoundry.base_models.diffusion_model.video.wan.variants.video_x_fun import (
+from worldfoundry.base_models.diffusion_model.models.encoders.wan.variants.video_x_fun import (
     CLIPModel,
 )
 from utils.camera_pose import process_pose_file
 from videox_fun.utils.utils import get_video_to_video_render_latent
-from worldfoundry.base_models.diffusion_model.video.wan.utils.misc import set_seed
+from worldfoundry.core.utils.torch_utils import set_seed_everywhere as set_seed
 from worldfoundry.core.io.paths import resolve_data_path
 from worldfoundry.core.io.video import write_video_torchvision as write_video
 

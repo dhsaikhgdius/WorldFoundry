@@ -12,7 +12,6 @@ envs:
   pip_packages:
   - torch
   - torchvision
-  - diffusers
   - transformers
   - accelerate
   - safetensors
@@ -22,14 +21,13 @@ envs:
   validation_imports:
   - torch
   - torchvision
-  - diffusers
   - transformers
   - accelerate
   - safetensors
   - imageio
   - PIL
   notes:
-  - In-tree LTX-Video I2V runtime uses the shared unified inference environment and native Hugging Face/Diffusers loading.
+  - LTX-Video I2V uses the shared native diffusion loader and runner; Transformers supplies only the T5 architecture.
 - model_id: ltx_video_i2v
   env_name: worldfoundry-unified-cu128
   env_root: ${WORLDFOUNDRY_CONDA_ENVS_ROOT}
@@ -43,7 +41,6 @@ envs:
   pip_packages:
   - torch
   - torchvision
-  - diffusers
   - transformers
   - accelerate
   - safetensors
@@ -53,7 +50,6 @@ envs:
   validation_imports:
   - torch
   - torchvision
-  - diffusers
   - transformers
   - accelerate
   - safetensors
@@ -74,7 +70,6 @@ envs:
   pip_packages:
   - torch
   - torchvision
-  - diffusers
   - transformers
   - accelerate
   - safetensors
@@ -84,7 +79,6 @@ envs:
   validation_imports:
   - torch
   - torchvision
-  - diffusers
   - transformers
   - accelerate
   - safetensors
@@ -105,7 +99,6 @@ envs:
   pip_packages:
   - torch
   - torchvision
-  - diffusers
   - transformers
   - accelerate
   - safetensors
@@ -115,7 +108,6 @@ envs:
   validation_imports:
   - torch
   - torchvision
-  - diffusers
   - transformers
   - accelerate
   - safetensors
@@ -136,7 +128,6 @@ envs:
   pip_packages:
   - torch
   - torchvision
-  - diffusers
   - transformers
   - accelerate
   - safetensors
@@ -147,7 +138,6 @@ envs:
   validation_imports:
   - torch
   - torchvision
-  - diffusers
   - transformers
   - accelerate
   - safetensors
@@ -169,7 +159,6 @@ envs:
   pip_packages:
   - torch
   - torchvision
-  - diffusers
   - transformers
   - accelerate
   - safetensors
@@ -180,7 +169,6 @@ envs:
   validation_imports:
   - torch
   - torchvision
-  - diffusers
   - transformers
   - accelerate
   - safetensors

@@ -8,8 +8,8 @@ This guide walks through the shortest complete path from a clone to a reviewable
 - [Environment](#1-environment)
 - [Assets](#2-assets)
 - [TUI](#3-tui)
-- [CLI inference](#4-cli)
-- [Artifact inspection](#5-inference)
+- [CLI](#4-cli)
+- [Inference](#5-inference)
 - [Evaluation](#6-evaluation)
 
 Most runs follow the same shape even when the model or benchmark changes: make the Python environment importable, discover stable IDs, prepare only the required checkpoints and benchmark assets, generate artifacts, inspect them, and only then score them.
@@ -95,7 +95,7 @@ worldfoundry-eval --help
 
 ## 2. Assets
 
-WorldFoundry keeps executable code in tree. Checkpoints, datasets, metric weights, reference files, and generated outputs are staged locally, usually through Hugging Face.
+WorldFoundry keeps executable code in-tree. Checkpoints, datasets, metric weights, reference files, and generated outputs are staged locally, usually through Hugging Face.
 
 <Callout type="warn" title="Important">
   Model assets and benchmark assets are separate. A model checkpoint lets you generate candidate artifacts; benchmark assets define what to generate, how outputs should be named, and which files or metric weights are needed to compute scores.
@@ -141,7 +141,7 @@ Full cache and path conventions are in [Local assets](/docs/guides/local-assets)
 
 ## 3. TUI
 
-Use the TUI when you do not want to remember ids and flags. It reads the same manifests as the CLI, shows available choices, and can print the final command before anything expensive runs.
+Use the TUI when you do not want to remember IDs and flags. It reads the same manifests as the CLI, shows the available choices, and can print the final command before anything expensive runs.
 
 ```bash
 python -m pip install -e ".[tui]"
@@ -163,7 +163,7 @@ worldfoundry-eval tui \
 
 ## 4. CLI
 
-Use the CLI for scripts, batch jobs, and reproducible notes. Start with discovery commands instead of guessing ids:
+Use the CLI for scripts, batch jobs, and reproducible notes. Start with the discovery commands instead of guessing IDs:
 
 ```bash
 worldfoundry-eval zoo models --json
@@ -280,7 +280,7 @@ worldfoundry-eval run \
   Open `scorecard.json` first. Public leaderboard claims require complete assets, complete generated artifacts, and benchmark-specific eligibility flags.
 </Callout>
 
-## Where Details Live
+## Where details live
 
 <Cards>
   <Card title="Environment" description="Conda profiles and setup scripts by model and benchmark family." href="/docs/reference/environments" />

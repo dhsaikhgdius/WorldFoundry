@@ -562,75 +562,7 @@ class WanVideoDiT(torch.nn.Module):
             t_mod = self.time_projection(t).unflatten(2, (6, self.hidden_dim))
         else:
             raise NotImplementedError("Only support seperated_timestep with fuse_vae_embedding_in_latents for now.")
-            t = self.time_embedding(sinusoidal_embedding_1d(self.freq_dim, timestep))
-            t_mod = self.time_projection(t).unflatten(1, (6, self.hidden_dim))
         x = self.patchify(x, control_camera_latents_input=control_camera_latents_input)
-        f, h, w = x.shape[2:]
-
-        context = self.text_embedding(context) # (B, L, dim)
-        context_len = context.shape[1]
-        if self.action_conditioned and action is not None:
-            action_len = action.shape[1]
-            action_emb = self.action_embedding(action) # (B, action_len, dim)
-            action_pos_embed = sinusoidal_embedding_1d(self.hidden_dim,
-                torch.arange(action_len, device=action_emb.device)) # (action_len, dim)
-            action_emb = action_emb + action_pos_embed.unsqueeze(0) # (B, action_len, dim)
-            context = torch.cat([context, action_emb], dim=1) # (B, context_len + action_len, dim)
-
-            # new mask
-            num_temporal_groups = f - 1 # first latent frame do not attend to actions
-            if num_temporal_groups <= 0:
-                raise ValueError(
-                    "Action-conditioned context mask requires at least 2 latent frames when `action` is provided."
-                )
-            assert action_emb.shape[1] % num_temporal_groups == 0, \
-                f"Action embedding length {action_emb.shape[1]} must be divisible by number of temporal groups {num_temporal_groups}"
-            # Each latent frame (from the 2nd one) attends to the corresponding group of action tokens
-            action_group_mask = create_group_causal_attn_mask(
-                num_temporal_groups=num_temporal_groups,
-                num_query_per_group=tokens_per_frame,
-                num_key_per_group=action_len // num_temporal_groups,
-                mode=self.action_group_causal_mask_mode,
-            ).to(context.device) # ((f-1)*tokens_per_frame, action_len)
-
-            seq_len = f * h * w # query length
-            final_context_mask = torch.zeros((batch_size, seq_len, context.shape[1]), dtype=torch.bool, device=context.device) # (B, seq_len, L + action_len)
-            # all latent frames attend to text tokens
-            final_context_mask[:, :, :context_len] = context_mask.unsqueeze(1).expand(-1, seq_len, -1) # (B, seq_len, L)
-            # latent frames from the 2nd one attend to action tokens
-            final_context_mask[:, tokens_per_frame:, context_len:] = action_group_mask.unsqueeze(0).expand(batch_size, -1, -1) # (B, seq_len, action_len)
-            context_mask = final_context_mask
-        elif self.action_conditioned and action is None:
-            if f != 1:
-                raise ValueError(
-                    "Action-conditioned model requires `action` unless running single-frame text-only mode with num_latent_frames=1."
-                )
-            context_mask = context_mask.unsqueeze(1).expand(-1, f * h * w, -1) # (B, seq_len, L)
-        else:
-            context_mask = context_mask.unsqueeze(1).expand(-1, f * h * w, -1) # (B, seq_len, L)
-
-        x_tokens = rearrange(x, "b c f h w -> b (f h w) c").contiguous()
-
-        freqs = torch.cat([
-            self.freqs[0][:f].view(f, 1, 1, -1).expand(f, h, w, -1),
-            self.freqs[1][:h].view(1, h, 1, -1).expand(f, h, w, -1),
-            self.freqs[2][:w].view(1, 1, w, -1).expand(f, h, w, -1)
-        ], dim=-1).reshape(f * h * w, 1, -1).to(x_tokens.device)
-
-        return {
-            "tokens": x_tokens,
-            "freqs": freqs,
-            "t": t,
-            "t_mod": t_mod,
-            "context": context,
-            "context_mask": context_mask,
-            "meta": {
-                "grid_size": (f, h, w),
-                "tokens_per_frame": tokens_per_frame,
-                "batch_size": batch_size,
-            },
-        }
-
     def post_dit(self, x_tokens: torch.Tensor, pre_state: Dict[str, Any]) -> torch.Tensor:
         f, h, w = pre_state["meta"]["grid_size"]
         x = self.head(x_tokens, pre_state["t"])

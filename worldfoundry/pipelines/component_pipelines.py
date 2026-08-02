@@ -508,14 +508,6 @@ Splatt3RPipeline = _component_pipeline_class(
     memory_target="worldfoundry.synthesis.visual_generation.memory.runtime:RuntimeMemory",
     synthesis_target="worldfoundry.synthesis.visual_generation.splatt3r:Splatt3RSynthesis",
 )
-StepVideoT2VPipeline = _component_pipeline_class(
-    "StepVideoT2VPipeline",
-    doc="WorldFoundry video-generation pipeline for Step-Video-T2V.",
-    model_id="step-video-t2v",
-    operator_target="worldfoundry.operators.step_video_t2v_operator:StepVideoT2VOperator",
-    memory_target="worldfoundry.synthesis.visual_generation.memory.runtime:RuntimeMemory",
-    synthesis_target="worldfoundry.synthesis.visual_generation.step_video:StepVideoT2VSynthesis",
-)
 ZeroScopePipeline = _component_pipeline_class(
     "ZeroScopePipeline",
     doc="WorldFoundry video-generation pipeline for ZeroScope.",
@@ -572,7 +564,6 @@ __all__ = [
     "Splatt3RPipeline",
     "SpiritV15Pipeline",
     "StarVLAPipeline",
-    "StepVideoT2VPipeline",
     "TDMPCPipeline",
     "VQBeTPipeline",
     "VLANeXtPipeline",

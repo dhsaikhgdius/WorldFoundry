@@ -248,6 +248,99 @@ def attention(
     )
 
 
+def masked_attention(
+    query: torch.Tensor,
+    key: torch.Tensor,
+    value: torch.Tensor,
+    *,
+    query_mask: torch.Tensor | None = None,
+    key_mask: torch.Tensor | None = None,
+    dropout_p: float = 0.0,
+    softmax_scale: float | None = None,
+    causal: bool = False,
+    deterministic: bool = False,
+    dtype: torch.dtype = torch.bfloat16,
+    version: int | None = None,
+) -> torch.Tensor:
+    """Apply attention to padded sequences and restore the query layout.
+
+    Masks use ``True`` for valid tokens and may contain non-prefix padding. This
+    adapter is shared by model families whose tensors are padded while optimized
+    attention kernels consume packed sequences.
+    """
+
+    if query.ndim != 4 or key.ndim != 4 or value.ndim != 4:
+        raise ValueError("query, key, and value must have shape [batch, sequence, heads, head_dim]")
+    batch, query_length = query.shape[:2]
+    key_length = key.shape[1]
+    if key.shape[0] != batch or value.shape[:2] != (batch, key_length):
+        raise ValueError("query, key, and value must have matching batch and key/value dimensions")
+
+    query_mask = _validated_padding_mask(
+        query_mask,
+        batch=batch,
+        length=query_length,
+        device=query.device,
+        name="query_mask",
+    )
+    key_mask = _validated_padding_mask(
+        key_mask,
+        batch=batch,
+        length=key_length,
+        device=key.device,
+        name="key_mask",
+    )
+    if query_mask is None and key_mask is None:
+        return flash_attention(
+            query,
+            key,
+            value,
+            dropout_p=dropout_p,
+            softmax_scale=softmax_scale,
+            causal=causal,
+            deterministic=deterministic,
+            dtype=dtype,
+            version=version,
+        )
+    if query_mask is None:
+        query_mask = torch.ones((batch, query_length), dtype=torch.bool, device=query.device)
+    if key_mask is None:
+        key_mask = torch.ones((batch, key_length), dtype=torch.bool, device=key.device)
+
+    query_lengths = query_mask.sum(dim=1, dtype=torch.int32)
+    key_lengths = key_mask.sum(dim=1, dtype=torch.int32)
+    max_query_length = int(query_lengths.max().item()) if batch else 0
+    max_key_length = int(key_lengths.max().item()) if batch else 0
+    packed_query = query.new_zeros((batch, max_query_length, *query.shape[2:]))
+    packed_key = key.new_zeros((batch, max_key_length, *key.shape[2:]))
+    packed_value = value.new_zeros((batch, max_key_length, *value.shape[2:]))
+    for index in range(batch):
+        query_count = int(query_lengths[index].item())
+        key_count = int(key_lengths[index].item())
+        packed_query[index, :query_count] = query[index, query_mask[index]]
+        packed_key[index, :key_count] = key[index, key_mask[index]]
+        packed_value[index, :key_count] = value[index, key_mask[index]]
+
+    packed_output = flash_attention(
+        packed_query,
+        packed_key,
+        packed_value,
+        q_lens=query_lengths,
+        k_lens=key_lengths,
+        dropout_p=dropout_p,
+        softmax_scale=softmax_scale,
+        causal=causal,
+        deterministic=deterministic,
+        dtype=dtype,
+        version=version,
+    )
+    output = query.new_zeros(query.shape)
+    for index in range(batch):
+        query_count = int(query_lengths[index].item())
+        output[index, query_mask[index]] = packed_output[index, :query_count]
+    return output
+
+
 def varlen_scaled_dot_product_attention(
     query: torch.Tensor,
     key: torch.Tensor,
@@ -268,12 +361,39 @@ def varlen_scaled_dot_product_attention(
 
     window_size = _validated_window_size(window_size)
     flash_attn_varlen_func = None
+    flash_attn_varlen_func_v3 = None
     if version == 2:
         try:
             from flash_attn import flash_attn_varlen_func
         except Exception:
             pass
-    capabilities = probe_attention_backends(query.device) if version == 2 else {}
+    elif version == 3:
+        try:
+            from flash_attn_interface import flash_attn_varlen_func as flash_attn_varlen_func_v3
+        except Exception:
+            pass
+    capabilities = probe_attention_backends(query.device) if version in {2, 3} else {}
+    if (
+        flash_attn_varlen_func_v3 is not None
+        and capabilities["flash_attention_3"].usable
+        and dropout_p == 0.0
+    ):
+        output = flash_attn_varlen_func_v3(
+            q=query,
+            k=key,
+            v=value,
+            cu_seqlens_q=cu_seqlens_q,
+            cu_seqlens_k=cu_seqlens_k,
+            seqused_q=None,
+            seqused_k=None,
+            max_seqlen_q=max_seqlen_q,
+            max_seqlen_k=max_seqlen_k,
+            softmax_scale=softmax_scale,
+            causal=causal,
+            window_size=window_size,
+            deterministic=bool(kwargs.pop("deterministic", False)),
+        )
+        return output[0] if isinstance(output, tuple) else output
     if (
         flash_attn_varlen_func is not None
         and capabilities["flash_attention_2"].usable
@@ -504,6 +624,21 @@ def _validated_lengths(
     if lengths.numel() and (int(lengths.min().item()) < 0 or int(lengths.max().item()) > maximum):
         raise ValueError(f"{name} values must be between 0 and {maximum}")
     return lengths
+
+
+def _validated_padding_mask(
+    mask: torch.Tensor | None,
+    *,
+    batch: int,
+    length: int,
+    device: torch.device,
+    name: str,
+) -> torch.Tensor | None:
+    if mask is None:
+        return None
+    if mask.shape != (batch, length):
+        raise ValueError(f"{name} must have shape [{batch}, {length}]")
+    return mask.to(device=device, dtype=torch.bool, non_blocking=True)
 
 
 def _bottom_right_causal_mask(q_len: int, k_len: int, device: torch.device) -> torch.Tensor:

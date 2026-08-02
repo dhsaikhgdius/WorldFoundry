@@ -21,7 +21,13 @@ from worldfoundry.core.io.serialization import (
     write_jsonl,
     write_text_file,
 )
-from worldfoundry.core.io.paths import resolve_worldfoundry_path
+from worldfoundry.core.io.paths import (
+    package_data_path,
+    package_data_root,
+    package_root,
+    project_root,
+    resolve_worldfoundry_path,
+)
 
 
 def mapping_or_empty(value: Any) -> dict[str, Any]:
@@ -129,64 +135,13 @@ def load_manifest_collection(root: str | Path, *, item_key: str) -> dict[str, An
 
 # resources.py
 import os
-import sysconfig
 from pathlib import Path
 
 
-WORLDFOUNDRY_PACKAGE_ROOT = Path(__file__).resolve().parents[1]
-
-
-def worldfoundry_repository_root() -> Path:
-    """Resolve the source repository root when it is available.
-
-    Args:
-        None.
-    """
-
-    current = Path(__file__).resolve()
-    for parent in current.parents:
-        if (parent / "pyproject.toml").is_file():
-            return parent
-    return WORLDFOUNDRY_PACKAGE_ROOT
-
-
-def _data_root_candidates() -> tuple[Path, ...]:
-    """Return ordered locations for bundled WorldFoundry data files.
-
-    Args:
-        None.
-    """
-
-    install_data_root = Path(sysconfig.get_path("data")) / "worldfoundry" / "data"
-    package_data_root = WORLDFOUNDRY_PACKAGE_ROOT / "data"
-    return (package_data_root, install_data_root)
-
-
-def worldfoundry_data_root() -> Path:
-    """Resolve the bundled benchmark and model metadata root.
-
-    Args:
-        None.
-    """
-
-    candidates = _data_root_candidates()
-    for candidate in candidates:
-        if (candidate / "benchmarks").exists() or (candidate / "models").exists():
-            return candidate
-    return candidates[0]
-
-
-def worldfoundry_data_path(*parts: str | Path) -> Path:
-    """Resolve a path under the bundled WorldFoundry data root.
-
-    Args:
-        parts: Path components below the data root.
-    """
-
-    path = worldfoundry_data_root()
-    for part in parts:
-        path /= part
-    return path
+WORLDFOUNDRY_PACKAGE_ROOT = package_root()
+worldfoundry_repository_root = project_root
+worldfoundry_data_root = package_data_root
+worldfoundry_data_path = package_data_path
 
 
 # paths.py
@@ -290,6 +245,7 @@ def _repo_root() -> Path:
     return worldfoundry_repository_root()
 
 
+@lru_cache(maxsize=32)
 def package_version(distribution: str = "worldfoundry") -> str:
     """Retrieve the installed package version of the given distribution."""
     try:

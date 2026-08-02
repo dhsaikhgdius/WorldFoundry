@@ -208,35 +208,6 @@ class DotWall(gym.Env):
             self.target_position = torch.stack([target_x, target_y])
         else:
             raise NotImplementedError
-            effective_range = (self.img_size - 1) - 2 * self.padding
-            location = (
-                torch.from_numpy(
-                    self.rng.random(size=(4,)) * effective_range + self.padding
-                )
-                .to(self.device)
-                .float()
-            )
-            if self.level == "easy":
-                # make the target location to be within a certain distance from start
-                min_dist_from_start = math.ceil(n_steps * 2 / 3)
-                max_dist_from_start = math.ceil(n_steps * 3 / 2)
-                # generate random angle
-                angle = (torch.rand(1) * 2 * torch.pi).to(location.device)
-                # generate a random distance c within the range
-                dist = (
-                    torch.rand(1) * (max_dist_from_start - min_dist_from_start)
-                    + min_dist_from_start
-                ).to(location.device)
-                # set new x and y for goal
-                location[2] = location[0] + dist * torch.cos(angle)
-                location[3] = location[1] + dist * torch.sin(angle)
-                location = torch.clamp(
-                    location, min=self.padding, max=self.img_size - 1 - self.padding
-                )
-
-            self.dot_position = location[:2]
-            self.target_position = location[2:]
-
     def _render_walls(self, wall_loc, hole_loc):
         # Generates an image of the wall with the door and specified wall thickness.
         x = torch.arange(0, self.img_size, device=self.device)

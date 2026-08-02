@@ -8,7 +8,7 @@ from typing import Any, Iterable
 import numpy as np
 import torch
 
-from worldfoundry.base_models.diffusion_model.video.lvdm.models.samplers.ddim import DDIMSampler
+from worldfoundry.base_models.diffusion_model.schedulers.lvdm.ddim import DDIMSampler
 from worldfoundry.core.model_loading import load_torch_state_dict
 
 DEFAULT_NEGATIVE_PROMPT = (

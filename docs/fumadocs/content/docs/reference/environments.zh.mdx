@@ -140,13 +140,12 @@ bash scripts/setup/model_env_install.sh --model <model-id>
 | 模型 | 专用环境 | Setup 命令 | 说明 |
 | --- | --- | --- | --- |
 | `ac3d` | `ac3d` | `bash scripts/inference/prepare_model_infer.sh ac3d --download` | 官方 runtime 固定 Python 3.10、PyTorch 2.4 和 CUDA 12.4。推理代码在仓内 `worldfoundry/synthesis/visual_generation/ac3d/ac3d_runtime`；外部只需要 checkpoint/asset。 |
-| `cosmos3` | `worldfoundry-cosmos3-cu128` | `bash scripts/inference/prepare_model_infer.sh cosmos3 --download` | Cosmos3 需要 torch 2.10、torchvision 0.25、Diffusers 0.39 和 Cosmos Guardrail。精确版本的 Cosmos3 pipeline/transformer/AVAE 推理增量已在仓内；setup 只安装发布包，不 clone 源码仓库。 |
+| `cosmos3` | `worldfoundry-cosmos3-cu128` | `bash scripts/inference/prepare_model_infer.sh cosmos3 --download` | Cosmos3 使用原生 diffusion runner、checkpoint-shaped transformer、Wan VAE38、AVAE decoder 与 core runtime policy。Guardrail 保持为可选 orchestration layer；Diffusers 不是 inference backend。 |
 | `gen3c` | `gen3c` | `bash scripts/inference/prepare_model_infer.sh gen3c --download` | 仅推理的 Cosmos Predict1 栈需要 Python 3.10、CUDA 12.4、torch 2.6、Transformer Engine 和 MoGe。setup 只对发布包做 Transformer Engine include/link patch，不再 clone 或构建训练专用的 Apex 仓库。 |
 | `lyra-1` | `lyra` | `bash scripts/inference/prepare_model_infer.sh lyra-1 --download` | 复用 GEN3C 同类的仅推理 Cosmos Predict1 / Transformer Engine 依赖。 |
 | `magi-1` | `magi-official-cu124` | `bash scripts/inference/prepare_model_infer.sh magi-1 --download` | 官方栈是 Python 3.10.12、PyTorch 2.4 / CUDA 12.4。flash-attn 和 flashinfer wheel 对 ABI 敏感，需要留在这个环境。 |
 | `warp-as-history` | `warp-as-history` | `bash scripts/inference/prepare_model_infer.sh warp-as-history --download` | 固定 Python 3.10、torch 2.5.0+cu121、diffusers 0.36、transformers 4.51 和 peft 0.17。 |
-| `hunyuanvideo-t2v` | `HunyuanVideo` | `bash scripts/inference/prepare_model_infer.sh hunyuanvideo-t2v --download` | 原始 HunyuanVideo T2V CLI 栈，隔离旧 diffusers/xfuser 兼容依赖。HunyuanVideo-1.5 不属于这个例外，走统一环境。 |
-| `hunyuanvideo-i2v` | `HunyuanVideo` | `bash scripts/inference/prepare_model_infer.sh hunyuanvideo-i2v --download` | 和 T2V 复用原始 HunyuanVideo 环境。I2V runtime 使用仓内官方 image-to-video 脚本和独立 I2V checkpoint 布局。 |
+| `hunyuanvideo-t2v`、`hunyuanvideo-i2v`、`hunyuanvideo-1.5-t2v`、`hunyuanvideo-1.5-i2v` | `worldfoundry-unified-cu128` | `bash scripts/inference/prepare_model_infer.sh hunyuanvideo-t2v --download` | 四个 ID 全部使用共享 native diffusion runner 与按角色组织的 Hunyuan component；旧 Diffusers/xFuser CLI 环境不再作为 inference backend。 |
 | `kairos-sensenova` | `kairos-sensenova` | `bash scripts/inference/prepare_model_infer.sh kairos-sensenova --download` | 使用官方 torch/CUDA 12.6 级别依赖和 SageAttention 等 native attention 包；统一 CUDA 环境没有 Kairos attention 栈时用这个环境。 |
 | `lingbot-world`、`lingbot-world-act` | `lingbot-world` | `bash scripts/inference/prepare_model_infer.sh lingbot-world --download` | Base-Cam 与独立 catalog 的公开 Base-Act checkpoint 复用仓内 runtime。parity 需要精确 torch 和 flash-attn pins；统一环境在上游式测试里生成过近黑色视频。 |
 | `wonderworld` | `wonderworld` | `bash scripts/inference/prepare_model_infer.sh wonderworld --download` | 推理路径会 import PyTorch3D CUDA 扩展；运行 official path 前需要安装或构建与该环境匹配的 PyTorch3D wheel。 |

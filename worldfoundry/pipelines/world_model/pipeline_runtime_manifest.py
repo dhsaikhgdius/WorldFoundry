@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 from ...operators.world_model_runtime_operator import WorldModelRuntimeOperator
 from ...synthesis.visual_generation.memory.runtime import RuntimeMemory
 from ...synthesis.visual_generation.world_model.runtime_manifest import WorldModelRuntimeSynthesis
@@ -18,15 +20,68 @@ class WorldModelRuntimePipeline(PipelineABC):
     MEMORY_RECORD_TYPE = "world_model_runtime_plan"
     generation_type = "world_model"
 
+    # Call kwargs that the runtime gate has to see. The synthesis facade only
+    # forwards load-time options to a runtime's ``missing_requirements`` hook, so
+    # a path supplied per call would otherwise read as missing and block the run.
+    # Subclasses list the option names their adapter gates on; empty is a no-op.
+    RUNTIME_GATED_OPTION_KEYS: tuple[str, ...] = ()
+
     def __call__(self, *args, **kwargs):
         """Execute the complete pipeline generation flow."""
         kwargs.setdefault("return_dict", True)
-        return super().__call__(*args, **kwargs)
+        kwargs = self._promote_call_options(kwargs)
+
+        options = getattr(self.synthesis_model, "options", None)
+        overrides = {
+            key: kwargs[key] for key in self.RUNTIME_GATED_OPTION_KEYS if kwargs.get(key) not in (None, "")
+        }
+        if not isinstance(options, dict) or not overrides:
+            return super().__call__(*args, **kwargs)
+
+        # Restore afterwards so a reused pipeline never inherits a previous request.
+        previous = dict(options)
+        options.update(overrides)
+        try:
+            return super().__call__(*args, **kwargs)
+        finally:
+            options.clear()
+            options.update(previous)
+
+    def _promote_call_options(self, kwargs: dict) -> dict:
+        """Hook for subclasses that derive gated options from generic call inputs."""
+        return kwargs
 
 
 class AdaWorldPipeline(WorldModelRuntimePipeline):
     """Pipeline implementation for AdaWorld visual generation."""
     MODEL_ID = "adaworld"
+
+
+class CausalRCMPipeline(WorldModelRuntimePipeline):
+    """Pipeline implementation for Causal-rCM streaming visual generation."""
+
+    MODEL_ID = "causal-rcm"
+    RUNTIME_GATED_OPTION_KEYS = (
+        "dit_path",
+        "checkpoint_path",
+        "checkpoint_dir",
+        "vae_path",
+        "text_encoder_path",
+        "image_path",
+        "python_executable",
+    )
+
+    def _promote_call_options(self, kwargs: dict) -> dict:
+        """Normalize Causal-rCM inputs into the options the runtime gate reads."""
+        if not kwargs.get("image_path"):
+            candidate = kwargs.get("images")
+            if isinstance(candidate, (str, os.PathLike)):
+                kwargs["image_path"] = os.fspath(candidate)
+        # The shared checkpoint check looks for `checkpoint_path`; upstream names
+        # the distilled DiT `dit_path`. Mirror it so both gates agree.
+        if kwargs.get("dit_path") and not kwargs.get("checkpoint_path"):
+            kwargs["checkpoint_path"] = kwargs["dit_path"]
+        return kwargs
 
 
 class CtrlWorldPipeline(WorldModelRuntimePipeline):
@@ -79,6 +134,28 @@ class NWMPipeline(WorldModelRuntimePipeline):
 class Oasis500MPipeline(WorldModelRuntimePipeline):
     """Pipeline implementation for Oasis500M visual generation."""
     MODEL_ID = "oasis-500m"
+
+
+class OpenDreamerPipeline(WorldModelRuntimePipeline):
+    """Pipeline implementation for Open Dreamer (Dreamer 4) visual generation."""
+
+    MODEL_ID = "open-dreamer"
+    RUNTIME_GATED_OPTION_KEYS = ("input_mp4", "actions_path", "checkpoint_path", "python_executable")
+
+    def _promote_call_options(self, kwargs: dict) -> dict:
+        """Derive ``input_mp4`` from a filesystem context clip.
+
+        The runtime plan records only whether a video was supplied, not its path,
+        so a clip passed as ``video=``/``images=`` has to become an explicit
+        option. Decoded frames and PIL images stay untouched.
+        """
+        if not kwargs.get("input_mp4"):
+            for key in ("video", "images"):
+                candidate = kwargs.get(key)
+                if isinstance(candidate, (str, os.PathLike)):
+                    kwargs["input_mp4"] = os.fspath(candidate)
+                    break
+        return kwargs
 
 
 class SanaWMPipeline(WorldModelRuntimePipeline):
@@ -193,6 +270,7 @@ class WorldMemPipeline(WorldModelRuntimePipeline):
 
 __all__ = [
     "AdaWorldPipeline",
+    "CausalRCMPipeline",
     "CtrlWorldPipeline",
     "DIAMONDPipeline",
     "DinoWMPipeline",
@@ -211,6 +289,7 @@ __all__ = [
     "NWMPipeline",
     "OmniForcingPipeline",
     "Oasis500MPipeline",
+    "OpenDreamerPipeline",
     "PointWorldPipeline",
     "SanaWMPipeline",
     "ShotStreamPipeline",

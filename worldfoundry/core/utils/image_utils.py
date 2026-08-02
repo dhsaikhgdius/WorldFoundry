@@ -182,6 +182,30 @@ def resize_and_center_crop(image, target_width, target_height):
     return np.array(cropped_image)
 
 
+def resize_and_letterbox(
+    image,
+    target_width: int,
+    target_height: int,
+    *,
+    fill: tuple[int, int, int] = (255, 255, 255),
+) -> Image.Image:
+    """Fit an RGB image inside a fixed canvas while preserving aspect ratio."""
+
+    if target_width <= 0 or target_height <= 0:
+        raise ValueError("target_width and target_height must be positive")
+    source = load_pil_image(image, first_sequence_item=False)
+    scale = min(target_width / source.width, target_height / source.height)
+    resized_width = max(1, int(source.width * scale))
+    resized_height = max(1, int(source.height * scale))
+    resized = source.resize((resized_width, resized_height), Image.Resampling.LANCZOS)
+    canvas = Image.new("RGB", (target_width, target_height), fill)
+    canvas.paste(
+        resized,
+        ((target_width - resized_width) // 2, (target_height - resized_height) // 2),
+    )
+    return canvas
+
+
 def resize_and_center_crop_pytorch(image, target_width, target_height):
     B, C, H, W = image.shape
 

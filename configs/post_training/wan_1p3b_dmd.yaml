@@ -1,0 +1,97 @@
+schema: worldfoundry-post-training
+execution_owner: worldfoundry-native
+run:
+  id: wan-1p3b-dmd
+  output_dir: runs/wan-1p3b-dmd
+model:
+  recipe: wan2.1-t2v-1.3b
+  checkpoint: default
+tuning:
+  mode: lora
+  preset: wan-attention
+  rank: 64
+  alpha: 128
+data:
+  manifest: data/post_training/wan-dmd-latents.jsonl
+  cache: cache/post_training/wan-dmd
+  split: train
+  shuffle: true
+  shuffle_seed: 42
+  tail_policy: pad
+  max_latent_tokens_per_microbatch: 13312
+  options:
+    video_buckets:
+      - num_frames: 17
+        height: 256
+        width: 256
+        conditioning_layout: umt5-sequence
+        tasks: [t2v]
+      - num_frames: 33
+        height: 256
+        width: 256
+        conditioning_layout: umt5-sequence
+        tasks: [t2v]
+      - num_frames: 49
+        height: 256
+        width: 256
+        conditioning_layout: umt5-sequence
+        tasks: [t2v]
+    bucket_policy:
+      allow_spatial_upscale: false
+      allow_temporal_padding: false
+    decode:
+      frame_sampling: uniform-full
+      interpolation: bicubic
+      value_range: minus-one-one
+      decoder_thread_type: auto
+      verify_media_sha256: true
+      verify_manifest_frame_count: true
+      verify_manifest_geometry: true
+      fps_tolerance: 0.05
+    num_workers: 2
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 2
+    snapshot_every_n_steps: 1
+algorithm:
+  type: dmd
+  student_timesteps: [1000, 757, 522]
+  student_sigmas: [1.0, 0.757, 0.522]
+  real_score_checkpoint: Wan-AI/Wan2.1-T2V-1.3B@37ec512624d61f7aa208f7ea8140a131f93afc9a
+  fake_score_checkpoint: Wan-AI/Wan2.1-T2V-1.3B@37ec512624d61f7aa208f7ea8140a131f93afc9a
+  num_train_timesteps: 1000
+  score_min_sigma: 0.02
+  score_max_sigma: 0.98
+  score_flow_shift: 8.0
+  teacher_guidance_scale: 3.5
+  generator_update_interval: 5
+  student_scheduler_cadence: iteration
+  normalization_epsilon: 0.0
+  shared_score_timestep: true
+optimizer:
+  type: adamw
+  learning_rate: 0.000002
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+fake_score_optimizer:
+  type: adamw
+  learning_rate: 0.000002
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+runtime:
+  param_dtype: bfloat16
+  reduce_dtype: float32
+  activation_checkpoint: full
+  compile: false
+distributed:
+  backend: fsdp2
+  dp_replicate: 1
+  dp_shard: auto
+  cp: 1
+  tp: 1
+checkpoint:
+  save_every_steps: 500
+  async: true
+  export_every_steps: 500
+export:
+  format: peft

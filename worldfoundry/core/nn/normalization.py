@@ -12,9 +12,12 @@ def rms_norm(value: Any, weight: Any = None, *, eps: float = 1e-6) -> Any:
         import torch
 
         if isinstance(value, torch.Tensor):
-            squared_mean = (value * value).mean(dim=-1, keepdim=True)
-            normalized = value * torch.rsqrt(squared_mean + float(eps))
-            return normalized if weight is None else normalized * weight
+            return torch.nn.functional.rms_norm(
+                value,
+                (value.shape[-1],),
+                weight=weight,
+                eps=float(eps),
+            )
     except ImportError:
         pass
 

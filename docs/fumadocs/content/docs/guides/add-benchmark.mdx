@@ -1,5 +1,5 @@
 ---
-title: Add a Benchmark
+title: Add a benchmark
 description: Checklist for benchmark manifests, runners, datasets, official runs, and leaderboard evidence.
 ---
 
@@ -7,7 +7,7 @@ description: Checklist for benchmark manifests, runners, datasets, official runs
 
 WorldFoundry uses Benchmark Zoo as the supported public benchmark surface. Add new benchmark support through catalog manifests, external task manifests, runner contracts, and readiness evidence.
 
-Most benchmark work follows the same story: record official provenance in catalog metadata, declare the task contract, prove the runner can write a scorecard shape, then promote only when real assets and official scorer evidence exist.
+Most benchmark work follows the same sequence: record official provenance in catalog metadata, declare the task contract, prove the runner can write a scorecard shape, then promote only when real assets and official scorer evidence exist.
 
 ## Supported surface
 
@@ -36,9 +36,9 @@ The catalog entry is the public contract. Group fields by responsibility rather 
 
 - **Identity** — `benchmark_id`, aliases, family, modalities, normalized tasks.
 - **Source** — Official repository, paper, project page, license, clone target.
-- **Dataset** — Dataset ids, access state, cache expectation, filters, unsafe flags.
+- **Dataset** — Dataset IDs, access state, cache expectation, filters, unsafe flags.
 - **Runner** — Runner target, official validation, official benchmark command, expected artifacts.
-- **Metrics** — Metric ids, direction, aggregation, score ranges, leaderboard keys.
+- **Metrics** — Metric IDs, direction, aggregation, score ranges, leaderboard keys.
 - **Evidence** — Check notes, report paths, blockers, executed commands.
 
 Inspect and export specs:
@@ -50,7 +50,7 @@ conda run -p "${WORLDFOUNDRY_UNIFIED_ENV_PREFIX}" worldfoundry-eval zoo benchmar
   --json
 ```
 
-## Runnable Evaluator
+## Runnable evaluator
 
 Official validation imports official-shaped results and writes a reviewable scorecard before you claim full benchmark parity:
 

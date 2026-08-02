@@ -1,0 +1,80 @@
+schema: worldfoundry-post-training
+execution_owner: worldfoundry-native
+run:
+  id: wan-1p3b-self-forcing
+  output_dir: runs/wan-1p3b-self-forcing
+model:
+  recipe: wan2.1-t2v-1.3b
+  checkpoint: default
+tuning:
+  mode: full
+data:
+  manifest: data/post_training/wan-rl-prompts.jsonl
+  cache: cache/post_training/wan-rl-conditioning
+  split: train
+  shuffle: true
+  shuffle_seed: 42
+  tail_policy: pad
+  options:
+    prompt_batch_size: 1
+    generation:
+      height: 480
+      width: 832
+      num_frames: 81
+    num_workers: 0
+    snapshot_every_n_steps: 1
+algorithm:
+  type: self-forcing
+  distribution_objective: dmd
+  real_score_model_recipe: wan2.1-t2v-14b
+  real_score_checkpoint: default
+  fake_score_model_recipe: wan2.1-t2v-1.3b
+  fake_score_checkpoint: default
+  denoising_timesteps: [1000, 750, 500, 250]
+  denoising_flow_shift: 5.0
+  num_train_timesteps: 1000
+  frames_per_block: 3
+  frame_dim: 2
+  exit_step_mode: sequence
+  score_min_sigma: 0.02
+  score_max_sigma: 0.98
+  score_flow_shift: 5.0
+  teacher_guidance_scale: 3.0
+  normalization_epsilon: 0.0
+  generator_update_interval: 5
+  student_scheduler_cadence: iteration
+  ema_decay: 0.99
+  ema_start_step: 200
+optimizer:
+  type: adamw
+  learning_rate: 0.000002
+  weight_decay: 0.0
+  betas: [0.0, 0.999]
+  epsilon: 0.00000001
+  max_grad_norm: 1.0
+  gradient_accumulation_steps: 1
+fake_score_optimizer:
+  type: adamw
+  learning_rate: 0.0000004
+  weight_decay: 0.0
+  betas: [0.0, 0.999]
+  epsilon: 0.00000001
+  max_grad_norm: 1.0
+  gradient_accumulation_steps: 1
+runtime:
+  param_dtype: bfloat16
+  reduce_dtype: float32
+  activation_checkpoint: full
+  compile: false
+distributed:
+  backend: fsdp2
+  dp_replicate: 1
+  dp_shard: auto
+  cp: 1
+  tp: 1
+checkpoint:
+  save_every_steps: 50
+  async: true
+  export_every_steps: 50
+export:
+  format: distributed-checkpoint

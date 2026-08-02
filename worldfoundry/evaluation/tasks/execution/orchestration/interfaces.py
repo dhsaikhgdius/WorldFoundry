@@ -11,7 +11,6 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Protocol, runtime_checkable
 
-
 # Generic type alias for JSON-compatible values
 JsonValue = Any
 

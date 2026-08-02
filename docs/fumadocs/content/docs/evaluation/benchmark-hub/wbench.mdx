@@ -11,7 +11,7 @@ The benchmark is designed for multiple control interfaces. Text-conditioned mode
 
 WorldFoundry integrates the WBench runtime in tree. The official GitHub repository, paper, project page, Hugging Face data, and Hugging Face weights are protocol and asset references; the WorldFoundry workflow does not require an external benchmark source checkout.
 
-## What It Measures
+## What it measures
 
 WBench is a **multi-turn interactive** video world-model benchmark. It evaluates whether a model can keep rendering quality, scene setting, user control, temporal consistency, and physical plausibility across repeated interactions — 289 cases, 1,058 turns, and 22 human-validated metrics.
 
@@ -24,7 +24,7 @@ WBench is a **multi-turn interactive** video world-model benchmark. It evaluates
 - Example submissions: [meituan-longcat/WBench-examples](https://huggingface.co/datasets/meituan-longcat/WBench-examples)
 - Metric weights: [meituan-longcat/WBench-weights](https://huggingface.co/meituan-longcat/WBench-weights)
 
-## Evaluation Protocol
+## Evaluation protocol
 
 Generated videos use the official WBench work directory layout:
 
@@ -49,7 +49,7 @@ work_dirs/<model_name>/
 | Physical | `visual_plausibility`, `causal_fidelity` |
 | Primary | `wbench_average`, computed from the five dimension scores when available |
 
-## WorldFoundry Integration
+## WorldFoundry integration
 
 WorldFoundry's integrated runtime lives at:
 
@@ -67,7 +67,7 @@ The direct runner can execute the checked-in WBench runtime with `--run-official
 
 WBench has both local metric dependencies and API-backed VLM metrics. For full metric recomputation you need generated videos, WBench data cases and masks, metric weights, CUDA packages, and VLM credentials for the official VLM metrics.
 
-## Prepare Data And Assets
+## Prepare data and assets
 
 Start from the WorldFoundry repository root:
 
@@ -120,7 +120,7 @@ For local visual plausibility scoring, provide the PAVRM model path:
 export WORLDFOUNDRY_WBENCH_PAVRM_MODEL_DIR=/path/to/pavrm_model
 ```
 
-## Run Evaluation
+## Run evaluation
 
 Run the full in-tree WBench metric pipeline:
 

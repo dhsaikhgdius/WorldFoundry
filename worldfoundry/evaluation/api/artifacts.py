@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Utilities for describing evaluation artifacts without embedding their data.
 
 ArtifactRef records where an artifact lives, what kind of artifact it is, and
@@ -8,14 +6,15 @@ Local files can be enriched with hash/size data, while remote URIs are kept as
 references so callers do not accidentally treat object-store paths as files.
 """
 
-from dataclasses import dataclass, field
+from __future__ import annotations
+
 import mimetypes
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping
 from urllib.parse import unquote, urlparse
 
 from worldfoundry.evaluation.api.json_contract import JsonContract, copy_mapping, sha256_bytes, sha256_file
-
 
 ARTIFACT_REF_SCHEMA_VERSION = "worldfoundry-artifact-ref"
 REMOTE_URI_SCHEMES = frozenset({"http", "https", "s3", "gs", "hf", "memory"})

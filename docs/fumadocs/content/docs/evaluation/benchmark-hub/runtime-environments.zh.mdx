@@ -68,7 +68,7 @@ test -x "$EVALCRAFTER_PYTHON"
 
 直接调用 `"$EVALCRAFTER_PYTHON"` 就是切换环境，不要求激活 shell。该 profile 现在逐项对齐固定 revision 的官方环境：Python 3.9.17、pip 23.2.1、Torch 2.0.1、torchvision 0.15.2、TensorFlow 2.12.0、PaddlePaddle-GPU 2.5.1、MMCV 2.0.1 和 MMAction2 1.1.0。官方 RAFT native extension 和 checkpoint 树仍要另外准备；环境安装或 import 验证不能证明完整 700 视频套件已跑通。固定 upstream checkout、CUDA 11.7 说明、checkpoint 布局、bounded raw-video 命令和官方结果导入都见 [EvalCrafter 页面](/zh/docs/evaluation/benchmark-hub/evalcrafter)。
 
-## Video Generation benchmarks — 30
+## Video generation benchmarks — 30
 
 | Benchmark | 环境边界与额外配置 | 已验证范围 / 当前 blocker |
 | --- | --- | --- |
@@ -103,11 +103,11 @@ test -x "$EVALCRAFTER_PYTHON"
 | [Visual Chronometer](/zh/docs/evaluation/benchmark-hub/visual-chronometer) | **U + metric stack**；准备 `vc_common_10_60fps.ckpt`，或导入兼容 `results.csv`。 | Runtime/normalizer surface 存在；不声明 full official run 已通过 release 验证。 |
 | [MemoBench](/zh/docs/evaluation/benchmark-hub/memobench) | **U + service/metric stack**；Step 1 用本地指标，完整 ORS/VQA 需要 SAM-3 和 Gemini-compatible judge。 | 只有 Step 1 可运行，不能报告成完整 MemoBench suite。 |
 
-## World Model benchmarks — 12
+## World model benchmarks — 12
 
 | Benchmark | 环境边界与额外配置 | 已验证范围 / 当前 blocker |
 | --- | --- | --- |
-| [WorldModelBench](/zh/docs/evaluation/benchmark-hub/worldmodelbench) | **U + metric stack**；提供 350-instance data root 和 VILA-compatible judge checkpoint/model id。 | 已验证 result import 与 manifest coverage；完整 judge checkpoint 执行未验证。 |
+| [WorldModelBench](/zh/docs/evaluation/benchmark-hub/worldmodelbench) | **U + metric stack**；提供 350-instance data root 和 VILA-compatible judge checkpoint/model ID。 | 已验证 result import 与 manifest coverage；完整 judge checkpoint 执行未验证。 |
 | [WorldScore](/zh/docs/evaluation/benchmark-hub/worldscore) | **U + metric stack**；完整指标需要 DROID/`lietorch`、GroundingDINO、SAM、optical-flow/interpolation、Mamba 和匹配的 checkpoint/extension。 | 已验证 bounded dynamic 组件；完整 metric tree 未验证。 |
 | [WorldBench](/zh/docs/evaluation/benchmark-hub/worldbench) | **U**，但只做 official-result normalization。 | 仓内没有确认可再分发的 official raw-video evaluator；不能从视频执行 `official-run`。 |
 | [WBench](/zh/docs/evaluation/benchmark-hub/wbench) | **U + metric stack**；完整 multi-turn scoring 需要 WBench metric assets 和 official case layout。 | 已验证真实单视频 temporal-flicker 组件；289-case multi-turn protocol 未验证。 |
@@ -118,6 +118,7 @@ test -x "$EVALCRAFTER_PYTHON"
 | [EWMBench](/zh/docs/evaluation/benchmark-hub/ewmbench) | **U** 用于结果归一化；完整评测需要 official judge assets、result files 和完整生成输出。 | 只有 normalizer；upstream judge execution 待完成。 |
 | [4DWorldBench](/zh/docs/evaluation/benchmark-hub/4dworldbench) | **U + metric stack/service**；所选维度可能需要 Keye-VL、DROID/`lietorch`、FAST-VQA、Qwen utilities 或 OpenAI-compatible judge。 | Official runtime path 存在，但真实数据 full-suite validation 待完成。 |
 | [WorldReasonBench](/zh/docs/evaluation/benchmark-hub/worldreasonbench) | **U + service**；真实 QA/reward 评测需要受限 official assets 和 OpenAI-compatible multimodal endpoint；server 自有环境。 | Result normalization/QA 组件代码存在；不声明完整 official judge run。 |
+| [WorldOlympiad](/zh/docs/evaluation/benchmark-hub/worldolympiad) | **U + metric stack / 服务**；official 评测器已内置，无需外部 checkout。打分运行还需要 DA3 源码树（`--da3-src`）、DA3/SAM3/QwenVL/CLIP 权重（`--weights-dir`）以及运行中的 QwenVL、SAM3、DA3 reward 服务。 | 仓内批处理计划（`--run-official --dry-run`）与 judge 输出归一化已验证；不声明打分版三项评测运行。 |
 | [WRBench](/zh/docs/evaluation/benchmark-hub/wrbench) | **U + metric stack**；完整 D1–D6 scoring 需要 runtime config 指向 VGGT-Omega、DINOv2、Qwen3.5 和 Qwen3-VL checkpoint。 | Natural-25 request materialization 与结果归一化可用；完整 D1–D6 未验证。 |
 
 ## 何时才增加独立环境

@@ -1,0 +1,195 @@
+---
+title: RBench
+description: "RBench in WorldFoundry: robotics image-to-video evaluation across four embodiments and five task categories, with in-tree official aggregation."
+---
+
+## What it measures
+
+RBench, released with the [ReVidgen](https://github.com/DAGroup-PKU/ReVidgen) project, evaluates image-to-video generation for robotics. Every prompt pairs a first-frame conditioning image with an instruction, and generated videos are judged along two independent tracks:
+
+**Embodiment track** — 400 prompts across four robot morphologies (`dual_arm`, `humanoid`, `single_arm`, `quad`, 100 each). Each video receives three VLM scores plus two motion-operator scores, which combine into a task-response score and a penalized visual-quality score.
+
+**Task track** — 250 prompts across five task categories (`common_manipulation`, `long-horizon_planning`, `multi-entity_collaboration`, `spatial_relationship`, `visual_reasoning`, 50 each). Each video gets one rubric score on a 1-5 scale.
+
+The two tracks are reported separately upstream; there is no published cross-track number.
+
+## Official references
+
+| Resource | Link |
+| --- | --- |
+| GitHub | [github.com/DAGroup-PKU/ReVidgen](https://github.com/DAGroup-PKU/ReVidgen) |
+| Paper | [arXiv:2601.15282](https://arxiv.org/abs/2601.15282) |
+| HF dataset (benchmark) | [DAGroup-PKU/RBench](https://huggingface.co/datasets/DAGroup-PKU/RBench) |
+| HF dataset (training corpus) | [DAGroup-PKU/RoVid-X](https://huggingface.co/datasets/DAGroup-PKU/RoVid-X) |
+| In-tree runner | `worldfoundry/evaluation/tasks/execution/runners/rbench/run_rbench_official_runner.py` |
+
+## What runs where
+
+Scoring RBench needs two external stages that WorldFoundry does not provide:
+
+- A **VLM judge** — GPT or a local/API Qwen3-VL — answering the per-split rubrics.
+- A **motion operator stack** — GroundingDINO, SAM 2, CoTracker, and Q-Align with their checkpoints — producing perceptible amplitude and motion smoothness.
+
+WorldFoundry reproduces the official **aggregation** in-tree, reading the per-video artifacts those stages write. The upstream summary CSVs are deliberately not trusted: every number is recomputed from raw per-video rows so a partial judge run cannot look complete.
+
+## Data and artifacts
+
+Benchmark assets:
+
+```text
+<rbench_data_root>/
+  prompts/dual_arm_prompts.json
+  prompts/common_manipulation_prompts.json
+  ...
+  imgs/<split>/<split>_0001.jpg
+```
+
+```bash
+huggingface-cli download DAGroup-PKU/RBench --repo-type dataset --local-dir ./rbench_data
+```
+
+Generated videos use the bare numeric prompt index — prompt `dual_arm_0001` becomes `0001.mp4`:
+
+```text
+data/<model>/<split>/videos/0001.mp4
+```
+
+The upstream scripts then write:
+
+```text
+<results_root>/
+  4_embodiments/<model>/<embodiment>/
+    VQA/<vlm>/1_robot_subject_stability/results.csv
+    VQA/<vlm>/2_physical_plausibility/results.csv
+    VQA/<vlm>/3_task_adherence_consistency/results.csv
+    motion/results.json
+  5_tasks/<model>/<task>/<vlm>/results.csv
+```
+
+`<vlm>` is `gpt`, `qwen_local`, or `qwen_api`. These are separate judges and their scores are never mixed; one backend is aggregated per run.
+
+## Supported commands
+
+Aggregate a results tree through the public CLI:
+
+```bash
+worldfoundry-eval zoo benchmark-run \
+  --benchmark-id rbench \
+  --mode official-validation \
+  --official-results-path /path/to/results \
+  --result-model-id MyModel \
+  --output-dir tmp/rbench/aggregate \
+  --json
+```
+
+Use the direct runner for runner-specific arguments:
+
+```bash
+PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
+  worldfoundry/evaluation/tasks/execution/runners/rbench/run_rbench_official_runner.py \
+  --official-results-path /path/to/results \
+  --result-model-id MyModel \
+  --vlm-backend gpt \
+  --benchmark-data-root /path/to/rbench_data \
+  --output-dir tmp/rbench/aggregate \
+  --json
+```
+
+Score a single track:
+
+```bash
+PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
+  worldfoundry/evaluation/tasks/execution/runners/rbench/run_rbench_official_runner.py \
+  --official-results-path /path/to/results \
+  --track 5_tasks \
+  --output-dir tmp/rbench/tasks \
+  --json
+```
+
+The results path may point at the `results/` root, one track directory, or a single model directory. `--result-model-id` is required when several models are present; `--vlm-backend` is required when both `gpt` and a `qwen` judge are present.
+
+## Environment variables
+
+| Variable | Meaning |
+| --- | --- |
+| `WORLDFOUNDRY_RBENCH_RESULTS_PATH` | Results tree to aggregate. |
+| `WORLDFOUNDRY_RBENCH_DATA_ROOT` | RBench dataset root holding `prompts/` and `imgs/`. |
+| `WORLDFOUNDRY_RBENCH_VLM_BACKEND` | Judge directory to read (`gpt`, `qwen_local`, `qwen_api`). |
+| `WORLDFOUNDRY_RBENCH_STRICT` | Fail the run unless both tracks scored all 650 prompts. |
+
+## Scoring protocol
+
+**Embodiment track**, per video: merge the three VQA scores with the two motion scores, then min-max normalize each into `[0, 1]`.
+
+| Component | Raw scale |
+| --- | --- |
+| `RSS` robot subject stability | 1-15 (mapped from A-E option pairs) |
+| `PSS` physical plausibility | 1-5 |
+| `TAC` task adherence consistency | 1-5 |
+| `MS` motion smoothness | 0-1 |
+| `MA` perceptible amplitude | 0-1 |
+
+Then:
+
+```text
+Task_Completion     = mean(PSS, TAC)
+Visual_Quality_Base = 0.8 * RSS + 0.2 * MS
+Visual_Quality      = max(Visual_Quality_Base - pas_penalty(MA) - consistency_penalty, 0)
+```
+
+`pas_penalty` charges near-static videos (`MA < 0.1`, with an extra `0.1` below `0.05`). `consistency_penalty` maps the stability options `B/C/D/E` to `0.2/0.4/0.6/0.8`, averaging the robot and object penalties only when both are non-zero.
+
+Three upstream behaviours are reproduced exactly because they change the numbers:
+
+- Non-numeric judge replies ("bad reply") become missing, not zero.
+- A row mean skips missing components, so a video with only `TAC` scores on `TAC` alone.
+- The amplitude filter `MA >= 0` **drops videos with no measured amplitude**, since the comparison fails for a missing value. Those videos leave the penalized aggregate entirely; the runner reports how many were dropped per split.
+
+**Task track**, per video: `(score - 1) / 4`, discarding the negative bad-reply sentinel. `task_track_overall` pools every scored video across the five splits — it is not the mean of the five split means.
+
+## Import paths
+
+- Runner: `worldfoundry.evaluation.tasks.execution.runners.rbench.run_rbench_official_runner`
+- Metrics: `worldfoundry.evaluation.tasks.execution.runners.rbench.rbench_metrics`
+- Split and prompt tables: `worldfoundry.evaluation.tasks.execution.runners.rbench.rbench_prompts`
+- Results layout resolution: `worldfoundry.evaluation.tasks.execution.runners.rbench.rbench_runtime`
+- Summary-CSV normalization: `worldfoundry.evaluation.tasks.execution.runners.rbench.rbench_official_scoring`
+
+## Outputs
+
+Under `--output-dir`:
+
+- `scorecard.json`: run status, per-track completeness, metric table, coverage.
+- `raw_metric_table.jsonl`: one row per declared metric, including unavailable ones.
+- `per_sample_scores.jsonl`: one row per scored split with its component means and drop counts.
+- `track_breakdown.json`: per-split detail for both tracks.
+- `benchmark_contract.json`: metric ids, resolved layout, scored splits.
+
+## Metrics
+
+Primary metric: `rbench_overall`. Higher is better for every metric.
+
+| Metric | Track | Meaning |
+| --- | --- | --- |
+| `rbench_overall` | both | **WorldFoundry composite**: mean of the two track scores. Not a published RBench number, and emitted only when both tracks are complete. |
+| `embodiment_overall` | embodiments | `Task_Completion` and `Visual_Quality` pooled across the four embodiment rows. |
+| `task_completion` | embodiments | Mean of normalized physical plausibility and task adherence. |
+| `visual_quality` | embodiments | Penalized stability and smoothness score. |
+| `visual_quality_base` | embodiments | The same score before penalties. |
+| `physical_plausibility` | embodiments | Normalized `PSS`. |
+| `task_adherence_consistency` | embodiments | Normalized `TAC`. |
+| `robot_subject_stability` | embodiments | Normalized `RSS`. |
+| `motion_smoothness` | embodiments | `MS` operator score. |
+| `motion_amplitude` | embodiments | `MA` operator score. |
+| `task_track_overall` | tasks | `ALL_TASKS_MEAN` pooled over every scored video. |
+| `common_manipulation` | tasks | Split mean. |
+| `long_horizon_planning` | tasks | Split mean. |
+| `multi_entity_collaboration` | tasks | Split mean. |
+| `spatial_relationship` | tasks | Split mean. |
+| `visual_reasoning` | tasks | Split mean. |
+
+## Evidence scope
+
+Aggregating supplied judge outputs is not official-run evidence: `official_benchmark_verified` and `leaderboard_valid` stay `false`. `full_suite_valid` requires all nine splits present *and* each split's scored video count to reach its official prompt count — split presence alone is not enough.
+
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

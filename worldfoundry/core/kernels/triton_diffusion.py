@@ -116,6 +116,7 @@ def _layer_norm_scale_shift_kernel(
     hs2: tl.constexpr,
     hs3: tl.constexpr,
     hs4: tl.constexpr,
+    round_modulation: tl.constexpr,
     block: tl.constexpr,
 ):
     row = tl.program_id(0)
@@ -134,9 +135,17 @@ def _layer_norm_scale_shift_kernel(
 
     scale_base = _broadcast_row_offset(row, d0, d1, d2, d3, ss0, ss1, ss2, ss3)
     shift_base = _broadcast_row_offset(row, d0, d1, d2, d3, hs0, hs1, hs2, hs3)
-    scale = tl.load(scale_ptr + scale_base + cols * ss4, mask=mask, other=0.0).to(tl.float32)
-    shift = tl.load(shift_ptr + shift_base + cols * hs4, mask=mask, other=0.0).to(tl.float32)
-    tl.store(out_ptr + offsets, normed * (1.0 + scale) + shift, mask=mask)
+    scale_input = tl.load(scale_ptr + scale_base + cols * ss4, mask=mask, other=0.0)
+    shift_input = tl.load(shift_ptr + shift_base + cols * hs4, mask=mask, other=0.0)
+    # Preserve PyTorch's eager expression boundaries while keeping one launch:
+    # ``1 + scale`` and the following multiply each round when their promoted
+    # dtype is fp16/bf16. Mixed low-precision or fp32 modulation stays fp32.
+    scale_factor = (1.0 + scale_input.to(tl.float32)).to(scale_input.dtype)
+    modulated = normed.to(tl.float32) * scale_factor.to(tl.float32)
+    if round_modulation:
+        modulated = modulated.to(x_input.dtype)
+    output = modulated.to(tl.float32) + shift_input.to(tl.float32)
+    tl.store(out_ptr + offsets, output, mask=mask)
 
 
 @triton.jit
@@ -164,6 +173,7 @@ def _rms_norm_scale_shift_kernel(
     hs3: tl.constexpr,
     hs4: tl.constexpr,
     has_weight: tl.constexpr,
+    round_modulation: tl.constexpr,
     block: tl.constexpr,
 ):
     row = tl.program_id(0)
@@ -173,16 +183,25 @@ def _rms_norm_scale_shift_kernel(
     x_input = tl.load(x_ptr + offsets, mask=mask, other=0.0)
     x = x_input.to(tl.float32)
     variance = tl.sum(x * x, axis=0) / features
-    normed = (x * tl.rsqrt(variance + eps)).to(x_input.dtype)
+    normed = x * tl.rsqrt(variance + eps)
     if has_weight:
         weight = tl.load(weight_ptr + cols, mask=mask, other=0.0).to(tl.float32)
-        normed = (normed.to(tl.float32) * weight).to(x_input.dtype)
+        normed *= weight
+    # torch.rms_norm applies its learned weight in the accumulation dtype and
+    # rounds the completed norm once. Rounding before the weight can introduce
+    # 0.1-level BF16 errors after AdaLN modulation on common DiT activations.
+    normed = normed.to(x_input.dtype)
 
     scale_base = _broadcast_row_offset(row, d0, d1, d2, d3, ss0, ss1, ss2, ss3)
     shift_base = _broadcast_row_offset(row, d0, d1, d2, d3, hs0, hs1, hs2, hs3)
-    scale = tl.load(scale_ptr + scale_base + cols * ss4, mask=mask, other=0.0).to(tl.float32)
-    shift = tl.load(shift_ptr + shift_base + cols * hs4, mask=mask, other=0.0).to(tl.float32)
-    tl.store(out_ptr + offsets, normed * (1.0 + scale) + shift, mask=mask)
+    scale_input = tl.load(scale_ptr + scale_base + cols * ss4, mask=mask, other=0.0)
+    shift_input = tl.load(shift_ptr + shift_base + cols * hs4, mask=mask, other=0.0)
+    scale_factor = (1.0 + scale_input.to(tl.float32)).to(scale_input.dtype)
+    modulated = normed.to(tl.float32) * scale_factor.to(tl.float32)
+    if round_modulation:
+        modulated = modulated.to(x_input.dtype)
+    output = modulated.to(tl.float32) + shift_input.to(tl.float32)
+    tl.store(out_ptr + offsets, output, mask=mask)
 
 
 @triton.jit
@@ -306,11 +325,7 @@ def _hidden_qk_rmsnorm_rope_3d_kernel(
     even_col = pair_index * 2
     odd_col = even_col + 1
     pair_mask = odd_col < hidden_size
-    rotate_mask = (
-        pair_mask
-        & (even_col >= store_feature_start)
-        & (odd_col < store_feature_end)
-    )
+    rotate_mask = pair_mask & (even_col >= store_feature_start) & (odd_col < store_feature_end)
     even_offsets = row * hidden_size + even_col
     odd_offsets = row * hidden_size + odd_col
     q_even_input = tl.load(q_ptr + even_offsets, mask=pair_mask, other=0.0)
@@ -367,7 +382,9 @@ def _hidden_qk_rmsnorm_rope_3d_kernel(
     tl.store(k_out_ptr + odd_offsets, tl.where(rotate_mask, rotated_k_odd, k_odd), mask=pair_mask)
 
 
-def _padded_outer_shape_and_strides(x: torch.Tensor, broadcast: torch.Tensor) -> tuple[tuple[int, ...], tuple[int, ...]]:
+def _padded_outer_shape_and_strides(
+    x: torch.Tensor, broadcast: torch.Tensor
+) -> tuple[tuple[int, ...], tuple[int, ...]]:
     expanded = broadcast.expand_as(x)
     outer_shape = (1,) * (5 - x.ndim) + tuple(int(dim) for dim in x.shape)
     strides = (0,) * (5 - expanded.ndim) + tuple(int(stride) for stride in expanded.stride())
@@ -453,6 +470,7 @@ def layer_norm_scale_shift(
     dims, scale_strides = _padded_outer_shape_and_strides(x, scale)
     _, shift_strides = _padded_outer_shape_and_strides(x, shift)
     block = triton.next_power_of_2(features)
+    modulation_dtype = torch.promote_types(x.dtype, scale.dtype)
     output_dtype = torch.promote_types(x.dtype, torch.promote_types(scale.dtype, shift.dtype))
     output = torch.empty_like(x, dtype=output_dtype)
     _layer_norm_scale_shift_kernel[(rows,)](
@@ -477,6 +495,7 @@ def layer_norm_scale_shift(
         hs2=shift_strides[2],
         hs3=shift_strides[3],
         hs4=shift_strides[4],
+        round_modulation=modulation_dtype in {torch.float16, torch.bfloat16},
         block=block,
         num_warps=_num_warps(block),
     )
@@ -495,6 +514,7 @@ def rms_norm_scale_shift(
     dims, scale_strides = _padded_outer_shape_and_strides(x, scale)
     _, shift_strides = _padded_outer_shape_and_strides(x, shift)
     block = triton.next_power_of_2(features)
+    modulation_dtype = torch.promote_types(x.dtype, scale.dtype)
     output_dtype = torch.promote_types(x.dtype, torch.promote_types(scale.dtype, shift.dtype))
     output = torch.empty_like(x, dtype=output_dtype)
     weight_pointer = x if weight is None else weight
@@ -522,6 +542,7 @@ def rms_norm_scale_shift(
         hs3=shift_strides[3],
         hs4=shift_strides[4],
         has_weight=weight is not None,
+        round_modulation=modulation_dtype in {torch.float16, torch.bfloat16},
         block=block,
         num_warps=_num_warps(block),
     )

@@ -20,18 +20,28 @@ checkpoint_refs:
   license: mit
   estimated_size_gb: 183
 integration:
-  status: planned
+  status: integrated
   notes:
-  - Runtime source is vendored in-tree; full execution remains multi-GPU/service/checkpoint
-    gated.
+  - The public pipeline is assembled from native role-based components and the shared
+    WorldFoundry diffusion runner.
 runtime_profile: runtime-profile:step-video-t2v
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 pipeline_binding: step-video-t2v
 runner_parity:
-  status: implemented_multigpu_services_pending
+  status: native_checkpoint_layout_validated
   notes:
-  - StepVideoT2VSynthesis provides an in-tree execution plan wrapper around the vendored
-    runtime.
+  - DiT, Step-LLM, CLIP, scheduler, latent initialization, and VAE decoding execute
+    in-process; the former xFuser and caption/VAE service runtime is not a backend.
+notes:
+- Use id step-video-t2v. The public pipeline uses the canonical native diffusion assembler.
+native_diffusion:
+  recipe_id: step-video-t2v
+  architecture: step-video-t2v
+  backend: worldfoundry-native-diffusion
+  shared_components:
+  - native checkpoint resolver and module loader
+  - framework-owned CFG sampling loop
+  - core scaled-dot-product attention and block offload
 catalog_category: video
 catalog_scope: Video-generation and video-token catalog entries. Integrated entries
   expose WorldFoundry pipeline targets; metadata-only entries retain upstream provenance

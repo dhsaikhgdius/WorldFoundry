@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pickle
-
 import torch
 from torch import distributed as dist
 from torch.utils import data
@@ -40,31 +38,9 @@ def all_reduce(tensor, op=dist.ReduceOp.SUM):
 def all_gather(value):
     """Gather picklable Python objects from every rank."""
 
-    world_size = get_world_size()
-    if world_size == 1:
-        return [value]
+    from .evaluation_collectives import all_gather as gather
 
-    buffer = pickle.dumps(value)
-    storage = torch.ByteStorage.from_buffer(buffer)
-    tensor = torch.ByteTensor(storage).to("cuda")
-
-    local_size = torch.IntTensor([tensor.numel()]).to("cuda")
-    size_list = [torch.IntTensor([1]).to("cuda") for _ in range(world_size)]
-    dist.all_gather(size_list, local_size)
-    size_list = [int(size.item()) for size in size_list]
-    max_size = max(size_list)
-
-    tensor_list = [torch.ByteTensor(size=(max_size,)).to("cuda") for _ in size_list]
-    if local_size != max_size:
-        padding = torch.ByteTensor(size=(max_size - local_size,)).to("cuda")
-        tensor = torch.cat((tensor, padding), 0)
-
-    dist.all_gather(tensor_list, tensor)
-    values = []
-    for size, gathered_tensor in zip(size_list, tensor_list):
-        gathered_buffer = gathered_tensor.cpu().numpy().tobytes()[:size]
-        values.append(pickle.loads(gathered_buffer))
-    return values
+    return gather(value)
 
 
 def reduce_dict(input_dict, average=True):

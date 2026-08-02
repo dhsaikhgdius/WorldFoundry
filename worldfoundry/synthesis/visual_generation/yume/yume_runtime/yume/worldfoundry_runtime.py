@@ -9,7 +9,7 @@ import torch
 from diffusers.video_processor import VideoProcessor
 from PIL import Image
 
-from worldfoundry.base_models.diffusion_model.video.wan.wan_2p1.configs import WAN_CONFIGS
+from worldfoundry.base_models.diffusion_model.recipes.wan_configs.wan21 import WAN_CONFIGS
 from worldfoundry.synthesis.visual_generation.yume.yume_runtime.yume import (
     YUME_MAX_AREA_CONFIGS,
     YUME_SIZE_CONFIGS,

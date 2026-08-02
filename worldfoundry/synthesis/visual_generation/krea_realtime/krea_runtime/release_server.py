@@ -51,7 +51,7 @@ from msgpack import packb, unpackb
 
 
 from settings import MODEL_FOLDER
-from wan.modules.vae import WanVAE
+from worldfoundry.base_models.diffusion_model.models.autoencoders.wan.reference_21 import WanVAE
 import torch._dynamo as dynamo
 dynamo.config.recompile_limit = 32
 

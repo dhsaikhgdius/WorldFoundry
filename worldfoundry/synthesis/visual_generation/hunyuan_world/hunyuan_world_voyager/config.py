@@ -1,7 +1,7 @@
 import argparse
 from .constants import *
 import re
-from worldfoundry.base_models.diffusion_model.video.hunyuan_video.modules.models import (
+from worldfoundry.base_models.diffusion_model.models.networks.hunyuan_video.i2v.model import (
     HUNYUAN_VIDEO_CONFIG
 )
 from worldfoundry.synthesis.visual_generation.hunyuan_world import apply_hunyuan_world_argparse_defaults

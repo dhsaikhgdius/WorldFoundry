@@ -3,14 +3,14 @@ title: VideoVerse
 description: VideoVerse world-model text-to-video evaluation in WorldFoundry.
 ---
 
-## What It Measures
+## What it measures
 
 VideoVerse evaluates whether a text-to-video generator behaves like a video world model. The official benchmark focuses on event ordering, binary verification questions, static scene knowledge, dynamic event consistency, interaction, camera behavior, mechanics, and world-knowledge checks.
 
 The canonical prompt suite has 300 prompts, 815 event units, and 793 verification checks. Each prompt record includes a `t2v_prompt` to generate from, event-order information, and yes/no checks used by the judge.
 
 
-## Official References
+## Official references
 
 | Resource | Link |
 | --- | --- |
@@ -20,7 +20,7 @@ The canonical prompt suite has 300 prompts, 815 event units, and 793 verificatio
 | HF dataset | [NNaptmn/VideoVerse](https://huggingface.co/datasets/NNaptmn/VideoVerse) |
 | In-tree runner | `worldfoundry/evaluation/tasks/execution/runners/videoverse/run_videoverse_official_runner.py` |
 
-## Assets And Data
+## Assets and data
 
 WorldFoundry keeps the VideoVerse runner and prompt assets in-tree:
 
@@ -33,7 +33,7 @@ WorldFoundry keeps the VideoVerse runner and prompt assets in-tree:
 
 The optional public dataset asset is tracked as `videoverse_dataset_assets` and resolves to the Hugging Face dataset `NNaptmn/VideoVerse` when local dataset material is needed.
 
-## Generated Artifacts
+## Generated artifacts
 
 Generate one video per prompt key. Put the videos directly under one directory and name each file with the prompt dictionary key:
 
@@ -92,7 +92,7 @@ worldfoundry-eval zoo benchmark-run \
 
 Use `--limit N` on the direct runner only for bounded development runs. Do not use limited runs for leaderboard comparison.
 
-## Import Paths
+## Import paths
 
 If you need the scoring formula without launching the CLI, import:
 

@@ -356,7 +356,7 @@ prepare_hunyuanvideo_t2v_layout() {
 
   cat <<EOF
 
-HunyuanVideo T2V checkpoint layout expected by the in-tree official runtime:
+HunyuanVideo T2V checkpoint layout expected by the native recipe:
   ${target_root}
     hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt
     hunyuan-video-t2v-720p/vae/
@@ -364,13 +364,12 @@ HunyuanVideo T2V checkpoint layout expected by the in-tree official runtime:
     text_encoder_2/
 
 Environment:
-  This original HunyuanVideo T2V runtime uses the dedicated HunyuanVideo conda
-  profile because it is pinned to the official diffusers 0.31 stack:
+  This recipe uses the unified native diffusion environment:
     bash scripts/setup/model_env_install.sh --model hunyuanvideo-t2v
 
-Validated Studio demo:
-  model-id=hunyuanvideo-t2v, torchrun --nproc_per_node=8, 129 frames, 720x1280,
-  50 steps, prompt "A cat walks on the grass, realistic style.", seed 42.
+Validation status:
+  Registry and causal-VAE checkpoint structure pass. The historical 8-rank
+  artifact predates the native cutover; native CUDA artifact parity is pending.
 
 EOF
 }
@@ -389,7 +388,7 @@ prepare_hunyuanvideo_i2v_layout() {
 
   cat <<EOF
 
-HunyuanVideo I2V checkpoint layout expected by the in-tree official runtime:
+HunyuanVideo I2V checkpoint layout expected by the native recipe:
   ${target_root}
     hunyuan-video-i2v-720p/transformers/mp_rank_00_model_states.pt
     hunyuan-video-i2v-720p/vae/
@@ -397,14 +396,12 @@ HunyuanVideo I2V checkpoint layout expected by the in-tree official runtime:
     text_encoder_2/
 
 Environment:
-  HunyuanVideo I2V reuses the dedicated HunyuanVideo conda profile with xfuser
-  available for the official 8-rank sequence-parallel demo:
+  This recipe uses the unified native diffusion environment:
     bash scripts/setup/model_env_install.sh --model hunyuanvideo-i2v
 
-Validated Studio demo target:
-  model-id=hunyuanvideo-i2v, torchrun --nproc_per_node=8, official stability
-  recipe, 129 frames, 720p, 50 steps, flow_shift=7.0, seed 0, input
-  worldfoundry/data/test_cases/hunyuanvideo_i2v/0.jpg.
+Validation status:
+  Registry assembly passes. The historical 8-rank artifact predates the native
+  cutover; native CUDA artifact parity is pending.
 
 EOF
 }
@@ -429,7 +426,7 @@ PY
 
   cat <<EOF
 
-HunyuanVideo-1.5 checkpoint layout expected by the in-tree official runtime:
+HunyuanVideo-1.5 checkpoint layout expected by the native recipes:
   ${target_root}
     text_encoder/llm              # Qwen/Qwen2.5-VL-7B-Instruct
     text_encoder/byt5-small       # google/byt5-small
@@ -479,7 +476,8 @@ prepare_cosmos3_layout() {
 Cosmos3 checkpoint layout:
   Repository: ${repo_id}
   Pinned revision: ${revision}
-  The repository already has an official Diffusers layout; no conversion is required.
+  The repository component layout is consumed directly by WorldFoundry's native loader;
+  no persistent checkpoint conversion is required.
   This script downloads/checks the exact revision in the native Hugging Face cache:
     ${CACHE_DIR}/models--${repo_id//\//--}/snapshots/${revision}/model_index.json
   Direct HFD aliases are accepted only when .hfd/repo_metadata.json records the same revision.
@@ -488,11 +486,9 @@ Cosmos3 checkpoint layout:
 Environment:
   bash scripts/setup/model_env_install.sh --model ${MODEL_ID}
 
-Safety checker:
-  The official default requires cosmos-guardrail and approved Hugging Face access to
-  nvidia/Cosmos-1.0-Guardrail. Set an authorized HF_TOKEN after accepting its access terms.
-  For an explicitly unscreened run, set enable_safety_checker=false at load time and
-  enable_safety_check=false at call time; Workspace manifests preserve both settings.
+Runtime architecture:
+  Transformer, Wan VAE38, AVAE sound decoder, tokenizer, and flow-UniPC are assembled
+  through the shared native diffusion infra. Diffusers is not a runtime dependency.
 EOF
 }
 
@@ -508,7 +504,7 @@ import os
 import sys
 from pathlib import Path
 
-from worldfoundry.base_models.diffusion_model.video.cosmos3.worldfoundry_runtime import Cosmos3Runtime
+from worldfoundry.synthesis.visual_generation.cosmos.cosmos3_runtime import Cosmos3Runtime
 
 repo_id = os.environ["REPO_ID"]
 expected = os.environ["EXPECTED_REVISION"]

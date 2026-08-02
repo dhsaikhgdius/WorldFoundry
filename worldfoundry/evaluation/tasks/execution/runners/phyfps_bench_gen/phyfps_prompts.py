@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import json
-import shutil
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
+from worldfoundry.core.io.file_utils import materialize_file
 from worldfoundry.evaluation.api import GenerationRequest, GenerationResult
 from worldfoundry.evaluation.tasks.execution.framework.benchmark_assets import (
     bundled_benchmark_asset,
@@ -144,7 +144,7 @@ def copy_phyfps_generated_videos(
         }
         if source_path.is_file():
             if source_path.resolve() != destination.resolve():
-                shutil.copy2(source_path, destination)
+                materialize_file(source_path, destination, writable=False)
             row["status"] = "copied"
             materialized += 1
         rows.append(row)

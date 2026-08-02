@@ -7,12 +7,17 @@ description: 解释 WorldFoundry workflow、模型 runtime、benchmark 执行和
 
 架构文档用于解释这个仓库在子系统层面如何工作，不作为逐文件源码索引。阅读它是为了理解概念、选择正确工作流，并判断某个改动属于哪一层。正文以段落说明为主：先讲职责边界和数据流，再在必要时引用关键路径；端到端运行流与评测 internals 请从 [Workflow](/zh/docs/maintainers/architecture/workflow) 与 [评测核心](/zh/docs/maintainers/architecture/evaluation-core) 入手。
 
-**适合谁读：** 添加模型或 benchmark 的维护者、需要从 CLI 追到 scorecard 的 reviewer，以及排查「catalog 显示 supported 但 run 仍失败」的人。**何时从这里开始：** 完成 [快速开始](/zh/docs/quickstart) 且第一次 run 成功后，若需要命令背后的整体模型再读本文——不必在第一次 run 之前通读。确定要改哪一层后，从下方卡片进入对应子页。
+**适合谁读：** 添加模型或 benchmark 的维护者、需要从 CLI 追到 scorecard 的 reviewer，以及排查“catalog 显示 supported 但 run 仍失败”的人。**何时从这里开始：** 完成 [快速开始](/zh/docs/quickstart) 且第一次 run 成功后，若需要命令背后的整体模型再读本文——不必在第一次 run 之前通读。确定要改哪一层后，从下方卡片进入对应子页。
 
 <Cards>
-  <Card title="Workflow" description="从 CLI 输入追踪到产物、指标、scorecard 和报告。" href="/zh/docs/maintainers/architecture/workflow" />
+  <Card title="代码地图" description="全包“目录 → 职责”速查表，含每个包的首读文件。" href="/zh/docs/maintainers/architecture/file-index" />
+  <Card title="使用界面与编排" description="CLI、TUI、MCP 如何把用户意图编译为三个规划边界。" href="/zh/docs/maintainers/architecture/surfaces-orchestration" />
+  <Card title="工作流" description="从 CLI 输入追踪到产物、指标、scorecard 和报告。" href="/zh/docs/maintainers/architecture/workflow" />
   <Card title="评测核心" description="理解 requests、runners、metrics、reports 和 scorecards。" href="/zh/docs/maintainers/architecture/evaluation-core" />
   <Card title="模型运行时" description="以段落说明 pipeline、operator、runtime 与 artifact contract 如何协作；OpenVLA 作为参考实现。" href="/zh/docs/maintainers/architecture/model-runtime" />
+  <Card title="Runtime 组装" description="pipeline、operator、synthesis、representation、base_models 的基类契约与目录职责。" href="/zh/docs/maintainers/architecture/runtime-assembly" />
+  <Card title="原生 Diffusion" description="理解框架自有的采样内核、组件边界、依赖规则和研究扩展点。" href="/zh/docs/maintainers/architecture/native-diffusion" />
+  <Card title="核心基础设施" description="worldfoundry/core 共享层——加载、attention、分布式、VRAM、kernel、memory，以及“可复用原语只在此处”的规则。" href="/zh/docs/maintainers/architecture/core-infrastructure" />
   <Card title="基准和数据" description="理解 benchmark manifests、datasets、官方 evaluator 和 readiness checks。" href="/zh/docs/maintainers/architecture/benchmarks-data" />
   <Card title="Studio 内部" description="理解交互式预览界面如何复用同一套 runtime contract。" href="/zh/docs/maintainers/architecture/studio-internals" />
 </Cards>
@@ -25,10 +30,13 @@ WorldFoundry 将模型执行和 benchmark 评分分开。模型负责产出归�
 
 ## 主要层级
 
+下方七条职责是权威的归属模型——每条写明该层拥有什么、不能伸手到哪里。[设计](/zh/docs/overview/design) 的四层图只是粗粒度高层概览，可映射到这七条上；当改动涉及归属时，以本列表为准，而非那张图。
+
 改行为前先问该改哪一层。若属于 model runtime，就不应把 scoring logic 塞进 runner；若属于 reporting，就不应假设某种 checkpoint 布局。层与层之间通过可序列化契约（`GenerationRequest`、`GenerationResult`、`BenchmarkSpec`、scorecard 字段）通信，而不是共享全局状态或机器本地路径。
 
 - **CLI 与编排** 负责用户命令、运行模式、suite、resume 行为和输出位置，不应承担模型特定推理细节。
 - **Model runtime** 负责 pipeline、operator、本地 runtime、hosted API wrapper 和归一化生成结果，不应承担 benchmark scoring logic。
+- **原生 Diffusion** 位于 `worldfoundry/base_models/diffusion_model`，负责本地 diffusion 组件契约和采样循环，不能依赖任何上游 pipeline 框架，也不能反向依赖 WorldFoundry 的编排与评测层。
 - **Benchmark runtime** 负责 benchmark manifest、dataset、evaluator、metric 和结果归一化，不应承担模型加载或 checkpoint-specific setup。
 - **Catalog 与 readiness** 负责模型/benchmark metadata、source provenance、资产、环境要求、blocker 和支持状态，不应描述没有代码证据支撑的 runtime 行为。
 - **Reporting** 负责 manifest、summary、report、scorecard 和 leaderboard eligibility，不应隐藏缺失资产或 skipped work。
@@ -42,6 +50,7 @@ WorldFoundry 将模型执行和 benchmark 评分分开。模型负责产出归�
 - **Operator plus pipeline** — 可运行方法需要同时具备 pipeline 和 operator，让输入处理明确且可复现。
 - **证据优先于声明** — Catalog entry 可以描述意图，但支持状态必须匹配真实可运行证据。
 - **外部代码先作为 provenance** — 官方仓库和 checkpoint 可以记录，但机器本地路径不能成为 runtime dependency。
+- **唯一原生 diffusion 内核** — 上游仓库只作为实现参考，不作为 runtime backend；可复用的推理算法在 WorldFoundry 内只有一份 canonical implementation。
 - **Official validation 不等于 benchmark parity** — Official-validation import 用真实文件证明结果归一化链路；benchmark-ready 需要真实数据、指标和 scorecard。
 
 ## 常见阅读路径

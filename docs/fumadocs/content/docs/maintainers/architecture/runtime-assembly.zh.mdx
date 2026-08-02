@@ -1,0 +1,65 @@
+---
+title: Runtime 组装
+description: pipeline、operator、synthesis、representation、base_models 的基类契约与目录职责 —— 模型调用在到达 GenerationResult 之前如何被组装。
+---
+
+## 本页用途
+
+本页是模型执行侧的目录级与基类级地图，回答输入整形、推理、几何、状态分别归哪个文件，以及各自实现什么契约。如何编写或迁移一个模型的叙事见 [模型运行时](/zh/docs/maintainers/architecture/model-runtime)；这些实现所复用的共享原语见 [核心基础设施](/zh/docs/maintainers/architecture/core-infrastructure)。
+
+要记住的一条链：
+
+```text
+PipelineABC
+  -> BaseOperator: 校验/加载/整形 interaction 与媒体
+  -> BaseSynthesis: native runtime 调用或 hosted API
+     -> NativeDiffusionPipeline（仅本地扩散）
+  -> BaseRepresentation: 推导深度、点云、3DGS、panorama、geometry
+  -> BaseMemory: 为流式或多轮控制保留前序状态
+  -> GenerationResult
+```
+
+每个可运行方法都需要一个 pipeline 和一个 operator。operator 可以很薄，但必须存在。
+
+## 基类契约
+
+| 基类 | 文件:行 | 职责 |
+| --- | --- | --- |
+| `PipelineABC` | `pipelines/pipeline_utils.py:11` | 最小公共入口：`from_pretrained()` `:118`、`process()` `:173`，支持增量输出时还有 `stream()`。拥有模型构造、checkpoint 加载、设备放置、归一化执行与 `GenerationResult` artifact 语义。 |
+| `BaseOperator` | `operators/base_operator.py:4` | 仅输入与 interaction 整形：`interaction_template_init`、`get_interaction`、`check_interaction`、`process_interaction`、`process_perception`。不得承载生成或打分。 |
+| `BaseSynthesis` | `synthesis/base_synthesis.py:38` | 把公共 artifact 处理连接到本地 native runtime 或 hosted API：`from_pretrained` `:57`、`api_init` `:76`、`predict` `:93`。 |
+| `BaseRepresentation` | `representations/base_representation.py:4` | 把模型输出转换为几何/世界 artifact：`from_pretrained`、`api_init`、`get_representation`。 |
+| `ActionModelSynthesis` | `synthesis/action_generation/base_action_synthesis.py:14` | 具身动作 synthesis 面（继承 `RuntimeProfileSynthesis`）；用于 VLA 类动作策略。 |
+| `BaseMemory` | `core/memory/base.py:9` | 为流式、长上下文或交互式流程存储与变换前序多模态状态。在 `core` 定义，由各 family 在 `synthesis/*/memory` 实现。 |
+
+## 目录职责
+
+### `worldfoundry/pipelines/`
+每个 model family 一个薄 public wrapper（`pipelines/<family>/pipeline_*.py`）。`from_pretrained()` staging checkpoint 或初始化 API client；`process()`/`__call__()` 把用户输入变成 artifact；`stream()` 仅在 Studio 实时控制或增量输出需要时实现。共 88 个 family 目录。Hosted provider wrapper（Wan hosted、Kling、Runway、Luma、Hailuo、Sora/Veo、World Labs）与本地 checkpoint runtime 分开存放。
+
+### `worldfoundry/operators/`
+各 family 的 `*_operator.py`，负责校验、图像/视频加载、camera/action 解析、interaction 整形、perception 预处理。输入在模型执行前就出错时先看这里。共享媒体助手在 `operators/_media.py`。
+
+### `worldfoundry/synthesis/`
+仅树内 runtime 实现。外部 repo 或 checkpoint 在移植前只是 metadata。
+- `synthesis/visual_generation/**` —— 视觉/世界生成 checkpoint 调用、hosted API、子进程桥、runtime env 助手，以及各 family 的 `synthesis.py`（如 `cameractrl/synthesis.py`、`motionctrl/synthesis.py`、`echo_memory/`、`openvla/`）。
+- `synthesis/action_generation/**` —— 具身动作面，含 OpenVLA runtime、`_native_policy_runtime.py`、`_official_action_trace.py`、`base_action_synthesis.py`。
+
+CameraCtrl 与 MotionCtrl 不共享同一个 synthesis 包；它们各有 `synthesis.py`，共享的 camera-control YAML 在 `data/models/runtime/configs/camera_control`。
+
+### `worldfoundry/representations/`
+- `representations/depth_generation/**` —— 深度 benchmark 逻辑。
+- `representations/point_clouds_generation/**` —— 点云、3DGS、panorama、geometry 资产构建（如 `worldfm/`、`vggt/`、`cut3r/`、`lyra/`、`pixelsplat/`、`lingbot_map/`、`hunyuan_world/`）。
+
+### `worldfoundry/base_models/`
+四个仅推理的包；不含训练、数据集、dataloader、callback、loss、仅增强模块或实验脚本。
+- `diffusion_model` —— 唯一的 canonical 扩散内核与唯一的扩散包边界。见 [原生扩散](/zh/docs/maintainers/architecture/native-diffusion)。
+- `llm_mllm_core` —— 语言/多模态语言推理。
+- `perception_core` —— 感知推理。
+- `three_dimensions` —— 推理所需的 3D transform 与 geometry 助手。
+
+## 如何判断改动属于哪里
+
+问出错发生在哪。输入在模型执行前就错 → `operators/`。原生推理、checkpoint 调用、hosted API、子进程桥 → `synthesis/`。3D/4D artifact 或可视化 → `representations/`。流式或多轮状态 → `core/memory` 加对应 `synthesis/*/memory`。公共加载路径、输入签名或输出 artifact 契约 → `pipelines/`。能服务多个 family 的可复用原语 → `core`，绝不放进 family 包。
+
+全包目录地图见 [代码地图](/zh/docs/maintainers/architecture/file-index)。本组装之后的完整 run 流程见 [工作流](/zh/docs/maintainers/architecture/workflow)。

@@ -250,23 +250,25 @@ class PrintToFile(PrintRedirection):
           err_file: file path. If the same as out_file, print both stdout
               and stderr to one file in order.
         """
-        self.out_file, self.err_file = out_file, err_file
+        self.out_file = None
+        self.err_file = None
+        out_path = None
         if out_file:
-            out_file = os.path.expanduser(out_file)
-            self.out_file = open(out_file, "w")
+            out_path = os.path.expanduser(out_file)
+            self.out_file = open(out_path, "w")
         if err_file:
-            err_file = os.path.expanduser(out_file)
-            if err_file == out_file:  # redirect both stdout/err to one file
+            err_path = os.path.expanduser(err_file)
+            if out_path is not None and err_path == out_path:  # redirect both stdout/err to one file
                 self.err_file = self.out_file
             else:
-                self.err_file = open(os.path.expanduser(out_file), "w")
+                self.err_file = open(err_path, "w")
         super().__init__(stdout=self.out_file, stderr=self.err_file)
 
     def __exit__(self, *args):
         super().__exit__(*args)
         if self.out_file:
             self.out_file.close()
-        if self.err_file:
+        if self.err_file and self.err_file is not self.out_file:
             self.err_file.close()
 
 
@@ -339,6 +341,7 @@ class ReplaceStringLoggingFilter(logging.Filter):
     def filter(self, record):
         if match_patterns(record.msg, include=self._patterns):
             record.msg = self._replacer(record.msg)
+        return True
 
 
 def logging_exclude_pattern(

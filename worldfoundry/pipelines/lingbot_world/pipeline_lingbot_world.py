@@ -236,6 +236,22 @@ class LingBotPipeline(PipelineABC):
         )
 
         if output_video is None:
+            # The distributed LingBot runtime decodes only on rank zero.  The
+            # remaining ranks still have to execute the complete denoising
+            # graph and participate in Studio's status gather, but an empty
+            # local payload is expected there (the V2 pipeline follows the
+            # same contract).  Treat ``None`` as an error only for rank zero
+            # or a non-distributed invocation, where it really does mean that
+            # no video was produced.
+            import torch.distributed as dist
+
+            if (
+                dist.is_available()
+                and dist.is_initialized()
+                and dist.get_world_size() > 1
+                and dist.get_rank() != 0
+            ):
+                return None
             raise RuntimeError("LingBot did not return video frames on the current rank.")
         artifact_path = None
         if output_path is not None:

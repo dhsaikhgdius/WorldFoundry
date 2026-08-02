@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import inspect
 import json
 import os
@@ -9,12 +8,13 @@ import socket
 import subprocess
 import sys
 import time
+from contextlib import nullcontext
 from dataclasses import dataclass
 from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any, Mapping
 
-from worldfoundry.core.io import load_serialized, resolve_data_path
+from worldfoundry.core.io import file_sha256, load_serialized, resolve_data_path
 from worldfoundry.runtime.assets import expand_worldfoundry_path
 
 
@@ -387,7 +387,7 @@ class OfficialVideoRuntime:
             "runtime": self.runtime.get("kind"),
             "backend_quality": self.runtime.get("backend_quality", "official_runtime_bridge"),
             "artifact_path": str(output),
-            "artifact_sha256": hashlib.sha256(output.read_bytes()).hexdigest() if output.is_file() else None,
+            "artifact_sha256": file_sha256(output) if output.is_file() else None,
             "metadata": dict(metadata),
         }
 
@@ -631,8 +631,24 @@ class OfficialVideoRuntime:
         dtype_name = str(extra.get("torch_dtype") or self.runtime.get("torch_dtype") or "float16")
         torch_dtype = getattr(torch, dtype_name)
         pipe = pipeline_cls.from_pretrained(str(checkpoint_path), torch_dtype=torch_dtype)
-        if hasattr(pipe, "to"):
+        enable_model_cpu_offload = bool(self.runtime.get("enable_model_cpu_offload", False))
+        if enable_model_cpu_offload:
+            offload = getattr(pipe, "enable_model_cpu_offload", None)
+            if not callable(offload):
+                raise TypeError(
+                    f"{pipeline_cls.__name__} does not support requested model CPU offload"
+                )
+            offload(device=self.device)
+        elif hasattr(pipe, "to"):
             pipe = pipe.to(self.device)
+        if bool(self.runtime.get("enable_vae_tiling", False)):
+            vae = getattr(pipe, "vae", None)
+            enable_tiling = getattr(vae, "enable_tiling", None)
+            if not callable(enable_tiling):
+                raise TypeError(
+                    f"{pipeline_cls.__name__} does not support requested VAE tiling"
+                )
+            enable_tiling()
         call_kwargs = dict(self.runtime.get("call_kwargs") or {})
         call_kwargs.update(extra)
         # Some Diffusers pipelines condition on ``target_fps`` while others do
@@ -668,7 +684,17 @@ class OfficialVideoRuntime:
                 for key, value in call_kwargs.items()
                 if key in parameters
             }
-        result = pipe(prompt=prompt, **call_kwargs)
+        autocast_dtype_name = self.runtime.get("autocast_dtype")
+        if autocast_dtype_name and str(self.device).startswith("cuda"):
+            autocast_context = torch.autocast(
+                device_type="cuda",
+                dtype=getattr(torch, str(autocast_dtype_name)),
+                cache_enabled=bool(self.runtime.get("autocast_cache_enabled", False)),
+            )
+        else:
+            autocast_context = nullcontext()
+        with autocast_context:
+            result = pipe(prompt=prompt, **call_kwargs)
         frames = getattr(result, "frames", None) or getattr(result, "videos", None) or result[0]
         if frames and isinstance(frames, list) and frames and isinstance(frames[0], list):
             frames = frames[0]

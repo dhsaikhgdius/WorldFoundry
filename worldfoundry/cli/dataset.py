@@ -11,8 +11,8 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from worldfoundry.evaluation.utils import write_json, write_jsonl
 from worldfoundry.cli.utils import json_dump, parse_key_value_mapping
+from worldfoundry.evaluation.utils import write_json, write_jsonl
 
 
 def _handle_dataset_create(args: argparse.Namespace) -> int:

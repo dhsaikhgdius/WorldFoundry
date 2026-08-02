@@ -14,11 +14,9 @@ import { DocsReadingProgress } from '@/components/docs-reading-progress';
 import { DocsScrollBridge } from '@/components/docs-scroll-bridge';
 import { ModelCommandBuilder } from '@/components/model-command-builder';
 import { ModelIdentityMark } from '@/components/model-identity-mark';
-import { SiteNav } from '@/components/site-nav';
-import { SiteSearchTrigger } from '@/components/site-search-trigger';
-import { WorldFoundryWordmarkLink } from '@/components/worldfoundry-wordmark';
+import { SiteHeader } from '@/components/site-header';
 import type { ModelRecipe } from '@/lib/model-recipe-types';
-import { getRelatedModelRecipes } from '@/lib/model-recipes';
+import { getRelatedModelRecipes, modelRecipeData } from '@/lib/model-recipes';
 
 type Locale = 'en' | 'zh';
 
@@ -31,11 +29,22 @@ const copy = {
     close: 'Close',
     language: 'Language',
     overview: 'Overview',
+    use: 'Use this model',
+    whatIs: 'What this model is',
+    whatIsIntro:
+      'Plain-language summary from the catalog manifest — what the model does, what it takes in, and what it writes out.',
+    tasksLabel: 'Tasks',
+    inputsOverview: 'Inputs',
+    outputsOverview: 'Outputs',
     compatibility: 'Compatibility & versions',
     install: 'Install environment',
     assets: 'Checkpoints & assets',
-    launch: 'Launch & outputs',
+    launch: 'Run & outputs',
+    launchBuilderHint: 'Use the command builder above to pick a variant and copy its run command.',
     evidence: 'Evidence & sources',
+    advanced: 'Advanced — manifest fields',
+    advancedIntro:
+      'Internal pipeline and runtime metadata recorded by the catalog manifest. Most users do not need these to run a model.',
     manifestBacked: 'Manifest-backed recipe',
     notRecorded: 'Not recorded',
     runtime: 'Runtime',
@@ -70,14 +79,38 @@ const copy = {
     noContract: 'No input schema is recorded in the selected runtime profile.',
     noArtifacts: 'No artifact contract is recorded for this model.',
     noCheckpoints: 'No checkpoint repository is recorded in the catalog manifest.',
+    noPipeline: 'No runnable inference pipeline is recorded for this model.',
+    variantRuntimeIntro: 'Family-level defaults are shown here; select a variant above for its exact inference route.',
+    variantContractIntro: 'Select a variant in the run builder above to inspect its pipeline-specific input and artifact contract.',
     installIntro:
       'The environment resolver reads the recorded profile and chooses the unified or dedicated environment shown here.',
     assetsIntro:
       'Run the local check before allocating compute. Gated, private, and license fields below come directly from the checkpoint manifest.',
     launchIntro:
-      'The generated command uses the shared evaluation boundary and writes durable result manifests and artifacts.',
+      'The generated command selects the recorded task profile and writes durable result manifests and artifacts.',
     evidenceIntro:
       'Catalog integration, native-demo parity, and runner parity are independent records.',
+    useIntro: 'Choose a recorded route, prepare its requirements, then run it.',
+    readyNow: 'Runnable route recorded',
+    readyNowDescription: 'A runnable WorldFoundry pipeline is recorded for this model — copy the command below.',
+    needsValidation: 'Route recorded; parity still in progress',
+    needsValidationDescription: 'A runnable route is recorded; upstream parity is still being verified.',
+    referenceOnly: 'Reference or planned entry',
+    referenceOnlyDescription: 'This entry records upstream provenance, not a runnable WorldFoundry route yet.',
+    referenceHeadline: 'Not runnable in WorldFoundry yet',
+    referenceBody:
+      'This catalog entry records where the model comes from and what it is, but no runnable WorldFoundry pipeline is bound to it. Commands and environments below are intentionally omitted.',
+    relatedRunnable: 'Runnable recipes in the same family',
+    supportedRoutes: 'Runnable variants',
+    workflow: 'Three short steps',
+    workflowChoose: 'Select a route',
+    workflowChooseDescription: 'Choose a variant with a recorded pipeline.',
+    workflowPrepare: 'Prepare and check',
+    workflowPrepareDescription: 'Install its environment and confirm checkpoint access.',
+    workflowRun: 'Run and verify',
+    workflowRunDescription: 'Copy the command, then inspect the expected artifact.',
+    supportNotes: 'Notes and limits',
+    upstreamReading: 'Official guide',
     officialSources: 'Official sources',
     provenance: 'Recipe provenance',
     catalogManifest: 'Catalog manifest',
@@ -92,11 +125,20 @@ const copy = {
     close: '关闭',
     language: '语言',
     overview: '概览',
+    use: '使用此模型',
+    whatIs: '这个模型是什么',
+    whatIsIntro: '来自 catalog manifest 的平实说明——模型做什么、接受什么输入、写出什么。',
+    tasksLabel: '任务',
+    inputsOverview: '输入',
+    outputsOverview: '输出',
     compatibility: '兼容性与版本',
     install: '安装环境',
     assets: 'Checkpoint 与资产',
     launch: '运行与输出',
+    launchBuilderHint: '用上方的命令构建器选择 variant，复制对应的运行命令。',
     evidence: '证据与来源',
+    advanced: '高级 — manifest 字段',
+    advancedIntro: 'catalog manifest 记录的内部 pipeline 与 runtime 元数据。多数用户运行模型时用不到这些。',
     manifestBacked: '由 Manifest 生成',
     notRecorded: '未记录',
     runtime: '运行时',
@@ -131,10 +173,34 @@ const copy = {
     noContract: '所选 runtime profile 没有记录输入 schema。',
     noArtifacts: '该模型没有记录 artifact 契约。',
     noCheckpoints: 'Catalog manifest 没有记录 checkpoint 仓库。',
+    noPipeline: '该模型没有记录可运行的推理 Pipeline。',
+    variantRuntimeIntro: '此处显示模型 family 默认值；请在上方选择 variant 查看准确的推理 route。',
+    variantContractIntro: '请在上方运行构建器中选择 variant，查看该 Pipeline 对应的输入与 Artifact 契约。',
     installIntro: '环境解析器会读取已记录 profile，并选择此处显示的统一或独立环境。',
     assetsIntro: '分配算力前先做本地检查；gated、private 与 license 字段直接来自 checkpoint manifest。',
-    launchIntro: '生成的命令通过共享 evaluation 边界运行，并持久保存结果 manifest 与 artifact。',
+    launchIntro: '生成的命令会选择已记录的 task profile，并持久保存结果 manifest 与 artifact。',
     evidenceIntro: 'Catalog 集成、原生 demo parity 与 runner parity 是三条独立记录。',
+    useIntro: '选择已记录路径，确认环境与资产，然后运行。',
+    readyNow: '已记录可运行路径',
+    readyNowDescription: 'WorldFoundry 已记录该模型的可运行 Pipeline——复制下方命令即可。',
+    needsValidation: '已记录路径，仍在验证 parity',
+    needsValidationDescription: '已记录可运行路径；上游 parity 仍在验证中。',
+    referenceOnly: '参考或计划条目',
+    referenceOnlyDescription: '此条目记录了上游来源，但尚无可运行的 WorldFoundry 路径。',
+    referenceHeadline: '尚不可在 WorldFoundry 中运行',
+    referenceBody:
+      '该 catalog 条目记录了模型来源与基本信息，但未绑定可运行的 WorldFoundry Pipeline。下方命令与环境因此省略。',
+    relatedRunnable: '同族中可运行的配方',
+    supportedRoutes: '可运行变体',
+    workflow: '三步完成',
+    workflowChoose: '选择路径',
+    workflowChooseDescription: '选择有已记录 Pipeline 的变体。',
+    workflowPrepare: '准备并检查',
+    workflowPrepareDescription: '安装环境，并确认 checkpoint 可访问。',
+    workflowRun: '运行并验证',
+    workflowRunDescription: '复制命令，然后检查预期 artifact。',
+    supportNotes: '说明与限制',
+    upstreamReading: '官方说明',
     officialSources: '官方来源',
     provenance: '配方溯源',
     catalogManifest: 'Catalog manifest',
@@ -165,6 +231,19 @@ function artifactSummary(recipe: ModelRecipe, fallback: string) {
     .slice(0, 2)
     .map((artifact) => artifact.filename || artifact.kind)
     .join(', ');
+}
+
+function runnerIsVerified(value: string) {
+  const normalized = value.toLowerCase();
+  return !normalized.includes('partial') && (
+    normalized.includes('verified') || normalized.includes('validated') || normalized.includes('passed')
+  );
+}
+
+function isRunnableVariant(value: { pipelineTarget: string | null; status: string }) {
+  const status = value.status.toLowerCase().replaceAll('-', '_');
+  const unavailable = ['not_recorded', 'planned', 'profile', 'profile_only', 'blocked', 'unavailable', 'missing'];
+  return Boolean(value.pipelineTarget) && !unavailable.some((marker) => status.includes(marker));
 }
 
 function DefinitionRow({ label, value }: { label: string; value: string | null | undefined }) {
@@ -199,43 +278,71 @@ export function ModelRecipePage({ recipe, locale }: { recipe: ModelRecipe; local
           ? '统一环境'
           : 'Unified environment'
         : t.notRecorded;
+  const routedVariants = recipe.variants.filter(isRunnableVariant);
+  const hasRunnableRoute = routedVariants.length > 0 || (
+    recipe.variants.length === 0
+    && Boolean(recipe.runtime.pipelineTarget)
+    && !['planned', 'profile', 'blocked'].includes(recipe.status.group)
+  );
+  const routeIsVerified = runnerIsVerified(recipe.status.runner);
+  const isReferenceOnly = !hasRunnableRoute;
+  const usageState = isReferenceOnly
+    ? 'reference'
+    : routeIsVerified
+      ? 'ready'
+      : 'caution';
+  const usageTitle = usageState === 'ready'
+    ? t.readyNow
+    : usageState === 'caution'
+      ? t.needsValidation
+      : t.referenceOnly;
+  const usageDescription = usageState === 'ready'
+    ? t.readyNowDescription
+    : usageState === 'caution'
+      ? t.needsValidationDescription
+      : t.referenceOnlyDescription;
+  const runnablePeers = isReferenceOnly
+    ? modelRecipeData.recipes
+        .filter((candidate) => candidate.id !== recipe.id
+          && candidate.category === recipe.category
+          && ['verified', 'integrated'].includes(candidate.status.group))
+        .slice(0, 4)
+    : [];
   const sections = [
     ['overview', t.overview],
-    ['compatibility', t.compatibility],
+    ['use', t.use],
+    ['what-is', t.whatIs],
+    ['launch', t.launch],
     ['install', t.install],
     ['assets', t.assets],
-    ['launch', t.launch],
     ['evidence', t.evidence],
+    ['advanced', t.advanced],
   ];
 
   return (
     <main className="pi-doc-shell wf-recipe-shell" lang={locale}>
       <DocsScrollBridge />
-      <header className="pi-header pi-doc-header">
-        <DocsReadingProgress />
-        <div className="pi-doc-header-inner flex flex-wrap items-center justify-between w-full">
-          <div className="pi-doc-header-brand">
-            <DocsMobileNavToggle openLabel={t.menu} closeLabel={t.close} />
-            <WorldFoundryWordmarkLink variant="compact" />
-          </div>
-          <div className="pi-doc-header-tools ml-auto">
-            <SiteNav
-              active="models"
-              docsHref={locale === 'zh' ? '/zh/docs' : '/docs'}
-              docsLabel={t.docs}
-            />
-            <SiteSearchTrigger />
-            <div className="pi-language-switch" aria-label={t.language}>
-              <Link href={`/docs/guides/supported-models/${recipe.id}`} aria-current={locale === 'en' ? 'true' : undefined}>
-                English
-              </Link>
-              <Link href={`/zh/docs/guides/supported-models/${recipe.id}`} aria-current={locale === 'zh' ? 'true' : undefined}>
-                中文
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
+      <SiteHeader
+        variant="solid"
+        active="models"
+        docsHref={locale === 'zh' ? '/zh/docs' : '/docs'}
+        docsLabel={t.docs}
+        languageAriaLabel={t.language}
+        beforeInner={<DocsReadingProgress />}
+        brandLeading={<DocsMobileNavToggle openLabel={t.menu} closeLabel={t.close} />}
+        languageLinks={[
+          {
+            href: `/docs/guides/supported-models/${recipe.id}`,
+            label: 'English',
+            current: locale === 'en',
+          },
+          {
+            href: `/zh/docs/guides/supported-models/${recipe.id}`,
+            label: '中文',
+            current: locale === 'zh',
+          },
+        ]}
+      />
 
       <div className="pi-doc-frame wf-recipe-frame">
         <aside className="pi-doc-sidebar wf-recipe-sidebar" id="pi-doc-sidebar" aria-label={t.models}>
@@ -321,127 +428,73 @@ export function ModelRecipePage({ recipe, locale }: { recipe: ModelRecipe; local
                 ) : null}
               </header>
 
-              <ModelCommandBuilder recipe={recipe} locale={locale} />
-
-              <section className="wf-recipe-section" id="compatibility">
-                <header>
-                  <span>01</span>
+              <div className={`wf-recipe-runbar is-${usageState}`} id="use">
+                <div className="wf-recipe-runbar-head">
+                  <ShieldCheck aria-hidden="true" size={15} />
                   <div>
-                    <h2>{t.compatibility}</h2>
-                    <p>{t.manifestBacked}</p>
+                    <span className="wf-recipe-runbar-label">{t.integration}</span>
+                    <strong>{usageTitle}</strong>
+                    <p>{usageDescription}</p>
                   </div>
-                </header>
-                <dl className="wf-recipe-version-matrix">
-                  <DefinitionRow label={t.integration} value={formatStatus(recipe.status.integration, t.notRecorded)} />
-                  <DefinitionRow label={t.runnerEvidence} value={formatStatus(recipe.status.runner, t.notRecorded)} />
-                  <DefinitionRow label={t.environment} value={recipe.runtime.environmentName} />
-                  <DefinitionRow label={t.python} value={recipe.runtime.python} />
-                  <DefinitionRow label={t.cuda} value={recipe.runtime.cudaLabel} />
-                  <DefinitionRow label={t.pytorch} value={recipe.runtime.packageVersions.torch} />
-                  <DefinitionRow label={t.sourceRevision} value={revision(recipe, 'source')} />
-                  <DefinitionRow label={t.checkpointRevision} value={revision(recipe, 'checkpoint')} />
-                </dl>
-
-                <dl className="wf-recipe-runtime-matrix">
-                  <DefinitionRow label={t.profile} value={recipe.runtime.profileId} />
-                  <DefinitionRow label={t.binding} value={recipe.runtime.bindingId} />
-                  <DefinitionRow label={t.runner} value={recipe.runtime.runner ?? recipe.runtime.runnerTarget} />
-                  <DefinitionRow label={t.pipeline} value={recipe.runtime.pipelineTarget} />
-                  <DefinitionRow label={t.backend} value={recipe.runtime.backendStage} />
-                  <DefinitionRow label={t.runtimeStatus} value={recipe.runtime.runtimeStatus} />
-                  <DefinitionRow label={t.driverStatus} value={recipe.runtime.driverStatus} />
-                  <DefinitionRow label={t.environmentKind} value={environmentKind} />
-                </dl>
-              </section>
-
-              <section className="wf-recipe-section" id="install">
-                <header>
-                  <span>02</span>
-                  <div>
-                    <h2>{t.install}</h2>
-                    <p>{t.installIntro}</p>
-                  </div>
-                </header>
-                <CommandBlock>{recipe.commands.install}</CommandBlock>
-                <div className="wf-recipe-package-columns">
-                  <details open={recipe.runtime.pipPackages.length > 0}>
-                    <summary>
-                      {t.packages} <span>{recipe.runtime.pipPackages.length}</span>
-                    </summary>
-                    {recipe.runtime.pipPackages.length > 0 ? (
-                      <ul>
-                        {recipe.runtime.pipPackages.map((item) => (
-                          <li key={item}>
-                            <code>{item}</code>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p>{t.notRecorded}</p>
-                    )}
-                  </details>
-                  <details>
-                    <summary>
-                      {t.condaPackages} <span>{recipe.runtime.condaPackages.length}</span>
-                    </summary>
-                    {recipe.runtime.condaPackages.length > 0 ? (
-                      <ul>
-                        {recipe.runtime.condaPackages.map((item) => (
-                          <li key={item}>
-                            <code>{item}</code>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p>{t.notRecorded}</p>
-                    )}
-                  </details>
                 </div>
-              </section>
+                {routedVariants.length > 0 ? (
+                  <div className="wf-recipe-runbar-routes">
+                    <span>{t.supportedRoutes}</span>
+                    <div>
+                      {routedVariants.map((variant) => (
+                        <code key={variant.id}>{variant.id}</code>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
 
-              <section className="wf-recipe-section" id="assets">
+              {isReferenceOnly ? (
+                <section className="wf-recipe-reference-card" aria-labelledby="wf-reference-heading">
+                  <h2 id="wf-reference-heading">{t.referenceHeadline}</h2>
+                  <p>{t.referenceBody}</p>
+                  <dl className="wf-recipe-reference-meta">
+                    {recipe.provider ? <DefinitionRow label="Provider" value={recipe.provider} /> : null}
+                    <DefinitionRow label={t.tasksLabel} value={recipe.tasks.length > 0 ? recipe.tasks.join(' · ') : null} />
+                    <DefinitionRow label={t.integration} value={formatStatus(recipe.status.integration, t.notRecorded)} />
+                    <DefinitionRow label={t.runnerEvidence} value={formatStatus(recipe.status.runner, t.notRecorded)} />
+                    <DefinitionRow label={t.demoEvidence} value={formatStatus(recipe.status.demo, t.notRecorded)} />
+                  </dl>
+                  {runnablePeers.length > 0 ? (
+                    <div className="wf-recipe-reference-peers">
+                      <span>{t.relatedRunnable}</span>
+                      <div>
+                        {runnablePeers.map((peer) => (
+                          <Link href={`${basePath}/${peer.id}`} key={peer.id}>
+                            <strong>{peer.name}</strong>
+                            <small>{peer.provider}</small>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </section>
+              ) : (
+                <ModelCommandBuilder recipe={recipe} locale={locale} />
+              )}
+
+              <section className="wf-recipe-section wf-recipe-what-is" id="what-is">
                 <header>
-                  <span>03</span>
+                  <span>00</span>
                   <div>
-                    <h2>{t.assets}</h2>
-                    <p>{t.assetsIntro}</p>
+                    <h2>{t.whatIs}</h2>
+                    <p>{t.whatIsIntro}</p>
                   </div>
                 </header>
-                <CommandBlock>{recipe.commands.check}</CommandBlock>
-                {recipe.checkpoints.length > 0 ? (
-                  <div className="wf-recipe-checkpoints">
-                    {recipe.checkpoints.map((checkpoint) => (
-                      <article key={`${checkpoint.id}:${checkpoint.revision ?? ''}`}>
-                        <div>
-                          <Package aria-hidden="true" size={16} />
-                          <strong>{checkpoint.id}</strong>
-                        </div>
-                        <dl>
-                          <DefinitionRow label="Revision" value={checkpoint.revision} />
-                          <DefinitionRow label="License" value={checkpoint.license} />
-                          <DefinitionRow label="Gated" value={typeof checkpoint.gated === 'boolean' ? String(checkpoint.gated) : null} />
-                          <DefinitionRow label="Private" value={typeof checkpoint.private === 'boolean' ? String(checkpoint.private) : null} />
-                        </dl>
-                      </article>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="wf-recipe-empty-note">{t.noCheckpoints}</p>
-                )}
-              </section>
-
-              <section className="wf-recipe-section" id="launch">
-                <header>
-                  <span>04</span>
-                  <div>
-                    <h2>{t.launch}</h2>
-                    <p>{t.launchIntro}</p>
-                  </div>
-                </header>
-                <CommandBlock>{recipe.commands.run}</CommandBlock>
+                <p className="wf-recipe-summary">{recipe.summary}</p>
+                <dl className="wf-recipe-what-is-meta">
+                  <DefinitionRow label={t.tasksLabel} value={recipe.tasks.length > 0 ? recipe.tasks.join(' · ') : t.notRecorded} />
+                  <DefinitionRow label={t.environment} value={recipe.runtime.environmentName} />
+                  <DefinitionRow label={t.output} value={artifactSummary(recipe, t.notRecorded)} />
+                </dl>
                 <div className="wf-recipe-contracts">
                   <div>
-                    <h3>{t.inputs}</h3>
+                    <h3>{t.inputsOverview}</h3>
                     {recipe.inputContract.length > 0 ? (
                       <table>
                         <thead>
@@ -464,7 +517,7 @@ export function ModelRecipePage({ recipe, locale }: { recipe: ModelRecipe; local
                     )}
                   </div>
                   <div>
-                    <h3>{t.artifacts}</h3>
+                    <h3>{t.outputsOverview}</h3>
                     {recipe.artifacts.length > 0 ? (
                       <table>
                         <thead>
@@ -489,9 +542,105 @@ export function ModelRecipePage({ recipe, locale }: { recipe: ModelRecipe; local
                 </div>
               </section>
 
+              <section className="wf-recipe-section" id="launch">
+                <header>
+                  <span>01</span>
+                  <div>
+                    <h2>{t.launch}</h2>
+                    <p>{isReferenceOnly ? t.referenceOnlyDescription : recipe.variants.length > 0 ? t.variantContractIntro : t.launchIntro}</p>
+                  </div>
+                </header>
+                {isReferenceOnly ? null : recipe.variants.length === 0 && recipe.runtime.pipelineTarget ? (
+                  <CommandBlock>{recipe.commands.run}</CommandBlock>
+                ) : null}
+                {isReferenceOnly || recipe.variants.length === 0 ? null : (
+                  <p className="wf-recipe-builder-pointer">{t.launchBuilderHint}</p>
+                )}
+              </section>
+
+              {isReferenceOnly ? null : (
+              <section className="wf-recipe-section" id="install">
+                <header>
+                  <span>02</span>
+                  <div>
+                    <h2>{t.install}</h2>
+                    <p>{t.installIntro}</p>
+                  </div>
+                </header>
+                {recipe.runtime.pipPackages.length === 0 && recipe.runtime.condaPackages.length === 0 ? (
+                  <p className="wf-recipe-empty-note">{t.notRecorded}</p>
+                ) : (
+                  <div className="wf-recipe-package-columns">
+                    <details>
+                      <summary>
+                        {t.packages} <span>{recipe.runtime.pipPackages.length}</span>
+                      </summary>
+                      {recipe.runtime.pipPackages.length > 0 ? (
+                        <ul>
+                          {recipe.runtime.pipPackages.map((item) => (
+                            <li key={item}>
+                              <code>{item}</code>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p>{t.notRecorded}</p>
+                      )}
+                    </details>
+                    <details>
+                      <summary>
+                        {t.condaPackages} <span>{recipe.runtime.condaPackages.length}</span>
+                      </summary>
+                      {recipe.runtime.condaPackages.length > 0 ? (
+                        <ul>
+                          {recipe.runtime.condaPackages.map((item) => (
+                            <li key={item}>
+                              <code>{item}</code>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p>{t.notRecorded}</p>
+                      )}
+                    </details>
+                  </div>
+                )}
+              </section>
+              )}
+
+              <section className="wf-recipe-section" id="assets">
+                <header>
+                  <span>03</span>
+                  <div>
+                    <h2>{t.assets}</h2>
+                    <p>{isReferenceOnly ? t.referenceOnlyDescription : t.assetsIntro}</p>
+                  </div>
+                </header>
+                {recipe.checkpoints.length > 0 ? (
+                  <div className="wf-recipe-checkpoints">
+                    {recipe.checkpoints.map((checkpoint) => (
+                      <article key={`${checkpoint.id}:${checkpoint.revision ?? ''}`}>
+                        <div>
+                          <Package aria-hidden="true" size={16} />
+                          <strong>{checkpoint.id}</strong>
+                        </div>
+                        <dl>
+                          <DefinitionRow label="Revision" value={checkpoint.revision} />
+                          <DefinitionRow label="License" value={checkpoint.license} />
+                          <DefinitionRow label="Gated" value={typeof checkpoint.gated === 'boolean' ? String(checkpoint.gated) : null} />
+                          <DefinitionRow label="Private" value={typeof checkpoint.private === 'boolean' ? String(checkpoint.private) : null} />
+                        </dl>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="wf-recipe-empty-note">{isReferenceOnly ? t.referenceOnlyDescription : t.noCheckpoints}</p>
+                )}
+              </section>
+
               <section className="wf-recipe-section" id="evidence">
                 <header>
-                  <span>05</span>
+                  <span>04</span>
                   <div>
                     <h2>{t.evidence}</h2>
                     <p>{t.evidenceIntro}</p>
@@ -518,6 +667,39 @@ export function ModelRecipePage({ recipe, locale }: { recipe: ModelRecipe; local
                   ))}
                 </div>
               </section>
+
+              <details className="wf-recipe-advanced" id="advanced">
+                <summary>
+                  <span>05</span>
+                  <div>
+                    <h2>{t.advanced}</h2>
+                    <p>{t.advancedIntro}</p>
+                  </div>
+                </summary>
+                <div className="wf-recipe-advanced-body">
+                  <dl className="wf-recipe-version-matrix">
+                    <DefinitionRow label={t.integration} value={formatStatus(recipe.status.integration, t.notRecorded)} />
+                    <DefinitionRow label={t.runnerEvidence} value={formatStatus(recipe.status.runner, t.notRecorded)} />
+                    <DefinitionRow label={t.environment} value={recipe.runtime.environmentName} />
+                    <DefinitionRow label={t.python} value={recipe.runtime.python} />
+                    <DefinitionRow label={t.cuda} value={recipe.runtime.cudaLabel} />
+                    <DefinitionRow label={t.pytorch} value={recipe.runtime.packageVersions.torch} />
+                    <DefinitionRow label={t.sourceRevision} value={revision(recipe, 'source')} />
+                    <DefinitionRow label={t.checkpointRevision} value={revision(recipe, 'checkpoint')} />
+                  </dl>
+
+                  <dl className="wf-recipe-runtime-matrix">
+                    <DefinitionRow label={t.profile} value={recipe.runtime.profileId} />
+                    <DefinitionRow label={t.binding} value={recipe.runtime.bindingId} />
+                    <DefinitionRow label={t.runner} value={recipe.runtime.runner ?? recipe.runtime.runnerTarget} />
+                    <DefinitionRow label={t.pipeline} value={recipe.runtime.pipelineTarget} />
+                    <DefinitionRow label={t.backend} value={recipe.runtime.backendStage} />
+                    <DefinitionRow label={t.runtimeStatus} value={recipe.runtime.runtimeStatus} />
+                    <DefinitionRow label={t.driverStatus} value={recipe.runtime.driverStatus} />
+                    <DefinitionRow label={t.environmentKind} value={environmentKind} />
+                  </dl>
+                </div>
+              </details>
 
               {related.length > 0 ? (
                 <section className="wf-recipe-related" aria-labelledby="wf-related-recipes">

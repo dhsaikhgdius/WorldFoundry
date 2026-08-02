@@ -3,11 +3,11 @@ title: World-in-World
 description: Practical WorldFoundry runner notes for World-in-World closed-loop utility metrics.
 ---
 
-## What It Measures
+## What it measures
 
 World-in-World evaluates visual world models by **closed-loop embodied utility** instead of open-loop video appearance. Task success in embodied environments is the primary signal — high visual quality does not guarantee high task success.
 
-## Benchmark Design
+## Benchmark design
 
 | Task | Primary metrics | What it tests |
 | --- | --- | --- |
@@ -42,7 +42,7 @@ Protocol references:
 - Source reference: [github.com/World-In-World/world-in-world](https://github.com/World-In-World/world-in-world)
 - Dataset page: [zonszer/WIW_datasets](https://huggingface.co/datasets/zonszer/WIW_datasets)
 
-## Prepare Data And Assets
+## Prepare data and assets
 
 Start from the WorldFoundry repository root:
 
@@ -106,7 +106,7 @@ The generated artifact directory should contain either `metrics.json` or `world_
 
 Accepted result summaries are JSON objects with direct metric IDs or task summaries, or CSV files with `metric_id,score` columns. For task summaries, the runner maps `accuracy` to Active Recognition, `sr` and `spl` to IGNav, `mean_score` and `mean_efficiency` to AEQA, and `success_rate` to Manipulation.
 
-## Run Commands
+## Run commands
 
 Run the direct in-tree runner against metrics under the generated artifact directory:
 
@@ -172,7 +172,7 @@ All primary World-in-World metrics are higher-is-better. Rates and normalized sc
 
 The in-tree parser can also carry video-quality values such as FVD, SSIM, PSNR, and LPIPS in the component metadata when they appear in a summary, but they are not part of the primary metric order above.
 
-## Output Layout
+## Output layout
 
 Direct `--run-official` writes:
 
@@ -193,7 +193,7 @@ tmp/world-in-world/direct-official-validation/
 
 Public CLI runs also write a `runner_runtime_report.json` file and specialized runner stdout/stderr logs under the requested output directory. Treat `scorecard.json` and `raw_metric_table.jsonl` as the stable outputs.
 
-## Runtime Notes
+## Runtime notes
 
 World-in-World worker launch configuration is environment-variable driven; it
 does not contain machine-local conda paths. Worker commands default to the

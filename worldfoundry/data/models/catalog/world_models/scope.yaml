@@ -34,11 +34,11 @@ checkpoint_refs:
 integration:
   status: verified
   notes:
-  - Official SCOPE inference source, DiffSynth fork, README, license, and examples
-    are vendored under worldfoundry.synthesis.visual_generation.scope.scope_runtime.
+  - SCOPE-specific action conditioning is integrated as a canonical Wan network
+    variant and assembled with shared Wan encoders, VAE, loaders, and staged execution.
   - Large model weights remain external HuggingFace assets and are injected through
     model_dir/checkpoint_root or SCOPE_MODEL_DIR.
-  - The WorldFoundry wrapper runs the in-tree SCOPE inference subprocess for execute=True
+  - The WorldFoundry wrapper runs the in-tree native SCOPE assembly for execute=True
     Workspace jobs.
 runtime_profile: runtime-profile:scope
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner

@@ -1,5 +1,5 @@
 ---
-title: Embodied Official Runtime Setup
+title: Embodied official runtime setup
 description: After cloning WorldFoundry, configure checkpoints, Docker-backed simulator assets, and result paths for embodied benchmark evaluation.
 ---
 
@@ -7,7 +7,7 @@ description: After cloning WorldFoundry, configure checkpoints, Docker-backed si
 
 WorldFoundry ships **result normalizers, CLI entry points, and simulator interfaces** under `worldfoundry.evaluation.tasks.embodied`. **Checkpoints, simulator assets, Docker images, and rollout outputs are not in git.** You point WorldFoundry at them with environment variables or CLI flags on your machine.
 
-| Surface | Benchmark ids | Supported in WorldFoundry |
+| Surface | Benchmark IDs | Supported in WorldFoundry |
 | --- | --- | --- |
 | Native closed-loop simulators | `ai2thor`, `behavior1k`, `calvin`, `kinetix`, `libero`, `libero-mem`, `libero-plus`, `libero-pro`, `maniskill2`, `maniskill`, `mikasa`, `molmospaces`, `rlbench`, `robocasa`, `robocerebra`, `robomme`, `robotwin`, `simpler-env`, `vlabench` | Official result import, in-tree simulator API, Docker-backed rollout hooks |
 | Result import only | `bridgedata-v2`, `libero-para`, `metaworld` | Official-shaped result normalization |
@@ -130,7 +130,7 @@ List model env mappings: `bash scripts/setup/model_env_install.sh --list`
 
 Each benchmark uses separate env vars for **your** checkout, checkpoint, and results:
 
-| Benchmark id | Split | Policy checkpoint | Official results |
+| Benchmark ID | Split | Policy checkpoint | Official results |
 | --- | --- | --- | --- |
 | `ai2thor` | `scene` / `benchmark_kwargs` in eval config | policy checkpoint or external policy server | `WORLDFOUNDRY_AI2THOR_RESULTS_PATH` |
 | `libero` | `WORLDFOUNDRY_LIBERO_SUITE` | `WORLDFOUNDRY_LIBERO_POLICY_CHECKPOINT` | `WORLDFOUNDRY_LIBERO_RESULTS_PATH` |
@@ -173,7 +173,7 @@ Review `scorecard.json`, `raw_results.jsonl`, and `evaluation/summary.json`. `of
 
 Run the Docker-backed official evaluator or VLA evaluation harness with your policy checkpoint, write result files, then import with `official-validation` above.
 
-Before rollout, record: benchmark id, upstream commit, simulator versions, dataset split, checkpoint path, action/observation contract, and result file path.
+Before rollout, record: benchmark ID, upstream commit, simulator versions, dataset split, checkpoint path, action/observation contract, and result file path.
 
 
 For a real policy, replace `model_id` in the eval config with a configured VLA policy, or point `server.url` at an external policy server. The policy can return `{"token": "forward"}` or an equivalent discrete action payload.

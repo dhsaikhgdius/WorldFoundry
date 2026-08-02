@@ -1,0 +1,54 @@
+schema: worldfoundry-training
+execution_owner: worldfoundry-native
+run:
+  id: sana-600m-flow-lora-single-device
+  output_dir: runs/sana-600m-flow-lora-single-device
+model:
+  recipe: sana-600m-512px
+  checkpoint: default
+tuning:
+  mode: lora
+  preset: sana-attention
+  rank: 4
+  alpha: 4
+  dropout: 0.0
+data:
+  manifest: data/train.jsonl
+  cache: cache/sana-600m
+  max_latent_tokens_per_microbatch: 4096
+  split: train
+  shuffle: true
+  shuffle_seed: 42
+  tail_policy: uneven
+  options:
+    microbatch_size: 1
+    num_workers: 0
+    pin_memory: true
+    snapshot_every_n_steps: 1
+objective:
+  type: flow_matching
+  prediction_type: flow_velocity
+  timestep_sampler: logit_normal
+  conditioning_dropout: 0.1
+  options:
+    num_train_timesteps: 1000
+    flow_shift: 3.0
+optimizer:
+  type: adamw
+  learning_rate: 1.0e-4
+  weight_decay: 0.0
+  max_grad_norm: 1.0
+  gradient_accumulation_steps: 1
+runtime:
+  param_dtype: bfloat16
+  reduce_dtype: float32
+  activation_checkpoint: none
+  compile: false
+distributed:
+  backend: single
+  dp_shard: auto
+  cp: 1
+  tp: 1
+checkpoint:
+  save_every_steps: 0
+  async: false

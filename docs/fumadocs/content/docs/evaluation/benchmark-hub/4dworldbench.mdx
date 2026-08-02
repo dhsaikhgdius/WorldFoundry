@@ -16,7 +16,7 @@ Official references:
 - Local runner: `worldfoundry/evaluation/tasks/execution/runners/four_d_worldbench/run_four_d_worldbench_official_runner.py`
 - In-tree runtime: `worldfoundry/evaluation/tasks/execution/runners/four_d_worldbench/runtime/four_d_worldbench`
 
-## Evaluation Protocol
+## Evaluation protocol
 
 4DWorldBench scores generated 3D/4D world videos along four groups. WorldFoundry keeps the original metric IDs so that imported official results and newly computed results map to the same scorecard.
 
@@ -29,7 +29,7 @@ Official references:
 
 The primary metric is `four_d_worldbench_average`. Intermediate aggregates are `perceptual_quality`, `condition_4d_alignment`, `physical_realism_score`, and `four_d_consistency`.
 
-## Data Preparation
+## Data preparation
 
 The benchmark is driven by an official dataset JSON. Each JSON file describes one evaluation split and one or more candidate models. The runner looks up the model by `models[].model_name`, then evaluates the `generated_videos` listed under that model.
 
@@ -68,7 +68,7 @@ Minimal structure:
 
 Video paths can be absolute. Relative `generated_videos` are resolved against `--generated-video-dir`, then `dataset_info.base_path`, then the dataset JSON directory. For a clean run, keep the official JSON unchanged except for adding or updating the candidate model entry and generated-video paths.
 
-## Checkpoints And Dependencies
+## Checkpoints and dependencies
 
 Start from the unified CUDA environment, then install the benchmark-specific metric dependencies:
 
@@ -100,7 +100,7 @@ export OPENAI_API_KEY=...
 
 `OPENAI_API_KEY` is only needed for `physics_realism`; the perceptual metrics do not need it.
 
-## Generate Candidate Videos
+## Generate candidate videos
 
 4DWorldBench does not train or run the candidate generator. Train and run the generator through its own WorldFoundry model package or your external inference script, then write the resulting videos into the paths referenced by `generated_videos`.
 
@@ -110,7 +110,7 @@ For a leaderboard-style run, prepare one dataset JSON per official split/task an
 - Each selected prompt has at least one video in `generated_videos`.
 - The generated videos are readable by the active Python environment.
 
-## Run One Dimension
+## Run one dimension
 
 Run a single official dimension from the in-tree runtime:
 
@@ -130,7 +130,7 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
 
 The upstream metric result is written under `tmp/4dworldbench/your_model_name/perceptual_clip_iqa_metrics/upstream/4dworldbench_results.json`; the normalized WorldFoundry scorecard is written to `scorecard.json`.
 
-## Run A Full Metric Set
+## Run a full metric set
 
 Run the dimensions that are required for your split and asset set. This shell loop is useful when all dependencies are installed:
 
@@ -171,7 +171,7 @@ done
 
 If you only want perceptual results, run the perceptual dimensions. If you want the full average, stage the judge/checkpoint assets for all four groups and run all dimensions.
 
-## Import Existing Results
+## Import existing results
 
 If you already have official 4DWorldBench result JSON files, import them into the unified WorldFoundry scorecard format:
 
@@ -197,4 +197,4 @@ Each run writes:
 - `per_sample_scores.jsonl`: per-sample rows when the upstream result includes sample detail.
 - `upstream/4dworldbench_results.json`: raw official runtime output when `--run-official` is used.
 
-[Back to Benchmark Hub](/docs/evaluation/benchmark-hub)
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

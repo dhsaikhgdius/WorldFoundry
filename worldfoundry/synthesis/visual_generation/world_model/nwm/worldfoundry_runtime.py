@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 RUNTIME_DIR = Path(__file__).resolve().parent
 OFFICIAL_ENTRYPOINT = RUNTIME_DIR / "isolated_nwm_infer.py"
 BLOCKED_REASON = (

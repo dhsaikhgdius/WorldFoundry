@@ -5,12 +5,13 @@ from __future__ import annotations
 import csv
 import hashlib
 import os
-import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
 
+from worldfoundry.core.io import materialize_file
+from worldfoundry.core.process import read_text_tail, run_logged_subprocess
 from worldfoundry.evaluation.tasks.execution.runners.ewmbench.ewmbench_metrics import METRIC_SPECS
 from worldfoundry.evaluation.tasks.execution.runners.ewmbench.ewmbench_paths import resolve_ewmbench_root
 from worldfoundry.evaluation.tasks.execution.runners.ewmbench.ewmbench_prompts import (
@@ -195,18 +196,26 @@ def _run_upstream_evaluate(
     env["PYTHONPATH"] = os.pathsep.join(
         part for part in (str(repo_root.resolve()), env.get("PYTHONPATH")) if part
     )
-    completed = subprocess.run(
+    timeout_value = os.environ.get("WORLDFOUNDRY_EWMBENCH_TIMEOUT_SECONDS", "").strip()
+    timeout_seconds = float(timeout_value) if timeout_value else None
+    if timeout_seconds is not None and timeout_seconds <= 0:
+        raise ValueError("WORLDFOUNDRY_EWMBENCH_TIMEOUT_SECONDS must be positive")
+    stdout_path = output_dir / "upstream_stdout.log"
+    stderr_path = output_dir / "upstream_stderr.log"
+    completed = run_logged_subprocess(
         command,
+        stdout_path=stdout_path,
+        stderr_path=stderr_path,
         cwd=str(repo_root.resolve()),
-        text=True,
-        capture_output=True,
-        check=False,
         env=env,
+        timeout=timeout_seconds,
+        start_new_session=False,
     )
     if completed.returncode != 0:
+        detail = read_text_tail(stderr_path) or read_text_tail(stdout_path)
         raise RuntimeError(
             "EWMBench upstream evaluate.py failed "
-            f"(exit={completed.returncode}): {completed.stderr.strip() or completed.stdout.strip()}"
+            f"(exit={completed.returncode}): {detail}"
         )
     discovered = discover_official_results([output_dir, repo_root, repo_root / "output"])
     if discovered is None:
@@ -261,7 +270,7 @@ def run_ewmbench_scorer(
         output_dir=output_dir,
         overwrite=overwrite,
     )
-    results_path.write_bytes(upstream_results.read_bytes())
+    materialize_file(upstream_results, results_path)
     return {
         "backend": "official",
         "results_path": str(results_path.resolve()),

@@ -8,7 +8,6 @@ and helper functions for processing inputs and outputs for inference.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import threading
 import time
@@ -17,6 +16,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from worldfoundry.core.io import file_sha256
 from worldfoundry.core.io.paths import (
     project_root,
     resolve_local_hf_model_path,
@@ -476,6 +476,7 @@ class MolmoAct2Runtime:
             return  # Model already loaded
 
         import torch
+
         from worldfoundry.core.device import resolve_inference_device, resolve_inference_dtype
 
         from .configuration_molmoact2 import MolmoAct2Config
@@ -671,7 +672,7 @@ class MolmoAct2Runtime:
             "model_id": "molmoact2",
             "artifact_kind": "action_trace",
             "artifact_path": str(target),
-            "artifact_sha256": hashlib.sha256(target.read_bytes()).hexdigest(),
+            "artifact_sha256": file_sha256(target),
             "backend": payload["backend"],
             "backend_quality": payload["backend_quality"],
             "duration_seconds": payload["duration_seconds"],

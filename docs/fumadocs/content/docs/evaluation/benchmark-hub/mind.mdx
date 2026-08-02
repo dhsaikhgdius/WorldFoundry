@@ -1,0 +1,104 @@
+---
+title: MIND
+description: "MIND in WorldFoundry: memory consistency and action control for interactive world models."
+---
+
+## What it measures
+
+MIND evaluates **memory consistency** and **action control** in interactive video world models under a closed-loop revisited protocol. Generated videos are compared against ground-truth continuations and mirrored action trajectories across first-person and third-person perspectives.
+
+The official test split has **250 clips** at 1080p / 24 FPS:
+
+- `mem_test` and `action_space_test` — long-context memory (LCM), DINOv3 feature distance, visual quality, and ViPE-based action relative pose error
+- `mirror_test` — general scene consistency (GSC) between a rollout and its time-reversed half
+
+WorldFoundry also derives ability-group scores (`memory_consistency_score`, `visual_quality_score`, `action_control_score`, `scene_consistency_score`) and a composite `mind_average`. **MIND publishes no official composite score**, so `mind_average` is never a leaderboard number.
+
+## Official references
+
+| Resource | Link |
+| --- | --- |
+| Project page | [csu-jpg.github.io/MIND.github.io](https://csu-jpg.github.io/MIND.github.io/) |
+| Paper | [arXiv:2602.08025](https://arxiv.org/abs/2602.08025) |
+| GitHub | [github.com/CSU-JPG/MIND](https://github.com/CSU-JPG/MIND) |
+| HF dataset | [CSU-JPG/MIND](https://huggingface.co/datasets/CSU-JPG/MIND) |
+| In-tree runner | `worldfoundry/evaluation/tasks/execution/runners/mind/run_mind_official_runner.py` |
+
+## Data and artifacts
+
+Generated videos must follow the official layout:
+
+```text
+<model>/
+  1st_data/
+    mem_test/<gt_name>/video.mp4
+    action_space_test/<gt_name>/video.mp4
+    mirror_test/<name>/path-N.mp4
+  3rd_data/
+    ...
+```
+
+Ground-truth assets live under a MIND-Data root (`--gt-root` / `WORLDFOUNDRY_MIND_GT_ROOT`). The vendored runtime writes a single MIND result JSON that WorldFoundry normalizes into a scorecard.
+
+## Two surfaces
+
+**Normalizer (default).** Recomputes WorldFoundry metrics from an existing MIND result JSON (`--official-results-path` or `WORLDFOUNDRY_MIND_RESULTS_PATH`). Pure Python; no GPU.
+
+**Official runtime (`--run-official`).** Executes the checked-in `runtime/mind/src/process.py`. Needs CUDA plus LPIPS / torchmetrics / pyiqa / CLIP assets for `lcm`, `visual`, `dino`, and `gsc`. The `action` metric additionally needs a ViPE checkout (`--vipe-repo`) and the `vipe` CLI. DINOv3 weights are supplied through `--dino-path` or `<weights-dir>/dinov3_vitb16` and are never vendored in tree.
+
+All mutable state (work directory, `MIND_CACHE_DIR`, staged links, logs, result JSON) is written under `--output-dir`. The vendored runtime is read-only.
+
+## Supported commands
+
+Normalize an existing result JSON:
+
+```bash
+worldfoundry-eval zoo benchmark-run \
+  --benchmark-id mind \
+  --mode official-validation \
+  --official-results-path <mind_result.json> \
+  --output-dir <out> \
+  --json
+```
+
+Run the bundled synthetic fixture (no GPU):
+
+```bash
+python worldfoundry/evaluation/tasks/execution/runners/mind/run_mind_official_runner.py \
+  --run-fixture \
+  --output-dir <out> \
+  --json
+```
+
+Execute the in-tree metric runtime:
+
+```bash
+worldfoundry-eval zoo benchmark-run \
+  --benchmark-id mind \
+  --mode official-validation \
+  --run-official \
+  --gt-root <MIND-Data> \
+  --generated-artifact-dir <model_outputs> \
+  --dino-path <dinov3_vitb16> \
+  --output-dir <out> \
+  --json
+```
+
+## Metrics
+
+| Metric | Higher is better | Notes |
+| --- | --- | --- |
+| `lcm_psnr` / `lcm_ssim` | yes | Long-context memory pixel metrics |
+| `lcm_lpips` / `lcm_mse` | no | Long-context memory distance metrics |
+| `dino_mse` | no | DINOv3 patch-token MSE |
+| `imaging_quality` / `aesthetic_quality` | yes | MUSIQ-SPAQ and LAION aesthetic |
+| `action_rpe_*` | no | ViPE relative pose error |
+| `gsc_*` | PSNR/SSIM yes; LPIPS/MSE no | Mirror-test scene consistency |
+| `*_score` ability groups | yes | WorldFoundry-derived |
+| `mind_average` | yes | WorldFoundry-derived; not a leaderboard score |
+
+## Evidence policy
+
+- Importing or normalizing supplied results is **not** official-run evidence: `official_benchmark_verified` and `leaderboard_valid` stay `false`.
+- Leaderboard parity requires the complete 250-clip official split and a published MIND leaderboard (not yet open).
+- Missing metric components stay `None` rather than being zero-filled into a false suite aggregate.

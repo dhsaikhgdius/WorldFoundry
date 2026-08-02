@@ -9,7 +9,6 @@ and specialized CameraCtrl components.
 
 from __future__ import annotations
 
-import hashlib
 import os
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -18,9 +17,9 @@ import numpy as np
 import torch
 from omegaconf import OmegaConf
 
+from worldfoundry.core.io import file_sha256
 from worldfoundry.evaluation.utils import worldfoundry_data_path
 from worldfoundry.runtime.env import resolve_hfd_root
-
 
 DEFAULT_CAMERACTRL_CONFIG = worldfoundry_data_path(
     "models",
@@ -361,7 +360,7 @@ class CameraCtrlRuntime:
             "model_id": self.model_id,
             "artifact_kind": "generated_video",
             "artifact_path": str(target),
-            "video_sha256": hashlib.sha256(target.read_bytes()).hexdigest(),
+            "video_sha256": file_sha256(target),
             "runtime": "worldfoundry.cameractrl.in_tree_runtime",
             "backend_quality": "in_tree_runtime",
             "trajectory_file": str(trajectory_file),

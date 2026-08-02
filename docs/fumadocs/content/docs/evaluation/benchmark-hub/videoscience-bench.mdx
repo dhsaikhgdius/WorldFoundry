@@ -3,14 +3,14 @@ title: VideoScience-Bench
 description: Scientific-reasoning video generation evaluation with WorldFoundry's checked-in VideoScience runner, data assets, commands, metrics, and current gaps.
 ---
 
-## What It Measures
+## What it measures
 
 VideoScience-Bench evaluates whether generated videos are scientifically correct, not only visually plausible. The local VideoScience README describes 200 undergraduate-level physics and chemistry scenarios: 160 text-to-video examples, 40 image-to-video examples, 12 topics, and 103 scientific concepts. Each prompt usually requires multiple interacting concepts.
 
 WorldFoundry uses the checked-in runner at `worldfoundry/evaluation/tasks/execution/runners/videoscience_bench/run_videoscience_bench_official_runner.py` and the in-tree runtime under `worldfoundry/evaluation/tasks/execution/runners/videoscience_bench/runtime/videoscience_bench`. Do not make a separate copy of the official repo for normal WorldFoundry use. The local `/VideoScience` and `/videoscience-bench` repos are protocol references.
 
 
-## Official References
+## Official references
 
 | Resource | Link |
 | --- | --- |
@@ -19,7 +19,7 @@ WorldFoundry uses the checked-in runner at `worldfoundry/evaluation/tasks/execut
 | HF dataset | [lmgame/VideoScienceBench](https://huggingface.co/datasets/lmgame/VideoScienceBench) |
 | In-tree runner | `worldfoundry/evaluation/tasks/execution/runners/videoscience_bench/run_videoscience_bench_official_runner.py` |
 
-## Prepare Data And Assets
+## Prepare data and assets
 
 Checked-in assets:
 
@@ -54,7 +54,7 @@ export OPENAI_API_KEY=...
 
 The in-tree provider layer also supports Gemini and Anthropic when the matching packages and API keys are installed.
 
-## Input And Output Layout
+## Input and output layout
 
 The runner matches generated videos to `data.csv` rows using `Unique ID`. Accepted filenames include:
 
@@ -117,7 +117,7 @@ worldfoundry-eval zoo benchmark-run \
   --json
 ```
 
-## Direct Runner
+## Direct runner
 
 Import an existing VideoScience judge JSON or CSV:
 

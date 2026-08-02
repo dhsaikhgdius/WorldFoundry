@@ -38,7 +38,10 @@ variants:
     status: verified
     notes:
     - The base-cam checkpoint is wired through the in-tree LingBot-World runner.
-    - Per-run artifact checks are tracked outside the model catalog.
+    - A 2026-07-28 checkpoint-backed full run completed with 161 frames and 70
+      denoising steps; all frames decoded at 832x464 and 16 FPS with valid motion.
+    - A four-A100 Workspace run also completed the same full setting with
+      adaptive T5-FSDP, replicated/offloaded DiTs, and Ulysses size 4.
 - availability: open_source
   checkpoint: robbyant/lingbot-world-base-act-preview
   name: LingBot-World-Base (Act)
@@ -57,7 +60,10 @@ runner_parity:
   - LingBotPipeline is registered against the in-tree LingBot world runtime.
   - The base-cam checkpoint is wired through the Studio/API route and dedicated conda environment profile.
   - Base-Act is independently cataloged against the public preview checkpoint; only the Fast checkpoint remains unavailable.
-  - Per-run artifact checks are tracked outside the model catalog.
+  - Base-cam full-quality artifact validation completed on 2026-07-28 using the
+    official 161-frame, 70-step camera-control demo settings.
+  - The shared timestep embedding preserves floating precision for integer
+    scheduler timesteps, preventing distributed sequence-parallel output corruption.
   status: verified
 catalog_category: world_models
 catalog_scope: world-model/interactive starred models

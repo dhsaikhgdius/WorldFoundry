@@ -31,6 +31,10 @@ from worldfoundry.core.io.paths import (
     official_runtime_repo_path,
     project_root,
 )
+from worldfoundry.pipelines.gen3c.constants import (
+    DEFAULT_GEN3C_NEGATIVE_PROMPT,
+    DEFAULT_GEN3C_PROMPT,
+)
 
 _FALSE_VALUES = {"0", "false", "no", "off", "disable", "disabled"}
 _TRUE_VALUES = {"1", "true", "yes", "on", "enable", "enabled"}
@@ -83,7 +87,7 @@ _WOW_OFFICIAL_LOCAL_CHECKPOINT = _WORKSPACE_ROOT / "ckpt" / "WoW-1-Wan-14B-600k"
 WOW_LOCAL_CHECKPOINT = (
     str(_WOW_OFFICIAL_LOCAL_CHECKPOINT)
     if _WOW_OFFICIAL_LOCAL_CHECKPOINT.exists()
-    else "WoW-world-model/WoW-1-Wan-14B-600k"
+    else "X-Humanoid/WoW-1-Wan-14B-600k"
 )
 HELIOS_CHECKPOINT_ROOT = _WORKSPACE_ROOT / "ckpt"
 HELIOS_BASE_CHECKPOINT = str(HELIOS_CHECKPOINT_ROOT / "Helios-Base")
@@ -107,10 +111,18 @@ SANA_STREAMING_TEXT_ENCODER = str(
 BERNINI_CHECKPOINT = str(_WORKSPACE_ROOT / "ckpt" / "ByteDance--Bernini-Diffusers")
 # Product inference must not depend on private or repository test prompts. The
 # required field remains empty until the user supplies their own description.
-HELIOS_DEMO_PROMPT = ""
+HELIOS_DEMO_PROMPT = (
+    "A cat and a dog baking a cake together in a cozy sunlit kitchen. The cat carefully measures flour "
+    "while the dog stirs the batter with a wooden spoon, cinematic lighting, detailed natural motion."
+)
 WOW_OFFICIAL_IMAGE_FIXTURE = str(_TEST_CASES_ROOT / "test_vla_case1" / "droid" / "exterior_image_1_left.png")
 WOW_OFFICIAL_PROMPT = "The Franka robot grasps the red bottle on the table."
 LINGBOT_WORLD_DEMO_ROOT = _TEST_CASES_ROOT / "lingbot_world" / "00"
+STABLE_VIDEO_INFINITY_DEMO_ROOT = _TEST_CASES_ROOT / "stable-video-infinity" / "svi-2.0"
+STABLE_VIDEO_INFINITY_OFFICIAL_PROMPT = (
+    "The water shimmers with dancing caustics as gentle bubbles rise; "
+    "the camera dolly-ins through a blue haze."
+)
 LINGBOT_WORLD_V2_MODEL_ID = "lingbot-world-v2"
 LINGBOT_WORLD_V2_CHECKPOINT = _first_existing_path(
     _WORKSPACE_ROOT / "ckpt" / "lingbot-world-v2-14b-causal-fast",
@@ -120,6 +132,7 @@ LINGBOT_WORLD_V2_CHECKPOINT = _first_existing_path(
 _STATIC_ASSET_GATED_WORLD_RUNTIME_MODEL_IDS = frozenset(
     {
         "adaworld",
+        "causal-rcm",
         "ctrl-world",
         "diamond",
         "dino-wm",
@@ -136,6 +149,7 @@ _STATIC_ASSET_GATED_WORLD_RUNTIME_MODEL_IDS = frozenset(
         "motionbricks",
         "omniforcing",
         "oasis-500m",
+        "open-dreamer",
         "pointworld",
         "sana-wm",
         "shotstream",
@@ -763,6 +777,7 @@ GEN3C_OFFICIAL_CALL_KWARGS = {
     "trajectory": "left",
     "camera_rotation": "center_facing",
     "movement_distance": 0.3,
+    "negative_prompt": DEFAULT_GEN3C_NEGATIVE_PROMPT,
     "guidance": 1.0,
     "num_steps": 35,
     "num_video_frames": 121,
@@ -770,18 +785,6 @@ GEN3C_OFFICIAL_CALL_KWARGS = {
     "height": 704,
     "width": 1280,
     "seed": 1,
-    "num_gpus": 8,
-    "noise_aug_strength": 0.0,
-    "filter_points_threshold": 0.05,
-    "foreground_masking": True,
-    "disable_prompt_upsampler": True,
-    "disable_guardrail": True,
-    "disable_prompt_encoder": True,
-    "offload_diffusion_transformer": False,
-    "offload_tokenizer": False,
-    "offload_text_encoder_model": False,
-    "offload_prompt_upsampler": False,
-    "offload_guardrail_models": False,
 }
 
 LYRA1_STATIC_OFFICIAL_FIXTURE = str(_TEST_CASES_ROOT / "lyra" / "Lyra-1" / "00172.png")
@@ -1298,6 +1301,10 @@ NEOVERSE_OFFICIAL_LOAD_KWARGS = {
     "num_inference_steps": 4,
     "cfg_scale": 1.0,
     "disable_lora": False,
+    # The 14B Wan backbone and WorldMirror reconstructor do not fit together
+    # with the official 81-frame reconstruction activations on an 80GB GPU.
+    # Keep inactive components CPU-resident; this does not change sampling.
+    "enable_vram_management": True,
 }
 NEOVERSE_OFFICIAL_CALL_KWARGS = {
     "predefined_trajectory": "tilt_up",
@@ -1879,7 +1886,13 @@ GEN3C_INFERENCE_SPEC = ModelInferenceSpec(
                     required=True,
                     default=GEN3C_OFFICIAL_FIXTURE,
                 ),
-                _field("prompt", "Prompt", target="prompt", default=""),
+                _field("prompt", "Prompt", target="prompt", default=DEFAULT_GEN3C_PROMPT),
+                _field(
+                    "negative_prompt",
+                    "Negative Prompt",
+                    target="negative_prompt",
+                    default=DEFAULT_GEN3C_NEGATIVE_PROMPT,
+                ),
                 _field(
                     "trajectory",
                     "Trajectory",
@@ -1911,40 +1924,6 @@ GEN3C_INFERENCE_SPEC = ModelInferenceSpec(
                 _field("num_steps", "Steps", kind="integer", target="call_kwargs", default=35),
                 _field("guidance", "Guidance", kind="number", target="call_kwargs", default=1.0),
                 _field("seed", "Seed", kind="integer", target="call_kwargs", default=1),
-                _field("num_gpus", "GPUs", kind="integer", target="call_kwargs", default=8),
-                _field("foreground_masking", "Foreground Masking", kind="boolean", target="call_kwargs", default=True),
-                _field(
-                    "disable_prompt_encoder",
-                    "Disable Prompt Encoder",
-                    kind="boolean",
-                    target="call_kwargs",
-                    default=True,
-                ),
-                _field(
-                    "offload_diffusion_transformer",
-                    "Offload Transformer",
-                    kind="boolean",
-                    target="call_kwargs",
-                    default=False,
-                ),
-                _field("offload_tokenizer", "Offload Tokenizer", kind="boolean", target="call_kwargs", default=False),
-                _field(
-                    "offload_text_encoder_model",
-                    "Offload Text Encoder",
-                    kind="boolean",
-                    target="call_kwargs",
-                    default=False,
-                ),
-                _field(
-                    "offload_prompt_upsampler",
-                    "Offload Prompt Upsampler",
-                    kind="boolean",
-                    target="call_kwargs",
-                    default=False,
-                ),
-                _field(
-                    "offload_guardrail_models", "Offload Guardrail", kind="boolean", target="call_kwargs", default=False
-                ),
             ),
             outputs=(
                 _artifact("video", "video", required=True, preview=True),
@@ -2357,10 +2336,10 @@ HELIOS_INFERENCE_SPEC = ModelInferenceSpec(
             inputs=(
                 _field("prompt", "Prompt", target="prompt", required=True, default=HELIOS_DEMO_PROMPT),
                 _field("negative_prompt", "Negative Prompt", target="call_kwargs"),
-                _field("num_frames", "Frames", kind="integer", target="call_kwargs", default=33),
+                _field("num_frames", "Frames", kind="integer", target="call_kwargs", default=240),
                 _field("height", "Height", kind="integer", target="call_kwargs", default=384),
                 _field("width", "Width", kind="integer", target="call_kwargs", default=640),
-                _field("fps", "FPS", kind="integer", target="call_kwargs", default=12),
+                _field("fps", "FPS", kind="integer", target="call_kwargs", default=24),
                 _field("num_inference_steps", "Steps", kind="integer", target="call_kwargs", default=50),
                 _field("guidance_scale", "Guidance", target="call_kwargs", default="auto"),
                 _field("seed", "Seed", kind="integer", target="call_kwargs", default=42),
@@ -2372,10 +2351,10 @@ HELIOS_INFERENCE_SPEC = ModelInferenceSpec(
             ),
             default_call_kwargs={
                 "sample_type": "t2v",
-                "num_frames": 33,
+                "num_frames": 240,
                 "height": 384,
                 "width": 640,
-                "fps": 12,
+                "fps": 24,
                 "num_inference_steps": 50,
                 "guidance_scale": "auto",
                 "seed": 42,
@@ -2850,7 +2829,7 @@ STABLE_VIDEO_INFINITY_INFERENCE_SPEC = ModelInferenceSpec(
                     "Prompt",
                     target="prompt",
                     required=True,
-                    default="A cinematic forward camera journey through a detailed, coherent world.",
+                    default=STABLE_VIDEO_INFINITY_OFFICIAL_PROMPT,
                 ),
                 _field(
                     "prompt_stream",
@@ -2868,7 +2847,7 @@ STABLE_VIDEO_INFINITY_INFERENCE_SPEC = ModelInferenceSpec(
                     kind="path",
                     target="input_path",
                     required=True,
-                    default=GENERIC_IMAGE_FIXTURE,
+                    default=str(STABLE_VIDEO_INFINITY_DEMO_ROOT / "frame.jpg"),
                 ),
                 _field(
                     "num_clips",
@@ -3494,7 +3473,7 @@ WOW_INFERENCE_SPEC = ModelInferenceSpec(
                 "persistent_param_gb": 70,
             },
             aliases=("default", "official", "14b", "wan-14b", "600k"),
-            notes=("Matches the official WoW Wan demo checkpoint WoW-world-model/WoW-1-Wan-14B-600k.",),
+            notes=("Matches the official WoW Wan demo checkpoint X-Humanoid/WoW-1-Wan-14B-600k.",),
         ),
     ),
     tasks=(
@@ -4035,6 +4014,100 @@ ROLLING_FORCING_INFERENCE_SPEC = ModelInferenceSpec(
     ),
 )
 
+
+UNI3C_OFFICIAL_PROMPT = (
+    "The video features a cartoonish bear sitting at a school desk in a classroom setting."
+)
+UNI3C_INFERENCE_SPEC = ModelInferenceSpec(
+    model_family_id="uni3c",
+    display_name="Uni3C",
+    default_variant_id="camera",
+    default_task_id="image-camera-control-video",
+    aliases=("pcdcontroller", "alibaba-damo-academy/Uni3C"),
+    variants=(
+        InferenceVariantSpec(
+            variant_id="camera",
+            label="PCDController Camera",
+            status="input-assets-required",
+            checkpoints=(
+                InferenceCheckpointRef(role="controller", uri="ewrfcas/Uni3C", status="official"),
+                InferenceCheckpointRef(
+                    role="base",
+                    uri="Wan-AI/Wan2.1-I2V-14B-720P-Diffusers",
+                    status="official",
+                ),
+            ),
+            call_kwargs={
+                "mode": "camera",
+                "num_frames": 81,
+                "max_area": 480 * 768,
+                "fps": 16,
+                "seed": 1024,
+                "num_gpus": 1,
+            },
+            aliases=("default", "pcd", "pcd-controller"),
+            notes=("Requires the official stage-one pre-rendered camera-control bundle.",),
+        ),
+    ),
+    tasks=(
+        InferenceTaskProfile(
+            task_id="image-camera-control-video",
+            label="Image + Camera Control Video",
+            description=(
+                "Run the official Uni3C stage-two PCDController path from a reference image and "
+                "a pre-rendered camera-control bundle."
+            ),
+            aliases=("default", "camera", "image-to-video"),
+            inputs=(
+                _field(
+                    "prompt",
+                    "Prompt",
+                    target="prompt",
+                    required=True,
+                    default=UNI3C_OFFICIAL_PROMPT,
+                ),
+                _field(
+                    "input_path",
+                    "Reference Image",
+                    kind="path",
+                    target="input_path",
+                    required=True,
+                    description="Reference image used to produce the stage-one render bundle.",
+                ),
+                _field(
+                    "render_path",
+                    "Stage-One Render Bundle",
+                    kind="path",
+                    target="call_kwargs",
+                    required=True,
+                    description="Directory containing render.mp4, render_mask.mp4, and cam_info.json.",
+                ),
+                _field("mode", "Mode", target="call_kwargs", default="camera", choices=("camera",)),
+                _field("num_frames", "Frames", kind="integer", target="params", default=81),
+                _field("fps", "FPS", kind="integer", target="params", default=16),
+                _field("max_area", "Maximum Area", kind="integer", target="call_kwargs", default=480 * 768),
+                _field("seed", "Seed", kind="integer", target="params", default=1024),
+                _field("num_gpus", "GPUs", kind="integer", target="call_kwargs", default=1),
+            ),
+            outputs=(
+                _artifact("video", "video", required=True, preview=True),
+                _artifact("manifest", "manifest", required=True),
+            ),
+            default_call_kwargs={
+                "mode": "camera",
+                "num_frames": 81,
+                "max_area": 480 * 768,
+                "fps": 16,
+                "seed": 1024,
+                "num_gpus": 1,
+            },
+        ),
+    ),
+    notes=(
+        "Uni3C stage two does not synthesize its own camera controls; a matching stage-one render bundle is required.",
+    ),
+)
+
 _MODEL_INFERENCE_SPECS: dict[str, ModelInferenceSpec] = {
     DIAMOND_INFERENCE_SPEC.model_family_id: DIAMOND_INFERENCE_SPEC,
     DINO_WM_INFERENCE_SPEC.model_family_id: DINO_WM_INFERENCE_SPEC,
@@ -4051,6 +4124,7 @@ _MODEL_INFERENCE_SPECS: dict[str, ModelInferenceSpec] = {
     NEOVERSE_INFERENCE_SPEC.model_family_id: NEOVERSE_INFERENCE_SPEC,
     COSMOS3_INFERENCE_SPEC.model_family_id: COSMOS3_INFERENCE_SPEC,
     COSMOS_PREDICT2P5_INFERENCE_SPEC.model_family_id: COSMOS_PREDICT2P5_INFERENCE_SPEC,
+    UNI3C_INFERENCE_SPEC.model_family_id: UNI3C_INFERENCE_SPEC,
     GEN3C_INFERENCE_SPEC.model_family_id: GEN3C_INFERENCE_SPEC,
     FANTASYWORLD_INFERENCE_SPEC.model_family_id: FANTASYWORLD_INFERENCE_SPEC,
     FANTASYWORLD_WAN21_INFERENCE_SPEC.model_family_id: FANTASYWORLD_WAN21_INFERENCE_SPEC,
@@ -4223,14 +4297,20 @@ def generic_model_inference_spec(
                     default=field_default("width", "user_width", "output_w", "resize_w", "image_width"),
                 )
             )
-        if has_any("num_inference_steps", "sampling_steps", "infer_steps", "num_steps"):
+        if has_any("num_inference_steps", "sampling_steps", "infer_steps", "num_steps", "steps"):
             fields.append(
                 _field(
                     "steps",
                     "Steps",
                     kind="integer",
                     target="params",
-                    default=field_default("num_inference_steps", "sampling_steps", "infer_steps", "num_steps"),
+                    default=field_default(
+                        "num_inference_steps",
+                        "sampling_steps",
+                        "infer_steps",
+                        "num_steps",
+                        "steps",
+                    ),
                 )
             )
         if has_any("guidance_scale", "cfg_scale", "scale"):
@@ -4651,44 +4731,42 @@ def compile_module_if_enabled(
     dynamic: bool | None = None,
     options: dict[str, Any] | None = None,
 ) -> Any:
-    """Compile one module with ``torch.compile`` only when explicitly enabled."""
+    """Compile one module with persistent cache and wrapper reuse when enabled."""
 
     should_compile = _env_flag("WORLDFOUNDRY_TORCH_COMPILE", default=False) if enabled is None else bool(enabled)
     if not should_compile or getattr(module, "_worldfoundry_core_compiled", False):
         return module
 
-    try:
-        import torch
-    except Exception:
-        return module
-
-    compiler = getattr(torch, "compile", None)
-    if not callable(compiler):
-        return module
-
-    compile_kwargs: dict[str, Any] = {}
     selected_backend = backend or os.getenv("WORLDFOUNDRY_TORCH_COMPILE_BACKEND")
     selected_mode = mode or os.getenv("WORLDFOUNDRY_TORCH_COMPILE_MODE")
-    if selected_backend:
-        compile_kwargs["backend"] = selected_backend
-    if selected_mode:
-        compile_kwargs["mode"] = selected_mode
     if fullgraph is not None:
-        compile_kwargs["fullgraph"] = bool(fullgraph)
+        selected_fullgraph = bool(fullgraph)
     elif os.getenv("WORLDFOUNDRY_TORCH_COMPILE_FULLGRAPH") is not None:
-        compile_kwargs["fullgraph"] = _env_flag("WORLDFOUNDRY_TORCH_COMPILE_FULLGRAPH", default=False)
+        selected_fullgraph = _env_flag("WORLDFOUNDRY_TORCH_COMPILE_FULLGRAPH", default=False)
+    else:
+        selected_fullgraph = False
     if dynamic is not None:
-        compile_kwargs["dynamic"] = bool(dynamic)
+        selected_dynamic = bool(dynamic)
     elif os.getenv("WORLDFOUNDRY_TORCH_COMPILE_DYNAMIC") is not None:
-        compile_kwargs["dynamic"] = _env_flag("WORLDFOUNDRY_TORCH_COMPILE_DYNAMIC", default=False)
-    if options:
-        compile_kwargs["options"] = options
+        selected_dynamic = _env_flag("WORLDFOUNDRY_TORCH_COMPILE_DYNAMIC", default=False)
+    else:
+        selected_dynamic = None
 
-    try:
-        compiled = compiler(module, **compile_kwargs)
-    except Exception:
-        if _env_flag("WORLDFOUNDRY_TORCH_COMPILE_STRICT", default=False):
-            raise
+    from worldfoundry.runtime.compile_cache import CompilePolicy, compile_module_cached
+
+    compiled = compile_module_cached(
+        module,
+        policy=CompilePolicy(
+            backend=selected_backend or "inductor",
+            mode=selected_mode or "default",
+            fullgraph=selected_fullgraph,
+            dynamic=selected_dynamic,
+        ),
+        namespace=label or "core-inference",
+        options=options,
+        strict=_env_flag("WORLDFOUNDRY_TORCH_COMPILE_STRICT", default=False),
+    )
+    if compiled is module:
         return module
 
     try:
@@ -4792,6 +4870,8 @@ def _call_sdpa_with_backend(query: Any, key: Any, value: Any, *args: Any, **kwar
     if not backends:
         return _ORIGINAL_SDPA(query, key, value, *args, **kwargs)
 
+    attn_mask = kwargs.get("attn_mask", args[0] if args else None)
+
     try:
         import torch
     except Exception:
@@ -4800,18 +4880,29 @@ def _call_sdpa_with_backend(query: Any, key: Any, value: Any, *args: Any, **kwar
     attention = getattr(torch.nn, "attention", None)
     sdpa_kernel = getattr(attention, "sdpa_kernel", None) if attention is not None else None
     if not callable(sdpa_kernel):
-        return _ORIGINAL_SDPA(query, key, value, *args, **kwargs)
+        output = _ORIGINAL_SDPA(query, key, value, *args, **kwargs)
+        return _normalize_fully_masked_sdpa_rows(output, attn_mask, query, key)
 
     try:
-        context = sdpa_kernel(backends=backends, set_priority_order=True)
+        context = sdpa_kernel(backends=backends, set_priority=True)
     except TypeError:
         try:
-            context = sdpa_kernel(backends=backends)
+            context = sdpa_kernel(backends=backends, set_priority_order=True)
         except TypeError:
-            context = sdpa_kernel(backends)
+            try:
+                context = sdpa_kernel(backends=backends)
+            except TypeError:
+                context = sdpa_kernel(backends)
 
     with context:
-        return _ORIGINAL_SDPA(query, key, value, *args, **kwargs)
+        output = _ORIGINAL_SDPA(query, key, value, *args, **kwargs)
+    return _normalize_fully_masked_sdpa_rows(output, attn_mask, query, key)
+
+
+def _normalize_fully_masked_sdpa_rows(output: Any, attn_mask: Any, query: Any, key: Any) -> Any:
+    from worldfoundry.core.attention import normalize_fully_masked_rows
+
+    return normalize_fully_masked_rows(output, attn_mask, query, key)
 
 
 def _resolve_sdpa_backends(policy: str, query: Any) -> list[Any]:

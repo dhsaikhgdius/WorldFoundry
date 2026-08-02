@@ -1,0 +1,195 @@
+---
+title: RBench
+description: WorldFoundry 中的 RBench：4 种机器人本体 + 5 类任务的机器人图生视频评测，官方聚合逻辑仓内复现。
+---
+
+## 评测内容
+
+RBench 随 [ReVidgen](https://github.com/DAGroup-PKU/ReVidgen) 项目发布，评测面向机器人的图生视频生成。每条 prompt 由首帧条件图像和指令构成，生成视频沿两条独立赛道打分：
+
+**本体赛道（4 embodiments）**——400 条 prompt，覆盖 4 种机器人形态(`dual_arm`、`humanoid`、`single_arm`、`quad`，各 100 条)。每个视频获得 3 个 VLM 分数和 2 个运动算子分数，合成任务响应分与带惩罚的视觉质量分。
+
+**任务赛道（5 tasks）**——250 条 prompt，覆盖 5 类任务(`common_manipulation`、`long-horizon_planning`、`multi-entity_collaboration`、`spatial_relationship`、`visual_reasoning`，各 50 条)。每个视频获得一个 1-5 分的 rubric 分数。
+
+上游分别报告两条赛道，**没有**发布跨赛道的单一总分。
+
+## 官方参考
+
+| 资源 | 链接 |
+| --- | --- |
+| GitHub | [github.com/DAGroup-PKU/ReVidgen](https://github.com/DAGroup-PKU/ReVidgen) |
+| 论文 | [arXiv:2601.15282](https://arxiv.org/abs/2601.15282) |
+| HF 数据集（benchmark） | [DAGroup-PKU/RBench](https://huggingface.co/datasets/DAGroup-PKU/RBench) |
+| HF 数据集（训练语料） | [DAGroup-PKU/RoVid-X](https://huggingface.co/datasets/DAGroup-PKU/RoVid-X) |
+| 仓内 runner | `worldfoundry/evaluation/tasks/execution/runners/rbench/run_rbench_official_runner.py` |
+
+## 各环节由谁执行
+
+RBench 打分依赖两个 WorldFoundry 不提供的外部环节：
+
+- **VLM judge**——GPT 或本地/API 的 Qwen3-VL，回答各 split 的 rubric。
+- **底层算子栈**——GroundingDINO、SAM 2、CoTracker、Q-Align 及其权重，产出可感知运动幅度与运动平滑度。
+
+WorldFoundry 在仓内复现官方的**聚合逻辑**，读取上述环节写出的逐视频产物。上游的汇总 CSV 被刻意不采信:所有数值都从逐视频原始行重新计算，因此不完整的 judge 运行不会看起来像完整结果。
+
+## 数据与产物布局
+
+benchmark 资产：
+
+```text
+<rbench_data_root>/
+  prompts/dual_arm_prompts.json
+  prompts/common_manipulation_prompts.json
+  ...
+  imgs/<split>/<split>_0001.jpg
+```
+
+```bash
+huggingface-cli download DAGroup-PKU/RBench --repo-type dataset --local-dir ./rbench_data
+```
+
+生成视频用纯数字的 prompt 序号命名——prompt `dual_arm_0001` 对应 `0001.mp4`：
+
+```text
+data/<model>/<split>/videos/0001.mp4
+```
+
+上游脚本随后写出：
+
+```text
+<results_root>/
+  4_embodiments/<model>/<embodiment>/
+    VQA/<vlm>/1_robot_subject_stability/results.csv
+    VQA/<vlm>/2_physical_plausibility/results.csv
+    VQA/<vlm>/3_task_adherence_consistency/results.csv
+    motion/results.json
+  5_tasks/<model>/<task>/<vlm>/results.csv
+```
+
+`<vlm>` 为 `gpt`、`qwen_local` 或 `qwen_api`。它们是不同的 judge，分数从不混合;每次运行只聚合一个后端。
+
+## 支持的命令
+
+通过公开 CLI 聚合结果目录：
+
+```bash
+worldfoundry-eval zoo benchmark-run \
+  --benchmark-id rbench \
+  --mode official-validation \
+  --official-results-path /path/to/results \
+  --result-model-id MyModel \
+  --output-dir tmp/rbench/aggregate \
+  --json
+```
+
+需要 runner 专有参数时直接调用 runner：
+
+```bash
+PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
+  worldfoundry/evaluation/tasks/execution/runners/rbench/run_rbench_official_runner.py \
+  --official-results-path /path/to/results \
+  --result-model-id MyModel \
+  --vlm-backend gpt \
+  --benchmark-data-root /path/to/rbench_data \
+  --output-dir tmp/rbench/aggregate \
+  --json
+```
+
+只评一条赛道：
+
+```bash
+PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
+  worldfoundry/evaluation/tasks/execution/runners/rbench/run_rbench_official_runner.py \
+  --official-results-path /path/to/results \
+  --track 5_tasks \
+  --output-dir tmp/rbench/tasks \
+  --json
+```
+
+结果路径可以指向 `results/` 根目录、单条赛道目录，或单个模型目录。存在多个模型时必须传 `--result-model-id`；同时存在 `gpt` 与 `qwen` judge 时必须传 `--vlm-backend`。
+
+## 环境变量
+
+| 变量 | 含义 |
+| --- | --- |
+| `WORLDFOUNDRY_RBENCH_RESULTS_PATH` | 待聚合的结果目录。 |
+| `WORLDFOUNDRY_RBENCH_DATA_ROOT` | 含 `prompts/` 与 `imgs/` 的数据集根目录。 |
+| `WORLDFOUNDRY_RBENCH_VLM_BACKEND` | 读取哪个 judge 目录(`gpt`、`qwen_local`、`qwen_api`)。 |
+| `WORLDFOUNDRY_RBENCH_STRICT` | 两条赛道未覆盖全部 650 条 prompt 时判定运行失败。 |
+
+## 评分协议
+
+**本体赛道**，逐视频:合并 3 个 VQA 分数与 2 个运动分数，各自 min-max 归一化到 `[0, 1]`。
+
+| 分量 | 原始量程 |
+| --- | --- |
+| `RSS` 机器人主体稳定性 | 1-15（由 A-E 选项组合映射） |
+| `PSS` 物理合理性 | 1-5 |
+| `TAC` 任务遵循一致性 | 1-5 |
+| `MS` 运动平滑度 | 0-1 |
+| `MA` 可感知运动幅度 | 0-1 |
+
+随后：
+
+```text
+Task_Completion     = mean(PSS, TAC)
+Visual_Quality_Base = 0.8 * RSS + 0.2 * MS
+Visual_Quality      = max(Visual_Quality_Base - pas_penalty(MA) - consistency_penalty, 0)
+```
+
+`pas_penalty` 惩罚近乎静止的视频(`MA < 0.1`，低于 `0.05` 再加 `0.1`)。`consistency_penalty` 把稳定性选项 `B/C/D/E` 映射为 `0.2/0.4/0.6/0.8`，仅当机器人与物体两侧惩罚都非零时取平均。
+
+有三处上游行为被精确复现，因为它们会改变数值：
+
+- judge 的非数值回复("bad reply")视为缺失，而非 0。
+- 行均值跳过缺失分量，因此只有 `TAC` 的视频就按 `TAC` 单独计分。
+- 幅度过滤 `MA >= 0` 会**丢弃没有测到幅度的视频**——缺失值参与比较恒为 false。这些视频完全退出带惩罚的聚合;runner 会报告每个 split 丢弃了多少条。
+
+**任务赛道**，逐视频:`(score - 1) / 4`，丢弃负数的 bad-reply 哨兵值。`task_track_overall` 是对 5 个 split 的**全部视频**汇池求均值,而不是 5 个 split 均值的均值。
+
+## 导入路径
+
+- Runner：`worldfoundry.evaluation.tasks.execution.runners.rbench.run_rbench_official_runner`
+- 指标：`worldfoundry.evaluation.tasks.execution.runners.rbench.rbench_metrics`
+- Split 与 prompt 配置表：`worldfoundry.evaluation.tasks.execution.runners.rbench.rbench_prompts`
+- 结果布局解析：`worldfoundry.evaluation.tasks.execution.runners.rbench.rbench_runtime`
+- 汇总 CSV 归一化：`worldfoundry.evaluation.tasks.execution.runners.rbench.rbench_official_scoring`
+
+## 输出产物
+
+`--output-dir` 下包含：
+
+- `scorecard.json`：运行状态、各赛道完整性、指标表、覆盖率。
+- `raw_metric_table.jsonl`：每个声明指标一行，含不可用指标。
+- `per_sample_scores.jsonl`：每个已评分 split 一行，含分量均值与丢弃计数。
+- `track_breakdown.json`：两条赛道的 split 级明细。
+- `benchmark_contract.json`：指标 id、解析出的布局、已评分 split。
+
+## 指标
+
+主指标：`rbench_overall`。全部指标越高越好。
+
+| 指标 | 赛道 | 含义 |
+| --- | --- | --- |
+| `rbench_overall` | 两条 | **WorldFoundry 合成指标**：两条赛道分的均值。非 RBench 官方发布数值，且仅在两条赛道均完整时才产出。 |
+| `embodiment_overall` | 本体 | 4 个本体行的 `Task_Completion` 与 `Visual_Quality` 汇池均值。 |
+| `task_completion` | 本体 | 归一化物理合理性与任务遵循度的均值。 |
+| `visual_quality` | 本体 | 带惩罚的稳定性与平滑度得分。 |
+| `visual_quality_base` | 本体 | 惩罚前的同一得分。 |
+| `physical_plausibility` | 本体 | 归一化 `PSS`。 |
+| `task_adherence_consistency` | 本体 | 归一化 `TAC`。 |
+| `robot_subject_stability` | 本体 | 归一化 `RSS`。 |
+| `motion_smoothness` | 本体 | `MS` 算子分。 |
+| `motion_amplitude` | 本体 | `MA` 算子分。 |
+| `task_track_overall` | 任务 | `ALL_TASKS_MEAN`，全部已评分视频汇池均值。 |
+| `common_manipulation` | 任务 | split 均值。 |
+| `long_horizon_planning` | 任务 | split 均值。 |
+| `multi_entity_collaboration` | 任务 | split 均值。 |
+| `spatial_relationship` | 任务 | split 均值。 |
+| `visual_reasoning` | 任务 | split 均值。 |
+
+## 证据边界
+
+聚合他人提供的 judge 输出不构成官方运行证据：`official_benchmark_verified` 与 `leaderboard_valid` 始终为 `false`。`full_suite_valid` 要求 9 个 split 全部存在**且**每个 split 的已评分视频数达到其官方 prompt 数——仅有目录存在是不够的。
+
+[← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

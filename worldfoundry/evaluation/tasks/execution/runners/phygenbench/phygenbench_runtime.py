@@ -5,12 +5,12 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
 
+from worldfoundry.core.io.file_utils import materialize_file
 from worldfoundry.evaluation.tasks.execution.runners.phygenbench.phygenbench_prompts import (
     load_prompt_records,
     official_video_filename_for_record,
@@ -181,7 +181,7 @@ def _materialize_phyvideos(
             alt = generated_artifact_dir / f"{record['prompt_id']}.mp4"
             source = alt if alt.is_file() else source
         if source.is_file():
-            shutil.copy2(source, target_dir / official_name)
+            materialize_file(source, target_dir / official_name, writable=False)
     return target_dir
 
 
@@ -268,7 +268,7 @@ def run_phygenbench_judge(
         model_name=config.model_name,
     )
     upstream_result = _run_upstream_overall(repo_root=repo_root, model_name=config.model_name)
-    shutil.copy2(upstream_result, results_json)
+    materialize_file(upstream_result, results_json)
     return {
         "backend": "official",
         "results_json": str(results_json.resolve()),

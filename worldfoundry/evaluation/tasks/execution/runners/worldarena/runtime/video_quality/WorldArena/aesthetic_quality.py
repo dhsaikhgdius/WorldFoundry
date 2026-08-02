@@ -1,12 +1,13 @@
 import os
-import clip
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from .utils import load_video, load_dimension_info, clip_transform
 from tqdm import tqdm
+from worldfoundry.base_models.perception_core.general_perception import openai_clip as clip
+from worldfoundry.core.device import get_current_torch_device
 
-from .distributed import (
+from worldfoundry.core.distributed.evaluation_collectives import (
     get_world_size,
     get_rank,
     all_gather,
@@ -71,7 +72,7 @@ def laion_aesthetic(aesthetic_model, clip_model, video_list, device):
 
 
 def compute_aesthetic_quality(json_dir, submodules_list, **kwargs):
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = get_current_torch_device()
     vit_path = submodules_list.get('clip_model')
     aes_path = submodules_list.get('aesthetic_head')
     if vit_path is None or aes_path is None:

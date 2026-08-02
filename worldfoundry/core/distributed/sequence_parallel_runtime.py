@@ -504,3 +504,109 @@ def gather_forward_split_backward(
     group: Optional[dist.ProcessGroup] = None,
 ) -> torch.Tensor:
     return _GatherForwardSplitBackward.apply(input_, dim, _resolve_group(group))
+
+
+# Optional xFuser compatibility used by official Wan-family runtimes.  The
+# native sequence-parallel collectives above remain the canonical
+# implementation for WorldFoundry models.
+try:
+    import importlib.util as _importlib_util
+
+    if _importlib_util.find_spec("paifuser") is not None:
+        from paifuser.xfuser.core.distributed import (
+            get_sequence_parallel_rank,
+            get_sequence_parallel_world_size,
+            get_sp_group,
+            get_world_group,
+            init_distributed_environment,
+            initialize_model_parallel,
+            model_parallel_is_initialized,
+        )
+        from paifuser.xfuser.core.long_ctx_attention import xFuserLongContextAttention
+    else:
+        from xfuser.core.distributed import (
+            get_sequence_parallel_rank,
+            get_sequence_parallel_world_size,
+            get_sp_group,
+            get_world_group,
+            init_distributed_environment,
+            initialize_model_parallel,
+            model_parallel_is_initialized,
+        )
+        from xfuser.core.long_ctx_attention import xFuserLongContextAttention
+except Exception:
+    get_sequence_parallel_world_size = None
+    get_sequence_parallel_rank = None
+    xFuserLongContextAttention = None
+    get_sp_group = None
+    get_world_group = None
+    init_distributed_environment = None
+    initialize_model_parallel = None
+    model_parallel_is_initialized = None
+
+
+def set_multi_gpus_devices(
+    ulysses_degree: int,
+    ring_degree: int,
+    classifier_free_guidance_degree: int = 1,
+) -> torch.device:
+    """Initialize an optional xFuser mesh and return its process-local device."""
+
+    if ulysses_degree > 1 or ring_degree > 1 or classifier_free_guidance_degree > 1:
+        if get_sp_group is None:
+            raise RuntimeError("xFuser is required for the requested parallel degrees")
+        if not dist.is_initialized():
+            dist.init_process_group("nccl")
+        expected_world_size = (
+            int(ring_degree)
+            * int(ulysses_degree)
+            * int(classifier_free_guidance_degree)
+        )
+        if dist.get_world_size() != expected_world_size:
+            raise ValueError(
+                f"world size {dist.get_world_size()} does not match requested "
+                f"parallel degree {expected_world_size}"
+            )
+        init_distributed_environment(rank=dist.get_rank(), world_size=dist.get_world_size())
+        initialize_model_parallel(
+            sequence_parallel_degree=ring_degree * ulysses_degree,
+            classifier_free_guidance_degree=classifier_free_guidance_degree,
+            ring_degree=ring_degree,
+            ulysses_degree=ulysses_degree,
+        )
+        return torch.device(f"cuda:{get_world_group().local_rank}")
+    return torch.device("cuda", torch.cuda.current_device())
+
+
+def sequence_parallel_chunk(x: torch.Tensor, dim: int = 1) -> torch.Tensor:
+    """Return the xFuser-owned sequence shard, or the input in local mode."""
+
+    if (
+        get_sequence_parallel_world_size is None
+        or model_parallel_is_initialized is None
+        or not model_parallel_is_initialized()
+    ):
+        return x
+    world_size = int(get_sequence_parallel_world_size())
+    if world_size <= 1:
+        return x
+    if x.size(dim) % world_size:
+        raise ValueError(
+            f"dimension {dim} ({x.size(dim)}) must be divisible by "
+            f"sequence-parallel world size {world_size}"
+        )
+    return torch.chunk(x, world_size, dim=dim)[get_sequence_parallel_rank()]
+
+
+def sequence_parallel_all_gather(x: torch.Tensor, dim: int = 1) -> torch.Tensor:
+    """Gather xFuser sequence shards, or return the input in local mode."""
+
+    if (
+        get_sequence_parallel_world_size is None
+        or model_parallel_is_initialized is None
+        or not model_parallel_is_initialized()
+    ):
+        return x
+    if int(get_sequence_parallel_world_size()) <= 1:
+        return x
+    return get_sp_group().all_gather(x, dim=dim)

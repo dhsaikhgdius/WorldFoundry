@@ -18,13 +18,13 @@ from torchvision.transforms import v2
 from transformers import PretrainedConfig
 from transformers.feature_extraction_utils import BatchFeature
 
-from worldfoundry.base_models.diffusion_model.video.wan.wan_dreamzero.modules.flow_match_scheduler import (
+from worldfoundry.core.nn.diffusion_schedulers import (
     FlowMatchScheduler,
 )
-from worldfoundry.base_models.diffusion_model.video.wan.wan_dreamzero.modules.flow_unipc_multistep_scheduler import (
+from worldfoundry.base_models.diffusion_model.schedulers.flow_unipc import (
     FlowUniPCMultistepScheduler,
 )
-from worldfoundry.base_models.diffusion_model.video.wan.wan_dreamzero.modules.wan_video_text_encoder import (
+from worldfoundry.base_models.diffusion_model.models.encoders.wan.model import (
     T5LayerNorm,
     T5RelativeEmbedding,
 )

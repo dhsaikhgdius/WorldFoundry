@@ -15,14 +15,11 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from worldfoundry.synthesis.visual_generation.animatediff.worldfoundry_runtime import (
-    DEFAULT_ANIMATEDIFF_CONFIG_ROOT,
     DEFAULT_ANIMATEDIFF_HF_HUB_CACHE,
     DEFAULT_ANIMATEDIFF_INFERENCE_CONFIG,
     DEFAULT_ANIMATEDIFF_INTEGRATED_ROOT,
     DEFAULT_ANIMATEDIFF_MOTION_MODULE,
     DEFAULT_ANIMATEDIFF_REALISTIC_VISION,
-    DEFAULT_ANIMATEDIFF_REPO_ROOT,
-    DEFAULT_ANIMATEDIFF_V3_MOTION_MODULE,
     DEFAULT_SD15_ROOT,
     AnimateDiffRuntime,
 )

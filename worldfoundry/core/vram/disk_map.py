@@ -1,9 +1,35 @@
+import json
 import os
+from collections.abc import Mapping
 
 import torch
 from safetensors import safe_open
 
 from worldfoundry.core.model_loading import load_torch_state_dict
+from worldfoundry.core.io.storage import read_text_uri
+
+
+def _expand_safetensors_indexes(paths):
+    """Expand sharded Safetensors indexes into unique shard paths."""
+
+    expanded = []
+    seen = set()
+    for raw_path in paths:
+        path = str(raw_path)
+        if path.endswith(".safetensors.index.json"):
+            index = json.loads(read_text_uri(path))
+            weight_map = index.get("weight_map")
+            if not isinstance(weight_map, dict):
+                raise ValueError(f"Safetensors index {path!r} does not contain a weight_map")
+            root = path.rsplit("/", 1)[0]
+            candidates = [f"{root}/{name}" for name in sorted(set(weight_map.values()))]
+        else:
+            candidates = [path]
+        for candidate in candidates:
+            if candidate not in seen:
+                seen.add(candidate)
+                expanded.append(candidate)
+    return expanded
 
 
 class SafetensorsCompatibleTensor:
@@ -31,7 +57,7 @@ class SafetensorsCompatibleBinaryLoader:
         return SafetensorsCompatibleTensor(self.state_dict[name])
 
 
-class DiskMap:
+class DiskMap(Mapping):
     """Lazy mapping from checkpoint parameter names to materialized tensors.
 
     Safetensors files remain memory-mapped and individual weights are loaded on
@@ -52,7 +78,8 @@ class DiskMap:
             buffer_size: Number of fetched tensor elements after which file
                 handles are refreshed.
         """
-        self.path = path if isinstance(path, list) else [path]
+        paths = path if isinstance(path, list) else [path]
+        self.path = _expand_safetensors_indexes(paths)
         self.device = device
         self.torch_dtype = torch_dtype
         if os.environ.get("WORLDFOUNDRY_DISK_MAP_BUFFER_SIZE") is not None:
@@ -112,6 +139,11 @@ class DiskMap:
             return self.rename_dict.__iter__()
         else:
             return self.name_map.__iter__()
+
+    def __len__(self):
+        if self.rename_dict is not None:
+            return len(self.rename_dict)
+        return len(self.name_map)
 
     def __contains__(self, x):
         if self.rename_dict is not None:

@@ -1,0 +1,53 @@
+---
+title: Core infrastructure
+description: The worldfoundry/core shared layer — loading, attention, distributed, VRAM, kernels, memory, and the rule that reusable primitives live here, not in family packages.
+---
+
+## Why this layer exists
+
+`worldfoundry/core` is the shared inference infrastructure that every model family reuses and none of them owns. Checkpoint loading, state-dict remapping, attention backends, distributed collectives, VRAM placement and offload, kernels, configuration, media IO, memory contracts, and safety guardrails all live here once. A family package (`worldfoundry/base_models/*`, `worldfoundry/synthesis/*`, `worldfoundry/pipelines/*`) composes these primitives; it must not recreate them.
+
+This is the layer to read when you are about to copy a utility into a model directory. The rule is explicit: if a capability can serve more than one family, it belongs in `core` first. See [Native diffusion](/docs/maintainers/architecture/native-diffusion) for how diffusion consumes this layer, and [Model runtime](/docs/maintainers/architecture/model-runtime) for how pipelines and operators do.
+
+## Subpackage responsibilities
+
+| Subpackage | Owns | Key symbols |
+| --- | --- | --- |
+| `model_loading` | Checkpoint materialization, state-dict loading, LoRA merge, inference network construction. | `load_state_dict_from_safetensors` `model_loading/file.py:110`; `instantiate_inference_network` `inference_model.py:23`; `GeneralLoRAoader` `lora.py:15` |
+| `checkpoint` | State-dict assignment, remap, distributed checkpoint (DCP), safe loading. | `checkpoint/{assignment,remap,dcp,safe_loading,load}.py` |
+| `vram` | Disk-backed state maps, meta initialization, staged placement, layerwise CPU offload, memory accounting. | `vram/{disk_map,initialization,layers,layerwise_offload,memory}.py` |
+| `attention` | Backend probing, dense SDPA, packed variable-length, sparse 3D, n-D/complex/projective RoPE, sequence-parallel composition. | `AttentionKernelCapability` `attention/backends.py:32`; `probe_attention_backends` `backends.py:144`; `complex_rope.py`, `causal_ulysses_attention.py` |
+| `distributed` | NCCL options, masked orthogonal rank groups, model-parallel init, context/block FSDP, device-mesh collectives. | `initialize_model_parallel` `distributed/model_parallel_groups.py:238`; `RankGenerator` `:194`; `block_fsdp.py`, `context_parallel.py` |
+| `nn` | Reusable transformer math: RMSNorm, shared MLPs, timestep/AdaLN/final-layer modulation, prefix gating, activation checkpointing, classic-diffusion blocks. | `nn/{activation_checkpointing,diffusion_schedulers,convolutional_mlp,...}.py` |
+| `kernels` | Autotune cache, capability probing, diffusion kernels, MoE, quantized GEMM. | `kernels/{capabilities,autotune_cache,diffusion,moe,quantized_gemm}.py` |
+| `memory` | Multi-modal, streaming, and multi-turn memory contracts. | `BaseMemory` `memory/base.py:9`; `conditioning.py`, `media.py`, `mosaic.py`, `retrieval.py` |
+| `acceleration` | FP8 tensorwise quantization, low-precision gating, acceleration-technology reporting, NVFP4, token pruning. | `Float8Linear` `acceleration/quantization.py:47`; `AccelerationTechnology` `technology.py:15` |
+| `configuration` | Hydra integration, model config, flags, Cosmos-style config. | `configuration/{hydra,model_config,flags,cosmos_config}.py` |
+| `io` | Media and artifact IO: audio, video, depth-to-colormap, action tracks, cache, config utils. | `io/{artifacts,audio,action_tracks,cache}.py`; `save_depth_colormap` `io/artifacts.py:82` |
+| `safety` | Video IO guardrails and safety filters. | `safety/{guardrails,video_io}.py` |
+| `structures` | Typed validators, shape slicing, tree utils, predicates. | `Validator` `structures/validator.py:10`; `ShapeSlice` `shape_utils.py:63` |
+| `utils` | Cross-cutting helpers: array/tensor, batch ops, CUDA graphs, feature extraction, functional utils. | `utils/{array_tensor_utils,batch_ops,cuda_graph,functional_utils}.py` |
+| `visualization` | Action overlays and shared visualization helpers. | `visualization/action_overlay.py` |
+
+## Dependency rule
+
+`core` may depend on PyTorch, `diffusers` model/operator primitives, and narrow third-party libraries. It must not import `worldfoundry.pipelines`, `worldfoundry.synthesis`, `worldfoundry.operators`, `worldfoundry.representations`, `worldfoundry.base_models` family packages, or `worldfoundry.evaluation`. The edge points *out of* family packages *into* `core`, never the reverse.
+
+This keeps family packages thin: a model directory contains checkpoint-compatible tensor math and contract adapters, not a second copy of an offload manager, a distributed bootstrap, a kernel registry, or a quantization system. When you find yourself adding one of those to a family package, move it to `core` first and import it from there.
+
+<Callout type="info">
+  The diffusion package restates this rule for its own boundary in [Native diffusion](/docs/maintainers/architecture/native-diffusion). Generic attention, transformer, loading, and offload primitives live in `core`; diffusion-domain contracts, schedulers, and recipes live in `base_models/diffusion_model`.
+</Callout>
+
+## Where it is consumed
+
+- **Diffusion** — `base_models/diffusion_model` loads checkpoints through `core/model_loading`, runs attention through `core/attention`, and offloads through `core/vram`. Its `optimizations/` re-exports core policy, not a parallel implementation.
+- **Hosted and native runtimes** — `synthesis/` stages inputs through `core/io` and writes artifacts through the same media helpers.
+- **Memory** — `core/memory/base.py` defines the contract; streaming and long-context state in `synthesis/*/memory` and action-policy trace state in `synthesis/action_generation/memory.py` implement it.
+- **Distributed execution** — `core/distributed` is the only place model-parallel groups are initialized; no family package boots its own NCCL group.
+
+## What does not belong here
+
+Training entrypoints, datasets, dataloaders, losses, callbacks, augmentation-only modules, and experiment scripts do not belong in `core`, nor in `base_models`. `core` is inference infrastructure; if a module only matters during training, it should not be added here.
+
+For the directory-level map of every package, see [Codebase map](/docs/maintainers/architecture/file-index). For how a model call flows through these primitives, see [Model runtime](/docs/maintainers/architecture/model-runtime) and [Runtime assembly](/docs/maintainers/architecture/runtime-assembly).

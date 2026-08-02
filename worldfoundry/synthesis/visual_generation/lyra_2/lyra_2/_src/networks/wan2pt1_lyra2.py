@@ -35,10 +35,7 @@ from torch.distributed._composable.fsdp import fully_shard
 from torch.distributed.algorithms._checkpoint.checkpoint_wrapper import checkpoint_wrapper as ptd_checkpoint_wrapper
 from torchvision import transforms
 
-from worldfoundry.base_models.diffusion_model.video.cosmos.cosmos2.runtime.cosmos_predict2.cosmos_predict2._src.predict2.networks.selective_activation_checkpoint import (
-    CheckpointMode,
-    SACConfig,
-)
+from worldfoundry.core.nn.activation_checkpointing import CheckpointMode, SACConfig
 from worldfoundry.core.distributed.context_parallel import (
     cat_outputs_cp_with_grad,
     split_inputs_cp,

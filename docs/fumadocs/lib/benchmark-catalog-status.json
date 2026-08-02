@@ -553,6 +553,34 @@
     "summaryZh": "\u5bfc\u5165\u5b98\u65b9 / \u4e0a\u6e38\u7ed3\u679c\u5e76\u5f52\u4e00\u5316\u4e3a scorecard",
     "verificationStatus": "normalizer_only"
   },
+  "likephys": {
+    "aliases": [],
+    "badges": [
+      "integrated"
+    ],
+    "category": "Video Generation",
+    "categoryZh": "\u89c6\u9891\u751f\u6210",
+    "domains": [
+      "physics",
+      "intuitive-physics",
+      "rigid-body",
+      "fluid-dynamics",
+      "deformable",
+      "optics"
+    ],
+    "integrationStatus": "integrated",
+    "leaderboardValid": false,
+    "logoKey": "yuanjianhao508",
+    "metrics": [
+      "likephys_misrank_rate"
+    ],
+    "name": "LikePhys",
+    "requiresApi": false,
+    "runtimeKind": "in_tree_official_runner",
+    "summary": "Probes a video diffusion model's likelihood preference on paired valid/impossible clips",
+    "summaryZh": "\u5728\u6210\u5bf9\u7684\u6709\u6548 / \u4e0d\u53ef\u80fd\u7247\u6bb5\u4e0a\u63a2\u6d4b\u89c6\u9891\u6269\u6563\u6a21\u578b\u7684\u4f3c\u7136\u504f\u597d",
+    "verificationStatus": "result_normalizer_ready_probe_requires_upstream_checkout"
+  },
   "maniskill": {
     "aliases": [],
     "badges": [
@@ -687,6 +715,34 @@
     "runtimeKind": "external_official_results_runner",
     "summary": "Imports official or upstream results into a normalized scorecard",
     "summaryZh": "\u5bfc\u5165\u5b98\u65b9 / \u4e0a\u6e38\u7ed3\u679c\u5e76\u5f52\u4e00\u5316\u4e3a scorecard",
+    "verificationStatus": "normalizer_only"
+  },
+  "mind": {
+    "aliases": [
+      "MIND"
+    ],
+    "badges": [
+      "integrated"
+    ],
+    "category": "Video Generation",
+    "categoryZh": "\u89c6\u9891\u751f\u6210",
+    "domains": [
+      "world-model",
+      "interactive-video",
+      "memory",
+      "action-control"
+    ],
+    "integrationStatus": "integrated",
+    "leaderboardValid": false,
+    "logoKey": "csu-jpg",
+    "metrics": [
+      "mind_average"
+    ],
+    "name": "MIND",
+    "requiresApi": false,
+    "runtimeKind": "in_tree_official_runtime",
+    "summary": "Scores interactive world-model memory consistency and action control",
+    "summaryZh": "\u8bc4\u4f30\u4ea4\u4e92\u5f0f\u4e16\u754c\u6a21\u578b\u7684\u8bb0\u5fc6\u4e00\u81f4\u6027\u4e0e\u52a8\u4f5c\u63a7\u5236",
     "verificationStatus": "normalizer_only"
   },
   "mirabench": {
@@ -926,6 +982,35 @@
     "summary": "Imports precomputed metrics and normalizes them into a scorecard",
     "summaryZh": "\u5bfc\u5165\u9884\u8ba1\u7b97 metric \u5e76\u5f52\u4e00\u5316\u4e3a scorecard",
     "verificationStatus": "bounded_caption_qa_ready"
+  },
+  "rbench": {
+    "aliases": [
+      "ReVidgen"
+    ],
+    "badges": [
+      "integrated"
+    ],
+    "category": "Video Generation",
+    "categoryZh": "\u89c6\u9891\u751f\u6210",
+    "domains": [
+      "robotics",
+      "embodied-ai",
+      "physical-reasoning",
+      "manipulation",
+      "motion-quality"
+    ],
+    "integrationStatus": "integrated",
+    "leaderboardValid": false,
+    "logoKey": "dagroup-pku",
+    "metrics": [
+      "rbench_overall"
+    ],
+    "name": "RBench",
+    "requiresApi": true,
+    "runtimeKind": "in_tree_official_source",
+    "summary": "Reproduces the official robotics I2V aggregation over VLM judge and motion operator outputs",
+    "summaryZh": "\u5728 VLM judge \u4e0e\u8fd0\u52a8\u7b97\u5b50\u8f93\u51fa\u4e4b\u4e0a\u590d\u73b0\u5b98\u65b9\u673a\u5668\u4eba\u56fe\u751f\u89c6\u9891\u805a\u5408",
+    "verificationStatus": "in_tree_official_aggregation_ready_judge_external"
   },
   "rlbench": {
     "aliases": [
@@ -1580,6 +1665,32 @@
     "summaryZh": "\u4ed3\u5185 official runtime \u5bf9\u751f\u6210\u89c6\u9891\u9010 prompt \u8bc4\u5206",
     "verificationStatus": "verified"
   },
+  "worldolympiad": {
+    "aliases": [],
+    "badges": [
+      "integrated"
+    ],
+    "category": "World Models",
+    "categoryZh": "\u4e16\u754c\u6a21\u578b",
+    "domains": [
+      "world-model",
+      "gaming",
+      "embodied",
+      "general-video"
+    ],
+    "integrationStatus": "integrated",
+    "leaderboardValid": false,
+    "logoKey": "alibaba-damo-academy",
+    "metrics": [
+      "combined_score"
+    ],
+    "name": "WorldOlympiad",
+    "requiresApi": false,
+    "runtimeKind": "in_tree_official_runtime",
+    "summary": "In-tree official triathlon evaluator scores long-video world models",
+    "summaryZh": "\u4ed3\u5185 official \u4e09\u9879\u8bc4\u6d4b\u5668\u5bf9\u957f\u89c6\u9891\u4e16\u754c\u6a21\u578b\u6253\u5206",
+    "verificationStatus": "in_tree_runtime_plan_verified"
+  },
   "worldreasonbench": {
     "aliases": [],
     "badges": [
@@ -1631,6 +1742,37 @@
     "summary": "In-tree official runtime scores generated videos per prompt",
     "summaryZh": "\u4ed3\u5185 official runtime \u5bf9\u751f\u6210\u89c6\u9891\u9010 prompt \u8bc4\u5206",
     "verificationStatus": "verified"
+  },
+  "sana-wm-bench": {
+    "aliases": [
+      "sana-wm-benchmark",
+      "sana-wm-80scene"
+    ],
+    "badges": [
+      "integrated"
+    ],
+    "category": "World Models",
+    "categoryZh": "世界模型",
+    "domains": [
+      "world-model",
+      "camera-control",
+      "video-generation",
+      "long-horizon"
+    ],
+    "integrationStatus": "integrated",
+    "leaderboardValid": false,
+    "metrics": [
+      "vbench_overall",
+      "revisit_psnr",
+      "rot_err_deg",
+      "delta_iq"
+    ],
+    "name": "SANA-WM 80-Scene Benchmark",
+    "requiresApi": false,
+    "runtimeKind": "in_tree_composite_evaluator",
+    "summary": "In-tree 80-scene evaluator for minute-scale camera-controlled world-model video",
+    "summaryZh": "仓内 80 场景评测器，评估分钟级相机可控世界模型视频",
+    "verificationStatus": "fixture_verified"
   },
   "wrbench": {
     "aliases": [

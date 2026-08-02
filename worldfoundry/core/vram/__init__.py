@@ -28,6 +28,7 @@ _EXPORT_MODULES = {
     "load_model_as_complete": "worldfoundry.core.vram.memory",
     "log_gpu_memory": "worldfoundry.core.vram.memory",
     "move_model_to_device_with_memory_preservation": "worldfoundry.core.vram.memory",
+    "move_direct_tensors_to_device": "worldfoundry.core.vram.layers",
     "offload_model_from_device_for_memory_preservation": "worldfoundry.core.vram.memory",
     "patched_diffusers_current_device": "worldfoundry.core.vram.memory",
     "skip_model_initialization": "worldfoundry.core.vram.initialization",

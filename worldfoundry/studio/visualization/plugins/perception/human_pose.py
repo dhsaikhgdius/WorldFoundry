@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from typing import Dict, List
 import random
-from worldfoundry.base_models.diffusion_model.video.wan.wan_2p2.modules.animate.preprocess.pose2d_utils import (
+from worldfoundry.base_models.diffusion_model.models.encoders.wan.variants.animate.pose2d import (
     AAPoseMeta,
 )
 

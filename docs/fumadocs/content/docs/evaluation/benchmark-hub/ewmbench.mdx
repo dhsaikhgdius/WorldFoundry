@@ -7,11 +7,11 @@ description: EWMBench — practical WorldFoundry setup, metrics, and commands.
 
 EWMBench evaluates embodied world-model videos across scene stability, robot-motion correctness, semantic alignment, and generation diversity. It is useful when a model must preserve task-relevant state, not just produce visually plausible frames.
 
-## What It Measures
+## What it measures
 
 EWMBench evaluates **embodied world-model videos** for scene consistency, robot-motion correctness, semantic alignment, and generation diversity. It samples from AgiBot World manipulation episodes and asks whether generated rollouts preserve task-relevant state — not just visual plausibility.
 
-## Benchmark Design
+## Benchmark design
 
 | Metric family | What it checks | Upstream evidence |
 | --- | --- | --- |
@@ -22,7 +22,7 @@ EWMBench evaluates **embodied world-model videos** for scene consistency, robot-
 
 The official dataset contains 4,644 rows (~270 MB) sampled from AgiBot World. Evaluation expects preprocessed `gt_dataset/` and `*_dataset/` frame directories with trajectory and gripper-detection outputs.
 
-## Official References
+## Official references
 
 - Paper: [arXiv:2505.09694](https://arxiv.org/abs/2505.09694)
 - Official source reference: [github.com/AgibotTech/EWMBench](https://github.com/AgibotTech/EWMBench)
@@ -30,11 +30,11 @@ The official dataset contains 4,644 rows (~270 MB) sampled from AgiBot World. Ev
 - Model weights: [agibot-world/EWMBench-model](https://huggingface.co/agibot-world/EWMBench-model)
 - In-tree runner: `worldfoundry/evaluation/tasks/execution/runners/ewmbench/run_ewmbench_official_runner.py`
 
-## Leaderboard Notes
+## Leaderboard notes
 
 Official leaderboard claims require the full Hugging Face dataset, EWMBench-style preprocessing, DINOv2/YOLO-World/Qwen/CLIP checkpoints, and upstream-compatible `ewmbm_final_table.csv`. WorldFoundry's default direct scorer backend is a deterministic wiring placeholder; use `WORLDFOUNDRY_EWMBENCH_SCORER_BACKEND=official` only after all assets are staged.
 
-## Data, Checkpoints, And Assets
+## Data, checkpoints, and assets
 
 For importing existing results, prepare one EWMBench result table:
 
@@ -61,7 +61,7 @@ export WORLDFOUNDRY_EWMBENCH_RESULTS_PATH=/path/to/ewmbm_final_table.csv
 export WORLDFOUNDRY_EWMBENCH_CONFIG_PATH=/path/to/ewmbench/config.yaml
 ```
 
-## Generated Output Layout
+## Generated output layout
 
 A successful run writes the stable artifacts below under the chosen output directory:
 
@@ -76,9 +76,9 @@ A successful run writes the stable artifacts below under the chosen output direc
 
 Use `scorecard.json` for aggregate results and `raw_metric_table.jsonl` for per-metric rows. `per_sample_scores.jsonl` mirrors rows loaded from the EWMBench table when available.
 
-## Run Commands
+## Run commands
 
-### Public CLI: Import EWMBench Results
+### Public CLI: import EWMBench results
 
 Use this when you already have `ewmbm_final_table.csv` or another supported result export.
 
@@ -92,7 +92,7 @@ worldfoundry-eval zoo benchmark-run \
   --json
 ```
 
-### Direct Runner: Import EWMBench Results
+### Direct runner: import EWMBench results
 
 This calls the in-tree runner script directly and accepts the same result table.
 
@@ -105,7 +105,7 @@ PYTHONPATH=. ${WORLDFOUNDRY_UNIFIED_PYTHON:-python} \
   --json
 ```
 
-### Direct Runner: Execute The Bundled EWMBench Scorer Path
+### Direct runner: execute the bundled EWMBench scorer path
 
 By default, the direct scorer backend is `mock`; it writes deterministic placeholder CSV values for CI and wiring checks. Use `official` only after the dataset, preprocessing, config, and checkpoints are ready.
 
@@ -131,7 +131,7 @@ PYTHONPATH=. ${WORLDFOUNDRY_UNIFIED_PYTHON:-python} \
 | `diversity` | Diversity across repeated generations for the same initial state and instruction. | Higher |
 | `ewmbench_average` | Mean aggregate over scene, motion, semantic, and diversity components. This is the primary WorldFoundry metric. | Higher |
 
-## Runtime Notes
+## Runtime notes
 
 EWMBench runs against in-tree reusable components. Scene consistency uses
 `worldfoundry/base_models/perception_core/general_perception/dinov2` and the
@@ -140,3 +140,13 @@ Set `WORLDFOUNDRY_EWMBENCH_CONFIG_PATH` only when you need to override the main
 EWMBench runtime config. `json_repair` and `fastdtw` remain optional: the runner
 falls back to the Python `json` module for strict JSON and to a deterministic
 NumPy DTW implementation when `fastdtw` is not installed.
+
+## Limitations
+
+- The bundled task manifest is deliberately small. Use the Hugging Face dataset for full coverage.
+- The default direct scorer backend is not the leaderboard scorer. It is a deterministic placeholder score for checking local command wiring.
+- The `official` backend expects `config.yaml` to already point at EWMBench-style preprocessed directories and checkpoint paths. It does not convert an arbitrary flat video directory into a full EWMBench data layout.
+- The public CLI path imports existing result rows. Generated videos alone do not produce EWMBench metrics.
+- A leaderboard-equivalent claim needs the full dataset, preprocessing, DINOv2, YOLO-World, Qwen, and CLIP checkpoints, plus an upstream-compatible result table.
+
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

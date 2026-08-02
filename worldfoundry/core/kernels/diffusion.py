@@ -9,6 +9,7 @@ import torch
 import torch.nn.functional as F
 
 from worldfoundry.core.kernels.capabilities import (
+    QUALIFIED_TRITON_CAPABILITIES,
     default_kernel_thresholds,
     detected_kernel_device_profiles,
     kernel_device_profile,
@@ -17,6 +18,7 @@ from worldfoundry.core.kernels.capabilities import (
 from worldfoundry.core.kernels.registry import (
     KERNEL_REGISTRY,
     clear_kernel_dispatch_cache,
+    kernel_autotune_enabled,
 )
 from worldfoundry.core.kernels.registry import (
     kernel_dispatch_report as _registry_dispatch_report,
@@ -46,10 +48,10 @@ def _positive_override(value: str | None, default: int) -> int:
         return default
 
 
-# Below these sizes eager PyTorch's highly tuned pointwise kernels are faster
-# than paying the custom-dispatch/launch cost on A100. The conservative
-# defaults avoid regressions on short causal chunks; deployments can tune them
-# independently for T4/A10/L4/consumer Ada or Hopper/Blackwell.
+# Below the device-profile thresholds, eager PyTorch's vendor/pointwise path is
+# usually faster than paying custom dispatch and launch costs. The thresholds
+# are architecture-specific conservative defaults; throughput mode measures
+# exact device/dtype/shape signatures and retains the faster implementation.
 _TORCH_BACKENDS = {"torch", "pytorch", "native", "off", "disabled"}
 
 
@@ -119,7 +121,7 @@ def _kernel_threshold(tensor: torch.Tensor, op: str, *related: torch.Tensor) -> 
             activation_default = 4 * mib
         elif capability is not None and capability[0] == 8:
             activation_default = 8 * mib
-        elif capability is not None and capability[0] in {10, 12}:
+        elif capability is not None and capability[0] in {10, 11, 12}:
             activation_default = 32 * mib
         else:
             activation_default = 16 * mib
@@ -128,7 +130,7 @@ def _kernel_threshold(tensor: torch.Tensor, op: str, *related: torch.Tensor) -> 
         mib = 1024 * 1024
         if capability is not None and capability[0] == 8:
             group_norm_default = mib
-        elif capability is not None and capability[0] in {10, 12}:
+        elif capability is not None and capability[0] in {10, 11, 12}:
             group_norm_default = 4 * mib
         else:
             group_norm_default = 2 * mib
@@ -168,7 +170,7 @@ def _eager_kernel_threshold_cached(
             default = 4 * mib
         elif capability is not None and capability[0] == 8:
             default = 8 * mib
-        elif capability is not None and capability[0] in {10, 12}:
+        elif capability is not None and capability[0] in {10, 11, 12}:
             default = 32 * mib
         else:
             default = 16 * mib
@@ -177,7 +179,7 @@ def _eager_kernel_threshold_cached(
         mib = 1024 * 1024
         if capability is not None and capability[0] == 8:
             default = mib
-        elif capability is not None and capability[0] in {10, 12}:
+        elif capability is not None and capability[0] in {10, 11, 12}:
             default = 4 * mib
         else:
             default = 2 * mib
@@ -194,26 +196,13 @@ def _triton_device_supported(tensor: torch.Tensor) -> bool:
     if not tensor.is_cuda or bool(getattr(torch.version, "hip", None)):
         return False
     capability = torch.cuda.get_device_capability(tensor.device)
-    known_capabilities = {
-        (7, 0),
-        (7, 5),
-        (8, 0),
-        (8, 6),
-        (8, 7),
-        (8, 9),
-        (9, 0),
-        (10, 0),
-        (10, 3),
-        (12, 0),
-        (12, 1),
-    }
     allow_untested = os.getenv("WORLDFOUNDRY_ALLOW_UNTESTED_GPU_KERNELS", "").strip().casefold() in {
         "1",
         "true",
         "yes",
         "on",
     }
-    if capability not in known_capabilities and not allow_untested:
+    if capability not in QUALIFIED_TRITON_CAPABILITIES and not allow_untested:
         return False
     return tensor.dtype != torch.bfloat16 or capability >= (8, 0)
 
@@ -305,9 +294,12 @@ def silu_mul(gate: torch.Tensor, value: torch.Tensor) -> torch.Tensor:
     """Return ``silu(gate) * value`` with an eager inference fast path."""
 
     requested = _requested_kernel_backend()
-    if torch.compiler.is_compiling() or requested in _TORCH_BACKENDS or (
-        requested == "auto"
-        and gate.numel() < _kernel_threshold(gate, "silu_mul")
+    if (
+        torch.compiler.is_compiling()
+        or requested in _TORCH_BACKENDS
+        or (
+            requested == "auto" and not kernel_autotune_enabled() and gate.numel() < _kernel_threshold(gate, "silu_mul")
+        )
     ):
         return _silu_mul_torch(gate, value)
     return KERNEL_REGISTRY.dispatch(
@@ -348,8 +340,14 @@ def silu_and_mul(input: torch.Tensor) -> torch.Tensor:
 
     requested = _requested_kernel_backend()
     output_elements = input.numel() // 2
-    if torch.compiler.is_compiling() or requested in _TORCH_BACKENDS or (
-        requested == "auto" and output_elements < _kernel_threshold(input, "silu_mul")
+    if (
+        torch.compiler.is_compiling()
+        or requested in _TORCH_BACKENDS
+        or (
+            requested == "auto"
+            and not kernel_autotune_enabled()
+            and output_elements < _kernel_threshold(input, "silu_mul")
+        )
     ):
         return _silu_and_mul_torch(input)
     return KERNEL_REGISTRY.dispatch(
@@ -424,8 +422,14 @@ def group_norm_silu(
 
     args = (input, weight, bias, int(num_groups), float(eps))
     requested = _requested_kernel_backend()
-    if torch.compiler.is_compiling() or requested in _TORCH_BACKENDS or (
-        requested == "auto" and input.numel() < _kernel_threshold(input, "group_norm_silu")
+    if (
+        torch.compiler.is_compiling()
+        or requested in _TORCH_BACKENDS
+        or (
+            requested == "auto"
+            and not kernel_autotune_enabled()
+            and input.numel() < _kernel_threshold(input, "group_norm_silu")
+        )
     ):
         return _group_norm_silu_torch(*args)
     return KERNEL_REGISTRY.dispatch(
@@ -472,10 +476,13 @@ def residual_gate_add(residual: torch.Tensor, update: torch.Tensor, gate: torch.
     # eager execution, where PyTorch otherwise launches multiply and add
     # separately. An explicit backend override remains available for profiling.
     requested = _requested_kernel_backend()
-    if torch.compiler.is_compiling() or requested in _TORCH_BACKENDS or (
-        requested == "auto"
-        and (
-            residual.numel() < _kernel_threshold(residual, "residual_gate_add", update, gate)
+    if (
+        torch.compiler.is_compiling()
+        or requested in _TORCH_BACKENDS
+        or (
+            requested == "auto"
+            and not kernel_autotune_enabled()
+            and (residual.numel() < _kernel_threshold(residual, "residual_gate_add", update, gate))
         )
     ):
         return _residual_gate_torch(residual, update, gate)
@@ -551,8 +558,14 @@ def layer_norm_scale_shift(
     """Fuse affine-free LayerNorm with AdaLN scale and shift."""
 
     requested = _requested_kernel_backend()
-    if torch.compiler.is_compiling() or requested in _TORCH_BACKENDS or (
-        requested == "auto" and x.numel() < _kernel_threshold(x, "layer_norm_scale_shift")
+    if (
+        torch.compiler.is_compiling()
+        or requested in _TORCH_BACKENDS
+        or (
+            requested == "auto"
+            and not kernel_autotune_enabled()
+            and x.numel() < _kernel_threshold(x, "layer_norm_scale_shift")
+        )
     ):
         return _layer_norm_scale_shift_torch(x, scale, shift, eps, upcast)
     return KERNEL_REGISTRY.dispatch(
@@ -625,8 +638,14 @@ def rms_norm_scale_shift(
     """Fuse RMSNorm with broadcast scale/shift modulation."""
 
     requested = _requested_kernel_backend()
-    if torch.compiler.is_compiling() or requested in _TORCH_BACKENDS or (
-        requested == "auto" and x.numel() < _kernel_threshold(x, "layer_norm_scale_shift")
+    if (
+        torch.compiler.is_compiling()
+        or requested in _TORCH_BACKENDS
+        or (
+            requested == "auto"
+            and not kernel_autotune_enabled()
+            and x.numel() < _kernel_threshold(x, "layer_norm_scale_shift")
+        )
     ):
         return _rms_norm_scale_shift_torch(x, weight, scale, shift, eps)
     tensors = (x, scale, shift) if weight is None else (x, weight, scale, shift)
@@ -773,12 +792,12 @@ def _hidden_qk_rmsnorm_rope_3d_torch(
             )
             for sequence_start in range(0, sequence, sequence_per_chunk):
                 sequence_end = min(sequence_start + sequence_per_chunk, sequence)
-                selected = value_heads[
-                    :, sequence_start:sequence_end, chunk_head_start:chunk_head_end, :
-                ].view(batch, sequence_end - sequence_start, chunk_heads, pairs, 2)
-                destination = output_heads[
-                    :, sequence_start:sequence_end, chunk_head_start:chunk_head_end, :
-                ].view(batch, sequence_end - sequence_start, chunk_heads, pairs, 2)
+                selected = value_heads[:, sequence_start:sequence_end, chunk_head_start:chunk_head_end, :].view(
+                    batch, sequence_end - sequence_start, chunk_heads, pairs, 2
+                )
+                destination = output_heads[:, sequence_start:sequence_end, chunk_head_start:chunk_head_end, :].view(
+                    batch, sequence_end - sequence_start, chunk_heads, pairs, 2
+                )
                 cosine = selected_cosine[:, sequence_start:sequence_end]
                 sine = selected_sine[:, sequence_start:sequence_end]
                 even = selected[..., 0].double()
@@ -1027,6 +1046,7 @@ def _register_kernels() -> None:
         backend="triton",
         name="triton_group_norm_silu",
         priority=100,
+        autotune=True,
         implementation=_group_norm_silu_triton,
         predicate=_eligible_group_norm_silu,
     )
@@ -1035,6 +1055,7 @@ def _register_kernels() -> None:
         backend="triton",
         name="triton_silu_and_mul",
         priority=100,
+        autotune=True,
         implementation=_silu_and_mul_triton,
         predicate=_eligible_silu_and_mul,
     )
@@ -1043,6 +1064,7 @@ def _register_kernels() -> None:
         backend="triton",
         name="triton_silu_mul",
         priority=100,
+        autotune=True,
         implementation=_silu_mul_triton,
         predicate=_eligible_silu_mul,
     )
@@ -1051,6 +1073,7 @@ def _register_kernels() -> None:
         backend="triton",
         name="triton_residual_gate_add",
         priority=100,
+        autotune=True,
         implementation=_residual_gate_triton,
         predicate=_eligible_residual_gate,
     )
@@ -1059,6 +1082,7 @@ def _register_kernels() -> None:
         backend="triton",
         name="triton_layer_norm_scale_shift",
         priority=100,
+        autotune=True,
         implementation=_layer_norm_scale_shift_triton,
         predicate=_eligible_layer_norm_scale_shift,
     )
@@ -1067,6 +1091,7 @@ def _register_kernels() -> None:
         backend="triton",
         name="triton_rms_norm_scale_shift",
         priority=100,
+        autotune=True,
         implementation=_rms_norm_scale_shift_triton,
         predicate=_eligible_rms_norm_scale_shift,
     )

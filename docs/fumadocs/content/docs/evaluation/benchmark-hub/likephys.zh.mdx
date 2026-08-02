@@ -1,0 +1,192 @@
+---
+title: LikePhys
+description: WorldFoundry 中的 LikePhys：视频扩散模型的似然偏好探测、mis-rank 指标与结果导入。
+---
+
+## 评测内容
+
+LikePhys 不生成任何视频，而是直接检验视频扩散模型是否**偏好**物理上合理的运动。它把模型当作去噪器，在一组配对片段上前向计算：每个 subgroup 含 1 个物理有效片段和若干物理不可能的对照片段，以去噪目标作为 ELBO 似然代理。若模型给有效片段更低的 loss，说明它掌握了对应的物理规律。
+
+指标是 **mis-rank rate**：在 subgroup 内所有 (valid, invalid) loss 配对中，valid 片段 loss **更高**的比例。**所有 LikePhys 指标都是越低越好**，`0.0` 表示模型把每个有效片段都排在了对照片段之上。
+
+数据集覆盖 12 个场景 × 10 个 subgroup（共 920 个片段）：
+
+- 刚体：`ball_drop`、`ball_collision`、`pendulum`、`block_slide`、`pyramid`
+- 流体：`fluid`、`faucet`、`river`
+- 可形变体：`cloth`、`flag`
+- 光学：`shadow`（光源移动）、`shadowm`（相机移动）
+
+每个场景都含 `temporal_disorder` 变体，以及场景特有的违例，例如 `penetration`、`reverse_gravity`、`negative_viscosity`、`shadow_disconnection`。
+
+由于 LikePhys 探测的是模型内部，**不需要候选生成视频**——被评测对象就是模型本身。
+
+## 官方参考
+
+| 资源 | 链接 |
+| --- | --- |
+| 项目页 | [yuanjianhao508.github.io/LikePhys](https://yuanjianhao508.github.io/LikePhys/) |
+| 论文（ICLR 2026） | [arXiv:2510.11512](https://arxiv.org/abs/2510.11512) |
+| GitHub | [github.com/YuanJianhao508/LikePhys](https://github.com/YuanJianhao508/LikePhys) |
+| HF 数据集 | [JianhaoDYDY/LikePhys-Benchmark](https://huggingface.co/datasets/JianhaoDYDY/LikePhys-Benchmark) |
+| 仓内 runner | `worldfoundry/evaluation/tasks/execution/runners/likephys/run_likephys_official_runner.py` |
+
+## 数据与产物布局
+
+片段按场景、subgroup、变体组织：
+
+```text
+<likephys_data_root>/
+  ball_drop_videos/
+    subgroup_000/
+      valid_00.mp4
+      penetration_00.mp4
+      over_bounce_00.mp4
+      temporal_disorder_00.mp4
+      ...
+    subgroup_001/
+  pendulum_videos/
+  river_videos/
+  shadow_camera_videos/
+  ...
+```
+
+下载数据集：
+
+```bash
+huggingface-cli download JianhaoDYDY/LikePhys-Benchmark --repo-type dataset --local-dir ./likephys_data
+```
+
+探测阶段每个场景写出一个结果文件：
+
+```text
+<likephys_results_root>/
+  ball_drop/results_wan2.1-T2V-1.3b.json
+  pendulum/results_wan2.1-T2V-1.3b.json
+  ...
+```
+
+文件内含 `scene_evaluations[subgroup][variation][clip] = {loss, loss_array, ...}` 以及上游的 `misrank_metrics`。WorldFoundry 从原始 loss 重新计算 mis-rank，而不是直接采信已汇总的结果。
+
+## 两条路径
+
+**归一化（默认）**：从已有的 `results_<model>.json` 重新计算官方指标。纯 Python，不需要 GPU 和权重。
+
+**探测（`--run-official`）**：执行上游 `evaluator.py` 的 ELBO 循环。它依赖上游对 `diffusers` pipeline 与 scheduler 的分支改造（暴露 `customize_add_noise` 和逐 timestep 的 sigmas），WorldFoundry 不内置这些分支代码，因此需要提供官方 checkout，同时需要 CUDA 和被探测模型的权重。每次运行会建立一个由符号链接组成的临时 workspace（上游源码 + 指向数据集根的 `data`），因此不会修改 checkout 或数据集。
+
+## 支持的命令
+
+通过公开 CLI 导入已有结果目录：
+
+```bash
+worldfoundry-eval zoo benchmark-run \
+  --benchmark-id likephys \
+  --mode official-validation \
+  --official-results-path /path/to/results/evaluation_t10_uniform_42_cfg_final \
+  --output-dir tmp/likephys/import \
+  --json
+```
+
+需要 runner 专有参数时直接调用 runner：
+
+```bash
+PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
+  worldfoundry/evaluation/tasks/execution/runners/likephys/run_likephys_official_runner.py \
+  --official-results-path /path/to/results/evaluation_t10_uniform_42_cfg_final \
+  --probe-model wan2.1-T2V-1.3b \
+  --output-dir tmp/likephys/import \
+  --json
+```
+
+在消耗 GPU 前先校验探测计划：检查数据布局、准备 workspace，并打印将要执行的上游命令，但不实际运行：
+
+```bash
+git clone https://github.com/YuanJianhao508/LikePhys.git thirdparty/LikePhys
+export WORLDFOUNDRY_LIKEPHYS_EVALUATOR_ROOT="$PWD/thirdparty/LikePhys"
+
+PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
+  worldfoundry/evaluation/tasks/execution/runners/likephys/run_likephys_official_runner.py \
+  --run-official --dry-run \
+  --probe-model wan2.1-T2V-1.3b \
+  --benchmark-data-root /path/to/likephys_data \
+  --output-dir tmp/likephys/plan \
+  --json
+```
+
+真正执行探测（每个场景一次 GPU 遍历，共 920 个片段）：
+
+```bash
+PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
+  worldfoundry/evaluation/tasks/execution/runners/likephys/run_likephys_official_runner.py \
+  --run-official \
+  --probe-model wan2.1-T2V-1.3b \
+  --benchmark-data-root /path/to/likephys_data \
+  --scenario ball_drop --scenario pendulum \
+  --output-dir tmp/likephys/run \
+  --json
+```
+
+常用参数：`--seed`（默认 `42`）、`--timestep-num`（默认 `10`）、`--no-guidance-scale`（官方 sweep 默认开启 CFG）、`--tag-name`、`--limit`、`--no-report-filter`、`--strict`。
+
+## 可探测的模型
+
+`--probe-model` 接受上游的 model key。官方 sweep 覆盖 `animatediff`、`animatediff_sdxl`、`modelscope`、`zeroscope`、`cogvideox`、`cogvideox-5b`、`hunyuan_t2v`、`wan2.1-T2V-1.3b`、`wan2.1-T2V-14b`、`ltx-0.9.5`、`mochi`；此外还识别 `cogvideox1.5-5b`、`ltx`、`ltx-0.9.1`、`svd`。各后端的探测分辨率、帧数、fps 与 guidance 强度记录在 `likephys_scenarios.PROBE_MODELS`。
+
+## 环境变量
+
+| 变量 | 含义 |
+| --- | --- |
+| `WORLDFOUNDRY_LIKEPHYS_EVALUATOR_ROOT` | `--run-official` 使用的官方 LikePhys checkout。 |
+| `WORLDFOUNDRY_LIKEPHYS_DATA_ROOT` | 存放 `<scenario>_videos/` 的数据集根目录。 |
+| `WORLDFOUNDRY_LIKEPHYS_RESULTS_PATH` | 需要归一化的结果文件或实验目录。 |
+| `WORLDFOUNDRY_LIKEPHYS_STRICT` | 未完成完整官方套件时判定运行失败。 |
+
+## 导入路径
+
+- Runner：`worldfoundry.evaluation.tasks.execution.runners.likephys.run_likephys_official_runner`
+- 指标：`worldfoundry.evaluation.tasks.execution.runners.likephys.likephys_metrics`
+- 场景与探测配置表：`worldfoundry.evaluation.tasks.execution.runners.likephys.likephys_scenarios`
+- 探测适配层：`worldfoundry.evaluation.tasks.execution.runners.likephys.likephys_runtime`
+- 官方结果归一化：`worldfoundry.evaluation.tasks.execution.runners.likephys.likephys_official_scoring`
+
+## 输出产物
+
+`--output-dir` 下包含：
+
+- `scorecard.json`：运行状态、场景覆盖、指标表、探测摘要。
+- `raw_metric_table.jsonl`：每个声明指标一行。
+- `per_sample_scores.jsonl`：每个 (场景, 变体) 一行，含 mis-rank 与配对数。
+- `misrank_breakdown.json`：完整的场景 / 变体 / subgroup 级明细。
+- `benchmark_contract.json`：指标 id、已评分场景、探测后端、过滤状态。
+- `probe_summary.json` 与 `dataset_inventory.json`：仅 `--run-official` 写出。
+
+## 指标
+
+主指标：`likephys_misrank_rate`。**全部指标越低越好。**
+
+| 指标 | 含义 |
+| --- | --- |
+| `likephys_misrank_rate` | 按变体等权，对所有已评分 (场景, 变体) 求均值，即论文用于排名的指标。 |
+| `likephys_dataset_weighted_misrank_rate` | 按场景等权，对 12 个场景的 mis-rank 求均值。 |
+| `rigid_body_misrank_rate` | ball drop、ball collision、pendulum、block slide、pyramid 的 mis-rank。 |
+| `fluid_misrank_rate` | droplet、faucet、river 的 mis-rank。 |
+| `deformable_misrank_rate` | cloth drape 与 waving flag 的 mis-rank。 |
+| `optics_misrank_rate` | 光源移动与相机移动两个阴影场景的 mis-rank。 |
+| `temporal_disorder_misrank_rate` | 仅统计所有场景共有的 `temporal_disorder` 变体。 |
+
+### 报告用变体过滤
+
+论文汇总时会剔除若干变体，与上游 `read_exp_final.py` 的 `filter_config` 一致：
+
+| 场景 | 剔除的变体 |
+| --- | --- |
+| `pendulum` | `reverse_gravity`、`break_conservation_energy` |
+| `river` | `color_change`、`teleporting_fluid`、`negative_viscosity` |
+| `shadowm` | `shadow_disconnection` |
+
+该过滤默认启用，以便与论文数值对齐；传 `--no-report-filter` 可对全部变体评分。
+
+## 证据边界
+
+导入的结果会被忠实归一化，但不构成官方运行证据：`official_benchmark_verified` 与 `leaderboard_valid` 始终为 `false`。`--run-official` 会额外记录 `official_runtime_executed: true` 和探测摘要，且只有当所有配置场景探测成功、12 个场景全部评分时才会置 `full_suite_valid`。
+
+[← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

@@ -1,5 +1,5 @@
 id: depth-anything-v3-prior
-name: Depth Anything 3 Prior
+name: Depth Anything 3 Metric Prior
 aliases:
 - dav3-prior
 - da3metric-large-prior

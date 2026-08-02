@@ -6,18 +6,17 @@
 # --------------------------------------------------------
 """Module for base_models -> three_dimensions -> general_3d -> dust3r -> dust3r -> viz -> scene3d_dust.py functionality."""
 
-import PIL.Image
 import numpy as np
-from scipy.spatial.transform import Rotation
+import PIL.Image
 import torch
+from scipy.spatial.transform import Rotation
 
+from worldfoundry.base_models.three_dimensions.general_3d.dust3r.dust3r.utils.device import to_numpy
 from worldfoundry.base_models.three_dimensions.general_3d.dust3r.dust3r.utils.geometry import (
     depthmap_to_absolute_camera_coordinates,
     geotrf,
     get_med_dist_between_poses,
 )
-from worldfoundry.base_models.three_dimensions.general_3d.dust3r.dust3r.utils.device import to_numpy
-from worldfoundry.base_models.three_dimensions.general_3d.dust3r.dust3r.utils.image import img_to_arr, rgb
 
 try:
     import trimesh
@@ -127,6 +126,9 @@ def show_duster_pairs(view1, view2, pred1, pred2):
         pred2: The pred2.
     """
     import matplotlib.pyplot as pl
+
+    from worldfoundry.base_models.three_dimensions.general_3d.dust3r.dust3r.utils.image import rgb
+
     pl.ion()
 
     for e in range(len(view1['instance'])):
@@ -165,30 +167,6 @@ class SceneViz:
         """Init."""
         self.scene = trimesh.Scene()
 
-    def add_rgbd(self, image, depth, intrinsics=None, cam2world=None, zfar=np.inf, mask=None):
-        """Add rgbd.
-
-        Args:
-            image: The image.
-            depth: The depth.
-            intrinsics: The intrinsics.
-            cam2world: The cam2world.
-            zfar: The zfar.
-            mask: The mask.
-        """
-        image = img_to_arr(image)
-
-        # make up some intrinsics
-        if intrinsics is None:
-            H, W, THREE = image.shape
-            focal = max(H, W)
-            intrinsics = np.float32([[focal, 0, W/2], [0, focal, H/2], [0, 0, 1]])
-
-        # compute 3d points
-        pts3d = depthmap_to_pts3d(depth, intrinsics, cam2world=cam2world)
-
-        return self.add_pointcloud(pts3d, image, mask=(depth<zfar) if mask is None else mask)
-
     def add_pointcloud(self, pts3d, color=(0,0,0), mask=None, denoise=False):
         """Add pointcloud.
 
@@ -215,7 +193,7 @@ class SceneViz:
         if isinstance(color, (list, np.ndarray, torch.Tensor)):
             color = to_numpy(color)
             col = np.concatenate([p[m] for p,m in zip(color,mask)])
-            assert col.shape == pts.shape, bb()
+            assert col.shape == pts.shape, f"Color shape {col.shape} must match point shape {pts.shape}."
             pct.visual.vertex_colors = uint8(col.reshape(-1,3))
         else:
             assert len(color) == 3
@@ -271,6 +249,8 @@ class SceneViz:
             imsize: The imsize.
             cam_size: The cam size.
         """
+        from worldfoundry.base_models.three_dimensions.general_3d.dust3r.dust3r.utils.image import img_to_arr
+
         pose_c2w, focal, color, image = to_numpy((pose_c2w, focal, color, image))
         image = img_to_arr(image)
         if isinstance(focal, np.ndarray) and focal.shape == (3,3):

@@ -1,0 +1,277 @@
+WorldFoundry third-party notices
+================================
+
+This file contains attribution and license information for third-party source,
+research implementations, models, and optional packages used by WorldFoundry.
+It is not a substitute for the complete license text.  Colocated LICENSE,
+NOTICE, LEGAL, SPDX, or source-header terms also apply.
+
+Apache-2.0 source adaptations
+-----------------------------
+
+NVIDIA AnyFlow
+  Copyright 2026 NVIDIA CORPORATION & AFFILIATES
+  License: Apache License 2.0
+  Source: https://github.com/NVlabs/AnyFlow
+  Source revision: d2acf7373a45173082ec47eb16553a373b10f856
+
+  ``worldfoundry/base_models/diffusion_model/models/networks/wan/variants/anyflow.py``
+  contains a modified copy of the AnyFlow FlowMap/FAR Wan transformer.  The
+  local file retains the NVIDIA copyright, Apache-2.0 license notice, and SPDX
+  identifier.  WorldFoundry's AnyFlow training equations and released
+  pretraining/on-policy behavior were also implemented with reference to the
+  four author-provided trainer paths at this revision.
+
+SenseFlow
+  License: Apache License 2.0
+  Source: https://github.com/XingtongGe/SenseFlow
+  Source revision: fafc81b7334eaf7ccf4ced296c25faa412b477ea
+
+  The native SenseFlow schedule, implicit distribution alignment,
+  intra-segment guidance, distribution-matching, adversarial losses, and
+  optimizer cadence were implemented with reference to the author-provided
+  SDXL, SD3.5, and FLUX training code.  Stable Diffusion and FLUX base models
+  have separate model licenses that remain applicable.
+
+Reward-Forcing
+  License: Apache License 2.0
+  Source: https://github.com/JaydenLyh/Reward-Forcing
+  Source revision: 4317f5a0d29d1cee6a0f2e80ed5f5724bee97c66
+
+  The native Re-DMD objective, causal rollout, local-attention and EMA-Sink
+  behavior, reward weighting, optimizer accumulation, and update cadence were
+  implemented with reference to the author-provided training code.
+
+NVIDIA rCM
+  Copyright NVIDIA CORPORATION & AFFILIATES
+  License: Apache License 2.0
+  Source: https://github.com/NVlabs/rcm
+  Source revision: ed3cb14dd936f92cdc9f9381af7369991509b41f
+
+  TrigFlow conversion, rectified-flow time shifts, continuous/discrete
+  consistency objectives, score regularization, JVP contracts, and Causal-rCM
+  training behavior are adapted from this source.
+
+Google Research Progressive Distillation
+  License: Apache License 2.0
+  Source: https://github.com/google-research/google-research/tree/master/ddpm_distillation
+
+  The progressive DDIM two-teacher-step target, cosine log-SNR schedule,
+  stage-halving procedure, and loss parameterizations were implemented with
+  reference to this source.
+
+Yandex Research Scale-wise Distillation
+  License: Apache License 2.0
+  Source: https://github.com/yandex-research/swd
+
+  The native scale schedule, SD3.5 interval boundaries, DMD/GAN/MMD objectives,
+  feature selection, and released optimizer behavior were implemented with
+  reference to the author-provided training code.
+
+Self-Forcing
+  License: Apache License 2.0
+  Source: https://github.com/guandeh17/Self-Forcing
+
+  The native causal self-rollout, KV-cache commit, stochastic gradient
+  truncation, shifted few-step schedule, and Wan training adapter were
+  implemented with reference to the author-provided training code.
+
+Causal-Forcing and Causal-Forcing++
+  License: Apache License 2.0
+  Source: https://github.com/thu-ml/Causal-Forcing
+
+  The native causal ODE and causal consistency initialization stages and their
+  relationship to asymmetric DMD were implemented with reference to the
+  author-provided training code.
+
+NVIDIA SANA
+  License: Apache License 2.0
+  Source: https://github.com/NVlabs/Sana
+  Source revision: 6298508fcb511762a11c42cff45b2fc9fd930325
+
+  SANA architecture, flow-matching behavior, and SANA-Sprint SCM-LADD training
+  semantics were implemented with reference to this source.
+
+FastVideo
+  License: Apache License 2.0
+  Source: https://github.com/hao-ai-lab/FastVideo
+  Source revision: 1b2b2a0161bc6b3b80158d1fa6380a051c6530c7
+
+  The Wan few-step DMD schedule, three-role/two-optimizer behavior, score
+  objectives, and update cadence were implemented with reference to the
+  author-provided distillation pipeline.
+
+Tencent Hunyuan UniRL
+  License: Apache License 2.0
+  Source: https://github.com/Tencent-Hunyuan/UniRL
+  Source revision: 1f595a426bd5795b6edf093a48c0983c9e1673e1
+
+  Flow-SDE, Flow-GRPO, Flow-DPPO, DANCE transition, rollout/replay, advantage,
+  and policy-update behavior were implemented with reference to this source.
+
+VeRL-Omni
+  License: Apache License 2.0
+  Source: https://github.com/verl-project/verl-omni
+  Source revision: 0f8b14113b4a746ed151dd09f0a2a81472377e68
+
+  Flow-policy and diffusion preference/RL behavior was cross-checked against
+  the corresponding author-provided implementations.
+
+DanceGRPO
+  License: Apache License 2.0
+  Source: https://github.com/XueZeyue/DanceGRPO
+  Source revision: 15cc71d53cc2e6e18a68ee607d5fb6ba9a99e344
+
+  Constant-diffusion rollout and DANCE-GRPO behavior were implemented with
+  reference to this source.
+
+DiffusionNFT
+  License: Apache License 2.0
+  Source: https://github.com/NVlabs/DiffusionNFT
+  Source revision: cbb14f84b8312b620390dfcbe2fab69c1383b104
+
+  The terminal-latent forward-process objective and old-policy refresh behavior
+  were implemented with reference to the author-provided trainer.
+
+Diffusion-DPO
+  License: Apache License 2.0
+  Source: https://github.com/SalesforceAIResearch/DiffusionDPO
+  Source revision: 9bc5f3d5f0f3aa09f384238b73196826e24508eb
+
+  The offline chosen/rejected diffusion preference objective was implemented
+  with reference to the author-provided trainer.
+
+NVIDIA Cosmos-RL
+  License: Apache License 2.0
+  Source: https://github.com/nvidia-cosmos/cosmos-rl
+  Source revision: a367b4cc814ff153e846f386fde59919ab7247e3
+
+  DDRL policy-ratio reduction, reference regularization, and diffusion data
+  regularization behavior were implemented with reference to this source.
+
+Hugging Face Finetrainers
+  License: Apache License 2.0
+  Source: https://github.com/huggingface/finetrainers
+  Source revision: 358b616f504359458df2c56e4696959c22e00926
+
+  Wan flow-matching equations, timestep conventions, attention LoRA roles, and
+  preprocessing behavior were cross-checked against this source.
+
+MIT-licensed source adaptations
+-------------------------------
+
+Latent Consistency Models
+  License: MIT
+  Source: https://github.com/luosiallen/latent-consistency-model
+
+  DDIM pairs, boundary-condition scaling, guidance embedding, consistency
+  targets, and EMA training behavior were implemented with reference to the
+  author-provided training scripts.
+
+Flow-GRPO
+  License: MIT
+  Source: https://github.com/yifan123/flow_grpo
+  Source revision: 879042cf5707f8b90daa98d147d7deac2317c5da
+
+  Flow-GRPO transition, rollout, grouped reward normalization, replay, and
+  clipped policy loss were implemented with reference to this source.
+
+KlingAIResearch VideoAlign
+  License: MIT
+  Source: https://github.com/KlingAIResearch/VideoAlign
+  Source revision: 2e08683150d5d365129f569ce00c0a27e3cdc68b
+
+  The native VideoAlign reward implementation adapts the detailed-special
+  prompt, uniform frame selection, Qwen grid resize, bias-free reward head,
+  and special-token pooling behavior.
+
+Report-derived implementations and restricted source
+-----------------------------------------------------
+
+Adversarial Diffusion Distillation (ADD)
+  Report: https://arxiv.org/abs/2311.17042
+  Related source repository: https://github.com/Stability-AI/generative-models
+  Audited source revision: e6f0e36f5e856d9651c597d75aed13ae7298d03b
+  Repository license: MIT
+
+  The audited Stability AI revision does not publish an ADD-specific training
+  entrypoint.  WorldFoundry's ADD objective is independently implemented from
+  the published report and is not represented as the model author's trainer.
+  SDXL and SDXL-Turbo weights have separate model license terms.
+
+DMD2
+  Paper: https://arxiv.org/abs/2405.14867
+  Source: https://github.com/tianweiy/DMD2
+  Source revision: 8d8fa55633d47cfb81bbc7a892e7248f9518763f
+  Source license: CC-BY-NC-SA-4.0
+
+  The DMD2 source license is non-commercial and share-alike.  WorldFoundry
+  independently implements the published equations and does not copy DMD2
+  source code.  Acknowledgement does not waive or replace the source license.
+
+Separately acquired model, reward, and data artifacts
+-----------------------------------------------------
+
+NVIDIA AnyFlow model weights
+  License: NVIDIA One-Way Noncommercial License (NSCLv1)
+  https://huggingface.co/nvidia/AnyFlow-FAR-Wan2.1-1.3B-Diffusers
+  Revision: 915af337434035df8545797ecc910d79fa78cf29
+
+  https://huggingface.co/nvidia/AnyFlow-Wan2.1-T2V-1.3B-Diffusers
+  Revision: 4c2ec05c7fa4dbafbca131ad32430905c7ff2974
+
+  These weights and derivative models are not licensed for commercial use.
+  The Apache-2.0 license for the AnyFlow source code does not change the
+  NSCLv1 terms of the model weights.
+
+Wan-AI/Wan2.1-T2V-1.3B-Diffusers
+  License: Apache License 2.0
+  https://huggingface.co/Wan-AI/Wan2.1-T2V-1.3B-Diffusers
+  Revision: 0fad780a534b6463e45facd96134c9f345acfa5b
+
+Efficient-Large-Model/SANA1.5_1.6B_1024px_diffusers
+  License: NSCL-v2-custom; related components may carry additional terms
+  https://huggingface.co/Efficient-Large-Model/SANA1.5_1.6B_1024px_diffusers
+  Revision: caa51e5ea874be07d3a9c7c2d0fd800570b18440
+
+FastVideo/Wan-Syn_77x448x832_600k
+  License: terms on the upstream dataset page
+  https://huggingface.co/datasets/FastVideo/Wan-Syn_77x448x832_600k
+  Revision: d86c2591c1afa8216e3701cde79d6f15a1142f0a
+
+Qwen/Qwen2-VL-2B-Instruct
+  License: Apache License 2.0
+  https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct
+  Revision: 895c3a49bc3fa70a340399125c650a463535e71c
+
+KlingTeam/VideoReward
+  License: Apache License 2.0
+  https://huggingface.co/KlingTeam/VideoReward
+  Revision: b8e421fe21aec3dde5f61fdd1dc44e1d603b9727
+  Loaded file: checkpoint-11352/model.pth
+  SHA-256: 48375908e6112de9f0248402db156a23b480709a6960b091c598c6f4c88d21b9
+  Byte size: 5,031,072,529
+
+These artifacts are downloaded separately and are not redistributed with the
+WorldFoundry source tree.  Operators are responsible for complying with model,
+dataset, reward-model, derivative-model, and output terms.
+
+Optional NVIDIA RTX Video Super Resolution integration
+-------------------------------------------------------
+
+NVIDIA FlashDreams
+  License: Apache License 2.0
+  Source: https://github.com/NVIDIA/flashdreams
+
+  The streaming post-processing contract and RTX Video Super Resolution
+  adapter include adaptations from FlashDreams.  Adapted source files retain
+  the NVIDIA copyright and Apache-2.0 SPDX identifiers.
+
+nvidia-vfx
+  License: NVIDIA proprietary terms
+  Package: https://pypi.org/project/nvidia-vfx/
+
+  The optional ``rtx_postprocess`` extra installs NVIDIA's proprietary Python
+  bindings for RTX Video Super Resolution, denoise, and deblur.  The package is
+  not redistributed as source by WorldFoundry.  Installation and use remain
+  subject to NVIDIA's terms.

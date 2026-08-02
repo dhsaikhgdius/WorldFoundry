@@ -19,7 +19,7 @@ Official references:
 - In-tree runner: `worldfoundry/evaluation/tasks/execution/runners/videophy/run_videophy_official_runner.py`
 
 
-## Official References
+## Official references
 
 | Resource | Link |
 | --- | --- |
@@ -30,7 +30,7 @@ Official references:
 | VideoCon-Physics | [videophysics/videocon_physics](https://huggingface.co/videophysics/videocon_physics) |
 | In-tree runner | `worldfoundry/evaluation/tasks/execution/runners/videophy/run_videophy_official_runner.py` |
 
-## Evaluation Protocol
+## Evaluation protocol
 
 WorldFoundry uses the bundled prompt manifest:
 
@@ -57,7 +57,7 @@ Primary metric: `videophy_average`.
 
 VideoCon-Physics runs two entailment-style passes internally: one for semantic adherence and one for physical commonsense. The runner merges those per-video predictions into the metrics above.
 
-## Data And Checkpoint Preparation
+## Data and checkpoint preparation
 
 Start from the WorldFoundry repository root:
 
@@ -88,7 +88,7 @@ hf download videophysics/videophy_train_public \
 
 Leaderboard reproduction only needs the 688 prompts, candidate generated videos, and the VideoCon-Physics checkpoint. Training VideoCon-Physics is optional research work; if you train or fine-tune a replacement evaluator, pass that checkpoint directory with `--videocon-checkpoint`.
 
-## Generate Candidate Videos
+## Generate candidate videos
 
 Run your text-to-video model on the captions in `WORLDFOUNDRY_VIDEOPHY_PROMPT_MANIFEST`, then stage the outputs in one directory:
 
@@ -108,7 +108,7 @@ export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/videophy/generated_videos
 
 Candidate model inference is model-specific. For a WorldFoundry-integrated generator, run the model's synthesis entrypoint or model page workflow, then export the final video for each prompt ID into the layout above.
 
-## Run VideoCon-Physics Scoring
+## Run VideoCon-Physics scoring
 
 Run the in-tree VideoPhy official path:
 
@@ -140,7 +140,7 @@ export WORLDFOUNDRY_VIDEOPHY_SA_THRESHOLD=0.5
 export WORLDFOUNDRY_VIDEOPHY_PC_THRESHOLD=0.5
 ```
 
-## Import Existing Results
+## Import existing results
 
 If you already have a VideoPhy result JSON or CSV with per-sample `sa` and `pc` fields, or a summary CSV with metric IDs and scores, import it through the same runner:
 
@@ -180,4 +180,4 @@ The run writes:
 - `videocon_physics_outputs/`: raw VideoCon-Physics CSV outputs.
 - `logs/`: VideoCon-Physics stdout/stderr logs.
 
-[Back to Benchmark Hub](/docs/evaluation/benchmark-hub)
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

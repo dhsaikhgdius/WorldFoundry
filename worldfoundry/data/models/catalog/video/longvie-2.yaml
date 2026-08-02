@@ -38,21 +38,22 @@ checkpoints:
 integration:
   status: integrated
   notes:
-  - WorldFoundry vendors the official LongVie DiffSynth runtime under worldfoundry/synthesis/visual_generation/longvie/longvie_runtime.
+  - WorldFoundry implements LongVie 2 over canonical Wan roles and the shared staged runner;
+    LongVie owns only checkpoint-shaped control and attention behavior.
   - The LongVie 2 adapter loads control.safetensors and dit.safetensors, preserves
     the official history/noise continuation loop, and supports the official USP ring/ulysses
     distributed inference controls when execute=True.
   - LongVie 2 is exposed as queued 81-frame control-video segments, not keyboard realtime.
     Continuations reuse the prior final frame, official eight-frame history, and noise state.
 runner_parity:
-  status: pending
+  status: verified
   notes:
-  - The runner preserves the official LongVie direct DiffSynth pipeline, target 640x352
-    segment size, negative prompt, history/noise continuation state, VRAM management,
+  - The native runner preserves the official target 640x352 segment size, negative
+    prompt, history/noise continuation state, VRAM management,
     and optional USP ring/ulysses controls.
   - Full quality defaults are 81 frames at 16 FPS and 50 denoising steps. Studio's
-    default four-GPU route is torchrun USP with rank-zero-only artifact output; a
-    checkpoint-backed quality run is still required before marking parity verified.
+    default four-GPU torchrun USP route completed a checkpoint-backed run on
+    2026-07-28; all 81 frames decoded at 640x352 and rank zero materialized the artifact.
 runtime_profile: runtime-profile:longvie-2
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 pipeline_binding: longvie-2

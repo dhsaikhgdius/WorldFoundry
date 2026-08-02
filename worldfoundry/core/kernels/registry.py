@@ -14,10 +14,59 @@ import threading
 import warnings
 from collections import OrderedDict, defaultdict, deque
 from dataclasses import dataclass
+from statistics import median
 from typing import Any, Callable
 
 KernelCallable = Callable[..., Any]
 KernelPredicate = Callable[..., bool]
+
+
+def _outputs_equivalent(reference: Any, candidate: Any) -> bool:
+    """Conservatively compare exact-fallback and accelerator outputs."""
+
+    import torch
+
+    if isinstance(reference, torch.Tensor):
+        if not isinstance(candidate, torch.Tensor):
+            return False
+        if (
+            reference.shape != candidate.shape
+            or reference.dtype != candidate.dtype
+            or reference.device != candidate.device
+        ):
+            return False
+        if not (reference.is_floating_point() or reference.is_complex()):
+            return bool(torch.equal(reference, candidate))
+        if reference.dtype == torch.bfloat16:
+            rtol, atol = 2e-2, 2e-2
+        elif reference.dtype == torch.float16:
+            rtol, atol = 5e-3, 5e-3
+        elif reference.dtype in {torch.float32, torch.complex64}:
+            rtol, atol = 3e-4, 3e-5
+        else:
+            rtol, atol = 1e-5, 1e-7
+        try:
+            return bool(torch.allclose(reference, candidate, rtol=rtol, atol=atol, equal_nan=True))
+        except RuntimeError:
+            return False
+    if isinstance(reference, (tuple, list)):
+        return (
+            type(reference) is type(candidate)
+            and len(reference) == len(candidate)
+            and all(
+                _outputs_equivalent(expected, actual) for expected, actual in zip(reference, candidate, strict=True)
+            )
+        )
+    if isinstance(reference, dict):
+        return (
+            isinstance(candidate, dict)
+            and reference.keys() == candidate.keys()
+            and all(_outputs_equivalent(reference[key], candidate[key]) for key in reference)
+        )
+    try:
+        return bool(reference == candidate)
+    except Exception:
+        return False
 
 
 class KernelNotSupported(RuntimeError):
@@ -34,6 +83,7 @@ class KernelCandidate:
     priority: int
     implementation: KernelCallable
     predicate: KernelPredicate
+    autotune: bool = False
 
 
 class KernelRegistry:
@@ -46,6 +96,7 @@ class KernelRegistry:
         self._failure_messages: dict[tuple[object, ...], str] = {}
         self._failure_limit = int(failure_limit)
         self._selection_cache: OrderedDict[tuple[object, ...], KernelCandidate | None] = OrderedDict()
+        self._autotune_records: OrderedDict[tuple[object, ...], dict[str, object]] = OrderedDict()
         self._selection_limit = int(selection_limit)
         self._lock = threading.Lock()
 
@@ -58,6 +109,7 @@ class KernelRegistry:
         implementation: KernelCallable,
         predicate: KernelPredicate,
         priority: int = 0,
+        autotune: bool = False,
     ) -> KernelCandidate:
         candidate = KernelCandidate(
             op=str(op),
@@ -66,6 +118,7 @@ class KernelRegistry:
             priority=int(priority),
             implementation=implementation,
             predicate=predicate,
+            autotune=bool(autotune),
         )
         entries = self._candidates[candidate.op]
         if any(item.name == candidate.name for item in entries):
@@ -86,7 +139,7 @@ class KernelRegistry:
         if requested in {"torch", "pytorch", "native", "off", "disabled"}:
             return fallback(*args, **kwargs)
 
-        selection_key = (op, requested, *signature)
+        selection_key = (op, requested, kernel_autotune_enabled(), *signature)
         cached, cache_hit = self._cached_selection(selection_key)
         skipped: set[str] = set()
         if cache_hit:
@@ -102,6 +155,8 @@ class KernelRegistry:
                     if not _is_optional_kernel_failure(exc):
                         raise
                     self._drop_selection(selection_key)
+                    if cached.autotune:
+                        self._invalidate_persistent_candidate(cached, signature, args, kwargs)
                     self._remember_failure(failure_key, exc)
                     warnings.warn(
                         f"Kernel {cached.name!r} failed for this workload; using the next eligible fallback: {exc}",
@@ -121,6 +176,17 @@ class KernelRegistry:
             try:
                 if not candidate.predicate(*args, **kwargs):
                     continue
+                if requested == "auto" and candidate.autotune and kernel_autotune_enabled():
+                    selected, result, record = self._autotune_candidate(
+                        candidate,
+                        fallback,
+                        args,
+                        kwargs,
+                        signature,
+                    )
+                    self._remember_selection(selection_key, selected)
+                    self._remember_autotune(selection_key, record)
+                    return result
                 result = candidate.implementation(*args, **kwargs)
                 self._remember_selection(selection_key, candidate)
                 return result
@@ -129,6 +195,8 @@ class KernelRegistry:
                     raise
                 if not _is_optional_kernel_failure(exc):
                     raise
+                if candidate.autotune:
+                    self._invalidate_persistent_candidate(candidate, signature, args, kwargs)
                 self._remember_failure(failure_key, exc)
                 warnings.warn(
                     f"Kernel {candidate.name!r} failed for this workload; using the PyTorch fallback: {exc}",
@@ -137,6 +205,212 @@ class KernelRegistry:
                 )
         self._remember_selection(selection_key, None)
         return fallback(*args, **kwargs)
+
+    def _autotune_candidate(
+        self,
+        candidate: KernelCandidate,
+        fallback: KernelCallable,
+        args: tuple[Any, ...],
+        kwargs: dict[str, Any],
+        signature: tuple[object, ...],
+    ) -> tuple[KernelCandidate | None, Any, dict[str, object]]:
+        """Measure one safe eager candidate against its semantic fallback."""
+
+        import torch
+
+        tensor = next(
+            (value for value in (*args, *kwargs.values()) if isinstance(value, torch.Tensor) and value.is_cuda),
+            None,
+        )
+        if tensor is None:
+            result = candidate.implementation(*args, **kwargs)
+            return (
+                candidate,
+                result,
+                {
+                    "op": candidate.op,
+                    "candidate": candidate.name,
+                    "winner": candidate.name,
+                    "reason": "no_cuda_tensor",
+                },
+            )
+
+        from worldfoundry.core.kernels.autotune_cache import (
+            load_persistent_selection,
+            store_persistent_selection,
+        )
+
+        cached = load_persistent_selection(
+            op=candidate.op,
+            candidate=candidate.name,
+            signature=signature,
+            tensor=tensor,
+        )
+        if cached is not None:
+            winner = str(cached["winner"])
+            record = dict(cached.get("record", {}))
+            record.update(
+                {
+                    "op": candidate.op,
+                    "candidate": candidate.name,
+                    "winner": winner,
+                    "cache_hit": True,
+                    "cache_path": cached.get("path"),
+                }
+            )
+            selected = candidate if winner == candidate.name else None
+            result = candidate.implementation(*args, **kwargs) if selected is not None else fallback(*args, **kwargs)
+            return selected, result, record
+
+        try:
+            capability: object = tuple(int(value) for value in torch.cuda.get_device_capability(tensor.device))
+        except (AssertionError, RuntimeError, TypeError, ValueError):
+            capability = "unknown"
+        record_context: dict[str, object] = {
+            "device": str(tensor.device),
+            "compute_capability": capability,
+            "dtype": str(tensor.dtype),
+            "shape": tuple(int(value) for value in tensor.shape),
+        }
+
+        try:
+            iterations = int(os.getenv("WORLDFOUNDRY_KERNEL_AUTOTUNE_ITERS", "5") or "5")
+        except ValueError:
+            iterations = 5
+        iterations = min(max(iterations, 1), 50)
+        try:
+            rounds = int(os.getenv("WORLDFOUNDRY_KERNEL_AUTOTUNE_ROUNDS", "3") or "3")
+        except ValueError:
+            rounds = 3
+        rounds = min(max(rounds, 1), 9)
+
+        def elapsed_ms(function: KernelCallable) -> float:
+            warmup = function(*args, **kwargs)
+            del warmup
+            torch.cuda.synchronize(tensor.device)
+            start = torch.cuda.Event(enable_timing=True)
+            end = torch.cuda.Event(enable_timing=True)
+            start.record()
+            timed_result = None
+            for _ in range(iterations):
+                timed_result = function(*args, **kwargs)
+            end.record()
+            end.synchronize()
+            del timed_result
+            return float(start.elapsed_time(end)) / iterations
+
+        with torch.cuda.device(tensor.device):
+            # Validate the exact device/dtype/shape before a kernel is allowed
+            # into the selection cache. This is especially important for a new
+            # GPU architecture whose Triton lowering was not available during
+            # development: a successful launch alone is not proof of fidelity.
+            reference = fallback(*args, **kwargs)
+            candidate_result = candidate.implementation(*args, **kwargs)
+            if not _outputs_equivalent(reference, candidate_result):
+                del candidate_result
+                record = {
+                    **record_context,
+                    "op": candidate.op,
+                    "candidate": candidate.name,
+                    "winner": "torch",
+                    "reason": "numerical_mismatch",
+                    "iterations": iterations,
+                    "rounds": rounds,
+                    "cache_hit": False,
+                }
+                store_persistent_selection(
+                    op=candidate.op,
+                    candidate=candidate.name,
+                    signature=signature,
+                    tensor=tensor,
+                    winner="torch",
+                    record=record,
+                )
+                return (
+                    None,
+                    reference,
+                    record,
+                )
+            del reference, candidate_result
+
+            # Alternate measurement order and compare medians so clock ramp,
+            # cache warmth, and one noisy launch do not encode an A100-specific
+            # decision into a Hopper/Blackwell (or legacy GPU) selection.
+            fallback_samples: list[float] = []
+            candidate_samples: list[float] = []
+            for round_index in range(rounds):
+                measurements = (
+                    (("torch", fallback), (candidate.name, candidate.implementation))
+                    if round_index % 2 == 0
+                    else ((candidate.name, candidate.implementation), ("torch", fallback))
+                )
+                for name, function in measurements:
+                    measured = elapsed_ms(function)
+                    if name == "torch":
+                        fallback_samples.append(measured)
+                    else:
+                        candidate_samples.append(measured)
+            fallback_ms = float(median(fallback_samples))
+            candidate_ms = float(median(candidate_samples))
+
+        # Require a real margin; selecting a fused kernel on measurement noise
+        # makes short workloads slower and is worse than retaining PyTorch.
+        selected = candidate if candidate_ms < fallback_ms * 0.98 else None
+        winner = candidate.name if selected is not None else "torch"
+        record = {
+            **record_context,
+            "op": candidate.op,
+            "candidate": candidate.name,
+            "winner": winner,
+            "candidate_ms": candidate_ms,
+            "torch_ms": fallback_ms,
+            "iterations": iterations,
+            "rounds": rounds,
+            "cache_hit": False,
+        }
+        store_persistent_selection(
+            op=candidate.op,
+            candidate=candidate.name,
+            signature=signature,
+            tensor=tensor,
+            winner=winner,
+            record=record,
+        )
+        result = candidate.implementation(*args, **kwargs) if selected is not None else fallback(*args, **kwargs)
+        return (
+            selected,
+            result,
+            record,
+        )
+
+    @staticmethod
+    def _invalidate_persistent_candidate(
+        candidate: KernelCandidate,
+        signature: tuple[object, ...],
+        args: tuple[Any, ...],
+        kwargs: dict[str, Any],
+    ) -> None:
+        """Drop one stale disk winner without obscuring the original failure."""
+
+        try:
+            import torch
+
+            tensor = next(
+                (value for value in (*args, *kwargs.values()) if isinstance(value, torch.Tensor) and value.is_cuda),
+                None,
+            )
+            if tensor is None:
+                return
+            from worldfoundry.core.kernels.autotune_cache import invalidate_persistent_selection
+
+            invalidate_persistent_selection(
+                op=candidate.op,
+                candidate=candidate.name,
+                signature=signature,
+                tensor=tensor,
+            )
+        except Exception:
+            return
 
     def _cached_selection(self, key: tuple[object, ...]) -> tuple[KernelCandidate | None, bool]:
         with self._lock:
@@ -157,6 +431,13 @@ class KernelRegistry:
         with self._lock:
             self._selection_cache.pop(key, None)
 
+    def _remember_autotune(self, key: tuple[object, ...], record: dict[str, object]) -> None:
+        with self._lock:
+            self._autotune_records.pop(key, None)
+            self._autotune_records[key] = record
+            while len(self._autotune_records) > self._selection_limit:
+                self._autotune_records.popitem(last=False)
+
     def _remember_failure(self, key: tuple[object, ...], exc: BaseException) -> None:
         with self._lock:
             if key in self._failures:
@@ -170,16 +451,26 @@ class KernelRegistry:
             self._failure_messages[key] = f"{type(exc).__name__}: {exc}"
 
     def report(self) -> dict[str, object]:
+        from worldfoundry.core.kernels.autotune_cache import persistent_selection_cache_info
+
         return {
             "requested_backend": os.getenv("WORLDFOUNDRY_KERNEL_BACKEND", "auto"),
             "operators": {
                 op: [
-                    {"name": item.name, "backend": item.backend, "priority": item.priority}
+                    {
+                        "name": item.name,
+                        "backend": item.backend,
+                        "priority": item.priority,
+                        "autotune": item.autotune,
+                    }
                     for item in candidates
                 ]
                 for op, candidates in sorted(self._candidates.items())
             },
             "selection_cache_entries": len(self._selection_cache),
+            "autotune_enabled": kernel_autotune_enabled(),
+            "persistent_autotune_cache": persistent_selection_cache_info(),
+            "autotune_records": tuple(self._autotune_records.values()),
             "failed_signatures": len(self._failures),
             "failures": tuple(self._failure_messages.values()),
         }
@@ -190,6 +481,7 @@ class KernelRegistry:
             self._failure_order.clear()
             self._failure_messages.clear()
             self._selection_cache.clear()
+            self._autotune_records.clear()
 
 
 def _is_out_of_memory(exc: BaseException) -> bool:
@@ -222,6 +514,19 @@ def _is_optional_kernel_failure(exc: BaseException) -> bool:
 KERNEL_REGISTRY = KernelRegistry()
 
 
+def kernel_autotune_enabled() -> bool:
+    """Return whether first-use eager kernel measurements are enabled."""
+
+    return os.getenv("WORLDFOUNDRY_KERNEL_AUTOTUNE", "").strip().casefold() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+        "enable",
+        "enabled",
+    }
+
+
 def kernel_dispatch_report() -> dict[str, object]:
     """Return registered implementations and quarantined failure counts."""
 
@@ -240,5 +545,6 @@ __all__ = [
     "KernelNotSupported",
     "KernelRegistry",
     "clear_kernel_dispatch_cache",
+    "kernel_autotune_enabled",
     "kernel_dispatch_report",
 ]

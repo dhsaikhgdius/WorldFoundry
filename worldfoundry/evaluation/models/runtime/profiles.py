@@ -22,19 +22,16 @@ from urllib.parse import urlparse
 
 import yaml
 
-from worldfoundry.runtime.env import resolve_hfd_root
-from worldfoundry.runtime.cuda_tiers import SUPPORTED_CUDA_TIERS, unified_env_exists
 from worldfoundry.evaluation.models.catalog.schema import iter_model_zoo_payloads
-from worldfoundry.evaluation.utils import DATA_ROOT, REPO_ROOT
-from worldfoundry.evaluation.utils import load_manifest, load_manifest_collection, manifest_paths
-from worldfoundry.synthesis.base_synthesis import BaseSynthesis
-
+from worldfoundry.evaluation.utils import DATA_ROOT, REPO_ROOT, load_manifest, load_manifest_collection, manifest_paths
 from worldfoundry.runtime.conda import (
     load_runtime_conda_env_specs_with_overrides,
     resolve_conda_env_context,
     resolve_conda_executable,
 )
-
+from worldfoundry.runtime.cuda_tiers import SUPPORTED_CUDA_TIERS, unified_env_exists
+from worldfoundry.runtime.env import resolve_hfd_root
+from worldfoundry.synthesis.base_synthesis import BaseSynthesis
 
 # ── Project root discovery ────────────────────────────────────
 

@@ -1,0 +1,172 @@
+---
+title: Training
+description: Run WorldFoundry-owned SFT, SiD, DMD, and diffusion-policy RL infrastructure.
+---
+
+WorldFoundry owns the complete training execution plane: model forward, corruption and loss math, rollout and replay, optimizer cadence, distributed state, checkpointing, metrics, and export. Official model and algorithm repositories are pinned correctness and performance oracles only; a WorldFoundry recipe cannot delegate its optimizer loop to another repository.
+
+## Install
+
+Reuse the unified environment when it already contains a compatible CUDA PyTorch build, then add only the training overlays it lacks:
+
+```bash
+python -m pip install -e '.[train_core,train_video]'
+```
+
+The environment is accepted only after the training tests and the required FSDP2/DCP capabilities pass. Upstream training environments are not installed into or invoked by the runtime.
+
+## Execution ownership
+
+Every SFT and post-training recipe contains:
+
+```yaml
+execution_owner: worldfoundry-native
+```
+
+Any other value and any legacy external execution field are rejected by strict recipe parsing. Representative checked-in native recipes are:
+
+- `configs/training/sana_600m_flow_lora_single_device.yaml`
+- `configs/training/sana_600m_flow_lora.yaml`
+- `configs/training/wan_1p3b_flow_lora_single_device.yaml`
+- `configs/training/wan_1p3b_flow_lora.yaml`
+- `configs/post_training/sana_sprint_600m_sid.yaml`
+- `configs/post_training/sana_sprint_600m_scm_ladd.yaml`
+- `configs/post_training/wan_1p3b_dmd.yaml`
+- `configs/post_training/wan_1p3b_flow_grpo.yaml`
+
+## Correctness gates
+
+Upstream citations and license notes live in the implementation plan and acknowledgements, not in runtime recipes. Numerical parity fixtures are executed directly by `tests/training/test_official_parity.py`; no repository catalog, source checkout, or upstream launcher is loaded by a training run.
+
+## Data workflow
+
+Training uses three explicit artifacts:
+
+1. a source manifest with media hashes, captions, geometry, split, conditions, and safety state;
+2. an audited manifest plus a ShieldGemma decision sidecar;
+3. an immutable feature cache bound to the audited manifest and exact encoder assets.
+
+Audit prompts first:
+
+```bash
+worldfoundry-eval train-audit-prompts \
+  --manifest data/wan_train.raw.jsonl \
+  --output-manifest data/wan_train.jsonl \
+  --output-audits data/wan_train.prompt-audits.json
+```
+
+Then build model features. Wan separates UMT5 and VAE residency phases; formal training loads only the denoiser:
+
+```bash
+worldfoundry-eval train-cache \
+  --recipe configs/training/wan_1p3b_flow_lora_single_device.yaml \
+  --base-dir . \
+  --prompt-audits data/wan_train.prompt-audits.json
+```
+
+Named local assets can be supplied with repeated `--checkpoint-override NAME=PATH` arguments. Asset revisions and file digests remain part of the cache identity.
+
+## Native SFT
+
+Run a single-device Wan job:
+
+```bash
+worldfoundry-eval train \
+  --recipe configs/training/wan_1p3b_flow_lora_single_device.yaml \
+  --base-dir . \
+  --steps 1000 \
+  --checkpoint-override dit=/models/Wan2.1-T2V-1.3B
+```
+
+A correctness pilot can freeze the batch and corruption stream and require a measured loss decrease:
+
+```bash
+worldfoundry-eval train \
+  --recipe configs/training/wan_1p3b_flow_lora_single_device.yaml \
+  --base-dir . \
+  --steps 20 \
+  --one-batch-overfit \
+  --maximum-loss-ratio 0.95 \
+  --checkpoint-override dit=/models/Wan2.1-T2V-1.3B
+```
+
+Every output directory is exclusive. Successful LoRA runs export a digest-audited PEFT artifact by default.
+
+## Scalable FSDP2
+
+Topology is derived from the initialized process group; no recipe requires eight GPUs:
+
+```bash
+GPU_COUNT="${GPU_COUNT:?set GPU_COUNT from the scheduler allocation}"
+
+torchrun --standalone --nproc-per-node="${GPU_COUNT}" \
+  -m worldfoundry.cli train \
+  --recipe configs/training/wan_1p3b_flow_lora.yaml \
+  --base-dir . \
+  --steps 1000 \
+  --checkpoint-override dit=/models/Wan2.1-T2V-1.3B
+```
+
+FSDP2, DTensor-aware gradient clipping, and DCP are owned by `worldfoundry/training` and reuse integrity primitives from `worldfoundry/core`. Exact resume restores model, all optimizers, engine counters, loader state, and Python/CPU/CUDA/objective RNG. A changed recipe, cache, frozen base, source identity, or topology fails closed.
+
+## Native post-training
+
+The post-training package currently provides:
+
+- independent SANA SiD student/teacher/fake-score roles, a detached few-step prefix, two AdamW updates, cache and prompt-only data paths, exact DCP resume, run status, and scheduled/final student export;
+- few-step DMD prefix simulation with independent re-noising, three model roles, two optimizers, official cadence, EMA/scheduler seams, and multi-optimizer DCP;
+- mixed ODE/SDE flow rollout, FP32 transition math, exact likelihood replay, grouped advantages, clipped Flow-GRPO updates, optional frozen-reference KL, and logical policy revisions;
+- vector rewards with frozen scalarization and synchronous native DMD/Flow-GRPO sessions;
+- dynamic data-parallel loss scaling and group-ownership audits.
+
+Model execution reuses the native Wan/SANA adapters and `worldfoundry/core`; it does not import a third-party trainer. The checked-in post-training recipes are strict configuration and parity profiles while full-model GPU acceptance remains a separate gate.
+
+Build the immutable cache for SANA SiD from the same audited manifest, then point all three roles at complete local Diffusers SANA directories. The roles may start from one directory, but they are loaded independently and their file digests are bound into the resume identity:
+
+```bash
+worldfoundry-eval train-cache \
+  --recipe configs/post_training/sana_sprint_600m_sid.yaml \
+  --base-dir . \
+  --prompt-audits data/post_training/sana-sprint-600m/prompt-audits.json
+
+GPU_COUNT="${GPU_COUNT:?set GPU_COUNT from the scheduler allocation}"
+SANA_DIR="${SANA_DIR:?set a local Diffusers SANA-Sprint directory}"
+
+torchrun --standalone --nproc-per-node="${GPU_COUNT}" \
+  -m worldfoundry.cli post-train \
+  --recipe configs/post_training/sana_sprint_600m_sid.yaml \
+  --base-dir . \
+  --steps 50 \
+  --checkpoint-override student="${SANA_DIR}" \
+  --checkpoint-override teacher="${SANA_DIR}" \
+  --checkpoint-override fake_score="${SANA_DIR}"
+```
+
+Each directory needs at least the Diffusers `transformer/` assets. If the recipe omits the cache and uses prompt-only mode, the student directory must also contain the text encoder and tokenizer. The run directory contains `run.json`, DCP checkpoints, and digest-audited student exports. Passing CLI/materializer regression tests proves that the product path is wired; a real-weight short run, 2+ GPU run, and quality/memory evidence still require separate gate reports.
+
+With an existing cache, run the single-device real-weight update→checkpoint→exact-resume→Safetensors-reload gate directly. `--work-dir` must name a new directory:
+
+```bash
+python scripts/training/validate_sana_sid_roundtrip.py \
+  --model-root "${SANA_DIR}" \
+  --manifest data/post_training/sana-sprint-600m/manifest.jsonl \
+  --cache data/post_training/sana-sprint-600m/cache \
+  --work-dir /path/to/new-sana-sid-gate
+```
+
+## Correctness gates
+
+Passing unit tests proves contract and numerical invariants, not final model quality. A model/algorithm combination is accepted only after:
+
+- official-source/report audit at an exact commit;
+- deterministic tensor parity for corruption, prediction parameterization, transition mean/scale/log-prob, loss, gradient, and one update;
+- exact checkpoint-resume parity;
+- one-batch overfit and short real-model GPU runs;
+- held-out quality, reward-hacking, throughput, and memory gates on each declared hardware profile.
+
+Run the software gates with:
+
+```bash
+python -m pytest -q tests/training
+ruff check worldfoundry/training tests/training
+```

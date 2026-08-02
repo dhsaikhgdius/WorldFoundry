@@ -16,7 +16,7 @@ import numpy as np
 import torch
 from PIL import Image
 
-from worldfoundry.base_models.diffusion_model.video.wan.utils.misc import set_seed
+from worldfoundry.core.utils.torch_utils import set_seed_everywhere as set_seed
 from worldfoundry.core.realtime import RealtimeSpec
 from worldfoundry.operators.matrix_game_2_operator import encode_actions
 

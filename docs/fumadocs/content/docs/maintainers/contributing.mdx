@@ -1,6 +1,6 @@
 ---
 title: Contributing
-description: Maintainer checklist for scoped changes, tests, docs, and release evidence.
+description: Maintainer checklist for scoped changes, validation, docs, and release evidence.
 ---
 
 ## Before a PR
@@ -22,13 +22,13 @@ Before opening a PR, confirm the following:
 - **Formatting** — Avoid large unrelated formatting changes. Do not rewrite generated or vendored files unless the task requires it.
 - **Naming** — Prefer canonical ids and direct runner paths; when a public name changes, document the migration instead of adding long-lived compatibility maps.
 
-## Test placement
+## Validation selection
 
-Match tests to the surface you changed:
+Match validation evidence to the surface you changed:
 
-- **Runner, scorecard, tasks, registry** — Focused tests in `test/eval_core`.
-- **Single pipeline run** — Existing scripts under `test/` or a focused validation script.
-- **Stateful or interactive pipeline** — `test_stream/` or a documented stream command.
+- **Runner, scorecard, tasks, registry** — Public CLI discovery, planning, and artifact validation commands.
+- **Single pipeline run** — The smallest documented validation script and its generated manifest.
+- **Stateful or interactive pipeline** — A documented stream command with bounded runtime evidence.
 - **Benchmark runner** — Runner execution plus `zoo benchmark-run --mode official-validation` with official-shaped result files when normalizer review is needed.
 - **Model runner** — Resolver/manifest validation plus a clear skipped path for missing checkpoint or credentials.
 
@@ -48,7 +48,7 @@ When you change behavior, update the page that owns it:
 ```bash
 bash scripts/setup/conda_install.sh --preset slim --env-name worldfoundry
 make lint
-conda run -p "${WORLDFOUNDRY_UNIFIED_ENV_PREFIX}" python -m pytest test/eval_core -q
+make docs-check
 cd docs/fumadocs && npm run types:check && npm run build
 ```
 

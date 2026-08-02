@@ -18,20 +18,23 @@ from einops import rearrange
 from PIL import Image
 from transformers import T5Tokenizer
 
-from worldfoundry.base_models.diffusion_model.video.wan.pipeline_helpers import (
+from worldfoundry.synthesis.visual_generation.shared.wan_diffusers import (
     WanDiffusersInferenceMixin,
     resize_mask,
     retrieve_timesteps,
 )
-from worldfoundry.base_models.diffusion_model.video.wan.variants.video_x_fun import (
+from transformers import AutoTokenizer
+
+from worldfoundry.base_models.diffusion_model.models.autoencoders.wan.variants.video_x_fun import (
     AutoencoderKLWan,
-    AutoTokenizer,
+)
+from worldfoundry.base_models.diffusion_model.models.encoders.wan.variants.dreamx_world.text_encoder import (
     WanT5EncoderModel,
 )
-from worldfoundry.base_models.diffusion_model.video.wan.variants.versecrafter import (
+from worldfoundry.base_models.diffusion_model.models.networks.wan.variants.versecrafter import (
     VerseCrafterWanTransformer3DModel,
 )
-from worldfoundry.base_models.diffusion_model.video.wan.wan_2p1.utils.fm_solvers_unipc import FlowUniPCMultistepScheduler
+from worldfoundry.base_models.diffusion_model.schedulers.flow_unipc import FlowUniPCMultistepScheduler
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 

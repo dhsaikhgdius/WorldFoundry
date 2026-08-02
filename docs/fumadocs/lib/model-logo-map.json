@@ -20,11 +20,13 @@
     "libero-para": "cau-hai-lab",
     "libero-plus": "lifelong-robot-learning",
     "libero-pro": "lifelong-robot-learning",
+    "likephys": "yuanjianhao508",
     "maniskill": "haosulab",
     "maniskill2": "haosulab",
     "memobench": "memobench-team",
     "metaworld": "farama-foundation",
     "mikasa": "cognitiveaisystems",
+    "mind": "csu-jpg",
     "mirabench": "mira-space",
     "molmospaces": "allenai",
     "phyeduvideo": "meghamariamkm",
@@ -35,6 +37,7 @@
     "physics-iq": "google-deepmind",
     "physics-iq-verified": "google-deepmind",
     "physvidbench": "ensanli",
+    "rbench": "dagroup-pku",
     "rlbench": "stepjam",
     "robocasa": "robocasa",
     "robocerebra": "buaa-colalab",
@@ -61,6 +64,7 @@
     "worldarena": "tsinghua-fib-lab",
     "worldbench": "worldbenchmark",
     "worldmodelbench": "worldmodelbench-team",
+    "worldolympiad": "alibaba-damo-academy",
     "worldreasonbench": "unix-ai-lab",
     "worldscore": "haoyi-duan",
     "wrbench": "jinplu"
@@ -199,6 +203,12 @@
       "label": "CognitiveAISystems",
       "sourceOrg": "CognitiveAISystems",
       "src": "/model-logos/cognitiveaisystems.png"
+    },
+    "csu-jpg": {
+      "key": "csu-jpg",
+      "label": "CSU-JPG",
+      "sourceOrg": "CSU-JPG",
+      "src": "/model-logos/csu-jpg.png"
     },
     "cut3r": {
       "key": "cut3r",

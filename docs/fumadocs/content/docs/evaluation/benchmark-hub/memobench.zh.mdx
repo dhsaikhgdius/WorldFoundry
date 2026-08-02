@@ -193,7 +193,7 @@ python evaluation/run_eval.py \
 
 Step 1 输出 one row per clip，包含 composite metrics、diagnostics 和 per-phase pixel fidelity。
 
-### Step 2: Object Revisit Score
+### Step 2: Object Revisit score
 
 从同一个仓内 runtime 目录运行：
 
@@ -205,7 +205,7 @@ python evaluation/compute_ors.py \
 
 该阶段默认使用 `worldfoundry/data/benchmarks/assets/memobench/data/sam3_metadata/` 中的 object description，根据 MemoBench phase-boundary 文件定位 Reappear-phase frame，然后运行 SAM-3 text-prompted segmentation。需要覆盖时设置 `WORLDFOUNDRY_MEMOBENCH_SAM3_METADATA_DIR`。输出 `ors_scores.csv`，包含 clip id、data type、scene、Reappear start index、ORS、detection rate、mean confidence 和 frame count。
 
-### Step 3: VQA Evaluation
+### Step 3: VQA evaluation
 
 从同一个仓内 runtime 目录运行：
 
@@ -264,4 +264,4 @@ WorldFoundry 可以导入生成的 leaderboard CSV；只有完整 evidence packa
 - `per_sample_scores.jsonl`
 - 使用 `--run-official` 时生成的上游 Step 1 `eval_*.csv`
 
-[返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)
+[← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

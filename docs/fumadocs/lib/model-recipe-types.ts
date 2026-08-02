@@ -66,6 +66,36 @@ export type ModelRecipeSource = {
   revision?: string;
 };
 
+export type ModelRecipeContractField = { field: string; detail: string };
+export type ModelRecipeArtifact = { kind: string; filename: string };
+
+export type ModelRecipeTaskField = {
+  field: string;
+  detail: string;
+  kind?: string;
+  target?: string;
+  required?: boolean;
+  default?: unknown;
+  choices?: string[];
+  description?: string;
+};
+
+export type ModelRecipeTaskArtifact = {
+  kind: string;
+  filename: string;
+  description?: string;
+};
+
+export type ModelRecipeTask = {
+  id: string;
+  label: string;
+  description: string;
+  source: 'inference_spec' | 'catalog';
+  variantIds: string[];
+  inputs: ModelRecipeTaskField[];
+  artifacts: ModelRecipeTaskArtifact[];
+};
+
 export type ModelRecipeCheckpoint = {
   id: string;
   revision?: string;
@@ -84,6 +114,18 @@ export type ModelRecipeVariant = {
   runtimeProfile: string;
   pipelineBinding: string;
   status: string;
+  pipelineTarget: string | null;
+  runner: string | null;
+  loadingMethod: string | null;
+  invocationMode: string | null;
+  environmentName: string | null;
+  environmentKind: 'dedicated' | 'unified' | 'unrecorded';
+  python: string | null;
+  cudaLabel: string | null;
+  backendStage: string | null;
+  runtimeStatus: string | null;
+  inputContract: ModelRecipeContractField[];
+  artifacts: ModelRecipeArtifact[];
 };
 
 export type ModelRecipeRuntime = ModelRecipeRuntimeSummary & {
@@ -91,6 +133,8 @@ export type ModelRecipeRuntime = ModelRecipeRuntimeSummary & {
   runnerTarget: string | null;
   runner: string | null;
   pipelineTarget: string | null;
+  loadingMethod: string | null;
+  invocationMode: string | null;
   backendStage: string | null;
   runtimeStatus: string | null;
   environmentId: string | null;
@@ -108,8 +152,9 @@ export type ModelRecipe = Omit<ModelRecipeIndexEntry, 'runtime' | 'checkpoint'> 
   sources: ModelRecipeSource[];
   checkpoints: ModelRecipeCheckpoint[];
   variants: ModelRecipeVariant[];
-  inputContract: Array<{ field: string; detail: string }>;
-  artifacts: Array<{ kind: string; filename: string }>;
+  inferenceTasks: ModelRecipeTask[];
+  inputContract: ModelRecipeContractField[];
+  artifacts: ModelRecipeArtifact[];
   notes: string[];
   commands: {
     prepare: string;

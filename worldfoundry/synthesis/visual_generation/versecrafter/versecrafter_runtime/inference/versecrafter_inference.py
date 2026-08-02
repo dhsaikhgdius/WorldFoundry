@@ -23,16 +23,20 @@ project_roots = [
 for project_root in project_roots:
     sys.path.insert(0, project_root) if project_root not in sys.path else None
 
-from worldfoundry.base_models.diffusion_model.video.wan.variants.video_x_fun import (
+from worldfoundry.base_models.diffusion_model.models.autoencoders.wan.variants.video_x_fun import (
     AutoencoderKLWan,
-    AutoTokenizer,
+)
+from worldfoundry.base_models.diffusion_model.models.encoders.wan.variants.dreamx_world.text_encoder import (
     WanT5EncoderModel,
 )
-from worldfoundry.base_models.diffusion_model.video.wan.components.xfuser import (
+from worldfoundry.core.distributed.sequence_parallel_runtime import (
     set_multi_gpus_devices,
 )
-from worldfoundry.base_models.diffusion_model.video.wan.variants.versecrafter import (
+from worldfoundry.base_models.diffusion_model.models.networks.wan.variants.versecrafter import (
     VerseCrafterWanTransformer3DModel,
+)
+from worldfoundry.base_models.diffusion_model.loaders.wan_variant import (
+    load_wan_transformer,
 )
 from worldfoundry.core.distributed.block_fsdp import shard_model
 from videox_fun.utils.fp8_optimization import (convert_model_weight_to_float8,
@@ -42,8 +46,8 @@ from videox_fun.utils.lora_utils import merge_lora, unmerge_lora
 from videox_fun.utils.utils import (filter_kwargs, get_image_to_video_latent, get_image_latent,
                                     get_video_to_video_latent,
                                     save_videos_grid)
-from worldfoundry.base_models.diffusion_model.video.wan.wan_2p1.utils.fm_solvers import FlowDPMSolverMultistepScheduler
-from worldfoundry.base_models.diffusion_model.video.wan.wan_2p1.utils.fm_solvers_unipc import FlowUniPCMultistepScheduler
+from worldfoundry.base_models.diffusion_model.schedulers.flow_dpm import FlowDPMSolverMultistepScheduler
+from worldfoundry.base_models.diffusion_model.schedulers.flow_unipc import FlowUniPCMultistepScheduler
 from worldfoundry.core.io.paths import resolve_data_path
 from versecrafter.pipeline import WanVerseCrafterPipeline
 
@@ -205,17 +209,19 @@ if geoada_in_dim is not None:
 if transformer_path is not None and os.path.isdir(transformer_path):
     # If transformer_path is a directory, load directly from it
     print(f"Loading transformer from checkpoint directory: {transformer_path}")
-    transformer = VerseCrafterWanTransformer3DModel.from_pretrained(
+    transformer = load_wan_transformer(
+        VerseCrafterWanTransformer3DModel,
         transformer_path,
-        transformer_additional_kwargs=transformer_additional_kwargs,
+        additional_kwargs=transformer_additional_kwargs,
         low_cpu_mem_usage=True,
         torch_dtype=weight_dtype,
     )
 else:
     # Load from base model first
-    transformer = VerseCrafterWanTransformer3DModel.from_pretrained(
+    transformer = load_wan_transformer(
+        VerseCrafterWanTransformer3DModel,
         os.path.join(model_name, config['transformer_additional_kwargs'].get('transformer_subpath', 'transformer')),
-        transformer_additional_kwargs=transformer_additional_kwargs,
+        additional_kwargs=transformer_additional_kwargs,
         low_cpu_mem_usage=True,
         torch_dtype=weight_dtype,
     )

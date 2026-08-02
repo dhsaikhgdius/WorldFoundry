@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import argparse
-from functools import lru_cache
 import json
 import os
 import re
 import shutil
 import subprocess
+from functools import lru_cache
+from pathlib import Path
 
 from worldfoundry.core.io.paths import conda_envs_root_path
 
@@ -162,10 +163,8 @@ def torch_wheel_index_url(tier: str = DEFAULT_CUDA_TIER) -> str:
     return TORCH_WHEEL_INDEX_TEMPLATE.format(tier=normalized)
 
 
-def _unified_env_prefix(tier: str = DEFAULT_CUDA_TIER) -> "Path":
+def _unified_env_prefix(tier: str = DEFAULT_CUDA_TIER) -> Path:
     """Resolve the filesystem prefix for the unified-tier conda environment."""
-    from pathlib import Path
-
     override = os.environ.get("WORLDFOUNDRY_UNIFIED_ENV_PREFIX")
     if override:
         return Path(override).expanduser()

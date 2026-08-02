@@ -1,6 +1,6 @@
 import os
 import torch
-from worldfoundry.base_models.diffusion_model.video.wan.vae.light_wan2p2 import Wan2_2_VAE
+from worldfoundry.base_models.diffusion_model.models.autoencoders.wan.variants.light_22 import Wan2_2_VAE
 VAE_DTYPE = torch.bfloat16
 
 def _parse_lightvae_pruning_rate(value):

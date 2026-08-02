@@ -1,31 +1,50 @@
 ---
 title: VMBench
-description: 使用 WorldFoundry 仓内运行器评测 VMBench motion metrics。
+description: "WorldFoundry 中的 VMBench：perception-aligned 运动指标、1,050 条 prompt suite、checkpoint 与仓内 runner 命令。"
 ---
 
-## 简介
+## 评测什么
 
-VMBench 用 perception-aligned prompt suite 和五个运动指标评测 text-to-video 的运动质量。prompt suite 包含 1,050 条 prompt，每条都有稳定的四位数编号。有效评测需要每条 prompt 生成一个视频，并让文件名保留该编号。
+VMBench（ICCV 2025）从**人类感知对齐**的角度评测 text-to-video 的运动质量。多数 T2V benchmark 侧重时序一致性或画面清晰度，因而容易漏掉三类运动失败：
 
-WorldFoundry 已经把 benchmark code 放在仓内：
+- 视频看起来很稳，其实几乎没有运动；
+- 视频确实在动，但幅度达不到 prompt 的要求；
+- 画面清晰，但运动不自然、违反常识。
 
-```text
-worldfoundry/evaluation/tasks/execution/runners/vmbench/run_vmbench_official_runner.py
-worldfoundry/evaluation/tasks/execution/runners/vmbench/vmbench_official_runtime.py
-worldfoundry/evaluation/tasks/execution/runners/vmbench/runtime/official
-worldfoundry/data/benchmarks/assets/vmbench/prompts/prompts.json
-```
+VMBench 提出五个 perception-aligned 运动指标（PAS、OIS、TCS、CAS、MSS），并报告其指标与人类偏好标注的 Spearman 相关比既有自动运动评分器高约 **35.3%**。
 
-正常使用 WorldFoundry 评测时，用户不应该 clone official repos。上游 VMBench README 和论文只作为协议参考；WorldFoundry 使用仓内 evaluator 和 bundled prompt manifest。完整重算指标仍然需要从 Hugging Face 下载 checkpoint。
+官方参考：
 
-协议参考：
-
-- Paper: [VMBench: A Benchmark for Perception-Aligned Video Motion Generation](https://arxiv.org/abs/2503.10076)
+- Paper: [arXiv:2503.10076](https://arxiv.org/abs/2503.10076)
 - Project page: [amap-ml.github.io/VMBench-Website](https://amap-ml.github.io/VMBench-Website/)
 - Source reference: [github.com/AMAP-ML/VMBench](https://github.com/AMAP-ML/VMBench)
 - Checkpoint assets: [GD-ML/VMBench](https://huggingface.co/GD-ML/VMBench)
+- 仓内 runner：`worldfoundry/evaluation/tasks/execution/runners/vmbench/run_vmbench_official_runner.py`
 
-## 准备输入
+WorldFoundry 已把 benchmark code 放在仓内。上游 README 只作为协议参考；正常的 WorldFoundry 评测使用仓内 evaluator 与 bundled prompt manifest。
+
+## Benchmark 设计
+
+### Prompt suite
+
+官方 prompt 库包含 **1,050** 条 prompt，编号稳定为四位数（`0001`–`1050`）。这些 prompt 由 meta-guided LLM 生成并经过人机联合校验，在上游发布中覆盖六个动态场景维度。
+
+WorldFoundry 把 manifest 打包在 `worldfoundry/data/benchmarks/assets/vmbench/prompts/prompts.json`。
+
+### 运动指标
+
+| Metric ID | Upstream | 检验什么 |
+| --- | --- | --- |
+| `perceptible_amplitude_score` | PAS | 运动幅度是否大到足以被感知 |
+| `object_integrity_score` | OIS | 运动物体是否保持身份与结构 |
+| `temporal_coherence_score` | TCS | 运动在时间上是否保持连贯 |
+| `commonsense_adherence_score` | CAS | 所描绘的动作是否符合常识中的运动预期 |
+| `motion_smoothness_score` | MSS | 运动是否平滑，而不是抖动 |
+| `vmbench_average` | Avg | 可用 PAS/OIS/TCS/CAS/MSS 分数的均值 |
+
+所有主要分数都是越高越好。WorldFoundry 在 scorecard 中把它们归一化到 0–1。
+
+## 数据与产物
 
 从 WorldFoundry 仓库根目录开始：
 
@@ -41,7 +60,7 @@ export PYTHONPATH="$WORLDFOUNDRY_REPO_ROOT:${PYTHONPATH:-}"
 export WORLDFOUNDRY_VMBENCH_PROMPT_MANIFEST="$WORLDFOUNDRY_REPO_ROOT/worldfoundry/data/benchmarks/assets/vmbench/prompts/prompts.json"
 ```
 
-把生成视频放在一个扁平目录中，文件名必须对应 prompt 编号：
+把生成视频放进一个扁平目录，文件名必须对应 prompt 编号：
 
 ```text
 /path/to/vmbench/generated_videos/
@@ -51,14 +70,14 @@ export WORLDFOUNDRY_VMBENCH_PROMPT_MANIFEST="$WORLDFOUNDRY_REPO_ROOT/worldfoundr
   1050.mp4
 ```
 
-然后设置 WorldFoundry 输入目录：
+然后把 WorldFoundry 指向该目录：
 
 ```bash
 export WORLDFOUNDRY_VMBENCH_VIDEO_DIR=/path/to/vmbench/generated_videos
 export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR="${WORLDFOUNDRY_VMBENCH_VIDEO_DIR}"
 ```
 
-下载 VMBench checkpoint bundle 和 companion models：
+下载 VMBench checkpoint bundle 与配套模型：
 
 ```bash
 export WORLDFOUNDRY_VMBENCH_ASSET_DIR=/path/to/vmbench/assets
@@ -86,13 +105,22 @@ export WORLDFOUNDRY_SAM2_CKPT="${WORLDFOUNDRY_VMBENCH_ASSET_DIR}/sam2.1_hiera_la
 export WORLDFOUNDRY_COTRACKER2_CKPT="${WORLDFOUNDRY_VMBENCH_ASSET_DIR}/scaled_offline.pth"
 ```
 
-runner 默认运行五个指标。准备资产时如果只想选择部分指标：
+runner 默认跑五个指标。准备资产阶段只想跑其中一部分时：
 
 ```bash
 export WORLDFOUNDRY_VMBENCH_METRICS="pas ois tcs cas mss"
 ```
 
-## 运行命令
+仓内路径：
+
+```text
+worldfoundry/evaluation/tasks/execution/runners/vmbench/run_vmbench_official_runner.py
+worldfoundry/evaluation/tasks/execution/runners/vmbench/vmbench_official_runtime.py
+worldfoundry/evaluation/tasks/execution/runners/vmbench/runtime/official
+worldfoundry/data/benchmarks/assets/vmbench/prompts/prompts.json
+```
+
+## 使用 WorldFoundry 运行
 
 通过直接仓内 runner 重算完整指标：
 
@@ -107,7 +135,7 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
   --json
 ```
 
-如果其他 WorldFoundry evaluator 已经产出 VMBench-shaped metric artifacts，可以用 artifact backend 导入：
+如果其他 WorldFoundry evaluator 已经产出 VMBench 形态的 metric artifact，可以用 artifact backend 导入：
 
 ```bash
 PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
@@ -133,22 +161,9 @@ worldfoundry-eval zoo benchmark-run \
   --json
 ```
 
-当前公开 CLI 没有声明 VMBench 本地重算命令。需要执行 `pas`、`ois`、`tcs`、`cas`、`mss` 时，请使用上面的直接 runner。
+公开 CLI 目前没有声明 VMBench 的本地重算命令。需要执行 `pas`、`ois`、`tcs`、`cas`、`mss` 时，请使用上面的直接 runner。
 
-## 指标
-
-WorldFoundry 内部把主要 VMBench 分数归一化到 0 到 1，且都是越高越好。
-
-| Metric ID | Upstream name | 含义 |
-| --- | --- | --- |
-| `perceptible_amplitude_score` | PAS | 运动幅度是否明显到可被感知。 |
-| `object_integrity_score` | OIS | 运动物体是否保持身份、形状和结构。 |
-| `temporal_coherence_score` | TCS | 运动在时间上是否连贯。 |
-| `commonsense_adherence_score` | CAS | 生成动作是否符合常识中的运动预期。 |
-| `motion_smoothness_score` | MSS | 运动是否平滑，而不是抖动。 |
-| `vmbench_average` | Avg | 可用 PAS/OIS/TCS/CAS/MSS 分数的平均值。 |
-
-## 输出布局
+## 输出
 
 直接完整运行会写出：
 
@@ -174,4 +189,23 @@ tmp/vmbench/direct-official-run/
     mss.stderr.log
 ```
 
-公开 CLI 导入也会在指定输出目录下写出 `scorecard.json`、`raw_metric_table.jsonl`、`per_sample_metrics.jsonl` 和 runner log files。
+公开 CLI 导入同样会在指定输出目录下写出 `scorecard.json`、`raw_metric_table.jsonl`、`per_sample_metrics.jsonl` 与 runner 日志文件。
+
+## Leaderboard 说明
+
+官方 VMBench README 发布的 leaderboard 使用 0–100 量级的分数。代表性上游 baseline：
+
+| Model | Avg | CAS | MSS | OIS | PAS | TCS |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Wan2.1 | 78.4 | 62.8 | 84.2 | 66.0 | 17.9 | 97.8 |
+| HunyuanVideo | 63.4 | 51.9 | 81.6 | 65.8 | 26.1 | 96.3 |
+| CogVideoX-5B | 60.6 | 50.6 | 61.6 | 75.4 | 24.6 | 91.0 |
+| OpenSora-Plan-v1.3.0 | 58.9 | 39.3 | 76.0 | 78.6 | 6.0 | 94.7 |
+| Mochi 1 | 53.2 | 37.7 | 62.0 | 68.6 | 14.4 | 83.6 |
+| OpenSora-v1.2 | 51.6 | 31.2 | 61.9 | 73.0 | 3.4 | 88.5 |
+
+上游 README 还报告：在 1,050 段 CogVideoX-5B 视频（49 帧、8 FPS）上跑完五个指标约需 **6 小时 45 分钟** GPU 时间，其中 TCS 与 MSS 最慢。
+
+WorldFoundry scorecard 只是本地证据。要达到 leaderboard parity，需要恰好 `0001.mp4` 到 `1050.mp4` 且与 bundled prompt 顺序对齐。
+
+[← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

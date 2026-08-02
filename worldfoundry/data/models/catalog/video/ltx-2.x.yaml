@@ -1,5 +1,10 @@
 id: ltx-2.x
 name: LTX-2.x
+description: >-
+  Native WorldFoundry integration for the official distilled LTX-2 and LTX-2.3
+  image-to-video paths. It uses the official spatial upscaler between two
+  denoising stages; text-to-video and video-to-video remain upstream-only
+  profiles until scoped runners are implemented and validated.
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 pipeline_binding: ltx-2.x
 runtime_profile: runtime-profile:ltx-2.3-i2v
@@ -8,6 +13,11 @@ tasks:
   - image-to-video
   - video-to-video
   - audio-video-generation
+official_sources:
+  github:
+    url: https://github.com/Lightricks/LTX-2
+  docs:
+    url: https://github.com/Lightricks/LTX-2/tree/main/packages/ltx-pipelines/docs
 source_status:
   status: confirmed_official_github
   github:
@@ -66,7 +76,7 @@ variants:
     demo_parity:
       status: pending
       notes:
-        - The in-tree LTX-2 I2V route is wired with the local LTX-2 checkpoint,
+        - The native LTX-2 I2V route is wired with the local LTX-2 checkpoint,
           reference image, fps, guidance_scale, resolution, frame count, step
           count, and seed controls.
         - Full official parity remains pending; per-run artifact checks are
@@ -118,7 +128,7 @@ variants:
     demo_parity:
       status: pending
       notes:
-        - The in-tree LTX-2.3 I2V route is wired with local checkpoint assets,
+        - The native LTX-2.3 I2V route is wired with local checkpoint assets,
           reference image, fps, guidance_scale, resolution, frame count, step
           count, and seed controls.
         - Full upstream parity remains pending; per-run artifact checks are
@@ -146,11 +156,15 @@ variants:
 demo_parity:
   status: pending
   notes:
-    - LTX-2 and LTX-2.3 I2V routes are wired through the in-tree runtime.
+    - LTX-2 and LTX-2.3 I2V routes share WorldFoundry's native diffusion infrastructure.
     - LTX-2.x T2V and V2V variants remain planned/profile-only.
     - Full upstream parity remains pending; per-run artifact checks are tracked
       outside the model catalog.
-notes: Tracked separately from LTX-Video 0.9.x because upstream publishes LTX-2.x under distinct HF repo ids.
+notes:
+  - Tracked separately from LTX-Video 0.9.x because upstream publishes LTX-2.x under distinct Hugging Face repository ids.
+  - The runnable LTX-2 and LTX-2.3 routes are I2V only. The family-level T2V and V2V capability labels describe upstream models, not currently runnable WorldFoundry variants.
+  - I2V uses the official Spatial Upscaler as the boundary between two denoising stages. It is loaded automatically from spatial_upsampler_path; Studio does not expose it as an independent refiner toggle.
+  - The current native distilled schedule is 8 first-stage steps plus 3 second-stage steps (11 total). The upstream DistilledPipeline documentation currently records 8 plus 4, so this integration must not be described as exact upstream pipeline parity until that difference is reconciled and checkpoint-backed validation is recorded.
 catalog_category: video
 catalog_scope: Official GitHub and/or Hugging Face confirmed open-source or open-weight video generation models. Checkpoints are not tracked in git; local validation may download selected repos under cache/hfd.
 catalog_policy:
@@ -160,7 +174,8 @@ catalog_policy:
 integration:
   status: integrated
   notes:
-    - WorldFoundry wraps the in-tree LTX-2.x I2V runtimes; T2V/V2V variants remain profile-only until scoped wrappers exist.
+    - WorldFoundry implements LTX-2.x I2V with native components and the generic joint multi-stage runner; T2V/V2V variants remain profile-only.
+    - No Diffusers pipeline, copied upstream pipeline, or per-model loader is used.
 runner_parity:
   status: partial_studio_visual_validation_verified
   notes:

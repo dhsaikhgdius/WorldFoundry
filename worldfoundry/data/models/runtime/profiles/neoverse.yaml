@@ -29,5 +29,5 @@ execution:
 integration:
   status: integrated
 notes:
-- Runtime profile for the in-tree NeoVerse pipeline and vendored DiffSynth adapter.
+- Runtime profile for the native NeoVerse assembly over shared Wan infrastructure.
 - Runtime execution requires NeoVerse, Wan, reconstructor, LoRA, and CUDA assets.

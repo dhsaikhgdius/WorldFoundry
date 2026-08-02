@@ -6,7 +6,7 @@ from functools import partial
 import torch
 import torch.nn as nn
 
-from worldfoundry.base_models.diffusion_model.video.hunyuan_video.modules.modulate_layers import modulate
+from worldfoundry.core.nn import modulate_sequence as modulate
 from ..helpers import to_2tuple
 
 

@@ -8,7 +8,7 @@ from transformers import (
 )
 
 
-from worldfoundry.base_models.diffusion_model.video.hunyuan_video.text_encoder import (
+from worldfoundry.base_models.diffusion_model.models.encoders.hunyuan_video.original import (
         TextEncoder as BaseTextEncoder,
         TextEncoderModelOutput, 
         use_default

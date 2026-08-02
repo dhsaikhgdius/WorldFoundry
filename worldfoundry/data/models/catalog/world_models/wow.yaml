@@ -18,32 +18,47 @@ official_sources:
     head_sha: 08b010597b69b5e1fde5f69ba44da85aff05bf62
     verified_by: official GitHub repository selected from WorldArena open-source result names
   huggingface:
+  - repo_id: X-Humanoid/WoW-1-Wan-1.3B-2M
+    status: native_structurally_validated
   - repo_id: X-Humanoid/WoW-1-Wan-14B-600k
     status: official_demo_default
   - repo_id: X-Humanoid/WoW-1-Wan-14B-2M
     status: official_recommended
-  - repo_id: WoW-world-model/WoW-1-DiT-2B-600k
+  - repo_id: X-Humanoid/WoW-1-DiT-2B-600k
     status: official_dit_develop
 checkpoint_refs:
+- repo_id: X-Humanoid/WoW-1-Wan-1.3B-2M
+  revision: 2a35e8dd9c17e83fa7eabcb15d79bf26da9cdb17
+  role: native_wan_1p3b_checkpoint
+  license: mit
 - repo_id: X-Humanoid/WoW-1-Wan-14B-600k
 - repo_id: X-Humanoid/WoW-1-Wan-14B-2M
 - repo_id: X-Humanoid/WoW-1-DiT-2B-600k
 integration:
-  status: verified
+  status: runtime_ported
   notes:
-  - WorldFoundry registers the in-tree WoWPipeline against the official WoW Wan demo by default.
-  - The vendored WoW DiT 2B video2world runtime is available through runtime_backend=dit2b.
+  - The WoW Wan route loads its trained transformer through the canonical Wan loader
+    and reuses the shared conditioner, VAE, scheduler, and staged runner.
+  - The released 1.3B transformer graph matches the native model exactly for all
+    825 tensors and uses VAE-only first-frame conditioning.
+  - The WoW DiT 2B checkpoint is a transformer override on the canonical Cosmos Predict2
+    recipe and is selected through runtime_backend=dit2b; no private Cosmos runtime remains.
+  - The pinned DiT 2B Hub snapshot does not expose wow_dit_2b.pt, so local checkpoint
+    graph validation and a native CUDA artifact remain pending.
   - Wan demo defaults are steps=50, seed=42, tiled=true, num_frames=41, output_fps=15.
   - DiT 2B demo defaults are resolution=720, fps=16, num_conditional_frames=1, guidance=7, seed=42, guardrail/refiner disabled.
 runtime_profile: runtime-profile:wow
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 pipeline_binding: wow
 runner_parity:
-  status: verified_official_wan_14b_workspace
+  status: implemented_pending_native_gpu_parity
   notes:
-  - Workspace CLI validation uses the official Wan 14B 600k default with steps=50, seed=42, tiled=true, num_frames=41, and the in-tree WoWPipeline.
-  - Expected validation output decodes as 41 non-empty 832x480 frames at 16 fps and passes robot/red-bottle visual QA.
-  - The DiT 2B backend remains separately checkpoint-gated and should record its own validation row before promotion.
+  - The recorded Wan 14B Workspace artifact predates the native cutover and remains
+    historical source/checkpoint evidence, not native artifact parity.
+  - The current native route has exact checkpoint structure coverage; a fresh
+    checkpoint-backed CUDA artifact is still required.
+  - The DiT 2B native route remains checkpoint-gated and should record its own artifact
+    evidence before promotion.
 catalog_category: world_models
 catalog_scope: World-model catalog entries. Integrated entries expose in-tree WorldFoundry runtimes; blocked entries retain
   upstream provenance without runnable backends.

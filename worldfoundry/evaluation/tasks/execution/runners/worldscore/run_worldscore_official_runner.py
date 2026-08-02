@@ -11,12 +11,20 @@ import time
 from pathlib import Path
 from typing import Any
 
-from worldfoundry.evaluation.utils import REPO_ROOT
-
-from worldfoundry.runtime.env import first_env_value, resolve_hf_cache_dir  # type: ignore[reportMissingImports]  # noqa: E402
-from worldfoundry.evaluation.utils import HFD_DATASET_CACHE_ROOT, worldfoundry_hfd_dataset_root
+from worldfoundry.core.io.file_utils import materialize_file
 from worldfoundry.evaluation.tasks.execution.framework.benchmark_assets import bundled_benchmark_asset
-from worldfoundry.evaluation.tasks.execution.framework.io import env_path, load_json, utc_now_iso, write_json, write_jsonl
+from worldfoundry.evaluation.tasks.execution.framework.io import (
+    env_path,
+    load_json,
+    utc_now_iso,
+    write_json,
+    write_jsonl,
+)
+from worldfoundry.evaluation.utils import HFD_DATASET_CACHE_ROOT, REPO_ROOT, worldfoundry_hfd_dataset_root
+from worldfoundry.runtime.env import (  # type: ignore[reportMissingImports]  # noqa: E402
+    first_env_value,
+    resolve_hf_cache_dir,
+)
 
 DEFAULT_WORLDSCORE_ROOT = (
     REPO_ROOT
@@ -348,7 +356,7 @@ def stage_dynamic_worldscore_output(args: argparse.Namespace) -> dict[str, Any]:
     video_output_dir = instance_dir / "videos"
     if source_path.is_file():
         video_output_dir.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source_path, video_output_dir / "output.mp4")
+        materialize_file(source_path, video_output_dir / "output.mp4", writable=False)
 
     return {
         "split": "dynamic",

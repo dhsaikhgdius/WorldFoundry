@@ -26,19 +26,19 @@ import torchvision.transforms.functional as TF
 from einops import rearrange
 from tqdm import tqdm
 
-from worldfoundry.base_models.diffusion_model.video.wan.configs.lingbot_world_v2 import (
+from worldfoundry.base_models.diffusion_model.recipes.wan_configs.lingbot_world_v2 import (
     LINGBOT_WORLD_V2_CONFIG,
 )
-from worldfoundry.base_models.diffusion_model.video.wan.models.lingbot_world_v2 import (
+from worldfoundry.base_models.diffusion_model.models.networks.wan.variants.lingbot_world_v2 import (
     LingBotWorldV2Model,
 )
-from worldfoundry.base_models.diffusion_model.video.wan.wan_2p1.modules.t5 import (
+from worldfoundry.base_models.diffusion_model.models.encoders.wan.reference import (
     T5EncoderModel,
 )
-from worldfoundry.base_models.diffusion_model.video.wan.wan_2p1.utils.fm_solvers_unipc import (
+from worldfoundry.base_models.diffusion_model.schedulers.flow_unipc import (
     FlowUniPCMultistepScheduler,
 )
-from worldfoundry.base_models.diffusion_model.video.wan.wan_2p2.modules.vae2_1 import (
+from worldfoundry.base_models.diffusion_model.models.autoencoders.wan.reference_21_streaming import (
     Wan2_1_VAE,
 )
 from worldfoundry.core.attention.causal_rope_sequence_parallel import (

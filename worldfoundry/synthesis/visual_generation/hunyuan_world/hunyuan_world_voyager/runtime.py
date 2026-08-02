@@ -106,7 +106,7 @@ def get_1d_rotary_pos_embed_riflex(
 
 
 def load_models(args, device, logger, pretrained_model_path):
-    from worldfoundry.base_models.diffusion_model.video.hunyuan_video.vae import load_vae
+    from worldfoundry.base_models.diffusion_model.models.autoencoders.hunyuan_video import load_hunyuan_video_vae as load_vae
     from worldfoundry.synthesis.visual_generation.hunyuan_world.hunyuan_world_voyager.modules import load_model
     from worldfoundry.synthesis.visual_generation.hunyuan_world.hunyuan_world_voyager.text_encoder import TextEncoder
 
@@ -280,7 +280,7 @@ class HunyuanWorldVoyagerRuntime:
         device=None,
         progress_bar_config=None,
     ):
-        from worldfoundry.base_models.diffusion_model.video.hunyuan_video.diffusion.schedulers import (
+        from worldfoundry.synthesis.visual_generation.hunyuan_world.hunyuan_worldplay.schedulers.scheduling_flow_match_discrete import (
             FlowMatchDiscreteScheduler,
         )
         from worldfoundry.synthesis.visual_generation.hunyuan_world.hunyuan_world_voyager.diffusion.pipelines import (
@@ -633,7 +633,7 @@ class HunyuanWorldVoyagerRuntime:
         **kwargs,
     ):
         import cv2
-        from worldfoundry.base_models.diffusion_model.video.hunyuan_video.diffusion.schedulers import (
+        from worldfoundry.synthesis.visual_generation.hunyuan_world.hunyuan_worldplay.schedulers.scheduling_flow_match_discrete import (
             FlowMatchDiscreteScheduler,
         )
 

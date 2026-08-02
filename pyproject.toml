@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools", "wheel", "setuptools-scm[toml]"]
+requires = ["setuptools>=77", "wheel", "setuptools-scm[toml]"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,7 +8,7 @@ dynamic = ["version"]
 description = "WorldFoundry: unified world-model repository and WorldFoundry benchmark framework."
 readme = "README.md"
 license = "Apache-2.0"
-license-files = ["LICENSE"]
+license-files = ["LICENSE", "THIRD-PARTY-NOTICES"]
 requires-python = ">=3.10,<3.14"
 authors = [
     { name = "OpenEnvision" },
@@ -49,6 +49,13 @@ api = [
     "pillow",
     "qwen-vl-utils",
     "requests>=2.32.0,<3.0.0",
+]
+apple_pi = [
+    "google-genai>=1.60.0,<2",
+    "huggingface-hub[cli]",
+    "numpy",
+    "opencv-python",
+    "pillow",
 ]
 hf = [
     "huggingface-hub[cli]",
@@ -211,6 +218,12 @@ studio_realtime = [
     "numpy>=1.26,<3",
     "pillow>=10",
 ]
+rtx_postprocess = [
+    # Proprietary NVIDIA VFX bindings. Keep this out of `all` so installation
+    # is always an explicit opt-in to NVIDIA's license and platform contract.
+    "nvidia-vfx==0.1.0.1",
+    "torch>=2.7,<2.12.0",
+]
 tui = [
     "pillow",
     "textual",
@@ -223,6 +236,22 @@ optimized_core = [
     "loguru",
     "safetensors>=0.4",
     "torch>=2.7,<2.12.0",
+]
+train_core = [
+    "accelerate>=1,<2",
+    "peft>=0.14,<1",
+    "pyarrow>=15",
+    "safetensors>=0.4",
+    "torch>=2.9,<2.12.0",
+    "torchdata>=0.11,<0.12",
+    "transformers>=4.57,<5",
+]
+train_video = [
+    "av>=12,<20",
+    "numpy>=1.26,<3",
+]
+profiling = [
+    "torchprofile>=0.1.0,<0.2",
 ]
 web = [
     "fastapi",
@@ -247,7 +276,6 @@ worldscore = [
     "loguru",
     "mmengine",
     "open3d",
-    "openai-clip",
     "pyfiglet",
     "pycocotools",
     "pyiqa",
@@ -287,7 +315,6 @@ studio_plot = [
 dev = [
     "build",
     "pre-commit>=4.0",
-    "pytest",
     "ruff>=0.12.7",
 ]
 all = [
@@ -313,6 +340,7 @@ all = [
     "flask-socketio",
     "ftfy",
     "gdown",
+    "google-genai>=1.60.0,<2",
     "gradio",
     "gradio-imageslider",
     "h5py",
@@ -339,7 +367,6 @@ all = [
     "onnxruntime",
     "open3d",
     "openai",
-    "openai-clip",
     "opencv-python",
     "pandas",
     "pillow",
@@ -385,9 +412,6 @@ Repository = "https://github.com/OpenEnvision/WorldFoundry"
 Issues = "https://github.com/OpenEnvision/WorldFoundry/issues"
 
 [dependency-groups]
-test = [
-    "pytest",
-]
 lint = [
     "pre-commit>=4.0",
     "ruff>=0.12.7",
@@ -402,7 +426,6 @@ runtime_clip_bundle = [
     "easydict",
     "moviepy==1.0.3",
     "omegaconf",
-    "openai-clip",
     "open-clip-torch",
     "scipy<1.16",
     "setuptools<81",
@@ -459,6 +482,8 @@ extend-exclude = [
     "worldfoundry/base_models",
     "worldfoundry/synthesis",
     "worldfoundry/representations",
+    # Apache-2.0 native GUI sources preserve upstream formatting.
+    "worldfoundry/studio/native/world_explorer",
 ]
 
 [tool.ruff.lint]
@@ -471,27 +496,6 @@ select = [
 ]
 ignore = [
     "E501",
-]
-
-[tool.pytest.ini_options]
-testpaths = [
-    "test/eval_core/test_api_contracts.py",
-    "test/eval_core/test_metric_registry.py",
-    "test/eval_core/test_task_yaml.py",
-    "test/eval_core/test_run_manifest.py",
-    "test/eval_core/test_public_namespace.py",
-    "test/eval_core/test_video_quality_local_evaluator.py",
-    "tests/evaluation/test_mcp_server.py",
-    "tests/evaluation/test_tui.py",
-]
-addopts = [
-    "--strict-markers",
-]
-markers = [
-    "unit: pure unit tests for deterministic local code paths without checkpoint, dataset, network, or external service dependencies.",
-    "fast_eval_core: fast deterministic eval-core contract fixtures without checkpoint or external API dependencies.",
-    "gpu: tests that require CUDA devices, model checkpoints, or GPU-backed inference runtimes.",
-    "gated: tests that require private credentials, gated datasets, accepted licenses, or manually provisioned services.",
 ]
 
 [tool.setuptools]
@@ -567,7 +571,7 @@ include-package-data = true
     "perception_core/video_quality/fetv_stylegan_v/**/*",
     "perception_core/general_perception/open_clip/bpe_simple_vocab_16e6.txt.gz",
     "perception_core/segment/sam3/assets/bpe_simple_vocab_16e6.txt.gz",
-    "diffusion_model/video/cosmos3/UPSTREAM*.txt",
+    "diffusion_model/models/networks/cosmos3/README.md",
     "three_dimensions/general_3d/vipe/csrc/**/*",
     "three_dimensions/general_3d/vipe/LICENSE",
     "three_dimensions/general_3d/vipe/THIRD_PARTY_LICENSES.md",
@@ -575,9 +579,13 @@ include-package-data = true
 ]
 "worldfoundry.studio" = [
     "assets/**/*",
+    "native/world_explorer/**/*",
 ]
 "worldfoundry.synthesis.visual_generation.lingbot_video" = [
     "default_negative_prompt*.json",
+]
+"worldfoundry.synthesis.visual_generation.matrix_game" = [
+    "matrix_game_3p5_runtime/**/*",
 ]
 "worldfoundry.synthesis.visual_generation.rolling_forcing" = [
     "LICENSE*",
@@ -597,4 +605,10 @@ include-package-data = true
     "**/__pycache__/*",
     "**/*.pyc",
     "**/*.pyo",
+    "native/world_explorer/build/**/*",
+    "native/world_explorer/dependencies/fmt/**/*",
+    "native/world_explorer/dependencies/glfw/**/*",
+    "native/world_explorer/dependencies/imgui/**/*",
+    "native/world_explorer/dependencies/pybind11/**/*",
+    "native/world_explorer/dependencies/tinylogger/**/*",
 ]

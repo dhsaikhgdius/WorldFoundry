@@ -3,7 +3,7 @@ title: IPV-Bench
 description: Impossible Videos evaluation with WorldFoundry's checked-in prompt assets, result import path, direct runner, metrics, and current gaps.
 ---
 
-## What It Measures
+## What it measures
 
 IPV-Bench evaluates physically impossible videos. The local Impossible Videos README describes two tracks:
 
@@ -13,7 +13,7 @@ IPV-Bench evaluates physically impossible videos. The local Impossible Videos RE
 The official benchmark defines a taxonomy with 4 domains and 14 categories, plus an `IPV-Txt` prompt suite. WorldFoundry keeps the prompt suite and result parser in tree at `worldfoundry/evaluation/tasks/execution/runners/ipv_bench` and `worldfoundry/data/benchmarks/assets/ipv-bench`. Do not make a separate copy of the official repo for normal WorldFoundry use; the local `/Impossible-Videos` repo is a protocol reference.
 
 
-## Official References
+## Official references
 
 | Resource | Link |
 | --- | --- |
@@ -22,7 +22,7 @@ The official benchmark defines a taxonomy with 4 domains and 14 categories, plus
 | HF dataset | [showlab/ImpossibleVideos](https://huggingface.co/datasets/showlab/ImpossibleVideos) |
 | In-tree runner | `worldfoundry/evaluation/tasks/execution/runners/ipv_bench/run_ipv_bench_official_runner.py` |
 
-## Prepare Data And Assets
+## Prepare data and assets
 
 Checked-in assets:
 
@@ -54,7 +54,7 @@ hf download showlab/ImpossibleVideos \
   --local-dir /path/to/datasets/ImpossibleVideos
 ```
 
-## Result File Shape
+## Result file shape
 
 You can import summary metric rows:
 
@@ -70,7 +70,7 @@ open_qa_score,0.65
 
 You can also import per-sample rows with fields such as `prompt_id`, `visual_quality`, `prompt_following`, `answer`, `pred`, `mcqa_answer`, `mcqa_pred`, `open_qa_score`, and `open_qa_pred`. The in-tree artifact importer also looks for files named like `ipv_results*.csv`, `ipv_results*.json`, `ipv_results*.jsonl`, and `*_pred_ipv_*.json`.
 
-## Output Layout
+## Output layout
 
 Public CLI output:
 
@@ -102,7 +102,7 @@ worldfoundry-eval zoo benchmark-run \
   --json
 ```
 
-## Direct Runner
+## Direct runner
 
 Import an existing CSV, JSON, or JSONL result file:
 

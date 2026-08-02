@@ -9,7 +9,6 @@ from typing import Any, Mapping, Sequence
 import yaml
 
 from worldfoundry.evaluation.utils import (
-    DATA_ROOT,
     MODEL_RUNTIME_ENVIRONMENTS_ROOT,
 )
 from worldfoundry.runtime.conda import RuntimeCondaEnvSpec, load_runtime_conda_env_specs_with_overrides

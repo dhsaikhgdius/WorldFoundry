@@ -5,12 +5,11 @@ from __future__ import annotations
 import csv
 import json
 import os
-import shutil
 from pathlib import Path
 from typing import Any
 
+from worldfoundry.core.io.file_utils import materialize_file
 from worldfoundry.evaluation.api import GenerationRequest, GenerationResult
-from worldfoundry.evaluation.utils import write_jsonl
 from worldfoundry.evaluation.tasks.execution.framework.benchmark_assets import (
     bundled_benchmark_asset,
     bundled_benchmark_assets_root,
@@ -20,6 +19,7 @@ from worldfoundry.evaluation.tasks.execution.runners.physics_iq.protocols import
     VERIFIED,
     PhysicsIQProtocolSpec,
 )
+from worldfoundry.evaluation.utils import write_jsonl
 
 BENCHMARK_ID = "physics-iq"
 DESCRIPTIONS_REL = Path("descriptions/descriptions_original.csv")
@@ -278,7 +278,7 @@ def copy_physics_iq_generated_videos(
             continue
         target_name = sample_id if sample_id.endswith(".mp4") else f"{sample_id}.mp4"
         target_path = generated_artifact_dir / target_name
-        shutil.copy2(source_path, target_path)
+        materialize_file(source_path, target_path, writable=False)
         materialized += 1
         manifest_rows.append({"sample_id": sample_id, "artifact": output_artifact, "path": str(target_path)})
 
@@ -299,7 +299,7 @@ def copy_physics_iq_generated_videos(
             target_path = generated_artifact_dir / target_name
             if target_path.is_file():
                 continue
-            shutil.copy2(source_path, target_path)
+            materialize_file(source_path, target_path, writable=False)
             materialized += 1
             manifest_rows.append(
                 {"sample_id": result.sample_id, "artifact": output_artifact, "path": str(target_path)}

@@ -1,13 +1,13 @@
 # Inference-only RoboFlamingo source retained in-tree.
 from __future__ import annotations
 
-import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from worldfoundry.core import jsonable
+from worldfoundry.core.io import file_sha256
 from worldfoundry.core.io.paths import project_root, resolve_worldfoundry_path
 from worldfoundry.core.model_loading.file import load_state_dict
 from worldfoundry.synthesis.action_generation.runtime_config import load_vla_va_wam_runtime_config
@@ -465,7 +465,7 @@ class RoboFlamingoRuntime:
             "model_id": "roboflamingo",
             "artifact_kind": "action_trace",
             "artifact_path": str(target),
-            "artifact_sha256": hashlib.sha256(target.read_bytes()).hexdigest(),
+            "artifact_sha256": file_sha256(target),
             "runtime": trace["runtime"],
             "action_shape": prediction["action_shape"],
             "action": prediction["action"],

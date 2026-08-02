@@ -3,24 +3,24 @@ title: 为什么使用 WorldFoundry
 description: 多模型、多 benchmark 场景下，WorldFoundry 能帮你省去哪些重复工作。
 ---
 
-WorldFoundry 面向**跨模型、跨 benchmark、跨界面**的工作流。它的价值不在于把某个单模型 demo 再缩短几行，而在于把环境准备、运行、检查与评测串成一条可复用的路径，让结果能留下来、能对得上、能交给他人或自动化流程继续处理。
+WorldFoundry 的价值出现在**跨模型、跨 benchmark、跨界面**的工作流里。它不是把某个单模型 demo 再缩短几行，而是减少重复的集成工作，并在项目变大之后仍然保留可比对的证据。
 
 ## 统一的运行语义
 
-上游仓库各有各的叫法：论文名、仓库名、checkpoint 别名、本地路径。WorldFoundry 用稳定的 model ID 与 benchmark ID，配合 request、result、artifact、manifest、scorecard，描述同一次 run 时不再依赖口头约定。
+上游仓库各有各的叫法：论文名、仓库名、checkpoint 别名、本地路径。WorldFoundry 用稳定的 model ID 与 benchmark ID，配合 request、result、artifact、manifest、scorecard，让研究者、基础设施工程师与 reviewer 用同一套说法描述一次 run，而不必依赖口头约定。
 
-因此许多关键问题可以直接落到记录上，而不是事后回忆：
+于是含糊的问题变成可以查证的问题：
 
-- 模型是仅被 catalog 收录，还是 runner 已实际执行？
-- 使用了哪个 checkpoint 与 runtime profile？
-- benchmark 覆盖了哪些 sample？
-- 分数来自导入、计算，还是已满足 leaderboard 所需条件？
+- 模型只是被 catalog 收录，还是 runner 真的执行过？
+- 用的是哪个 checkpoint revision 和 runtime profile？
+- benchmark 的 sample 是否全部覆盖？
+- 分数是从已有文件归一化来的，是官方 runner 算出来的，还是已经通过 leaderboard 校验？
 
-这套语义的价值在于**降低交接成本**：换一个人、换一台机器，仍能读懂同一份 run，而不必回到原始操作者的上下文。
+重点不是形式上的整齐，而是**能把一次 run 交出去**：换一个人、换一台机器，都能读懂它，不必依赖原操作者的记忆。
 
 ## 集成只做一次
 
-环境准备、checkpoint 查找、输入输出整理、job 记录、预览与 metric 汇总，是跨模型家族的共性步骤。WorldFoundry 把这些共性收拢到统一路径里，接入新模型时不必从零搭建整条流水线。
+环境准备、checkpoint 查找、输入输出整理、job 记录、预览与 metric 汇总，是跨模型家族的共性步骤。WorldFoundry 把这些共性收拢到统一路径里，接入第二个模型时不必从零重搭整条流水线。
 
 模型差异保留在 pipeline 与 operator；benchmark 差异保留在 runner 与 metric；共享逻辑只维护一份。这样既减少重复，也保留足够透明的上游边界，便于定位问题。
 
@@ -30,11 +30,13 @@ WorldFoundry 面向**跨模型、跨 benchmark、跨界面**的工作流。它�
 
 当生成成本高于评测迭代成本时，这一边界尤其重要：可以先固定一批输出，在 metric 或报告规则变化后重新评分，而不必重复推理。
 
+举个例子：周一用固定 seed 与动作序列生成 20 段 Matrix-Game 2 视频，并完成人工检查；周三新增一个时序一致性 metric。只要 result ledger 与 artifact 还在，就能对同一批视频重新打分，不必再次加载 checkpoint。但如果动作序列或生成参数变了，就该新建一次 generation run，而不是覆盖旧证据。
+
 ## 记录比命令更完整
 
-可执行命令只是复现的起点。checkpoint、依赖、dataset、prompt 或 evaluator 任一变化，同一命令都可能产生不可比结果。WorldFoundry 持久化 request ledger、result ledger、模型与 benchmark 身份、输出路径、metric 摘要、blocker 与 scorecard。
+可执行命令是必要的，但并不够。checkpoint、依赖、dataset、prompt 或 evaluator 任一变化，同一条命令都可能产生不可比的结果。WorldFoundry 持久化 request ledger、result ledger、模型与 benchmark 身份、输出路径、metric 摘要、blocker 与 scorecard。
 
-一份结果因此同时说明**实际执行了什么**，以及**该结果被允许主张什么**。失败 sample 保持可见；缺失官方覆盖记为 blocker；normalizer 导入不会因产出 JSON 分数而被视为 official benchmark run。
+一份结果因此同时说明**实际执行了什么**，以及**该结果被允许主张什么**。失败 sample 保持可见；缺失官方覆盖记为 blocker；normalizer 导入不会因为产出了 JSON 分数，就被当成 official benchmark run。
 
 ## 多入口，同一后端
 
@@ -47,17 +49,17 @@ TUI、CLI、Studio、Python 与 MCP 面向不同使用方式，但共用 catalog
 | Studio | 模型感知表单与视觉检查 |
 | Python / MCP | 自定义流程或 agent 编排 |
 
-TUI 输出的命令可写入 job 脚本；CLI 生成的 artifact 可在 Studio 打开或进入评测。**界面可以切换，run 身份与持久输出保持一致。**
+TUI 输出的命令可以直接写进 job 脚本；CLI 生成的 artifact 可以在 Studio 打开，也可以进入评测。**界面可以切换，run 身份与持久输出保持一致。**
 
 ## 适合谁用
 
 WorldFoundry 适合需要长期维护或比较多个世界模型家族、将生成与评测解耦、在 review 与 metric 之间复用 artifact，或为人与 agent 提供稳定机器可读发现的团队。若某个模型或 benchmark 集成需要在组织内共享，而不是留在私人脚本里，也适合落在这里。
 
-模型、benchmark、机器、参与者与 review 环节越多，统一契约与完整证据链带来的收益越大。
+模型、benchmark、机器、参与者与 review 环节越多，统一契约与完整证据链带来的收益越大。只要之后还得让别人看懂这次 run，显式契约与证据通常能抵回它们的搭建成本。
 
 ## 继续阅读
 
-若你的工作涉及多个模型家族、可重复推理、对输出的系统化打分，或需要向他人说明 run 内容与系统就绪情况，可以从下面两页继续：
+若你的工作涉及多个模型家族、需要可重复的推理而不是一次视觉 demo、需要系统化地给输出打分，或需要向他人和自动化流程说明系统到底就绪到什么程度，可以从下面两页继续。模型、benchmark、metric 与入口越多，这些收益越明显。
 
 - [快速开始](/zh/docs/quickstart) — 跑通第一条完整路径
 - [包含什么](/zh/docs/overview/capabilities) — 查看子系统与支持边界

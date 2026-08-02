@@ -170,7 +170,7 @@ class DynamiCrafter:
         from omegaconf import OmegaConf
         from pytorch_lightning import seed_everything
 
-        from worldfoundry.base_models.diffusion_model.video.lvdm.utils import (
+        from worldfoundry.core.model_loading.factory import (
             instantiate_from_config,
         )
 
@@ -382,8 +382,8 @@ def image_guided_synthesis(
     import torch
     from einops import repeat
 
-    from worldfoundry.base_models.diffusion_model.video.lvdm.models.samplers.ddim import DDIMSampler
-    from worldfoundry.base_models.diffusion_model.video.lvdm.models.samplers.ddim_multiplecond import (
+    from worldfoundry.base_models.diffusion_model.schedulers.lvdm.ddim import DDIMSampler
+    from worldfoundry.base_models.diffusion_model.schedulers.lvdm.ddim_multiplecond import (
         DDIMSampler as DDIMSampler_multicond,
     )
 

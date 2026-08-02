@@ -1,0 +1,69 @@
+schema: worldfoundry-post-training
+execution_owner: worldfoundry-native
+run:
+  id: wan-1p3b-grpo-guard
+  output_dir: runs/wan-1p3b-grpo-guard
+model:
+  recipe: wan2.1-t2v-1.3b
+  checkpoint: default
+tuning:
+  mode: lora
+  preset: wan-attention
+  rank: 64
+  alpha: 128
+data:
+  manifest: data/post_training/wan-rl-prompts.jsonl
+  cache: cache/post_training/wan-rl-conditioning
+  split: train
+  shuffle: true
+  shuffle_seed: 42
+  tail_policy: pad
+  options:
+    prompt_batch_size: 1
+    generation:
+      height: 256
+      width: 416
+      num_frames: 17
+algorithm:
+  type: grpo-guard
+  sigmas: [1.0, 0.8, 0.6, 0.4, 0.2, 0.0]
+  sde_step_indices: [1, 2, 3]
+  transition_strategy: variance-preserving
+  eta: 0.7
+  sigma_max: 0.8
+  clip_range: 0.0001
+  updates_per_trajectory: 2
+  group_size: 4
+  old_log_prob_source: replay
+  advantage_epsilon: 0.00000001
+  advantage_normalization: group-population-variance
+  advantage_clip_max: 5.0
+  trajectory_dtype: bfloat16
+  reward_weights:
+    video_quality: 1.0
+    motion_quality: 1.0
+    text_alignment: 1.0
+  reward_model:
+    type: videoalign
+optimizer:
+  type: adamw
+  learning_rate: 0.0003
+  weight_decay: 0.0
+  max_grad_norm: 1.0
+runtime:
+  param_dtype: bfloat16
+  reduce_dtype: float32
+  activation_checkpoint: full
+  compile: false
+distributed:
+  backend: fsdp2
+  dp_replicate: 1
+  dp_shard: auto
+  cp: 1
+  tp: 1
+checkpoint:
+  save_every_steps: 50
+  async: true
+  export_every_steps: 50
+export:
+  format: peft

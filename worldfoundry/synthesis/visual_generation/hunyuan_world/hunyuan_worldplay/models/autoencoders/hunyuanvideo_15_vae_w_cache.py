@@ -949,7 +949,6 @@ class AutoencoderKLConv3D(ModelMixin, ConfigMixin):
     def enable_temporal_tiling(self, use_tiling: bool = True):
         raise RuntimeError("Temporal tiling is not supported for this VAE.")
         self.use_temporal_tiling = use_tiling
-
     def disable_temporal_tiling(self):
         self.enable_temporal_tiling(False)
 
@@ -1036,33 +1035,6 @@ class AutoencoderKLConv3D(ModelMixin, ConfigMixin):
         """Tiled temporal encoding for large video sequences."""
         raise RuntimeError("Temporal tiling is not supported for this VAE.")
         B, C, T, H, W = x.shape
-        overlap_size = int(self.tile_sample_min_tsize * (1 - self.tile_overlap_factor))
-        blend_extent = int(self.tile_latent_min_tsize * self.tile_overlap_factor)
-        t_limit = self.tile_latent_min_tsize - blend_extent
-
-        row = []
-        for i in range(0, T, overlap_size):
-            tile = x[:, :, i : i + self.tile_sample_min_tsize + 1, :, :]
-            if self.use_spatial_tiling and (
-                tile.shape[-1] > self.tile_sample_min_size
-                or tile.shape[-2] > self.tile_sample_min_size
-            ):
-                tile = self.spatial_tiled_encode(tile)
-            else:
-                tile = self.encoder(tile)
-            if i > 0:
-                tile = tile[:, :, 1:, :, :]
-            row.append(tile)
-        result_row = []
-        for i, tile in enumerate(row):
-            if i > 0:
-                tile = self.blend_t(row[i - 1], tile, blend_extent)
-                result_row.append(tile[:, :, :t_limit, :, :])
-            else:
-                result_row.append(tile[:, :, : t_limit + 1, :, :])
-        moments = torch.cat(result_row, dim=-3)
-        return moments
-
     def enable_tile_parallelism(self):
         self._tile_parallelism_enabled = True
 
@@ -1221,35 +1193,6 @@ class AutoencoderKLConv3D(ModelMixin, ConfigMixin):
         """Tiled temporal decoding for long sequence latents."""
         raise RuntimeError("Temporal tiling is not supported for this VAE.")
         B, C, T, H, W = z.shape
-        overlap_size = int(self.tile_latent_min_tsize * (1 - self.tile_overlap_factor))
-        blend_extent = int(self.tile_sample_min_tsize * self.tile_overlap_factor)
-        t_limit = self.tile_sample_min_tsize - blend_extent
-        assert 0 < overlap_size < self.tile_latent_min_tsize
-
-        row = []
-        for i in range(0, T, overlap_size):
-            tile = z[:, :, i : i + self.tile_latent_min_tsize + 1, :, :]
-            if self.use_spatial_tiling and (
-                tile.shape[-1] > self.tile_latent_min_size
-                or tile.shape[-2] > self.tile_latent_min_size
-            ):
-                decoded = self.spatial_tiled_decode(tile)
-            else:
-                decoded = self.decoder(tile)
-            if i > 0:
-                decoded = decoded[:, :, 1:, :, :]
-            row.append(decoded)
-
-        result_row = []
-        for i, tile in enumerate(row):
-            if i > 0:
-                tile = self.blend_t(row[i - 1], tile, blend_extent)
-                result_row.append(tile[:, :, :t_limit, :, :])
-            else:
-                result_row.append(tile[:, :, : t_limit + 1, :, :])
-        dec = torch.cat(result_row, dim=-3)
-        return dec
-
     def clear_cache(self):
         # Use cached conv counts for decoder and encoder to avoid re-iterating modules each call
         self._conv_num = self._cached_conv_counts["decoder"]

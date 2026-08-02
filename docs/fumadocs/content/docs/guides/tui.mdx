@@ -1,9 +1,9 @@
 ---
-title: TUI Guide
+title: TUI guide
 description: How to use the Terminal User Interface for discovery, configuration, and command generation.
 ---
 
-The Terminal User Interface (TUI) provides a text-based interactive dashboard directly in your terminal. It is the easiest way to browse the model and benchmark catalogs, check readiness, and generate CLI commands without memorizing flags.
+The Terminal User Interface (TUI) is an interactive, text-based dashboard for your terminal. It is the easiest way to browse the model and benchmark catalogs, check readiness, and generate CLI commands without memorizing flags.
 
 ## Launch the TUI
 
@@ -58,7 +58,7 @@ Use Inference to pick a model, fill model-specific inputs, and generate a runnab
 
 ![TUI Inference mode](/images/tui/tui-inference.png)
 
-Typical fields include prompt, input path, output directory, optional artifact path, and GPU ids. The **Command Preview** section updates as you edit parameters.
+Typical fields include prompt, input path, output directory, optional artifact path, and GPU IDs. The **Command Preview** section updates as you edit parameters.
 
 ### Studio
 
@@ -103,7 +103,7 @@ When a readiness blocker is present, the generated command includes `--mode offi
 
 ## Fallback mode
 
-If the Textual dependency is not installed, the TUI prints a static fallback summary instead of the interactive dashboard. The fallback lists model ids, benchmark ids, and a brief readiness note.
+If the Textual dependency is not installed, the TUI prints a static fallback summary instead of the interactive dashboard. The fallback lists model IDs, benchmark IDs, and a brief readiness note.
 
 To restore the full interactive TUI, install the `[tui]` extra:
 

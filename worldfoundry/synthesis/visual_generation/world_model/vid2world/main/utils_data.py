@@ -5,10 +5,10 @@ import torch
 import pytorch_lightning as pl
 from torch.utils.data import DataLoader, Dataset
 
-from worldfoundry.base_models.diffusion_model.video.lvdm.variants.vid2world.eval_inputs.base import (
+from worldfoundry.synthesis.visual_generation.world_model.vid2world.eval_inputs.base import (
     Txt2ImgIterableBaseDataset,
 )
-from worldfoundry.base_models.diffusion_model.video.lvdm.utils import instantiate_from_config
+from worldfoundry.core.model_loading.factory import instantiate_from_config
 
 
 def worker_init_fn(_):

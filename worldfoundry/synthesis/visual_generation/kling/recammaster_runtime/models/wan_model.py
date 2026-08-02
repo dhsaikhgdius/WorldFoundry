@@ -6,7 +6,7 @@ from typing import Tuple, Optional
 from einops import rearrange
 
 from worldfoundry.core.model_loading import hash_state_dict_keys
-from worldfoundry.base_models.diffusion_model.video.wan.wan_2p1.modules.model import WanRMSNorm, sinusoidal_embedding_1d, MLPProj
+from worldfoundry.base_models.diffusion_model.models.networks.wan.reference_21 import WanRMSNorm, sinusoidal_embedding_1d, MLPProj
 from worldfoundry.core.attention import scaled_dot_product_attention as _worldfoundry_scaled_dot_product_attention
 try:
     import flash_attn_interface

@@ -1,0 +1,53 @@
+---
+title: 核心基础设施
+description: worldfoundry/core 共享层 —— 加载、attention、分布式、VRAM、kernel、memory，以及“可复用原语只在此处”的规则。
+---
+
+## 本层为何存在
+
+`worldfoundry/core` 是每个 model family 都复用、但都不拥有的共享推理基础设施。checkpoint 加载、state-dict remap、attention 后端、分布式 collectives、VRAM 放置与 offload、kernel、配置、媒体 IO、memory 契约、安全 guardrails 都只在此实现一次。family 包（`worldfoundry/base_models/*`、`worldfoundry/synthesis/*`、`worldfoundry/pipelines/*`）组合这些原语，但不得重新实现它们。
+
+当你打算把某个工具复制进某个模型目录时，本层就是你要先读的。规则很明确：如果一个能力可服务多个 family，就先放进 `core`。扩散如何消费本层见 [原生扩散](/zh/docs/maintainers/architecture/native-diffusion)，pipeline/operator 如何消费见 [模型运行时](/zh/docs/maintainers/architecture/model-runtime)。
+
+## 子包职责
+
+| 子包 | 职责 | 关键符号 |
+| --- | --- | --- |
+| `model_loading` | checkpoint 物化、state-dict 加载、LoRA 合并、推理网络构造。 | `load_state_dict_from_safetensors` `model_loading/file.py:110`；`instantiate_inference_network` `inference_model.py:23`；`GeneralLoRALoader` `lora.py:15` |
+| `checkpoint` | state-dict 赋值、remap、分布式 checkpoint (DCP)、安全加载。 | `checkpoint/{assignment,remap,dcp,safe_loading,load}.py` |
+| `vram` | 磁盘 state map、meta 初始化、staged 放置、层式 CPU offload、显存核算。 | `vram/{disk_map,initialization,layers,layerwise_offload,memory}.py` |
+| `attention` | 后端探测、dense SDPA、可变长 packed、sparse 3D、n-D/complex/projective RoPE、序列并行组合。 | `AttentionKernelCapability` `attention/backends.py:32`；`probe_attention_backends` `backends.py:144`；`complex_rope.py`、`causal_ulysses_attention.py` |
+| `distributed` | NCCL options、masked 正交 rank groups、模型并行初始化、context/block FSDP、device-mesh collectives。 | `initialize_model_parallel` `distributed/model_parallel_groups.py:238`；`RankGenerator` `:194`；`block_fsdp.py`、`context_parallel.py` |
+| `nn` | 可复用 transformer 算子：RMSNorm、共享 MLP、timestep/AdaLN/final-layer modulation、prefix gating、activation checkpointing、classic-diffusion block。 | `nn/{activation_checkpointing,diffusion_schedulers,convolutional_mlp,...}.py` |
+| `kernels` | autotune 缓存、能力探测、扩散 kernel、MoE、量化 GEMM。 | `kernels/{capabilities,autotune_cache,diffusion,moe,quantized_gemm}.py` |
+| `memory` | 多模态、流式、多轮 memory 契约。 | `BaseMemory` `memory/base.py:9`；`conditioning.py`、`media.py`、`mosaic.py`、`retrieval.py` |
+| `acceleration` | FP8 tensorwise 量化、低精度开关、加速技术报告、NVFP4、token pruning。 | `Float8Linear` `acceleration/quantization.py:47`；`AccelerationTechnology` `technology.py:15` |
+| `configuration` | Hydra 集成、模型配置、flags、Cosmos 风格配置。 | `configuration/{hydra,model_config,flags,cosmos_config}.py` |
+| `io` | 媒体与 artifact IO：audio、video、depth colormap、action track、cache、config utils。 | `io/{artifacts,audio,action_tracks,cache}.py`；`save_depth_colormap` `io/artifacts.py:82` |
+| `safety` | video IO guardrail 与安全过滤。 | `safety/{guardrails,video_io}.py` |
+| `structures` | 类型化 validator、shape 切片、tree utils、predicates。 | `Validator` `structures/validator.py:10`；`ShapeSlice` `shape_utils.py:63` |
+| `utils` | 跨包工具：array/tensor、batch ops、CUDA graph、feature extraction、functional utils。 | `utils/{array_tensor_utils,batch_ops,cuda_graph,functional_utils}.py` |
+| `visualization` | 动作 overlay 与共享可视化助手。 | `visualization/action_overlay.py` |
+
+## 依赖规则
+
+`core` 可依赖 PyTorch、`diffusers` 的 model/operator 原语与窄范围第三方库。它不得 import `worldfoundry.pipelines`、`worldfoundry.synthesis`、`worldfoundry.operators`、`worldfoundry.representations`、`worldfoundry.base_models` 的 family 包，或 `worldfoundry.evaluation`。依赖边是从 family 包指向 `core`，绝不反向。
+
+这让 family 包保持精简：一个模型目录只含 checkpoint 兼容的张量算子与契约适配器，而不是第二份 offload manager、分布式 bootstrap、kernel registry 或量化系统。当你发现自己要在 family 包里加这些东西时，先把它移到 `core` 再 import。
+
+<Callout type="info">
+  扩散包在其自身边界上重申此规则，见 [原生扩散](/zh/docs/maintainers/architecture/native-diffusion)。通用 attention、transformer、加载、offload 原语在 `core`；扩散域契约、scheduler、recipe 在 `base_models/diffusion_model`。
+</Callout>
+
+## 被谁消费
+
+- **扩散** —— `base_models/diffusion_model` 经 `core/model_loading` 加载 checkpoint，经 `core/attention` 跑 attention，经 `core/vram` 做 offload。其 `optimizations/` 只是 core policy 的再导出，不是并行实现。
+- **Hosted 与 native runtime** —— `synthesis/` 经 `core/io` staging 输入，经同一套媒体助手写 artifact。
+- **Memory** —— `core/memory/base.py` 定义契约；`synthesis/*/memory` 的流式/长上下文状态与 `synthesis/action_generation/memory.py` 的动作策略 trace 状态实现它。
+- **分布式执行** —— `core/distributed` 是模型并行组初始化的唯一位置；任何 family 包都不得自启 NCCL group。
+
+## 不属于此处的内容
+
+训练入口、数据集、dataloader、loss、callback、仅增强模块、实验脚本都不属于 `core`，也不属于 `base_models`。`core` 是推理基础设施；若某模块只在训练时有用，不要加到这里。
+
+全包目录级地图见 [代码地图](/zh/docs/maintainers/architecture/file-index)。模型调用如何流经这些原语见 [模型运行时](/zh/docs/maintainers/architecture/model-runtime) 与 [Runtime 组装](/zh/docs/maintainers/architecture/runtime-assembly)。

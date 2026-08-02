@@ -63,14 +63,14 @@ variants:
 integration:
   status: integrated
   notes:
-  - The inference implementation is vendored in-tree and does not require an external source checkout.
-  - Generic action, multi-view image, Hydra override, and video I/O functions are reused from worldfoundry.core.
+  - Gamma-World is a native diffusion recipe and does not require an external source checkout or model-owned runtime.
+  - Reason1, Wan VAE, checkpoint loading, scheduling, action normalization, and window execution reuse the shared base-model/core infrastructure.
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 runtime_profile: runtime-profile:gamma-world
 pipeline_binding: gamma-world
 runner_parity:
   status: checkpoint_environment_required
   notes:
-  - The runner supports bidirectional, causal, and four-step causal inference.
+  - Native recipes cover bidirectional, causal, and four-step causal inference.
 catalog_category: world_models
 catalog_scope: World-model catalog entries. Integrated entries expose in-tree WorldFoundry runtimes.

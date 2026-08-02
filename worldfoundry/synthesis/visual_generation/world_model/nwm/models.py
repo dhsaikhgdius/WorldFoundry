@@ -8,11 +8,12 @@
 # GLIDE: https://github.com/openai/glide-text2im
 # MAE: https://github.com/facebookresearch/mae/blob/main/models_mae.py
 # --------------------------------------------------------
+import math
+
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
-import math
-from timm.models.vision_transformer import PatchEmbed, Attention, Mlp
+from timm.models.vision_transformer import Attention, Mlp, PatchEmbed
 
 
 def modulate(x, shift, scale):

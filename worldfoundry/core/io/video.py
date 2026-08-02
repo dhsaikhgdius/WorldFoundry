@@ -2,13 +2,32 @@
 
 from __future__ import annotations
 
+import json
 import math
+import shutil
+import subprocess
 import tempfile
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
 from .media import IMAGE_EXTENSIONS, VIDEO_EXTENSIONS
 from .storage import local_path_for_uri, parse_uri_scheme, uri_to_local_path, write_binary_uri
+
+
+def _resolve_ffmpeg_executable(explicit: str | Path | None = None) -> str | None:
+    """Resolve an explicit, system, or ImageIO-bundled FFmpeg executable."""
+
+    if explicit is not None:
+        return str(explicit)
+    system = shutil.which("ffmpeg")
+    if system:
+        return system
+    try:
+        import imageio_ffmpeg
+
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except (ImportError, OSError, RuntimeError):
+        return None
 
 
 def extract_frames_from_video_url(video_url: str):
@@ -194,6 +213,252 @@ def get_video_details(video_path: str | Path) -> tuple[int, float, float]:
     return total_frames, original_fps, total_frames / original_fps
 
 
+def sample_video_frames(
+    video_path: str | Path,
+    max_frames: int,
+    fps: float = 1.0,
+    force_sample: bool = False,
+    *,
+    num_threads: int = 2,
+) -> tuple["object", str, float]:
+    """Decode uniformly bounded RGB frames and their correct source timestamps.
+
+    ``fps`` is the requested temporal sampling rate when ``force_sample`` is
+    false. Forced sampling returns exactly ``max_frames`` entries (including
+    repeated indices for very short clips), matching common video-LLM input
+    contracts. The returned tuple is ``(THWC uint8 frames, timestamp text,
+    duration_seconds)``.
+    """
+
+    import numpy as np
+    from decord import VideoReader, cpu
+
+    max_frames = int(max_frames)
+    requested_fps = float(fps)
+    num_threads = int(num_threads)
+    if max_frames < 1:
+        raise ValueError("max_frames must be positive")
+    if not math.isfinite(requested_fps) or requested_fps <= 0:
+        raise ValueError("fps must be a positive finite number")
+    if num_threads < 1:
+        raise ValueError("num_threads must be positive")
+
+    reader = VideoReader(str(video_path), ctx=cpu(0), num_threads=num_threads)
+    total_frames = len(reader)
+    source_fps = float(reader.get_avg_fps())
+    if total_frames < 1:
+        raise ValueError(f"No frames found in video: {video_path}")
+    if not math.isfinite(source_fps) or source_fps <= 0:
+        raise ValueError(f"Invalid source frame rate {source_fps!r} for video: {video_path}")
+
+    if force_sample:
+        indices = np.linspace(0, total_frames - 1, max_frames, dtype=np.int64)
+    else:
+        frame_step = max(int(round(source_fps / requested_fps)), 1)
+        indices = np.arange(0, total_frames, frame_step, dtype=np.int64)
+        if len(indices) > max_frames:
+            indices = np.linspace(0, total_frames - 1, max_frames, dtype=np.int64)
+
+    timestamps = [float(index) / source_fps for index in indices]
+    timestamp_text = ",".join(f"{timestamp:.2f}s" for timestamp in timestamps)
+    frames = reader.get_batch(indices.tolist()).asnumpy()
+    return frames, timestamp_text, total_frames / source_fps
+
+
+def list_numbered_frame_paths(
+    frame_dir: str | Path,
+    *,
+    prefix: str = "frames_",
+    suffix: str = ".png",
+) -> tuple[Path, ...]:
+    """List numerically named frame files without counting unrelated directory entries."""
+
+    root = Path(frame_dir)
+    if not root.is_dir():
+        raise FileNotFoundError(f"frame directory not found: {root}")
+    if not suffix.startswith("."):
+        raise ValueError("suffix must be a non-empty extension beginning with '.'")
+    normalized_suffix = suffix.lower()
+    indexed: list[tuple[int, Path]] = []
+    for path in root.iterdir():
+        if not path.is_file() or not path.name.startswith(prefix) or path.suffix.lower() != normalized_suffix:
+            continue
+        index_text = path.name[len(prefix) : -len(path.suffix)]
+        try:
+            frame_index = int(index_text)
+        except ValueError:
+            continue
+        indexed.append((frame_index, path))
+    return tuple(path for _, path in sorted(indexed, key=lambda item: (item[0], item[1].name)))
+
+
+def extract_video_frames_to_directory(
+    video_path: str | Path,
+    output_dir: str | Path,
+    *,
+    prefix: str = "frames_",
+    suffix: str = ".png",
+    ffmpeg_path: str | Path | None = None,
+    threads: int = 1,
+    timeout_seconds: float | None = None,
+    overwrite: bool = False,
+) -> tuple[Path, ...]:
+    """Extract every source frame with bounded, deterministic ffmpeg settings."""
+
+    source = Path(video_path)
+    if not source.is_file():
+        raise FileNotFoundError(f"video path not found: {source}")
+    if not prefix:
+        raise ValueError("prefix must not be empty")
+    if not suffix.startswith("."):
+        raise ValueError("suffix must be a non-empty extension beginning with '.'")
+    if int(threads) < 1:
+        raise ValueError("threads must be positive")
+    if timeout_seconds is not None and float(timeout_seconds) <= 0:
+        raise ValueError("timeout_seconds must be positive")
+    root = Path(output_dir)
+    root.mkdir(parents=True, exist_ok=True)
+    existing = list_numbered_frame_paths(root, prefix=prefix, suffix=suffix)
+    if existing and not overwrite:
+        return existing
+    for path in existing:
+        path.unlink()
+    executable = _resolve_ffmpeg_executable(ffmpeg_path)
+    if not executable:
+        raise FileNotFoundError("ffmpeg was not found in PATH and no ImageIO-bundled executable is available")
+
+    command = [
+        executable,
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-threads",
+        str(int(threads)),
+        "-i",
+        str(source),
+        "-vsync",
+        "0",
+        "-start_number",
+        "1",
+        "-y",
+        str(root / f"{prefix}%d{suffix}"),
+    ]
+    try:
+        completed = subprocess.run(
+            command,
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=None if timeout_seconds is None else float(timeout_seconds),
+        )
+    except subprocess.TimeoutExpired as exc:
+        for path in list_numbered_frame_paths(root, prefix=prefix, suffix=suffix):
+            path.unlink()
+        raise TimeoutError(f"ffmpeg frame extraction timed out after {timeout_seconds} seconds") from exc
+    if completed.returncode != 0:
+        for path in list_numbered_frame_paths(root, prefix=prefix, suffix=suffix):
+            path.unlink()
+        detail = "\n".join((completed.stderr or "").splitlines()[-20:])
+        raise RuntimeError(f"ffmpeg frame extraction failed with code {completed.returncode}: {detail}")
+    extracted = list_numbered_frame_paths(root, prefix=prefix, suffix=suffix)
+    if not extracted:
+        raise ValueError(f"ffmpeg produced no frames for video: {source}")
+    return extracted
+
+
+def _ffprobe_number(value: Any) -> float | None:
+    if value in (None, "", "N/A"):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _ffprobe_rate(value: Any) -> float | None:
+    if value in (None, "", "0/0", "N/A"):
+        return None
+    text = str(value)
+    if "/" not in text:
+        return _ffprobe_number(text)
+    numerator, denominator = text.split("/", 1)
+    numerator_value = _ffprobe_number(numerator)
+    denominator_value = _ffprobe_number(denominator)
+    if numerator_value is None or denominator_value in (None, 0.0):
+        return None
+    return numerator_value / denominator_value
+
+
+def probe_video_metadata(
+    video_path: str | Path,
+    *,
+    ffprobe_path: str | Path | None = None,
+    timeout_seconds: float = 30.0,
+) -> dict[str, int | float | None]:
+    """Read lightweight video metadata with one bounded ``ffprobe`` process."""
+
+    path = Path(video_path)
+    if not path.is_file():
+        raise FileNotFoundError(f"video path not found: {path}")
+    executable = str(ffprobe_path) if ffprobe_path is not None else shutil.which("ffprobe")
+    if not executable:
+        raise FileNotFoundError("ffprobe was not found in PATH")
+    if timeout_seconds <= 0:
+        raise ValueError("timeout_seconds must be positive")
+
+    command = [
+        executable,
+        "-v",
+        "error",
+        "-select_streams",
+        "v:0",
+        "-show_entries",
+        "stream=width,height,avg_frame_rate,r_frame_rate,nb_frames,duration:format=duration",
+        "-of",
+        "json",
+        str(path),
+    ]
+    try:
+        completed = subprocess.run(
+            command,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=float(timeout_seconds),
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise TimeoutError(f"ffprobe timed out after {timeout_seconds:g}s for {path}") from exc
+    if completed.returncode != 0:
+        reason = completed.stderr.strip() or f"ffprobe exited with status {completed.returncode}"
+        raise ValueError(reason)
+    try:
+        payload = json.loads(completed.stdout)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"ffprobe returned invalid JSON for {path}") from exc
+    streams = payload.get("streams") if isinstance(payload, dict) else None
+    if not isinstance(streams, list) or not streams or not isinstance(streams[0], dict):
+        raise ValueError(f"ffprobe found no video stream in {path}")
+    stream = streams[0]
+    format_payload = payload.get("format")
+    format_metadata = format_payload if isinstance(format_payload, dict) else {}
+    fps = _ffprobe_rate(stream.get("avg_frame_rate")) or _ffprobe_rate(stream.get("r_frame_rate"))
+    duration = _ffprobe_number(stream.get("duration"))
+    if duration is None:
+        duration = _ffprobe_number(format_metadata.get("duration"))
+    frame_count_value = _ffprobe_number(stream.get("nb_frames"))
+    frame_count = None if frame_count_value is None else int(frame_count_value)
+    width = _ffprobe_number(stream.get("width"))
+    height = _ffprobe_number(stream.get("height"))
+    return {
+        "width": None if width is None else int(width),
+        "height": None if height is None else int(height),
+        "fps": fps,
+        "duration_seconds": duration,
+        "frame_count": frame_count,
+    }
+
+
 def load_frames_from_video(
     video_path: str | Path,
     indices: Iterable[int],
@@ -263,14 +528,7 @@ def save_video_h264(
     crf: int = 18,
     preset: str = "medium",
 ) -> None:
-    """Write THWC RGB frames as a local H.264/yuv420p MP4 with system FFmpeg.
-
-    This explicit path is useful for inference runtimes that require H.264 but
-    should not depend on ImageIO's optional ``imageio-ffmpeg`` plugin.
-    """
-
-    import shutil
-    import subprocess
+    """Write THWC RGB frames as a local H.264/yuv420p MP4 with FFmpeg."""
 
     frames = coerce_video_frames(video_frames)
     if int(frames.shape[0]) == 0:
@@ -280,9 +538,12 @@ def save_video_h264(
 
     target = uri_to_local_path(output_path)
     target.parent.mkdir(parents=True, exist_ok=True)
-    ffmpeg_bin = shutil.which("ffmpeg")
+    ffmpeg_bin = _resolve_ffmpeg_executable()
     if ffmpeg_bin is None:
-        raise RuntimeError("ffmpeg not found in PATH; cannot encode H.264 output video")
+        raise RuntimeError(
+            "ffmpeg was not found in PATH and no ImageIO-bundled executable is available; "
+            "cannot encode H.264 output video"
+        )
 
     frame_count, height, width, _ = frames.shape
     command = [
@@ -541,14 +802,18 @@ def save_videos_grid(videos, path: str, rescale=False, n_rows=6, fps=8):
 __all__ = [
     "VIDEO_EXTENSIONS",
     "coerce_video_frames",
+    "extract_video_frames_to_directory",
     "extract_frames_from_video_url",
     "get_video_details",
+    "list_numbered_frame_paths",
     "load_frames_from_video",
     "load_video_frames",
     "materialize_video_input",
+    "probe_video_metadata",
     "read_image_as_video_tensor",
     "read_video",
     "resize_video_tensor_to_resolution",
+    "sample_video_frames",
     "save_image_or_video_tensor",
     "save_video_frames",
     "save_videos_grid",

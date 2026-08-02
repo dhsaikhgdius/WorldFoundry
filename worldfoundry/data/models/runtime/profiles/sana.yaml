@@ -44,7 +44,8 @@ input_schema:
   video: true
 integration_status: runtime_ported_and_streaming_variants_workspace_validated
 notes:
-- WorldFoundry vendors the official Sana runtime under worldfoundry/base_models/diffusion_model/image/sana.
+- Sana inference uses the role-based canonical diffusion components under
+  worldfoundry/base_models/diffusion_model; the former image-owned runtime has been removed.
 - SanaSynthesis plan-onlys and executes official in-tree CLI scripts; full parity requires staged Hugging Face checkpoints
   and GPU inference.
 - SANA-Streaming accepts a source video path or hf:// URI and exposes both the

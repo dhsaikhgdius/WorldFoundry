@@ -9,11 +9,11 @@ WorldModelBench asks whether generated videos behave like world models. It conta
 
 WorldFoundry already includes the WorldModelBench evaluator wrapper and runtime under `worldfoundry/evaluation/tasks/execution/runners/worldmodelbench`. Do not clone the official repos for a WorldFoundry run. You still need the data assets and the VILA judge checkpoint.
 
-## What It Measures
+## What it measures
 
 WorldModelBench judges whether video generators behave as **world models** — not only whether clips look good, but whether they follow instructions, preserve temporal common sense, and respect physical laws. The benchmark crowdsourced 67K human labels to train a human-aligned VILA judge that automates evaluation.
 
-## Benchmark Design
+## Benchmark design
 
 | Axis | Coverage | Scoring |
 | --- | --- | --- |
@@ -25,7 +25,7 @@ WorldModelBench judges whether video generators behave as **world models** — n
 
 Physical-adherence checks target subtle violations such as size drift, unnatural deformation, impossible fluid flow, object penetration, and gravity inconsistency — failures that generic video-quality metrics often miss.
 
-## Official References
+## Official references
 
 - Paper: [arXiv:2502.20694](https://arxiv.org/abs/2502.20694)
 - Project page and leaderboard: [worldmodelbench-team.github.io](https://worldmodelbench-team.github.io/)
@@ -34,11 +34,11 @@ Physical-adherence checks target subtle violations such as size drift, unnatural
 - Judge model: [Efficient-Large-Model/vila-ewm-qwen2-1.5b](https://huggingface.co/Efficient-Large-Model/vila-ewm-qwen2-1.5b)
 - In-tree runner: `worldfoundry/evaluation/tasks/execution/runners/worldmodelbench/run_worldmodelbench_official_runner.py`
 
-## Leaderboard Notes
+## Leaderboard notes
 
 The public leaderboard reports Instruction Following, Physics Adherence, Common Sense, and a Total Score. Official answers and explanations are withheld for test integrity; submit results to `worldmodelbench.team@gmail.com` per the project page. WorldFoundry normalizes local judge output into `scorecard.json` but does not host the upstream submission workflow.
 
-## Prepare Data And Assets
+## Prepare data and assets
 
 Run from the WorldFoundry repository root:
 
@@ -103,7 +103,7 @@ image = instance["first_frame"]
 text = instance["text_instruction"]
 ```
 
-## Run With WorldFoundry
+## Run with WorldFoundry
 
 Public command for importing a completed `worldmodelbench_results.json`:
 

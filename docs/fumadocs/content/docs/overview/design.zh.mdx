@@ -5,7 +5,17 @@ description: WorldFoundry 的分层、契约、数据流与设计取舍。
 
 WorldFoundry 遵循一条最重要的设计规则：**把模型执行与 benchmark 评测分开，再用显式 artifact 和证据连接两侧**。这样可以让差异很大的系统共享一条研究工作流，而不会把模型加载代码塞进 metric，也不会把 benchmark 假设写进模型 pipeline。
 
+## Artifact 边界
+
+把这条最重要规则画成一张图：模型执行与 benchmark 评测只通过归一化 artifact 接触。模型产出 `GenerationResult` 行，benchmark 消费它；两侧都不越过边界去碰对方的内部实现。
+
+![模型执行与 benchmark 评测以 artifact 边界分离](/diagrams/boundary.zh.svg)
+
+下方四层总览图标出两侧各自位于哪一层；上方的边界图是对两者交接面的放大。
+
 ## 架构总览
+
+下方四层图只是系统分组方式的粗粒度概览。权威的归属模型是[架构](/zh/docs/maintainers/architecture)中的七条职责——每条都写明了“拥有 X / 不得承担 Y”。改动涉及归属时，以那七条为准；这张图只是“地图的地图”，不是契约。
 
 <WorldFoundryArchitecture locale="zh" />
 
@@ -17,7 +27,7 @@ WorldFoundry 遵循一条最重要的设计规则：**把模型执行与 benchma
 
 **执行层**一侧是模型 pipeline 和 operator，另一侧是 benchmark runner 与 metric。模型代码负责 checkpoint 加载和生成，benchmark 代码负责 protocol 专属打分与结果归一化。两侧都不应该越过 artifact 边界接管另一侧的职责。
 
-**契约与证据层**是进程结束后仍然保留的内容。Request、result、artifact 引用、manifest、report 与 scorecard 都可以序列化。它们让一次 run 在 Python 进程退出后仍然可理解，也允许生成与打分使用不同环境、运行在不同机器，或在不同时间完成。
+**契约与证据层**是进程结束后仍然留下来的内容。Request、result、artifact 引用、manifest、report 与 scorecard 都可以序列化。它们让一次 run 在 Python 进程退出之后仍然可读，也让生成与打分可以发生在不同环境、不同机器或不同时间。
 
 ## 端到端数据流
 
@@ -44,13 +54,13 @@ WorldFoundry 遵循一条最重要的设计规则：**把模型执行与 benchma
   -> 视觉 review，或读取 generated_video 的兼容 metric
 ```
 
-评测端只需知道 artifact 的 kind、URI 与 sample identity，不需要知道 Matrix-Game 2 怎样加载权重。反过来，pipeline 也不需要 import 某个 benchmark 的 evaluator。若视频生成成功但 benchmark 所需 prompt set 不完整，`GenerationResult` 仍然可以有效，而 scorecard 的 leaderboard eligibility 必须保持为 false。
+评测端只需知道 artifact 的 kind、URI 与 sample identity，不需要知道 Matrix-Game 2 怎样加载权重。反过来，pipeline 也从不 import 某个 benchmark 的 evaluator。若生成成功但 benchmark 所需的 prompt set 不完整，`GenerationResult` 仍然有效，而 scorecard 中的 leaderboard eligibility 仍然为 false。
 
 ## 连接系统的核心契约
 
 ### Manifest 描述意图与要求
 
-模型和 benchmark manifest 回答条目是什么、来自哪里、有哪些 alias 和能力、需要哪些资产、由哪个 runtime 处理。它们是可 review 的声明，不是声明路径能在所有机器上运行的证明。
+模型和 benchmark manifest 回答条目是什么、来自哪里、有哪些 alias 与能力、需要哪些资产、由哪个 runtime 处理。它们是可 review 的声明，而不是“声明的路径能在每台机器上跑通”的证明。
 
 ### Request 与 result 归一化执行边界
 
@@ -68,7 +78,7 @@ Metric summary 回答怎样打分，scorecard 则进一步加入覆盖率、prov
 
 **Pipeline** 负责模型构建、checkpoint 加载、设备放置与原生 inference call。**Operator** 把归一化 WorldFoundry 输入适配到 pipeline，再把原生输出转换为持久 artifact。
 
-这个拆分避免 Studio、CLI、脚本和评测 job 重复实现输入整形、输出命名和结果归一化。它也保留模型的原生行为：camera-conditioned 世界模型、diffusion 视频模型和 robot policy 不应该为了满足 abstraction 而假装拥有完全相同的参数。
+这个拆分避免 Studio、CLI、脚本与评测 job 重复实现输入整形、输出命名和结果归一化。它也保留模型的原生行为：camera-conditioned 世界模型、diffusion 视频模型和 robot policy 不该为了迁就某个抽象，就假装接受完全相同的参数。
 
 ## Catalog 与 runtime 拆分
 
@@ -88,7 +98,7 @@ Metric summary 回答怎样打分，scorecard 则进一步加入覆盖率、prov
 
 浏览器 workspace 与 visualizer 位于 `worldfoundry/studio/`。发现、规划、执行、验证与报告命令位于 `worldfoundry/cli/`。受支持的运维辅助路径集中在 `scripts/setup/`、`scripts/inference/` 和 `scripts/workspace/`。
 
-如果需要源码级 call chain 与扩展边界，请继续阅读[维护者架构文档](/zh/docs/maintainers/architecture)。
+需要源码级 call chain 与扩展边界时，继续阅读[维护者架构文档](/zh/docs/maintainers/architecture)。它还有子系统专页：[代码地图](/zh/docs/maintainers/architecture/file-index)、[使用界面与编排](/zh/docs/maintainers/architecture/surfaces-orchestration)、[Runtime 组装](/zh/docs/maintainers/architecture/runtime-assembly)与[核心基础设施](/zh/docs/maintainers/architecture/core-infrastructure)。
 
 ## 修改系统时遵循的原则
 

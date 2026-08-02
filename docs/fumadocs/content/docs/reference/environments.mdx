@@ -17,7 +17,7 @@ WorldFoundry uses conda as the single supported environment path. The documented
 4. Switch to a dedicated env only when `runtime/environments/<category>/<model-id>.yaml` records an ABI or simulator constraint.
 5. Use benchmark-specific scripts only for official metrics, reference metrics, or physics stacks.
 
-## Clone-to-run Setup Scripts
+## Clone-to-run setup scripts
 
 Run these scripts from the repository root. They are part of the public release
 surface, not local machine notes.
@@ -97,7 +97,7 @@ bash scripts/setup/bootstrap_worldfoundry.sh \
   --model-root /path/to/worldfoundry-models
 ```
 
-## Runtime Variables
+## Runtime variables
 
 `bootstrap_worldfoundry.sh` and `unified_install.sh` write the same sourceable env
 file. Keep this file local to the machine; it contains paths but no secrets.
@@ -122,7 +122,7 @@ standard HF cache variables) for public checkpoints. Use `WORLDFOUNDRY_CKPT_DIR`
 for upstream runtimes that require a fixed directory layout or for local soft
 links that preserve official paths without duplicating large files.
 
-## Dedicated Model Environment Exceptions
+## Dedicated model environment exceptions
 
 Start from `worldfoundry-unified-<cuda-tier>` for every model. Create a
 dedicated environment only for the profiles below, where the upstream runtime
@@ -144,13 +144,12 @@ conda env without touching checkpoints.
 | Model | Dedicated env | Setup command | Notes |
 | --- | --- | --- | --- |
 | `ac3d` | `ac3d` | `bash scripts/inference/prepare_model_infer.sh ac3d --download` | Official runtime pins Python 3.10, PyTorch 2.4, and CUDA 12.4. Runtime code is in tree under `worldfoundry/synthesis/visual_generation/ac3d/ac3d_runtime`; only checkpoints/assets are external. |
-| `cosmos3` | `worldfoundry-cosmos3-cu128` | `bash scripts/inference/prepare_model_infer.sh cosmos3 --download` | Cosmos3 needs torch 2.10, torchvision 0.25, Diffusers 0.39, and Cosmos Guardrail. The exact Cosmos3 pipeline/transformer/AVAE inference delta is in tree; setup installs released packages and never clones source repositories. |
+| `cosmos3` | `worldfoundry-cosmos3-cu128` | `bash scripts/inference/prepare_model_infer.sh cosmos3 --download` | Cosmos3 uses the native diffusion runner, checkpoint-shaped transformer, Wan VAE38, AVAE decoder, and core runtime policies. Guardrails remain an optional orchestration layer; Diffusers is not an inference backend. |
 | `gen3c` | `gen3c` | `bash scripts/inference/prepare_model_infer.sh gen3c --download` | Inference-only Cosmos Predict1 stack with Python 3.10, CUDA 12.4, torch 2.6, Transformer Engine, and MoGe. Setup applies the Transformer Engine link patch from released packages; it does not clone or build the training-only Apex repository. |
 | `lyra-1` | `lyra` | `bash scripts/inference/prepare_model_infer.sh lyra-1 --download` | Uses the same inference-only Cosmos Predict1 / Transformer Engine family as GEN3C. |
 | `magi-1` | `magi-official-cu124` | `bash scripts/inference/prepare_model_infer.sh magi-1 --download` | Official stack is Python 3.10.12 with PyTorch 2.4 / CUDA 12.4. Keep flash-attn and flashinfer in this env because their wheels are ABI-sensitive. |
 | `warp-as-history` | `warp-as-history` | `bash scripts/inference/prepare_model_infer.sh warp-as-history --download` | Pins Python 3.10, torch 2.5.0+cu121, diffusers 0.36, transformers 4.51, and peft 0.17. |
-| `hunyuanvideo-t2v` | `HunyuanVideo` | `bash scripts/inference/prepare_model_infer.sh hunyuanvideo-t2v --download` | Original HunyuanVideo T2V CLI stack with older diffusers/xfuser compatibility. HunyuanVideo-1.5 is not part of this exception and runs in the unified env. |
-| `hunyuanvideo-i2v` | `HunyuanVideo` | `bash scripts/inference/prepare_model_infer.sh hunyuanvideo-i2v --download` | Shares the original HunyuanVideo env with T2V. The I2V runtime uses the in-tree official image-to-video script and its own I2V checkpoint layout. |
+| `hunyuanvideo-t2v`, `hunyuanvideo-i2v`, `hunyuanvideo-1.5-t2v`, `hunyuanvideo-1.5-i2v` | `worldfoundry-unified-cu128` | `bash scripts/inference/prepare_model_infer.sh hunyuanvideo-t2v --download` | All four IDs use the shared native diffusion runner and role-based Hunyuan components. The former Diffusers/xFuser CLI environment is no longer an inference backend. |
 | `kairos-sensenova` | `kairos-sensenova` | `bash scripts/inference/prepare_model_infer.sh kairos-sensenova --download` | Uses the official torch/CUDA 12.6-class stack and native attention packages such as SageAttention. Use this env when unified CUDA does not provide the Kairos attention stack. |
 | `lingbot-world`, `lingbot-world-act` | `lingbot-world` | `bash scripts/inference/prepare_model_infer.sh lingbot-world --download` | Base-Cam and the independently cataloged public Base-Act checkpoint share the in-tree runtime. Parity requires exact torch and flash-attn pins; the unified env produced invalid near-black act2cam output in upstream-style tests. |
 | `wonderworld` | `wonderworld` | `bash scripts/inference/prepare_model_infer.sh wonderworld --download` | Inference imports PyTorch3D CUDA extensions. Build or install PyTorch3D wheels compatible with this env before running the official path. |
@@ -170,7 +169,7 @@ EvalCrafter is the only benchmark with a WorldFoundry-managed dedicated metric
 profile. Other benchmark-specific native stacks are listed below and are not
 claimed as configured until their own preflight passes.
 
-## Unified Environment With Extra Runtime Requirements
+## Unified environment with extra runtime requirements
 
 The models below should still use `worldfoundry-unified-<cuda-tier>`, but their
 docs should call out extra local assets, compiled wheels, or external services.
@@ -187,7 +186,7 @@ These are not reasons to clone an external repository; the code path is in-tree.
 | OpenPI / MME-VLA | JAX policy dependencies, `gsutil` for some OpenPI checkpoint shards, and optional OpenPI-style websocket or robot-simulator services for full policy rollout. | WorldFoundry keeps code in tree; these requirements are runtime services or checkpoint-transfer tools, not external repo clones. LAPA uses the isolated environment listed above. |
 | Solaris | JAX/Orbax checkpoint loading and official HF evaluation fixtures. | Uses the unified env in WorldFoundry; document the dataset/checkpoint layout rather than a separate conda env. |
 
-## Benchmark Metric Environments
+## Benchmark metric environments
 
 Most benchmark official validation runs and official-result normalizers run in the
 unified environment. Full official metric suites can require a separate conda
@@ -246,7 +245,7 @@ for the no-proxy download and smoke command. The complete upstream suite also
 expects direct `0000.mp4` through `0699.mp4` files, but WorldFoundry does not
 currently claim that full path.
 
-## Embodied Simulator Environments
+## Embodied simulator environments
 
 The host setup is Docker plus the unified WorldFoundry environment:
 
@@ -270,20 +269,20 @@ endpoint.
 
 When working with complex setups involving CUDA, simulators, or external evaluators, you may encounter environment issues:
 
-### 1. CUDA Mismatch
+### 1. CUDA mismatch
 **Symptom**: `CUDA error: no kernel image is available for execution on the device` or PyTorch cannot find a GPU.
 **Solution**: Ensure your NVIDIA driver is up-to-date and supports the CUDA version installed by Conda. If you are on an older driver, you can force the installation script to use an older CUDA wheel bucket:
 ```bash
 bash scripts/setup/unified_install.sh --cuda cu121
 ```
 
-### 2. Missing System Dependencies (e.g., for OpenGL/3D)
+### 2. Missing system dependencies (e.g., for OpenGL/3D)
 **Symptom**: Errors relating to `libGL.so.1`, `EGL`, or headless rendering failures when running embodied simulators or 3D benchmarks.
 **Solution**: Install the required system-level graphics libraries. On Ubuntu/Debian:
 ```bash
 sudo apt-get update && sudo apt-get install -y libgl1-mesa-glx libglib2.0-0
 ```
 
-### 3. Flash Attention Installation Fails
+### 3. Flash Attention installation fails
 **Symptom**: The unified install script hangs or fails during `flash-attn` compilation.
 **Solution**: `flash-attn` is extremely sensitive to mismatched CUDA compiler (`nvcc`) versions. Ensure your `nvcc --version` matches the PyTorch CUDA version. Alternatively, you can disable `flash-attn` installation by passing `--skip-flash-attn` (if supported by your environment) or installing a pre-compiled wheel from the official release page.

@@ -9,7 +9,7 @@ iWorld-Bench evaluates camera-controllable video generation models as interactiv
 
 The official release provides evaluation code, packaged metadata, camera-trajectory resources, first-frame assets, and reference inference adapters. WorldFoundry integrates the evaluation code in tree under `worldfoundry/evaluation/tasks/execution/runners/iworldbench/`, so a WorldFoundry run does not require a separate official source checkout.
 
-## Benchmark Design
+## Benchmark design
 
 | Task type | Description | Tasks |
 | --- | --- | --- |
@@ -22,7 +22,7 @@ The official release provides evaluation code, packaged metadata, camera-traject
 
 The project curates 330K video clips down to 2.1K high-quality samples and produces 4.9K test tasks through a unified action interface `Ct = [D, T, R, V]` (difficulty, translation ID, rotation ID, validity).
 
-## Official References
+## Official references
 
 - Paper: [arXiv:2605.03941](https://arxiv.org/abs/2605.03941)
 - Project page: [iworld-bench.com](https://iworld-bench.com/)
@@ -30,7 +30,7 @@ The project curates 330K video clips down to 2.1K high-quality samples and produ
 - Dataset: [EmbodiedCity/iWorld-Bench-Dataset](https://huggingface.co/datasets/EmbodiedCity/iWorld-Bench-Dataset)
 - In-tree runner: `worldfoundry/evaluation/tasks/execution/runners/iworldbench/run_iworldbench_official_runner.py`
 
-## What To Prepare
+## What to prepare
 
 ### Dataset
 
@@ -57,7 +57,7 @@ ${WORLDFOUNDRY_IWORLD_BENCH_DATASET_ROOT}/
 
 `metadata.csv` is used for the Diff/action-control and Mem/memory tasks. `camera_following_metadata.csv` is used only for trajectory-input models.
 
-### Generated Videos
+### Generated videos
 
 Generate videos with the model you want to evaluate before running the scorer. You can use a WorldFoundry model, an API batch job, or your own runner, as long as the output videos can be matched back to the iWorld-Bench metadata rows.
 
@@ -76,9 +76,9 @@ Use one directory per track:
     `-- ...
 ```
 
-The filename stem should match the metadata `prompt_id` / sample id. If your generator writes a different official video name from the CSV, keep that name and pass the same metadata file to the runner.
+The filename stem should match the metadata `prompt_id` / sample ID. If your generator writes a different official video name from the CSV, keep that name and pass the same metadata file to the runner.
 
-### Metric Assets
+### Metric assets
 
 The in-tree runtime reuses WorldFoundry's VBench and VIPe-related code paths. For real metric execution, set the official backend and point VIPe to the in-tree base-model package or your compatible local package:
 
@@ -105,7 +105,7 @@ Do not use the default mock backend for reported numbers. It only exists so loca
 | `trajectory_alignment` | Memory ability | Bidirectional camera-trajectory consistency for memory tasks. |
 | `iworldbench_average` | Aggregate | Mean over available official component metrics. |
 
-## Reproduce A Leaderboard-Style Run
+## Reproduce a leaderboard-style run
 
 Run each official track against the videos generated for that track. The direct runner is the clearest entrypoint because it exposes both the task split and the metric selector.
 
@@ -177,7 +177,7 @@ worldfoundry-eval zoo benchmark-run \
 
 Use the direct runner for memory and camera-following runs because those require an explicit `--split`. The public CLI accepts a global `--prompt-manifest` option for some benchmarks, but iWorld-Bench split selection is clearer and less error-prone through the direct runner.
 
-## Import Existing Results
+## Import existing results
 
 If you already have iWorld-Bench report CSVs or a `reports/` directory, import them into a WorldFoundry scorecard:
 
@@ -203,4 +203,4 @@ Each run writes:
 
 Open `scorecard.json` first. A run is only comparable to the public leaderboard when the requested split has complete video coverage and all metric assets used by the reported metric family were available.
 
-[Back to Benchmark Hub](/docs/evaluation/benchmark-hub)
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

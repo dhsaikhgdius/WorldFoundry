@@ -1,5 +1,5 @@
 from .pipelines import HunyuanVideoGamePipeline
-from worldfoundry.base_models.diffusion_model.video.hunyuan_video.diffusion.schedulers import FlowMatchDiscreteScheduler
+from worldfoundry.synthesis.visual_generation.hunyuan_world.hunyuan_worldplay.schedulers.scheduling_flow_match_discrete import FlowMatchDiscreteScheduler
 def load_diffusion_pipeline(args, rank, vae, text_encoder, text_encoder_2, model, scheduler=None,
                             device=None, progress_bar_config=None):
     """ Load the denoising scheduler for inference. """

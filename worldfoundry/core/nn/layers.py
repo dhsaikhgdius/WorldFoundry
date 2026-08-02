@@ -17,6 +17,10 @@ def to_2tuple(value: int | Sequence[int] | bool | Sequence[bool] | float | Seque
     return _ntuple(2)(value)
 
 
+def to_3tuple(value: int | Sequence[int] | bool | Sequence[bool] | float | Sequence[float]):
+    return _ntuple(3)(value)
+
+
 def make_2tuple(value: int | tuple[int, int]) -> tuple[int, int]:
     if isinstance(value, tuple):
         if len(value) != 2:
@@ -25,6 +29,42 @@ def make_2tuple(value: int | tuple[int, int]) -> tuple[int, int]:
     if not isinstance(value, int):
         raise TypeError("expected an int or a two-item tuple.")
     return (value, value)
+
+
+def val2tuple(value, min_len: int = 1, idx_repeat: int = -1) -> tuple:
+    """Normalize a scalar or sequence and repeat one item to a minimum length."""
+
+    values = list(value) if isinstance(value, (list, tuple)) else [value]
+    if values:
+        values[idx_repeat:idx_repeat] = [values[idx_repeat]] * (min_len - len(values))
+    return tuple(values)
+
+
+def val2list(value, repeat_time: int = 1) -> list:
+    """Normalize a scalar or sequence to a mutable list."""
+
+    return list(value) if isinstance(value, (list, tuple)) else [value] * repeat_time
+
+
+def list_sum(values: list):
+    """Add a non-empty list of tensors or other additive values."""
+
+    if not values:
+        raise ValueError("list_sum requires at least one value")
+    result = values[0]
+    for value in values[1:]:
+        result = result + value
+    return result
+
+
+def get_same_padding(kernel_size: int | tuple[int, ...]) -> int | tuple[int, ...]:
+    """Return symmetric padding for odd scalar or n-D kernels."""
+
+    if isinstance(kernel_size, tuple):
+        return tuple(get_same_padding(size) for size in kernel_size)
+    if kernel_size % 2 == 0:
+        raise ValueError(f"kernel size {kernel_size} must be odd")
+    return kernel_size // 2
 
 
 def drop_path(
@@ -230,6 +270,48 @@ class Mlp(nn.Module):
         return x
 
 
+class VisionAttention(nn.Module):
+    """Checkpoint-compatible ViT self-attention used by native model graphs.
+
+    This intentionally follows the small, stable ``timm`` attention parameter
+    layout (``qkv`` and ``proj``) so model implementations do not need to pull
+    in a second neural-network framework for two generic layers.
+    """
+
+    def __init__(
+        self,
+        dim: int,
+        num_heads: int = 8,
+        qkv_bias: bool = False,
+        qk_norm: bool = False,
+        attn_drop: float = 0.0,
+        proj_drop: float = 0.0,
+        norm_layer: Callable[..., nn.Module] = nn.LayerNorm,
+    ) -> None:
+        super().__init__()
+        if dim % num_heads:
+            raise ValueError(f"attention dim {dim} must be divisible by {num_heads} heads")
+        self.num_heads = num_heads
+        self.head_dim = dim // num_heads
+        self.scale = self.head_dim**-0.5
+        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias)
+        self.q_norm = norm_layer(self.head_dim) if qk_norm else nn.Identity()
+        self.k_norm = norm_layer(self.head_dim) if qk_norm else nn.Identity()
+        self.attn_drop = nn.Dropout(attn_drop)
+        self.proj = nn.Linear(dim, dim)
+        self.proj_drop = nn.Dropout(proj_drop)
+
+    def forward(self, x: Tensor) -> Tensor:
+        batch, tokens, channels = x.shape
+        qkv = self.qkv(x).reshape(batch, tokens, 3, self.num_heads, self.head_dim)
+        q, k, v = qkv.permute(2, 0, 3, 1, 4).unbind(0)
+        q, k = self.q_norm(q), self.k_norm(k)
+        attention = (q * self.scale) @ k.transpose(-2, -1)
+        attention = self.attn_drop(attention.softmax(dim=-1))
+        x = (attention @ v).transpose(1, 2).reshape(batch, tokens, channels)
+        return self.proj_drop(self.proj(x))
+
+
 class DomainAwareLinear(nn.Module):
     """Per-sample linear projection selected by an integer domain id.
 
@@ -244,14 +326,20 @@ class DomainAwareLinear(nn.Module):
             raise ValueError("input_size, output_size, and num_domains must be positive")
         self.input_size = int(input_size)
         self.output_size = int(output_size)
-        self.fc = nn.Embedding(int(num_domains), self.output_size * self.input_size)
-        self.bias = nn.Embedding(int(num_domains), self.output_size)
+        self.num_domains = int(num_domains)
+        self.fc = nn.Embedding(self.num_domains, self.output_size * self.input_size)
+        self.bias = nn.Embedding(self.num_domains, self.output_size)
         nn.init.xavier_uniform_(self.fc.weight)
         nn.init.zeros_(self.bias.weight)
 
     def forward(self, x: Tensor, domain_id: Tensor) -> Tensor:
+        if domain_id.ndim == 0:
+            domain_id = domain_id.unsqueeze(0)
         if domain_id.ndim != 1:
             raise ValueError(f"domain_id must have shape [batch], got {tuple(domain_id.shape)}")
+        domain_id = domain_id.to(device=x.device, dtype=torch.long)
+        if torch.any((domain_id < 0) | (domain_id >= self.num_domains)):
+            raise ValueError(f"domain_id must be in [0, {self.num_domains}), got {domain_id.tolist()}")
         batch = int(domain_id.shape[0])
         squeeze_sequence = x.ndim == 2
         if squeeze_sequence:
@@ -529,6 +617,7 @@ __all__ = [
     "SamHeadMLP",
     "SamMLPBlock",
     "Mlp",
+    "VisionAttention",
     "PatchEmbed",
     "PatchEmbed_Mlp",
     "Permute",
@@ -542,5 +631,10 @@ __all__ = [
     "drop_path",
     "make_2tuple",
     "to_2tuple",
+    "to_3tuple",
+    "val2tuple",
+    "get_same_padding",
+    "list_sum",
+    "val2list",
     "zero_module",
 ]

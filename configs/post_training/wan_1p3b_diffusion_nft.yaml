@@ -1,0 +1,78 @@
+schema: worldfoundry-post-training
+execution_owner: worldfoundry-native
+run:
+  id: wan-1p3b-diffusion-nft
+  output_dir: runs/wan-1p3b-diffusion-nft
+model:
+  recipe: wan2.1-t2v-1.3b
+  checkpoint: default
+tuning:
+  mode: lora
+  preset: wan-attention
+  rank: 64
+  alpha: 128
+data:
+  manifest: data/post_training/wan-rl-prompts.jsonl
+  cache: cache/post_training/wan-rl-conditioning
+  split: train
+  shuffle: true
+  shuffle_seed: 42
+  tail_policy: pad
+  options:
+    generation:
+      height: 256
+      width: 416
+      num_frames: 17
+    prompt_batch_size: 1
+    num_workers: 0
+    snapshot_every_n_steps: 1
+algorithm:
+  type: diffusion-nft
+  num_train_timesteps: 1000
+  collection:
+    sigmas: [1.0, 0.8, 0.6, 0.4, 0.2, 0.0]
+    group_size: 4
+    guidance_scale: 1.0
+    latent_dtype: bfloat16
+    forward_batch_size: 1
+  beta: 1.0
+  advantage_clip_max: 5.0
+  advantage_epsilon: 0.0001
+  advantage_mode: all
+  advantage_normalization: group-population-std
+  reference_mse_weight: 0.0001
+  reference_checkpoint: default
+  reconstruction_mae_floor: 0.00001
+  old_policy_refresh:
+    decay: linear_to_0_5
+    interval: 1
+  reward_weights:
+    video_quality: 1.0
+    motion_quality: 1.0
+    text_alignment: 1.0
+  reward_model:
+    type: videoalign
+optimizer:
+  type: adamw
+  learning_rate: 0.00005
+  weight_decay: 0.0
+  betas: [0.9, 0.999]
+  epsilon: 0.00000001
+  max_grad_norm: 1.0
+runtime:
+  param_dtype: bfloat16
+  reduce_dtype: float32
+  activation_checkpoint: full
+  compile: false
+distributed:
+  backend: single
+  dp_replicate: 1
+  dp_shard: auto
+  cp: 1
+  tp: 1
+checkpoint:
+  save_every_steps: 50
+  async: true
+  export_every_steps: 50
+export:
+  format: peft

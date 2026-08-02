@@ -30,6 +30,10 @@ class VideoRunnerSpec:
 # ---------------------------------------------------------------------------
 
 VIDEO_RUNNER_REGISTRY: dict[str, VideoRunnerSpec] = {
+    "apple-pi": VideoRunnerSpec(
+        "worldfoundry/evaluation/tasks/execution/runners/apple_pi/run_apple_pi_official_runner.py",
+        "--official-results-path",
+    ),
     "aigcbench": VideoRunnerSpec(
         "worldfoundry/evaluation/tasks/execution/runners/aigcbench/run_aigcbench_official_runner.py",
         "--official-results-path",
@@ -80,12 +84,20 @@ VIDEO_RUNNER_REGISTRY: dict[str, VideoRunnerSpec] = {
         "worldfoundry/evaluation/tasks/execution/runners/larybench/run_larybench_official_runner.py",
         "--official-results-path",
     ),
+    "likephys": VideoRunnerSpec(
+        "worldfoundry/evaluation/tasks/execution/runners/likephys/run_likephys_official_runner.py",
+        "--official-results-path",
+    ),
     "mirabench": VideoRunnerSpec(
         "worldfoundry/evaluation/tasks/execution/runners/mirabench/run_mirabench_official_runner.py",
         "--official-results-path",
     ),
     "memobench": VideoRunnerSpec(
         "worldfoundry/evaluation/tasks/execution/runners/memobench/run_memobench_official_runner.py",
+        "--official-results-path",
+    ),
+    "mind": VideoRunnerSpec(
+        "worldfoundry/evaluation/tasks/execution/runners/mind/run_mind_official_runner.py",
         "--official-results-path",
     ),
     "phyeduvideo": VideoRunnerSpec(
@@ -124,6 +136,14 @@ VIDEO_RUNNER_REGISTRY: dict[str, VideoRunnerSpec] = {
     ),
     "physvidbench": VideoRunnerSpec(
         "worldfoundry/evaluation/tasks/execution/runners/physvidbench/run_physvidbench_official_runner.py",
+        "--official-results-path",
+    ),
+    "rbench": VideoRunnerSpec(
+        "worldfoundry/evaluation/tasks/execution/runners/rbench/run_rbench_official_runner.py",
+        "--official-results-path",
+    ),
+    "sana-wm-bench": VideoRunnerSpec(
+        "worldfoundry/evaluation/tasks/execution/runners/sana_wm_bench/run_sana_wm_bench_official_runner.py",
         "--official-results-path",
     ),
     "t2v-compbench": VideoRunnerSpec(
@@ -194,6 +214,10 @@ VIDEO_RUNNER_REGISTRY: dict[str, VideoRunnerSpec] = {
     ),
     "worldbench": VideoRunnerSpec(
         "worldfoundry/evaluation/tasks/execution/runners/worldbench/run_worldbench_official_runner.py",
+        "--official-results-path",
+    ),
+    "worldolympiad": VideoRunnerSpec(
+        "worldfoundry/evaluation/tasks/execution/runners/worldolympiad/run_worldolympiad_official_runner.py",
         "--official-results-path",
     ),
     "worldmodelbench": VideoRunnerSpec(

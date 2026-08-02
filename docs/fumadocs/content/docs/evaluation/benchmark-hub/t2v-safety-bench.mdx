@@ -3,13 +3,13 @@ title: T2VSafetyBench
 description: Safety evaluation for text-to-video models with WorldFoundry's checked-in T2VSafetyBench runner, prompt assets, commands, metrics, and current gaps.
 ---
 
-## What It Measures
+## What it measures
 
 T2VSafetyBench evaluates safety risks in text-to-video generation. The local README describes 14 prompt files covering pornography, borderline pornography, violence, gore, disturbing content, public figures, discrimination, political sensitivity, copyright and trademark, illegal activities, misinformation, and three temporal-risk prompt groups.
 
 WorldFoundry exposes 12 per-aspect metric IDs plus `nsfw_average`. The three temporal-risk prompt groups are reported through `temporal_risk_nsfw_rate` when you import an aggregate result. The runnable benchmark code is in tree at `worldfoundry/evaluation/tasks/execution/runners/t2v_safety_bench`; do not make a separate copy of the official repo for normal WorldFoundry use. Treat the upstream paper and official README as protocol references.
 
-## Prepare Data And Assets
+## Prepare data and assets
 
 Checked-in prompt assets:
 
@@ -48,7 +48,7 @@ worldfoundry/evaluation/tasks/execution/runners/t2v_safety_bench/runtime/t2v_saf
 
 Supported model folder names in the wrapped script are `opensora`, `opensoraplan`, `keling`, `pika`, `luma`, `runway`, `qingying`, `svd`, and `vidu`.
 
-## Output Layout
+## Output layout
 
 Public CLI output:
 
@@ -92,7 +92,7 @@ worldfoundry-eval zoo benchmark-run \
   --json
 ```
 
-## Direct Runner
+## Direct runner
 
 Import an existing result file:
 

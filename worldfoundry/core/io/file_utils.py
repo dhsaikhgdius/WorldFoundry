@@ -54,6 +54,7 @@ __all__ = [
     "load_pickle",
     "load_text",
     "load_text_lines",
+    "materialize_file",
     "md5_checksum",
     "move_with_backup",
     "next_available_file_name",
@@ -341,6 +342,61 @@ def f_copy(fsrc, fdst, ignore=None, include=None, exists_ok=True, verbose=False)
                 raise
     if verbose:
         print(f'Copied "{fsrc}" to "{fdst}"')
+
+
+def materialize_file(
+    source: str | os.PathLike[str],
+    destination: str | os.PathLike[str],
+    *,
+    writable: bool = True,
+) -> str:
+    """Materialize one local file using the cheapest correct filesystem path.
+
+    A copy-on-write reflink is always preferred. For immutable consumers such
+    as benchmark inputs, ``writable=False`` additionally permits a hard link;
+    callers that may modify the destination retain independent-copy semantics.
+
+    Returns one of ``existing``, ``reflink``, ``hardlink``, or ``copy``.
+    """
+    source_path = os.path.realpath(os.path.abspath(os.path.expanduser(os.fspath(source))))
+    destination_path = os.path.abspath(os.path.expanduser(os.fspath(destination)))
+    if source_path == destination_path:
+        return "existing"
+    if not os.path.isfile(source_path):
+        raise FileNotFoundError(source_path)
+    if os.path.lexists(destination_path):
+        try:
+            if os.path.samefile(source_path, destination_path):
+                return "existing"
+        except OSError:
+            pass
+
+    parent = os.path.dirname(destination_path)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+    if os.path.lexists(destination_path):
+        os.unlink(destination_path)
+
+    try:
+        import fcntl
+
+        with open(source_path, "rb") as source_file, open(destination_path, "xb") as destination_file:
+            fcntl.ioctl(destination_file.fileno(), 0x40049409, source_file.fileno())
+        shutil.copystat(source_path, destination_path)
+        return "reflink"
+    except (ImportError, OSError):
+        if os.path.lexists(destination_path):
+            os.unlink(destination_path)
+
+    if not writable:
+        try:
+            os.link(source_path, destination_path)
+            return "hardlink"
+        except OSError:
+            pass
+
+    shutil.copy2(source_path, destination_path)
+    return "copy"
 
 
 def _f_copytree(

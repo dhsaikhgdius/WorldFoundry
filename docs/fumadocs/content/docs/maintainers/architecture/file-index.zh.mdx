@@ -1,0 +1,41 @@
+---
+title: 代码地图
+description: WorldFoundry 各包的“源码目录 → 职责”速查表，含关键入口文件与指向叙事式架构页的链接。
+---
+
+本页是仓库的速查索引：每个顶层包一行，说明它拥有什么、第一个该读的文件是哪个。内容刻意保持精简。要理解这些边界的*原因*，请读 [架构](/zh/docs/maintainers/architecture) 及其链接的子页。在打开文件之前，先用本页判断改动*应当落在哪一层*。
+
+每一行的边界规则都相同：一个包向邻居暴露稳定、可序列化的契约，私有细节留在包内。绕过契约层直接跨包引用（例如 benchmark 直接 import pipeline，或 pipeline 直接 import evaluator）就是本页要帮你定位的 bug。
+
+## 仓库布局
+
+| 包 | 职责 | 首读文件 |
+| --- | --- | --- |
+| `worldfoundry/cli` | 面向用户的命令：TUI、evaluate、embodied、run、validate、zoo、preflight、reporting。调度到编排层，不承载模型推理或打分。 | `cli/main.py:1580` `main()`；子命令树在 `cli/main.py:1091` |
+| `worldfoundry/cli/tui*.py` | 引导式发现 TUI（discovery、brand、app）。 | `cli/tui.py`、`cli/tui_app.py` |
+| `worldfoundry/mcp` | MCP server 与工具（discovery、metrics、readiness、context），复用同一 catalog/runtime 契约。 | `mcp/__init__.py:30` `main()`；`mcp/tools/registration.py:47` `register_tools` |
+| `worldfoundry/runtime` | 执行环境准备：conda profile、device pool、CUDA 分层、编译缓存、in-tree CLI 桥、资产 staging。 | `runtime/conda.py`、`runtime/env.py`、`runtime/cuda_tiers.py` |
+| `worldfoundry/data` | Catalog、runtime profile、benchmark task 与测试 fixture。声明“存在什么、是否就绪”，不含 runtime 行为。 | `data/models/catalog/`、`data/benchmarks/catalog/`、`data/models/runtime/profiles/` |
+| `worldfoundry/core` | 共享推理基础设施：加载、attention、分布式、VRAM、kernel、memory、配置、IO、安全。offload/distributed/kernel/quantization 的唯一归属。 | [核心基础设施](/zh/docs/maintainers/architecture/core-infrastructure) |
+| `worldfoundry/base_models` | 仅推理的模型包：`diffusion_model`（唯一的 canonical 扩散内核）、`llm_mllm_core`、`perception_core`、`three_dimensions`。不含训练、数据集或实验脚本。 | `base_models/diffusion_model/__init__.py`；[原生扩散](/zh/docs/maintainers/architecture/native-diffusion) |
+| `worldfoundry/pipelines` | 每个 model family 一个薄 public wrapper：`from_pretrained`、`process`/`__call__`、可选 `stream`。 | `pipelines/pipeline_utils.py:11` `PipelineABC`；`pipelines/` 下 88 个 family 目录 |
+| `worldfoundry/operators` | 可运行 pipeline 的输入侧伙伴：校验、媒体加载、camera/action 解析、interaction 整形、perception 预处理。 | `operators/base_operator.py:4` `BaseOperator` |
+| `worldfoundry/synthesis` | 树内 runtime 执行：hosted API wrapper、native runtime bridge、各 family 的 `synthesis.py`、动作面、memory 模块。 | `synthesis/base_synthesis.py:38` `BaseSynthesis`；[Runtime 组装](/zh/docs/maintainers/architecture/runtime-assembly) |
+| `worldfoundry/representations` | 把模型输出转换为几何/世界 artifact：深度、点云、3DGS、panorama、geometry 资产。 | `representations/base_representation.py:4` `BaseRepresentation` |
+| `worldfoundry/evaluation` | 公共契约、执行 runner、catalog 加载、metric、reporting、scorecard。artifact 边界上 benchmark 一侧。 | [评测核心](/zh/docs/maintainers/architecture/evaluation-core) |
+| `worldfoundry/studio` | 复用同一 catalog/runtime 契约的交互式预览壳。仅展示层胶水。 | `studio/execution.py`、`studio/catalog.py`；[Studio 内部](/zh/docs/maintainers/architecture/studio-internals) |
+
+## 各行如何衔接
+
+一次 run 是顺着表格向下流动，而不是随机横向引用。用户输入经 `cli` 或 `mcp` 进入；`runtime` 与 `data` 准备环境并声明可运行项；`core` 与 `base_models` 提供共享推理原语；`pipelines` 加 `operators` 加 `synthesis` 把归一化 request 变成 `GenerationResult`；需要时 `representations` 产出几何 artifact；`evaluation` 消费 artifact 产出 scorecard；`studio` 通过 UI 壳预览同一 artifact。
+
+<Callout type="info">
+  一个文件所在的包应当在你读代码之前就回答“这一类改动归谁”。如果不确定某修复属于哪一层，从 [架构](/zh/docs/maintainers/architecture) 起步，选择与你要改的层匹配的子页。
+</Callout>
+
+## 下一步
+
+- **新增模型** — 从 `pipelines/` 和 `operators/` 起步，再到 `synthesis/`。见 [模型运行时](/zh/docs/maintainers/architecture/model-runtime) 与 [Runtime 组装](/zh/docs/maintainers/architecture/runtime-assembly)。
+- **新增 benchmark** — 从 `data/benchmarks/` 和 `evaluation/tasks/` 起步。见 [Benchmark 与数据](/zh/docs/maintainers/architecture/benchmarks-data) 与 [评测核心](/zh/docs/maintainers/architecture/evaluation-core)。
+- **追踪一次 run** — 从 `cli/main.py` → `evaluation/tasks/execution/orchestration/`。见 [工作流](/zh/docs/maintainers/architecture/workflow) 与 [使用界面与编排](/zh/docs/maintainers/architecture/surfaces-orchestration)。
+- **共享原语** — 任何可跨 family 复用的能力都属于 `worldfoundry/core`。见 [核心基础设施](/zh/docs/maintainers/architecture/core-infrastructure)。

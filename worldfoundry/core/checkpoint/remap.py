@@ -16,6 +16,8 @@
 """Regex-based renaming of checkpoint state-dict keys."""
 
 import re
+from collections import OrderedDict
+from collections.abc import Mapping
 
 from torch import Tensor
 
@@ -50,3 +52,16 @@ def remap_checkpoint_keys(state_dict: dict[str, Tensor], mapping: dict[str, str]
         if not matched:
             new_state_dict[k] = v
     return new_state_dict
+
+
+def submodule_state_dict(state_dict: Mapping[str, Tensor], prefix: str) -> OrderedDict[str, Tensor]:
+    """Select checkpoint tensors below a prefix and remove that prefix."""
+
+    return OrderedDict(
+        (key[len(prefix) :], value)
+        for key, value in state_dict.items()
+        if key.startswith(prefix)
+    )
+
+
+__all__ = ["remap_checkpoint_keys", "submodule_state_dict"]

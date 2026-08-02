@@ -1,13 +1,13 @@
 {
-  "modelsTotal": 225,
-  "modelsListed": 224,
-  "benchmarksTotal": 64,
+  "modelsTotal": 283,
+  "modelsListed": 282,
+  "benchmarksTotal": 70,
   "modelFamilies": [
     {
       "id": "video",
       "label": "Video",
       "blurb": "Text-, image-, and video-conditioned generation, editing, and audio-video systems.",
-      "count": 52,
+      "count": 53,
       "entries": [
         {
           "id": "allegro",
@@ -314,9 +314,17 @@
           ]
         },
         {
+          "id": "stable-video-infinity",
+          "name": "Stable Video Infinity 2.0",
+          "status": "integrated",
+          "aliases": [
+            "stable-video-infinity"
+          ]
+        },
+        {
           "id": "step-video-t2v",
           "name": "Step-Video-T 2V",
-          "status": "planned",
+          "status": "integrated",
           "aliases": [
             "step-video-t2v"
           ]
@@ -324,7 +332,7 @@
         {
           "id": "t2v_turbo_t2v",
           "name": "T 2V Turbo",
-          "status": "runtime_ported",
+          "status": "integrated",
           "aliases": [
             "t2v_turbo_t2v"
           ]
@@ -432,8 +440,16 @@
       "id": "world_models",
       "label": "World models",
       "blurb": "Interactive worlds, camera/action conditioning, navigation, and simulator-shaped systems.",
-      "count": 72,
+      "count": 108,
       "entries": [
+        {
+          "id": "abot-world-0-5b-lf",
+          "name": "ABot-World-0-5B-LF",
+          "status": "checkpoint_gpu_validated",
+          "aliases": [
+            "abot-world-0-5b-lf"
+          ]
+        },
         {
           "id": "ac3d",
           "name": "AC 3D",
@@ -451,11 +467,27 @@
           ]
         },
         {
+          "id": "alayaworld",
+          "name": "AlayaWorld",
+          "status": "integrated",
+          "aliases": [
+            "alayaworld"
+          ]
+        },
+        {
           "id": "astra",
           "name": "Astra",
           "status": "integrated",
           "aliases": [
             "astra"
+          ]
+        },
+        {
+          "id": "ati-wan21-14b",
+          "name": "ATI-Wan 2.1-14B",
+          "status": "integrated",
+          "aliases": [
+            "ati-wan21-14b"
           ]
         },
         {
@@ -475,17 +507,33 @@
           ]
         },
         {
+          "id": "causal-rcm",
+          "name": "Causal-rCM",
+          "status": "runtime_ported",
+          "aliases": [
+            "causal-rcm"
+          ]
+        },
+        {
           "id": "cosmos3",
           "name": "Cosmos 3",
-          "status": "in_tree_plan_ready",
+          "status": "integrated",
           "aliases": [
             "cosmos3"
           ]
         },
         {
+          "id": "cosmos-predict-2",
+          "name": "Cosmos Predict 2",
+          "status": "integrated",
+          "aliases": [
+            "cosmos-predict-2"
+          ]
+        },
+        {
           "id": "cosmos-predict-2.5",
           "name": "Cosmos Predict 2.5",
-          "status": "runtime_ported",
+          "status": "integrated",
           "aliases": [
             "cosmos-predict-2.5"
           ]
@@ -493,7 +541,7 @@
         {
           "id": "cosmos-transfer-2.5",
           "name": "Cosmos Transfer 2.5",
-          "status": "runtime_ported",
+          "status": "integrated",
           "aliases": [
             "cosmos-transfer-2.5"
           ]
@@ -571,6 +619,94 @@
           ]
         },
         {
+          "id": "echo-memory-block-ssm",
+          "name": "Echo-Memory Block-wise SSM",
+          "status": "blocked",
+          "aliases": [
+            "echo-memory-block-ssm"
+          ]
+        },
+        {
+          "id": "echo-memory-context-k1",
+          "name": "Echo-Memory Context K=1",
+          "status": "integrated",
+          "aliases": [
+            "echo-memory-context-k1"
+          ]
+        },
+        {
+          "id": "echo-memory-context-k20",
+          "name": "Echo-Memory Context K=20",
+          "status": "blocked",
+          "aliases": [
+            "echo-memory-context-k20"
+          ]
+        },
+        {
+          "id": "echo-memory-spatial-concat-text",
+          "name": "Echo-Memory Spatial Concat-Text Ablation",
+          "status": "blocked",
+          "aliases": [
+            "echo-memory-spatial-concat-text"
+          ]
+        },
+        {
+          "id": "echo-memory-spatial-cross-attn-t32",
+          "name": "Echo-Memory Spatial Cross-Attention T 32 Ablation",
+          "status": "blocked",
+          "aliases": [
+            "echo-memory-spatial-cross-attn-t32"
+          ]
+        },
+        {
+          "id": "echo-memory-spatial",
+          "name": "Echo-Memory Spatial Memory",
+          "status": "blocked",
+          "aliases": [
+            "echo-memory-spatial"
+          ]
+        },
+        {
+          "id": "echo-memory-spatial-no-injection",
+          "name": "Echo-Memory Spatial No-Injection Ablation",
+          "status": "blocked",
+          "aliases": [
+            "echo-memory-spatial-no-injection"
+          ]
+        },
+        {
+          "id": "echo-memory-ssm-ctx1-every4-hint21",
+          "name": "Echo-Memory SSM Ctx 1 Every 4 Hint 21",
+          "status": "blocked",
+          "aliases": [
+            "echo-memory-ssm-ctx1-every4-hint21"
+          ]
+        },
+        {
+          "id": "echo-memory-ssm-ctx5-every1-hint21",
+          "name": "Echo-Memory SSM Ctx 5 Every 1 Hint 21",
+          "status": "blocked",
+          "aliases": [
+            "echo-memory-ssm-ctx5-every1-hint21"
+          ]
+        },
+        {
+          "id": "echo-memory-ssm-ctx5-every4-hint81",
+          "name": "Echo-Memory SSM Ctx 5 Every 4 Hint 81",
+          "status": "blocked",
+          "aliases": [
+            "echo-memory-ssm-ctx5-every4-hint81"
+          ]
+        },
+        {
+          "id": "echo-memory-videossm-hybrid",
+          "name": "Echo-Memory VideoSSM Hybrid",
+          "status": "blocked",
+          "aliases": [
+            "echo-memory-videossm-hybrid"
+          ]
+        },
+        {
           "id": "egowm",
           "name": "EgoWM",
           "status": "runtime_ported",
@@ -589,7 +725,7 @@
         {
           "id": "gen3c",
           "name": "GEN 3C",
-          "status": "verified_official_8gpu_workspace",
+          "status": "integrated",
           "aliases": [
             "gen3c"
           ]
@@ -667,11 +803,27 @@
           ]
         },
         {
+          "id": "hyworld-worldgen",
+          "name": "HY-World 2.0 Trajectory Renderer",
+          "status": "integrated",
+          "aliases": [
+            "hyworld-worldgen"
+          ]
+        },
+        {
           "id": "hy-worldplay",
           "name": "HY-WorldPlay",
           "status": "integrated",
           "aliases": [
             "hy-worldplay"
+          ]
+        },
+        {
+          "id": "hydra",
+          "name": "HyDRA",
+          "status": "integrated",
+          "aliases": [
+            "hydra"
           ]
         },
         {
@@ -739,11 +891,35 @@
           ]
         },
         {
+          "id": "lingbot-world-act",
+          "name": "LingBot-World Base Act",
+          "status": "integrated",
+          "aliases": [
+            "lingbot-world-act"
+          ]
+        },
+        {
           "id": "lingbot-world-v2",
           "name": "LingBot-World-V 2",
           "status": "implemented_checkpoint_pending",
           "aliases": [
             "lingbot-world-v2"
+          ]
+        },
+        {
+          "id": "liveworld",
+          "name": "LiveWorld",
+          "status": "integrated",
+          "aliases": [
+            "liveworld"
+          ]
+        },
+        {
+          "id": "magicworld",
+          "name": "MagicWorld",
+          "status": "integrated",
+          "aliases": [
+            "magicworld"
           ]
         },
         {
@@ -771,11 +947,51 @@
           ]
         },
         {
+          "id": "matrix-game-3.5-first-person",
+          "name": "Matrix-Game 3.5 First-Person Base",
+          "status": "integrated",
+          "aliases": [
+            "matrix-game-3.5-first-person"
+          ]
+        },
+        {
+          "id": "matrix-game-3.5-third-person",
+          "name": "Matrix-Game 3.5 Third-Person Base",
+          "status": "integrated",
+          "aliases": [
+            "matrix-game-3.5-third-person"
+          ]
+        },
+        {
           "id": "mineworld",
           "name": "MineWorld",
           "status": "runtime_ported",
           "aliases": [
             "mineworld"
+          ]
+        },
+        {
+          "id": "minwm-hy-action2v",
+          "name": "minWM HY Action 2V",
+          "status": "integrated",
+          "aliases": [
+            "minwm-hy-action2v"
+          ]
+        },
+        {
+          "id": "minwm-wan-action2v",
+          "name": "minWM Wan Action 2V",
+          "status": "integrated",
+          "aliases": [
+            "minwm-wan-action2v"
+          ]
+        },
+        {
+          "id": "mira",
+          "name": "MIRA",
+          "status": "integrated",
+          "aliases": [
+            "mira"
           ]
         },
         {
@@ -800,6 +1016,14 @@
           "status": "integrated",
           "aliases": [
             "motionctrl"
+          ]
+        },
+        {
+          "id": "moverse",
+          "name": "MoVerse",
+          "status": "runtime_ported",
+          "aliases": [
+            "moverse"
           ]
         },
         {
@@ -835,6 +1059,14 @@
           ]
         },
         {
+          "id": "open-dreamer",
+          "name": "Open Dreamer",
+          "status": "runtime_ported",
+          "aliases": [
+            "open-dreamer"
+          ]
+        },
+        {
           "id": "pandora",
           "name": "Pandora",
           "status": "planned",
@@ -848,6 +1080,14 @@
           "status": "runtime_ported",
           "aliases": [
             "pointworld"
+          ]
+        },
+        {
+          "id": "rolling-forcing",
+          "name": "RollingForcing",
+          "status": "integrated",
+          "aliases": [
+            "rolling-forcing"
           ]
         },
         {
@@ -899,6 +1139,14 @@
           ]
         },
         {
+          "id": "spatia",
+          "name": "Spatia",
+          "status": "integrated",
+          "aliases": [
+            "spatia"
+          ]
+        },
+        {
           "id": "starwm",
           "name": "StarWM",
           "status": "runtime_ported",
@@ -915,11 +1163,27 @@
           ]
         },
         {
+          "id": "uni3c",
+          "name": "Uni 3C",
+          "status": "runtime_ported",
+          "aliases": [
+            "uni3c"
+          ]
+        },
+        {
           "id": "uwm",
           "name": "Unified World Models",
           "status": "runtime_ported",
           "aliases": [
             "uwm"
+          ]
+        },
+        {
+          "id": "versecrafter",
+          "name": "VerseCrafter",
+          "status": "integrated",
+          "aliases": [
+            "versecrafter"
           ]
         },
         {
@@ -944,6 +1208,38 @@
           "status": "runtime_ported",
           "aliases": [
             "viewcrafter"
+          ]
+        },
+        {
+          "id": "wan21-fun-1p3b-cam",
+          "name": "Wan 2.1-Fun V 1.1 1.3B Control Camera",
+          "status": "checkpoint_gpu_validated",
+          "aliases": [
+            "wan21-fun-1p3b-cam"
+          ]
+        },
+        {
+          "id": "wan21-fun-14b-cam",
+          "name": "Wan 2.1-Fun V 1.1 14B Control Camera",
+          "status": "integrated",
+          "aliases": [
+            "wan21-fun-14b-cam"
+          ]
+        },
+        {
+          "id": "wan22-fun-5b-cam",
+          "name": "Wan 2.2-Fun 5B Control Camera",
+          "status": "integrated",
+          "aliases": [
+            "wan22-fun-5b-cam"
+          ]
+        },
+        {
+          "id": "wan22-fun-a14b-cam",
+          "name": "Wan 2.2-Fun A 14B Control Camera",
+          "status": "integrated",
+          "aliases": [
+            "wan22-fun-a14b-cam"
           ]
         },
         {
@@ -997,7 +1293,7 @@
         {
           "id": "wow",
           "name": "WoW",
-          "status": "verified",
+          "status": "runtime_ported",
           "aliases": [
             "wow"
           ]
@@ -1059,19 +1355,19 @@
           ]
         },
         {
+          "id": "depth-anything-v3-prior",
+          "name": "Depth Anything 3",
+          "status": "integrated",
+          "aliases": [
+            "depth-anything-v3-prior"
+          ]
+        },
+        {
           "id": "depth-anything-v3",
           "name": "Depth Anything 3",
           "status": "runtime_ported",
           "aliases": [
             "depth-anything-v3"
-          ]
-        },
-        {
-          "id": "depth-anything-v3-prior",
-          "name": "Depth Anything 3 Prior",
-          "status": "integrated",
-          "aliases": [
-            "depth-anything-v3-prior"
           ]
         },
         {
@@ -1084,7 +1380,7 @@
         },
         {
           "id": "depth-anything-v2-prior",
-          "name": "Depth Anything V 2 Prior",
+          "name": "Depth Anything V 2",
           "status": "integrated",
           "aliases": [
             "depth-anything-v2-prior"
@@ -1148,7 +1444,7 @@
         },
         {
           "id": "geocalib-prior",
-          "name": "GeoCalib Prior",
+          "name": "GeoCalib",
           "status": "integrated",
           "aliases": [
             "geocalib-prior"
@@ -1156,7 +1452,7 @@
         },
         {
           "id": "geometry-prior",
-          "name": "Geometry Prior",
+          "name": "Geometry",
           "status": "runtime_ported",
           "aliases": [
             "geometry-prior"
@@ -1220,7 +1516,7 @@
         },
         {
           "id": "metric3d-prior",
-          "name": "Metric 3D Prior",
+          "name": "Metric 3D",
           "status": "integrated",
           "aliases": [
             "metric3d-prior"
@@ -1292,7 +1588,7 @@
         },
         {
           "id": "track-anything-prior",
-          "name": "Segment and Track Anything Prior",
+          "name": "Segment and Track Anything",
           "status": "integrated",
           "aliases": [
             "track-anything-prior"
@@ -1332,7 +1628,7 @@
         },
         {
           "id": "unidepth-v2-prior",
-          "name": "UniDepth V 2 Prior",
+          "name": "UniDepth V 2",
           "status": "integrated",
           "aliases": [
             "unidepth-v2-prior"
@@ -1340,7 +1636,7 @@
         },
         {
           "id": "unik3d-prior",
-          "name": "UniK 3D Prior",
+          "name": "UniK 3D",
           "status": "integrated",
           "aliases": [
             "unik3d-prior"
@@ -1364,7 +1660,7 @@
         },
         {
           "id": "video-depth-anything-prior",
-          "name": "Video Depth Anything Prior",
+          "name": "Video Depth Anything",
           "status": "integrated",
           "aliases": [
             "video-depth-anything-prior"
@@ -1400,14 +1696,38 @@
       "id": "vla_va_wam",
       "label": "VLA / VA / WAM",
       "blurb": "Embodied policies, world-action models, and robot control stacks.",
-      "count": 43,
+      "count": 64,
       "entries": [
+        {
+          "id": "a1",
+          "name": "A 1",
+          "status": "runtime_ported",
+          "aliases": [
+            "a1"
+          ]
+        },
+        {
+          "id": "abot-m0",
+          "name": "ABot-M 0",
+          "status": "in_tree_checkpoint_runtime_static_verified",
+          "aliases": [
+            "abot-m0"
+          ]
+        },
         {
           "id": "act",
           "name": "Action Chunking Transformer",
-          "status": "runtime_ported",
+          "status": "integrated",
           "aliases": [
             "act"
+          ]
+        },
+        {
+          "id": "ahawam",
+          "name": "AHA-WAM",
+          "status": "in_tree_checkpoint_runtime",
+          "aliases": [
+            "ahawam"
           ]
         },
         {
@@ -1443,11 +1763,27 @@
           ]
         },
         {
+          "id": "dexora-1b",
+          "name": "Dexora 1B",
+          "status": "in_tree_checkpoint_runtime",
+          "aliases": [
+            "dexora-1b"
+          ]
+        },
+        {
           "id": "diffusion-policy",
           "name": "Diffusion Policy",
           "status": "integrated",
           "aliases": [
             "diffusion-policy"
+          ]
+        },
+        {
+          "id": "dm0",
+          "name": "DM 0",
+          "status": "in_tree_checkpoint_runtime",
+          "aliases": [
+            "dm0"
           ]
         },
         {
@@ -1459,11 +1795,27 @@
           ]
         },
         {
+          "id": "eventvla",
+          "name": "EventVLA",
+          "status": "in_tree_checkpoint_runtime",
+          "aliases": [
+            "eventvla"
+          ]
+        },
+        {
           "id": "fastwam",
           "name": "FastWAM",
-          "status": "runtime_ported",
+          "status": "all_released_checkpoints_gpu_validated",
           "aliases": [
             "fastwam"
+          ]
+        },
+        {
+          "id": "galaxea-vla",
+          "name": "Galaxea G 0Plus",
+          "status": "in_tree_checkpoint_runtime_static_verified",
+          "aliases": [
+            "galaxea-vla"
           ]
         },
         {
@@ -1483,11 +1835,51 @@
           ]
         },
         {
+          "id": "giga-world-policy-0.5",
+          "name": "GigaWorld-Policy-0.5",
+          "status": "in_tree_checkpoint_gated_runtime",
+          "aliases": [
+            "giga-world-policy-0.5"
+          ]
+        },
+        {
+          "id": "go1",
+          "name": "GO-1",
+          "status": "in_tree_checkpoint_runtime_static_verified",
+          "aliases": [
+            "go1"
+          ]
+        },
+        {
+          "id": "h-rdt",
+          "name": "H-RDT",
+          "status": "in_tree_checkpoint_runtime_static_verified",
+          "aliases": [
+            "h-rdt"
+          ]
+        },
+        {
           "id": "hy-embodied",
           "name": "HY-Embodied",
           "status": "runtime_ported",
           "aliases": [
             "hy-embodied"
+          ]
+        },
+        {
+          "id": "hy-embodied-vla",
+          "name": "Hy-Embodied-0.5-VLA",
+          "status": "integrated",
+          "aliases": [
+            "hy-embodied-vla"
+          ]
+        },
+        {
+          "id": "internvla-a1",
+          "name": "InternVLA-A 1-3B",
+          "status": "in_tree_checkpoint_runtime_static_verified",
+          "aliases": [
+            "internvla-a1"
           ]
         },
         {
@@ -1507,6 +1899,14 @@
           ]
         },
         {
+          "id": "lda-1b",
+          "name": "LDA-1B",
+          "status": "in_tree_checkpoint_runtime_static_verified",
+          "aliases": [
+            "lda-1b"
+          ]
+        },
+        {
           "id": "libero-para",
           "name": "LIBERO-Para",
           "status": "runtime_ported",
@@ -1517,7 +1917,7 @@
         {
           "id": "lingbot-va",
           "name": "LingBot-VA",
-          "status": "plan_ready",
+          "status": "in_tree_checkpoint_runtime_gpu_server_init_verified_rollout_pending",
           "aliases": [
             "lingbot-va"
           ]
@@ -1525,7 +1925,7 @@
         {
           "id": "lingbot-vla",
           "name": "LingBot-VLA",
-          "status": "in_tree_vendored_checkpoint_runtime",
+          "status": "in_tree_in_process_checkpoint_runtime",
           "aliases": [
             "lingbot-vla"
           ]
@@ -1533,9 +1933,17 @@
         {
           "id": "lingbot-vla-v2",
           "name": "LingBot-VLA 2.0",
-          "status": "in_tree_vendored_checkpoint_runtime",
+          "status": "in_tree_in_process_checkpoint_runtime",
           "aliases": [
             "lingbot-vla-v2"
+          ]
+        },
+        {
+          "id": "mem-0",
+          "name": "Mem-0",
+          "status": "in_tree_checkpoint_runtime_static_verified",
+          "aliases": [
+            "mem-0"
           ]
         },
         {
@@ -1549,7 +1957,7 @@
         {
           "id": "molmoact2",
           "name": "MolmoAct 2",
-          "status": "runtime_ported",
+          "status": "in_tree_checkpoint_runtime_static_verified",
           "aliases": [
             "molmoact2"
           ]
@@ -1557,7 +1965,7 @@
         {
           "id": "molmobot",
           "name": "MolmoBot",
-          "status": "in_tree_vendored_import_verified",
+          "status": "in_tree_import_verification_in_progress",
           "aliases": [
             "molmobot"
           ]
@@ -1573,7 +1981,7 @@
         {
           "id": "dreamzero",
           "name": "NVIDIA DreamZero",
-          "status": "runtime_ported",
+          "status": "integrated",
           "aliases": [
             "dreamzero"
           ]
@@ -1581,7 +1989,7 @@
         {
           "id": "gr00t",
           "name": "NVIDIA GR 00T",
-          "status": "runtime_ported",
+          "status": "integrated",
           "aliases": [
             "gr00t"
           ]
@@ -1621,7 +2029,7 @@
         {
           "id": "openvla-oft",
           "name": "OpenVLA-OFT",
-          "status": "checkpoint_backed_runtime_ready",
+          "status": "checkpoint_gpu_validated",
           "aliases": [
             "openvla-oft"
           ]
@@ -1659,11 +2067,27 @@
           ]
         },
         {
+          "id": "rdt-1b",
+          "name": "RDT-1B",
+          "status": "runtime_ported",
+          "aliases": [
+            "rdt-1b"
+          ]
+        },
+        {
           "id": "real-time-chunking",
           "name": "Real-Time Chunking",
           "status": "runtime_ported",
           "aliases": [
             "real-time-chunking"
+          ]
+        },
+        {
+          "id": "rise",
+          "name": "RISE",
+          "status": "in_tree_checkpoint_gated_runtime",
+          "aliases": [
+            "rise"
           ]
         },
         {
@@ -1691,6 +2115,14 @@
           ]
         },
         {
+          "id": "spatial-forcing",
+          "name": "Spatial-Forcing",
+          "status": "all_released_checkpoints_gpu_validated",
+          "aliases": [
+            "spatial-forcing"
+          ]
+        },
+        {
           "id": "spirit-v1.5",
           "name": "Spirit-VLA v 1.5",
           "status": "runtime_ported",
@@ -1712,6 +2144,14 @@
           "status": "runtime_ported",
           "aliases": [
             "tdmpc"
+          ]
+        },
+        {
+          "id": "tinyvla",
+          "name": "TinyVLA",
+          "status": "in_tree_checkpoint_gated_runtime",
+          "aliases": [
+            "tinyvla"
           ]
         },
         {
@@ -1741,9 +2181,33 @@
         {
           "id": "xvla",
           "name": "X-VLA",
-          "status": "runtime_ported",
+          "status": "all_released_checkpoints_gpu_validated",
           "aliases": [
             "xvla"
+          ]
+        },
+        {
+          "id": "x-wam",
+          "name": "X-WAM",
+          "status": "in_tree_runtime_selected_checkpoint_gpu_validated",
+          "aliases": [
+            "x-wam"
+          ]
+        },
+        {
+          "id": "xiaomi-robotics-0",
+          "name": "Xiaomi-Robotics-0",
+          "status": "all_released_checkpoints_gpu_validated",
+          "aliases": [
+            "xiaomi-robotics-0"
+          ]
+        },
+        {
+          "id": "xiaomi-robotics-1",
+          "name": "Xiaomi-Robotics-1",
+          "status": "runtime_ported",
+          "aliases": [
+            "xiaomi-robotics-1"
           ]
         }
       ]
@@ -1841,7 +2305,7 @@
     {
       "id": "video",
       "label": "Video & world",
-      "count": 42,
+      "count": 47,
       "entries": [
         {
           "id": "4dworldbench",
@@ -1855,6 +2319,13 @@
           "name": "AIGCBench",
           "aliases": [
             "aigcbench"
+          ]
+        },
+        {
+          "id": "apple-pi",
+          "name": "Apple-PI",
+          "aliases": [
+            "apple-pi"
           ]
         },
         {
@@ -1921,6 +2392,13 @@
           ]
         },
         {
+          "id": "likephys",
+          "name": "LikePhys",
+          "aliases": [
+            "likephys"
+          ]
+        },
+        {
           "id": "memobench",
           "name": "MemoBench",
           "aliases": [
@@ -1963,6 +2441,13 @@
           ]
         },
         {
+          "id": "physical-ai-bench",
+          "name": "Physical AI Bench (PAI-Bench)",
+          "aliases": [
+            "physical-ai-bench"
+          ]
+        },
+        {
           "id": "physics-iq",
           "name": "Physics-IQ Original",
           "aliases": [
@@ -1981,6 +2466,13 @@
           "name": "PhysVidBench",
           "aliases": [
             "physvidbench"
+          ]
+        },
+        {
+          "id": "rbench",
+          "name": "RBench",
+          "aliases": [
+            "rbench"
           ]
         },
         {
@@ -2117,6 +2609,13 @@
           ]
         },
         {
+          "id": "worldolympiad",
+          "name": "WorldOlympiad",
+          "aliases": [
+            "worldolympiad"
+          ]
+        },
+        {
           "id": "worldreasonbench",
           "name": "WorldReasonBench",
           "aliases": [
@@ -2142,7 +2641,7 @@
     {
       "id": "embodied",
       "label": "Embodied",
-      "count": 22,
+      "count": 23,
       "entries": [
         {
           "id": "ai2thor",
@@ -2177,6 +2676,13 @@
           "name": "Kinetix",
           "aliases": [
             "kinetix"
+          ]
+        },
+        {
+          "id": "larybench",
+          "name": "LARYBench",
+          "aliases": [
+            "larybench"
           ]
         },
         {

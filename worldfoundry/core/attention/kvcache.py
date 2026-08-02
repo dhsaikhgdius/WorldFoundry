@@ -13,13 +13,36 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Block KV cache for causal attention with a fixed-size local window."""
+"""KV caches for causal attention.
+
+Two shapes, deliberately kept separate:
+
+- :class:`BlockKVCache` is a fixed-size buffer that rolls a local window in
+  place. Shapes never change, so it stays CUDA-graph capturable — at the cost of
+  hard-coding one eviction rule (sink + FIFO window).
+- :class:`CompactingKVCache` accepts any
+  :class:`~worldfoundry.core.attention.kv_cache_policy.KVCachePolicy` and can
+  hold its chunks quantized. Eviction is a gather over surviving tokens, so
+  shapes are dynamic and CUDA graphs do not apply, but the horizon policy and
+  storage precision become configuration rather than code.
+"""
+
+from __future__ import annotations
 
 from dataclasses import dataclass, field
 
 import torch
 from torch import Tensor
 from typing_extensions import Self
+
+from worldfoundry.core.attention.kv_cache_policy import (
+    CachedBlock,
+    CacheDecision,
+    CacheState,
+    KeepAllPolicy,
+    KVCachePolicy,
+)
+from worldfoundry.core.attention.kv_quantization import KVQuantConfig, QuantizedKVStore
 
 
 @dataclass
@@ -34,14 +57,13 @@ class BlockKVCache:
     non-overlapping: each update adds one chunk of ``chunk_size`` tokens at the
     next logical position in the full sequence.
 
-    Note: Currently only supports ``total_size`` (``sink_size + window_size``) divisible by ``chunk_size``.
-
     Phases:
         - Filling: cache not yet full; tokens are written contiguously;
           ``cached_k()`` / ``cached_v()`` return only the valid prefix.
-        - Steady-state: cache full; each new chunk triggers a left-roll of the
-          local window and overwrites the rightmost positions;
-          ``cached_k()`` / ``cached_v()`` return the full buffer.
+        - Steady-state: if adding a chunk would exceed the fixed cache size, the
+          local window rolls left by the overflow amount and the new chunk
+          overwrites the rightmost positions; ``cached_k()`` / ``cached_v()``
+          return the full buffer.
 
     The argument ``chunk_idx`` (0, 1, 2, ...) is the index of the new chunk in the full
     sequence (not an index into the cache). If ``chunk_idx`` is greater than
@@ -144,10 +166,6 @@ class BlockKVCache:
             f"k_shape[seq_dim] ({self.k_shape[self.seq_dim]}) must equal sink_size + window_size ({expected_length})"
         )
 
-        assert (self.window_size + self.sink_size) % self.chunk_size == 0, (
-            f"window_size + sink_size ({self.window_size + self.sink_size}) must be divisible by chunk_size ({self.chunk_size})"
-        )
-
         self._k = torch.empty(self.k_shape, device=self.device, dtype=self.dtype)
         self._v = torch.empty(self.v_shape, device=self.device, dtype=self.dtype)
 
@@ -157,15 +175,19 @@ class BlockKVCache:
         idx[self.seq_dim] = slice(start, end)
         return tuple(idx)
 
-    def _roll_local_window_left(self) -> None:
-        """Shift the local window left by chunk_size tokens (steady-state only)."""
+    def _roll_local_window_left(self, shift_size: int) -> None:
+        """Shift valid local-window tokens left by ``shift_size`` tokens."""
         total_size = self._k.shape[self.seq_dim]
-        assert total_size == self._n_cached, f"Expected full cache: {total_size=} != {self._n_cached=}"
-        tokens_to_keep = self.window_size - self.chunk_size
+        assert 0 < shift_size <= self.chunk_size, (
+            f"shift_size ({shift_size}) must be in (0, {self.chunk_size}]"
+        )
+        valid_end = min(self._n_cached, total_size)
+        valid_local_size = max(0, valid_end - self.sink_size)
+        tokens_to_keep = max(0, valid_local_size - shift_size)
 
         if tokens_to_keep > 0:
-            src_start = self.sink_size + self.chunk_size
-            src_end = total_size
+            src_start = self.sink_size + shift_size
+            src_end = src_start + tokens_to_keep
             dst_start = self.sink_size
             dst_end = self.sink_size + tokens_to_keep
 
@@ -173,6 +195,10 @@ class BlockKVCache:
             src_slice = self._seq_slice(src_start, src_end)
             self._k[dst_slice] = self._k[src_slice].clone()
             self._v[dst_slice] = self._v[src_slice].clone()
+        # before_update() only rolls when the next contiguous chunk would
+        # overflow this fixed buffer; update() must immediately fill the
+        # newly freed right edge.
+        self._n_cached = total_size
 
     def _current_chunk_overlaps_sink(self) -> bool:
         assert self._curr_chunk_idx is not None, "Must call before_update() before checking sink overlap"
@@ -257,8 +283,11 @@ class BlockKVCache:
             "Expected the new chunk_idx to be +1 from the previous chunk_idx, "
             f"got {chunk_idx} != {self._prev_chunk_idx} + 1"
         )
-        if self.is_steady_state():
-            self._roll_local_window_left()
+        total_size = self._k.shape[self.seq_dim]
+        if not self._current_chunk_overlaps_sink():
+            overflow = self._n_cached + self.chunk_size - total_size
+            if overflow > 0:
+                self._roll_local_window_left(overflow)
 
     def update(self, k: Tensor, v: Tensor) -> None:
         """
@@ -299,7 +328,8 @@ class BlockKVCache:
             if self.is_steady_state():
                 pass
             else:
-                self._n_cached += self.chunk_size
+                total_size = self._k.shape[self.seq_dim]
+                self._n_cached = min(self._n_cached + self.chunk_size, total_size)
             self._prev_chunk_idx += 1
         elif self._curr_chunk_idx == self._prev_chunk_idx:
             pass
@@ -325,4 +355,150 @@ class BlockKVCache:
     def reset(self) -> None:
         """Reset the cache to its initial empty state."""
         self._prev_chunk_idx = -1
+        self._curr_chunk_idx = None
         self._n_cached = 0
+
+
+class CompactingKVCache:
+    """Growing KV cache whose horizon policy and storage precision are pluggable.
+
+    Each committed chunk is handed to a :class:`KVCachePolicy`, which decides
+    which cached tokens survive and what temporal position they claim for RoPE.
+    Chunks may be held quantized, so a long rollout's cache cost is set by
+    configuration rather than by the sampler.
+
+    Use this when the horizon exceeds what a fixed window can hold. Prefer
+    :class:`BlockKVCache` when the window is fixed and CUDA-graph capture matters.
+
+    Per-chunk usage::
+
+        decision = cache.append(k, v, frame_count=chunk_frames)
+        keys, values = cache.cached()
+        positions = cache.frame_positions()   # None when RoPE is untouched
+    """
+
+    def __init__(
+        self,
+        *,
+        frame_tokens: int,
+        policy: KVCachePolicy | None = None,
+        quantization: KVQuantConfig | None = None,
+        value_quantization: KVQuantConfig | None = None,
+        seq_dim: int = 1,
+    ) -> None:
+        """Configure the horizon policy and storage.
+
+        Args:
+            frame_tokens: Tokens per latent frame.
+            policy: Eviction policy; defaults to never evicting.
+            quantization: Key storage configuration. ``None`` stores keys dense.
+            value_quantization: Value storage configuration; defaults to
+                ``quantization``. Values usually tolerate coarser settings than keys.
+            seq_dim: Dimension chunks are concatenated along.
+        """
+        if frame_tokens < 1:
+            raise ValueError(f"frame_tokens must be >= 1, got {frame_tokens}")
+
+        self.frame_tokens = frame_tokens
+        self.policy = policy if policy is not None else KeepAllPolicy()
+        self.seq_dim = seq_dim
+        key_config = quantization if quantization is not None else KVQuantConfig()
+        self._store = QuantizedKVStore(key_config, value_quantization, seq_dim=seq_dim)
+        self._blocks: list[CachedBlock] = []
+        self._frame_positions: Tensor | None = None
+        self._next_block_idx = 0
+        self._next_frame = 0
+
+    @property
+    def blocks(self) -> tuple[CachedBlock, ...]:
+        """Chunks currently held, oldest first."""
+        return tuple(self._blocks)
+
+    @property
+    def length(self) -> int:
+        """Cached tokens along the sequence dimension."""
+        return self._store.length
+
+    def nbytes(self) -> int:
+        """Bytes held, including quantization metadata."""
+        return self._store.nbytes()
+
+    def state(self) -> CacheState:
+        """Snapshot handed to the policy."""
+        return CacheState(
+            blocks=tuple(self._blocks),
+            frame_tokens=self.frame_tokens,
+            current_block_idx=max(self._next_block_idx - 1, 0),
+        )
+
+    def append(self, keys: Tensor, values: Tensor, *, frame_count: int) -> CacheDecision:
+        """Commit one chunk and apply the eviction policy.
+
+        Args:
+            keys: Chunk keys with ``frame_count * frame_tokens`` entries on ``seq_dim``.
+            values: Chunk values, same sequence length as ``keys``.
+            frame_count: Latent frames this chunk produced.
+
+        Returns:
+            The policy's decision, so callers can see whether positions were remapped.
+
+        Raises:
+            ValueError: If the chunk length does not match ``frame_count``.
+        """
+        if frame_count < 1:
+            raise ValueError(f"frame_count must be >= 1, got {frame_count}")
+        expected = frame_count * self.frame_tokens
+        if keys.shape[self.seq_dim] != expected:
+            raise ValueError(
+                f"expected {expected} tokens on seq_dim for frame_count={frame_count}, "
+                f"got {keys.shape[self.seq_dim]}"
+            )
+        if values.shape[self.seq_dim] != expected:
+            raise ValueError(
+                f"values must match keys on seq_dim; got {values.shape[self.seq_dim]} != {expected}"
+            )
+
+        self._store.append(keys, values)
+        self._blocks.append(
+            CachedBlock(block_idx=self._next_block_idx, frame_start=self._next_frame, frame_count=frame_count)
+        )
+        self._next_block_idx += 1
+        self._next_frame += frame_count
+
+        decision = self.policy.decide(self.state())
+        if decision.evicts:
+            self._store.compact(decision.keep_indices)
+            self._blocks = self._surviving_blocks(decision)
+        self._frame_positions = decision.frame_positions
+        return decision
+
+    def _surviving_blocks(self, decision: CacheDecision) -> list[CachedBlock]:
+        """Rebuild block bookkeeping after an eviction."""
+        if decision.kept_blocks is not None:
+            return [self._blocks[position] for position in decision.kept_blocks]
+
+        # A token-level policy may have split blocks apart, so the surviving
+        # tokens collapse into one synthetic block covering what is left.
+        kept_tokens = int(decision.keep_indices.numel())
+        frames = max(1, kept_tokens // self.frame_tokens)
+        newest = self._blocks[-1]
+        return [CachedBlock(block_idx=newest.block_idx, frame_start=newest.frame_end - frames, frame_count=frames)]
+
+    def cached(self) -> tuple[Tensor, Tensor]:
+        """Return the cache as dense keys and values."""
+        return self._store.materialize()
+
+    def frame_positions(self) -> Tensor | None:
+        """Per-cached-token RoPE frame index, or ``None`` when unchanged."""
+        return self._frame_positions
+
+    def reset(self) -> None:
+        """Drop everything and restart block numbering."""
+        self._store.reset()
+        self._blocks.clear()
+        self._frame_positions = None
+        self._next_block_idx = 0
+        self._next_frame = 0
+
+
+__all__ = ["BlockKVCache", "CompactingKVCache"]

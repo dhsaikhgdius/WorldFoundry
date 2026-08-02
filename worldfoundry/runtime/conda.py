@@ -18,20 +18,19 @@ from typing import Any, Mapping, Sequence
 from packaging.version import InvalidVersion, Version
 
 from worldfoundry.core.io.paths import conda_envs_root_path, resolve_worldfoundry_path, worldfoundry_path_tokens
-from worldfoundry.evaluation.utils import DATA_ROOT, REPO_ROOT
-from worldfoundry.evaluation.utils import load_manifest, load_manifest_collection
+from worldfoundry.evaluation.utils import DATA_ROOT, REPO_ROOT, load_manifest, load_manifest_collection
+
 from .cuda_tiers import (
+    SUPPORTED_CUDA_TIERS,
     cuda_version_tuple,
     detect_nvidia_driver_cuda,
     preferred_unified_tier,
     resolve_cuda_tier,
-    SUPPORTED_CUDA_TIERS,
     unified_env_enabled,
     unified_env_exists,
     unified_env_name,
 )
 from .env import resolve_ckpt_dir, resolve_hfd_root
-
 
 # ── Defaults ─────────────────────────────────────────────────────────────────
 
@@ -299,6 +298,14 @@ def unified_env_blocker(spec: RuntimeCondaEnvSpec) -> str | None:
             for operator, version in version_specs:
                 if operator in {"==", "===", ">=", "~="} and version >= major_cap:
                     return f"{name}_{version}_requires_new_major"
+                # A strict upper bound is an ABI/API compatibility contract,
+                # not merely a minimum-feature hint.  Routing it into a shared
+                # environment lets an unrelated upgrade (for example
+                # Transformers 5.x) silently violate the model profile.
+                if operator == "<" and version <= major_cap:
+                    return f"{name}_upper_bound_{version}_requires_isolated_env"
+                if operator == "<=" and version < major_cap:
+                    return f"{name}_upper_bound_{version}_requires_isolated_env"
     return None
 
 

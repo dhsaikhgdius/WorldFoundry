@@ -17,7 +17,6 @@ from typing import Any
 
 from worldfoundry.core.time import utc_now_iso as _utc_now_iso
 
-
 TERMINAL_JOB_STATUSES = frozenset({"completed", "failed", "cancelled"})
 
 
@@ -74,6 +73,9 @@ def run_bounded_command(
     process_env = os.environ.copy()
     if env:
         process_env.update(env)
+    from worldfoundry.core.logging_setup import log_context_environment
+
+    process_env.update(log_context_environment())
 
     start = time.monotonic()
     process = subprocess.Popen(
@@ -139,8 +141,13 @@ class CommandJob:
     job_id: str
     command: tuple[str, ...]
     display_command: tuple[str, ...]
+    run_id: str = ""
     cwd: str | None = None
     output_dir: str | None = None
+    log_dir: str | None = None
+    event_log_path: str | None = None
+    stdout_log_path: str | None = None
+    stderr_log_path: str | None = None
     metadata: Mapping[str, Any] = field(default_factory=dict)
     status: str = "queued"
     created_at: str = field(default_factory=_utc_now_iso)
@@ -174,12 +181,17 @@ class CommandJob:
         """Return a summary dict suitable for UI polling endpoints."""
         return {
             "job_id": self.job_id,
+            "run_id": self.run_id,
             "status": self.status,
             "created_at": self.created_at,
             "started_at": self.started_at,
             "completed_at": self.completed_at,
             "returncode": self.returncode,
             "output_dir": self.output_dir,
+            "log_dir": self.log_dir,
+            "event_log_path": self.event_log_path,
+            "stdout_log_path": self.stdout_log_path,
+            "stderr_log_path": self.stderr_log_path,
             "command": list(self.display_command),
             "cwd": self.cwd,
             "metadata": dict(self.metadata),
@@ -237,15 +249,28 @@ class AsyncCommandJobStore:
             raise ValueError(f"job already exists: {resolved_job_id}")
         # Jobs are tracked in-process so UI/MCP calls can poll by id and inspect
         # both state transitions and captured stdout/stderr.
+        job_metadata = dict(metadata or {})
+        run_id = str(job_metadata.get("run_id") or resolved_job_id)
+        log_dir: Path | None = None
+        if output_dir is not None:
+            output_root = Path(output_dir)
+            safe_job_id = "".join(char if char.isalnum() or char in {"-", "_", "."} else "-" for char in resolved_job_id)
+            log_dir = output_root / "logs" / "jobs" / (safe_job_id.strip(".-") or "job")
         job = CommandJob(
             job_id=resolved_job_id,
+            run_id=run_id,
             command=tuple(str(item) for item in command),
             display_command=tuple(str(item) for item in (display_command or command)),
             cwd=str(cwd) if cwd is not None else None,
             output_dir=str(output_dir) if output_dir is not None else None,
-            metadata=dict(metadata or {}),
+            log_dir=None if log_dir is None else str(log_dir),
+            event_log_path=None if log_dir is None else str(log_dir / "events.jsonl"),
+            stdout_log_path=None if log_dir is None else str(log_dir / "stdout.log"),
+            stderr_log_path=None if log_dir is None else str(log_dir / "stderr.log"),
+            metadata=job_metadata,
         )
         self._jobs[job.job_id] = job
+        self._write_lifecycle_event(job, "INFO", "job.queued", "WorldFoundry job queued")
         job._task = asyncio.create_task(self._run(job, dict(env or {})))
         return job
 
@@ -273,6 +298,8 @@ class AsyncCommandJobStore:
             return False, f"job is already {job.status}"
         job.status = "cancelled"
         job.error = "cancelled by request"
+        if job.started_at is None:
+            self._write_lifecycle_event(job, "WARNING", "job.cancelled", "WorldFoundry job cancelled")
         await self._terminate_process(job)
         if job._task is not None and not job._task.done():
             job._task.cancel()
@@ -289,6 +316,17 @@ class AsyncCommandJobStore:
         try:
             if job.output_dir:
                 Path(job.output_dir).mkdir(parents=True, exist_ok=True)
+            if job.log_dir:
+                Path(job.log_dir).mkdir(parents=True, exist_ok=True)
+            from worldfoundry.core.logging_setup import log_context_environment
+
+            process_env.update(log_context_environment(run_id=job.run_id, job_id=job.job_id, phase="job"))
+            if job.event_log_path:
+                # Give framework-owned child CLIs a per-job sink.  Their
+                # stdout/stderr remain in the separate raw artifact files.
+                process_env["WORLDFOUNDRY_LOG_FILE"] = job.event_log_path
+                process_env["WORLDFOUNDRY_LOG_JSON"] = "1"
+            self._write_lifecycle_event(job, "INFO", "job.started", "WorldFoundry job started")
             job._process = await asyncio.create_subprocess_exec(
                 *job.command,
                 cwd=job.cwd,
@@ -308,15 +346,20 @@ class AsyncCommandJobStore:
             job.status = "completed" if job.returncode == 0 else "failed"
             if job.status == "failed":
                 job.error = f"command exited with code {job.returncode}"
+                self._write_lifecycle_event(job, "ERROR", "job.failed", "WorldFoundry job failed")
+            else:
+                self._write_lifecycle_event(job, "INFO", "job.finished", "WorldFoundry job finished")
         except asyncio.CancelledError:
             await self._terminate_process(job)
             job.status = "cancelled"
             job.error = job.error or "cancelled"
+            self._write_lifecycle_event(job, "WARNING", "job.cancelled", "WorldFoundry job cancelled")
             raise
         except Exception as exc:  # noqa: BLE001 - surfaced through UI/MCP status.
             job.status = "failed"
             job.error = str(exc)
-            job.append_log("stderr", f"{type(exc).__name__}: {exc}\n")
+            self._append_job_log(job, "stderr", f"{type(exc).__name__}: {exc}\n")
+            self._write_lifecycle_event(job, "ERROR", "job.failed", "WorldFoundry job failed", exception=exc)
         finally:
             if job.completed_at is None:
                 job.completed_at = _utc_now_iso()
@@ -335,9 +378,54 @@ class AsyncCommandJobStore:
             if not chunk:
                 break
             text = chunk.decode("utf-8", errors="replace")
-            job.append_log(stream_name, text)
+            self._append_job_log(job, stream_name, text)
             if len(job.logs) > self.max_log_lines:
                 del job.logs[: len(job.logs) - self.max_log_lines]
+
+    @staticmethod
+    def _append_job_log(job: CommandJob, stream_name: str, text: str) -> None:
+        """Keep a bounded in-memory tail while retaining full raw stream files."""
+
+        job.append_log(stream_name, text)
+        target = job.stdout_log_path if stream_name == "stdout" else job.stderr_log_path
+        if target is not None and text:
+            with Path(target).open("a", encoding="utf-8", errors="replace") as handle:
+                handle.write(text)
+
+    @staticmethod
+    def _write_lifecycle_event(
+        job: CommandJob,
+        level: str,
+        event: str,
+        message: str,
+        *,
+        exception: BaseException | None = None,
+    ) -> None:
+        """Persist job state transitions independently of child process output."""
+
+        if job.event_log_path is None:
+            return
+        from worldfoundry.core.logging_setup import write_jsonl_event
+
+        fields: dict[str, Any] = {
+            "run_id": job.run_id,
+            "job_id": job.job_id,
+            "status": job.status,
+            "returncode": job.returncode,
+            "output_dir": job.output_dir,
+        }
+        if job.started_at and job.completed_at:
+            fields["started_at"] = job.started_at
+            fields["completed_at"] = job.completed_at
+        write_jsonl_event(
+            job.event_log_path,
+            level=level,
+            event=event,
+            message=message,
+            logger_name=__name__,
+            exception=exception,
+            **fields,
+        )
 
     async def _terminate_process(self, job: CommandJob) -> None:
         """Gracefully terminate the job's subprocess, escalating to SIGKILL if needed."""

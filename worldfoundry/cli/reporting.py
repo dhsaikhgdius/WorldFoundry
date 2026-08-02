@@ -8,7 +8,6 @@ from pathlib import Path
 
 from .utils import json_dump
 
-
 # ── Compare runs ────────────────────────────────────────────────
 
 

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Contracts for model generation requests and results.
 
 GenerationRequest describes the input needed to run one benchmark sample through
@@ -8,13 +6,14 @@ timing, and metadata. Helper functions normalize runner status values and
 restore nested ArtifactRef objects after JSON deserialization.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from typing import Any, Mapping
 
 from worldfoundry.evaluation.api.json_contract import JsonContract, copy_mapping
 
 from .artifacts import ArtifactRef, coerce_artifact_refs, restore_artifact_refs
-
 
 GENERATION_REQUEST_SCHEMA_VERSION = "worldfoundry-generation-request"
 GENERATION_RESULT_SCHEMA_VERSION = "worldfoundry-generation-result"

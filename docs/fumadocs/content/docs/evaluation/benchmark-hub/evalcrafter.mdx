@@ -3,13 +3,13 @@ title: EvalCrafter
 description: EvalCrafter text-to-video quality evaluation in WorldFoundry.
 ---
 
-## What It Measures
+## What it measures
 
 EvalCrafter is a 700-prompt text-to-video benchmark covering visual quality, content alignment, motion quality, and temporal consistency. The original benchmark reports 17 objective metrics plus human feedback; WorldFoundry exposes those objective scores through the in-tree EvalCrafter runner and `final_result.txt` parser.
 
 Use EvalCrafter when you need a broad diagnostic stack for generated videos rather than a physics-only or world-model-only benchmark.
 
-## Assets And Data
+## Assets and data
 
 WorldFoundry keeps the prompt suite and runtime in-tree:
 
@@ -22,7 +22,7 @@ WorldFoundry keeps the prompt suite and runtime in-tree:
 
 The optional public dataset asset is `RaphaelLiu/EvalCrafter_T2V_Dataset`, tracked in WorldFoundry as `evalcrafter_dataset_assets`.
 
-## Generated Artifacts
+## Generated artifacts
 
 The generated-video directory must be the inner directory containing exactly the videos for the 700 prompts:
 
@@ -103,7 +103,7 @@ worldfoundry-eval zoo benchmark-run \
   --json
 ```
 
-## Import Paths
+## Import paths
 
 For Python use:
 

@@ -13,10 +13,11 @@ import platform
 import shutil
 import subprocess
 import sys
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping as TypingMapping
+from typing import Any
+from typing import Mapping as TypingMapping
 
 from worldfoundry.core.io.paths import (
     artifact_root_path,
@@ -26,7 +27,6 @@ from worldfoundry.core.io.paths import (
     local_data_root_path,
     local_model_root_path,
 )
-
 
 EnvMapping = TypingMapping[str, str]
 

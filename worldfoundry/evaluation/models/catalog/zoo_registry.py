@@ -12,13 +12,11 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Iterable, Iterator, Mapping
 
-from .manifest import model_zoo_entries_to_world_model_manifests
-from .schema import ModelVariantSpec, ModelZooEntry, iter_model_zoo_payloads, load_entries
 from ...api import WorldModelManifest
 from ...api.registry import AliasRegistryStore, lookup_key
-from ...utils import load_manifest, manifest_paths
-from ...utils import MODEL_ZOO_DIR
-
+from ...utils import MODEL_ZOO_DIR, load_manifest, manifest_paths
+from .manifest import model_zoo_entries_to_world_model_manifests
+from .schema import ModelVariantSpec, ModelZooEntry, iter_model_zoo_payloads
 
 # ── Custom exceptions ────────────────────────────────────────
 
@@ -81,17 +79,24 @@ def _entry_tasks(entry: ModelZooEntry) -> tuple[str, ...]:
     return tuple(tasks)
 
 
-def _entry_aliases(entry: ModelZooEntry) -> tuple[str, ...]:
-    """Compile all unique names, repositories, and variant IDs as aliases for an entry."""
+def _entry_aliases(
+    entry: ModelZooEntry,
+    *,
+    excluded_hf_repo_aliases: frozenset[str] = frozenset(),
+) -> tuple[str, ...]:
+    """Compile unambiguous names, repositories, and variant IDs for an entry."""
     aliases: list[str] = []
     for value in (
         *entry.aliases,
         entry.name,
-        entry.hf_repo_id,
         *(variant.variant_id for variant in entry.variants),
     ):
         if value and value != entry.model_id and value not in aliases:
             aliases.append(value)
+    if entry.hf_repo_id:
+        repo_key = _normalise_key(entry.hf_repo_id)
+        if repo_key not in excluded_hf_repo_aliases and entry.hf_repo_id not in aliases:
+            aliases.append(entry.hf_repo_id)
     return tuple(aliases)
 
 
@@ -233,6 +238,7 @@ class ModelZooRegistry:
             unknown_error=lambda key: UnknownModelZooKeyError(f"unknown model-zoo entry: {key!r}"),
             field_name="model-zoo lookup key",
         )
+        self._ambiguous_hf_repo_aliases: set[str] = set()
         for entry in entries:
             self.register(entry)
 
@@ -274,7 +280,32 @@ class ModelZooRegistry:
         """Register a single model entry and its aliases in the registry."""
         if not isinstance(entry, ModelZooEntry):
             raise TypeError(f"expected ModelZooEntry, got {type(entry).__name__}")
-        registered, alias, existing = self._store.register_with_conflict(entry.model_id, _entry_aliases(entry), entry)
+        if entry.hf_repo_id:
+            repo_key = _normalise_key(entry.hf_repo_id)
+            if repo_key not in self._ambiguous_hf_repo_aliases:
+                try:
+                    repo_owner = self._store.get(entry.hf_repo_id)
+                except UnknownModelZooKeyError:
+                    repo_owner = None
+                if (
+                    repo_owner is not None
+                    and repo_owner.model_id != entry.model_id
+                    and repo_owner.hf_repo_id
+                    and _normalise_key(repo_owner.hf_repo_id) == repo_key
+                ):
+                    # One HF repository may intentionally host multiple immutable
+                    # model recipes (for example first- and third-person weights).
+                    # A shared repository identifier is not a resolvable model alias.
+                    self._store.discard_alias(entry.hf_repo_id)
+                    self._ambiguous_hf_repo_aliases.add(repo_key)
+        registered, alias, existing = self._store.register_with_conflict(
+            entry.model_id,
+            _entry_aliases(
+                entry,
+                excluded_hf_repo_aliases=frozenset(self._ambiguous_hf_repo_aliases),
+            ),
+            entry,
+        )
         if existing is not None:
             raise DuplicateModelZooKeyError(
                 f"duplicate model-zoo alias {_normalise_key(str(alias))!r}: "
@@ -305,7 +336,10 @@ class ModelZooRegistry:
     def aliases_for(self, key: str) -> tuple[str, ...]:
         """Get all resolved aliases for a given model ID."""
         entry = self.get(key)
-        return _entry_aliases(entry)
+        return _entry_aliases(
+            entry,
+            excluded_hf_repo_aliases=frozenset(self._ambiguous_hf_repo_aliases),
+        )
 
     def by_integration_status(self, status: str) -> tuple[ModelZooEntry, ...]:
         """Filter entries by their integration status."""

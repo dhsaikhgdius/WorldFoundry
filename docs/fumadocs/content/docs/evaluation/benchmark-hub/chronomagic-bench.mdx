@@ -3,13 +3,13 @@ title: ChronoMagic-Bench
 description: ChronoMagic-Bench time-lapse evaluation in WorldFoundry.
 ---
 
-## What It Measures
+## What it measures
 
 ChronoMagic-Bench evaluates text-to-time-lapse generation. It targets long-horizon metamorphic change: biological growth, human-created construction or fabrication, meteorological evolution, and physical transformations such as melting or baking.
 
 The official benchmark emphasizes metamorphic amplitude and temporal coherence rather than ordinary action-video quality. The paper reports 1,649 benchmark prompts across 4 categories and 75 subcategories; the in-tree WorldFoundry manifest tracks the Hugging Face `BestWishYsh/ChronoMagic-Bench` test split with 1,799 expected rows for local evidence and coverage accounting.
 
-## Assets And Data
+## Assets and data
 
 WorldFoundry vendors the official runner source in-tree:
 
@@ -24,7 +24,7 @@ WorldFoundry vendors the official runner source in-tree:
 
 Dataset assets may be downloaded from Hugging Face and pointed to with `WORLDFOUNDRY_CHRONOMAGIC_DATASET_ROOT`. The code does not require cloning an external source tree.
 
-## Generated Artifacts
+## Generated artifacts
 
 For close evaluation, ChronoMagic expects an input root containing a model subdirectory:
 
@@ -120,7 +120,7 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
   --json
 ```
 
-## Import Paths
+## Import paths
 
 For direct Python use:
 

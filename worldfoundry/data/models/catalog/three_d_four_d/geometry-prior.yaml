@@ -1,5 +1,5 @@
 id: geometry-prior
-name: Geometry Prior
+name: Geometry
 tasks:
 - geometry
 - 3d-reconstruction

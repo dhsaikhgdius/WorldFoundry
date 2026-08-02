@@ -7,9 +7,11 @@ import io
 import json
 import pickle
 import tarfile
+from collections.abc import Iterable, Iterator
 from dataclasses import asdict, is_dataclass
 from pathlib import Path
-from typing import IO, Any, Mapping, Sequence
+from typing import IO, Any, Mapping
+from uuid import uuid4
 
 import yaml
 
@@ -32,6 +34,9 @@ _BYTE_FORMATS = {"byte", "bytes", "binary"}
 _CSV_FORMATS = {"csv"}
 _PANDAS_FORMATS = {"pandas", "parquet", "feather"}
 _TAR_FORMATS = {"tar", "tgz", "tar.gz", "tar.xz", "tar.bz2"}
+
+JSONL_FLUSH_INTERVAL_ENV = "WORLDFOUNDRY_JSONL_FLUSH_INTERVAL"
+DEFAULT_JSONL_FLUSH_INTERVAL = 32
 
 
 def _callable_reference(value: Any) -> str:
@@ -107,23 +112,38 @@ def read_json_or_jsonl(path: str | Path) -> Any:
 
     source_path = Path(path)
     if source_path.suffix.lower() == ".jsonl":
-        return [json.loads(line) for line in source_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        return list(iter_jsonl(source_path))
     return read_json(source_path)
+
+
+def _iter_jsonl_rows(path: Path) -> Iterator[tuple[int, Any]]:
+    with path.open("r", encoding="utf-8") as handle:
+        for line_number, line in enumerate(handle, start=1):
+            if line.strip():
+                yield line_number, json.loads(line)
+
+
+def iter_jsonl(path: str | Path) -> Iterator[Any]:
+    """Yield decoded values from the non-empty lines of a local JSONL file."""
+
+    for _, row in _iter_jsonl_rows(Path(path)):
+        yield row
+
+
+def iter_jsonl_objects(path: str | Path) -> Iterator[dict[str, Any]]:
+    """Yield objects from JSONL without materializing the entire file."""
+
+    source_path = Path(path)
+    for line_number, row in _iter_jsonl_rows(source_path):
+        if not isinstance(row, Mapping):
+            raise TypeError(f"expected JSON object on JSONL line {line_number} in {source_path}")
+        yield dict(row)
 
 
 def read_jsonl_objects(path: str | Path) -> list[dict[str, Any]]:
     """Read a JSONL file containing one object per non-empty line."""
 
-    source_path = Path(path)
-    rows: list[dict[str, Any]] = []
-    for line_number, line in enumerate(source_path.read_text(encoding="utf-8").splitlines(), start=1):
-        if not line.strip():
-            continue
-        row = json.loads(line)
-        if not isinstance(row, Mapping):
-            raise TypeError(f"expected JSON object on JSONL line {line_number} in {source_path}")
-        rows.append(dict(row))
-    return rows
+    return list(iter_jsonl_objects(path))
 
 
 def _atomic_write_text(path: Path, text: str, *, atomic: bool) -> Path:
@@ -150,11 +170,106 @@ def write_json(path: str | Path, payload: Any, *, atomic: bool = True) -> Path:
     return _atomic_write_text(Path(path), text, atomic=atomic)
 
 
-def write_jsonl(path: str | Path, rows: Sequence[Mapping[str, Any]], *, atomic: bool = True) -> Path:
-    """Write JSONL rows with stable key ordering."""
+def _write_jsonl_rows(handle: IO[str], rows: Iterable[Mapping[str, Any]]) -> None:
+    handle.writelines(json.dumps(jsonable(row), ensure_ascii=False, sort_keys=True) + "\n" for row in rows)
 
-    text = "".join(json.dumps(jsonable(row), ensure_ascii=False, sort_keys=True) + "\n" for row in rows)
-    return _atomic_write_text(Path(path), text, atomic=atomic)
+
+def _resolve_jsonl_flush_interval(value: int | None) -> int:
+    if value is None:
+        import os
+
+        configured = os.environ.get(JSONL_FLUSH_INTERVAL_ENV, "").strip()
+        value = DEFAULT_JSONL_FLUSH_INTERVAL if not configured else int(configured)
+    interval = int(value)
+    if interval < 0:
+        raise ValueError("JSONL flush interval must be non-negative")
+    return interval
+
+
+class JsonlWriter:
+    """Keep one JSONL file handle open and periodically publish buffered rows.
+
+    The default flush interval bounds progress loss after an interrupted run
+    while avoiding one metadata-heavy open/close cycle per evaluation sample.
+    Set ``WORLDFOUNDRY_JSONL_FLUSH_INTERVAL=1`` for the former per-row flush
+    behavior, or ``0`` to flush only when the context closes.
+    """
+
+    def __init__(
+        self,
+        path: str | Path,
+        *,
+        mode: str = "w",
+        flush_every: int | None = None,
+    ) -> None:
+        if mode not in {"a", "w", "x"}:
+            raise ValueError("JSONL writer mode must be 'a', 'w', or 'x'")
+        self.path = Path(path)
+        self.mode = mode
+        self.flush_every = _resolve_jsonl_flush_interval(flush_every)
+        self._handle: IO[str] | None = None
+        self._pending_rows = 0
+
+    def __enter__(self) -> "JsonlWriter":
+        if self._handle is not None:
+            raise RuntimeError("JSONL writer is already open")
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._handle = self.path.open(self.mode, encoding="utf-8", buffering=1024 * 1024)
+        return self
+
+    def write(self, row: Mapping[str, Any]) -> None:
+        if self._handle is None:
+            raise RuntimeError("JSONL writer must be used inside a context manager")
+        self._handle.write(json.dumps(jsonable(row), ensure_ascii=False, sort_keys=True))
+        self._handle.write("\n")
+        self._pending_rows += 1
+        if self.flush_every and self._pending_rows >= self.flush_every:
+            self.flush()
+
+    def write_many(self, rows: Iterable[Mapping[str, Any]]) -> None:
+        for row in rows:
+            self.write(row)
+
+    def flush(self) -> None:
+        if self._handle is None:
+            return
+        self._handle.flush()
+        self._pending_rows = 0
+
+    def close(self) -> None:
+        if self._handle is None:
+            return
+        handle, self._handle = self._handle, None
+        try:
+            handle.flush()
+        finally:
+            handle.close()
+            self._pending_rows = 0
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        del exc_type, exc_value, traceback
+        self.close()
+
+
+def write_jsonl(path: str | Path, rows: Iterable[Mapping[str, Any]], *, atomic: bool = True) -> Path:
+    """Stream JSONL rows with stable key ordering and optional atomic replacement."""
+
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    if not atomic:
+        with destination.open("w", encoding="utf-8") as handle:
+            _write_jsonl_rows(handle, rows)
+        return destination
+
+    temporary_path = destination.with_name(f".{destination.name}.{uuid4().hex}.tmp")
+    try:
+        with temporary_path.open("x", encoding="utf-8") as handle:
+            _write_jsonl_rows(handle, rows)
+        temporary_path.replace(destination)
+    except BaseException:
+        temporary_path.unlink(missing_ok=True)
+        raise
+    return destination
 
 
 def append_jsonl(path: str | Path, row: Mapping[str, Any]) -> Path:
@@ -496,6 +611,9 @@ def _torch_load_from_bytes(data: bytes, **kwargs: Any) -> Any:
 
 
 __all__ = [
+    "DEFAULT_JSONL_FLUSH_INTERVAL",
+    "JSONL_FLUSH_INTERVAL_ENV",
+    "JsonlWriter",
     "dump_serialized",
     "infer_serialization_format",
     "load_serialized",

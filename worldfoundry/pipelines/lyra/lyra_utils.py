@@ -20,7 +20,6 @@ from worldfoundry.core.io import (
     save_video_frames,
     video_tensor_to_uint8_frames,
 )
-from worldfoundry.core.attention import scaled_dot_product_attention as _worldfoundry_scaled_dot_product_attention
 from worldfoundry.core.io.paths import checkpoint_root_path, hfd_root_path
 
 
@@ -301,7 +300,7 @@ def prepare_lyra1_checkpoint_root(
     repo_root: Optional[str] = None,
 ) -> str:
     """Prepare lyra1 checkpoint root helper function."""
-    from ...base_models.diffusion_model.video.cosmos.cosmos1.cosmos_predict1_gen3c import (
+    from ...synthesis.visual_generation.gen3c.runtime_env import (
         prepare_gen3c_checkpoint_root,
     )
 
@@ -371,143 +370,6 @@ def configure_lyra_runtime_env():
     # Keep FlashAttention/unfused paths enabled, but disable the fused backend by default.
     """Configure lyra runtime env helper function."""
     os.environ.setdefault("NVTE_FUSED_ATTN", "0")
-
-
-def patch_lyra_attention_runtime() -> bool:
-    """Patch lyra attention runtime helper function."""
-    try:
-        from worldfoundry.base_models.diffusion_model.video.cosmos.cosmos2.runtime.cosmos_predict2.cosmos_predict2._src.predict2.networks import (
-            attention as lyra_attention,
-        )
-        import lyra_2._src.modules.clip as lyra_clip
-    except ModuleNotFoundError:
-        return False
-
-    if getattr(lyra_attention, "_worldfoundry_native_cudnn_fallback_patch", False):
-        return False
-
-    original_attention = lyra_attention.attention
-
-    def _attention_without_cudnn(
-        q,
-        k,
-        v,
-        q_lens=None,
-        k_lens=None,
-        dropout_p=0.0,
-        softmax_scale=None,
-        q_scale=None,
-        causal=False,
-        deterministic=False,
-        # Use bfloat16 precision to balance memory efficiency and numeric range
-        dtype=torch.bfloat16,
-    ):
-        """Attention without cudnn helper function."""
-        # Use bfloat16 precision to balance memory efficiency and numeric range
-        supported_dtypes = [torch.bfloat16, torch.float16, torch.float32]
-        # Use bfloat16 precision to balance memory efficiency and numeric range
-        is_half = dtype in [torch.bfloat16, torch.float16]
-        compute_cap = lyra_attention.get_device_cc(q.device)
-
-        if dtype not in supported_dtypes:
-            raise NotImplementedError(f"{dtype=} is not supported.")
-
-        q = q.to(dtype)
-        k = k.to(dtype)
-        v = v.to(dtype)
-
-        if q_scale is not None:
-            q = q * q_scale
-
-        if compute_cap == 90 and lyra_attention.FLASH_ATTN_3_AVAILABLE and is_half:
-            return lyra_attention.flash_attn_func(
-                q=q,
-                k=k,
-                v=v,
-                softmax_scale=softmax_scale,
-                causal=causal,
-                deterministic=deterministic,
-            )[0]
-
-        if is_half:
-            sdpa_backends = ["flash", "efficient", "math"]
-        else:
-            assert dtype == torch.float32, f"Unrecognized {dtype=}."
-            sdpa_backends = ["efficient", "math"]
-
-        if deterministic:
-            raise NotImplementedError(
-                "Deterministic mode in attention is only supported when Flash Attention 3 is available."
-            )
-
-        q = q.transpose(1, 2)
-        k = k.transpose(1, 2)
-        v = v.transpose(1, 2)
-
-        out = _worldfoundry_scaled_dot_product_attention(
-            q,
-            k,
-            v,
-            is_causal=causal,
-            dropout_p=dropout_p,
-            scale=softmax_scale,
-            backends=sdpa_backends,
-        )
-
-        return out.transpose(1, 2).contiguous()
-
-    def attention_with_cudnn_fallback(
-        q,
-        k,
-        v,
-        q_lens=None,
-        k_lens=None,
-        dropout_p=0.0,
-        softmax_scale=None,
-        q_scale=None,
-        causal=False,
-        deterministic=False,
-        # Use bfloat16 precision to balance memory efficiency and numeric range
-        dtype=torch.bfloat16,
-    ):
-        """Attention with cudnn fallback helper function."""
-        try:
-            return original_attention(
-                q=q,
-                k=k,
-                v=v,
-                q_lens=q_lens,
-                k_lens=k_lens,
-                dropout_p=dropout_p,
-                softmax_scale=softmax_scale,
-                q_scale=q_scale,
-                causal=causal,
-                deterministic=deterministic,
-                dtype=dtype,
-            )
-        except RuntimeError as error:
-            message = str(error).lower()
-            if "cudnn" not in message:
-                raise
-            return _attention_without_cudnn(
-                q=q,
-                k=k,
-                v=v,
-                q_lens=q_lens,
-                k_lens=k_lens,
-                dropout_p=dropout_p,
-                softmax_scale=softmax_scale,
-                q_scale=q_scale,
-                causal=causal,
-                deterministic=deterministic,
-                dtype=dtype,
-            )
-
-    lyra_attention.attention = attention_with_cudnn_fallback
-    lyra_clip.attention = attention_with_cudnn_fallback
-    lyra_attention._worldfoundry_native_cudnn_fallback_patch = True
-    lyra_clip._worldfoundry_native_cudnn_fallback_patch = True
-    return True
 
 
 def resolve_path(path_value: Optional[str], repo_root: str) -> Optional[str]:

@@ -1,5 +1,5 @@
 ---
-title: Add a Model
+title: Add a model
 description: Checklist for adding model manifests, runtime profiles, runners, checkpoints, operators, and pipelines.
 ---
 
@@ -143,7 +143,7 @@ Attach enough context for a reviewer to rerun your path without guessing machine
 
 - **Manifest diff** — Relevant `worldfoundry/data/models/catalog/<category>/<model-id>.yaml` entry.
 - **Source checks** — `tmp/model_zoo/validation/<model-id>/report.json`.
-- **Checkpoint state** — Cache location and repo id, without committing the checkpoint.
+- **Checkpoint state** — Cache location and repo ID, without committing the checkpoint.
 - **Demo parity** — Official command, raw logs, generated artifact path.
 - **Runner parity** — WorldFoundry runner command and output artifact path.
 - **Tests** — Focused files under `test/` or `test_stream/`.
@@ -151,7 +151,7 @@ Attach enough context for a reviewer to rerun your path without guessing machine
 
 Do not commit checkpoints, generated videos, local caches, API keys, or private assets.
 
-## Cache Boundary
+## Cache boundary
 
 Cache paths are allowed only for temporary downloads, checkpoint copies, dataset mirrors, official-runtime clone caches, generated previews, and logs. Do not put model architecture code in `cache/`, and do not make an in-tree runner import Python modules from a cache path. If the runner requires architecture code, place that code under `worldfoundry/` and review it with the model integration.
 

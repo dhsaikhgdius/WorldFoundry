@@ -1,0 +1,107 @@
+family: Matrix-Game
+id: matrix-game-3.5-first-person
+provider: Riemann Dynamics
+name: Matrix-Game 3.5 First-Person Base
+aliases:
+- matrix-game-3.5-fp
+- matrix-game-35-first-person
+tasks:
+- image-to-video
+- camera-controlled-video
+- interactive-world-model
+- long-horizon-generation
+modalities:
+- image
+- text
+- camera-trajectory
+- video
+output_artifacts:
+- generated_world_video
+checkpoint_refs:
+- repo_id: RiemannDynamics/Matrix-Game-3.5-Base
+  revision: 40c172355efa32d4e2a44076569e310807788f8a
+  filename: first-person.safetensors
+  license: apache-2.0
+  gated: false
+- repo_id: Wan-AI/Wan2.2-TI2V-5B
+  revision: 921dbaf3f1674a56f47e83fb80a34bac8a8f203e
+  license: apache-2.0
+  gated: false
+- repo_id: depth-anything/DA3NESTED-GIANT-LARGE-1.1
+  revision: b2359bdf726fb44ef62acca04d629dcf158053e7
+  license: cc-by-nc-4.0
+  gated: false
+official_sources:
+  project_page: https://matrix-game-v3-5.github.io/
+  technical_report: https://matrix-game-v3-5.github.io/paper/Matrix-Game-3.5.pdf
+  github:
+    url: https://github.com/Riemann-Dynamics/Matrix-Game-3.5
+    revision: 6c94dd787659aa19fac22581cd8bea54e65d813f
+  model_hub:
+    url: https://huggingface.co/RiemannDynamics/Matrix-Game-3.5-Base
+    repo_id: RiemannDynamics/Matrix-Game-3.5-Base
+    filename: first-person.safetensors
+    dependencies:
+    - repo_id: Wan-AI/Wan2.2-TI2V-5B
+      role: backbone
+    - repo_id: depth-anything/DA3NESTED-GIANT-LARGE-1.1
+      role: depth_estimator
+  huggingface:
+  - repo_id: RiemannDynamics/Matrix-Game-3.5-Base
+    revision: 40c172355efa32d4e2a44076569e310807788f8a
+    status: confirmed
+    type: model
+  - repo_id: Wan-AI/Wan2.2-TI2V-5B
+    revision: 921dbaf3f1674a56f47e83fb80a34bac8a8f203e
+    status: confirmed
+    type: model
+  - repo_id: depth-anything/DA3NESTED-GIANT-LARGE-1.1
+    revision: b2359bdf726fb44ef62acca04d629dcf158053e7
+    status: confirmed
+    type: model
+runtime_profile: runtime-profile:matrix-game-3.5-first-person
+pipeline_binding: matrix-game-3.5-first-person
+release_type: code_and_base_weights
+license: apache-2.0
+integration:
+  status: integrated
+  notes:
+  - Revision-pinned inference behavior is integrated through the canonical NativeDiffusionPipeline; no DiffSynth Matrix pipeline remains.
+  - This model ID is permanently bound to first-person.safetensors; it does not share a mutable person-mode switch with the third-person model.
+  - Checkpoints remain external assets; the shared resolver prefers staged local files and can materialize missing Hub files.
+  - The DA3NESTED-GIANT-LARGE-1.1 dependency is CC-BY-NC-4.0; users must follow its separate non-commercial checkpoint license.
+native_diffusion:
+  recipe_id: matrix-game-3.5-first-person
+  status: assembly_and_checkpoint_structure_verified
+  strategy: standard
+  components:
+  - conditioner
+  - latent_initializer
+  - scheduler
+  - denoiser
+  - decoder
+  checkpoint_key_validation:
+    dit: 829
+    text_encoder: 242
+    vae: 196
+  subject_reference_embedding_capacity: 2
+  artifact_parity: pending_after_native_cutover
+  notes: Mosaic, PRoPE, and subject memory are denoiser conditions; loading, scheduling, CFG, and execution are shared infrastructure.
+runner_parity:
+  status: pending_official_sample_parity
+  notes:
+  - CPU contract validation covers model identity, asset resolution, camera NPZ validation, command construction, and result normalization.
+  - On 2026-07-20, the pinned first-person checkpoint completed the default 25-step, one-block route on an A100 80GB and exported 85 non-empty 1280x704 frames at 16 fps (sha256 91893227d7f356d10cead6acd4a8acc8bef599343ab76a11c1856170cff1a5c3).
+  - Contact-sheet inspection found stable scene structure with mild camera change and color drift; this validates the checkpoint-backed route, not official sample-quality parity.
+  - The recorded A100 artifact predates the final NativeDiffusionPipeline cutover and must be regenerated before native artifact parity can be claimed.
+  - Reproduction against an upstream official input/trajectory artifact and benchmark scoring remain pending.
+starred: true
+catalog_category: world_models
+catalog_scope: Matrix-Game independent inference models
+runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
+availability:
+  status: open_source
+  open_source: true
+  code: in_tree_native_infer
+  weights: public_upstream
+  license: apache-2.0

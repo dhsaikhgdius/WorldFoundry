@@ -35,10 +35,10 @@ from diffusers.models.lora import adjust_lora_scale_text_encoder
 from diffusers.utils.torch_utils import randn_tensor
 
 from ...constants import PRECISION_TO_TYPE
-from worldfoundry.base_models.diffusion_model.video.hunyuan_video.vae.autoencoder_kl_causal_3d import (
+from worldfoundry.base_models.diffusion_model.models.autoencoders.hunyuan_video import (
     AutoencoderKLCausal3D
 )
-from worldfoundry.base_models.diffusion_model.video.hunyuan_video.diffusion.pipelines.pipeline_hunyuan_video import (
+from worldfoundry.synthesis.visual_generation.hunyuan_world.hunyuan_video_pipeline_compat import (
     rescale_noise_cfg,
     retrieve_timesteps,
     HunyuanVideoPipelineOutput,

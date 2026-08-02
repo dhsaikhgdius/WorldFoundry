@@ -1,0 +1,28 @@
+---
+title: SANA-WM 80-Scene Benchmark
+description: In-tree evaluation for minute-scale, camera-controlled world-model video.
+---
+
+SANA-WM Bench evaluates 80 fixed first-frame scenes under two 60-second camera trajectory splits: `simple_60s` and `hard_60s`. Each trajectory has 961 frames at 16 FPS.
+
+WorldFoundry keeps the benchmark layout, generation requests, VBench protocol, revisit consistency, temporal degradation, result importer, and scorecard writer in tree. It reuses the resident VBench and Pi3 model surfaces; it does not execute an external Sana checkout.
+
+Download the public dataset first:
+
+```bash
+huggingface-cli download Efficient-Large-Model/SANA-WM-Bench \
+  --repo-type dataset --local-dir data/SANA-WM-Bench
+```
+
+Run a selected split from clean `<scene_id>_generated.mp4` artifacts:
+
+```bash
+worldfoundry-eval zoo benchmark-run \
+  --benchmark-id sana-wm-bench --mode official-run \
+  --dataset-root data/SANA-WM-Bench \
+  --generated-artifact-dir results/my_method \
+  --output-dir tmp/sana-wm-bench --json
+```
+
+The runner reports VBench Overall, revisit PSNR/SSIM, temporal `Delta IQ`, and any supplied `eval_poses.json` pose metrics. Fresh Pi3 camera estimation is intentionally a separate distributed GPU stage, then its per-split `eval_poses.json` is consumed by this in-tree runner. A local scorecard is not an NVIDIA leaderboard submission.
+

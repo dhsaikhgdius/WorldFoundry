@@ -1,7 +1,13 @@
 {
-  "modelsTotal": 202,
-  "benchmarksTotal": 66,
+  "modelsTotal": 226,
+  "benchmarksTotal": 70,
   "infrastructure": [
+    {
+      "name": "Hugging Face Finetrainers",
+      "url": "https://github.com/huggingface/finetrainers",
+      "summary": "Video diffusion training reference used to cross-check Wan flow, preprocessing, and LoRA semantics.",
+      "summary_zh": "用于交叉核对 Wan flow、预处理与 LoRA 语义的视频扩散训练参考实现。"
+    },
     {
       "name": "FastVideo",
       "url": "https://github.com/hao-ai-lab/FastVideo",
@@ -190,7 +196,7 @@
       "id": "world_models",
       "label": "World models",
       "labelZh": "世界模型",
-      "count": 80,
+      "count": 87,
       "entries": [
         {
           "name": "ABot-World-0-5B-LF",
@@ -203,6 +209,10 @@
         {
           "name": "AdaWorld",
           "url": "https://github.com/Little-Podi/AdaWorld"
+        },
+        {
+          "name": "AlayaWorld",
+          "url": "https://github.com/AlayaLab/AlayaWorld"
         },
         {
           "name": "Astra",
@@ -219,6 +229,14 @@
         {
           "name": "Causal-Forcing",
           "url": "https://github.com/thu-ml/Causal-Forcing"
+        },
+        {
+          "name": "Causal-rCM",
+          "url": "https://github.com/NVlabs/rcm"
+        },
+        {
+          "name": "Cosmos Predict 2",
+          "url": "https://github.com/nvidia-cosmos/cosmos-predict2"
         },
         {
           "name": "Cosmos Predict 2.5",
@@ -263,6 +281,10 @@
         {
           "name": "Echo-Infinity",
           "url": "https://github.com/Echo-Team-Joy-Future-Academy-JD/Echo-Infinity"
+        },
+        {
+          "name": "Echo-Memory Context K=1",
+          "url": "https://github.com/Echo-Team-Joy-Future-Academy-JD/Echo-Memory"
         },
         {
           "name": "EgoWM",
@@ -365,6 +387,10 @@
           "url": "https://github.com/SkyworkAI/Matrix-Game"
         },
         {
+          "name": "Matrix-Game 3.5 First-Person Base",
+          "url": "https://github.com/Riemann-Dynamics/Matrix-Game-3.5"
+        },
+        {
           "name": "MineWorld",
           "url": "https://github.com/microsoft/mineworld"
         },
@@ -407,6 +433,14 @@
         {
           "name": "OmniForcing",
           "url": "https://github.com/OmniForcing/OmniForcing"
+        },
+        {
+          "name": "Open Dreamer",
+          "url": "https://github.com/next-state/open-dreamer"
+        },
+        {
+          "name": "Open Dreamer",
+          "url": "https://github.com/reactor-team/open-dreamer"
         },
         {
           "name": "Pandora",
@@ -549,7 +583,7 @@
           "url": "https://github.com/LiheYoung/Depth-Anything"
         },
         {
-          "name": "Depth Anything V2 Prior",
+          "name": "Depth Anything V2",
           "url": "https://github.com/DepthAnything/Depth-Anything-V2"
         },
         {
@@ -581,7 +615,7 @@
           "url": "https://github.com/GaussianObject/GaussianObject"
         },
         {
-          "name": "GeoCalib Prior",
+          "name": "GeoCalib",
           "url": "https://github.com/cvg/GeoCalib"
         },
         {
@@ -613,7 +647,7 @@
           "url": "https://github.com/nv-tlabs/lyra"
         },
         {
-          "name": "Metric3D Prior",
+          "name": "Metric3D",
           "url": "https://github.com/YvanYin/Metric3D"
         },
         {
@@ -649,7 +683,7 @@
           "url": "https://github.com/CVMI-Lab/SC-GS"
         },
         {
-          "name": "Segment and Track Anything Prior",
+          "name": "Segment and Track Anything",
           "url": "https://github.com/z-x-yang/Segment-and-Track-Anything"
         },
         {
@@ -669,11 +703,11 @@
           "url": "https://github.com/hustvl/TiNeuVox"
         },
         {
-          "name": "UniDepth V2 Prior",
+          "name": "UniDepth V2",
           "url": "https://github.com/lpiccinelli-eth/UniDepth"
         },
         {
-          "name": "UniK3D Prior",
+          "name": "UniK3D",
           "url": "https://github.com/lpiccinelli-eth/UniK3D"
         },
         {
@@ -681,7 +715,7 @@
           "url": "https://github.com/facebookresearch/vggt"
         },
         {
-          "name": "Video Depth Anything Prior",
+          "name": "Video Depth Anything",
           "url": "https://github.com/DepthAnything/Video-Depth-Anything"
         },
         {
@@ -702,11 +736,23 @@
       "id": "vla_va_wam",
       "label": "Embodied",
       "labelZh": "具身智能",
-      "count": 39,
+      "count": 56,
       "entries": [
+        {
+          "name": "A1",
+          "url": "https://github.com/ATeam-Research/A1"
+        },
+        {
+          "name": "ABot-M0",
+          "url": "https://github.com/amap-cvlab/ABot-Manipulation"
+        },
         {
           "name": "Action Chunking Transformer",
           "url": "https://github.com/tonyzhaozh/act"
+        },
+        {
+          "name": "AHA-WAM",
+          "url": "https://github.com/Serene-SIVY/AHA-WAM"
         },
         {
           "name": "Being-H0.5",
@@ -717,24 +763,48 @@
           "url": "https://github.com/microsoft/CogACT"
         },
         {
-          "name": "DB-CogACT / Dexbotic",
-          "url": "https://github.com/Dexmal/dexbotic"
+          "name": "Dexora 1B",
+          "url": "https://github.com/dexoravla/Dexora"
         },
         {
           "name": "Diffusion Policy",
           "url": "https://github.com/real-stanford/diffusion_policy"
         },
         {
+          "name": "DM0",
+          "url": "https://github.com/Dexmal/dexbotic"
+        },
+        {
           "name": "EO-1",
           "url": "https://github.com/EO-Robotics/EO"
+        },
+        {
+          "name": "EventVLA",
+          "url": "https://github.com/InternRobotics/EventVLA"
         },
         {
           "name": "FastWAM",
           "url": "https://github.com/yuantianyuan01/FastWAM"
         },
         {
+          "name": "Galaxea G0Plus",
+          "url": "https://github.com/OpenGalaxea/GalaxeaVLA"
+        },
+        {
           "name": "GigaBrain-0",
           "url": "https://github.com/open-gigaai/giga-brain-0"
+        },
+        {
+          "name": "GigaWorld-Policy-0.5",
+          "url": "https://github.com/open-gigaai/giga-world-policy"
+        },
+        {
+          "name": "GO-1",
+          "url": "https://github.com/OpenDriveLab/AgiBot-World"
+        },
+        {
+          "name": "H-RDT",
+          "url": "https://github.com/HongzheBi/H_RDT"
         },
         {
           "name": "HY-Embodied",
@@ -745,12 +815,20 @@
           "url": "https://github.com/Tencent-Hunyuan/Hy-Embodied-0.5-VLA"
         },
         {
+          "name": "InternVLA-A1-3B",
+          "url": "https://github.com/InternRobotics/InternVLA-A-series"
+        },
+        {
           "name": "LaST-R1",
           "url": "https://github.com/CHEN-H01/LaST-R1"
         },
         {
           "name": "Latent Action Pretraining",
           "url": "https://github.com/LatentActionPretraining/LAPA"
+        },
+        {
+          "name": "LDA-1B",
+          "url": "https://github.com/jiangranlv/LDA-1B"
         },
         {
           "name": "LIBERO-Para",
@@ -767,6 +845,10 @@
         {
           "name": "LingBot-VLA 2.0",
           "url": "https://github.com/Robbyant/lingbot-vla-v2"
+        },
+        {
+          "name": "Mem-0",
+          "url": "https://github.com/RoboTwin-Platform/RMBench"
         },
         {
           "name": "MME-VLA",
@@ -809,8 +891,16 @@
           "url": "https://github.com/Physical-Intelligence/openpi"
         },
         {
+          "name": "RDT-1B",
+          "url": "https://github.com/thu-ml/RoboticsDiffusionTransformer"
+        },
+        {
           "name": "Real-Time Chunking",
           "url": "https://github.com/Physical-Intelligence/real-time-chunking-kinetix"
+        },
+        {
+          "name": "RISE",
+          "url": "https://github.com/OpenDriveLab/RISE"
         },
         {
           "name": "RoboFlamingo",
@@ -829,12 +919,20 @@
           "url": "https://github.com/OpenHelix-Team/Spatial-Forcing"
         },
         {
+          "name": "Spirit-VLA v1.5",
+          "url": "https://github.com/Spirit-AI-Team/spirit-v1.5"
+        },
+        {
           "name": "StarVLA",
           "url": "https://github.com/starVLA/starVLA"
         },
         {
           "name": "TD-MPC",
           "url": "https://github.com/nicklashansen/tdmpc"
+        },
+        {
+          "name": "TinyVLA",
+          "url": "https://github.com/liyaxuanliyaxuan/TinyVLA"
         },
         {
           "name": "VLANeXt",
@@ -859,6 +957,10 @@
         {
           "name": "Xiaomi-Robotics-0",
           "url": "https://github.com/XiaomiRobotics/Xiaomi-Robotics-0"
+        },
+        {
+          "name": "Xiaomi-Robotics-1",
+          "url": "https://github.com/XiaomiRobotics/Xiaomi-Robotics-1"
         }
       ]
     },
@@ -875,7 +977,7 @@
       "id": "video",
       "label": "Video & world benchmarks",
       "labelZh": "视频与世界模型评测",
-      "count": 43,
+      "count": 47,
       "entries": [
         {
           "name": "4DWorldBench",
@@ -886,6 +988,11 @@
           "name": "AIGCBench",
           "url": "https://github.com/BenchCouncil/AIGCBench",
           "repo": "BenchCouncil/AIGCBench"
+        },
+        {
+          "name": "Apple-PI",
+          "url": "https://github.com/21yrm/Apple-PI",
+          "repo": "21yrm/Apple-PI"
         },
         {
           "name": "CameraBench",
@@ -931,6 +1038,11 @@
           "name": "iWorld-Bench",
           "url": "https://github.com/EmbodiedCity/iWorld-Bench",
           "repo": "EmbodiedCity/iWorld-Bench"
+        },
+        {
+          "name": "LikePhys",
+          "url": "https://github.com/YuanJianhao508/LikePhys",
+          "repo": "YuanJianhao508/LikePhys"
         },
         {
           "name": "MemoBench",
@@ -981,6 +1093,11 @@
           "name": "PhysVidBench",
           "url": "https://github.com/ensanli/PhysVidBenchCode",
           "repo": "ensanli/PhysVidBenchCode"
+        },
+        {
+          "name": "RBench",
+          "url": "https://github.com/DAGroup-PKU/ReVidgen",
+          "repo": "DAGroup-PKU/ReVidgen"
         },
         {
           "name": "T2V-CompBench",
@@ -1076,6 +1193,11 @@
           "name": "WorldModelBench",
           "url": "https://github.com/WorldModelBench-Team/WorldModelBench",
           "repo": "WorldModelBench-Team/WorldModelBench"
+        },
+        {
+          "name": "WorldOlympiad",
+          "url": "https://github.com/alibaba-damo-academy/WorldOlympiad",
+          "repo": "alibaba-damo-academy/WorldOlympiad"
         },
         {
           "name": "WorldReasonBench",

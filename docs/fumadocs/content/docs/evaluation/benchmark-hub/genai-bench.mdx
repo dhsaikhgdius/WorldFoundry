@@ -3,13 +3,13 @@ title: GenAI-Bench
 description: Pairwise human-preference GenAI-Bench evaluation with WorldFoundry's checked-in runner, assets, commands, metrics, and current gaps.
 ---
 
-## What It Measures
+## What it measures
 
 GenAI-Bench evaluates whether a multimodal judge agrees with human pairwise preferences for generated content. The local GenAI-Bench README describes three preference tracks: image generation, image editing, and video generation. Each example asks the judge to choose between two generated artifacts with labels such as `A>B`, `B>A`, `A=B=Good`, and `A=B=Bad`.
 
 WorldFoundry uses the checked-in runner at `worldfoundry/evaluation/tasks/execution/runners/genai_bench/run_genai_bench_official_runner.py`. Do not make a separate copy of the official repo for normal WorldFoundry use. Treat the upstream paper and official README as protocol references; the runnable WorldFoundry path is already in this tree.
 
-## Prepare Data And Assets
+## Prepare data and assets
 
 Use one of these input styles:
 
@@ -43,7 +43,7 @@ export WORLDFOUNDRY_T2V_METRICS_CACHE_DIR=/path/to/checkpoints
 export WORLDFOUNDRY_T2V_METRICS_DEVICE=cuda
 ```
 
-## Input And Output Layout
+## Input and output layout
 
 Example generated artifact layout:
 
@@ -94,7 +94,7 @@ worldfoundry-eval zoo benchmark-run \
 
 The public catalog entry does not publish a full `official-run` command for GenAI-Bench. Use the direct runner below when you need the checked-in scorer path.
 
-## Direct Runner
+## Direct runner
 
 Import an existing preference-result file:
 

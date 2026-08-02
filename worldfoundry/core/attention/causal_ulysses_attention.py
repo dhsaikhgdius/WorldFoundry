@@ -1,5 +1,5 @@
-from worldfoundry.base_models.diffusion_model.video.wan.wan_2p2.modules.lingbot_attention import flash_attention
 from worldfoundry.core.attention.ulysses_attention import distributed_attention as _distributed_attention
+from worldfoundry.core.attention.varlen import flash_attention
 
 
 def distributed_attention(

@@ -1,0 +1,262 @@
+---
+title: WorldOlympiad
+description: WorldOlympiad — metrics, requirements, and run commands.
+---
+
+## About
+
+Triathlon evaluation of long-video world models across physical faithfulness, geometric consistency, and long-horizon interaction fidelity. The benchmark covers 1,000 long videos — 400 robotics, 400 gaming, and 200 general real-world — and diagnoses where a pipeline fails rather than reducing it to one aggregate number.
+
+**WorldFoundry evaluation path:** Runs the official batch evaluator that is checked in under the runner with `--run-official` — no external checkout is required — or imports existing judge outputs into a WorldFoundry scorecard with `--official-results-path`.
+
+The official evaluator is vendored unmodified at revision `bb2e240`; see [`runtime/WORLDFOUNDRY_PROVENANCE.md`](https://github.com/alibaba-damo-academy/WorldOlympiad) in the runner directory for the pinned revision, exclusions, and license status. The upstream repository publishes no LICENSE file at that revision, so confirm terms with the upstream authors before redistributing the vendored directory.
+
+## Integration status
+
+| Item | Current state |
+| --- | --- |
+| Catalog integration | `integrated` |
+| Runner verification | `in_tree_runtime_plan_verified` — the batch plan runs end to end; a scored triathlon has not been executed |
+| Leaderboard | not yet eligible for leaderboard claims |
+
+## Evaluation protocol
+
+WorldOlympiad decomposes world-model evaluation into three tracks:
+
+| Track | What it tests | Main signals |
+| --- | --- | --- |
+| Physical | Whether generated behavior follows physical rules. | Mechanics, thermodynamics, and material-property compliance judged with SAM3-assisted object evidence and MLLM scoring. |
+| Geometry | Whether the video preserves coherent 3D structure. | DA3 reconstruction quality, meta-view consistency, and recovered camera-trajectory alignment. |
+| Interaction | Whether the rollout follows long-horizon prompts. | Chunk-level instruction following, transition smoothness, full-video consistency, and CLIP semantic grounding. |
+
+The official evaluator expects one directory per case and writes score files next to the videos, so interrupted batches resume without recomputing finished cases:
+
+```text
+<case_root>/
+  general/
+    <case_id>/
+      prompt.json
+      ref_<case_id>.mp4
+      <prefix>_gen_<case_id>.mp4
+      <prefix>_gen_<case_id>_chunk_timestamps.json
+      <prefix>_judge_<case_id>.json      # written by the evaluator
+  gaming/ ...
+  embodied/ ...
+```
+
+The WorldFoundry runner accepts any of the artifacts that layout produces:
+
+- a case root directory (judge files are discovered recursively),
+- a single `<prefix>_judge_<case_id>.json`,
+- a `batch_scheduler` `summary.jsonl` whose rows point at judge files,
+- an aggregate JSON written by the upstream `summarize_scores.py`.
+
+## Metrics
+
+### Task YAML
+
+`worldfoundry/data/benchmarks/tasks/external/worldolympiad.yaml`
+
+### Primary
+
+- `combined_score`
+
+| Metric | Track | Native scale | Focus |
+| --- | --- | --- | --- |
+| `combined_score` | aggregate | 0–1 | Mean of the physical, interaction, and geometry track scores. |
+| `physical_score` | physical | 0–1 | Confidence-weighted compliance over physics questions the judge marked related. |
+| `physical_mechanics` | physical | 0–1 | Physical score restricted to mechanics questions. |
+| `physical_thermotics` | physical | 0–1 | Physical score restricted to thermodynamics questions. |
+| `physical_material` | physical | 0–1 | Physical score restricted to material-property questions. |
+| `physical_compliance_rate` | physical | 0–1 | Corpus-wide compliant questions divided by related questions. |
+| `three_d_score` | geometry | 0–1 | DA3 geometry score normalized from the native 0–3 range. |
+| `three_d_raw` | geometry | 0–3 | Sum of the Gaussian-splatting, meta-view, and camera-motion components. |
+| `gs_score` | geometry | 0–1 | Gaussian-splatting reconstruction quality component. |
+| `meta_view_score` | geometry | 0–1 | Diagnostic meta-view consistency component. |
+| `camera_motion_score` | geometry | 0–1 | Alignment between recovered and reference camera trajectories. |
+| `interaction_score` | interaction | 0–1 | VLM interaction score normalized from the native 0–5 range. |
+| `interaction_raw` | interaction | 0–5 | Mean of the chunk, transition, and global interaction judgements. |
+| `chunk_instruction_following` | interaction | 0–5 | Per-chunk prompt adherence against the chunk timestamps. |
+| `transition_smoothness` | interaction | 0–5 | Smoothness across adjacent generated chunk boundaries. |
+| `global_consistency` | interaction | 0–5 | Whole-video consistency and global text alignment. |
+| `clip_semantic_adherence` | interaction | 0–1 | CLIP similarity between sampled chunk frames and their captions. |
+
+Per-case score fields are averaged across cases, matching the upstream summarizer. `physical_compliance_rate` is accumulated corpus-wide because the upstream summarizer aggregates question verdicts as counts. Every metric also carries a unit-interval `normalized_score` in `raw_metric_table.jsonl`.
+
+## Environment setup
+
+### In-tree runtime
+
+The official evaluator lives at:
+
+```text
+worldfoundry/evaluation/tasks/execution/runners/worldolympiad/
+  run_worldolympiad_official_runner.py    # WorldFoundry entry point
+  worldolympiad_metrics.py                # judge-output normalizer
+  runtime/
+    WORLDFOUNDRY_PROVENANCE.md            # upstream revision, exclusions, license status
+    worldolympiad/                        # vendored official evaluator
+      batch_test/evaluate_pipelines.py    # batch entry point
+      scripts/score_video_physical_3d.py  # single-case scorer
+      physical/  3d_metrics/  interaction/  model/  problem/
+```
+
+The vendored tree is **read-only**. The runner refuses an `--output-dir` or `--weights-dir` that resolves inside it, and passes every weight path explicitly so upstream never defaults them into the source tree.
+
+### Runtime environment
+
+- **Conda env:** `worldfoundry-unified-cu128`.
+- **Separate setup:** result normalization and `--run-official --dry-run` run in the unified WorldFoundry env (`needs_new_env: false`) with no GPU dependency.
+- The upstream `environment.yml` is vendored for reference and documents the conda environment the authors used for scored runs.
+
+### Evaluation data
+
+- Candidate model outputs: set `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR` to the case root described above.
+- `worldfoundry/data/benchmarks/tasks/external/worldolympiad.yaml`
+- In-tree fixture (synthetic judge schema only): `worldfoundry/data/benchmarks/assets/worldolympiad`
+
+### Checkpoints & assets
+
+These are **not** vendored — they are separate projects with their own licenses, resolved at runtime:
+
+- Depth Anything 3 source tree, passed with `--da3-src` (or `WORLDFOUNDRY_WORLDOLYMPIAD_DA3_SRC`), plus `depth-anything/DA3NESTED-GIANT-LARGE-1.1` weights for the geometry track.
+- `facebook/sam3` weights for the physical track.
+- A QwenVL checkpoint or any OpenAI-compatible multimodal endpoint for the MLLM judges.
+- CLIP weights for `clip_semantic_adherence`.
+
+Weights are laid out under `--weights-dir` as `QwenVL/`, `da3/`, `sam3/sam3.pt`, and `clip/`. It defaults to the WorldFoundry checkpoint root, never the source tree. When a registered asset is staged, DA3/SAM3/QwenVL weights and the DA3 and CLIP code resolve from `worldfoundry/base_models` instead, and `--weights-dir` / `--da3-src` become optional overrides.
+
+### Key environment variables
+
+- `WORLDFOUNDRY_WORLDOLYMPIAD_WEIGHTS_DIR`
+- `WORLDFOUNDRY_WORLDOLYMPIAD_DA3_SRC`
+- `WORLDFOUNDRY_WORLDOLYMPIAD_ROOT` — override the checked-in runtime with a different checkout
+- `WORLDFOUNDRY_WORLDOLYMPIAD_RESULTS_PATH`
+- `WORLDFOUNDRY_WORLDOLYMPIAD_PYTHON`
+- `WORLDFOUNDRY_WORLDOLYMPIAD_GPU_SLOTS`
+- `WORLDFOUNDRY_WORLDOLYMPIAD_QWEN_URLS`
+- `WORLDFOUNDRY_WORLDOLYMPIAD_SAM3_URLS`
+- `WORLDFOUNDRY_WORLDOLYMPIAD_REWARD_3D_URLS`
+- `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR`
+- `HF_ENDPOINT`
+
+## Run evaluation
+
+### Validate the integration without GPUs
+
+```bash
+python worldfoundry/evaluation/tasks/execution/runners/worldolympiad/run_worldolympiad_official_runner.py \
+  --run-fixture \
+  --output-dir tmp/worldolympiad/fixture \
+  --json
+```
+
+The fixture contains synthetic judge records only. It validates the normalizer and never produces comparable scores.
+
+### Validate a case layout without GPUs
+
+`--dry-run` runs the real in-tree manifest builder, scheduler, and summarizer and prints the exact per-case scoring commands without scoring anything. It needs no weights, services, or GPUs:
+
+```bash
+python worldfoundry/evaluation/tasks/execution/runners/worldolympiad/run_worldolympiad_official_runner.py \
+  --run-official --dry-run \
+  --generated-artifact-dir /path/to/case_root \
+  --pipelines cosmos-predict \
+  --output-dir tmp/worldolympiad/plan
+```
+
+### Set candidate artifacts
+
+```bash
+export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/case_root
+export WORLDFOUNDRY_WORLDOLYMPIAD_WEIGHTS_DIR=/path/to/weights
+export WORLDFOUNDRY_WORLDOLYMPIAD_DA3_SRC=/path/to/Depth-Anything-3/src
+```
+
+### Run the official triathlon
+
+Start the services first, each in its own terminal, using the launchers in the checked-in runtime:
+
+```bash
+RUNTIME=worldfoundry/evaluation/tasks/execution/runners/worldolympiad/runtime/worldolympiad
+
+python "$RUNTIME/batch_test/start_qwenvl_servers.py" --gpus 0,1 --ports 8008,8009 \
+  --model "${WORLDFOUNDRY_WORLDOLYMPIAD_WEIGHTS_DIR}/QwenVL" --warmup
+python "$RUNTIME/batch_test/start_sam3_servers.py" --gpus 2 --ports 8090 \
+  --model "${WORLDFOUNDRY_WORLDOLYMPIAD_WEIGHTS_DIR}/sam3/sam3.pt"
+python "$RUNTIME/batch_test/start_reward_3d_servers.py" --gpus 3,4 --ports 8092,8093 \
+  --model "${WORLDFOUNDRY_WORLDOLYMPIAD_WEIGHTS_DIR}/da3" --no-lpips
+```
+
+Then run the triathlon through WorldFoundry. No `--worldolympiad-root` is needed — the runner uses the checked-in runtime:
+
+```bash
+python worldfoundry/evaluation/tasks/execution/runners/worldolympiad/run_worldolympiad_official_runner.py \
+  --run-official \
+  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
+  --domains general gaming embodied \
+  --pipelines cosmos-predict longlive \
+  --weights-dir "${WORLDFOUNDRY_WORLDOLYMPIAD_WEIGHTS_DIR}" \
+  --da3-src "${WORLDFOUNDRY_WORLDOLYMPIAD_DA3_SRC}" \
+  --gpu-slots 5,6,7 \
+  --workers 3 \
+  --qwen-server-urls http://127.0.0.1:8008,http://127.0.0.1:8009 \
+  --sam3-server-urls http://127.0.0.1:8090 \
+  --reward-3d-server-urls http://127.0.0.1:8092,http://127.0.0.1:8093 \
+  --output-dir tmp/worldolympiad/official \
+  --json
+```
+
+Batch manifests and scheduler logs are written under `--output-dir`; judge JSON files land next to the videos in the case root, so an interrupted batch resumes without recomputing finished cases. Pass `--worldolympiad-root` only to run a different checkout instead of the vendored one.
+
+### Import official results
+
+```bash
+worldfoundry-eval zoo benchmark-run \
+  --benchmark-id worldolympiad \
+  --mode normalizer \
+  --official-results-path /path/to/case_root-or-judge-json \
+  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
+  --output-dir tmp/worldolympiad/normalizer \
+  --json
+```
+
+### Validate or normalize existing results
+
+```bash
+worldfoundry-eval zoo benchmark-run --benchmark-id worldolympiad --mode official-validation --official-results-path <case_root_or_judge_json> --output-dir <out> --json
+```
+
+Add `--strict` to the runner when a run must fail unless all three tracks are present.
+
+## Requirements
+
+### Inputs
+
+- A case root in the official layout, via `--generated-artifact-dir` or `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR`
+- Running QwenVL, SAM3, and DA3 reward services for scored judge execution
+- Depth Anything 3 source tree via `--da3-src`, plus DA3, SAM3, QwenVL, and CLIP weights under `--weights-dir`
+
+No external WorldOlympiad checkout is required; the official evaluator is checked in.
+
+### Environment
+
+- `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR`
+- `WORLDFOUNDRY_WORLDOLYMPIAD_WEIGHTS_DIR`
+- `WORLDFOUNDRY_WORLDOLYMPIAD_DA3_SRC`
+
+### Outputs
+
+- `scorecard.json`
+- `raw_metric_table.jsonl`
+- `per_case_metrics.jsonl`
+- `benchmark_contract.json`
+
+## Official references
+
+- [GitHub](https://github.com/alibaba-damo-academy/WorldOlympiad)
+- [Paper](https://arxiv.org/abs/2606.11129)
+- [Project page](https://alibaba-damo-academy.github.io/WorldOlympiad)
+- [Hugging Face dataset](https://huggingface.co/datasets/ziplab/WorldOlympiad)
+
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

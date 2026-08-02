@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from worldfoundry.core.io import materialize_file
 from worldfoundry.evaluation.tasks.execution.runners.phyground.phyground_prompts import (
     load_prompt_records,
     resolve_phyground_root,
@@ -111,7 +112,7 @@ def run_phyground_judge(
             "WORLDFOUNDRY_PHYGROUND_RESULTS_PATH or place scores.json under --generated-artifact-dir."
         )
     if source_scores.resolve() != scores_json.resolve():
-        scores_json.write_bytes(source_scores.read_bytes())
+        materialize_file(source_scores, scores_json)
         return {
             "backend": "artifact",
             "scores_json": str(scores_json.resolve()),

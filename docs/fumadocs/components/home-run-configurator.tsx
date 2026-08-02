@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Check, Copy, ExternalLink } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { ModelIdentityMark } from '@/components/model-identity-mark';
 
@@ -39,13 +39,27 @@ function commandFor(mode: CommandMode, modelId: string) {
   ].join('\n');
 }
 
-export function HomeRunConfigurator({ models }: { models: HomeRecipeOption[] }) {
-  const [modelId, setModelId] = useState(models[0]?.id ?? '');
-  const [task, setTask] = useState(models[0]?.tasks[0] ?? '');
+export function HomeRunConfigurator({
+  models,
+  selectedId,
+  onSelectedIdChange,
+}: {
+  models: HomeRecipeOption[];
+  selectedId?: string;
+  onSelectedIdChange?: (id: string) => void;
+}) {
+  const [uncontrolledId, setUncontrolledId] = useState(models[0]?.id ?? '');
+  const modelId = selectedId ?? uncontrolledId;
+  const setModelId = onSelectedIdChange ?? setUncontrolledId;
+  const model = models.find((item) => item.id === modelId) ?? models[0];
+  const [task, setTask] = useState(model?.tasks[0] ?? '');
   const [mode, setMode] = useState<CommandMode>('run');
   const [copied, setCopied] = useState(false);
-  const model = models.find((item) => item.id === modelId) ?? models[0];
   const command = useMemo(() => commandFor(mode, model?.id ?? modelId), [mode, model, modelId]);
+
+  useEffect(() => {
+    setTask(model?.tasks[0] ?? '');
+  }, [model?.id]);
 
   async function copyCommand() {
     try {
@@ -81,9 +95,7 @@ export function HomeRunConfigurator({ models }: { models: HomeRecipeOption[] }) 
           <select
             value={model.id}
             onChange={(event) => {
-              const next = models.find((item) => item.id === event.target.value);
               setModelId(event.target.value);
-              setTask(next?.tasks[0] ?? '');
             }}
           >
             {models.map((item) => (
@@ -107,7 +119,8 @@ export function HomeRunConfigurator({ models }: { models: HomeRecipeOption[] }) 
           <span>Runtime</span>
           <strong>{model.environment ?? 'Not recorded'}</strong>
           <small>
-            {[model.python ? `Python ${model.python}` : null, model.cuda].filter(Boolean).join(' · ') || 'Version not recorded'}
+            {[model.python ? `Python ${model.python}` : null, model.cuda].filter(Boolean).join(' · ') ||
+              'Version not recorded'}
           </small>
         </div>
         <div className="wf-home-configurator-fact">
@@ -131,18 +144,18 @@ export function HomeRunConfigurator({ models }: { models: HomeRecipeOption[] }) 
           </button>
         </div>
         <div className="wf-home-configurator-modes" role="tablist" aria-label="Command type">
-            {(['prepare', 'inspect', 'run'] as const).map((item) => (
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mode === item}
-                className={mode === item ? 'is-active' : undefined}
-                onClick={() => setMode(item)}
-                key={item}
-              >
-                {item[0].toUpperCase() + item.slice(1)}
-              </button>
-            ))}
+          {(['prepare', 'inspect', 'run'] as const).map((item) => (
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === item}
+              className={mode === item ? 'is-active' : undefined}
+              onClick={() => setMode(item)}
+              key={item}
+            >
+              {item[0].toUpperCase() + item.slice(1)}
+            </button>
+          ))}
         </div>
         <pre key={`${model.id}:${mode}`}>
           <code>{command}</code>

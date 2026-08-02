@@ -3,7 +3,7 @@ title: PhyGround
 description: "PhyGround in WorldFoundry: data layout, score import, and physical-reasoning metrics."
 ---
 
-## What It Measures
+## What it measures
 
 PhyGround evaluates physical plausibility for text-plus-image-to-video generation. Each prompt has a text description and a first-frame conditioning image. Videos are judged on three general dimensions and prompt-specific physical-law criteria across 13 laws:
 
@@ -15,7 +15,7 @@ PhyGround evaluates physical plausibility for text-plus-image-to-video generatio
 The official benchmark uses a 1-5 ordinal judge scale and includes 250 prompts. WorldFoundry imports PhyGround `scores.json` outputs and normalizes them into the local scorecard format. The runner does not launch benchmark-local shell scripts; judge execution is expected to happen through the WorldFoundry/base-model path or to be supplied as an existing result artifact.
 
 
-## Official References
+## Official references
 
 | Resource | Link |
 | --- | --- |
@@ -26,7 +26,7 @@ The official benchmark uses a 1-5 ordinal judge scale and includes 250 prompts. 
 | PhyJudge model | [NU-World-Model-Embodied-AI/phyjudge-9B](https://huggingface.co/NU-World-Model-Embodied-AI/phyjudge-9B) |
 | In-tree runner | `worldfoundry/evaluation/tasks/execution/runners/phyground/run_phyground_official_runner.py` |
 
-## Data And Artifacts
+## Data and artifacts
 
 A standard local data root looks like this:
 
@@ -58,7 +58,7 @@ Generate one video for each prompt and name it by the prompt `video` field. If t
 
 Supported suffixes are `.mp4`, `.mov`, `.mkv`, `.webm`, and `.avi`. Coverage is based on filename stems.
 
-## Dependencies And Scores
+## Dependencies and scores
 
 The HF dataset is `NU-World-Model-Embodied-AI/phyground`; it provides `prompts/phyground.json` and `first_images/`. The released judge model is `NU-World-Model-Embodied-AI/phyjudge-9B`, typically served through the WorldFoundry/base-model infrastructure or another compatible judge path before importing the resulting `scores.json`.
 
@@ -69,7 +69,7 @@ For the WorldFoundry runner, full scoring input is one of:
 - `<generated_videos>/scores.json`
 - `<generated_videos>/phyground_scores.json`
 
-## Supported Commands
+## Supported commands
 
 Set candidate videos and, when importing by environment variable, the scores file:
 
@@ -117,7 +117,7 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
   --json
 ```
 
-## Import Paths
+## Import paths
 
 - Runner: `worldfoundry.evaluation.tasks.execution.runners.phyground.run_phyground_official_runner`
 - Metrics: `worldfoundry.evaluation.tasks.execution.runners.phyground.phyground_metrics`
@@ -125,7 +125,7 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
 - Judge artifact adapter: `worldfoundry.evaluation.tasks.execution.runners.phyground.phyground_runtime`
 - Official score aggregation: `worldfoundry.evaluation.tasks.execution.runners.phyground.phyground_official_scoring`
 
-## Result File Shape
+## Result file shape
 
 The preferred input is the official-style `scores.json` with `results` rows:
 

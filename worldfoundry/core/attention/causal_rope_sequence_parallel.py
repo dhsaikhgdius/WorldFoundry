@@ -4,13 +4,12 @@ import torch
 import torch.nn.functional as torch_F
 from einops import rearrange
 
-from worldfoundry.base_models.diffusion_model.video.wan.wan_2p2.modules.lingbot_attention import flash_attention
-from worldfoundry.base_models.diffusion_model.video.wan.wan_2p2.modules.lingbot_model import sinusoidal_embedding_1d
 from worldfoundry.core.attention.causal_ulysses_attention import distributed_attention
 from worldfoundry.core.attention.sequence_parallel_rope import (
     make_sequence_parallel_attention_forward,
     make_sequence_parallel_rope_apply,
 )
+from worldfoundry.core.attention.varlen import flash_attention
 from worldfoundry.core.distributed.sequence_ops import (
     all_to_all,
     all_to_all_many,
@@ -19,6 +18,7 @@ from worldfoundry.core.distributed.sequence_ops import (
     get_world_size,
 )
 from worldfoundry.core.kernels import hidden_qk_rmsnorm_rope_3d
+from worldfoundry.core.nn.transformer import sinusoidal_embedding_1d
 
 # The chunked causal path is adapted from Robbyant/lingbot-world-v2 commit
 # 94f43115 under CC BY-NC-SA 4.0; see the integration's upstream license file.

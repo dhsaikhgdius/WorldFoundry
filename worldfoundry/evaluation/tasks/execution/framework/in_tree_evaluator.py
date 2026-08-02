@@ -16,6 +16,7 @@ from worldfoundry.evaluation.tasks.execution.framework.in_tree_registry import (
     get_in_tree_benchmark_config,
     supported_in_tree_benchmark_ids,
 )
+
 JUDGE_BLOCKED_REASON = "official judge, labels, rubric, or API evidence is required"
 SAFETY_JUDGE_REQUIRED_REASON = "safety judge or rule violation manifest is required"
 
@@ -122,6 +123,19 @@ class BenchmarkZooInTreeEvaluator:
             result: Materialized generation result with artifacts and evaluator metadata.
         """
         return self(request, result)
+
+    def compute_batch(
+        self,
+        requests: Sequence[GenerationRequest],
+        results: Sequence[GenerationResult],
+    ) -> list[list[MetricResult]]:
+        """Evaluate an aligned batch through one resident evaluator instance."""
+
+        if len(requests) != len(results):
+            raise ValueError(
+                f"request/result batch sizes differ: {len(requests)} != {len(results)}"
+            )
+        return [self(request, result) for request, result in zip(requests, results)]
 
     def aggregate(self, results: Sequence[MetricResult]) -> AggregateResult:
         """Aggregate valid numeric rows with a simple mean.

@@ -6,6 +6,15 @@ MosaicMem-inspired spatial patch memories.
 """
 
 from .base import BaseMemory
+from .conditioning import (
+    DenoisingLayout,
+    DenoisingMemoryAdapter,
+    GuidanceMode,
+    MemoryCondition,
+    SequenceRole,
+    SequenceSegment,
+    SequenceUpdate,
+)
 from .mosaic import (
     CameraIntrinsics,
     CameraPose,
@@ -23,7 +32,11 @@ __all__ = [
     "BaseMemory",
     "CameraIntrinsics",
     "CameraPose",
+    "DenoisingLayout",
+    "DenoisingMemoryAdapter",
+    "GuidanceMode",
     "LatentCanvas",
+    "MemoryCondition",
     "MemoryQuery",
     "MemoryRecord",
     "MemoryRetriever",
@@ -34,4 +47,7 @@ __all__ = [
     "MosaicMemoryStore",
     "Patch3D",
     "RetrievedPatch",
+    "SequenceRole",
+    "SequenceSegment",
+    "SequenceUpdate",
 ]

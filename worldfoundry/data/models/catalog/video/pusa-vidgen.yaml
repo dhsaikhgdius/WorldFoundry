@@ -38,8 +38,9 @@ integration:
 runner_parity:
   status: configured
   notes:
-  - WorldFoundry uses the in-tree Pusa V1 Wan2.2 runner and local DiffSynth runtime;
-    no external source checkout is required at inference time.
+  - WorldFoundry assembles Pusa V1 from the canonical Wan2.2 denoisers, conditioner,
+    VAE, checkpoint loaders, and shared staged runner; no external runtime checkout
+    or alternate diffusion backend is required at inference time.
   - The model-specific pipeline exposes generated_video through execute=True and no
     longer emits request-plan artifacts on default calls.
   - Per-run visual QA and artifact checks are tracked in the validation reference,

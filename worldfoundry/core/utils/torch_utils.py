@@ -170,6 +170,18 @@ def mean_flat(tensor: torch.Tensor) -> torch.Tensor:
     return tensor.mean(dim=list(range(1, tensor.ndim)))
 
 
+def temporal_feature_consistency(features: torch.Tensor) -> torch.Tensor:
+    """Average non-negative adjacent/first-frame cosine consistency on device."""
+
+    if features.ndim != 2:
+        raise ValueError(f"features must have shape [frames, channels], got {tuple(features.shape)}")
+    if features.shape[0] < 2:
+        raise ValueError("at least two frame features are required")
+    adjacent = torch.nn.functional.cosine_similarity(features[:-1], features[1:], dim=-1).clamp_min_(0)
+    first = torch.nn.functional.cosine_similarity(features[0:1], features[1:], dim=-1).clamp_min_(0)
+    return ((adjacent + first) * 0.5).mean()
+
+
 class eval_mode(object):
     def __init__(self, *models):
         self.models = models

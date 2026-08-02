@@ -1,0 +1,63 @@
+---
+title: Surfaces and orchestration
+description: How CLI, TUI, and MCP enter the system, and how the orchestration service compiles user intent into the three planning boundaries before any model runs.
+---
+
+## What this layer is for
+
+TUI, CLI, Studio, Python, and MCP are different ways to operate the same system. None of them owns model inference or benchmark scoring. Their job is to turn user intent into one of the request types the execution layer already understands, and to surface the results. This page covers the two non-UI entry points — the CLI/TUI and MCP — and the orchestration service that compiles intent into a runnable plan.
+
+Read [Workflow](/docs/maintainers/architecture/workflow) first for where these paths land once a request exists. Read [Evaluation core](/docs/maintainers/architecture/evaluation-core) for the delegate runners that actually execute.
+
+## CLI and TUI
+
+The console entry is `worldfoundry/cli/main.py:1580` `main()`. It builds a subcommand tree starting at `cli/main.py:1091`:
+
+- **`tui`** — launches the guided-discovery TUI. The TUI lives in `cli/tui.py` (`main` at `:131`) with its app, discovery, brand, and icon helpers in the `cli/tui_*.py` files. It drives the same catalog and orchestration calls as the CLI; it is presentation, not a second runtime.
+- **`evaluate`** — normalizes inputs, picks a run mode, returns one `EvaluateRunResult`.
+- **`run`** — model run: resolves a model runner, generates, then scores.
+- **`validate`** — validates benchmark metadata loading without running a model.
+- **`embodied`** — embodied eval subtree (`run`, `serve`, `merge`, `plan`).
+- Plus `zoo`, `preflight`, `dataset`, `tasks`, `reporting`, `model_run`, `plan_metric`, `mcp` helpers.
+
+The CLI dispatches into the orchestration service; it does not import pipeline files or compute metrics directly. Keeping it this way is why a new surface can be added without re-implementing generation, artifact materialization, or scoring.
+
+## MCP
+
+The MCP server exposes the catalog, run lifecycle, metrics, and readiness as tools so an agent can drive the same workflow. It is a thin shell over the same contracts; it contains no private model code.
+
+- Entry: `mcp/__init__.py:30` `main()`; server construction in `mcp/server.py` (`build_server` `:41`, `run_server` `:52`).
+- Tools are registered through `mcp/tools/registration.py:47` `register_tools`, which binds each payload as an `@mcp.tool()`.
+- Tool payloads are grouped by responsibility, not by model: `discovery` (list/get model, benchmark, task), `runs` (preview, evaluate, status, result, samples, cancel), `metrics` (list, show), `readiness` (benchmark dataset checks), `studio` (workspace inference), and `context` (`MCPToolContext`).
+
+Because every tool resolves through the same catalog and orchestration service, an MCP-driven run and a CLI-driven run produce the same artifacts and scorecards.
+
+## Orchestration service
+
+The orchestration service is the single compile boundary between a surface and execution. It lives in `evaluation/tasks/execution/orchestration/service.py`. It validates one of five intent dataclasses and returns a `PreparedEvaluation` that the execution layer can run.
+
+| Intent | File:line | Compiles to |
+| --- | --- | --- |
+| `ModelBenchmarkIntent` | `service.py:60` | `ModelBenchmarkRunRequest` (model + benchmark) |
+| `ScoreArtifactsIntent` | `service.py:85` | scores existing artifacts |
+| `GenerateAndScoreIntent` | `service.py:101` | generate then score |
+| `ScoreResultsIntent` | `service.py:125` | score results on disk |
+| `ReproduceIntent` | `service.py:139` | reproduction profile |
+
+Each intent has a matching `_prepare_*` function (`service.py:421`–`:649`). The public entry points are `prepare_evaluation(intent)` at `service.py:759` and `execute_prepared_evaluation(prepared)` at `service.py:775`. A surface's job is to produce one of these intents; it must not duplicate generation, dispatch, or metric execution.
+
+![Surfaces to orchestration to execution flow](/diagrams/flow-surfaces-orchestration.svg)
+
+## The three planning boundaries
+
+WorldFoundry keeps three planning types distinct. Do not wrap them in a fourth recipe executor.
+
+| Boundary | File:line | Owns |
+| --- | --- | --- |
+| `PreparedEvaluation` | `service.py:198` | User-facing compiler result: preflight diagnostics, protocol-fidelity policy, claim level derived from generation/data/evaluation/runtime/reference provenance. |
+| `RunPlan` | `orchestration/plan.py:113` | Lower-level plan for one generation/evaluate stage; fingerprinted for reproducible reruns and cache reuse. |
+| `EvaluateRunRequest` / `ModelBenchmarkRunRequest` | `orchestration/evaluate.py:37` / `orchestration/model_benchmark.py:47` | The actual request types the delegate runners consume. |
+
+A caller flag can only *narrow* the claim level, never promote a diagnostic run to an official one. `score_valid` records whether the evaluator produced a usable score; `leaderboard_valid` additionally requires comparable provenance and benchmark-runner evidence. See [Evaluation core](/docs/maintainers/architecture/evaluation-core) for how claim level flows into the scorecard.
+
+For the directory-level map, see [Codebase map](/docs/maintainers/architecture/file-index). For the execution side these surfaces hand off to, see [Workflow](/docs/maintainers/architecture/workflow).

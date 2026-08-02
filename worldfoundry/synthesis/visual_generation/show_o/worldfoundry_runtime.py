@@ -7,12 +7,12 @@ for generating images from text prompts.
 
 from __future__ import annotations
 
-import hashlib
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from worldfoundry.core.io.paths import package_module_root as package_root
+from worldfoundry.core.io import file_sha256
 from worldfoundry.core.io.paths import checkpoint_root_path, hfd_root_path
+from worldfoundry.core.io.paths import package_module_root as package_root
 
 
 def _resolve_hfd_root() -> Path:
@@ -229,8 +229,8 @@ class ShowORuntime:
         # Explicitly import the module to ensure it's available in the current context.
         importlib.import_module("worldfoundry.synthesis.visual_generation.show_o.show_o_runtime")
         # Now that the path is set, we can import Showo and other local modules.
-        from models import Showo
         from inference_support.prompting_utils import UniversalPrompting
+        from models import Showo
 
         config = self._runtime_config(**overrides)
         # Determine the actual device, defaulting to 'cpu' if 'cuda' is not available.
@@ -310,8 +310,8 @@ class ShowORuntime:
         from PIL import Image
 
         runtime = self._ensure_runtime(**kwargs)  # Ensure runtime components are loaded.
-        from models import get_mask_chedule
         from inference_support.prompting_utils import create_attention_mask_predict_next
+        from models import get_mask_chedule
 
         config = runtime["config"]
         model = runtime["model"]
@@ -384,7 +384,7 @@ class ShowORuntime:
             "model_id": self.model_id,
             "artifact_kind": "generated_image",
             "artifact_path": str(target),
-            "artifact_sha256": hashlib.sha256(target.read_bytes()).hexdigest(),
+            "artifact_sha256": file_sha256(target),
             "runtime": "worldfoundry.show_o.in_tree_runtime",
             "backend_quality": "in_tree_runtime",
             "mode": mode,

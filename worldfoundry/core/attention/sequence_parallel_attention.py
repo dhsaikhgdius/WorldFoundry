@@ -16,20 +16,6 @@ from worldfoundry.core.distributed.sequence_parallel_runtime import (
 )
 
 
-def get_cu_seqlens(text_mask, img_len):
-    batch_size = text_mask.shape[0]
-    text_len = text_mask.sum(dim=1)
-    max_len = text_mask.shape[1] + img_len
-
-    cu_seqlens = torch.zeros([2 * batch_size + 1], dtype=torch.int32, device="cuda")
-    for i in range(batch_size):
-        seq_len = text_len[i] + img_len
-        cu_seqlens[2 * i + 1] = i * max_len + seq_len
-        cu_seqlens[2 * i + 2] = (i + 1) * max_len
-
-    return cu_seqlens
-
-
 def parallel_attention(
     q,
     k,

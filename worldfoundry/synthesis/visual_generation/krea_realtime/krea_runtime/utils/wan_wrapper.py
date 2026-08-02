@@ -6,11 +6,12 @@ from torch import nn
 
 import time
 from worldfoundry.core.nn import FlowMatchScheduler, SchedulerInterface
-from wan.modules.tokenizers import HuggingfaceTokenizer
-from wan.modules.model import WanModel, RegisterTokens, GanAttentionBlock
-from wan.modules.vae import _video_vae
-from wan.modules.t5 import umt5_xxl
-from wan.modules.causal_model import CausalWanModel
+from worldfoundry.base_models.diffusion_model.models.encoders.wan.model import HuggingfaceTokenizer
+from worldfoundry.base_models.diffusion_model.models.encoders.wan.reference import umt5_xxl
+from worldfoundry.base_models.diffusion_model.models.autoencoders.wan.reference_21 import _video_vae
+from worldfoundry.base_models.diffusion_model.models.networks.wan.variants.forcing.krea_model import WanModel, RegisterTokens, GanAttentionBlock
+from worldfoundry.base_models.diffusion_model.models.networks.wan.variants.forcing.krea import CausalWanModel
+from worldfoundry.base_models.diffusion_model.loaders.wan_variant import load_wan_transformer
 import os
 from settings import MODEL_FOLDER
 
@@ -133,12 +134,18 @@ class WanDiffusionWrapper(torch.nn.Module):
 
         print("Loading WAN model, with name", model_name)
         model_path = os.path.join(MODEL_FOLDER, model_name)
-        with torch.device("meta") if meta_init else nullcontext():
-            if is_causal:
-                self.model = CausalWanModel.from_pretrained(
-                    model_path, local_attn_size=local_attn_size, sink_size=sink_size)
-            else:
-                self.model = WanModel.from_pretrained(model_path)
+        del meta_init
+        if is_causal:
+            self.model = load_wan_transformer(
+                CausalWanModel,
+                model_path,
+                additional_kwargs={
+                    "local_attn_size": local_attn_size,
+                    "sink_size": sink_size,
+                },
+            )
+        else:
+            self.model = load_wan_transformer(WanModel, model_path)
         self.model.eval()
 
         # For non-causal diffusion, all frames share the same timestep

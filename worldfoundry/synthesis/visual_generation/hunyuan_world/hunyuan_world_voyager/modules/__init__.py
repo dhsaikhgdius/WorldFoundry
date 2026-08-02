@@ -1,8 +1,3 @@
-from worldfoundry.base_models.diffusion_model.video.hunyuan_video.modules.loader import (
-    load_model_from_registry,
-)
-
-
 def __getattr__(name):
     if name in {"HYVideoDiffusionTransformer", "HUNYUAN_VIDEO_CONFIG"}:
         from .models import HUNYUAN_VIDEO_CONFIG, HYVideoDiffusionTransformer
@@ -30,11 +25,12 @@ def load_model(args, in_channels, out_channels, factor_kwargs):
     """
     from .models import HYVideoDiffusionTransformer, HUNYUAN_VIDEO_CONFIG
 
-    return load_model_from_registry(
+    if args.model not in HUNYUAN_VIDEO_CONFIG:
+        raise NotImplementedError(f"unsupported HunyuanVideo model variant: {args.model}")
+    return HYVideoDiffusionTransformer(
         args,
-        in_channels,
-        out_channels,
-        factor_kwargs,
-        HYVideoDiffusionTransformer,
-        HUNYUAN_VIDEO_CONFIG,
+        in_channels=in_channels,
+        out_channels=out_channels,
+        **HUNYUAN_VIDEO_CONFIG[args.model],
+        **factor_kwargs,
     )

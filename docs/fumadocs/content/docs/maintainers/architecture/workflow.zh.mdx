@@ -5,11 +5,11 @@ description: 从 CLI 输入到 artifacts、metrics、scorecard 和 report 的端
 
 ## 简介
 
-本文追踪一次 evaluation run 从 CLI 到磁盘 artifact 的完整路径。当你需要知道某个 flag 落在哪段代码、哪个 runner 负责写文件、或 model mode 为何会分叉到 `ContractRunner` 与 `ExistingResultsRunner` 时读这里。面向用户的命令示例见 [评测指南](/zh/docs/evaluation)；本文聚焦执行 plumbing。
+本文追踪一次 evaluation run 从 CLI 到磁盘 artifact 的完整路径。当你需要知道某个 flag 落在哪段代码、哪个 runner 负责写文件、或 model mode 为何会分叉到 `ContractRunner` 与 `ExistingResultsRunner` 时读这里。面向用户的命令示例见 [评测指南](/zh/docs/evaluation)；CLI/TUI/MCP 如何把意图编译成本文起点的 request，见 [使用界面与编排](/zh/docs/maintainers/architecture/surfaces-orchestration)。本文聚焦执行 plumbing。
 
 ## 入口
 
-每条用户可见命令最终都会到达 `evaluation/tasks/execution/evaluate.py` 中的 `run_evaluate()`。控制台入口是 `worldfoundry/cli/main.py`，子命令会分发到以下四种形态之一：
+每条用户可见命令最终都会到达 `evaluation/tasks/execution/orchestration/evaluate.py` 中的 `run_evaluate()`（`run_evaluate` 在 `:1057`）。控制台入口是 `worldfoundry/cli/main.py:1580` `main()`，子命令会分发到以下四种形态之一：
 
 - **evaluate** — 归一化输入、选择 run mode，返回一个 `EvaluateRunResult`。
 - **existing outputs** — 通过 `existing_results.py` 评分磁盘上已有 artifact，不加载模型。
@@ -22,8 +22,10 @@ description: 从 CLI 输入到 artifacts、metrics、scorecard 和 report 的端
 
 主流程如下：一个 `EvaluateRunRequest` 进入 facade，选定 mode，从 task registry 加载或物化输入，再由 delegate runner 写出标准 artifact bundle。若输出目录缺文件，沿此流程查应由哪个 runner 阶段产出。
 
+<CallChainDiagram />
+
 ```python
-# worldfoundry/cli/main.py → evaluation/tasks/execution/evaluate.py
+# worldfoundry/cli/main.py → evaluation/tasks/execution/orchestration/evaluate.py
 result = run_evaluate(EvaluateRunRequest(...))
 
 mode = _mode(request)
@@ -51,12 +53,12 @@ Mode 选择是第一个影响成本与前置条件的分支。`existing-results`
 
 | Mode | 必需输入 | 是否加载模型 | 指标路径 | 什么时候用 |
 | --- | --- | --- | --- | --- |
-| `existing-results` | `results` 或 `results_path`；requests 可选 | 否 | Built-in metric ids 或 artifact checks | Demo、hosted job 或离线脚本已经产出 artifacts。 |
-| `model` | Requests 加 runner config 或 model-zoo id | 是 | 传 Metric objects 时走 `ContractRunner`；传 metric ids/artifact checks 时走 `ExistingResultsRunner` | 希望由框架执行模型。 |
+| `existing-results` | `results` 或 `results_path`；requests 可选 | 否 | Built-in metric IDs 或 artifact checks | Demo、hosted job 或离线脚本已经产出 artifacts。 |
+| `model` | Requests 加 runner config 或 model-zoo id | 是 | 传 Metric objects 时走 `ContractRunner`；传 metric IDs/artifact checks 时走 `ExistingResultsRunner` | 希望由框架执行模型。 |
 
 ## Model Mode 细节
 
-`runner.generate()` 返回后，`_align_model_results()` 保证每个 request 都有对应 result 行（含显式失败）。下面分叉容易被忽略：传入 `Metric` 对象则整次 run 留在 `ContractRunner`；传入 string metric ids 则 scoring 走与 `existing-results` 相同的代码路径。
+`runner.generate()` 返回后，`_align_model_results()` 保证每个 request 都有对应 result 行（含显式失败）。下面分叉容易被忽略：传入 `Metric` 对象则整次 run 留在 `ContractRunner`；传入 string metric IDs 则 scoring 走与 `existing-results` 相同的代码路径。
 
 ```python
 runner = resolve_model_zoo_runner(request.model_id)
@@ -69,14 +71,14 @@ else:
     return ExistingResultsRunner(...).score(results)  # metric ids → existing-results 路径
 ```
 
-关键点：模型执行和 benchmark scoring 是分开的。Model runner 只输出 `GenerationResult`；结果归一化后才评分。
+关键点：模型执行和 benchmark scoring 是分开的。Model runner 只输出 `GenerationResult`；结果归一化后才评分。`ContractRunner`（`orchestration/contract.py:92`）与 `ExistingResultsRunner`（`orchestration/existing_results.py:89`）是此分叉选择的两个 delegate runner；模型解析用 `evaluation/models/runners/resolver.py:365` 的 `resolve_model_zoo_runner()`。
 
 ## Contract Runner 细节
 
-`run_contract()` 是最严格的 in-process path，也是 artifact 布局的参考实现。每个阶段都会写出或更新下游 validation、docs export 与 leaderboard 工具期望找到的文件。调试不完整 run 时按阶段顺序排查：缺少 `metrics/per_sample.jsonl` 通常是 generation 未完成对齐，而非 reporting 失败。
+`run_contract()` 是最严格的 in-process path，也是 artifact 布局的参考实现（`run_contract` 在 `evaluation/tasks/execution/orchestration/contract.py:848`，`ContractRunner` 在 `:92`）。每个阶段都会写出或更新下游 validation、docs export 与 leaderboard 工具期望找到的文件。调试不完整 run 时按阶段顺序排查：缺少 `metrics/per_sample.jsonl` 通常是 generation 未完成对齐，而非 reporting 失败。
 
 ```python
-# evaluation/tasks/execution/contract.py → run_contract()
+# evaluation/tasks/execution/orchestration/contract.py → run_contract()
 requests = _normalize_requests(request)
 write_execution_plan(requests)                # execution_plan.json
 write_run_manifest(status="running")          # run_manifest.json
@@ -94,12 +96,12 @@ Generation 是最耗时的阶段：runner 异常会变成 failed samples，确�
 
 ## Artifact 契约
 
-这些文件构成 [评测指南](/zh/docs/evaluation#main-outputs) 中的 audit trail。各 run mode 下形态稳定：`existing-results` 仍会写 `sample_ledger.jsonl` 和 `scorecard.json`，便于与同一 benchmark 上的完整 model run 对比。路径均相对 `run_manifest.json` 中记录的 run 输出目录。
+这些文件构成[评测指南](/zh/docs/evaluation#输出)中的 audit trail。各 run mode 下形态稳定：`existing-results` 仍会写 `sample_ledger.jsonl` 和 `scorecard.json`，便于与同一 benchmark 上的完整 model run 对比。路径均相对 `run_manifest.json` 中记录的 run 输出目录。
 
 | 文件 | 生产者 | 含义 |
 | --- | --- | --- |
 | `run_manifest.json` | Runner | Run identity、status、model、benchmark、dataset、context metadata、output paths。 |
-| `execution_plan.json` | Runner 或 `RunPlan` | Planned stages、sample ids、materialization details、output files。 |
+| `execution_plan.json` | Runner 或 `RunPlan` | Planned stages、sample IDs、materialization details、output files。 |
 | `requests.jsonl` | Runner | 每个样本一个归一化 `GenerationRequest`。 |
 | `results.jsonl` | Model runner through evaluation runner | 每个样本一个归一化 `GenerationResult`。 |
 | `sample_ledger.jsonl` | Runner | 样本级 pass/fail 状态和 stage-level errors。 |
@@ -109,9 +111,9 @@ Generation 是最耗时的阶段：runner 异常会变成 failed samples，确�
 | `scorecard.json` | Reporting layer | Release/review surface，供 validation 和 docs 消费。 |
 | `report.md` | Reporting layer | 从 scorecard 派生的人类可读摘要。 |
 
-## Task Materialization
+## Task materialization
 
-Task-driven run 在任意模型代码运行*之前*固定 sample id、split 与 input keys，使 rerun 与 cache 复现可预期：相同 task YAML 与 dataset manifest 应在每台机器上产出相同的 `requests.jsonl` 行。下方代码把 catalog task YAML 接到 `run_evaluate()` 已理解的 `EvaluateRunRequest`；YAML 文件位置见 [基准和数据](/zh/docs/maintainers/architecture/benchmarks-data)。
+Task-driven run 在任意模型代码运行*之前*固定 sample ID、split 与 input keys，使 rerun 与 cache 复现可预期：相同 task YAML 与 dataset manifest 应在每台机器上产出相同的 `requests.jsonl` 行。下方代码把 catalog task YAML 接到 `run_evaluate()` 已理解的 `EvaluateRunRequest`；YAML 文件位置见 [基准和数据](/zh/docs/maintainers/architecture/benchmarks-data)。
 
 ```python
 registry = load_task_registry_from_paths(task_yaml_paths)
@@ -121,4 +123,4 @@ requests = materialize_generation_requests(requests)
 return EvaluateRunRequest(requests=requests, ...)
 ```
 
-当 sample id、split、input keys、output keys 和 cache policy 需要在 generation 前可复现时，用这条路径。
+当 sample ID、split、input keys、output keys 和 cache policy 需要在 generation 前可复现时，用这条路径。

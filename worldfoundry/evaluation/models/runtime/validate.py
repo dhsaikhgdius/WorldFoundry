@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import PurePosixPath
-from typing import Any, Mapping
+from pathlib import Path, PurePosixPath
+from typing import Any
 
 from ..pipelines.aliases import load_pipeline_alias_registry
 from ..pipelines.bindings import load_pipeline_binding_registry, resolve_pipeline_binding

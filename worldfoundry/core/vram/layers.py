@@ -249,11 +249,13 @@ class AutoWrappedModule(AutoTorchModule):
         return copy.deepcopy(module).to(dtype=dtype, device=device)
 
     def computation(self):
-        # onload / preparing -> computation (temporary)
+        # offload / onload / preparing -> computation (temporary)
         if self.state == 2:
             torch_dtype, device = self.preparing_dtype, self.preparing_device
-        else:
+        elif self.state == 1:
             torch_dtype, device = self.onload_dtype, self.onload_device
+        else:
+            torch_dtype, device = self.offload_dtype, self.offload_device
         if torch_dtype == self.computation_dtype and device == self.computation_device:
             module = self.module
         elif self.disk_offload and device == "disk":
@@ -327,11 +329,34 @@ class AutoWrappedNonRecurseModule(AutoWrappedModule):
 
     def offload_to_disk(self, model: torch.nn.Module):
         for name in self.required_params:
-            getattr(self, name).to("meta")
+            parameter = model._parameters.get(name)
+            if parameter is None:
+                continue
+            model._parameters[name] = torch.nn.Parameter(
+                torch.empty_like(parameter, device="meta"),
+                requires_grad=parameter.requires_grad,
+            )
 
     def cast_to(self, module, dtype, device):
         # Parameter casting is implemented in the model architecture.
         return module
+
+    def forward(self, *args, **kwargs):
+        if self.disk_offload and self.state == 0:
+            # A non-recursive wrapper may contain independently disk-backed
+            # children.  Deep-copying that hierarchy attempts to pickle their
+            # open safetensors readers, so materialize only this module's
+            # direct parameters in place for the duration of the call.
+            module = self.load_from_disk(
+                self.computation_dtype,
+                self.computation_device,
+                copy_module=False,
+            )
+            try:
+                return module(*args, **kwargs)
+            finally:
+                self.offload_to_disk(module)
+        return super().forward(*args, **kwargs)
 
     def __getattr__(self, name):
         if name in self.__dict__ or name == "module":
@@ -386,7 +411,11 @@ class WanAutoCastLayerNorm(torch.nn.LayerNorm, AutoTorchModule):
         if self.state == 2:
             weight, bias = self.weight, self.bias
         else:
-            if self.onload_dtype == self.computation_dtype and self.onload_device == self.computation_device:
+            if self.state == 1:
+                source_dtype, source_device = self.onload_dtype, self.onload_device
+            else:
+                source_dtype, source_device = self.offload_dtype, self.offload_device
+            if source_dtype == self.computation_dtype and source_device == self.computation_device:
                 weight, bias = self.weight, self.bias
             elif self.vram_limit is not None and self.check_free_vram():
                 self.keep()
@@ -557,11 +586,13 @@ class AutoWrappedLinear(torch.nn.Linear, AutoTorchModule):
             self.state = 2
 
     def computation(self):
-        # onload / preparing -> computation (temporary)
+        # offload / onload / preparing -> computation (temporary)
         if self.state == 2:
             torch_dtype, device = self.preparing_dtype, self.preparing_device
-        else:
+        elif self.state == 1:
             torch_dtype, device = self.onload_dtype, self.onload_device
+        else:
+            torch_dtype, device = self.offload_dtype, self.offload_device
         if torch_dtype == self.computation_dtype and device == self.computation_device:
             weight, bias = self.weight, self.bias
         elif self.disk_offload and device == "disk":
@@ -600,6 +631,36 @@ class AutoWrappedLinear(torch.nn.Linear, AutoTorchModule):
         if len(self.lora_A_weights) > 0:
             out = self.lora_forward(x, out)
         return out
+
+
+@torch.no_grad()
+def move_direct_tensors_to_device(
+    module: torch.nn.Module,
+    *,
+    device: str | torch.device,
+    dtype: torch.dtype | None = None,
+) -> torch.nn.Module:
+    """Move only a module's own parameters and buffers.
+
+    Fine-grained VRAM wrapping replaces selected descendants while leaving
+    parameters registered directly on their parent untouched.  Architectures
+    such as Wan's CLIP vision tower keep positional/class embeddings and the
+    output projection directly on the root module, so those small tensors must
+    follow the computation device without recursively moving the wrapped
+    transformer blocks.
+    """
+
+    target_device = torch.device(device)
+    for name, parameter in tuple(module.named_parameters(recurse=False)):
+        target_dtype = dtype if dtype is not None and parameter.is_floating_point() else parameter.dtype
+        module._parameters[name] = torch.nn.Parameter(
+            parameter.to(device=target_device, dtype=target_dtype),
+            requires_grad=parameter.requires_grad,
+        )
+    for name, buffer in tuple(module.named_buffers(recurse=False)):
+        target_dtype = dtype if dtype is not None and buffer.is_floating_point() else buffer.dtype
+        module._buffers[name] = buffer.to(device=target_device, dtype=target_dtype)
+    return module
 
 
 def enable_vram_management_recursively(
@@ -767,4 +828,5 @@ __all__ = [
     "enable_vram_management",
     "enable_vram_management_recursively",
     "fill_vram_config",
+    "move_direct_tensors_to_device",
 ]

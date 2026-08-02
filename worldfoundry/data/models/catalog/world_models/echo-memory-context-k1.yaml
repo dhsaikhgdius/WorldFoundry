@@ -1,0 +1,61 @@
+family: Echo-Memory
+id: echo-memory-context-k1
+provider: Echo Team at Joy Future Academy, JD
+name: Echo-Memory Context K=1
+aliases:
+- echo-context-k1
+tasks:
+- image-to-video
+- action-conditioned-video
+- interactive-world-model
+- memory-research
+modalities:
+- image
+- text
+- camera-trajectory
+- video
+output_artifacts:
+- generated_world_video
+checkpoint_refs:
+- repo_id: Echo-Team/Echo-Memory
+  revision: 7645f33efbfd02c58dc471570d0c7bd6a50eec83
+  filename: context_k1/epoch-0.safetensors
+  license: cc-by-4.0
+  gated: false
+  notes:
+  - This is the only Echo-Memory checkpoint file currently served by the official Hugging Face main branch.
+- repo_id: Wan-AI/Wan2.1-T2V-1.3B
+  revision: 37ec512624d61f7aa208f7ea8140a131f93afc9a
+  license: apache-2.0
+  gated: false
+official_sources:
+  paper: https://arxiv.org/abs/2606.09803
+  project_page: https://echo-team-joy-future-academy-jd.github.io/Echo-Memory/
+  github:
+    url: https://github.com/Echo-Team-Joy-Future-Academy-JD/Echo-Memory
+    revision: 30eaffb55b264e1d8dfef70a8934d34c86e29947
+runtime_profile: runtime-profile:echo-memory-context-k1
+pipeline_binding: echo-memory-context-k1
+release_type: code_and_weights
+license: cc-by-4.0
+integration:
+  status: integrated
+  notes:
+  - This is an independent WorldFoundry model identity pinned to context_k1/epoch-0.safetensors; users do not select a memory method at runtime.
+  - The independent recipe is assembled by NativeDiffusionPipeline from shared Wan components and the framework-owned frozen-context strategy; it does not use an external backend.
+  - Checkpoint headers are inspected before construction and full DiT tensors are loaded with exact key and shape coverage.
+runner_parity:
+  status: native_pipeline_cuda_artifact_pending
+  notes:
+  - The 2026-07-20 A100 artifact (sha256 c263b8c0e0e83aa6417a201aaac59b0cd961c305610b09d5f4df78eecc3a5001) predates the NativeDiffusionPipeline cutover and is retained only as historical evidence.
+  - Native structural loading covers the released 1185-tensor K=1 DiT; a fresh two-chunk CUDA artifact, official sample parity, and benchmark scoring remain pending.
+starred: true
+catalog_category: world_models
+catalog_scope: Echo-Memory independent inference models
+runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
+availability:
+  status: open_source
+  open_source: true
+  code: native_worldfoundry
+  weights: public_huggingface_current_main
+  license: cc-by-4.0

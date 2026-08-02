@@ -31,9 +31,9 @@ repos:
         name: ruff import sort
         id: ruff-check
         args: ["--fix", "--select", "I"]
-        files: ^(worldfoundry/(cli|evaluation|mcp|runtime)|scripts/(benchmark_zoo|model_zoo)|test/eval_core)/.*\.py$
+        files: ^(worldfoundry/(cli|mcp|runtime|evaluation/(api|models/runtime|tasks/catalog|tasks/execution/orchestration))|scripts/(benchmark_zoo|model_zoo))/.*\.py$
       - id: ruff-format
-        files: ^(worldfoundry/(cli|evaluation|mcp|runtime)|scripts/(benchmark_zoo|model_zoo)|test/eval_core)/.*\.py$
+        files: ^(worldfoundry/(cli|mcp|runtime|evaluation/(api|models/runtime|tasks/catalog|tasks/execution/orchestration))|scripts/(benchmark_zoo|model_zoo))/.*\.py$
   - repo: local
     hooks:
       - id: worldfoundry-lightweight-lint

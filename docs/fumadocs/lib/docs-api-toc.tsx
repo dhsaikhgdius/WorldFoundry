@@ -5,7 +5,7 @@ import type { TOCItemType } from 'fumadocs-core/toc';
 type ApiSymbol = {
   name: string;
   kind: string;
-  methods: Array<{ name: string; kind: string }>;
+  methods: Array<{ name: string; kind: string; line?: number }>;
 };
 
 type ApiReferenceData = {
@@ -29,8 +29,15 @@ export function symbolAnchor(symbol: string) {
   return `api-${symbol.replace(/[^a-zA-Z0-9_-]+/g, '-')}`;
 }
 
-export function methodAnchor(symbol: string, methodName: string) {
-  return `${symbolAnchor(symbol)}--${methodName}`;
+export function methodAnchor(
+  symbol: string,
+  method: { name: string; kind?: string } | string,
+) {
+  if (typeof method === 'string') {
+    return `${symbolAnchor(symbol)}--${method}`;
+  }
+  const kind = method.kind || 'method';
+  return `${symbolAnchor(symbol)}--${kind}-${method.name}`;
 }
 
 function TocBadge({ kind }: { kind: string }) {
@@ -82,7 +89,7 @@ function buildSymbolTocItems(symbols: string[]): TOCItemType[] {
       if (method.name.startsWith('_') && method.name !== '__call__') continue;
       apiItems.push({
         title: tocTitle(method.kind || 'method', method.name),
-        url: `#${methodAnchor(qualified, method.name)}`,
+        url: `#${methodAnchor(qualified, method)}`,
         depth: 4,
       });
     }

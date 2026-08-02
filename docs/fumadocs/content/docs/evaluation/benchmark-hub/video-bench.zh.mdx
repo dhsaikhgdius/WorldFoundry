@@ -77,7 +77,7 @@ hf download Video-Bench/Video-Bench_videos \
 
 候选模型训练和推理是 model-specific 的。先通过候选模型 package 生成视频，再放到上面的 Video-Bench layout。
 
-## Judge Credentials
+## Judge credentials
 
 Video-Bench 使用 GPT-4o 和 GPT-4o-mini compatible APIs 做 judge。WorldFoundry 会在输出目录生成私有 runtime config，所以不需要手动改仓库里的 `config.json`。
 
@@ -197,3 +197,5 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
 Video-Bench 还报告了比既有自动指标更强的人类对齐 Spearman 相关。在其 human-alignment 表中，Video-Bench 在 imaging quality 上达到 **0.733**，在 color consistency 上达到 **0.750**，而单个 VBench 组件指标大约在 **0.363–0.545**。
 
 WorldFoundry scorecard 只是本地证据。复现上表仍需要官方 prompt suite、GPT judge 凭证，以及按维度组织的视频 layout。
+
+[← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

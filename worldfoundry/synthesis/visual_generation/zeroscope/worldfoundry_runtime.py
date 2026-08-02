@@ -14,6 +14,8 @@ from typing import Any, Sequence
 
 import numpy as np
 
+from worldfoundry.core.io import file_sha256
+
 
 class ZeroScopeRuntime:
     """Manages the ZeroScope diffusers pipeline for text-to-video generation.
@@ -122,9 +124,9 @@ class ZeroScopeRuntime:
             raise ValueError("ZeroScopeRuntime requires a local model_path/pretrained_model_path.")
 
         import torch
-        from diffusers import TextToVideoSDPipeline
         import transformers.modeling_utils as transformers_modeling_utils
         import transformers.utils.import_utils as transformers_import_utils
+        from diffusers import TextToVideoSDPipeline
 
         # Determine the actual device and data type based on availability.
         device = self.device if str(self.device).startswith("cuda") and torch.cuda.is_available() else "cpu"
@@ -209,7 +211,7 @@ class ZeroScopeRuntime:
         export_to_video(frames, str(target), fps=fps or int(kwargs.get("fps", 8)))
 
         # Calculate SHA256 hash of the generated video file.
-        video_sha = hashlib.sha256(target.read_bytes()).hexdigest()
+        video_sha = file_sha256(target)
 
         return {
             "status": "success",

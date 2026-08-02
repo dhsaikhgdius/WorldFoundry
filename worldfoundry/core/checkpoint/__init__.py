@@ -6,6 +6,9 @@ from importlib import import_module
 from typing import Any
 
 _EXPORT_MODULES = {
+    "DefaultLoadPlanner": "worldfoundry.core.checkpoint.dcp",
+    "DistributedCheckpointer": "worldfoundry.core.checkpoint.dcp",
+    "ModelWrapper": "worldfoundry.core.checkpoint.dcp",
     "assign_state_dict_strict": "worldfoundry.core.checkpoint.assignment",
     "get_storage_reader": "worldfoundry.core.checkpoint.load",
     "load_checkpoint": "worldfoundry.core.checkpoint.load",
@@ -21,9 +24,11 @@ _EXPORT_MODULES = {
     "safetensor_checkpoint_files": "worldfoundry.core.checkpoint.sharded_safetensors",
     "select_profile_checkpoint": "worldfoundry.core.checkpoint.selection",
     "selected_checkpoint_options": "worldfoundry.core.checkpoint.selection",
+    "submodule_state_dict": "worldfoundry.core.checkpoint.remap",
     "unwrap_model": "worldfoundry.core.checkpoint.sharded_safetensors",
     "tensor_state_dict": "worldfoundry.core.checkpoint.safe_loading",
     "validate_state_dict_compatibility": "worldfoundry.core.checkpoint.assignment",
+    "dcp_load_state_dict": "worldfoundry.core.checkpoint.dcp",
 }
 
 

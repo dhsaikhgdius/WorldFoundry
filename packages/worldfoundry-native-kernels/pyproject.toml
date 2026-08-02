@@ -1,0 +1,35 @@
+[build-system]
+requires = ["scikit-build-core>=0.10,<2"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "worldfoundry-native-kernels"
+version = "0.1.0"
+description = "Optional ABI-qualified native kernels for WorldFoundry."
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.10,<3.14"
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: C++",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[tool.scikit-build]
+cmake.build-type = "Release"
+cmake.version = ">=3.24"
+install.strip = false
+wheel.packages = ["python/worldfoundry_native_kernels"]
+wheel.py-api = "py3"
+wheel.license-files = ["LICENSE"]
+sdist.include = [
+    "CMakeLists.txt",
+    "LICENSE",
+    "README.md",
+    "cmake/*.cmake",
+    "checks/*.py",
+    "csrc/*.cpp",
+    "python/worldfoundry_native_kernels/*.py",
+]

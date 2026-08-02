@@ -63,13 +63,7 @@ from lyra_2._src.models.utils import (
 from lyra_2._src.modules.conditioner import DataType, T2VCondition
 from lyra_2._src.utils.resolution import VIDEO_RES_SIZE_INFO
 
-from worldfoundry.base_models.diffusion_model.video.cosmos.cosmos2.runtime.cosmos_predict2.cosmos_predict2._src.predict2.models.fm_solvers_unipc import (
-    FlowUniPCMultistepScheduler,
-)
-from worldfoundry.base_models.diffusion_model.video.cosmos.cosmos2.runtime.cosmos_predict2.cosmos_predict2._src.predict2.tokenizers.base_vae import (
-    BaseVAE,
-)
-from worldfoundry.base_models.diffusion_model.video.cosmos.shared.diffusion_types import DenoisePrediction
+from worldfoundry.base_models.diffusion_model.schedulers.flow_unipc import FlowUniPCMultistepScheduler
 from worldfoundry.core.configuration.lazy_config import LazyDict
 from worldfoundry.core.configuration.lazy_config import instantiate as lazy_instantiate
 from worldfoundry.core.distributed import broadcast_dtensor_model_states
@@ -155,7 +149,7 @@ class WANDiffusionModel(InferenceModel):
 
         # 3. tokenizer
         with misc.timer("DiffusionModel: set_up_tokenizer"):
-            self.tokenizer: BaseVAE = lazy_instantiate(config.tokenizer)
+            self.tokenizer: Any = lazy_instantiate(config.tokenizer)
             assert self.tokenizer.latent_ch == self.config.state_ch, (
                 f"latent_ch {self.tokenizer.latent_ch} != state_shape {self.config.state_ch}"
             )
@@ -793,7 +787,7 @@ class WANDiffusionModel(InferenceModel):
         )
         return is_image
 
-    def denoise(self, xt_B_C_T_H_W: torch.Tensor, timestep: torch.Tensor, condition: T2VCondition) -> DenoisePrediction:
+    def denoise(self, xt_B_C_T_H_W: torch.Tensor, timestep: torch.Tensor, condition: T2VCondition) -> Tensor:
         """
         Performs denoising on the input noise data, noise level, and condition
 

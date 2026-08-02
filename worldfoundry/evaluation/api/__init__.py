@@ -23,16 +23,16 @@ from .metrics import (
     METRIC_RESULT_SCHEMA_VERSION,
     METRIC_SPEC_SCHEMA_VERSION,
     AggregateResult,
+    BatchMetric,
     Metric,
     MetricResult,
     MetricSpec,
+    align_batch_metric_outputs,
 )
 from .models import (
     WORLD_MODEL_CONFIG_SCHEMA_VERSION,
-    WORLD_MODEL_MANIFEST_SCHEMA_VERSION,
-    WorldModelRunner,
     WorldModelConfig,
-    WorldModelManifest,
+    WorldModelRunner,
 )
 from .tasks import (
     BENCHMARK_SPEC_SCHEMA_VERSION,
@@ -42,7 +42,7 @@ from .tasks import (
     EvaluationProtocolSpec,
     WorldTaskConfig,
 )
-
+from .world_model_manifest import WORLD_MODEL_MANIFEST_SCHEMA_VERSION, WorldModelManifest
 
 __all__ = [
     "AGGREGATE_RESULT_SCHEMA_VERSION",
@@ -59,6 +59,7 @@ __all__ = [
     "WORLD_TASK_CONFIG_SCHEMA_VERSION",
     "AggregateResult",
     "ArtifactRef",
+    "BatchMetric",
     "BenchmarkSpec",
     "EvaluationProtocolSpec",
     "GenerationRequest",
@@ -70,6 +71,7 @@ __all__ = [
     "WorldModelConfig",
     "WorldModelManifest",
     "WorldTaskConfig",
+    "align_batch_metric_outputs",
     "coerce_artifact_refs",
     "enrich_artifact_ref",
     "is_generation_result_successful",

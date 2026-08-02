@@ -7,7 +7,7 @@ description: Where to look up sources, where to download, and which commands to 
 
 Use this page when a command says that a checkpoint, dataset, metric weight, generated output, or official result file is missing. WorldFoundry keeps these large or licensed files outside git; the repository holds code and manifests, while your machine or shared storage holds the assets those manifests reference.
 
-Typical path: inspect the model or benchmark id with `worldfoundry-eval zoo ... --json`, generate a per-benchmark asset plan when evaluating, then stage only what the next run needs. You do not need every benchmark asset before using the framework. For the unified conda env, see [Environments](/docs/reference/environments).
+Typical path: inspect the model or benchmark ID with `worldfoundry-eval zoo ... --json`, generate a per-benchmark asset plan when evaluating, then stage only what the next run needs. You do not need every benchmark asset before using the framework. For the unified conda env, see [Environments](/docs/reference/environments).
 
 Install the Hugging Face Hub package. The optional CLI (`hf` / `huggingface-cli`) is used when available; download scripts fall back to `huggingface_hub.snapshot_download` otherwise:
 
@@ -253,6 +253,165 @@ hf download Skywork/Matrix-Game-2.0 \
 
 bash scripts/download_hfd_models.sh matrix-game-2
 ```
+
+### Worked example: Echo-Memory
+
+Echo recipes share the Wan2.1 T2V 1.3B backbone but require different files
+under `Echo-Team/Echo-Memory`. As of 2026-07-20, only
+`context_k1/epoch-0.safetensors` remains on the official HF `main` branch.
+Other Echo model IDs stay in the catalog with exact expected filenames, but
+their upstream state is `unreleased_by_upstream` or
+`retracted_misaligned_by_upstream`; do not substitute K=1 weights for them.
+
+Stage the currently public recipe and its pinned backbone into the runtime
+layout, then create the normal HFD aliases without copying tensors:
+
+```bash
+export HF_ENDPOINT=https://hf-mirror.com
+
+hf download Echo-Team/Echo-Memory \
+  context_k1/epoch-0.safetensors \
+  --revision 7645f33efbfd02c58dc471570d0c7bd6a50eec83 \
+  --local-dir "${WORLDFOUNDRY_CKPT_DIR}/Echo-Memory"
+
+hf download Wan-AI/Wan2.1-T2V-1.3B \
+  --revision 37ec512624d61f7aa208f7ea8140a131f93afc9a \
+  --local-dir "${WORLDFOUNDRY_CKPT_DIR}/Wan2.1-T2V-1.3B"
+
+bash scripts/setup/link_hf_checkpoints.sh \
+  --repo Echo-Team/Echo-Memory=Echo-Memory \
+  --repo Wan-AI/Wan2.1-T2V-1.3B=Wan2.1-T2V-1.3B
+```
+
+The standard checker validates the recipe-specific filename as well as the
+repository, so a cache containing only K=1 cannot make a K=20 or SSM model look
+ready:
+
+```bash
+worldfoundry-eval zoo model-download \
+  --model-id echo-memory-context-k1 \
+  --check-local \
+  --json
+```
+
+Researchers with an unpublished checkpoint can place it at the exact
+`checkpoint_path` shown by that model's runtime profile and create the same HFD
+alias. Keep the catalog entry blocked until strict checkpoint loading and CUDA
+artifact validation pass.
+
+### Worked example: Matrix-Game 3.5
+
+The first- and third-person model IDs share Wan2.2, UMT5, and DA3 assets but
+bind different files from `RiemannDynamics/Matrix-Game-3.5-Base`. Download both
+files once so either immutable recipe can resolve through the standard HFD
+alias. Set `HF_ENDPOINT=https://hf-mirror.com` first when using HF-Mirror. The
+DA3 checkpoint has its own CC-BY-NC-4.0 license even though the Matrix-Game and
+Wan checkpoints are Apache-2.0; follow each dependency's upstream terms.
+
+```bash
+hf download RiemannDynamics/Matrix-Game-3.5-Base \
+  --revision 40c172355efa32d4e2a44076569e310807788f8a \
+  --include first-person.safetensors \
+  --include third-person.safetensors \
+  --local-dir "${WORLDFOUNDRY_HFD_ROOT}/RiemannDynamics--Matrix-Game-3.5-Base"
+
+hf download Wan-AI/Wan2.2-TI2V-5B \
+  --revision 921dbaf3f1674a56f47e83fb80a34bac8a8f203e \
+  --include 'diffusion_pytorch_model*.safetensors' \
+  --include models_t5_umt5-xxl-enc-bf16.pth \
+  --include Wan2.2_VAE.pth \
+  --include 'google/umt5-xxl/*' \
+  --local-dir "${WORLDFOUNDRY_HFD_ROOT}/Wan-AI--Wan2.2-TI2V-5B"
+
+hf download depth-anything/DA3NESTED-GIANT-LARGE-1.1 \
+  --revision b2359bdf726fb44ef62acca04d629dcf158053e7 \
+  --include config.json \
+  --include model.safetensors \
+  --local-dir "${WORLDFOUNDRY_HFD_ROOT}/depth-anything--DA3NESTED-GIANT-LARGE-1.1"
+```
+
+Verify both recipes without loading model tensors:
+
+```bash
+worldfoundry-eval zoo model-download \
+  --model-id matrix-game-3.5-first-person \
+  --check-local \
+  --json
+
+worldfoundry-eval zoo model-download \
+  --model-id matrix-game-3.5-third-person \
+  --check-local \
+  --json
+```
+
+### Worked example: Cosmos 1 and 2
+
+GEN3C uses four explicit assets: the 7B transformer, Tokenize1 codec, T5-11B,
+and MoGe depth model. Cosmos Predict2 uses its selected Video2World transformer
+and `tokenizer/tokenizer.pth`, plus the same T5-11B encoder. Predict2 repositories
+are gated, so authenticate before using the mirror.
+
+```bash
+export HF_ENDPOINT=https://hf-mirror.com
+
+hf download nvidia/GEN3C-Cosmos-7B \
+  --revision 9bcfdb4f3924f41376daeadf6200826c12a3bf8e \
+  --include model.pt \
+  --local-dir "${WORLDFOUNDRY_HFD_ROOT}/nvidia--GEN3C-Cosmos-7B"
+
+hf download nvidia/Cosmos-Predict2-2B-Video2World \
+  --revision f50c09f5d8ab133a90cac3f4886a6471e9ba3f18 \
+  --include model-720p-16fps.pt \
+  --include tokenizer/tokenizer.pth \
+  --local-dir "${WORLDFOUNDRY_HFD_ROOT}/nvidia--Cosmos-Predict2-2B-Video2World"
+
+hf download google-t5/t5-11b \
+  --revision 90f37703b3334dfe9d2b009bfcbfbf1ac9d28ea3 \
+  --include pytorch_model.bin --include config.json \
+  --include spiece.model --include tokenizer.json \
+  --local-dir "${WORLDFOUNDRY_HFD_ROOT}/google-t5--t5-11b"
+```
+
+Download `nvidia/Cosmos-Tokenize1-CV8x8x8-720p` and `Ruicheng/moge-vitl`
+for GEN3C as declared in its runtime profile. For Predict2 14B, switch to
+`nvidia/Cosmos-Predict2-14B-Video2World` revision
+`03b03a377fede782647afac998f674d9f358e319`.
+
+### Worked example: Cosmos 2.5
+
+Cosmos Predict and Transfer share the Predict 2B `tokenizer.pth` Wan codec and
+the Reason1 language model. Download only the selected transformer plus those
+shared assets. Transfer currently uses the exact official `general/edge`
+checkpoint revision; directory presence without that file is not readiness.
+Set `HF_ENDPOINT=https://hf-mirror.com` when the mirror is required.
+
+```bash
+hf download nvidia/Cosmos-Predict2.5-2B \
+  --revision f176dc95b4a70f53ce01c4b302851595e7322b00 \
+  --include tokenizer.pth \
+  --include 'base/post-trained/81edfebe-bd6a-4039-8c1d-737df1a790bf_ema_bf16.pt' \
+  --local-dir "${WORLDFOUNDRY_HFD_ROOT}/nvidia--Cosmos-Predict2.5-2B"
+
+hf download nvidia/Cosmos-Reason1-7B \
+  --revision 375e24000b24baed78f4618d3dd779e47cd96323 \
+  --include 'model*.safetensors' \
+  --include model.safetensors.index.json \
+  --include tokenizer.json \
+  --include tokenizer_config.json \
+  --include chat_template.json \
+  --include config.json \
+  --local-dir "${WORLDFOUNDRY_HFD_ROOT}/nvidia--Cosmos-Reason1-7B"
+
+hf download nvidia/Cosmos-Transfer2.5-2B \
+  --revision bd963eabcfc2d61dc4ea365cacf41d45ac480aa5 \
+  --include 'general/edge/ecd0ba00-d598-4f94-aa09-e8627899c431_ema_bf16.pt' \
+  --local-dir "${WORLDFOUNDRY_HFD_ROOT}/nvidia--Cosmos-Transfer2.5-2B"
+```
+
+For 14B Predict, replace the transformer download with revision
+`71ebf3e8af30ecfe440bf0481115975fcc052b46` and file
+`base/post-trained/e21d2a49-4747-44c8-ba44-9f6f9243715f_ema_bf16.pt` from
+`nvidia/Cosmos-Predict2.5-14B`; keep the same Reason1 and VAE assets.
 
 For other models, use the `repo_id` / `revision` from that model's catalog entry the same way. On a shared machine with pre-staged snapshots, set `WORLDFOUNDRY_MODEL_DIR` and symlink HF cache names instead of copying weights:
 

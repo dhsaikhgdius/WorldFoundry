@@ -1,0 +1,54 @@
+schema: worldfoundry-training
+execution_owner: worldfoundry-native
+run:
+  id: sana-600m-flow-lora
+  output_dir: runs/sana-600m-flow-lora
+model:
+  recipe: sana-600m-512px
+  checkpoint: default
+tuning:
+  mode: lora
+  preset: sana-attention
+  rank: 32
+  alpha: 32
+  dropout: 0.0
+data:
+  manifest: data/train.jsonl
+  cache: cache/sana-600m
+  max_latent_tokens_per_microbatch: 4096
+  split: train
+  shuffle: true
+  shuffle_seed: 42
+  tail_policy: drop
+objective:
+  type: flow_matching
+  prediction_type: flow_velocity
+  timestep_sampler: logit_normal
+  conditioning_dropout: 0.1
+  options:
+    # Match NVlabs/Sana@6298508: floor(u * 1000), then apply the training
+    # flow shift before both corruption and denoiser timestep conversion.
+    num_train_timesteps: 1000
+    flow_shift: 3.0
+optimizer:
+  type: adamw
+  learning_rate: 1.0e-4
+  weight_decay: 0.0
+  max_grad_norm: 1.0
+  gradient_accumulation_steps: 1
+runtime:
+  param_dtype: bfloat16
+  reduce_dtype: float32
+  # Keep eager activations until the SANA-specific checkpoint policy passes
+  # forward/backward parity; unsupported policies fail closed in the builder.
+  activation_checkpoint: none
+  compile: false
+distributed:
+  backend: fsdp2
+  dp_replicate: 1
+  dp_shard: auto
+  cp: 1
+  tp: 1
+checkpoint:
+  save_every_steps: 100
+  async: true

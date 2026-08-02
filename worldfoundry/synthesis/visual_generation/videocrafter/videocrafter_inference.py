@@ -9,7 +9,7 @@ import numpy as np
 import torch
 from PIL import Image
 
-from worldfoundry.base_models.diffusion_model.video.lvdm.models.samplers.ddim import (
+from worldfoundry.base_models.diffusion_model.schedulers.lvdm.ddim import (
     DDIMSampler,
 )
 

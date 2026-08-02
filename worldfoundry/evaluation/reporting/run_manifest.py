@@ -7,17 +7,17 @@ independently verified.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from importlib import metadata
 import os
 import platform
 import sys
+from collections.abc import Sequence
+from functools import lru_cache
+from importlib import metadata
 from pathlib import Path
 from typing import Any, Mapping
 
-from worldfoundry.evaluation.utils import jsonable, write_json
+from worldfoundry.evaluation.utils import git_metadata, jsonable, package_version, stable_hash, write_json
 from worldfoundry.runtime.env import check_required_env
-from worldfoundry.evaluation.utils import git_metadata, package_version, stable_hash
 
 # ── Schema version identifiers ──────────────────────────────
 RUN_MANIFEST_SCHEMA_VERSION = "worldfoundry-run-manifest"
@@ -101,18 +101,33 @@ def _path_requirement_row(item: str | Path | Mapping[str, Any]) -> dict[str, Any
     }
 
 
+@lru_cache(maxsize=64)
+def _installed_packages_filtered(package_names: tuple[str, ...]) -> tuple[tuple[str, str], ...]:
+    packages: dict[str, str] = {}
+    for requested_name in package_names:
+        try:
+            distribution = metadata.distribution(requested_name)
+        except metadata.PackageNotFoundError:
+            continue
+        canonical_name = str(distribution.metadata.get("Name") or requested_name)
+        packages[canonical_name] = str(distribution.version)
+    if not any(name.lower().replace("_", "-") == "worldfoundry" for name in packages):
+        packages["worldfoundry"] = package_version()
+    return tuple(sorted(packages.items(), key=lambda item: item[0].lower()))
+
+
 def _installed_packages(package_names: Sequence[str] | None) -> dict[str, str]:
     """Collect installed package versions, optionally filtered by *package_names*."""
-    requested = {item.lower().replace("_", "-") for item in package_names} if package_names else None
+    if package_names:
+        requested = tuple(sorted({str(item).lower().replace("_", "-") for item in package_names}))
+        return dict(_installed_packages_filtered(requested))
+
     packages: dict[str, str] = {}
     for distribution in metadata.distributions():
         name = str(distribution.metadata.get("Name") or "")
-        normalized = name.lower().replace("_", "-")
-        if not name or (requested is not None and normalized not in requested):
+        if not name:
             continue
         packages[name] = str(distribution.version)
-    if package_names and "worldfoundry" not in packages:
-        packages["worldfoundry"] = package_version()
     return dict(sorted(packages.items(), key=lambda item: item[0].lower()))
 
 

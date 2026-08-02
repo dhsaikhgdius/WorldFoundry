@@ -4,7 +4,7 @@ from inspect import isfunction
 import torch
 from einops import repeat
 
-from worldfoundry.base_models.diffusion_model.video.lvdm.utils import (
+from worldfoundry.core.model_loading.factory import (
     count_params,
     get_obj_from_str as _get_obj_from_str,
     instantiate_from_config,

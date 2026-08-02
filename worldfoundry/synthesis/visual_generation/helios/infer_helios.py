@@ -170,7 +170,12 @@ def _run(args: argparse.Namespace) -> None:
         subfolder="transformer",
         torch_dtype=weight_dtype,
     )
-    if not args.enable_compile:
+    # The vendored Triton norm/RoPE replacements are part of the same fused
+    # kernel path as flash attention.  Applying them while
+    # --disable_flash_attention is set silently changes the supposedly pure
+    # PyTorch reference path and has produced dark, nearly constant A100
+    # outputs.  Keep the entire fused-kernel stack behind the one opt-in.
+    if not args.enable_compile and not args.disable_flash_attention:
         transformer = replace_rmsnorm_with_fp32(transformer)
         transformer = replace_all_norms_with_flash_norms(transformer)
         replace_rope_with_flash_rope()

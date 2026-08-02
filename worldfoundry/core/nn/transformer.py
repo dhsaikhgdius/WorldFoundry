@@ -119,7 +119,12 @@ def sinusoidal_embedding_1d(
     if int(dim) % 2:
         raise ValueError("dim must be even for sinusoidal embeddings.")
     half = int(dim) // 2
-    position_dtype = position.dtype
+    # Scheduler timesteps are commonly integer tensors.  Casting the
+    # embedding back to that dtype truncates almost every sine/cosine value to
+    # zero, which silently destroys diffusion conditioning.  Preserve an
+    # explicitly floating input dtype, but keep the reference float64 result
+    # for integer positions so callers can downcast after the embedding.
+    output_dtype = position.dtype if position.is_floating_point() else torch.float64
     position = position.to(torch.float64)
     if float(max_period) <= 0:
         raise ValueError("max_period must be positive")
@@ -128,7 +133,7 @@ def sinusoidal_embedding_1d(
         -torch.arange(half, device=position.device, dtype=torch.float64).div(half),
     )
     sinusoid = torch.outer(position, frequencies)
-    return torch.cat([torch.cos(sinusoid), torch.sin(sinusoid)], dim=1).to(position_dtype)
+    return torch.cat([torch.cos(sinusoid), torch.sin(sinusoid)], dim=1).to(output_dtype)
 
 
 def _swapaxes(value: Any, axis1: int, axis2: int) -> Any:

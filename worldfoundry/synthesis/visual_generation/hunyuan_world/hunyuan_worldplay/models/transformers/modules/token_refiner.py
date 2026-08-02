@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from einops import rearrange
 
-from worldfoundry.base_models.diffusion_model.video.hunyuan_video.modules.activation_layers import get_activation_layer
+from worldfoundry.core.nn import activation_layer as get_activation_layer
 from .embed_layers import TextProjection, TimestepEmbedder
 from .mlp_layers import MLP
 from .modulate_layers import apply_gate

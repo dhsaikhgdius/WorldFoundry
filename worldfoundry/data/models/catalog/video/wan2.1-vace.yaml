@@ -26,16 +26,14 @@ checkpoints:
 integration:
   status: integrated
   notes:
-  - Runtime no longer depends on external local Wan source checkouts.
-  - WorldFoundry route is complete; missing checkpoint/control assets are reported at runtime.
-  - The official demo reference images are resolved from worldfoundry/data/test_cases/wan instead of a missing vendored examples
-    directory.
+  - VACE is assembled from the canonical Wan network, UMT5 conditioner, VAE codec, scheduler, initializer, and native runner roles.
+  - Loading, placement, offload, sampling, media normalization, and artifact writing are owned by the shared WorldFoundry infra.
+  - Image references, source video/mask conditions, and precomputed VACE context tensors are supported without an official-runtime backend.
 runner_parity:
-  status: verified
+  status: integrated
   notes:
-  - 'The runner follows the official VACE-14B command shape: 8-rank torchrun, 1280x720, 81 frames, 50 sampling steps, DiT/T5
-    FSDP, Ulysses size 8, and in-tree girl/snake reference images.'
-  - Per-run visual QA and artifact checks are tracked outside the model catalog.
+  - The native defaults preserve the official VACE-14B 1280x720, 81-frame, 50-step, guidance-scale 5.0 inference shape.
+  - Full checkpoint visual parity remains a GPU artifact-validation task rather than a separate backend route.
 runtime_profile: runtime-profile:wan2.1-vace
 catalog_category: video
 catalog_scope: Video-generation and video-token catalog entries. Integrated entries expose WorldFoundry pipeline targets;

@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import json
 import re
+import shlex
+import sys
 from collections import Counter
 from pathlib import Path
 from typing import Any, Iterable
@@ -21,6 +23,9 @@ ROOT = Path(__file__).resolve().parents[3]
 DOCS_ROOT = Path(__file__).resolve().parents[1]
 OUT = DOCS_ROOT / "lib" / "model-recipes-data.json"
 INDEX_OUT = DOCS_ROOT / "lib" / "model-recipes-index.json"
+
+sys.path.insert(0, str(ROOT))
+from worldfoundry.core.inference import get_model_inference_spec  # noqa: E402
 
 CATALOG_ROOT = ROOT / "worldfoundry/data/models/catalog"
 PROFILE_ROOT = ROOT / "worldfoundry/data/models/runtime/profiles"
@@ -63,6 +68,17 @@ STATUS_ORDER = {
     "planned": 4,
     "blocked": 5,
 }
+
+# Docs catalog hides blocked 3D/4D entries — upstream YAML stays for CLI inspection.
+DOCS_EXCLUDED_RECIPE_IDS: set[str] = set()
+
+
+def docs_catalog_visible(category_id: str, model_id: str, status_group: str) -> bool:
+    if model_id in DOCS_EXCLUDED_RECIPE_IDS:
+        return False
+    if category_id == "three_d_four_d" and status_group == "blocked":
+        return False
+    return True
 
 
 def load_yaml(path: Path) -> Any:
@@ -223,6 +239,25 @@ def github_owner(url: str | None) -> str | None:
     return match.group(1) if match else None
 
 
+def github_readme_url(url: str | None) -> str | None:
+    """Return the stable README anchor for a GitHub repository URL.
+
+    Catalog source links occasionally point at a subdirectory or a revision.
+    Model pages should still give readers one predictable starting point for
+    the upstream usage instructions, so reduce those URLs to their repository
+    root before adding the README anchor.
+    """
+
+    if not url:
+        return None
+    match = re.match(r"https?://(?:www\.)?github\.com/([^/]+)/([^/?#]+)", url)
+    if not match:
+        return None
+    owner, repository = match.groups()
+    repository = repository.removesuffix(".git")
+    return f"https://github.com/{owner}/{repository}#readme"
+
+
 def source_links(item: dict[str, Any], profile: dict[str, Any] | None) -> list[dict[str, str]]:
     links: list[dict[str, str]] = []
     seen: set[str] = set()
@@ -281,6 +316,17 @@ def source_links(item: dict[str, Any], profile: dict[str, Any] | None) -> list[d
         for record in as_list(profile.get("source_repos")):
             if isinstance(record, dict):
                 add("source", "Source", record.get("url"), record.get("revision") or record.get("sha"))
+
+    # Not every catalog manifest has a separately curated documentation URL,
+    # but an upstream GitHub repository is still a first-class official usage
+    # source. Surface its README explicitly instead of making readers infer
+    # that the generic source link contains installation and inference details.
+    for source_link in tuple(links):
+        if source_link["kind"] != "source":
+            continue
+        readme_url = github_readme_url(source_link["url"])
+        if readme_url:
+            add("docs", "Upstream README", readme_url, source_link.get("revision"))
 
     return links
 
@@ -367,22 +413,94 @@ def task_data(item: dict[str, Any], profile: dict[str, Any] | None) -> list[str]
     return unique_strings(values)
 
 
-def variant_data(item: dict[str, Any], default_status: dict[str, str]) -> list[dict[str, str]]:
-    output: list[dict[str, str]] = []
+def variant_data(
+    item: dict[str, Any],
+    default_status: dict[str, str],
+    profiles: dict[str, dict[str, Any]],
+    environments: dict[str, dict[str, Any]],
+    bindings: dict[str, dict[str, Any]],
+    unified_environment: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Build variant records with the runtime route that actually serves each variant."""
+    output: list[dict[str, Any]] = []
     for variant in as_list(item.get("variants")):
         if not isinstance(variant, dict):
             continue
         variant_id = text(variant.get("id") or variant.get("model_id"))
         if not variant_id:
             continue
-        integration = get_status(variant.get("integration")) or default_status["integration"]
+        profile_candidates = unique_strings(
+            (
+                candidate.removeprefix("runtime-profile:") if isinstance(candidate, str) else candidate
+                for candidate in (
+                    variant.get("runtime_profile"),
+                    variant_id,
+                    item.get("runtime_profile"),
+                    text(item.get("id") or item.get("model_id")),
+                    *as_list(item.get("aliases")),
+                )
+            )
+        )
+        profile_id, profile = select_manifest(profiles, profile_candidates)
+        profile_execution = profile.get("execution") if profile and isinstance(profile.get("execution"), dict) else {}
+        profile_integration = get_status(profile.get("integration")) if profile else None
+        integration = get_status(variant.get("integration")) or profile_integration
+        integration = integration or text(profile_execution.get("integration_status")) or default_status["integration"]
+        binding_candidates = unique_strings(
+            (
+                variant.get("pipeline_binding"),
+                profile_execution.get("pipeline_binding"),
+                variant_id,
+            )
+        )
+        binding_id, binding = select_manifest(bindings, binding_candidates)
+        environment_candidates = unique_strings(
+            (
+                variant.get("runtime_profile"),
+                variant_id,
+                profile_id,
+                variant.get("pipeline_binding"),
+                binding_id,
+                item.get("runtime_profile"),
+                text(item.get("id") or item.get("model_id")),
+            )
+        )
+        environment_candidates = [candidate.removeprefix("runtime-profile:") for candidate in environment_candidates]
+        environment_id, environment = select_manifest(environments, environment_candidates)
+        if environment is None and profile is not None:
+            environment_id, environment = "_unified", unified_environment
+        variant_runtime = runtime_data(
+            item,
+            profile_id,
+            profile,
+            environment_id,
+            environment,
+            binding_id,
+            binding,
+        )
+        pipeline = binding.get("pipeline") if binding and isinstance(binding.get("pipeline"), dict) else {}
+        loading = pipeline.get("loading") if isinstance(pipeline.get("loading"), dict) else {}
+        invocation = pipeline.get("invocation") if isinstance(pipeline.get("invocation"), dict) else {}
+        variant_item = {**item, **variant}
         entry = {
             "id": variant_id,
             "label": text(variant.get("name") or variant.get("display_name")) or variant_id,
             "task": text(variant.get("task")) or "",
-            "runtimeProfile": (text(variant.get("runtime_profile")) or "").removeprefix("runtime-profile:"),
-            "pipelineBinding": text(variant.get("pipeline_binding")) or "",
+            "runtimeProfile": variant_runtime["profileId"] or "",
+            "pipelineBinding": variant_runtime["bindingId"] or "",
             "status": integration,
+            "pipelineTarget": variant_runtime["pipelineTarget"],
+            "runner": variant_runtime["runner"] or variant_runtime["runnerTarget"],
+            "loadingMethod": text(loading.get("method")),
+            "invocationMode": text(invocation.get("mode")),
+            "environmentName": variant_runtime["environmentName"],
+            "environmentKind": variant_runtime["environmentKind"],
+            "python": variant_runtime["python"],
+            "cudaLabel": variant_runtime["cudaLabel"],
+            "backendStage": variant_runtime["backendStage"],
+            "runtimeStatus": variant_runtime["runtimeStatus"],
+            "inputContract": input_contract(profile),
+            "artifacts": artifact_data(variant_item, profile),
         }
         output.append(entry)
     return output
@@ -425,6 +543,8 @@ def runtime_data(
 ) -> dict[str, Any]:
     execution = profile.get("execution") if profile and isinstance(profile.get("execution"), dict) else {}
     pipeline = binding.get("pipeline") if binding and isinstance(binding.get("pipeline"), dict) else {}
+    loading = pipeline.get("loading") if isinstance(pipeline.get("loading"), dict) else {}
+    invocation = pipeline.get("invocation") if isinstance(pipeline.get("invocation"), dict) else {}
     pip_packages = unique_strings(as_list(environment.get("pip_packages")) if environment else [])
     conda_packages = unique_strings(as_list(environment.get("conda_packages")) if environment else [])
     env_name = text(environment.get("env_name")) if environment else None
@@ -437,7 +557,9 @@ def runtime_data(
         "bindingId": binding_id or text(item.get("pipeline_binding")),
         "runnerTarget": text(item.get("runner_target")),
         "runner": text(binding.get("runner")) if binding else None,
-        "pipelineTarget": text(pipeline.get("target")),
+        "pipelineTarget": text(pipeline.get("target") or execution.get("pipeline_target")),
+        "loadingMethod": text(loading.get("method")),
+        "invocationMode": text(invocation.get("mode")),
         "backendStage": text(execution.get("backend_stage") or (profile.get("backend_stage") if profile else None)),
         "runtimeStatus": text(execution.get("runtime_status") or (profile.get("runtime_status") if profile else None)),
         "environmentId": env_id,
@@ -507,6 +629,142 @@ def artifact_data(item: dict[str, Any], profile: dict[str, Any] | None) -> list[
     return output
 
 
+def task_field_detail(field: Any) -> str:
+    required = "Required" if getattr(field, "required", False) else "Optional"
+    pieces = [required]
+    default = getattr(field, "default", None)
+    if default is not None:
+        if isinstance(default, (dict, list, tuple)):
+            rendered = json.dumps(default, ensure_ascii=False, sort_keys=True)
+        else:
+            rendered = str(default)
+        pieces.append(f"default={rendered}")
+    choices = list(getattr(field, "choices", ()) or ())
+    if choices:
+        pieces.append(f"choices={', '.join(str(choice) for choice in choices)}")
+    return "; ".join(pieces)
+
+
+def core_inference_task_data(spec: Any, variant_ids: list[str]) -> list[dict[str, Any]]:
+    output: list[dict[str, Any]] = []
+    for task in getattr(spec, "tasks", ()):
+        inputs = []
+        for field in task.inputs:
+            inputs.append(
+                {
+                    "field": field.field_id,
+                    "detail": task_field_detail(field),
+                    "kind": field.kind,
+                    "target": field.target,
+                    "required": bool(field.required),
+                    "default": field.default,
+                    "choices": list(field.choices),
+                    "description": field.description,
+                }
+            )
+        artifacts = [
+            {
+                "kind": artifact.kind,
+                "filename": artifact.artifact_id,
+                "description": artifact.description,
+            }
+            for artifact in task.outputs
+        ]
+        output.append(
+            {
+                "id": task.task_id,
+                "label": task.label,
+                "description": task.description,
+                "source": "inference_spec",
+                "variantIds": list(variant_ids),
+                "inputs": inputs,
+                "artifacts": artifacts,
+            }
+        )
+    return output
+
+
+def catalog_inference_task_data(
+    item: dict[str, Any],
+    profile: dict[str, Any] | None,
+    variant_records: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Expose task profiles for models without a curated Python inference spec.
+
+    Catalog ``tasks`` are capabilities, while a variant's ``task`` is the
+    closest executable profile when variants exist. Keep the raw catalog
+    values for fallback model-run schemas, but bind them to the variants that
+    declare them so the docs cannot pair an arbitrary task with a variant.
+    """
+    declared_tasks = (
+        unique_strings(record.get("task") for record in variant_records if record.get("task"))
+        if variant_records
+        else task_data(item, profile)
+    )
+    if not declared_tasks:
+        declared_tasks = ["default"]
+
+    output: list[dict[str, Any]] = []
+    for task_id in declared_tasks:
+        matching = [record for record in variant_records if record.get("task") == task_id]
+        source_record = matching[0] if matching else (variant_records[0] if variant_records else None)
+        fields = source_record.get("inputContract", []) if source_record else input_contract(profile)
+        inputs = [
+            {
+                "field": field.get("field", ""),
+                "detail": field.get("detail", "Recorded"),
+                "kind": "string",
+                "target": "input",
+                "required": field.get("detail") == "Required",
+                "description": "Recorded input field from the runtime profile.",
+            }
+            for field in fields
+            if field.get("field")
+        ]
+        artifacts = source_record.get("artifacts", []) if source_record else artifact_data(item, profile)
+        output.append(
+            {
+                "id": task_id,
+                "label": humanize(task_id),
+                "description": "Catalog task profile used by the model runtime.",
+                "source": "catalog",
+                "variantIds": [record.get("id") for record in matching if record.get("id")],
+                "inputs": inputs,
+                "artifacts": [
+                    {
+                        "kind": artifact.get("kind", ""),
+                        "filename": artifact.get("filename", ""),
+                    }
+                    for artifact in artifacts
+                    if artifact.get("kind") or artifact.get("filename")
+                ],
+            }
+        )
+    return output
+
+
+def inference_task_data(
+    item: dict[str, Any],
+    profile: dict[str, Any] | None,
+    variant_records: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    model_id = text(item.get("id") or item.get("model_id")) or ""
+    spec = get_model_inference_spec(model_id)
+    if spec is None:
+        alias_specs = {
+            candidate.model_family_id: candidate
+            for alias in as_list(item.get("aliases"))
+            if alias
+            for candidate in [get_model_inference_spec(str(alias))]
+            if candidate is not None
+        }
+        if len(alias_specs) == 1:
+            spec = next(iter(alias_specs.values()))
+    if spec is not None:
+        return core_inference_task_data(spec, [record["id"] for record in variant_records])
+    return catalog_inference_task_data(item, profile, variant_records)
+
+
 def recipe_notes(item: dict[str, Any], profile: dict[str, Any] | None) -> list[str]:
     integration = item.get("integration") if isinstance(item.get("integration"), dict) else {}
     runner = item.get("runner_parity") if isinstance(item.get("runner_parity"), dict) else {}
@@ -538,25 +796,42 @@ def summary_for(item: dict[str, Any], tasks: list[str], notes: list[str]) -> str
     return "Cataloged in WorldFoundry. Open the recipe to inspect the available runtime and provenance records."
 
 
-def command_data(model_id: str, runtime_model_id: str) -> dict[str, str]:
+def command_placeholder(field: dict[str, Any]) -> str | None:
+    if not field.get("required") or field.get("default") not in (None, ""):
+        return None
+    field_id = str(field.get("field") or "")
+    if field_id in {"prompt", "instruction", "text", "caption"}:
+        return '"Describe the desired output."'
+    if field_id in {"input_path", "image", "video", "audio", "images", "input"}:
+        return "/path/to/input"
+    if field.get("kind") in {"json", "interaction_tokens"}:
+        return "'{}'"
+    return "VALUE"
+
+
+def direct_run_command(runtime_model_id: str, task: dict[str, Any]) -> str:
+    lines = [
+        "worldfoundry-eval run \\",
+        f"  {shlex.quote(runtime_model_id)} \\",
+        f"  --pipeline.task-profile {shlex.quote(str(task['id']))} \\",
+    ]
+    for field in task.get("inputs", []):
+        placeholder = command_placeholder(field)
+        if placeholder is None:
+            continue
+        option = str(field.get("field") or "").replace("_", "-")
+        lines.append(f"  --pipeline.{option} {placeholder} \\")
+    lines.append("  --json")
+    return "\n".join(lines)
+
+
+def command_data(model_id: str, runtime_model_id: str, default_task: dict[str, Any]) -> dict[str, str]:
     return {
         "prepare": f"bash scripts/inference/prepare_model_infer.sh {runtime_model_id}",
         "install": f"bash scripts/setup/model_env_install.sh --model {runtime_model_id}",
         "inspect": f"worldfoundry-eval zoo model-show --model-id {model_id} --include-manifest --json",
         "check": f"worldfoundry-eval zoo model-download --model-id {model_id} --check-local --json",
-        "run": "\n".join(
-            [
-                "worldfoundry-eval evaluate \\",
-                "  --mode model \\",
-                f"  --model-id {runtime_model_id} \\",
-                "  --model-runner worldfoundry:pipeline \\",
-                "  --model-manifest-dir worldfoundry/data/models/catalog \\",
-                "  --requests-path tmp/requests.jsonl \\",
-                f"  --output-dir tmp/model_eval/{runtime_model_id} \\",
-                "  --metric artifact_count \\",
-                "  --json",
-            ]
-        ),
+        "run": direct_run_command(runtime_model_id, default_task),
     }
 
 
@@ -609,8 +884,9 @@ def main() -> None:
                 links = source_links(item, profile)
                 checkpoints = checkpoint_data(item, profile)
                 notes = recipe_notes(item, profile)
-                variant_records = variant_data(item, status)
-                runtime_model_id = variant_records[0]["id"] if variant_records else (env_id if env_id and env_id != "_unified" else model_id)
+                variant_records = variant_data(item, status, profiles, environments, bindings, unified_environment)
+                inference_tasks = inference_task_data(item, profile, variant_records)
+                runtime_model_id = variant_records[0]["id"] if variant_records else model_id
                 aliases = unique_strings(as_list(item.get("aliases")))
 
                 recipe = {
@@ -628,12 +904,15 @@ def main() -> None:
                     "sources": links,
                     "checkpoints": checkpoints,
                     "variants": variant_records,
+                    "inferenceTasks": inference_tasks,
                     "inputContract": input_contract(profile),
                     "artifacts": artifact_data(item, profile),
                     "notes": notes,
-                    "commands": command_data(model_id, runtime_model_id),
+                    "commands": command_data(model_id, runtime_model_id, inference_tasks[0]),
                     "catalogPath": str(path.relative_to(ROOT)),
                 }
+                if not docs_catalog_visible(category_id, model_id, status["group"]):
+                    continue
                 recipes.append(recipe)
                 category_counts[category_id] += 1
 

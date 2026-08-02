@@ -23,11 +23,11 @@ from worldfoundry.core.attention.causal_rope_sequence_parallel import (
     sp_dit_forward_causal_chunked,
 )
 from worldfoundry.core.distributed.sequence_ops import get_world_size
-from worldfoundry.base_models.diffusion_model.video.wan.wan_2p2.modules.lingbot_model_fast import WanModelFast
-from worldfoundry.base_models.diffusion_model.video.wan.wan_2p1.modules.t5 import T5EncoderModel
-from worldfoundry.base_models.diffusion_model.video.wan.wan_2p2.modules.vae2_1 import Wan2_1_VAE
+from worldfoundry.base_models.diffusion_model.models.networks.wan.variants.lingbot.fast import WanModelFast
+from worldfoundry.base_models.diffusion_model.models.encoders.wan.reference import T5EncoderModel
+from worldfoundry.base_models.diffusion_model.models.autoencoders.wan.reference_21_streaming import Wan2_1_VAE
 
-from worldfoundry.base_models.diffusion_model.video.wan.wan_2p1.utils.fm_solvers_unipc import FlowUniPCMultistepScheduler
+from worldfoundry.base_models.diffusion_model.schedulers.flow_unipc import FlowUniPCMultistepScheduler
 from .utils.cam_utils import (
     compute_relative_poses,
     interpolate_camera_poses,

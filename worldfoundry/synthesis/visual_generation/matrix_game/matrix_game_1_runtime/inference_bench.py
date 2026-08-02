@@ -25,7 +25,7 @@ from matrixgame.sample.pipeline_matrixgame import MatrixGameVideoPipeline
 from matrixgame.vae_variants import get_vae
 from matrixgame.encoder_variants import get_text_enc
 from worldfoundry.synthesis.visual_generation.matrix_game import MGVideoDiffusionTransformerI2V
-from worldfoundry.base_models.diffusion_model.video.hunyuan_video.diffusion.schedulers.scheduling_flow_match_discrete import (
+from worldfoundry.synthesis.visual_generation.hunyuan_world.hunyuan_worldplay.schedulers.scheduling_flow_match_discrete import (
     FlowMatchDiscreteScheduler,
 )
 from tools.visualize import process_video

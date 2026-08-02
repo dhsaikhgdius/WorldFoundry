@@ -391,7 +391,12 @@ MODEL_VISUALIZATION_CAPABILITIES = (
         ("mask",),
         "perception_core/segment/sam_v1/automatic_mask_generator.py",
     ),
-    _cap("aot", "perception_core/tracking/aot", ("mask", "media"), "perception_core/tracking/aot/utils/image.py"),
+    _cap(
+        "aot",
+        "perception_core/tracking/aot",
+        ("mask", "media"),
+        "perception_core/tracking/track_anything/aot/utils/image.py",
+    ),
     _cap(
         "cotracker",
         "perception_core/tracking/cotracker",

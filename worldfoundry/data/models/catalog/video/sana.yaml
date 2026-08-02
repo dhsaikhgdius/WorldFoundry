@@ -33,8 +33,9 @@ official_sources:
 integration:
   status: runtime_ported
   notes:
-  - Official Sana source, configs, ControlNet runner, Sprint runner, and video runner
-    are vendored under worldfoundry.base_models.diffusion_model.image.sana.
+  - Sana checkpoint math is split across the canonical denoiser, network, encoder,
+    autoencoder, initializer, scheduler, and recipe roles under
+    worldfoundry.base_models.diffusion_model.
   - Checkpoint assets remain external Hugging Face artifacts.
   - The 2B 480p video path is wired through the in-tree runtime; official long
     configuration parity remains pending.

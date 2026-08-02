@@ -21,11 +21,27 @@ This is useful when doing distributed training.
 
 import gc
 import os
-import pickle
 import shutil
 
 import torch
 import torch.distributed as dist
+
+
+def get_collective_device(group=None) -> torch.device:
+    """Return the device required by the active process-group backend.
+
+    NCCL collectives must use the CUDA device selected for this process. CPU
+    backends such as Gloo use CPU tensors. Keeping this decision in one place
+    prevents bare ``cuda`` allocations from silently landing on GPU 0.
+    """
+
+    if dist.is_available() and dist.is_initialized():
+        backend = str(dist.get_backend(group)).lower()
+        if "nccl" not in backend:
+            return torch.device("cpu")
+    if torch.cuda.is_available():
+        return torch.device("cuda", torch.cuda.current_device())
+    return torch.device("cpu")
 
 
 def is_distributed():
@@ -136,8 +152,7 @@ def sync_tensor(tensor, reduce="mean"):
     if not is_dist_initialized():
         return tensor
     if not isinstance(tensor, torch.Tensor):
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        tensor = torch.tensor([tensor], device=device)
+        tensor = torch.tensor([tensor], device=get_collective_device())
     tensor_list = [torch.empty_like(tensor) for _ in range(get_world_size())]
     torch.distributed.all_gather(tensor_list, tensor.contiguous(), async_op=False)
     if reduce == "mean":
@@ -159,42 +174,9 @@ def all_gather(data):
     Returns:
         list[data]: list of data gathered from each rank
     """
-    to_device = torch.device("cuda")
-    # to_device = torch.device("cpu")
+    from .evaluation_collectives import all_gather as gather
 
-    world_size = get_world_size()
-    if world_size == 1:
-        return [data]
-
-    # serialized to a Tensor
-    buffer = pickle.dumps(data)
-    storage = torch.ByteStorage.from_buffer(buffer)
-    tensor = torch.ByteTensor(storage).to(to_device)
-
-    # obtain Tensor size of each rank
-    local_size = torch.LongTensor([tensor.numel()]).to(to_device)
-    size_list = [torch.LongTensor([0]).to(to_device) for _ in range(world_size)]
-    dist.all_gather(size_list, local_size)
-    size_list = [int(size.item()) for size in size_list]
-    max_size = max(size_list)
-
-    # receiving Tensor from all ranks
-    # we pad the tensor because torch all_gather does not support
-    # gathering tensors of different shapes
-    tensor_list = []
-    for _ in size_list:
-        tensor_list.append(torch.ByteTensor(size=(max_size,)).to(to_device))
-    if local_size != max_size:
-        padding = torch.ByteTensor(size=(max_size - local_size,)).to(to_device)
-        tensor = torch.cat((tensor, padding), dim=0)
-    dist.all_gather(tensor_list, tensor)
-
-    data_list = []
-    for size, tensor in zip(size_list, tensor_list):
-        buffer = tensor.cpu().numpy().tobytes()[:size]
-        data_list.append(pickle.loads(buffer))
-
-    return data_list
+    return gather(data)
 
 
 def reduce_dict(input_dict, average=True):

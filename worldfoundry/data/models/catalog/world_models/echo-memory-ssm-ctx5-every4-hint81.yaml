@@ -1,0 +1,60 @@
+family: Echo-Memory
+id: echo-memory-ssm-ctx5-every4-hint81
+provider: Echo Team at Joy Future Academy, JD
+name: Echo-Memory SSM Ctx5 Every4 Hint81
+tasks:
+- image-to-video
+- action-conditioned-video
+- interactive-world-model
+- memory-research
+modalities:
+- image
+- text
+- camera-trajectory
+- video
+output_artifacts:
+- generated_world_video
+checkpoint_refs:
+- repo_id: Echo-Team/Echo-Memory
+  revision: 7645f33efbfd02c58dc471570d0c7bd6a50eec83
+  filename: ssm_ablation_ctx5_every4_hint81/epoch-0.safetensors
+  license: cc-by-4.0
+  gated: false
+  notes:
+  - Upstream removed this unreleased checkpoint from the current Hugging Face main branch; a researcher-supplied local file is required.
+- repo_id: Wan-AI/Wan2.1-T2V-1.3B
+  revision: 37ec512624d61f7aa208f7ea8140a131f93afc9a
+  license: apache-2.0
+  gated: false
+official_sources:
+  paper: https://arxiv.org/abs/2606.09803
+  project_page: https://echo-team-joy-future-academy-jd.github.io/Echo-Memory/
+  github:
+    url: https://github.com/Echo-Team-Joy-Future-Academy-JD/Echo-Memory
+    revision: 30eaffb55b264e1d8dfef70a8934d34c86e29947
+runtime_profile: runtime-profile:echo-memory-ssm-ctx5-every4-hint81
+pipeline_binding: echo-memory-ssm-ctx5-every4-hint81
+release_type: code_only_checkpoint_unreleased
+license: cc-by-4.0
+integration:
+  status: blocked
+  blocked_reasons:
+  - The official Hugging Face history marks this SSM checkpoint as unreleased and the file is absent from the current main branch.
+  notes:
+  - This is an independent WorldFoundry model identity pinned to ssm_ablation_ctx5_every4_hint81/epoch-0.safetensors; users do not select a memory method at runtime.
+  - The independent recipe is assembled by NativeDiffusionPipeline from shared Wan components and the framework-owned frozen-context strategy; it does not use an external backend.
+  - Checkpoint headers are inspected before construction and full DiT tensors are loaded with exact key and shape coverage.
+runner_parity:
+  status: pending
+  notes:
+  - CPU contract tests cover sampler layout, frozen-context relocking, target-only CFG, model identity, frame retrieval, and checkpoint architecture validation.
+  - Exact checkpoint and CUDA artifact validation are blocked until upstream publishes the weight or a researcher supplies a local checkpoint.
+catalog_category: world_models
+catalog_scope: Echo-Memory independent inference models
+runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
+availability:
+  status: source_available
+  open_source: true
+  code: native_worldfoundry
+  weights: unreleased_by_upstream
+  license: cc-by-4.0

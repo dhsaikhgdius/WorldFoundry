@@ -10,15 +10,14 @@ from __future__ import annotations
 
 import asyncio
 import functools
-import io
 import json
+import logging
 import os
 import re
 import time
 import traceback
 import uuid
 from collections import deque
-from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field, replace
 from fractions import Fraction
@@ -29,17 +28,41 @@ from urllib.parse import quote
 import numpy as np
 from PIL import Image
 
+from worldfoundry.core.acceleration.prewarm import run_async_prewarm_sequence
+from worldfoundry.core.logging_setup import get_logger, write_jsonl_event
 from worldfoundry.core.realtime import RealtimeSpec
-from worldfoundry.studio.catalog import CatalogEntry
-from worldfoundry.studio.execution import (
-    PreparedInputs,
-    StudioManager,
-    _normalize_frame_list,
-    _to_uint8_rgb,
+from worldfoundry.core.realtime_timing import RealtimeChunkTiming, RealtimeTimingWindow
+from worldfoundry.core.video_postprocess import (
+    IdentityVideoPostProcessor,
+    VideoPostprocessChain,
+    VideoPostprocessStream,
+    VideoSpec,
+    frame_list_from_chunks,
 )
+from worldfoundry.studio.catalog import CatalogEntry
+from worldfoundry.studio.execution import PreparedInputs, StudioManager
 from worldfoundry.studio.launch_config import StudioLaunchConfig
+from worldfoundry.studio.serving.realtime import media as realtime_media
+from worldfoundry.studio.serving.realtime.input import (
+    ControlSegment,
+    RealtimeControlResampler,
+    RealtimeControlState,
+    interactions_from_keys,
+    interactions_from_segments,
+)
+from worldfoundry.studio.serving.realtime.media import (
+    FrameQueuePolicy,
+    LatestFrameBuffer,
+    realtime_frames_from_result,
+)
+from worldfoundry.studio.serving.realtime.media import encode_jpeg_frames as _encode_jpeg_frames
+from worldfoundry.studio.serving.realtime.media import resize_rgb_frames as _resize_rgb_frames
 
-SUPPORTED_CONTROL_KEYS = frozenset({"w", "a", "s", "d", "i", "j", "k", "l"})
+_MIN_OUTPUT_WIDTH = realtime_media.MIN_OUTPUT_WIDTH
+_MIN_OUTPUT_HEIGHT = realtime_media.MIN_OUTPUT_HEIGHT
+_MAX_OUTPUT_WIDTH = realtime_media.MAX_OUTPUT_WIDTH
+_MAX_OUTPUT_HEIGHT = realtime_media.MAX_OUTPUT_HEIGHT
+_MAX_OUTPUT_PIXELS = realtime_media.MAX_OUTPUT_PIXELS
 _DREAMX_WORLD_MODEL_ID = "dreamx-world-5b-cam"
 _PROMPT_BOUNDARY_MODEL_IDS = frozenset(
     {
@@ -51,21 +74,51 @@ _PROMPT_BOUNDARY_MODEL_IDS = frozenset(
         "sana-wm",
     }
 )
-KEY_ALIASES = {
-    "arrowup": "i",
-    "arrowdown": "k",
-    "arrowleft": "j",
-    "arrowright": "l",
-}
-
 _TEXT_EVENT_ID = re.compile(r"^[A-Za-z0-9_.:-]{1,64}$")
 _MAX_TEXT_EVENTS = 12
 _MAX_TEXT_EVENT_PROMPT = 1000
-_MIN_OUTPUT_WIDTH = 160
-_MIN_OUTPUT_HEIGHT = 90
-_MAX_OUTPUT_WIDTH = 1920
-_MAX_OUTPUT_HEIGHT = 1920
-_MAX_OUTPUT_PIXELS = 1920 * 1080
+_CHUNK_METRIC_NAMES = (
+    "condition_ms",
+    "model_ms",
+    "decode_ms",
+    "postprocess_ms",
+    "runtime_ms",
+    "copy_ms",
+    "cache_ms",
+    "cache_frames",
+    "cache_tokens",
+    "compile_active",
+    "cuda_graph",
+)
+
+logger = logging.getLogger(__name__)
+event_logger = get_logger(__name__)
+
+
+def _metric_float(
+    metrics: Mapping[str, Any],
+    name: str,
+    default: float = 0.0,
+) -> float:
+    value = metrics.get(name)
+    if value is None:
+        return default
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _chunk_metric_payload(metrics: Mapping[str, Any]) -> dict[str, float]:
+    payload: dict[str, float] = {}
+    for name in _CHUNK_METRIC_NAMES:
+        if name not in metrics:
+            continue
+        try:
+            payload[name] = round(float(metrics[name]), 1)
+        except (TypeError, ValueError):
+            continue
+    return payload
 
 
 def normalize_text_events(value: Any) -> list[dict[str, str]]:
@@ -84,9 +137,7 @@ def normalize_text_events(value: Any) -> list[dict[str, str]]:
             raise ValueError(f"text_events[{index - 1}] must be an object.")
         event_id = str(item.get("event_id") or item.get("id") or "").strip()
         if not _TEXT_EVENT_ID.fullmatch(event_id):
-            raise ValueError(
-                f"text_events[{index - 1}].event_id must use 1-64 letters, numbers, or _.:-."
-            )
+            raise ValueError(f"text_events[{index - 1}].event_id must use 1-64 letters, numbers, or _.:-.")
         if event_id in seen:
             raise ValueError(f"Duplicate text event id: {event_id}.")
         label = str(item.get("label") or event_id).strip()
@@ -95,9 +146,7 @@ def normalize_text_events(value: Any) -> list[dict[str, str]]:
         if not label or len(label) > 64:
             raise ValueError(f"Text event {event_id!r} label must contain 1-64 characters.")
         if not prompt or len(prompt) > _MAX_TEXT_EVENT_PROMPT:
-            raise ValueError(
-                f"Text event {event_id!r} prompt must contain 1-{_MAX_TEXT_EVENT_PROMPT} characters."
-            )
+            raise ValueError(f"Text event {event_id!r} prompt must contain 1-{_MAX_TEXT_EVENT_PROMPT} characters.")
         if not category or len(category) > 64:
             raise ValueError(f"Text event {event_id!r} category must contain 1-64 characters.")
         seen.add(event_id)
@@ -134,13 +183,9 @@ def normalize_output_resolution(value: Any) -> tuple[int, int] | None:
     else:
         raise ValueError("output_resolution must be an object, WIDTHxHEIGHT, or 'native'.")
     if not (_MIN_OUTPUT_WIDTH <= width <= _MAX_OUTPUT_WIDTH):
-        raise ValueError(
-            f"output width must be between {_MIN_OUTPUT_WIDTH} and {_MAX_OUTPUT_WIDTH}."
-        )
+        raise ValueError(f"output width must be between {_MIN_OUTPUT_WIDTH} and {_MAX_OUTPUT_WIDTH}.")
     if not (_MIN_OUTPUT_HEIGHT <= height <= _MAX_OUTPUT_HEIGHT):
-        raise ValueError(
-            f"output height must be between {_MIN_OUTPUT_HEIGHT} and {_MAX_OUTPUT_HEIGHT}."
-        )
+        raise ValueError(f"output height must be between {_MIN_OUTPUT_HEIGHT} and {_MAX_OUTPUT_HEIGHT}.")
     if width % 2 or height % 2:
         raise ValueError("output width and height must be even for realtime video encoding.")
     return width, height
@@ -227,8 +272,7 @@ class OutputResolutionState:
             )
         if width * height > self.max_pixels:
             raise ValueError(
-                f"output resolution {width}x{height} exceeds the realtime pixel budget "
-                f"of {self.max_pixels} pixels."
+                f"output resolution {width}x{height} exceeds the realtime pixel budget of {self.max_pixels} pixels."
             )
         source = self.source_dimensions
         if source is not None and (width > source[0] or height > source[1]):
@@ -317,27 +361,33 @@ def _entry_output_pixel_budget(entry: CatalogEntry) -> int:
     return min(max_area, _MAX_OUTPUT_PIXELS) if max_area > 0 else _MAX_OUTPUT_PIXELS
 
 
-def _new_output_resolution_state(entry: CatalogEntry, value: Any) -> OutputResolutionState:
+def _new_output_resolution_state(
+    entry: CatalogEntry,
+    value: Any,
+    *,
+    native_override: tuple[int, int] | None = None,
+) -> OutputResolutionState:
+    native = native_override or _entry_output_resolution(entry)
     return OutputResolutionState.from_value(
         value,
-        maximum=_entry_output_resolution(entry),
-        max_pixels=_entry_output_pixel_budget(entry),
+        maximum=native,
+        max_pixels=(
+            min(native[0] * native[1], _MAX_OUTPUT_PIXELS) if native is not None else _entry_output_pixel_budget(entry)
+        ),
     )
 
 
-def _output_resolution_options(entry: CatalogEntry) -> list[dict[str, Any]]:
-    native = _entry_output_resolution(entry)
+def _output_resolution_options(
+    entry: CatalogEntry,
+    *,
+    native_override: tuple[int, int] | None = None,
+) -> list[dict[str, Any]]:
+    native = native_override or _entry_output_resolution(entry)
     options: list[dict[str, Any]] = [
         {
             "mode": "native",
-            "label": (
-                f"Native · {native[0]}×{native[1]}" if native is not None else "Native"
-            ),
-            **(
-                {"width": native[0], "height": native[1]}
-                if native is not None
-                else {}
-            ),
+            "label": (f"Native · {native[0]}×{native[1]}" if native is not None else "Native"),
+            **({"width": native[0], "height": native[1]} if native is not None else {}),
         }
     ]
     candidates: list[tuple[int, int]] = []
@@ -349,12 +399,11 @@ def _output_resolution_options(entry: CatalogEntry) -> list[dict[str, Any]]:
     # Without a model-owned native size, guessed presets can accidentally
     # upscale the first generated frame. Keep only native until the runtime
     # has observed a real source size.
-    pixel_budget = _entry_output_pixel_budget(entry)
+    pixel_budget = (
+        min(native[0] * native[1], _MAX_OUTPUT_PIXELS) if native is not None else _entry_output_pixel_budget(entry)
+    )
     for width, height in dict.fromkeys(candidates):
-        if not (
-            _MIN_OUTPUT_WIDTH <= width <= _MAX_OUTPUT_WIDTH
-            and _MIN_OUTPUT_HEIGHT <= height <= _MAX_OUTPUT_HEIGHT
-        ):
+        if not (_MIN_OUTPUT_WIDTH <= width <= _MAX_OUTPUT_WIDTH and _MIN_OUTPUT_HEIGHT <= height <= _MAX_OUTPUT_HEIGHT):
             continue
         if width * height > pixel_budget:
             continue
@@ -376,6 +425,135 @@ def _env_int(name: str, default: int, *, minimum: int = 1) -> int:
         return max(int(os.getenv(name, str(default)) or default), minimum)
     except Exception:
         return max(default, minimum)
+
+
+def _env_optional_timeout_s(name: str) -> float | None:
+    """Read a positive timeout in seconds; zero disables the deadline."""
+
+    raw = os.getenv(name, "").strip()
+    if not raw:
+        return None
+    try:
+        timeout_s = float(raw)
+    except ValueError as exc:
+        raise ValueError(f"{name} must be a non-negative number of seconds.") from exc
+    if timeout_s < 0.0:
+        raise ValueError(f"{name} must be non-negative, got {timeout_s}.")
+    return timeout_s or None
+
+
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.getenv(name, "").strip().lower()
+    if not raw:
+        return default
+    if raw in {"1", "true", "yes", "on"}:
+        return True
+    if raw in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError(f"{name} must be a boolean value (1/0, true/false, yes/no, or on/off).")
+
+
+def _env_optional_int(name: str) -> int | None:
+    raw = os.getenv(name, "").strip()
+    if not raw:
+        return None
+    try:
+        return int(raw)
+    except ValueError as exc:
+        raise ValueError(f"{name} must be an integer.") from exc
+
+
+def _env_optional_float(name: str) -> float | None:
+    raw = os.getenv(name, "").strip()
+    if not raw:
+        return None
+    try:
+        return float(raw)
+    except ValueError as exc:
+        raise ValueError(f"{name} must be a number.") from exc
+
+
+def _realtime_rtx_device(launch_device: str) -> int:
+    configured = _env_optional_int("WORLDFOUNDRY_REALTIME_RTX_DEVICE")
+    if configured is not None:
+        if configured < 0:
+            raise ValueError("WORLDFOUNDRY_REALTIME_RTX_DEVICE must be non-negative.")
+        return configured
+    match = re.fullmatch(r"\s*cuda(?::(\d+))?\s*", launch_device, flags=re.IGNORECASE)
+    return int(match.group(1) or 0) if match else 0
+
+
+def _realtime_postprocess_stream(
+    *,
+    fps: int,
+    launch_config: StudioLaunchConfig,
+    native_resolution: tuple[int, int] | None = None,
+) -> VideoPostprocessStream:
+    """Resolve the explicitly selected realtime output processor."""
+
+    preset = os.getenv("WORLDFOUNDRY_REALTIME_POSTPROCESS_PRESET", "identity").strip()
+    normalized = preset.lower().replace("_", "-")
+    if normalized in {"", "none", "off", "identity"}:
+        return VideoPostprocessStream(
+            chain=VideoPostprocessChain((IdentityVideoPostProcessor(),)),
+            fps=fps,
+        )
+
+    from worldfoundry.core.video_postprocess_rtx import (
+        require_rtx_vfx_runtime,
+        rtx_postprocessor_from_preset,
+    )
+
+    device = _realtime_rtx_device(launch_config.device or "cuda")
+    processor = rtx_postprocessor_from_preset(
+        normalized,
+        scale=_env_optional_float("WORLDFOUNDRY_REALTIME_RTX_SCALE"),
+        output_width=_env_optional_int("WORLDFOUNDRY_REALTIME_RTX_OUTPUT_WIDTH"),
+        output_height=_env_optional_int("WORLDFOUNDRY_REALTIME_RTX_OUTPUT_HEIGHT"),
+        quality=(os.getenv("WORLDFOUNDRY_REALTIME_RTX_QUALITY", "").strip().upper() or None),
+        device=device,
+        non_blocking=_env_bool("WORLDFOUNDRY_REALTIME_RTX_NON_BLOCKING", False),
+        use_current_stream=_env_bool("WORLDFOUNDRY_REALTIME_RTX_USE_CURRENT_STREAM", True),
+    )
+    input_spec = None
+    if native_resolution is not None:
+        input_spec = VideoSpec(
+            height=native_resolution[1],
+            width=native_resolution[0],
+            fps=fps,
+            channels=3,
+            dtype="uint8",
+        )
+    capability = require_rtx_vfx_runtime(
+        device=device,
+        config=processor.config,
+        input_spec=input_spec,
+        run_inference=True,
+    )
+    logger.info(
+        "Enabled realtime RTX postprocess preset=%s quality=%s device=cuda:%d gpu=%s nvidia_vfx=%s",
+        normalized,
+        processor.config.quality,
+        device,
+        capability.gpu_name or "unknown",
+        capability.package_version or "unknown",
+    )
+    return VideoPostprocessStream(
+        chain=VideoPostprocessChain((processor,)),
+        fps=fps,
+    )
+
+
+def _frame_queue_policy(*, ordered_required: bool) -> FrameQueuePolicy:
+    """Resolve congestion policy without weakening count-exact sessions."""
+
+    if ordered_required:
+        return FrameQueuePolicy.ORDERED_QUALITY
+    configured = os.getenv(
+        "WORLDFOUNDRY_REALTIME_FRAME_QUEUE_POLICY",
+        FrameQueuePolicy.LATEST_INTERACTIVE.value,
+    )
+    return FrameQueuePolicy.from_value(configured)
 
 
 def _realtime_frame_budget(entry: CatalogEntry, requested: int) -> int:
@@ -441,325 +619,6 @@ def _ice_server_payload() -> list[dict[str, Any]]:
     return result
 
 
-def normalize_control_key(key: str) -> str:
-    normalized = str(key or "").strip().lower()
-    return KEY_ALIASES.get(normalized, normalized)
-
-
-@dataclass(slots=True)
-class RealtimeControlState:
-    """Pressed-key state with last-pressed-wins conflict resolution."""
-
-    pressed: set[str] = field(default_factory=set)
-    _order: dict[str, int] = field(default_factory=dict)
-    _sequence: int = 0
-
-    def apply(self, event: str, key: str) -> bool:
-        normalized = normalize_control_key(key)
-        if normalized not in SUPPORTED_CONTROL_KEYS:
-            return False
-        event = str(event or "").strip().lower()
-        if event == "keydown":
-            self.pressed.add(normalized)
-            self._sequence += 1
-            self._order[normalized] = self._sequence
-            return True
-        if event == "keyup":
-            self.pressed.discard(normalized)
-            self._order.pop(normalized, None)
-            return True
-        return False
-
-    def _latest(self, keys: tuple[str, ...]) -> str | None:
-        active = [key for key in keys if key in self.pressed]
-        return max(active, key=lambda key: self._order.get(key, -1), default=None)
-
-    def effective(self) -> frozenset[str]:
-        return frozenset(
-            key
-            for key in (
-                self._latest(("w", "s")),
-                self._latest(("a", "d")),
-                self._latest(("i", "k")),
-                self._latest(("j", "l")),
-            )
-            if key is not None
-        )
-
-
-ControlSegment = tuple[float, float, frozenset[str]]
-
-
-class RealtimeControlResampler:
-    """Resample timestamped input edges into a model chunk timeline."""
-
-    def __init__(self, *, fps: int, start_time: float = 0.0) -> None:
-        if fps <= 0:
-            raise ValueError("fps must be > 0")
-        self.fps = int(fps)
-        self.dt = 1.0 / float(fps)
-        self.next_chunk_start = float(start_time)
-        self._events: deque[tuple[float, str, str]] = deque()
-        self._state = RealtimeControlState()
-
-    def on_edge(self, *, arrival_time: float, event: str, key: str) -> bool:
-        normalized = normalize_control_key(key)
-        if normalized not in SUPPORTED_CONTROL_KEYS or event not in {"keydown", "keyup"}:
-            return False
-        self._events.append((float(arrival_time), event, normalized))
-        return True
-
-    def sample_chunk(self, num_frames: int, *, wall_time: float) -> list[ControlSegment]:
-        if num_frames < 1:
-            raise ValueError("num_frames must be >= 1")
-        duration = num_frames * self.dt
-        if self.next_chunk_start <= 0.0 or wall_time - self.next_chunk_start > duration:
-            self.next_chunk_start = float(wall_time)
-        start = self.next_chunk_start
-        end = start + duration
-
-        while self._events and self._events[0][0] < start:
-            _, event, key = self._events.popleft()
-            self._state.apply(event, key)
-
-        segments: list[ControlSegment] = []
-        cursor = start
-        effective = self._state.effective()
-        while self._events and self._events[0][0] <= end:
-            event_time, event, key = self._events.popleft()
-            if event_time > cursor:
-                segments.append((cursor, event_time, effective))
-            self._state.apply(event, key)
-            effective = self._state.effective()
-            cursor = max(cursor, event_time)
-        if cursor < end or not segments:
-            segments.append((cursor, end, effective))
-        self.next_chunk_start = end
-        return segments
-
-    def reset(self, *, start_time: float) -> None:
-        self._events.clear()
-        self._state = RealtimeControlState()
-        self.next_chunk_start = float(start_time)
-
-    @property
-    def effective_keys(self) -> frozenset[str]:
-        # Apply edges that have already arrived so key release can stop the
-        # producer immediately after the in-flight chunk finishes.
-        now = time.monotonic()
-        while self._events and self._events[0][0] <= now:
-            _, event, key = self._events.popleft()
-            self._state.apply(event, key)
-        return self._state.effective()
-
-
-def interactions_from_keys(keys: frozenset[str]) -> list[str]:
-    tokens: list[str] = []
-    for key, token in (
-        ("w", "forward"),
-        ("s", "backward"),
-        ("a", "left"),
-        ("d", "right"),
-        ("i", "camera_up"),
-        ("k", "camera_down"),
-        ("j", "camera_l"),
-        ("l", "camera_r"),
-    ):
-        if key in keys:
-            tokens.append(token)
-    return tokens
-
-
-def interactions_from_segments(segments: list[ControlSegment]) -> list[str]:
-    """Return the most recent non-idle control state in a sampled chunk."""
-
-    for _, _, keys in reversed(segments):
-        interactions = interactions_from_keys(keys)
-        if interactions:
-            return interactions
-    return []
-
-
-class LatestFrameBuffer:
-    """Bounded frame queue with short backpressure, then stale-frame eviction."""
-
-    def __init__(self, *, maxsize: int, backpressure_ms: int = 0) -> None:
-        if maxsize < 1:
-            raise ValueError("maxsize must be >= 1")
-        self.maxsize = int(maxsize)
-        self.backpressure_s = max(float(backpressure_ms), 0.0) / 1000.0
-        self._queue: asyncio.Queue[np.ndarray | None] = asyncio.Queue(maxsize=maxsize)
-        self.dropped_frames = 0
-        self.last_enqueue_ms = 0.0
-        self.closed = False
-
-    def qsize(self) -> int:
-        return self._queue.qsize()
-
-    async def put_chunk(self, frames: list[np.ndarray]) -> int:
-        if self.closed:
-            return 0
-        loop = asyncio.get_running_loop()
-        started = loop.time()
-        deadline = started + self.backpressure_s
-        accepted = 0
-        for frame in frames:
-            # Result normalization already moved tensors to CPU and converted
-            # them to RGB uint8 on the runtime worker. Keep the event loop's
-            # media handoff to a cheap contiguous-array check.
-            rgb = np.ascontiguousarray(frame)
-            if self._queue.full() and self.backpressure_s > 0:
-                remaining = deadline - loop.time()
-                if remaining > 0:
-                    try:
-                        await asyncio.wait_for(self._queue.put(rgb), timeout=remaining)
-                        accepted += 1
-                        continue
-                    except TimeoutError:
-                        pass
-            while self._queue.full():
-                try:
-                    self._queue.get_nowait()
-                    self.dropped_frames += 1
-                except asyncio.QueueEmpty:
-                    break
-            self._queue.put_nowait(rgb)
-            accepted += 1
-        self.last_enqueue_ms = (loop.time() - started) * 1000.0
-        return accepted
-
-    async def get(self) -> np.ndarray:
-        frame = await self._queue.get()
-        if frame is None:
-            raise EOFError("frame buffer closed")
-        return frame
-
-    def get_nowait(self) -> np.ndarray:
-        frame = self._queue.get_nowait()
-        if frame is None:
-            raise EOFError("frame buffer closed")
-        return frame
-
-    def close(self) -> None:
-        if self.closed:
-            return
-        self.closed = True
-        while True:
-            try:
-                self._queue.get_nowait()
-            except asyncio.QueueEmpty:
-                break
-        self._queue.put_nowait(None)
-
-
-def realtime_frames_from_result(result: Any) -> list[np.ndarray]:
-    """Extract in-memory RGB frames without invoking artifact exporters."""
-
-    if isinstance(result, Iterator):
-        close = getattr(result, "close", None)
-        try:
-            # Materialize at the actual frame consumer so the runtime can keep
-            # generator-based integrations lazy and pinned up to this boundary.
-            result = list(result)
-        finally:
-            if callable(close):
-                close()
-
-    candidates: list[Any] = []
-    if isinstance(result, Mapping):
-        for key in ("sr_videos", "videos", "frames", "video", "output", "images"):
-            if key in result:
-                candidates.append(result[key])
-    else:
-        candidates.append(result)
-
-    for candidate in candidates:
-        if isinstance(candidate, Image.Image):
-            return [_to_uint8_rgb(candidate)]
-        frames = _normalize_frame_list(candidate)
-        if frames:
-            return [np.ascontiguousarray(frame) for frame in frames]
-    raise RuntimeError(
-        "Realtime stream returned no in-memory RGB frames. The model integration "
-        "must return a tensor/array/image chunk instead of only an artifact path."
-    )
-
-
-def _resize_rgb_frame(
-    frame: np.ndarray,
-    output_resolution: tuple[int, int] | None,
-) -> np.ndarray:
-    """Prepare one transport frame without ever enlarging model output."""
-
-    rgb = np.ascontiguousarray(frame)
-    if output_resolution is None or (rgb.shape[1], rgb.shape[0]) == output_resolution:
-        return rgb
-    width, height = output_resolution
-    source_height, source_width = rgb.shape[:2]
-    if (
-        width > _MAX_OUTPUT_WIDTH
-        or height > _MAX_OUTPUT_HEIGHT
-        or width * height > _MAX_OUTPUT_PIXELS
-    ):
-        raise ValueError(
-            f"realtime transport resolution {width}x{height} exceeds its safe output budget."
-        )
-    if width > source_width or height > source_height:
-        raise ValueError(
-            f"realtime transport cannot upscale {source_width}x{source_height} "
-            f"model output to {width}x{height}."
-        )
-    scale = min(width / source_width, height / source_height)
-    fitted = (
-        max(min(int(round(source_width * scale)), width), 1),
-        max(min(int(round(source_height * scale)), height), 1),
-    )
-    resized = Image.fromarray(rgb, mode="RGB").resize(
-        fitted,
-        resample=Image.Resampling.BILINEAR,
-    )
-    if fitted == output_resolution:
-        return np.ascontiguousarray(np.asarray(resized, dtype=np.uint8))
-    canvas = Image.new("RGB", output_resolution, "black")
-    canvas.paste(resized, ((width - fitted[0]) // 2, (height - fitted[1]) // 2))
-    return np.ascontiguousarray(np.asarray(canvas, dtype=np.uint8))
-
-
-def _resize_rgb_frames(
-    frames: list[np.ndarray],
-    *,
-    output_resolution: tuple[int, int] | None,
-) -> list[np.ndarray]:
-    return [_resize_rgb_frame(frame, output_resolution) for frame in frames]
-
-
-def _encode_jpeg_frames(
-    frames: list[np.ndarray],
-    *,
-    quality: int,
-    subsampling: int = 1,
-    output_resolution: tuple[int, int] | None = None,
-) -> list[bytes]:
-    """Encode a generated chunk for the same-port WebSocket fallback."""
-
-    packets: list[bytes] = []
-    for frame in frames:
-        output = io.BytesIO()
-        image = Image.fromarray(
-            _resize_rgb_frame(frame, output_resolution),
-            mode="RGB",
-        )
-        image.save(
-            output,
-            format="JPEG",
-            quality=quality,
-            optimize=False,
-            subsampling=subsampling,
-        )
-        packets.append(output.getvalue())
-    return packets
-
-
 def _validate_control_video_frames(path: str, *, expected_frames: int) -> int:
     """Decode enough control frames to reject a bad EXTEND transaction early."""
 
@@ -782,8 +641,7 @@ def _validate_control_video_frames(path: str, *, expected_frames: int) -> int:
     except Exception as exc:
         raise ValueError(f"Cannot decode control video {source.name}: {exc}") from exc
     raise ValueError(
-        f"Control video {source.name} has {count} decoded frame(s); "
-        f"this segment needs at least {expected_frames}."
+        f"Control video {source.name} has {count} decoded frame(s); this segment needs at least {expected_frames}."
     )
 
 
@@ -875,6 +733,7 @@ class ResidentWorldRuntime:
         fps: int,
         warmup_image_path: str = "",
         warmup_chunks: int = 0,
+        postprocess: VideoPostprocessStream | None = None,
     ) -> None:
         self.manager = manager
         self.entry = entry
@@ -891,6 +750,10 @@ class ResidentWorldRuntime:
         self._first_stream_step = True
         self._seed_image: Image.Image | None = None
         self.last_generation_metrics: dict[str, Any] = {}
+        self._postprocess = postprocess or VideoPostprocessStream(
+            chain=VideoPostprocessChain((IdentityVideoPostProcessor(),)),
+            fps=self.fps,
+        )
         self.queued_segment_generation = "queued-segment-generation" in entry.tags
         bootstrap_frames = _realtime_frame_budget(
             entry,
@@ -924,6 +787,20 @@ class ResidentWorldRuntime:
         # cadence advertised by the resident adapter. Keeping the bootstrap
         # frontend FPS here made 12/17/24-FPS models play at a hard-coded 16.
         self.fps = self.realtime_spec.fps
+        self._postprocess.fps = self.fps
+
+    def _postprocess_frames(
+        self,
+        frames: list[np.ndarray],
+        *,
+        metadata: dict[str, Any] | None = None,
+    ) -> list[np.ndarray]:
+        chunks = self._postprocess.process(
+            frames,
+            layout="frame-list",
+            metadata=metadata,
+        )
+        return frame_list_from_chunks(chunks)
 
     async def _run(
         self,
@@ -1050,41 +927,62 @@ class ResidentWorldRuntime:
             input_path=self.warmup_image_path,
             video_path="",
         )
-        configured = await self._run(
-            self.manager.run_realtime,
-            entry=self.entry,
-            request=request,
-            action="configure",
-        )
-        self._accept_realtime_spec(configured)
         interactions = ["forward"]
-        try:
-            for index in range(self.warmup_chunks):
-                stream_request = replace(
-                    request,
-                    image=request.image if index == 0 else None,
-                    image_path=request.image_path if index == 0 else None,
-                    interactions=interactions,
-                    call_kwargs=_interactive_call_kwargs(
-                        request.call_kwargs,
-                        interactions,
-                        seed=41_000 + index,
-                    ),
-                )
-                result = await self._run(
-                    self.manager.run_realtime,
-                    entry=self.entry,
-                    request=stream_request,
-                    action="stream",
-                )
-                await self._run(realtime_frames_from_result, result)
-        finally:
-            await self._run(
+        configured = False
+
+        async def configure_warmup() -> None:
+            nonlocal configured
+            result = await self._run(
                 self.manager.run_realtime,
                 entry=self.entry,
                 request=request,
-                action="reset",
+                action="configure",
             )
+            self._accept_realtime_spec(result)
+            configured = True
+
+        async def warmup_step(index: int) -> None:
+            stream_request = replace(
+                request,
+                image=request.image if index == 0 else None,
+                image_path=request.image_path if index == 0 else None,
+                interactions=interactions,
+                call_kwargs=_interactive_call_kwargs(
+                    request.call_kwargs,
+                    interactions,
+                    seed=41_000 + index,
+                ),
+            )
+            result = await self._run(
+                self.manager.run_realtime,
+                entry=self.entry,
+                request=stream_request,
+                action="stream",
+            )
+            frames = await self._run(realtime_frames_from_result, result)
+            await self._run(
+                self._postprocess_frames,
+                frames,
+                metadata={"warmup": True, "warmup_index": index},
+            )
+
+        try:
+            await run_async_prewarm_sequence(
+                cold_start=configure_warmup,
+                steady_state=warmup_step,
+                steady_steps=self.warmup_chunks,
+                label=f"studio.{self.entry.model_id}",
+                timeout_s=_env_optional_timeout_s("WORLDFOUNDRY_REALTIME_PREWARM_TIMEOUT_SECONDS"),
+            )
+        finally:
+            await self._run(self._postprocess.reset)
+            if configured:
+                await self._run(
+                    self.manager.run_realtime,
+                    entry=self.entry,
+                    request=request,
+                    action="reset",
+                )
         self.warmup_ms = (time.perf_counter() - started) * 1000.0
 
     async def configure(
@@ -1097,6 +995,7 @@ class ResidentWorldRuntime:
         sparse_video_path: str = "",
     ) -> Image.Image:
         await self.preload()
+        await self._run(self._postprocess.reset)
         if self.queued_segment_generation:
             missing = [
                 label
@@ -1109,9 +1008,7 @@ class ResidentWorldRuntime:
                 if not value
             ]
             if missing:
-                raise ValueError(
-                    "Queued segment setup is missing: " + ", ".join(missing) + "."
-                )
+                raise ValueError("Queued segment setup is missing: " + ", ".join(missing) + ".")
         image: Image.Image | None = None
         if image_path:
             with Image.open(image_path) as source:
@@ -1147,6 +1044,14 @@ class ResidentWorldRuntime:
             return self.realtime_spec.first_chunk_frames
         return self.realtime_spec.steady_chunk_frames
 
+    def next_input_frames(self, default: int) -> int:
+        """Return the model-owned control/input sampling chunk size."""
+
+        del default
+        if self._first_stream_step:
+            return self.realtime_spec.resolved_first_input_frames
+        return self.realtime_spec.resolved_steady_input_frames
+
     def steady_chunk_frames(self, default: int) -> int:
         del default
         return self.realtime_spec.steady_chunk_frames
@@ -1160,6 +1065,28 @@ class ResidentWorldRuntime:
             or "prompt_update" in self.realtime_spec.controls
             or self.entry.model_id in _PROMPT_BOUNDARY_MODEL_IDS
         )
+
+    @property
+    def postprocess_names(self) -> tuple[str, ...]:
+        return self._postprocess.processor_names
+
+    @property
+    def transport_native_resolution(self) -> tuple[int, int] | None:
+        """Expected postprocessed native size advertised to transport controls."""
+
+        native = _entry_output_resolution(self.entry)
+        if native is None:
+            return None
+        output = self._postprocess.chain.output_spec(
+            VideoSpec(
+                height=native[1],
+                width=native[0],
+                fps=self.fps,
+                channels=3,
+                dtype="uint8",
+            )
+        )
+        return output.width, output.height
 
     async def generate(
         self,
@@ -1178,8 +1105,7 @@ class ResidentWorldRuntime:
             if not self._first_stream_step:
                 if not dense_video_path or not sparse_video_path:
                     raise ValueError(
-                        "Every EXTEND request needs a new dense depth video and sparse "
-                        "pointmap/track video."
+                        "Every EXTEND request needs a new dense depth video and sparse pointmap/track video."
                     )
                 call_kwargs["dense_video"] = dense_video_path
                 call_kwargs["sparse_video"] = sparse_video_path
@@ -1223,19 +1149,35 @@ class ResidentWorldRuntime:
             request=request,
             action=action,
         )
+        runtime_finished = time.perf_counter()
         self._accept_realtime_spec(result)
         self._first_stream_step = False
         self._base_request = request
-        self.last_generation_metrics = (
-            dict(result.get("realtime_metrics") or {})
-            if isinstance(result, Mapping)
-            else {}
-        )
+        self.last_generation_metrics = dict(result.get("realtime_metrics") or {}) if isinstance(result, Mapping) else {}
+        copy_started = time.perf_counter()
         frames = await self._run(realtime_frames_from_result, result)
+        copy_ms = (time.perf_counter() - copy_started) * 1000.0
+        postprocess_started = time.perf_counter()
+        frames = await self._run(
+            self._postprocess_frames,
+            frames,
+            metadata={
+                "model_id": self.entry.model_id,
+                "seed": int(seed),
+            },
+        )
+        postprocess_ms = (time.perf_counter() - postprocess_started) * 1000.0
+        self.last_generation_metrics.setdefault(
+            "runtime_ms",
+            (runtime_finished - started) * 1000.0,
+        )
+        self.last_generation_metrics.setdefault("copy_ms", copy_ms)
+        self.last_generation_metrics["postprocess_ms"] = postprocess_ms
         generation_ms = (time.perf_counter() - started) * 1000.0
         return frames, generation_ms
 
     async def reset(self) -> None:
+        await self._run(self._postprocess.reset)
         if self._base_request is not None:
             try:
                 await self._run(
@@ -1257,7 +1199,12 @@ class ResidentWorldRuntime:
 
     @property
     def ready(self) -> bool:
-        return bool(self._preload_future and self._preload_future.done() and not self._preload_future.cancelled() and self._preload_future.exception() is None)
+        return bool(
+            self._preload_future
+            and self._preload_future.done()
+            and not self._preload_future.cancelled()
+            and self._preload_future.exception() is None
+        )
 
     @property
     def preload_error(self) -> str | None:
@@ -1291,6 +1238,12 @@ class _ActivePeer:
     active_event_id: str | None = None
     text_events_supported: bool = True
     output_resolution: OutputResolutionState = field(default_factory=OutputResolutionState)
+    session_id: str = field(default_factory=lambda: uuid.uuid4().hex)
+    perf_window: RealtimeTimingWindow = field(default_factory=RealtimeTimingWindow)
+
+    def __post_init__(self) -> None:
+        if self.prompt_scheduled:
+            self.frames.policy = FrameQueuePolicy.ORDERED_QUALITY
 
 
 @dataclass(slots=True)
@@ -1320,9 +1273,16 @@ class _ActiveSocket:
     active_event_id: str | None = None
     text_events_supported: bool = True
     output_resolution: OutputResolutionState = field(default_factory=OutputResolutionState)
+    frame_queue_policy: FrameQueuePolicy = FrameQueuePolicy.LATEST_INTERACTIVE
     queued_segments: bool = False
     pending_segment: dict[str, str] | None = None
     segment_inflight: bool = False
+    session_id: str = field(default_factory=lambda: uuid.uuid4().hex)
+    perf_window: RealtimeTimingWindow = field(default_factory=RealtimeTimingWindow)
+
+    def __post_init__(self) -> None:
+        if self.prompt_scheduled or self.queued_segments:
+            self.frame_queue_policy = FrameQueuePolicy.ORDERED_QUALITY
 
 
 class RealtimePeerManager:
@@ -1344,6 +1304,202 @@ class RealtimePeerManager:
         self._draining = False
         self._drain_done = asyncio.Event()
         self._drain_done.set()
+        self._perf_log_interval_chunks = _env_int(
+            "WORLDFOUNDRY_REALTIME_PERF_LOG_INTERVAL_CHUNKS",
+            5,
+            minimum=0,
+        )
+        self._perf_warmup_chunks = _env_int(
+            "WORLDFOUNDRY_REALTIME_PERF_WARMUP_CHUNKS",
+            0,
+            minimum=0,
+        )
+        self._perf_jsonl_path = os.environ.get("WORLDFOUNDRY_REALTIME_PERF_JSONL", "").strip() or None
+
+    @staticmethod
+    def _positive_int_runtime_value(value: Any, *, label: str) -> int:
+        try:
+            parsed = int(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"{label} must be an integer.") from exc
+        if parsed <= 0:
+            raise ValueError(f"{label} must be > 0.")
+        return parsed
+
+    @staticmethod
+    def _positive_float_runtime_value(value: Any, *, label: str) -> float:
+        try:
+            parsed = float(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"{label} must be numeric.") from exc
+        if parsed <= 0.0:
+            raise ValueError(f"{label} must be > 0.")
+        return parsed
+
+    def _runtime_input_fps(self) -> float:
+        spec = getattr(self.runtime, "realtime_spec", None)
+        value = getattr(spec, "resolved_input_fps", self.fps)
+        return self._positive_float_runtime_value(
+            value,
+            label="realtime input_fps",
+        )
+
+    def _runtime_next_input_frames(self) -> int:
+        method = getattr(self.runtime, "next_input_frames", None)
+        if callable(method):
+            return self._positive_int_runtime_value(
+                method(self.chunk_frames),
+                label="next_input_frames",
+            )
+        return self._positive_int_runtime_value(
+            self.runtime.next_chunk_frames(self.chunk_frames),
+            label="next_chunk_frames",
+        )
+
+    def _record_perf(
+        self,
+        active: _ActivePeer | _ActiveSocket,
+        *,
+        transport: str,
+        generation_started: float,
+        now: float,
+        output_frames: int,
+        generation_ms: float,
+        pixel_post_ms: float,
+        enqueue_ms: float,
+        queue_depth: int,
+        dropped_frames: int,
+        control_latency_ms: float | None,
+    ) -> None:
+        window = active.perf_window
+        metrics = getattr(self.runtime, "last_generation_metrics", {}) or {}
+        stage_ms = {
+            "generation_ms": generation_ms,
+            "pixel_post_ms": pixel_post_ms,
+            "enqueue_ms": enqueue_ms,
+            "server_chunk_ms": max((now - generation_started) * 1000.0, 0.0),
+        }
+        if control_latency_ms is not None:
+            stage_ms["control_latency_ms"] = control_latency_ms
+        gauges: dict[str, float] = {}
+        for name in _CHUNK_METRIC_NAMES:
+            if name not in metrics:
+                continue
+            try:
+                value = float(metrics[name])
+            except (TypeError, ValueError):
+                continue
+            if name.endswith("_ms"):
+                stage_ms[name] = value
+            else:
+                gauges[name] = value
+        timing = RealtimeChunkTiming(
+            session_id=active.session_id,
+            chunk_index=active.chunk_index,
+            transport=transport,
+            started_at_s=generation_started,
+            completed_at_s=now,
+            output_frames=output_frames,
+            queue_depth=queue_depth,
+            dropped_frames=dropped_frames,
+            warmup=active.chunk_index <= self._perf_warmup_chunks,
+            stage_ms=stage_ms,
+            gauges=gauges,
+        )
+        window.record(timing)
+        model_id = getattr(getattr(self.runtime, "entry", None), "model_id", None)
+        if self._perf_jsonl_path is not None:
+            try:
+                write_jsonl_event(
+                    self._perf_jsonl_path,
+                    level="INFO",
+                    event="realtime.chunk_timing",
+                    message="Realtime chunk timing",
+                    logger_name=__name__,
+                    model_id=model_id,
+                    postprocess=list(getattr(self.runtime, "postprocess_names", ())),
+                    **timing.to_payload(),
+                )
+            except (OSError, TypeError, ValueError):
+                logger.warning(
+                    "Disabling realtime timing JSONL after a write failure: %s",
+                    self._perf_jsonl_path,
+                    exc_info=True,
+                )
+                self._perf_jsonl_path = None
+        interval = self._perf_log_interval_chunks
+        if active.chunk_index != 1 and (interval <= 0 or (active.chunk_index - 1) % interval != 0):
+            if interval <= 0:
+                window.reset_interval()
+            return
+
+        summary = window.summary()
+        generation_fps = output_frames / max(generation_ms / 1000.0, 1.0e-6)
+        interval_fps = 0.0 if summary is None else summary.throughput_fps
+        dropped_delta = 0 if summary is None else summary.dropped_frames
+        measured_chunks = 0 if summary is None else summary.chunk_count
+        measured_frames = 0 if summary is None else summary.frame_count
+
+        def stat_text(stage_name: str, field_name: str) -> str:
+            if summary is None:
+                return "-"
+            distribution = summary.stages.get(stage_name)
+            if distribution is None:
+                return "-"
+            return f"{getattr(distribution, field_name):.1f}"
+
+        latency_text = "-" if control_latency_ms is None else f"{control_latency_ms:.1f}"
+        message = (
+            "Realtime perf transport=%s chunk=%d interval_chunks=%d measured_chunks=%d frames=%d "
+            "gen_fps=%.1f interval_fps=%.1f playback_fps=%s generation_ms=%.1f "
+            "generation_p50_ms=%s generation_p90_ms=%s model_p50_ms=%s model_p90_ms=%s "
+            "pixel_post_ms=%.1f enqueue_ms=%.1f runtime_ms=%.1f condition_ms=%.1f "
+            "model_ms=%.1f decode_ms=%.1f postprocess_ms=%.1f copy_ms=%.1f cache_ms=%.1f queue_depth=%d "
+            "dropped_delta=%d control_latency_ms=%s cache_frames=%d cache_tokens=%d "
+            "compile_active=%d cuda_graph=%d"
+        ) % (
+            transport,
+            active.chunk_index,
+            window.observed_chunks,
+            measured_chunks,
+            measured_frames,
+            generation_fps,
+            interval_fps,
+            self.fps,
+            generation_ms,
+            stat_text("generation_ms", "p50_ms"),
+            stat_text("generation_ms", "p90_ms"),
+            stat_text("model_ms", "p50_ms"),
+            stat_text("model_ms", "p90_ms"),
+            pixel_post_ms,
+            enqueue_ms,
+            _metric_float(metrics, "runtime_ms", generation_ms),
+            _metric_float(metrics, "condition_ms"),
+            _metric_float(metrics, "model_ms"),
+            _metric_float(metrics, "decode_ms"),
+            _metric_float(metrics, "postprocess_ms"),
+            _metric_float(metrics, "copy_ms"),
+            _metric_float(metrics, "cache_ms"),
+            queue_depth,
+            dropped_delta,
+            latency_text,
+            int(round(_metric_float(metrics, "cache_frames"))),
+            int(round(_metric_float(metrics, "cache_tokens"))),
+            int(round(_metric_float(metrics, "compile_active"))),
+            int(round(_metric_float(metrics, "cuda_graph"))),
+        )
+        event_logger.event(
+            "INFO",
+            "realtime.performance.summary",
+            message,
+            transport=transport,
+            model_id=model_id,
+            session_id=active.session_id,
+            chunk_index=active.chunk_index,
+            warmup_chunks=self._perf_warmup_chunks,
+            summary=None if summary is None else summary.to_payload(),
+        )
+        window.reset_interval()
 
     @staticmethod
     def _request_id(payload: Mapping[str, Any]) -> str | None:
@@ -1516,9 +1672,7 @@ class RealtimePeerManager:
                 "applies_at": "next_chunk",
             }
         action = payload.get("action") if isinstance(payload.get("action"), Mapping) else {}
-        if message_type == "step" or (
-            message_type == "action" and str(action.get("event") or "").lower() == "step"
-        ):
+        if message_type == "step" or (message_type == "action" and str(action.get("event") or "").lower() == "step"):
             if bool(getattr(active, "queued_segments", False)):
                 return {
                     "type": "step_ack",
@@ -1543,8 +1697,7 @@ class RealtimePeerManager:
     def active(self) -> bool:
         return bool(
             self._draining
-            or
-            (self._active and not self._active.closed)
+            or (self._active and not self._active.closed)
             or (self._active_socket and not self._active_socket.closed)
         )
 
@@ -1558,10 +1711,7 @@ class RealtimePeerManager:
             self._active = None
             active_socket = self._active_socket
             self._active_socket = None
-            has_session = not (
-                (active is None or active.closed)
-                and (active_socket is None or active_socket.closed)
-            )
+            has_session = not ((active is None or active.closed) and (active_socket is None or active_socket.closed))
             if has_session:
                 self._draining = True
                 self._drain_done.clear()
@@ -1622,12 +1772,11 @@ class RealtimePeerManager:
                 raise RuntimeError("A realtime world session is already active.")
 
             base_prompt = str(session.get("prompt") or self.runtime.entry.default_prompt or "")
-            text_events = normalize_text_events(
-                session.get("text_events", session.get("event_catalog"))
-            )
+            text_events = normalize_text_events(session.get("text_events", session.get("event_catalog")))
             output_resolution = _new_output_resolution_state(
                 self.runtime.entry,
                 session.get("output_resolution"),
+                native_override=self.runtime.transport_native_resolution,
             )
             await self.runtime.configure(
                 prompt=base_prompt,
@@ -1637,6 +1786,9 @@ class RealtimePeerManager:
                 sparse_video_path=str(session.get("sparse_video_path") or ""),
             )
             self.fps = self.runtime.realtime_spec.fps
+            queue_policy = _frame_queue_policy(
+                ordered_required="prompt_update" in self.runtime.realtime_spec.controls,
+            )
             frames = LatestFrameBuffer(
                 maxsize=_env_int(
                     "WORLDFOUNDRY_REALTIME_FRAME_QUEUE",
@@ -1649,6 +1801,7 @@ class RealtimePeerManager:
                         50,
                     ),
                 ),
+                policy=queue_policy,
             )
             rtc_configuration = RTCConfiguration(
                 iceServers=[
@@ -1671,12 +1824,13 @@ class RealtimePeerManager:
                 peer=pc,
                 channel=None,
                 frames=frames,
-                resampler=RealtimeControlResampler(fps=self.fps, start_time=loop.time()),
+                resampler=RealtimeControlResampler(
+                    fps=self._runtime_input_fps(),
+                    start_time=loop.time(),
+                ),
                 last_client_message_at=loop.time(),
                 prompt_scheduled="prompt_update" in self.runtime.realtime_spec.controls,
-                initial_segment_pending=(
-                    "prompt_update" in self.runtime.realtime_spec.controls
-                ),
+                initial_segment_pending=("prompt_update" in self.runtime.realtime_spec.controls),
                 base_prompt=base_prompt,
                 text_events=text_events,
                 catalog_revision=1 if text_events else 0,
@@ -1715,6 +1869,7 @@ class RealtimePeerManager:
                         "event_catalog": active.text_events,
                         "catalog_revision": active.catalog_revision,
                         "active_event_id": active.active_event_id,
+                        "frame_queue_policy": active.frames.policy.value,
                         "resolution": active.output_resolution.to_payload(),
                         "resolution_revision": active.output_resolution.revision,
                     },
@@ -1726,9 +1881,7 @@ class RealtimePeerManager:
                     await self.close_active()
 
             try:
-                await pc.setRemoteDescription(
-                    RTCSessionDescription(sdp=str(offer["sdp"]), type=str(offer["type"]))
-                )
+                await pc.setRemoteDescription(RTCSessionDescription(sdp=str(offer["sdp"]), type=str(offer["type"])))
                 answer = await pc.createAnswer()
                 await pc.setLocalDescription(answer)
                 await _wait_for_ice_gathering(pc)
@@ -1762,12 +1915,11 @@ class RealtimePeerManager:
             raise RuntimeError("Expected WebSocket message type='configure'.")
         session = payload.get("session") if isinstance(payload.get("session"), Mapping) else {}
         base_prompt = str(session.get("prompt") or self.runtime.entry.default_prompt or "")
-        text_events = normalize_text_events(
-            session.get("text_events", session.get("event_catalog"))
-        )
+        text_events = normalize_text_events(session.get("text_events", session.get("event_catalog")))
         output_resolution = _new_output_resolution_state(
             self.runtime.entry,
             session.get("output_resolution"),
+            native_override=self.runtime.transport_native_resolution,
         )
         await socket.send_str(
             json.dumps(
@@ -1788,10 +1940,18 @@ class RealtimePeerManager:
                 sparse_video_path=str(session.get("sparse_video_path") or ""),
             )
             self.fps = self.runtime.realtime_spec.fps
+            queue_policy = _frame_queue_policy(
+                ordered_required=(
+                    self.runtime.queued_segment_generation or "prompt_update" in self.runtime.realtime_spec.controls
+                ),
+            )
             loop = asyncio.get_running_loop()
             active = _ActiveSocket(
                 socket=socket,
-                resampler=RealtimeControlResampler(fps=self.fps, start_time=loop.time()),
+                resampler=RealtimeControlResampler(
+                    fps=self._runtime_input_fps(),
+                    start_time=loop.time(),
+                ),
                 frame_packets=asyncio.Queue(
                     maxsize=_env_int(
                         "WORLDFOUNDRY_REALTIME_SOCKET_FRAME_QUEUE",
@@ -1800,14 +1960,13 @@ class RealtimePeerManager:
                 ),
                 last_client_message_at=loop.time(),
                 prompt_scheduled="prompt_update" in self.runtime.realtime_spec.controls,
-                initial_segment_pending=(
-                    "prompt_update" in self.runtime.realtime_spec.controls
-                ),
+                initial_segment_pending=("prompt_update" in self.runtime.realtime_spec.controls),
                 base_prompt=base_prompt,
                 text_events=text_events,
                 catalog_revision=1 if text_events else 0,
                 text_events_supported=self.runtime.supports_text_events,
                 output_resolution=output_resolution,
+                frame_queue_policy=queue_policy,
                 queued_segments=self.runtime.queued_segment_generation,
             )
             self._active_socket = active
@@ -1833,6 +1992,7 @@ class RealtimePeerManager:
                 "event_catalog": active.text_events,
                 "catalog_revision": active.catalog_revision,
                 "active_event_id": active.active_event_id,
+                "frame_queue_policy": active.frame_queue_policy.value,
                 "resolution": active.output_resolution.to_payload(),
                 "resolution_revision": active.output_resolution.revision,
             },
@@ -2025,7 +2185,7 @@ class RealtimePeerManager:
                         next_prompt = active.pending_prompt
                         active.pending_prompt = None
                         active.pending_prompt_dirty = False
-                        frame_budget = self.runtime.next_chunk_frames(self.chunk_frames)
+                        frame_budget = self._runtime_next_input_frames()
                         segments = active.resampler.sample_chunk(
                             frame_budget,
                             wall_time=loop.time(),
@@ -2036,7 +2196,7 @@ class RealtimePeerManager:
                         forced_step = True
                         interactions = []
                     else:
-                        frame_budget = self.runtime.next_chunk_frames(self.chunk_frames)
+                        frame_budget = self._runtime_next_input_frames()
                         segments = active.resampler.sample_chunk(
                             frame_budget,
                             wall_time=loop.time(),
@@ -2090,7 +2250,7 @@ class RealtimePeerManager:
                     generation_task.cancel()
                     await asyncio.gather(generation_task, return_exceptions=True)
                     raise
-                encode_started = loop.time()
+                pixel_post_started = loop.time()
                 quality = _env_int(
                     "WORLDFOUNDRY_QUEUED_SEGMENT_JPEG_QUALITY"
                     if active.queued_segments
@@ -2113,9 +2273,11 @@ class RealtimePeerManager:
                     # packets after that ACK; re-encode the same RGB chunk at
                     # the newest boundary without rerunning model inference.
                     active.dropped_frames += len(packets)
+                pixel_post_ms = (loop.time() - pixel_post_started) * 1000.0
+                enqueue_started = loop.time()
                 accepted = 0
                 for packet in packets:
-                    if active.queued_segments or active.prompt_scheduled:
+                    if active.frame_queue_policy is FrameQueuePolicy.ORDERED_QUALITY:
                         # Segment playback is count-exact: once chunk_done
                         # announces N frames, the browser must receive all N or
                         # it can never finish PLAYING. Backpressure this rare,
@@ -2131,13 +2293,25 @@ class RealtimePeerManager:
                             break
                     active.frame_packets.put_nowait(packet)
                     accepted += 1
-                enqueue_ms = (loop.time() - encode_started) * 1000.0
+                enqueue_ms = (loop.time() - enqueue_started) * 1000.0
                 active.chunk_index += 1
                 now = loop.time()
                 while active.action_arrivals and active.action_arrivals[0] <= generation_started:
                     active.action_arrivals.popleft()
-                control_latency_ms = (
-                    (now - action_arrival) * 1000.0 if action_arrival is not None else None
+                control_latency_ms = (now - action_arrival) * 1000.0 if action_arrival is not None else None
+                queue_depth = active.frame_packets.qsize()
+                self._record_perf(
+                    active,
+                    transport="websocket",
+                    generation_started=generation_started,
+                    now=now,
+                    output_frames=accepted,
+                    generation_ms=generation_ms,
+                    pixel_post_ms=pixel_post_ms,
+                    enqueue_ms=enqueue_ms,
+                    queue_depth=queue_depth,
+                    dropped_frames=active.dropped_frames,
+                    control_latency_ms=control_latency_ms,
                 )
                 await self._socket_send(
                     active,
@@ -2147,11 +2321,10 @@ class RealtimePeerManager:
                         "frames": accepted,
                         "generation_ms": round(generation_ms, 1),
                         "enqueue_ms": round(enqueue_ms, 1),
-                        "control_latency_ms": round(control_latency_ms, 1)
-                        if control_latency_ms is not None
-                        else None,
-                        "queue_depth": active.frame_packets.qsize(),
+                        "control_latency_ms": round(control_latency_ms, 1) if control_latency_ms is not None else None,
+                        "queue_depth": queue_depth,
                         "dropped_frames": active.dropped_frames,
+                        "pixel_post_ms": round(pixel_post_ms, 1),
                         "resolution": resolution_snapshot.to_payload(),
                         "resolution_revision": resolution_snapshot.revision,
                         "interactions": (
@@ -2165,11 +2338,7 @@ class RealtimePeerManager:
                             if forced_step and not interactions
                             else interactions
                         ),
-                        **{
-                            key: round(float(value), 1)
-                            for key, value in self.runtime.last_generation_metrics.items()
-                            if key in {"condition_ms", "model_ms", "decode_ms"}
-                        },
+                        **_chunk_metric_payload(getattr(self.runtime, "last_generation_metrics", {}) or {}),
                     },
                 )
                 # The queue owns each encoded packet now. Do not retain a
@@ -2236,9 +2405,7 @@ class RealtimePeerManager:
         if active.closed or active.socket.closed:
             return
         async with active.send_lock:
-            await active.socket.send_str(
-                json.dumps(dict(payload), ensure_ascii=False, separators=(",", ":"))
-            )
+            await active.socket.send_str(json.dumps(dict(payload), ensure_ascii=False, separators=(",", ":")))
 
     async def _input_worker(self, active: _ActivePeer) -> None:
         """Apply reliable DataChannel messages in their original order."""
@@ -2344,7 +2511,7 @@ class RealtimePeerManager:
                         next_prompt = active.pending_prompt
                         active.pending_prompt = None
                         active.pending_prompt_dirty = False
-                        frame_budget = self.runtime.next_chunk_frames(self.chunk_frames)
+                        frame_budget = self._runtime_next_input_frames()
                         segments = active.resampler.sample_chunk(
                             frame_budget,
                             wall_time=loop.time(),
@@ -2355,7 +2522,7 @@ class RealtimePeerManager:
                         forced_step = True
                         interactions = []
                     else:
-                        frame_budget = self.runtime.next_chunk_frames(self.chunk_frames)
+                        frame_budget = self._runtime_next_input_frames()
                         segments = active.resampler.sample_chunk(
                             frame_budget,
                             wall_time=loop.time(),
@@ -2372,13 +2539,12 @@ class RealtimePeerManager:
                     control_segments=segments,
                     prompt=next_prompt,
                 )
+                pixel_post_started = loop.time()
                 while True:
                     active.output_resolution.observe_source(frames[0] if frames else None)
                     resolution_snapshot = active.output_resolution.snapshot()
                     if resolution_snapshot.dimensions is None or all(
-                        (frame.shape[1], frame.shape[0])
-                        == resolution_snapshot.dimensions
-                        for frame in frames
+                        (frame.shape[1], frame.shape[0]) == resolution_snapshot.dimensions for frame in frames
                     ):
                         transport_frames = frames
                     else:
@@ -2389,13 +2555,26 @@ class RealtimePeerManager:
                         )
                     if resolution_snapshot.revision == active.output_resolution.revision:
                         break
+                pixel_post_ms = (loop.time() - pixel_post_started) * 1000.0
                 accepted = await active.frames.put_chunk(transport_frames)
                 active.chunk_index += 1
                 now = loop.time()
                 while active.action_arrivals and active.action_arrivals[0] <= generation_started:
                     active.action_arrivals.popleft()
-                control_latency_ms = (
-                    (now - action_arrival) * 1000.0 if action_arrival is not None else None
+                control_latency_ms = (now - action_arrival) * 1000.0 if action_arrival is not None else None
+                queue_depth = active.frames.qsize()
+                self._record_perf(
+                    active,
+                    transport="webrtc",
+                    generation_started=generation_started,
+                    now=now,
+                    output_frames=accepted,
+                    generation_ms=generation_ms,
+                    pixel_post_ms=pixel_post_ms,
+                    enqueue_ms=active.frames.last_enqueue_ms,
+                    queue_depth=queue_depth,
+                    dropped_frames=active.frames.dropped_frames,
+                    control_latency_ms=control_latency_ms,
                 )
                 self._send(
                     active.channel,
@@ -2405,11 +2584,10 @@ class RealtimePeerManager:
                         "frames": accepted,
                         "generation_ms": round(generation_ms, 1),
                         "enqueue_ms": round(active.frames.last_enqueue_ms, 1),
-                        "control_latency_ms": round(control_latency_ms, 1)
-                        if control_latency_ms is not None
-                        else None,
-                        "queue_depth": active.frames.qsize(),
+                        "control_latency_ms": round(control_latency_ms, 1) if control_latency_ms is not None else None,
+                        "queue_depth": queue_depth,
                         "dropped_frames": active.frames.dropped_frames,
+                        "pixel_post_ms": round(pixel_post_ms, 1),
                         "resolution": resolution_snapshot.to_payload(),
                         "resolution_revision": resolution_snapshot.revision,
                         "interactions": (
@@ -2421,11 +2599,7 @@ class RealtimePeerManager:
                             if forced_step and not interactions
                             else interactions
                         ),
-                        **{
-                            key: round(float(value), 1)
-                            for key, value in self.runtime.last_generation_metrics.items()
-                            if key in {"condition_ms", "model_ms", "decode_ms"}
-                        },
+                        **_chunk_metric_payload(getattr(self.runtime, "last_generation_metrics", {}) or {}),
                     },
                 )
                 if (
@@ -2541,9 +2715,7 @@ def _require_realtime_dependencies(*, require_rtc: bool, require_av: bool) -> No
             missing.append(name)
     if missing:
         raise SystemExit(
-            "Realtime World frontend requires "
-            + ", ".join(missing)
-            + ". Install `worldfoundry[studio_realtime]`."
+            "Realtime World frontend requires " + ", ".join(missing) + ". Install `worldfoundry[studio_realtime]`."
         )
 
 
@@ -2572,9 +2744,7 @@ def serve_realtime_world_frontend(
 
     prompt_scheduled = "prompt-scheduled" in entry.tags
     queued_segments = "queued-segment-generation" in entry.tags
-    websocket_only = os.getenv(
-        "WORLDFOUNDRY_REALTIME_WEBSOCKET_ONLY", ""
-    ).strip().lower() in {"1", "true", "yes", "on"}
+    websocket_only = os.getenv("WORLDFOUNDRY_REALTIME_WEBSOCKET_ONLY", "").strip().lower() in {"1", "true", "yes", "on"}
     _require_realtime_dependencies(
         # Same-origin WebSocket streaming is fully self-contained and is the
         # reliable transport for SSH tunnels.  Keep aiortc optional when the
@@ -2619,6 +2789,11 @@ def serve_realtime_world_frontend(
             0,
             minimum=0,
         ),
+        postprocess=_realtime_postprocess_stream(
+            fps=fps,
+            launch_config=launch_config,
+            native_resolution=_entry_output_resolution(entry),
+        ),
     )
     peers = RealtimePeerManager(
         runtime=runtime,
@@ -2630,9 +2805,7 @@ def serve_realtime_world_frontend(
     upload_root.mkdir(parents=True, exist_ok=True)
     owned_uploads: set[Path] = set()
     upload_cleanup_lock = asyncio.Lock()
-    file_roots = tuple(
-        dict.fromkeys(root.expanduser().resolve() for root in (*allowed_roots, upload_root))
-    )
+    file_roots = tuple(dict.fromkeys(root.expanduser().resolve() for root in (*allowed_roots, upload_root)))
 
     app = web.Application(client_max_size=2 * 1024**3)
     preload_task: asyncio.Task[Any] | None = None
@@ -2684,16 +2857,13 @@ def serve_realtime_world_frontend(
                 "display_name": entry.display_name,
                 "transport": "websocket" if segment_transport else "webrtc+websocket",
                 "runtime_engine": "worldfoundry-resident",
-                "performance_contract": (
-                    "in-tree-full-quality-segments" if queued_segments else "in-tree-realtime"
-                ),
+                "postprocess": list(runtime.postprocess_names),
+                "performance_contract": ("in-tree-full-quality-segments" if queued_segments else "in-tree-realtime"),
                 "websocket_fallback": True,
                 "prefer_websocket": prefer_socket,
                 "supports_video_input": not (prompt_scheduled or queued_segments),
                 "interaction_mode": (
-                    "queued-segments"
-                    if queued_segments
-                    else "prompt-scheduled" if prompt_scheduled else "controls"
+                    "queued-segments" if queued_segments else "prompt-scheduled" if prompt_scheduled else "controls"
                 ),
                 "fps": runtime.realtime_spec.fps,
                 "chunk_frames": runtime.realtime_spec.first_chunk_frames,
@@ -2711,7 +2881,10 @@ def serve_realtime_world_frontend(
                 "event_catalog": [],
                 "active_event_id": None,
                 "output_resolution": {"mode": "native"},
-                "output_resolutions": _output_resolution_options(entry),
+                "output_resolutions": _output_resolution_options(
+                    entry,
+                    native_override=runtime.transport_native_resolution,
+                ),
                 "output_resolution_scope": "transport",
                 "ice_servers": ice_servers,
                 "examples": examples,
@@ -2727,6 +2900,7 @@ def serve_realtime_world_frontend(
                 "warmup_ms": round(runtime.warmup_ms, 1),
                 "session_active": peers.active,
                 "draining": peers.draining,
+                "postprocess": list(runtime.postprocess_names),
                 "realtime_spec": runtime.realtime_spec.to_payload(),
             }
         )
@@ -2750,9 +2924,7 @@ def serve_realtime_world_frontend(
         finally:
             await asyncio.to_thread(handle.close)
         owned_uploads.add(target)
-        return web.json_response(
-            {"path": str(target), "url": f"/api/file?path={quote(str(target), safe='')}"}
-        )
+        return web.json_response({"path": str(target), "url": f"/api/file?path={quote(str(target), safe='')}"})
 
     async def file_response(request: Any) -> Any:
         raw = str(request.query.get("path") or "")
@@ -2820,11 +2992,7 @@ def serve_realtime_world_frontend(
 
         stale_after = _env_int("WORLDFOUNDRY_UPLOAD_STALE_SECONDS", 24 * 60 * 60)
         cutoff = time.time() - stale_after
-        stale = [
-            path
-            for path in upload_root.iterdir()
-            if path.is_file() and path.stat().st_mtime < cutoff
-        ]
+        stale = [path for path in upload_root.iterdir() if path.is_file() and path.stat().st_mtime < cutoff]
         await asyncio.gather(
             *(asyncio.to_thread(path.unlink, missing_ok=True) for path in stale),
             return_exceptions=True,

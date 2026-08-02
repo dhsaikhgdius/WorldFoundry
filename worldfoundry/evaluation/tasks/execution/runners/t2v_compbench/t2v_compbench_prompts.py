@@ -11,6 +11,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
+from worldfoundry.core.io.file_utils import materialize_file
 from worldfoundry.core.io.serialization import read_jsonl_objects, write_jsonl
 from worldfoundry.evaluation.api import (
     GenerationRequest,
@@ -359,7 +360,7 @@ def copy_t2v_compbench_generated_videos(
             relative_path = Path(str(record["official_video_subdir"])) / str(record["official_video_name"])
             target = stage / relative_path
             target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source, target)
+            materialize_file(source, target, writable=False)
             _probe_decodable_mp4(target)
             manifest_rows.append(
                 _manifest_row_from_canonical(
@@ -585,12 +586,7 @@ def materialize_t2v_compbench_official_layout(
             relative_path = Path(str(row["official_video_subdir"])) / str(row["official_video_name"])
             target = stage / relative_path
             target.parent.mkdir(parents=True, exist_ok=True)
-            try:
-                os.link(source, target)
-                materialization = "hardlink"
-            except OSError:
-                shutil.copy2(source, target)
-                materialization = "copy"
+            materialization = materialize_file(source, target, writable=False)
             _probe_decodable_mp4(target)
             staged_row = dict(row)
             staged_row["source_relative_path"] = row["relative_path"]

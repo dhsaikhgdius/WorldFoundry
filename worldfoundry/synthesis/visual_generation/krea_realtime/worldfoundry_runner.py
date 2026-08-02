@@ -10,10 +10,7 @@ from pathlib import Path
 import numpy as np
 from omegaconf import OmegaConf
 
-from worldfoundry.core.io.paths import package_module_root as package_root
-
 DEFAULT_RUNTIME_ROOT = Path(__file__).resolve().parent / "krea_runtime"
-KREA_WAN_PARENT = package_root("worldfoundry.base_models.diffusion_model.video.wan.variants.krea_realtime.wan").parent
 
 
 def parse_args() -> argparse.Namespace:
@@ -73,8 +70,6 @@ def main() -> None:
     os.environ["MODEL_FOLDER"] = str(Path(args.model_folder).expanduser().resolve())
     if str(repo_root) not in sys.path:
         sys.path.insert(0, str(repo_root))
-    if str(KREA_WAN_PARENT) not in sys.path:
-        sys.path.insert(0, str(KREA_WAN_PARENT))
     if "dotenv" not in sys.modules:
         try:
             import dotenv  # noqa: F401

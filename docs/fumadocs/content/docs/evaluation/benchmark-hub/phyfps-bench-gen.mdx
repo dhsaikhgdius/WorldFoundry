@@ -3,14 +3,14 @@ title: PhyFPS-Bench-Gen
 description: "PhyFPS-Bench-Gen in WorldFoundry: Visual Chronometer runner, data layout, and metrics."
 ---
 
-## What It Measures
+## What it measures
 
 PhyFPS-Bench-Gen audits temporal speed consistency in generated videos. It compares a model's nominal or metadata frame rate, called Meta FPS, with the physical motion speed predicted by Visual Chronometer, called PhyFPS. The official prompt set is designed around dynamic scenes with humans, animals, vehicles, nature, fluids, camera motion, weather, and other motion cues while avoiding prompts that explicitly ask for slow motion, time lapse, or speed changes.
 
 WorldFoundry vendors the Visual Chronometer inference runtime under the PhyFPS runner directory and can run prediction in-process. It can also import an existing `results.csv` produced in the same schema.
 
 
-## Official References
+## Official references
 
 | Resource | Link |
 | --- | --- |
@@ -18,7 +18,7 @@ WorldFoundry vendors the Visual Chronometer inference runtime under the PhyFPS r
 | HF checkpoint | [xiangbog/Visual_Chronometer](https://huggingface.co/xiangbog/Visual_Chronometer) |
 | In-tree runner | `worldfoundry/evaluation/tasks/execution/runners/phyfps_bench_gen/run_phyfps_bench_gen_official_runner.py` |
 
-## Data And Artifacts
+## Data and artifacts
 
 The prompt manifest is a plain text file, one prompt per line:
 
@@ -45,7 +45,7 @@ Generate one video per prompt and keep the files in one flat directory. The cano
 
 Supported suffixes are `.mp4`, `.mov`, `.mkv`, `.webm`, and `.avi`. For formal full-suite evidence, the prompt count and generated-video stems must match the resolved manifest.
 
-## Dependencies And Checkpoints
+## Dependencies and checkpoints
 
 The in-tree runtime path is:
 
@@ -65,7 +65,7 @@ Useful overrides:
 
 Meta FPS is required for `avg_error_fps` and `pct_error`. Consistency metrics can still be computed from PhyFPS predictions alone.
 
-## Supported Commands
+## Supported commands
 
 Set candidate videos and, for alignment metrics, Meta FPS:
 
@@ -136,9 +136,9 @@ Visual Chronometer is the in-tree PhyFPS predictor that powers this benchmark. I
 
 Use **PhyFPS-Bench-Gen** when you have the official 100-prompt suite and want Meta FPS alignment metrics (`avg_error_fps`, `pct_error`, `phyfps_bench_gen_average`).
 
-Use the **Visual Chronometer** benchmark id when you only need PhyFPS prediction and temporal-consistency metrics over an arbitrary generated-video directory, without a prompt manifest or Meta FPS target.
+Use the **Visual Chronometer** benchmark ID when you only need PhyFPS prediction and temporal-consistency metrics over an arbitrary generated-video directory, without a prompt manifest or Meta FPS target.
 
-| Surface | Benchmark id | Runner |
+| Surface | Benchmark ID | Runner |
 | --- | --- | --- |
 | Full prompt suite + Meta FPS alignment | `phyfps-bench-gen` | `run_phyfps_bench_gen_official_runner.py` |
 | Arbitrary video directory, PhyFPS only | `visual-chronometer` | `run_visual_chronometer_official_runner.py` |
@@ -208,7 +208,7 @@ from worldfoundry.evaluation.tasks.execution.runners.phyfps_bench_gen.run_visual
 
 Visual Chronometer metrics are `mean_phyfps`, `inter_video_cv`, `intra_video_cv`, and `visual_chronometer_average`. Lower variation metrics are better when comparing temporal stability; `mean_phyfps` is descriptive unless compared to a target metadata FPS.
 
-## Import Paths
+## Import paths
 
 - Runner: `worldfoundry.evaluation.tasks.execution.runners.phyfps_bench_gen.run_phyfps_bench_gen_official_runner`
 - Metrics: `worldfoundry.evaluation.tasks.execution.runners.phyfps_bench_gen.phyfps_metrics`
@@ -216,7 +216,7 @@ Visual Chronometer metrics are `mean_phyfps`, `inter_video_cv`, `intra_video_cv`
 - Prediction wrapper: `worldfoundry.evaluation.tasks.execution.runners.phyfps_bench_gen.phyfps_predict`
 - Visual Chronometer runtime: `worldfoundry.evaluation.tasks.execution.runners.phyfps_bench_gen.visual_chronometer_runtime`
 
-## Result File Shape
+## Result file shape
 
 `results.csv` must contain these columns:
 

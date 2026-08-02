@@ -1,0 +1,54 @@
+id: open-dreamer
+name: Open Dreamer
+aliases:
+- open_dreamer
+- opendreamer
+- dreamer-4
+- dreamer4
+tasks:
+- interactive-world-model
+- minecraft-world-model
+- action-conditioned-video
+- diffusion-world-model
+output_artifacts:
+- generated_world
+- generated_video
+provider: official_repo
+source:
+  status: open_weights_restricted
+  official_repo_url: https://github.com/next-state/open-dreamer
+  license: all_rights_reserved
+official_sources:
+  project_page: https://next-state.github.io/open-dreamer/
+  paper: https://arxiv.org/abs/2509.24527
+  github:
+    url: https://github.com/next-state/open-dreamer
+    revision: 5a4127fcbbd37b3cd9237904d645fb11348bab28
+  inference_github:
+    url: https://github.com/reactor-team/open-dreamer
+    revision: 829263d2089744afb311677eb4d7900dd14ebfbc
+integration:
+  status: runtime_ported
+  blocked_reasons:
+  - Upstream publishes an all-rights-reserved notice with no redistribution grant, so the JAX source is
+    never vendored into this Apache-2.0 repository.
+  - Execution requires a user-staged official checkout, its CUDA-12 JAX environment, and a trained Orbax
+    checkpoint; upstream has not published downloadable weights.
+  notes:
+  - WorldFoundry registers a source-bound runtime manifest that drives the official rollout entrypoint
+    (reactor-team/open-dreamer inference.py) as a subprocess.
+  - The adapter under synthesis/visual_generation/world_model/open_dreamer is WorldFoundry-authored glue
+    only; it resolves the staged checkout, gates on staging requirements, and builds the official command.
+  - WorldFoundry interaction tokens are rendered into Minecraft/VPT action JSONL so the shared world-model
+    call surface (interactions=[...]) drives the Dreamer 4 action space.
+runner_parity:
+  status: implemented_checkpoint_pending
+  notes:
+  - The pipeline resolves the official inference entrypoint and returns blocked runtime diagnostics until
+    the checkout, JAX environment, checkpoint, and a 368x640 Minecraft/VPT context clip are staged.
+runtime_profile: runtime-profile:open-dreamer
+runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
+pipeline_binding: open-dreamer
+catalog_category: world_models
+catalog_scope: World-model catalog entries. Integrated entries expose in-tree WorldFoundry runtimes; blocked
+  entries retain upstream provenance without runnable backends.

@@ -51,15 +51,9 @@ def _patch_fast_attention_fallback(use_fast: bool) -> None:
     if not use_fast:
         return
     try:
-        from worldfoundry.base_models.diffusion_model.video.wan.wan_2p2.modules import (
-            lingbot_attention as attention_module,
-        )
-        from worldfoundry.base_models.diffusion_model.video.wan.wan_2p2.modules import (
-            lingbot_model as model_module,
-        )
-        from worldfoundry.base_models.diffusion_model.video.wan.wan_2p2.modules import (
-            lingbot_model_fast as model_fast_module,
-        )
+        from worldfoundry.base_models.diffusion_model.models.networks.wan.variants.lingbot import attention as attention_module
+        from worldfoundry.base_models.diffusion_model.models.networks.wan.variants.lingbot import model as model_module
+        from worldfoundry.base_models.diffusion_model.models.networks.wan.variants.lingbot import fast as model_fast_module
     except Exception:
         return
 

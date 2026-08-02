@@ -1,0 +1,104 @@
+---
+title: MIND
+description: "WorldFoundry 中的 MIND：交互式世界模型的记忆一致性与动作控制评测。"
+---
+
+## 测什么
+
+MIND 在闭环 revisited 协议下评估交互式视频世界模型的**记忆一致性**与**动作控制**。生成视频会与 ground-truth 续写以及镜像动作轨迹对比，覆盖第一人称与第三人称视角。
+
+官方测试集共有 **250 个 clips**（1080p / 24 FPS）：
+
+- `mem_test` 与 `action_space_test` — 长上下文记忆（LCM）、DINOv3 特征距离、视觉质量，以及基于 ViPE 的动作相对位姿误差
+- `mirror_test` — 轨迹与时间反转半段之间的通用场景一致性（GSC）
+
+WorldFoundry 还会派生能力组分数（`memory_consistency_score`、`visual_quality_score`、`action_control_score`、`scene_consistency_score`）以及综合分 `mind_average`。**MIND 没有发布官方综合分**，因此 `mind_average` 永远不是 leaderboard 数字。
+
+## 官方参考
+
+| 资源 | 链接 |
+| --- | --- |
+| 项目页 | [csu-jpg.github.io/MIND.github.io](https://csu-jpg.github.io/MIND.github.io/) |
+| 论文 | [arXiv:2602.08025](https://arxiv.org/abs/2602.08025) |
+| GitHub | [github.com/CSU-JPG/MIND](https://github.com/CSU-JPG/MIND) |
+| HF 数据集 | [CSU-JPG/MIND](https://huggingface.co/datasets/CSU-JPG/MIND) |
+| 仓内 runner | `worldfoundry/evaluation/tasks/execution/runners/mind/run_mind_official_runner.py` |
+
+## 数据与产物
+
+生成视频需遵循官方布局：
+
+```text
+<model>/
+  1st_data/
+    mem_test/<gt_name>/video.mp4
+    action_space_test/<gt_name>/video.mp4
+    mirror_test/<name>/path-N.mp4
+  3rd_data/
+    ...
+```
+
+Ground-truth 资产位于 MIND-Data 根目录（`--gt-root` / `WORLDFOUNDRY_MIND_GT_ROOT`）。vendored runtime 会写出一份 MIND result JSON，再由 WorldFoundry 归一化为 scorecard。
+
+## 两种入口
+
+**Normalizer（默认）。** 从已有 MIND result JSON（`--official-results-path` 或 `WORLDFOUNDRY_MIND_RESULTS_PATH`）重算 WorldFoundry 指标。纯 Python，不需要 GPU。
+
+**Official runtime（`--run-official`）。** 执行仓内 `runtime/mind/src/process.py`。`lcm` / `visual` / `dino` / `gsc` 需要 CUDA 以及 LPIPS、torchmetrics、pyiqa、CLIP 资产；`action` 指标额外需要 ViPE checkout（`--vipe-repo`）和 `vipe` CLI。DINOv3 权重通过 `--dino-path` 或 `<weights-dir>/dinov3_vitb16` 提供，不会 vendored 进仓。
+
+所有可变状态（工作目录、`MIND_CACHE_DIR`、staged links、日志、result JSON）都写在 `--output-dir` 下；vendored runtime 保持只读。
+
+## 支持的命令
+
+归一化已有 result JSON：
+
+```bash
+worldfoundry-eval zoo benchmark-run \
+  --benchmark-id mind \
+  --mode official-validation \
+  --official-results-path <mind_result.json> \
+  --output-dir <out> \
+  --json
+```
+
+跑仓内合成 fixture（无需 GPU）：
+
+```bash
+python worldfoundry/evaluation/tasks/execution/runners/mind/run_mind_official_runner.py \
+  --run-fixture \
+  --output-dir <out> \
+  --json
+```
+
+执行仓内 metric runtime：
+
+```bash
+worldfoundry-eval zoo benchmark-run \
+  --benchmark-id mind \
+  --mode official-validation \
+  --run-official \
+  --gt-root <MIND-Data> \
+  --generated-artifact-dir <model_outputs> \
+  --dino-path <dinov3_vitb16> \
+  --output-dir <out> \
+  --json
+```
+
+## 指标
+
+| 指标 | 越高越好 | 说明 |
+| --- | --- | --- |
+| `lcm_psnr` / `lcm_ssim` | 是 | 长上下文记忆像素指标 |
+| `lcm_lpips` / `lcm_mse` | 否 | 长上下文记忆距离指标 |
+| `dino_mse` | 否 | DINOv3 patch-token MSE |
+| `imaging_quality` / `aesthetic_quality` | 是 | MUSIQ-SPAQ 与 LAION aesthetic |
+| `action_rpe_*` | 否 | ViPE 相对位姿误差 |
+| `gsc_*` | PSNR/SSIM 是；LPIPS/MSE 否 | mirror-test 场景一致性 |
+| `*_score` 能力组 | 是 | WorldFoundry 派生 |
+| `mind_average` | 是 | WorldFoundry 派生；非 leaderboard 分数 |
+
+## 证据策略
+
+- 导入或归一化已有结果**不算** official-run 证据：`official_benchmark_verified` 与 `leaderboard_valid` 保持 `false`。
+- 与 leaderboard 对齐需要完整的 250-clip 官方 split，以及尚未开放的 MIND leaderboard。
+- 缺失的指标组件保持 `None`，不会被填零伪装成完整套件聚合。

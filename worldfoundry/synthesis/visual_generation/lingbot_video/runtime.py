@@ -162,7 +162,7 @@ class LingBotVideoRuntime:
             "runner_module": RUNNER_MODULE,
             "requires": [
                 "torch and torchvision builds compatible with the selected CUDA runtime",
-                "diffusers>=0.39.0",
+                "diffusers>=0.38.0",
                 "transformers>=5.0,<6",
                 "accelerate, peft, safetensors, imageio, and imageio-ffmpeg",
             ],

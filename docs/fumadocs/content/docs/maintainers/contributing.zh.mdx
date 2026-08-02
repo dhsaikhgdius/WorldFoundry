@@ -1,6 +1,6 @@
 ---
 title: 贡献规则
-description: 面向维护者的范围、测试、文档和发布证据 checklist。
+description: 面向维护者的范围、验证、文档和发布证据 checklist。
 ---
 
 ## PR 前检查
@@ -22,13 +22,13 @@ description: 面向维护者的范围、测试、文档和发布证据 checklist
 - **Formatting** — 避免无关大规模格式化；除非任务需要，不重写生成文件或 vendored 文件。
 - **Naming** — 优先使用 canonical id 和直接 runner path；公开名称变化时，写 migration 说明，而不是长期保留 compatibility map。
 
-## 测试位置
+## 验证方式
 
-按变更类型选择测试：
+按变更类型选择验证证据：
 
-- **Runner、scorecard、tasks、registry** — `test/eval_core` 中的聚焦测试。
-- **单 pipeline run** — `test/` 下现有脚本，或聚焦 validation script。
-- **Stateful / interactive pipeline** — `test_stream/` 或文档化的 stream 命令。
+- **Runner、scorecard、tasks、registry** — 使用公开 CLI 的 discovery、plan 和 artifact validation 命令。
+- **单 pipeline run** — 使用最小的文档化验证脚本及其生成 manifest。
+- **Stateful / interactive pipeline** — 使用文档化 stream 命令，并提供有界 runtime 证据。
 - **Benchmark runner** — Runner execution；需要 normalizer review 时，用 official-shaped result files 跑 `zoo benchmark-run --mode official-validation`。
 - **Model runner** — Resolver/manifest validation，并为缺 checkpoint/credentials 提供 skipped path。
 
@@ -48,7 +48,7 @@ Fumadocs 是唯一维护的文档面。新增或修改页面时，在 `docs/fuma
 ```bash
 bash scripts/setup/conda_install.sh --preset slim --env-name worldfoundry
 make lint
-conda run -p "${WORLDFOUNDRY_UNIFIED_ENV_PREFIX}" python -m pytest test/eval_core -q
+make docs-check
 cd docs/fumadocs && npm run types:check && npm run build
 ```
 

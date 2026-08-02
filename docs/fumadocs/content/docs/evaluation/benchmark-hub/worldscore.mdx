@@ -9,11 +9,11 @@ WorldScore evaluates world generation: a model starts from an observed scene and
 
 WorldFoundry already carries the benchmark runner and runtime under `worldfoundry/evaluation/tasks/execution/runners/worldscore`. Do not clone the official repos for a WorldFoundry run. Downloading the Hugging Face dataset and metric checkpoints is still expected.
 
-## What It Measures
+## What it measures
 
 WorldScore is the first unified benchmark for **world generation**. It decomposes world building into a sequence of next-scene tasks with explicit camera-trajectory layout specs, then scores controllability, quality, and dynamics across 3D, 4D, I2V, and T2V systems.
 
-## Benchmark Design
+## Benchmark design
 
 | Property | Detail |
 | --- | --- |
@@ -26,7 +26,7 @@ WorldScore is the first unified benchmark for **world generation**. It decompose
 
 Unlike single-scene video benchmarks, WorldScore requires multi-scene continuity, long sequences, image conditioning, multi-style coverage, camera control, and 3D consistency in one protocol.
 
-## Official References
+## Official references
 
 - Paper: [arXiv:2504.00983](https://arxiv.org/abs/2504.00983)
 - Project page and leaderboard: [haoyi-duan.github.io/WorldScore](https://haoyi-duan.github.io/WorldScore/)
@@ -34,11 +34,11 @@ Unlike single-scene video benchmarks, WorldScore requires multi-scene continuity
 - Dataset: [Howieeeee/WorldScore](https://huggingface.co/datasets/Howieeeee/WorldScore)
 - In-tree runner: `worldfoundry/evaluation/tasks/execution/runners/worldscore/run_worldscore_official_runner.py`
 
-## Leaderboard Notes
+## Leaderboard notes
 
 The official site publishes `WorldScore-Static` and `WorldScore-Dynamic` rankings with per-family sub-metrics (camera control, object control, content alignment, 3D/photometric/style consistency, subjective quality, motion accuracy/magnitude/smoothness). WorldFoundry records bounded GPU validation for one dynamic sample; full 3,000-example leaderboard parity requires complete `evaluation.json` trees and the full metric checkpoint stack.
 
-## Prepare Data And Assets
+## Prepare data and assets
 
 Run from the WorldFoundry repository root:
 
@@ -100,7 +100,7 @@ export WORLDFOUNDRY_WORLDSCORE_MODEL_PATH=/path/to/model_workspace
 export WORLDFOUNDRY_WORLDSCORE_HF_DATASET_ROOT="${WORLDFOUNDRY_WORLDSCORE_DATA_PATH}"
 ```
 
-## Run With WorldFoundry
+## Run with WorldFoundry
 
 Public benchmark command for the in-tree runtime:
 

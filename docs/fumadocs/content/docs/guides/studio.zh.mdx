@@ -199,10 +199,99 @@ WebRTC 视频轨。控制到画面的热路径不会扫描 artifact、写 manife
 | `WORLDFOUNDRY_REALTIME_CHUNK_FRAMES` | `9` | 每个生成 chunk 的目标帧数；有严格时序约束的模型会覆盖该值。 |
 | `WORLDFOUNDRY_REALTIME_INFERENCE_STEPS` | 模型默认；LingBot Fast 为 `4` | 显式的延迟/质量覆盖；非蒸馏模型不会被静默降到 4 步。 |
 | `WORLDFOUNDRY_REALTIME_FRAME_QUEUE` | `max(chunk, 8)` | 单个 steady-state chunk 的有界播放队列。 |
+| `WORLDFOUNDRY_REALTIME_FRAME_QUEUE_POLICY` | `latest-interactive` | `latest-interactive` 在拥塞时限制延迟，`ordered-quality` 保留每一帧；严格计数的 prompt/segment 会话始终强制使用 `ordered-quality`。 |
 | `WORLDFOUNDRY_REALTIME_BACKPRESSURE_MS` | 半个 chunk | 正常播放时保留全部帧；只有拥塞超过预算才丢弃旧帧。 |
 | `WORLDFOUNDRY_REALTIME_WARMUP_CHUNKS` | `1` | 后台 stream warmup；设为 `0` 可关闭，编译/autotune 实验可调高。 |
+| `WORLDFOUNDRY_REALTIME_PREWARM_TIMEOUT_SECONDS` | 未设置 | configure 与 warmup chunks 的可选 deadline；当前不可取消的模型调用返回后才报告超时，设为 `0` 可关闭。 |
+| `WORLDFOUNDRY_REALTIME_POSTPROCESS_PRESET` | `identity` | 可选 `identity`、`rtx-super-resolution`、`rtx-super-resolution-ultra` 或 `rtx-deblur-ultra`。RTX 必须显式启用；运行条件不满足时会在启动服务前失败。 |
+| `WORLDFOUNDRY_REALTIME_RTX_SCALE` | preset 默认值（VSR 为 `2`，deblur 为 `1`） | VSR 空间放大倍数；NVIDIA VFX 最高支持 4x，同分辨率去噪/去模糊模式必须为 `1`。 |
+| `WORLDFOUNDRY_REALTIME_RTX_OUTPUT_WIDTH` / `WORLDFOUNDRY_REALTIME_RTX_OUTPUT_HEIGHT` | 未设置 | 可选的 RTX 显式输出尺寸；必须同时设置或同时不设。 |
+| `WORLDFOUNDRY_REALTIME_RTX_QUALITY` | preset 默认值 | 覆盖 NVIDIA VFX quality 枚举，例如 `HIGH`、`ULTRA`、`DEBLUR_ULTRA` 或 `HIGHBITRATE_HIGH`。 |
+| `WORLDFOUNDRY_REALTIME_RTX_DEVICE` | Studio device 中的 index，否则为 `0` | VFX effect 使用的 CUDA device index。 |
+| `WORLDFOUNDRY_REALTIME_RTX_NON_BLOCKING` | `false` | 请求异步 VFX 执行。WorldFoundry 在 clone 借用的 DLPack 输出前仍会同步，不会降低内存安全性。 |
+| `WORLDFOUNDRY_REALTIME_RTX_USE_CURRENT_STREAM` | `true` | 把当前 PyTorch CUDA stream pointer 传给 NVIDIA VFX；只应在排查 stream interop 时关闭。 |
+| `WORLDFOUNDRY_REALTIME_PERF_LOG_INTERVAL_CHUNKS` | `5` | 每 N 个 chunk 输出一次含各阶段 p50/p90 的结构化 timing 摘要；设为 `0` 可关闭周期摘要。 |
+| `WORLDFOUNDRY_REALTIME_PERF_WARMUP_CHUNKS` | `0` | 将会话开头 N 个 chunk 标记为 warmup 并从摘要中排除；原始 JSONL 仍保留 warmup 标记。 |
+| `WORLDFOUNDRY_REALTIME_PERF_JSONL` | 未设置 | 可选的 JSONL 路径，每个 chunk 写一条规范化 `realtime.chunk_timing` 事件；仅建议 profiling 时启用，避免热路径文件 I/O。 |
 | `WORLDFOUNDRY_REALTIME_LIVENESS_TIMEOUT_SECONDS` | `30` | 浏览器 heartbeat 消失后自动回收会话，同时避免误杀较慢的在途 chunk。 |
 | `WORLDFOUNDRY_REALTIME_ICE_SERVERS_JSON` | 未设置 | 浏览器无法直连 GPU 主机时使用的 STUN/TURN `iceServers` JSON。 |
+
+### 可选 NVIDIA RTX 后处理
+
+RTX Video Super Resolution 不进入模型的因果状态：它只在 transport 前处理已经
+decode 的 RGB 帧，并保持帧数、顺序、dtype 与数值范围不变。Studio 会把处理后的
+尺寸作为 transport 的 **Native** 分辨率，并从它推导更小的传输选项。由于 `nvidia-vfx`
+使用 NVIDIA 专有许可证，它不会进入默认依赖或 `all` extra，必须显式安装和启用：
+
+```bash
+pip install 'worldfoundry[studio_realtime,rtx_postprocess]'
+
+export WORLDFOUNDRY_REALTIME_POSTPROCESS_PRESET=rtx-super-resolution
+export WORLDFOUNDRY_REALTIME_RTX_SCALE=1.5
+python -m worldfoundry.studio.app <model-id> --frontend world --device cuda:0
+```
+
+服务启动前，adapter 会检查 package、CUDA 可见性、device index、Turing 或更新
+架构的 compute capability，以及 Linux NGX driver library；随后还会加载所选 native
+effect 并处理一帧代表性输入，因此 driver image 不完整时会在 Studio 对外服务前失败。
+真正调用时，backend 收到连续的 CHW `float32` CUDA 帧（范围 `[0, 1]`）；每次调用后
+会先 clone 借用的 DLPack 输出，再复用 effect。不启动 Studio 也可以分别执行静态检查
+和完整 native probe：
+
+```bash
+python -c 'from worldfoundry.core.video_postprocess_rtx import inspect_rtx_vfx_capability as check; print(check(device=0).to_payload())'
+python -c 'from worldfoundry.core.video_postprocess_rtx import probe_rtx_vfx_runtime as probe; print(probe(device=0).to_payload())'
+```
+
+Linux 上的 `VideoSuperRes` 还需要 `libnvidia-ngx.so.1`。即使 CUDA 与 `nvidia-smi`
+正常，compute-only/headless driver image 也可能省略它。请从与当前 driver **完全相同
+版本**的 NGX/OpenGL userspace 组件（通常为 `libnvidia-gl-<driver-major>`）安装该库，
+并在 Python 启动前让 dynamic linker 可见；不要混用不同 driver 版本的库。
+
+支持的 OS 与 driver 版本由 NVIDIA 决定，部署前应核对最新的
+[NVIDIA VFX Python requirements](https://pypi.org/project/nvidia-vfx/)。VSR 会增加
+transport 像素量和 `postprocess_ms`，因此应按下方门禁做 A/B trace。低延迟交互建议
+从 1.5x `HIGH` 起步；只有实测 GPU 仍有余量时再启用 `ULTRA` 或 2–4x。
+`rtx-deblur-ultra` 保持原分辨率，不会增加传输带宽。
+
+### 实时性能回归门禁
+
+先启用原始 timing，完成一次有代表性的交互，再用显式 JSON manifest 检查
+最后一个匹配会话。Warmup chunk 会保留在 trace 中用于诊断，但带 `warmup=true`
+的记录不会进入统计。
+
+```bash
+export WORLDFOUNDRY_REALTIME_PERF_JSONL=outputs/realtime-timing.jsonl
+export WORLDFOUNDRY_REALTIME_PERF_WARMUP_CHUNKS=1
+```
+
+```json title="realtime-regression.json"
+{
+  "schema_version": "worldfoundry-realtime-regression-v1",
+  "cases": [{
+    "name": "lingbot-webrtc",
+    "selectors": {"model_id": "lingbot-world", "transport": "webrtc"},
+    "thresholds": {
+      "min_chunks": 10,
+      "min_throughput_fps": 16,
+      "max_dropped_frames": 0,
+      "max_queue_depth": 16,
+      "max_stage_p90_ms": {"generation_ms": 650, "model_ms": 500}
+    }
+  }]
+}
+```
+
+```bash
+python scripts/benchmark_zoo/check_realtime_regression.py \
+  --manifest realtime-regression.json \
+  --trace outputs/realtime-timing.jsonl \
+  --output outputs/realtime-regression-result.json
+```
+
+任一阈值失败，或某个必需 stage 在任一测量 chunk 中缺失时，命令都会以状态码
+`1` 退出。输出 JSON 会列出每个实际值、比较符和阈值，也可通过 Python API
+转换为仓内统一的 `PerformanceManifest`。
 
 远程机器上使用时，需要暴露 `7870` 和实际启动的 viewer 端口。例如：
 
@@ -325,7 +414,7 @@ viewer 应作为小型 visualization plugin 保留；共享 Viser/Rerun scene la
 | Catalog | world-model 过滤结果和模型 metadata。 |
 | Gallery | 最近生成结果的并排视觉检查。 |
 
-### Inference Jobs
+### Inference jobs
 
 队列会展示已提交 run、最终状态，以及 run record 提供的内嵌 preview video 或
 image。
@@ -335,8 +424,8 @@ image。
 ### Create Job
 
 表单应该展示模型真实的输入 contract。
-下面的截图只展示 UI 结构；真正的 release demo 声明应以验证记录和对应 run
-manifest 为准。
+下面的截图只展示 UI 结构；真正的 release demo 声明应以[发布门禁](/zh/docs/reference/validation)
+和对应的 run manifest 为准。
 
 ![Studio Create Job dialog](/images/studio/screens/studio-create-job-ltx2-3.png)
 
@@ -354,8 +443,8 @@ Gallery 提供最近 inference outputs 和 preview artifacts 的紧凑视觉检�
 ## 模型推理 Demo 结果
 
 下面的 gallery 只做视觉参考，展示来自仓内 Studio 或 Studio-compatible API run 的
-代表性产物。这里不是 release claim 表；精确参数、环境说明、run id 和剩余风险
-记录在验证 reference 中。本页只嵌入经过筛选的非短测示例。
+代表性产物。这里不是 release claim 表；精确参数、环境说明、run ID 和剩余风险
+记录在每次 run 自己的 manifest 与 scorecard 里。本页只嵌入经过筛选的非短测示例。
 
 <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
   <figure className="m-0">
@@ -501,6 +590,57 @@ Arrow keys / IJKL = look
 chunk 边界采样最新的有效控制状态；输入不会创建第二个 inference request，也
 不会重新加载 pipeline。
 
+### 实时文本事件、Idle step 与输出分辨率
+
+`world` 前端在键盘和摇杆旁边提供三组有序控制：
+
+- **文本事件：** 打开 **INITIAL SCENE**，选择 **ADD**，填入 event ID、按钮标签
+  与 prompt。**APPLY** 会在会话开始前装载事件目录，或在会话进行中替换它。事件
+  按钮会在下一个模型 chunk 边界激活一个文本条件；**CLEAR EVENT** 恢复基础
+  prompt。没有状态保持式文本更新路径的模型会禁用这个入口，而不是假装接受了
+  一次它无法应用的更新。
+- **STEP：** 只排入一个不带键盘方向的生成 chunk，适合静止镜头或检查某个文本
+  事件，不会开启自动生成循环。Queued-segment 模型的 **STEP** 保持禁用，因为
+  它们的下一个 segment 需要新的控制视频。
+- **OUTPUT：** 选择传输帧尺寸。**NATIVE** 保持模型输出尺寸；更小的选项只会对
+  WebRTC/WebSocket 流做缩放和 letterbox，不会改变模型推理分辨率、采样步数、
+  causal state 或后续世界质量。
+
+Event ID 由 1–64 个字母、数字或 `_.:-` 组成；标签最长 64 字符，prompt 最长
+1,000 字符，一个目录最多 12 个事件。目录更新带 revision，因此过期的编辑器
+不会静默覆盖更新过的实时目录。
+
+可靠控制通道会返回 `event_catalog_ack`、`event_ack`、`step_ack` 和
+`output_config_ack`。事件或输出 ACK 表示这条有序请求已被接受，并说明它在哪里
+生效（`next_chunk` 或 `next_segment`）；生成输出的完成信号仍然是 `chunk_done`。
+分辨率切换固定在完整 transport chunk 的边界上，因此已经声明的 chunk 不会被
+截断，也不会混用不同尺寸。每条请求与 ACK 携带相同的 `request_id`，所以快速
+连点不会让旧响应覆盖当前 UI 状态。
+
+不使用内置控件时，同一套协议也可以直接驱动：
+
+```json
+{"type":"event_catalog","request_id":"catalog-1","base_revision":0,"events":[{"event_id":"rain","label":"Rain","prompt":"Heavy rain begins.","category":"weather"}]}
+{"type":"event","request_id":"event-1","event_id":"rain","state":"trigger"}
+{"type":"event","request_id":"event-2","state":"clear"}
+{"type":"action","request_id":"step-1","action":{"event":"step"}}
+{"type":"output_config","request_id":"output-1","resolution":{"mode":"fixed","width":640,"height":360}}
+```
+
+固定传输尺寸必须是偶数，不小于 `160x90`，两个方向都不超过模型的原生/生成帧
+尺寸，并且在实时 `1920x1080` 像素预算之内。Studio 只提供由 model catalog 推导
+出的、对源安全的预设；原生尺寸未知时它不会猜测某个固定预设。切回
+`{"mode":"native"}` 会移除传输层缩放。WebRTC 的缩放工作在帧进入 media track
+之前完成，因此被保留的帧不会反复付出缩放代价，也不会阻塞控制事件循环。
+
+### 可拖拽与可折叠面板
+
+**STATUS**、**CONTROLS**、**INITIAL SCENE** 与 **RUNTIME** 共用同一套面板行为。
+拖动面板标题栏可以让它浮在 viewport 上方，点 `−` 折叠，点 `+` 重新展开。
+浏览器会把浮动面板限制在可见舞台内、把选中的面板置顶，并在本地保存位置与
+折叠状态。拖动每个浏览器帧只做一次 animation-frame transform，不会给模型/帧
+传输路径增加负担。在窄屏移动端布局中，面板保持在文档流内，但仍可折叠。
+
 ### 沉浸式全屏与实时运行日志
 
 全屏视图属于共享的 `world` 前端，因此所有路由到该前端的交互模型都可以使用。
@@ -556,7 +696,7 @@ Workspace 的 visualizer iframe 已经授予 fullscreen 权限。
 | `WORLDFOUNDRY_WORKSPACE_MAX_JOBS` | 并发 job worker 上限。 |
 | `WORLDFOUNDRY_STUDIO_SETTINGS_FILE` | 可选 JSON 文件，启动时加载到 `/api/settings`，供 Create Job 默认值使用。 |
 | `WORLDFOUNDRY_STUDIO_PORT` | 单模型 Studio server 端口。 |
-| `WORLDFOUNDRY_STUDIO_MODEL` | Default model id。 |
+| `WORLDFOUNDRY_STUDIO_MODEL` | Default model ID。 |
 | `WORLDFOUNDRY_STUDIO_VARIANT` | Default variant。 |
 | `WORLDFOUNDRY_STUDIO_BACKEND` | Default backend。 |
 | `WORLDFOUNDRY_STUDIO_DEVICE` | Default device。 |

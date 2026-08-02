@@ -16,7 +16,6 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Iterable
 
-
 _READY_FILE = ".worldfoundry-local-cache.json"
 
 

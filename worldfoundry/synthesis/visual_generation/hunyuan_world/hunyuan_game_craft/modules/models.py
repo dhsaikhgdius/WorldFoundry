@@ -11,15 +11,15 @@ try:
 except ImportError:
     flash_attn_varlen_func = None
 
-from worldfoundry.base_models.diffusion_model.video.hunyuan_video.modules.activation_layers import get_activation_layer
-from worldfoundry.base_models.diffusion_model.video.hunyuan_video.modules.norm_layers import get_norm_layer
+from worldfoundry.core.nn import activation_layer as get_activation_layer
+from worldfoundry.core.nn import normalization_layer as get_norm_layer
 from .embed_layers import TimestepEmbedder, PatchEmbed, TextProjection
 from .attn_layers import apply_rotary_emb
 from .mlp_layers import MLP, MLPEmbedder, FinalLayer
-from worldfoundry.base_models.diffusion_model.video.hunyuan_video.modules.modulate_layers import (
-    ModulateDiT,
+from worldfoundry.core.nn import (
+    DiTModulation as ModulateDiT,
     apply_gate,
-    modulate,
+    modulate_sequence as modulate,
 )
 from .token_refiner import SingleTokenRefiner
 from .cameranet import CameraNet
@@ -29,10 +29,8 @@ from worldfoundry.core.distributed.sequence_parallel_runtime import (
     get_sequence_parallel_state,
     nccl_info,
 )
-from worldfoundry.core.attention.sequence_parallel_attention import (
-    get_cu_seqlens,
-    parallel_attention,
-)
+from worldfoundry.core.attention import get_cu_seqlens
+from worldfoundry.core.attention.sequence_parallel_attention import parallel_attention
 
 CPU_OFFLOAD = int(os.environ.get("CPU_OFFLOAD", 0))
 DISABLE_SP = int(os.environ.get("DISABLE_SP", 0))

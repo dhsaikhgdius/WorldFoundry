@@ -78,6 +78,56 @@ class Int(Validator):
         return itertools.takewhile(lambda item: item <= upper, itertools.count(lower, self.step))
 
 
+class Float(Validator):
+    """Validate a bounded floating-point configuration value."""
+
+    def __init__(self, default=0.0, min=None, max=None, step=0.5, hidden: bool = False, tooltip=None):
+        super().__init__(default, hidden)
+        self.min = min
+        self.max = max
+        self.step = step
+        self.tooltip = tooltip
+
+    def validate(self, value):
+        if isinstance(value, (str, int)):
+            value = float(value)
+        if not isinstance(value, float):
+            raise TypeError(f"Expected float, got {type(value).__name__}")
+        if self.min is not None and value < self.min:
+            raise ValueError(f"Expected {value!r} to be at least {self.min!r}")
+        if self.max is not None and value > self.max:
+            raise ValueError(f"Expected {value!r} to be no more than {self.max!r}")
+        return value
+
+    def get_range_iterator(self):
+        lower = self.default if self.min is None else self.min
+        upper = self.default if self.max is None else self.max
+        return itertools.takewhile(lambda item: item <= upper, itertools.count(lower, self.step))
+
+
+class OneOf(Validator):
+    """Validate a value against an explicit set of choices."""
+
+    def __init__(self, default, options, type_cast=None, hidden: bool = False, tooltip=None):
+        super().__init__(default, hidden)
+        self.options = set(options)
+        self.type_cast = type_cast
+        self.tooltip = tooltip
+
+    def validate(self, value):
+        if self.type_cast is not None:
+            try:
+                value = self.type_cast(value)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"Expected {value!r} to be castable to {self.type_cast!r}") from exc
+        if value not in self.options:
+            raise ValueError(f"Expected {value!r} to be one of {self.options!r}")
+        return value
+
+    def get_range_iterator(self):
+        return iter(self.options)
+
+
 class String(Validator):
     def __init__(self, default=_UNSET, min=None, max=None, predicate=None, hidden: bool = False, tooltip=None):
         super().__init__(default, hidden)
@@ -118,4 +168,4 @@ class JsonDict(Validator):
         return result
 
 
-__all__ = ["Bool", "Int", "JsonDict", "String", "Validator", "_UNSET"]
+__all__ = ["Bool", "Float", "Int", "JsonDict", "OneOf", "String", "Validator", "_UNSET"]

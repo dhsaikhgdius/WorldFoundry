@@ -54,14 +54,23 @@ checkpoint:
 integration:
   status: integrated
   notes:
-  - WorldFoundry route is complete; missing checkpoint/assets are reported at runtime.
+  - The 1.3B route is assembled from the shared native Wan graph, conditioner, VAE,
+    scheduler, initializer, loader, and runner.
 demo_parity:
   status: pending_visual_qa
-  notes: The in-tree SkyReels-V2 route is wired to the official DF runtime, but
-    release parity requires a 97-frame official-configuration Studio run with
-    coherent visual output.
-notes: Tracked as a current long-video/open-weight candidate; do not mark integrated
-  before official demo and runner parity pass.
+  notes: Checkpoint structure parity is complete; release parity still requires a
+    97-frame native artifact and visual QA.
+native_diffusion:
+  recipe_id: skyreels-v2
+  architecture: skyreels-v2-wan-df-1.3b
+  backend: worldfoundry-native-diffusion
+  checkpoint_graph_match: 830/830
+  shared_components:
+  - Wan UMT5 conditioner and tokenizer
+  - Wan video VAE and UniPC scheduler
+  - native loader, CFG runner, and block offload
+notes: The upstream graph is represented as an FPS-conditioned Wan capability; the
+  vendored CLI/pipeline is not an inference backend.
 catalog_category: video
 catalog_scope: Official GitHub and/or Hugging Face confirmed open-source or open-weight
   video generation models. Checkpoints are not tracked in git; local validation may

@@ -200,7 +200,7 @@ def parallelize_transformer(pipe: DiffusionPipeline):
                 hidden_states = block(hidden_states, encoder_hidden_states, timestep_proj, rotary_emb)
 
         # 5. Output norm, projection & unpatchify
-        shift, scale = (self.scale_shift_table.cuda() + temb.unsqueeze(1)).chunk(2, dim=1)
+        shift, scale = (self.scale_shift_table.to(temb.device) + temb.unsqueeze(1)).chunk(2, dim=1)
         hidden_states = (self.norm_out(hidden_states.float()) * (1 + scale) + shift).type_as(hidden_states)
         hidden_states = self.proj_out(hidden_states)
 

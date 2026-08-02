@@ -5,7 +5,10 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import os
 import sys
+import time
+import uuid
 from collections.abc import Mapping
 from pathlib import Path
 from types import ModuleType
@@ -63,6 +66,10 @@ _PUBLIC_ROOT_COMMANDS = (
     "reproduce",
     "embodied",
     "validate",
+    "train",
+    "post-train",
+    "train-audit-prompts",
+    "train-cache",
     "run",
 )
 
@@ -725,6 +732,8 @@ def _worldfoundry_run_request_from_args(args: argparse.Namespace):
         engine=args.engine,
         benchmark_mode=getattr(args, "benchmark_mode", "official-run"),
         execute=not args.plan_only,
+        model_workers=getattr(args, "model_workers", 1),
+        worker_cuda_devices=tuple(getattr(args, "model_worker_device", None) or ()),
         resume=args.resume,
         skip_incompatible=args.skip_incompatible,
         fail_on_skipped=args.fail_on_skipped,
@@ -768,9 +777,22 @@ def _handle_worldfoundry_run(args: argparse.Namespace) -> int:
     """Run the unified worldfoundry facade and return the framework exit code."""
     from worldfoundry.evaluation.framework import run_worldfoundry
 
+    performance_profile = getattr(args, "performance_profile", "balanced")
+    if performance_profile == "throughput":
+        os.environ.setdefault("WORLDFOUNDRY_EVAL_TORCH_COMPILE", "1")
+        os.environ.setdefault("WORLDFOUNDRY_KERNEL_AUTOTUNE", "1")
+        os.environ.setdefault("WORLDFOUNDRY_KERNEL_AUTOTUNE_CACHE", "1")
+        os.environ.setdefault("WORLDFOUNDRY_TORCH_COMPILE_MODE", "reduce-overhead")
+        os.environ.setdefault("WORLDFOUNDRY_MATMUL_PRECISION", "high")
+        os.environ.setdefault("WORLDFOUNDRY_ENABLE_TF32", "1")
+    elif performance_profile == "latency":
+        os.environ.setdefault("WORLDFOUNDRY_EVAL_TORCH_COMPILE", "0")
+        os.environ.setdefault("WORLDFOUNDRY_KERNEL_AUTOTUNE", "0")
+
     result = run_worldfoundry(_worldfoundry_run_request_from_args(args))
     payload = result.to_dict()
     payload["engine"] = args.engine
+    payload["performance_profile"] = performance_profile
     if args.json:
         json_dump(payload)
     else:
@@ -1072,6 +1094,30 @@ def _build_parser(model_run_schema: Any | None = None) -> argparse.ArgumentParse
             "  Maintain:    task validate, preflight, dataset, plan, metric\n"
         ),
     )
+    # Global logging flags. They are pre-scanned and stripped from ``argv`` in
+    # ``main`` (so they may appear before *or* after the subcommand) and applied
+    # via ``configure_logging`` before the handler runs. Registered here so
+    # ``--help`` documents them; argparse never enforces them.
+    parser.add_argument(
+        "--log-level",
+        dest="log_level",
+        default=None,
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="Logging verbosity (env: WORLDFOUNDRY_LOG_LEVEL). Default INFO.",
+    )
+    parser.add_argument(
+        "--log-file",
+        dest="log_file",
+        default=None,
+        help="Write a rotating log to this path (env: WORLDFOUNDRY_LOG_FILE).",
+    )
+    parser.add_argument(
+        "--log-json",
+        dest="log_json",
+        action="store_true",
+        default=False,
+        help="Emit the file sink as JSON Lines (env: WORLDFOUNDRY_LOG_JSON).",
+    )
     subparsers = parser.add_subparsers(dest="command")
 
     tui_parser = subparsers.add_parser(
@@ -1168,6 +1214,10 @@ def _build_parser(model_run_schema: Any | None = None) -> argparse.ArgumentParse
     from .preflight import register_preflight_subparser
 
     register_preflight_subparser(subparsers)
+
+    from .training import register_training_subparser
+
+    register_training_subparser(subparsers)
 
     from .zoo import register_zoo_subparser
 
@@ -1430,6 +1480,32 @@ def _build_parser(model_run_schema: Any | None = None) -> argparse.ArgumentParse
     )
     run_parser.add_argument("--plan-only", action="store_true", help="Plan a suite without executing cells.")
     run_parser.add_argument(
+        "--model-workers",
+        type=int,
+        default=1,
+        help="Spawn up to this many model-level suite workers (default: 1).",
+    )
+    run_parser.add_argument(
+        "--performance-profile",
+        choices=["balanced", "throughput", "latency"],
+        default="balanced",
+        help=(
+            "Runtime optimization policy: throughput enables shape-bucketed eval compilation "
+            "and hardware-scoped persistent kernel autotuning; latency avoids first-run "
+            "compile/tuning cost."
+        ),
+    )
+    run_parser.add_argument(
+        "--model-worker-device",
+        action="append",
+        default=None,
+        metavar="CUDA_VISIBLE_DEVICES",
+        help=(
+            "CUDA device group pinned to one model worker, for example 0 or 4,5,6,7. "
+            "Repeat for parallel workers; groups must not overlap and must have equal size."
+        ),
+    )
+    run_parser.add_argument(
         "--print-config",
         action="store_true",
         help="Print the resolved model-specific configuration and exit without loading the model.",
@@ -1535,9 +1611,188 @@ def _build_parser(model_run_schema: Any | None = None) -> argparse.ArgumentParse
     return parser
 
 
+def _extract_logging_flags(
+    argv: list[str],
+) -> tuple[str | None, str | None, bool | None, list[str]]:
+    """Pre-scan ``argv`` for the global logging flags, returning them plus the
+    remaining argv with those flags stripped.
+
+    Recognizes both ``--flag value`` and ``--flag=value`` forms; the flags are
+    accepted in any position (before *or* after the subcommand) because the
+    real application happens here, ahead of argparse.
+    """
+    level = log_file = log_json = None
+    out: list[str] = []
+    i = 0
+    while i < len(argv):
+        token = argv[i]
+        if token == "--log-level" and i + 1 < len(argv) and not argv[i + 1].startswith("--"):
+            level = argv[i + 1]
+            i += 2
+            continue
+        if token.startswith("--log-level="):
+            level = token.split("=", 1)[1]
+            i += 1
+            continue
+        if token == "--log-file" and i + 1 < len(argv) and not argv[i + 1].startswith("--"):
+            log_file = argv[i + 1]
+            i += 2
+            continue
+        if token.startswith("--log-file="):
+            log_file = token.split("=", 1)[1]
+            i += 1
+            continue
+        if token == "--log-json":
+            log_json = True
+            i += 1
+            continue
+        out.append(token)
+        i += 1
+    return level, log_file, log_json, out
+
+
+def _configure_cli_logging(
+    level: str | None,
+    log_file: str | None,
+    log_json: bool | None,
+) -> None:
+    """Apply ``configure_logging`` for the CLI and export the resolved values to
+    the environment so framework-owned child processes (which re-enter
+    ``main``) inherit the same configuration. A bad level falls back to INFO
+    rather than aborting the whole command."""
+    from worldfoundry.core import configure_logging
+
+    try:
+        configure_logging(level=level, log_file=log_file, json=log_json)
+    except ValueError as exc:
+        sys.stderr.write(f"warning: {exc} Falling back to INFO.\n")
+        configure_logging(level="INFO", log_file=log_file, json=log_json, force=True)
+
+    if level is not None:
+        os.environ["WORLDFOUNDRY_LOG_LEVEL"] = str(level)
+    if log_file is not None:
+        os.environ["WORLDFOUNDRY_LOG_FILE"] = str(log_file)
+    if log_json:
+        os.environ["WORLDFOUNDRY_LOG_JSON"] = "1"
+
+
+def _bind_cli_log_context(args: argparse.Namespace, *, run_id: str | None = None) -> None:
+    """Attach command identity to logs emitted by this CLI process."""
+
+    from worldfoundry.core import bind_log_context
+
+    benchmark_id = getattr(args, "benchmark_id", None) or getattr(args, "benchmark_name", None)
+    bind_log_context(
+        run_id=run_id or getattr(args, "run_id", None),
+        benchmark_id=benchmark_id,
+        model_id=getattr(args, "model_id", None),
+        phase="cli",
+        command=getattr(args, "command", None),
+    )
+
+
+def _new_run_id() -> str:
+    """Return a sortable, collision-resistant ID for a CLI-owned output run."""
+
+    return f"wf-{int(time.time())}-{uuid.uuid4().hex[:8]}"
+
+
+def _safe_run_log_component(run_id: str) -> str:
+    """Convert a caller-provided run ID into one safe path component."""
+
+    normalized = "".join(char if char.isalnum() or char in {"-", "_", "."} else "-" for char in run_id)
+    return normalized.strip(".-") or "run"
+
+
+def _prepare_cli_run_observability(
+    args: argparse.Namespace,
+    *,
+    explicit_log_file: str | None,
+) -> tuple[Path, str, float] | None:
+    """Create an isolated log directory for commands that own an output tree."""
+
+    output_dir = getattr(args, "output_dir", None)
+    if output_dir in (None, ""):
+        _bind_cli_log_context(args)
+        return None
+
+    run_id = str(getattr(args, "run_id", None) or _new_run_id())
+    # Only some command parsers expose --run-id, but every output-owning CLI
+    # operation should still carry a generated ID in its logs and child env.
+    setattr(args, "run_id", run_id)
+    _bind_cli_log_context(args, run_id=run_id)
+
+    from worldfoundry.core import configure_logging, log_context_environment, write_jsonl_event
+
+    root = Path(output_dir).expanduser().resolve()
+    if bool(getattr(args, "_requires_exclusive_output_dir", False)):
+        # Some commands atomically claim their output directory as a run
+        # transaction.  Keep lifecycle logs in an isolated sibling so logging
+        # cannot pre-create that directory and defeat the exclusivity check.
+        event_path = (
+            root.parent
+            / ".worldfoundry-cli-logs"
+            / _safe_run_log_component(root.name)
+            / _safe_run_log_component(run_id)
+            / "events.jsonl"
+        )
+    else:
+        event_path = root / "logs" / _safe_run_log_component(run_id) / "events.jsonl"
+    # A caller-selected --log-file / env file remains authoritative. Otherwise
+    # make the per-run JSONL artifact the default sink for this command.
+    if explicit_log_file is None and not os.environ.get("WORLDFOUNDRY_LOG_FILE"):
+        configure_logging(log_file=event_path, json=True, force=True)
+        os.environ["WORLDFOUNDRY_LOG_FILE"] = str(event_path)
+        os.environ["WORLDFOUNDRY_LOG_JSON"] = "1"
+    os.environ["WORLDFOUNDRY_RUN_ID"] = run_id
+    os.environ.update(log_context_environment())
+    write_jsonl_event(
+        event_path,
+        level="INFO",
+        event="run.started",
+        message="WorldFoundry command started",
+        logger_name=__name__,
+        output_dir=str(root),
+        command=getattr(args, "command", None),
+    )
+    return event_path, run_id, time.monotonic()
+
+
+def _write_cli_run_lifecycle(
+    state: tuple[Path, str, float] | None,
+    *,
+    event: str,
+    level: str,
+    message: str,
+    exit_code: int | None = None,
+    exception: BaseException | None = None,
+) -> None:
+    """Persist a terminal CLI lifecycle event even with a custom log sink."""
+
+    if state is None:
+        return
+    from worldfoundry.core import write_jsonl_event
+
+    event_path, _, started = state
+    fields: dict[str, Any] = {"duration_seconds": round(time.monotonic() - started, 6)}
+    if exit_code is not None:
+        fields["exit_code"] = exit_code
+    write_jsonl_event(
+        event_path,
+        level=level,
+        event=event,
+        message=message,
+        logger_name=__name__,
+        exception=exception,
+        **fields,
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     """CLI entrypoint: parse args and dispatch to the selected command handler."""
     raw_argv = list(sys.argv[1:] if argv is None else argv)
+    _log_level, _log_file, _log_json, raw_argv = _extract_logging_flags(raw_argv)
+    _configure_cli_logging(_log_level, _log_file, _log_json)
     if "--tui" in raw_argv:
         from worldfoundry.cli.tui import main as tui_main
 
@@ -1576,12 +1831,63 @@ def main(argv: list[str] | None = None) -> int:
     if not hasattr(args, "func"):
         _print_first_run_banner()
         return 0
+    run_observability = _prepare_cli_run_observability(args, explicit_log_file=_log_file)
 
     try:
-        return args.func(args)
+        exit_code = args.func(args)
+        from worldfoundry.core import get_logger
+
+        get_logger(__name__).event(
+            "INFO" if exit_code == 0 else "ERROR",
+            "cli.command.finished",
+            "CLI command finished",
+            command=getattr(args, "command", None),
+            exit_code=exit_code,
+        )
+        _write_cli_run_lifecycle(
+            run_observability,
+            event="run.finished",
+            level="INFO" if exit_code == 0 else "ERROR",
+            message="WorldFoundry command finished",
+            exit_code=exit_code,
+        )
+        return exit_code
     except KeyboardInterrupt:
+        from worldfoundry.core import get_logger
+
+        get_logger(__name__).event(
+            "WARNING",
+            "cli.command.cancelled",
+            "CLI command interrupted",
+            command=getattr(args, "command", None),
+            exit_code=130,
+        )
+        _write_cli_run_lifecycle(
+            run_observability,
+            event="run.cancelled",
+            level="WARNING",
+            message="WorldFoundry command interrupted",
+            exit_code=130,
+        )
         parser.exit(130, "Interrupted.\n")
     except Exception as exc:
+        from worldfoundry.core import get_logger
+
+        get_logger(__name__).event(
+            "ERROR",
+            "cli.command_failed",
+            "CLI command failed",
+            exc_info=True,
+            command=getattr(args, "command", None),
+        )
+        _write_cli_run_lifecycle(
+            run_observability,
+            event="run.failed",
+            level="ERROR",
+            message="WorldFoundry command failed",
+            exit_code=2,
+            exception=exc,
+        )
         parser.exit(2, f"error: {exc}\n")
 
 

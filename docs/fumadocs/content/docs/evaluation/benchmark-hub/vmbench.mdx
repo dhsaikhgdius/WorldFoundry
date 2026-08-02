@@ -3,7 +3,7 @@ title: VMBench
 description: "VMBench in WorldFoundry: perception-aligned motion metrics, 1,050-prompt suite, checkpoints, and in-tree runner commands."
 ---
 
-## What It Measures
+## What it measures
 
 VMBench (ICCV 2025) evaluates **text-to-video motion quality from a human-perception alignment perspective**. Most T2V benchmarks emphasize temporal consistency or frame sharpness, but they can miss three recurring motion failures:
 
@@ -23,7 +23,7 @@ Official references:
 
 WorldFoundry ships the benchmark code in-tree. The upstream README is a protocol reference; normal WorldFoundry evaluation uses the vendored evaluator and bundled prompt manifest.
 
-## Benchmark Design
+## Benchmark design
 
 ### Prompt suite
 
@@ -44,7 +44,7 @@ WorldFoundry bundles the manifest at `worldfoundry/data/benchmarks/assets/vmbenc
 
 All primary scores are higher-is-better. WorldFoundry normalizes them on a 0–1 scale in the scorecard.
 
-## Data And Artifacts
+## Data and artifacts
 
 Start from the WorldFoundry repository root:
 
@@ -120,7 +120,7 @@ worldfoundry/evaluation/tasks/execution/runners/vmbench/runtime/official
 worldfoundry/data/benchmarks/assets/vmbench/prompts/prompts.json
 ```
 
-## Run With WorldFoundry
+## Run with WorldFoundry
 
 Run full metric recomputation through the direct in-tree runner:
 
@@ -191,7 +191,7 @@ tmp/vmbench/direct-official-run/
 
 Public CLI imports also write `scorecard.json`, `raw_metric_table.jsonl`, `per_sample_metrics.jsonl`, and runner log files under the requested output directory.
 
-## Leaderboard Notes
+## Leaderboard notes
 
 The official VMBench README publishes a leaderboard with scores on a 0–100 style scale. Representative upstream baselines:
 

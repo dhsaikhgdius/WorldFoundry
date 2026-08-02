@@ -23,16 +23,14 @@ checkpoints:
 integration:
   status: integrated
   notes:
-  - WorldFoundry registers SkyReels V3 through a model-specific pipeline backed by the in-tree runtime shim.
-  - The in-tree runtime launches torchrun internally when use_usp=true, so Studio can reserve and dispatch an 8-GPU job without
-    depending on an external checkout.
-  - The route uses the local SkyReels-V3-R2V-14B checkpoint.
+  - WorldFoundry loads the SkyReels V3 checkpoint into the shared native Wan graph and framework-owned diffusion runner.
+  - Reference-image latent concatenation and dual text/image guidance are reusable initializer and execution-strategy capabilities.
+  - The route uses the local SkyReels-V3-R2V-14B checkpoint without Diffusers or a model-owned subprocess runtime.
 runner_parity:
-  status: verified
+  status: partial
   notes:
-  - The runner supports task_type=reference_to_video, duration=5, resolution=720P, seed=42, use_usp=true, and nproc_per_node=8.
-  - SkyReels V3 USP requires flash-attn in the selected conda environment.
-  - Per-run visual QA and artifact checks are tracked outside the model catalog.
+  - Transformer, UMT5, and VAE checkpoint schemas map exactly to the native graphs.
+  - The prior official-runtime visual artifact remains documented; native visual parity is pending a GPU inference run.
 runtime_profile: runtime-profile:skyreels-v3
 catalog_category: video
 catalog_scope: Video-generation and video-token catalog entries. Integrated entries expose WorldFoundry pipeline targets;

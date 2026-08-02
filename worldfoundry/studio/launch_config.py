@@ -13,6 +13,7 @@ from .visualization.core.registry import (
     EMBODIED_VISUALIZATION,
     INTERACTIVE_WORLD_VISUALIZATION,
     MEDIA_VISUALIZATION,
+    NATIVE_WORLD_EXPLORER_VISUALIZATION,
     RERUN_VISUALIZATION,
     SPARK_VISUALIZATION,
     UNIFIED_VISUALIZATION,
@@ -40,6 +41,9 @@ CLI_FRONTEND_CHOICES = frozenset(
         INTERACTIVE_WORLD_VISUALIZATION,
         "interactive-world",
         "world-model",
+        NATIVE_WORLD_EXPLORER_VISUALIZATION,
+        "world-explorer",
+        "imgui",
         VISER_VISUALIZATION,
         "viser",
         "geometry",
@@ -299,7 +303,8 @@ def build_launch_argument_parser(prog: str = "worldfoundry.studio.app") -> argpa
         "--frontend",
         choices=sorted(CLI_FRONTEND_CHOICES),
         help=(
-            "Frontend surface to launch. `world` is the game-console shell, "
+            "Frontend surface to launch. `native-world` is the CUDA/C++/ImGui world explorer, "
+            "`world` is the game-console shell, "
             "`points` is native Viser, `spark` is a standalone 3DGS viewer, "
             "`embodied` preserves an external simulator UI, `unified` is the Gradio shell, "
             "and `auto` routes by model type."

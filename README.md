@@ -1,4 +1,4 @@
-![WorldFoundry teaser](docs/fumadocs/public/teaser.png)
+# WorldFoundry
 
 [![Python](https://img.shields.io/badge/python-3.10%20--%203.13-blue)](pyproject.toml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
@@ -17,7 +17,19 @@ Day-one workflow:
 
 ## 🤝 Community
 
-Join the **WorldFoundry Community** [Discord](https://discord.gg/ybUQMDA4x) or WeChat for discussions, announcements, technical support, and the latest project updates.
+Join the **WorldFoundry Community** on Slack, [Discord](https://discord.gg/ybUQMDA4x), or WeChat for discussions, announcements, technical support, and the latest project updates.
+
+<p align="center">
+
+<a href="https://join.slack.com/t/worldfoundrycommunity/shared_invite/zt-43nbi9fw4-okYiELzZHp0_1UPa3dh3bQ">
+  <img src="https://img.shields.io/badge/Slack-Join%20Workspace-4A154B?logo=slack&logoColor=white" alt="Join Slack">
+</a>
+
+<a href="https://github.com/WorldFoundry/WorldFoundry/discussions">
+  <img src="https://img.shields.io/badge/GitHub-Discussions-181717?logo=github" alt="GitHub Discussions">
+</a>
+
+</p>
 
 <p align="center">
   <strong>WeChat Community</strong>
@@ -25,60 +37,30 @@ Join the **WorldFoundry Community** [Discord](https://discord.gg/ybUQMDA4x) or W
 
 <table align="center">
   <tr>
-    <td align="center">
-      <strong>Group 1 — Full</strong>
-    </td>
-    <td align="center">
-      <strong>Group 2 — Full</strong>
-    </td>
-    <td align="center">
-      <strong>Group 3 — Open</strong>
-    </td>
+    <td align="center"><strong>Group 1 — Full</strong></td>
+    <td align="center"><strong>Group 2 — Full</strong></td>
+    <td align="center"><strong>Group 3 — Open</strong></td>
   </tr>
   <tr>
-    <td align="center">
-      <img
-        src="docs/fumadocs/public/wechat_qr.png"
-        alt="WorldFoundry WeChat Group 1"
-        width="280"
-      >
-    </td>
-    <td align="center">
-      <img
-        src="docs/fumadocs/public/wechat_qr_2.png"
-        alt="WorldFoundry WeChat Group 2"
-        width="280"
-      >
-    </td>
-    <td align="center">
-      <img
-        src="docs/fumadocs/public/wechat_qr_3.png"
-        alt="WorldFoundry WeChat Group 3"
-        width="280"
-      >
-    </td>
+    <td align="center"><img src="docs/fumadocs/public/wechat_qr.png" alt="WorldFoundry WeChat Group 1" width="280"></td>
+    <td align="center"><img src="docs/fumadocs/public/wechat_qr_2.png" alt="WorldFoundry WeChat Group 2" width="280"></td>
+    <td align="center"><img src="docs/fumadocs/public/wechat_qr_3.png" alt="WorldFoundry WeChat Group 3" width="280"></td>
   </tr>
 </table>
 
 <p align="center">
-  <em>
-    WeChat Groups 1 and 2 are full. Please scan the Group 3 QR code to join the community.<br>
-    The QR codes will be updated if they expire.
-  </em>
+  <em>Groups 1 and 2 are full. Scan the Group 3 QR code to join.<br>
+  QR codes are updated periodically if they expire.</em>
 </p>
 
 ## 📰 News
 
-- **[2026-07-17]** 🔧 **WorldFoundry v0.2.0: Major Infrastructure Overhaul**
-  - **Core Inference Upgrades** – Refactored to inference‑only path with integrated Wan, HunyuanVideo, LTX2, Cosmos, perception & 3D foundation modules. Unified attention backend selection (FlashAttention 2/3, SageAttention, xFormers, SDPA fallback). Triton kernel registration, compilation & inference caching. NVFP4 quantization support. GPU selection driven by actual compute capability (A100, H100). Multi‑GPU Context/Sequence Parallel with advanced memory management.
-  - **World Model Integration** – Incorporated LingBot World 2, Lingbot Video, Helios, Bernini, AlayaWorld, Rolling Forcing, LiveWorld, MinWM, sana streaming, and more.
-  - **Action Policy Integration** – Integrated LingBot VLA/VLA2, Xiaomi Robotics, Hy‑Embodied VLA, Spatial Forcing, X‑VLA, X‑WAM, OpenPI, OpenVLA‑OFT, GROOT, Octo, and more.
-  - **Studio Enhancements** – Refined model discovery, Conda environment isolation, GPU allocation, torchrun distributed launch, Workspace Jobs, visualization, and result presentation.
-  - **Benchmark Expansion** – Added benchmark catalog and runtime profiling, including LaryBench, WorldReasonBench and WRBench.
 - **[2026-07-12]** 🔥 **WorldFoundry reached 100+ stars on its very first day!** Thanks to the community for the incredible support and encouragement. More exciting updates are coming!
 - **[2026-07-11]** 🎉 **WorldFoundry is officially open-sourced.** We welcome ⭐ stars, bug reports, feature requests, and pull requests from the community!
 - **[Coming Soon]** Documentation improvements and additional benchmark integrations.
 
+
+![WorldFoundry teaser](docs/fumadocs/public/teaser.png)
 
 ## Links
 
@@ -95,7 +77,7 @@ Join the **WorldFoundry Community** [Discord](https://discord.gg/ybUQMDA4x) or W
 - [Studio guide](docs/fumadocs/content/docs/guides/studio.mdx)
 - [CLI reference](docs/fumadocs/content/docs/reference/cli.mdx)
 - [Python API reference](docs/fumadocs/content/docs/api-reference/index.mdx)
-- [Supported models](docs/fumadocs/content/docs/guides/supported-models.mdx)
+- [Supported models](docs/fumadocs/content/docs/guides/supported-models/index.mdx)
 - [Benchmark hub](docs/fumadocs/content/docs/evaluation/benchmark-hub/index.mdx)
 - [Contributing](CONTRIBUTING.md)
 
@@ -250,6 +232,12 @@ More curated generated samples are embedded in the Studio docs.
 
 WorldFoundry uses conda as the supported open-source runtime path. Start with the unified GPU environment; only use a dedicated environment when a model profile documents a real ABI or simulator conflict. The full day-one path lives in the [Quickstart](docs/fumadocs/content/docs/quickstart.mdx).
 
+Install Git LFS before cloning so the optional demo media can be checked out correctly:
+
+```bash
+git lfs install
+```
+
 ```bash
 
 # You can clone the repository with all demo videos
@@ -325,6 +313,29 @@ worldfoundry-eval zoo model-download --model-id matrix-game-2 --check-local --js
 bash scripts/inference/test_nav_video_gen.sh matrix-game-2 \
   --output-dir tmp/matrix_game2_first_run
 ```
+
+Echo-Memory is integrated as eleven independent, immutable model recipes on top
+of the canonical in-tree Wan 2.1 implementation. The public model ID fixes the
+memory architecture and checkpoint path; there is no mutable `memory_method`
+switch. Current upstream weight availability and the extension contract for new
+research memories are documented in the
+[inference guide](docs/fumadocs/content/docs/guides/inference.mdx) and the
+[native Echo integration note](worldfoundry/base_models/diffusion_model/models/networks/echo_memory/README.md).
+The released K=1 checkpoint has exact structural coverage in the native model;
+a fresh post-cutover CUDA artifact, official-sample parity, and benchmark scoring
+remain pending.
+
+Matrix-Game 3.5 is exposed as two separate recipes,
+`matrix-game-3.5-first-person` and `matrix-game-3.5-third-person`; each is
+permanently bound to its matching checkpoint, including its checkpoint-specific
+subject-reference embedding capacity. Camera-NPZ inference, the three
+shared asset repositories, and the memory-research extension points are covered
+in the [inference guide](docs/fumadocs/content/docs/guides/inference.mdx) and
+[local-assets guide](docs/fumadocs/content/docs/guides/local-assets.mdx).
+Its package-data profiles use inference-native names such as
+`num_inference_blocks`, `num_inference_steps`, `guidance_scale`, and
+`inference_seed`; no copied validation runner or diagnostic artifact path is
+part of the model runtime.
 
 If weights already live in a shared checkpoint tree, link them instead of copying:
 
@@ -508,7 +519,8 @@ source tmp/worldfoundry_unified_env.sh
 conda activate "${WORLDFOUNDRY_UNIFIED_ENV_PREFIX}"
 
 PYTHONPATH=. python -m compileall -q worldfoundry scripts
-PYTHONPATH=. python -m pytest -m fast_eval_core test/eval_core
+make lint
+make docs-check
 bash scripts/docs/build.sh --skip-bootstrap
 
 worldfoundry-eval zoo model-download --model-id <model-id> --check-local --json
@@ -545,7 +557,6 @@ WorldFoundry
 │  ├─ runtime                            # Runtime paths, assets, jobs, and probes
 │  ├─ studio                             # Workspace and Studio frontends
 │  └─ synthesis                          # In-tree model synthesis/action-generation runtimes
-├─ test                                  # Test suites
 ├─ thirdparty                            # Reviewed vendored/native dependencies
 └─ tools                                 # Maintenance and asset utilities
 ```
@@ -553,6 +564,12 @@ WorldFoundry
 ## Citation
 
 If you use WorldFoundry or its benchmark/model integrations in research, cite this repository and the upstream methods, checkpoints, datasets, and benchmarks that your run depends on. A formal paper citation will be added when the technical report is released.
+
+## License
+
+WorldFoundry-authored code is licensed under the [Apache License 2.0](LICENSE), except where a file or component carries a different license notice. Vendored and adapted upstream components remain subject to their original licenses.
+
+Some native components under `thirdparty/` are restricted to non-commercial research use. Review [Third-Party License Notes](thirdparty/THIRD_PARTY_LICENSES.md) and [Upstream Provenance](thirdparty/UPSTREAM_PROVENANCE.md) before redistribution or commercial use.
 
 ## Acknowledgment
 

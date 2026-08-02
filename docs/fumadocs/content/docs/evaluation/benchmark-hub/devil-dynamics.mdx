@@ -9,7 +9,7 @@ DEVIL Dynamics evaluates text-to-video generation from a dynamics perspective. I
 
 WorldFoundry keeps the DEVIL evaluation code in-tree at `worldfoundry/evaluation/tasks/execution/runners/devil_dynamics/`. No official source checkout is needed to run this benchmark.
 
-## Prompt Suite
+## Prompt suite
 
 The official prompt text files are bundled in WorldFoundry:
 
@@ -34,7 +34,7 @@ very_high_123.mp4
 
 The generated video directory can be flat or recursively nested; the runner searches for `.mp4` files.
 
-## Required Assets
+## Required assets
 
 Set `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR` to the directory containing the generated videos.
 
@@ -57,7 +57,7 @@ If you have the official DEVIL `model_weights` directory, you can also point `WO
 
 The Python environment must include the video metric packages used by DEVIL, including `torch`, `torchvision`, `timm`, `decord`, `opencv-python`, `clip`, `easydict`, `scikit-image`, `pytorch-msssim`, `piqa`, `imagehash`, `pandas`, `openpyxl`, `prettytable`, `omegaconf`, and `google-generativeai`. The temporal-information component also expects system tools `ffmpeg`, `ffprobe`, and `bc`.
 
-## Full Evaluation
+## Full evaluation
 
 Run the in-tree official runtime through the WorldFoundry runner:
 
@@ -92,7 +92,7 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
   --json
 ```
 
-## Import Existing Results
+## Import existing results
 
 Use this when you already have an official DEVIL result export such as `dynamics_quality_results.xlsx` or `devil_dynamics_results.json`:
 
@@ -108,7 +108,7 @@ worldfoundry-eval zoo benchmark-run \
   --json
 ```
 
-## Output Layout
+## Output layout
 
 A full run writes:
 
@@ -138,7 +138,7 @@ Use `scorecard.json` for WorldFoundry's normalized aggregate and `upstream/devil
 | `dynamics_quality` | Dynamics-aware quality and naturalness, including Gemini naturalness when computed. | Higher |
 | `devil_dynamics_average` | Mean aggregate over the DEVIL components available in the run. | Higher |
 
-## Leaderboard Notes
+## Leaderboard notes
 
 Leaderboard-equivalent numbers require the complete DEVIL prompt suite, filenames that preserve dynamics-grade prefixes, the same checkpoint assets, and Gemini naturalness outputs produced with the same judge settings. Partial imports remain useful for regression testing, but should not be reported as full DEVIL leaderboard results.
 

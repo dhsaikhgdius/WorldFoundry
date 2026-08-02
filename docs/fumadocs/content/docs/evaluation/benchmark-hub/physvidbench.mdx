@@ -10,7 +10,7 @@ PhysVidBench evaluates physical commonsense in everyday text-to-video scenarios.
 WorldFoundry includes the runnable PhysVidBench runner under `worldfoundry/evaluation/tasks/execution/runners/physvidbench`. Do not clone the upstream code repositories for WorldFoundry runs. Downloading the Hugging Face dataset `Anonymousny/PhysVidBench` is fine for the full prompt/question data; code execution should still go through the in-tree runner.
 
 
-## Official References
+## Official references
 
 | Resource | Link |
 | --- | --- |
@@ -20,7 +20,7 @@ WorldFoundry includes the runnable PhysVidBench runner under `worldfoundry/evalu
 | HF dataset | [Anonymousny/PhysVidBench](https://huggingface.co/datasets/Anonymousny/PhysVidBench) |
 | In-tree runner | `worldfoundry/evaluation/tasks/execution/runners/physvidbench/run_physvidbench_official_runner.py` |
 
-## Prepare Assets
+## Prepare assets
 
 - Prompt/question CSV: bundled fixture at `worldfoundry/data/benchmarks/assets/physvidbench/prompts_questions.csv`; override with `WORLDFOUNDRY_PHYSVIDBENCH_PROMPT_MANIFEST` or `--prompt-manifest`.
 - Caption tracks: eight text files with base name `cogvideo2b` and suffixes `_FP`, `_OP`, `_SR`, `_TD`, `_AU`, `_MT`, `_FM`, and no suffix. Override with `WORLDFOUNDRY_PHYSVIDBENCH_CAPTIONS_DIR`, `WORLDFOUNDRY_PHYSVIDBENCH_CAPTION_BASE`, `--captions-dir`, or `--caption-base`.
@@ -28,7 +28,7 @@ WorldFoundry includes the runnable PhysVidBench runner under `worldfoundry/evalu
 - Candidate videos: set `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR` to generated videos.
 - Gemini judge: set `GEMINI_API_KEY`, `GOOGLE_API_KEY`, or `WORLDFOUNDRY_PHYSVIDBENCH_GEMINI_API_KEY`; install `google-genai`. For local fixture checks, set `WORLDFOUNDRY_PHYSVIDBENCH_JUDGE_BACKEND=mock`.
 
-## Generated Artifact Layout
+## Generated artifact layout
 
 PhysVidBench prompt IDs are numeric. Generated videos should be flat files using zero-padded names:
 
@@ -41,7 +41,7 @@ generated_videos/
 
 The runner strips numeric leading zeroes during coverage checks, so `0.mp4` and `0000.mp4` both map to prompt ID `0`. Caption files are line-indexed by `PromptID`, so each caption track must contain enough lines for the prompt IDs you evaluate.
 
-## Run With WorldFoundry
+## Run with WorldFoundry
 
 Import an existing PhysVidBench QA result CSV through the public CLI:
 

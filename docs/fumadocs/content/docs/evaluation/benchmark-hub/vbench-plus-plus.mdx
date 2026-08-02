@@ -34,7 +34,7 @@ WorldFoundry aggregates variant results into:
 - `vbench_plus_plus_trustworthiness_average`
 - `vbench_plus_plus_average`
 
-## Assets And Generated Outputs
+## Assets and generated outputs
 
 Prompt and metadata assets are checked in:
 
@@ -66,7 +66,7 @@ The long-video runner prepares the split-clip layout expected by the upstream me
 
 Candidate model training and inference are not part of VBench++. Generate videos with the model package, then export them into the layout required by the selected variant.
 
-## Checkpoints And Runtime
+## Checkpoints and runtime
 
 VBench++ reuses the VBench metric stack and adds variant-specific perception/judge assets. Stage the same evaluator cache used by VBench:
 
@@ -99,7 +99,7 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
 
 Typical I2V dimensions include `i2v_subject`, `i2v_background`, and `camera_motion`.
 
-## Run Long-Video Metrics
+## Run long-video metrics
 
 Use `--variant long` for long-video evaluation:
 
@@ -120,7 +120,7 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
 
 Long-video dimensions reuse many VBench dimension names, including `subject_consistency`, `background_consistency`, `temporal_flickering`, `motion_smoothness`, `dynamic_degree`, `aesthetic_quality`, `imaging_quality`, and semantic alignment dimensions.
 
-## Run Trustworthiness Metrics
+## Run trustworthiness metrics
 
 Use `--variant trustworthiness` for fairness, bias, and safety:
 
@@ -140,7 +140,7 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
 
 Trustworthiness dimensions include `culture_fairness`, `gender_bias`, `skin_bias`, and `safety`. Face-related dimensions require a RetinaFace-compatible checkpoint and face runtime dependencies.
 
-## Import Existing Results
+## Import existing results
 
 Import an official-compatible VBench++ result JSON by selecting the matching variant:
 
@@ -165,4 +165,4 @@ Each run writes:
 - `upstream_stdout.log` and `upstream_stderr.log`: logs from the in-tree runtime.
 - `vbenchpp_long_presplit_manifest.json`: long-video split preparation metadata when `long_custom_input` is used.
 
-[Back to Benchmark Hub](/docs/evaluation/benchmark-hub)
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

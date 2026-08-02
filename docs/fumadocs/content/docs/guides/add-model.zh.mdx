@@ -5,7 +5,7 @@ description: 添加 model manifests、runtime profiles、runners、checkpoints�
 
 ## 介绍
 
-第一份模型 PR 应该保持窄：一个模型族、一个 operator、一个 pipeline、必要时一个 runtime profile、一条已解析 runner path，以及一份聚焦 run-evidence report。
+第一份模型 PR 的范围要窄：一个模型族、一个 operator、一个 pipeline、必要时一个 runtime profile、一条已解析的 runner path，以及一份聚焦的 run-evidence report。
 
 好的第一份 PR 只需要证明 route 能端到端跑通，不必在第一天覆盖所有 task variant、所有 checkpoint 或所有 benchmark cell。
 
@@ -21,7 +21,7 @@ description: 添加 model manifests、runtime profiles、runners、checkpoints�
 
 ## 可运行路由契约
 
-WorldFoundry 通过同一套公开 contract 解析每个 runnable method。加捷径前先确认这些规则：
+WorldFoundry 通过同一套公开 contract 解析每个 runnable method。在加任何捷径之前，先确认这几条规则：
 
 - **Pipeline** — 每个 runnable method 都必须通过 catalog `pipeline_target` 或 `evaluation/models/pipelines/bindings.py` 解析到具体 pipeline class。
 - **Operator** — 每个 runnable pipeline 都必须有 operator，即使第一版只是薄实现。Input validation、media loading、camera/action parsing 和 interaction shaping 都放在这里。
@@ -69,7 +69,7 @@ Catalog 字段描述意图；staged evidence 决定 support matrix 是否认可�
 - **`integration_status=blocked`** — Source、license、checkpoint、dependency、API 或 hardware 条件阻止可运行集成。
 - **`integration_status=integrated`** — 必需 runnable checks 通过，且 report 对当前 manifest 是 fresh。
 
-Manifest claims 本身不可信。Support matrix 会从 staged evidence 重新计算 readiness。
+光有 manifest claims 不算数。Support matrix 会从 staged evidence 重新计算 readiness。
 
 ## 常用命令
 
@@ -143,7 +143,7 @@ Reviewer 应能根据 PR 内容复现你的路径，而不必猜测机器状态�
 
 - **Manifest diff** — 相关 `worldfoundry/data/models/catalog/<category>/<model-id>.yaml` 条目。
 - **Source checks** — `tmp/model_zoo/validation/<model-id>/report.json`。
-- **Checkpoint state** — Cache location 和 repo id，不提交 checkpoint。
+- **Checkpoint state** — Cache location 和 repo ID，不提交 checkpoint。
 - **Demo parity** — 官方命令、raw logs、generated artifact path。
 - **Runner parity** — WorldFoundry runner 命令和 output artifact path。
 - **Tests** — `test/` 或 `test_stream/` 下的聚焦文件。
@@ -155,8 +155,8 @@ Reviewer 应能根据 PR 内容复现你的路径，而不必猜测机器状态�
 
 Cache path 只能放临时下载、checkpoint copies、dataset mirrors、official-runtime clone caches、generated previews 和 logs。不要把模型架构代码放进 `cache/`，也不要让 in-tree runner 从 cache path import Python modules。如果 runner 需要模型架构代码，把这些代码放在 `worldfoundry/` 下，并随模型集成一起 review。
 
-## Runtime 卫生边界
+## Runtime 卫生
 
-推理时必须使用的 transforms 可以留在对应 runtime package 中，例如 GroundingDINO `util.transforms`、DUST3R cropping/transforms、DROID-SLAM RGB-D geometry helpers。Training datasets、dataloaders、losses、callbacks、augmentation-only modules 和 experiment scripts 不应进入 runtime package，除非这个框架未来开始支持该模型族的仓内训练。
+推理时必须使用的 transforms 可以留在对应 runtime package 中，例如 GroundingDINO `util.transforms`、DUST3R cropping/transforms、DROID-SLAM RGB-D geometry helpers。Training datasets、dataloaders、losses、callbacks、augmentation-only modules 与 experiment scripts 不应进入 runtime package，除非这个框架将来开始支持该模型族的仓内训练。
 
 `pixelsplat` 是当前 3D base models 下的例外，因为它仍使用官方 Lightning test runner 和 dataset-shaped loader。把它视为需要移植成纯推理 runner 的技术债，不要把它作为新增集成的模式。

@@ -13,7 +13,6 @@ from ....pipelines.lyra.lyra_utils import (
     configure_lyra_runtime_env,
     ensure_path_exists,
     ensure_repo_on_path,
-    patch_lyra_attention_runtime,
     prepare_lyra2_runtime_root,
     resolve_checkpoint_root,
     resolve_repo_root,
@@ -73,7 +72,6 @@ class Lyra2Representation(BaseRepresentation):
         runtime_root = prepare_lyra2_runtime_root(repo_root, weights_root=weights_root)
         configure_lyra_runtime_env()
         ensure_repo_on_path(runtime_root)
-        patch_lyra_attention_runtime()
         required_paths = resolve_required_paths(
             repo_root,
             da3_model_path_custom=da3_model_path_custom,

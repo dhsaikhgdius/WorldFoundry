@@ -16,11 +16,11 @@ Official references:
 - Full metadata and sample videos: [official Google Drive folder](https://drive.google.com/drive/folders/1-E9CPJf-M6_RuATjIfpYfiUEFhEYwuaF)
 - In-tree runner: `worldfoundry/evaluation/tasks/execution/runners/t2vworldbench/run_t2vworldbench_official_runner.py`
 
-## What It Measures
+## What it measures
 
 T2VWorldBench evaluates whether text-to-video models express **world knowledge** — physics, nature, activity, culture, causality, and object understanding — rather than only surface visual detail. The WACV 2026 benchmark uses 1,200 prompts across 6 categories and 60 subcategories with a hybrid human + VLM protocol.
 
-## Benchmark Design
+## Benchmark design
 
 | Category | Focus |
 | --- | --- |
@@ -33,7 +33,7 @@ T2VWorldBench evaluates whether text-to-video models express **world knowledge**
 
 Primary aggregate: `world_knowledge_average` (mean over available category scores).
 
-## Evaluation Protocol
+## Evaluation protocol
 
 The paper prompt CSV is bundled here:
 
@@ -75,7 +75,7 @@ Primary metric: `world_knowledge_average`.
 | `object_knowledge` | Score for object identity, usage, and behavior. |
 | `world_knowledge_average` | Mean over the available category scores. |
 
-## Data And Model Preparation
+## Data and model preparation
 
 Start from the WorldFoundry repository root:
 
@@ -101,7 +101,7 @@ export WORLDFOUNDRY_T2VWORLDBENCH_PROMPT_FILE=/path/to/t2vworldbench/meta_data.j
 
 The VLM evaluator uses the LLaVA-based code that has been integrated through WorldFoundry base-model modules. Stage the required LLaVA checkpoint according to your local base-model setup, then run with a Python environment that can import the WorldFoundry evaluation dependencies.
 
-## Generate Candidate Videos
+## Generate candidate videos
 
 Run your candidate T2V model on the prompts from the metadata file or from `prompt.csv`, then write videos using metadata-matching filenames:
 
@@ -121,7 +121,7 @@ export WORLDFOUNDRY_T2VWORLDBENCH_MODEL_NAME=my_t2v_model
 
 Candidate model inference and training are model-specific. For a WorldFoundry-integrated generator, run the model's synthesis workflow with these prompts, then export the final videos into the layout above.
 
-## Run VLM Scoring
+## Run VLM scoring
 
 Run the in-tree T2VWorldBench official runtime:
 
@@ -140,7 +140,7 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
 
 The official evaluator writes `<model_name>_video_assessment_scores.csv` under the runner output directory. WorldFoundry then parses that CSV into the standard scorecard.
 
-## Import Existing Results
+## Import existing results
 
 If you have already run the T2VWorldBench evaluator and have the official CSV, import it directly:
 
@@ -177,4 +177,4 @@ The run writes:
 - `upstream_stdout.log` and `upstream_stderr.log`: logs from the in-tree official runtime.
 - `upstream/`: raw evaluator output directory for `--run-official`.
 
-[Back to Benchmark Hub](/docs/evaluation/benchmark-hub)
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

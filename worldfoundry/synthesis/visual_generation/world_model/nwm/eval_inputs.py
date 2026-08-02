@@ -17,8 +17,16 @@ import torch
 from PIL import Image
 from torch.utils.data import Dataset
 
-from config_paths import load_runtime_yaml
-from misc import angle_difference, get_data_path, get_delta_np, normalize_data, to_local_coords
+from worldfoundry.synthesis.visual_generation.world_model.nwm.config_paths import (
+    load_runtime_yaml,
+)
+from worldfoundry.synthesis.visual_generation.world_model.nwm.misc import (
+    angle_difference,
+    get_data_path,
+    get_delta_np,
+    normalize_data,
+    to_local_coords,
+)
 
 
 class BaseEvalInputDataset(Dataset):

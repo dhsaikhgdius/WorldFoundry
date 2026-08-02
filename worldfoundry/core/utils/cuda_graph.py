@@ -13,8 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""A rework of make_graphed_callabled function from TransformerEngine so that it works with inference-only."""
+"""Inference-only CUDA Graph capture helpers."""
 
+import hashlib
+import json
 from typing import Any, Callable, Dict, Optional, Tuple, TypeVar, Union
 
 import torch
@@ -48,6 +50,99 @@ _T = TypeVar("_T")
 SingleOrTuple = Union[_T, Tuple[_T, ...]]
 
 
+def _tensor_signature(tensor: torch.Tensor) -> dict[str, Any]:
+    """Return the execution-relevant identity of a graph input tensor."""
+    device = tensor.device
+    capability: tuple[int, int] | None = None
+    if device.type == "cuda" and torch.cuda.is_available():
+        capability = tuple(torch.cuda.get_device_capability(device))
+    return {
+        "shape": list(tensor.shape),
+        "stride": list(tensor.stride()),
+        "dtype": str(tensor.dtype),
+        "device": str(device),
+        "layout": str(tensor.layout),
+        "requires_grad": tensor.requires_grad,
+        "names": None if tensor.names is None else list(tensor.names),
+        "cuda_capability": capability,
+    }
+
+
+def _tensor_tree_signature(value: Any) -> dict[str, Any]:
+    """Describe both the pytree structure and every tensor leaf."""
+    flat, spec = _tree_flatten(value)
+    tensors: list[dict[str, Any]] = []
+    for leaf in flat:
+        if not isinstance(leaf, torch.Tensor):
+            raise TypeError(
+                "create_cuda_graph only supports pytrees of torch.Tensor leaves; "
+                f"got leaf type {type(leaf)}"
+            )
+        tensors.append(_tensor_signature(leaf))
+    return {"tree_spec": str(spec), "tensors": tensors}
+
+
+def _cuda_graph_cache_key(
+    blocks: torch.nn.ModuleList,
+    tensor_args: list[Any],
+    tensor_kwargs: dict[str, Any],
+    extra_key: str | None,
+) -> str:
+    """Build a stable cache key for one CUDA Graph input contract.
+
+    Shape-only keys are unsafe: tensors with equal shapes can still differ in
+    dtype, device, stride, tree grouping, or distributed topology.  Captured
+    graphs bind all of those properties, so they are part of the identity.
+    """
+    distributed = torch.distributed
+    distributed_context = {
+        "initialized": distributed.is_available() and distributed.is_initialized(),
+        "rank": None,
+        "world_size": None,
+    }
+    if distributed_context["initialized"]:
+        distributed_context["rank"] = distributed.get_rank()
+        distributed_context["world_size"] = distributed.get_world_size()
+
+    try:
+        autocast_enabled = torch.is_autocast_enabled("cuda")
+    except TypeError:  # PyTorch < 2.4
+        autocast_enabled = torch.is_autocast_enabled()
+    try:
+        autocast_dtype = torch.get_autocast_dtype("cuda")
+    except AttributeError:  # PyTorch < 2.4
+        autocast_dtype = torch.get_autocast_gpu_dtype()
+
+    payload = {
+        "version": 2,
+        "args": [_tensor_tree_signature(arg) for arg in tensor_args],
+        "kwargs": [
+            {"name": name, "value": _tensor_tree_signature(tensor_kwargs[name])}
+            for name in sorted(tensor_kwargs)
+        ],
+        "blocks": [
+            {
+                "class": f"{block.__class__.__module__}:{block.__class__.__qualname__}",
+                "training": block.training,
+            }
+            for block in blocks
+        ],
+        "grad_enabled": torch.is_grad_enabled(),
+        "inference_mode": torch.is_inference_mode_enabled(),
+        "autocast": {"enabled": autocast_enabled, "dtype": str(autocast_dtype)},
+        "math_policy": {
+            "float32_matmul_precision": torch.get_float32_matmul_precision(),
+            "matmul_allow_tf32": torch.backends.cuda.matmul.allow_tf32,
+            "cudnn_allow_tf32": torch.backends.cudnn.allow_tf32,
+            "deterministic_algorithms": torch.are_deterministic_algorithms_enabled(),
+        },
+        "distributed": distributed_context,
+        "extra_key": extra_key,
+    }
+    serialized = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return f"cuda-graph-v2:{hashlib.sha256(serialized.encode('utf-8')).hexdigest()}"
+
+
 def set_capture_start() -> None:
     """Record beginning of `make_graphed_callables`."""
     global _IS_GRAPH_CAPTURING
@@ -60,7 +155,7 @@ def set_capture_end() -> None:
     _IS_GRAPH_CAPTURING = False
 
 
-def is_graph_capturing() -> None:
+def is_graph_capturing() -> bool:
     """Return whether within `make_graphed_callables`."""
     return _IS_GRAPH_CAPTURING
 
@@ -357,49 +452,53 @@ def make_graphed_callables_forward(
           this graph may share memory with the indicated pool.
     """
     set_capture_start()
+    try:
+        # Handle single module.
+        just_one_callable = False
+        if not isinstance(modules, tuple):
+            just_one_callable = True
+            modules = (modules,)
 
-    # Handle single module.
-    just_one_callable = False
-    if not isinstance(modules, tuple):
-        just_one_callable = True
-        modules = (modules,)
+        forward_funcs = []
+        for module in modules:
+            assert isinstance(module, torch.nn.Module), f"Graphing for {type(module)} is not supported."
+            forward_funcs.append(module)
 
-    forward_funcs = []
-    for module in modules:
-        assert isinstance(module, torch.nn.Module), f"Graphing for {type(module)} is not supported."
-        forward_funcs.append(module)
+        if just_one_callable:
+            forward_funcs = forward_funcs[0]
+        else:
+            forward_funcs = tuple(forward_funcs)
 
-    if just_one_callable:
-        forward_funcs = forward_funcs[0]
-    else:
-        forward_funcs = tuple(forward_funcs)
+        # Save RNG state so graph warmup never changes subsequent sampling.
+        graph_safe_rng = graph_safe_rng_available()
+        if graph_safe_rng:
+            generators = [
+                torch.cuda.default_generators[torch.cuda.current_device()],
+                *get_all_rng_states().values(),
+            ]
+            original_rng_states = [state.get_state() for state in generators]
+        else:
+            generators = []
+            original_rng_states = torch.cuda.get_rng_state()
 
-    # Save RNG state.
-    if graph_safe_rng_available():
-        generators = [
-            torch.cuda.default_generators[torch.cuda.current_device()],
-            *get_all_rng_states().values(),
-        ]
-        original_rng_states = [state.get_state() for state in generators]
-    else:
-        original_rng_states = torch.cuda.get_rng_state()
-
-    graphed_callables = _make_graphed_callables(
-        forward_funcs,
-        sample_args,
-        num_warmup_iters=num_warmup_iters,
-        sample_kwargs=sample_kwargs,
-        pool=pool,
-    )
-
-    # Ensures warmup does not affect numerics for ops such as dropout.
-    if graph_safe_rng_available():
-        for gen, state in zip(generators, original_rng_states):
-            gen.set_state(state)
-    else:
-        torch.cuda.set_rng_state(original_rng_states)
-    set_capture_end()
-    return graphed_callables
+        try:
+            return _make_graphed_callables(
+                forward_funcs,
+                sample_args,
+                num_warmup_iters=num_warmup_iters,
+                sample_kwargs=sample_kwargs,
+                pool=pool,
+            )
+        finally:
+            # Ensures warmup does not affect numerics for ops such as dropout,
+            # including when capture itself raises.
+            if graph_safe_rng:
+                for generator, state in zip(generators, original_rng_states):
+                    generator.set_state(state)
+            else:
+                torch.cuda.set_rng_state(original_rng_states)
+    finally:
+        set_capture_end()
 
 
 def create_cuda_graph(
@@ -431,23 +530,34 @@ def create_cuda_graph(
         Returns:
             The return value.
         """
-        if t.dtype.is_floating_point:
-            return torch.randn(t.shape, device=t.device, dtype=t.dtype)
-        if t.dtype == torch.bool:
-            return torch.zeros(t.shape, device=t.device, dtype=t.dtype)
-        if t.dtype in (torch.uint8, torch.int8, torch.int16, torch.int32, torch.int64):
-            if t.numel() > 0:
-                low = int(t.min().item())
-                high = int(t.max().item())
-                if high == low:
-                    high = low + 1
+        if t.layout != torch.strided:
+            raise TypeError(f"create_cuda_graph only supports strided tensors; got {t.layout}")
+        if any(name is not None for name in t.names):
+            raise TypeError("create_cuda_graph does not support named tensors")
+        dummy = torch.empty_strided(t.shape, t.stride(), device=t.device, dtype=t.dtype)
+        with torch.no_grad():
+            if t.dtype.is_floating_point or t.dtype.is_complex:
+                try:
+                    dummy.normal_()
+                except RuntimeError:
+                    dummy.zero_()
+            elif t.dtype == torch.bool:
+                dummy.zero_()
+            elif t.dtype in (torch.uint8, torch.int8, torch.int16, torch.int32, torch.int64):
+                if t.numel() > 0:
+                    low = int(t.min().item())
+                    maximum = int(t.max().item())
+                    if maximum == low:
+                        dummy.fill_(low)
+                        return dummy.requires_grad_(t.requires_grad)
+                    dtype_max = torch.iinfo(t.dtype).max
+                    high = maximum + 1 if maximum < dtype_max else maximum
                 else:
-                    high = high + 1
+                    low, high = 0, 1
+                dummy.random_(low, high)
             else:
-                low, high = 0, 1
-            return torch.randint(low, high, t.shape, device=t.device, dtype=t.dtype)
-        # Fallback: use zeros for uncommon dtypes (e.g., complex) to avoid dtype/range pitfalls.
-        return torch.zeros(t.shape, device=t.device, dtype=t.dtype)
+                dummy.zero_()
+        return dummy.requires_grad_(t.requires_grad)
 
     def _make_dummy_tree(x: Any) -> Any:
         """Helper function to make dummy tree.
@@ -465,37 +575,19 @@ def create_cuda_graph(
                 raise TypeError(
                     f"create_cuda_graph only supports pytrees of torch.Tensor leaves; got leaf type {type(leaf)}"
                 )
-            dummy = _make_dummy_tensor_like(leaf)
-            dummy.requires_grad = leaf.requires_grad
-            dummy_flat.append(dummy)
+            dummy_flat.append(_make_dummy_tensor_like(leaf))
         return _tree_unflatten(dummy_flat, spec)
 
-    real_args = [arg for arg in tensor_args if arg is not None]
+    if any(arg is None for arg in tensor_args):
+        raise TypeError(
+            "create_cuda_graph cannot omit positional arguments containing None; "
+            "pass optional tensor inputs by keyword"
+        )
+    real_args = list(tensor_args)
     real_kwargs = {k: v for k, v in tensor_kwargs.items() if v is not None}
 
-    # Shapes key must reflect all tensor leaves (supports tuple/list/dict structures).
-    flat_tensors: list[torch.Tensor] = []
-    for arg in real_args:
-        flat, _ = _tree_flatten(arg)
-        for leaf in flat:
-            if not isinstance(leaf, torch.Tensor):
-                raise TypeError(
-                    f"create_cuda_graph only supports pytrees of torch.Tensor leaves; got leaf type {type(leaf)}"
-                )
-            flat_tensors.append(leaf)
-    for _, kwarg in real_kwargs.items():
-        flat, _ = _tree_flatten(kwarg)
-        for leaf in flat:
-            if not isinstance(leaf, torch.Tensor):
-                raise TypeError(
-                    f"create_cuda_graph only supports pytrees of torch.Tensor leaves; got leaf type {type(leaf)}"
-                )
-            flat_tensors.append(leaf)
-
-    shapes_key = "_".join(str(shape_component) for t in flat_tensors for shape_component in t.shape)
-    if extra_key:
-        shapes_key = f"{shapes_key}_{extra_key}"
-    if shapes_key not in cuda_graphs_storage:
+    graph_key = _cuda_graph_cache_key(blocks, real_args, real_kwargs, extra_key)
+    if graph_key not in cuda_graphs_storage:
         callables = []
         sample_args = []
         sample_kwargs = []
@@ -510,12 +602,12 @@ def create_cuda_graph(
             sample_args.append(tuple(args))
             sample_kwargs.append(kwargs)
 
-        log.critical(f"Creating graph for shape {shapes_key}")
-        cuda_graphs_storage[shapes_key] = make_graphed_callables_forward(
+        log.critical(f"Creating CUDA Graph {graph_key}")
+        cuda_graphs_storage[graph_key] = make_graphed_callables_forward(
             tuple(callables),
             tuple(sample_args),
             sample_kwargs=tuple(sample_kwargs),
             num_warmup_iters=11,
         )
-        log.critical(f"Created graph for shape {shapes_key}")
-    return shapes_key
+        log.critical(f"Created CUDA Graph {graph_key}")
+    return graph_key

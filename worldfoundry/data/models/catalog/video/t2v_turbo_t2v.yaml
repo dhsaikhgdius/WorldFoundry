@@ -23,14 +23,24 @@ official_sources:
     type: model
     status: confirmed
 integration:
-  status: runtime_ported
+  status: integrated
   notes:
-  - In-tree T2V-Turbo VC2 runtime is registered; VideoCrafter2 base weights and T2V-Turbo LoRA assets are runtime-gated.
+  - Uses the shared WorldFoundry native diffusion assembler, runner, checkpoint loader, offload policy, and LVDM components.
+  - The VideoCrafter2 base model and ordered T2V-Turbo LoRA remain separate declarative checkpoint inputs.
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 pipeline_binding: t2v_turbo_t2v
 runner_parity:
-  status: implemented_checkpoint_pending
+  status: native_checkpoint_validated
   notes:
-  - resolve_model_zoo_config and pipeline import are expected to pass; vendored runtime source completion and checkpoint staging remain pending.
+  - Local VideoCrafter2 and T2V-Turbo VC2 assets are available for strict component and LoRA validation.
+native_diffusion:
+  recipe_id: t2v_turbo_t2v
+  architecture: lvdm-videocrafter2
+  backend: worldfoundry-native-diffusion
+  shared_components:
+  - native checkpoint loader
+  - native LCM scheduler
+  - LVDM UNet and autoencoder
+  - ordered LoRA merger
 catalog_category: video
 catalog_scope: Video-generation and video-token catalog entries. Integrated entries expose WorldFoundry pipeline targets; metadata-only entries retain upstream provenance without runnable WorldFoundry backends.

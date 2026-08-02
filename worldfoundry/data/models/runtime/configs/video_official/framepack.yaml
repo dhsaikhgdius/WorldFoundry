@@ -13,9 +13,9 @@ runtime:
     hf_home: $WORLDFOUNDRY_HFD_ROOT
     hunyuan_root: $WORLDFOUNDRY_HFD_ROOT/hub/models--hunyuanvideo-community--HunyuanVideo
     flux_redux_root: $WORLDFOUNDRY_CKPT_DIR/FLUX.1-Redux-dev
-    seconds: 1
+    seconds: 5
     latent_window_size: 9
-    num_steps: 4
+    num_steps: 25
     seed: 31337
     gpu_memory_preservation: 6
   command:
@@ -50,3 +50,4 @@ runtime:
   - "{gpu_memory_preservation}"
 notes:
 - Official repo exposes a Gradio entrypoint; WorldFoundry vendors the minimal inference runtime in-tree and wraps the official process function in a non-interactive runner.
+- Defaults preserve the official UI quality recipe: five seconds at 30 FPS and 25 denoising steps per FramePack section.

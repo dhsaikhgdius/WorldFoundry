@@ -17,12 +17,15 @@ from .environments import (
     load_runtime_environment_profiles,
     resolve_runtime_environment_profile,
 )
-from .profiles import RuntimeProfile, RuntimeProfileSynthesis, load_runtime_profile, load_runtime_profiles
 from .profiles import (
     DEFAULT_CATALOG_MANIFEST,
     DEFAULT_RUNTIME_PROFILES_ROOT,
+    RuntimeProfile,
+    RuntimeProfileSynthesis,
+    load_runtime_profile,
     load_runtime_profile_manifest,
     load_runtime_profile_manifests,
+    load_runtime_profiles,
 )
 from .validate import (
     KNOWN_ARTIFACT_KINDS,

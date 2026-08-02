@@ -3,24 +3,20 @@ import os
 if "PYTORCH_CUDA_ALLOC_CONF" not in os.environ:
     os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
-import loguru
-import torch
 import argparse
+import json
+
 import einops
 import imageio
-import json
+import loguru
 import numpy as np
-from scipy.spatial.transform import Rotation as R
+import torch
 from PIL import Image, ImageDraw, ImageFont
-from moviepy.editor import VideoFileClip, VideoClip
+from scipy.spatial.transform import Rotation as R
 
-from .runtime import _HunyuanWorldPlayInternalPipeline
-from .commons.parallel_states import initialize_parallel_state
-from .commons.infer_state import initialize_infer_state
-from .generate_custom_trajectory import generate_camera_trajectory_local
-
-parallel_dims = initialize_parallel_state(sp=int(os.environ.get("WORLD_SIZE", "1")))
-torch.cuda.set_device(int(os.environ.get("LOCAL_RANK", "0")))
+from worldfoundry.synthesis.visual_generation.hunyuan_world.hunyuan_worldplay.generate_custom_trajectory import (
+    generate_camera_trajectory_local,
+)
 
 mapping = {
     (0, 0, 0, 0): 0,
@@ -596,6 +592,8 @@ def add_keyboard_overlay_to_video(video_path, output_path, actions_timeline):
         actions_timeline: list of action dicts, one per frame
     """
     try:
+        from moviepy.editor import VideoClip, VideoFileClip
+
         video = VideoFileClip(video_path)
         width, height = video.size
         fps = video.fps
@@ -682,6 +680,19 @@ def add_keyboard_overlay_to_video(video_path, output_path, actions_timeline):
 
 
 def generate_video(args):
+    from worldfoundry.synthesis.visual_generation.hunyuan_world.hunyuan_worldplay.commons.infer_state import (
+        initialize_infer_state,
+    )
+    from worldfoundry.synthesis.visual_generation.hunyuan_world.hunyuan_worldplay.commons.parallel_states import (
+        initialize_parallel_state,
+    )
+    from worldfoundry.synthesis.visual_generation.hunyuan_world.hunyuan_worldplay.runtime import (
+        _HunyuanWorldPlayInternalPipeline,
+    )
+
+    initialize_parallel_state(sp=int(os.environ.get("WORLD_SIZE", "1")))
+    if torch.cuda.is_available():
+        torch.cuda.set_device(int(os.environ.get("LOCAL_RANK", "0")))
     assert (
         (args.video_length - 1) // 4 + 1
     ) % 4 == 0, "number of latents must be divisible by 4"

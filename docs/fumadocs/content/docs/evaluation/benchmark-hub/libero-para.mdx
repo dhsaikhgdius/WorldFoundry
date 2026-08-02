@@ -67,19 +67,19 @@ PYTHONPATH=${WORLDFOUNDRY_CACHE_DIR}/repos/cau-hai-lab--LIBERO-Para:src ${WORLDF
 
 
 
-## Run Evaluation
+## Run evaluation
 
 
 
 After preparing the assets and candidate artifacts listed on this page, use the public run entry points below.
 
-### Set Candidate Artifacts
+### Set candidate artifacts
 
 ```bash
 export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/generated/artifacts
 ```
 
-### Import Official Results
+### Import official results
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
@@ -91,7 +91,7 @@ worldfoundry-eval zoo benchmark-run \
   --json
 ```
 
-### Score Generated Artifacts
+### Score generated artifacts
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
@@ -102,7 +102,7 @@ worldfoundry-eval zoo benchmark-run \
   --json
 ```
 
-### Direct In-Tree Runner
+### Direct in-tree runner
 
 ```bash
 worldfoundry-eval zoo benchmark-run --benchmark-id libero-para --mode official-validation --official-results-path <official_results.json> --output-dir <out> --json

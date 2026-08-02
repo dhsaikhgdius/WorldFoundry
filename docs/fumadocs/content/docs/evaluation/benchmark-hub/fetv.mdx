@@ -16,7 +16,7 @@ Official references:
 - Generated videos and frames: [lyx97/FETV_gen_videos](https://huggingface.co/datasets/lyx97/FETV_gen_videos)
 - Official source references: [llyx97/FETV](https://github.com/llyx97/FETV), [llyx97/FETV-EVAL](https://github.com/llyx97/FETV-EVAL)
 
-## Evaluation Protocol
+## Evaluation protocol
 
 WorldFoundry bundles the official prompt assets:
 
@@ -55,7 +55,7 @@ Primary metric: `fetv_average`.
 | `fvd` | FVD distribution distance; lower is better. |
 | `fetv_average` | Mean over available normalized FETV metrics. |
 
-## Data And Checkpoint Preparation
+## Data and checkpoint preparation
 
 Start from the WorldFoundry repository root:
 
@@ -90,7 +90,7 @@ export WORLDFOUNDRY_FETV_FVD_GENERATED_VIDEO_DIR=/path/to/fetv/my_t2v_model_fvd
 export WORLDFOUNDRY_FETV_FVD_REAL_VIDEO_DIR=/path/to/fetv/real_videos_fvd
 ```
 
-## Run Automatic Scoring
+## Run automatic scoring
 
 Run CLIPScore only:
 
@@ -140,7 +140,7 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
   --json
 ```
 
-## Import Existing Results
+## Import existing results
 
 If you already have a FETV-EVAL output directory or a CSV/JSON result export, import it directly:
 
@@ -178,4 +178,4 @@ The run writes:
 - `auto_eval_results/`: raw CLIP/BLIP/FID/FVD outputs when `--run-official` is used.
 - `fetv_official_runtime_summary.json`: runtime commands and produced result paths.
 
-[Back to Benchmark Hub](/docs/evaluation/benchmark-hub)
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

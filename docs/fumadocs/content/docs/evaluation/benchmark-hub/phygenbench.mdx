@@ -10,7 +10,7 @@ PhyGenBench evaluates text-to-video physical commonsense with 160 prompts spanni
 WorldFoundry includes the runnable PhyGenBench code under `worldfoundry/evaluation/tasks/execution/runners/phygenbench`. Runtime code such as `PhyGenEval/overall.py` stays with the runner, while prompt/question assets live under `worldfoundry/data/benchmarks/assets/phygenbench`. Do not clone the upstream repository for WorldFoundry runs. Downloading Hugging Face judge checkpoints is fine when you choose the full upstream-style judge path; the benchmark code stays in-tree.
 
 
-## Official References
+## Official references
 
 | Resource | Link |
 | --- | --- |
@@ -19,7 +19,7 @@ WorldFoundry includes the runnable PhyGenBench code under `worldfoundry/evaluati
 | GitHub | [github.com/OpenGVLab/PhyGenBench](https://github.com/OpenGVLab/PhyGenBench) |
 | In-tree runner | `worldfoundry/evaluation/tasks/execution/runners/phygenbench/run_phygenbench_official_runner.py` |
 
-## Prepare Assets
+## Prepare assets
 
 - Prompt suite: bundled at `worldfoundry/data/benchmarks/assets/phygenbench/PhyGenBench/prompts.json`.
 - Optional prompt override: pass `--prompt-manifest` or set `WORLDFOUNDRY_PHYGENBENCH_PROMPT_MANIFEST`.
@@ -27,7 +27,7 @@ WorldFoundry includes the runnable PhyGenBench code under `worldfoundry/evaluati
 - Existing result import: pass `--official-results-path` or set `WORLDFOUNDRY_PHYGENBENCH_RESULTS_PATH`. JSON, JSONL, CSV, and YAML-like official dimension rows are accepted by the metric loader.
 - Full judge assets: the README names VQAScore / CLIP-FlanT5, GPT-4o or LLaVA-Interleave, and InternVideo2 for the staged evaluator. WorldFoundry does not bundle those model weights or API credentials.
 
-## Generated Artifact Layout
+## Generated artifact layout
 
 The expected generated videos are flat files named by prompt index:
 
@@ -41,7 +41,7 @@ generated_videos/
 
 WorldFoundry also accepts bare numeric stems such as `1.mp4` for coverage checks, but materialized WorldFoundry model runs are copied into `output_video_{id}.mp4`.
 
-## Run With WorldFoundry
+## Run with WorldFoundry
 
 Import an existing PhyGenEval result file through the public CLI:
 

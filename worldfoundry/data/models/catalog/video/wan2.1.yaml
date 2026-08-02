@@ -70,6 +70,22 @@ variants:
         - tmp/model_zoo/validation/wan2.1/report.json
         - tmp/model_zoo/validation/official_parity/wan2.1/report.json
         - tmp/model_zoo/validation/runner_parity/wan2.1/report.json
+    native_diffusion:
+      recipe_id: wan2.1-t2v-1.3b
+      status: assembly_and_checkpoint_structure_verified
+      strategy: standard
+      components:
+        - conditioner
+        - latent_initializer
+        - scheduler
+        - denoiser
+        - decoder
+      checkpoint_key_validation:
+        dit: 825
+        text_encoder: 242
+        vae: 194
+      artifact_parity: pending
+      notes: The native recipe no longer imports DiffSynth, Diffusers, or the legacy image/video packages; public CUDA artifact parity is still required before replacing the existing catalog pipeline binding.
     demo_parity:
       status: verified
       demo_command:
@@ -190,6 +206,7 @@ runner_parity:
     - WorldFoundry pipeline target is registered; generated artifact parity still requires the staged checkpoint/runtime environment.
 notes:
   - Only official Wan-Video GitHub and Wan-AI Hugging Face repos are listed.
+  - Wan2.1 T2V 1.3B now has an independent canonical native diffusion recipe; its public catalog binding remains unchanged until CUDA artifact parity passes.
   - Family-level integration_status remains planned because T2V-14B and I2V variants have not passed checkpoint, official demo, and WorldFoundry runner parity.
 catalog_category: video
 catalog_scope: Official GitHub and/or Hugging Face confirmed open-source or open-weight video generation models. Checkpoints are not tracked in git; local validation may download selected repos under cache/hfd.

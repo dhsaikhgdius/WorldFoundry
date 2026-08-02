@@ -3,9 +3,14 @@ import * as CardComponents from 'fumadocs-ui/components/card';
 import * as AccordionComponents from 'fumadocs-ui/components/accordion';
 import * as FilesComponents from 'fumadocs-ui/components/files';
 import * as StepsComponents from 'fumadocs-ui/components/steps';
+import { Banner } from 'fumadocs-ui/components/banner';
+import { DynamicCodeBlock } from 'fumadocs-ui/components/dynamic-codeblock';
+import { InlineTOC } from 'fumadocs-ui/components/inline-toc';
 import { Tab, Tabs } from '@/components/docs-tabs';
 import * as TabsComponents from 'fumadocs-ui/components/tabs';
 import defaultMdxComponents from 'fumadocs-ui/mdx';
+import { DocsGithubInfo } from '@/components/docs-github-info';
+import { DocsZoomImage } from '@/components/docs-zoom-image';
 import { DocsWelcomeAcknowledgements } from '@/components/docs-welcome-acknowledgements';
 import { BenchmarkRecipeCatalog } from '@/components/benchmark-recipe-catalog';
 import { CallChainDiagram } from '@/components/call-chain-diagram';
@@ -54,7 +59,7 @@ function resolveImageSrc(src: DocsImageProps['src']) {
   return src;
 }
 
-function DocsImage({ src, ...props }: DocsImageProps) {
+function DocsImage({ src, alt, ...props }: DocsImageProps) {
   const resolved = resolveImageSrc(src);
   const dimensions =
     isStaticImageDataLike(src)
@@ -64,7 +69,11 @@ function DocsImage({ src, ...props }: DocsImageProps) {
         }
       : {};
 
-  return <img {...props} {...dimensions} src={resolved} />;
+  if (typeof resolved !== 'string') {
+    return <img {...props} {...dimensions} alt={alt} src={resolved} />;
+  }
+
+  return <DocsZoomImage {...props} {...dimensions} alt={alt} src={resolved} />;
 }
 
 function DocsVideo({ src, ...props }: ComponentPropsWithoutRef<'video'>) {
@@ -80,11 +89,16 @@ export function getMDXComponents(components?: MDXComponents) {
     ...FilesComponents,
     ...StepsComponents,
     ...TabsComponents,
+    Banner,
+    DynamicCodeBlock,
+    InlineTOC,
     Tab,
     Tabs,
     BenchmarkRecipeCatalog,
     CallChainDiagram,
+    DocsGithubInfo,
     DocsWelcomeAcknowledgements,
+    GithubInfo: DocsGithubInfo,
     MetricQuickNav,
     ModelRecipeCatalog,
     ModelRecipeHeader,

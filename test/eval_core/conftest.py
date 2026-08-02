@@ -1,0 +1,9 @@
+from __future__ import annotations
+
+import pytest
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    for item in items:
+        item.add_marker(pytest.mark.fast_eval_core)

@@ -1,0 +1,88 @@
+schema: worldfoundry-training
+execution_owner: worldfoundry-native
+run:
+  id: wan-1p3b-flow-lora-single-device
+  output_dir: runs/wan-1p3b-flow-lora-single-device
+model:
+  recipe: wan2.1-t2v-1.3b
+  checkpoint: default
+  options:
+    vae_tiled: false
+tuning:
+  mode: lora
+  preset: wan-attention
+  rank: 32
+  alpha: 32
+  dropout: 0.0
+data:
+  manifest: data/wan_train.jsonl
+  cache: cache/wan-1p3b
+  max_latent_tokens_per_microbatch: 13312
+  split: train
+  shuffle: true
+  shuffle_seed: 42
+  tail_policy: pad
+  options:
+    video_buckets:
+      - num_frames: 17
+        height: 256
+        width: 256
+        conditioning_layout: umt5-sequence
+        tasks: [t2v]
+      - num_frames: 33
+        height: 256
+        width: 256
+        conditioning_layout: umt5-sequence
+        tasks: [t2v]
+      - num_frames: 49
+        height: 256
+        width: 256
+        conditioning_layout: umt5-sequence
+        tasks: [t2v]
+    bucket_policy:
+      allow_spatial_upscale: false
+      allow_temporal_padding: false
+    decode:
+      frame_sampling: uniform-full
+      interpolation: bicubic
+      value_range: minus-one-one
+      decoder_thread_type: auto
+      verify_media_sha256: true
+      verify_manifest_frame_count: true
+      verify_manifest_geometry: true
+      fps_tolerance: 0.05
+    num_workers: 0
+    pin_memory: true
+    persistent_workers: false
+    snapshot_every_n_steps: 1
+objective:
+  type: flow_matching
+  prediction_type: flow_velocity
+  timestep_sampler: logit_normal
+  conditioning_dropout: 0.0
+  options:
+    num_train_timesteps: 1000
+    flow_shift: 1.0
+    logit_mean: 0.0
+    logit_std: 1.0
+optimizer:
+  type: adamw
+  learning_rate: 5.0e-5
+  weight_decay: 1.0e-4
+  betas: [0.9, 0.99]
+  epsilon: 1.0e-8
+  max_grad_norm: 1.0
+  gradient_accumulation_steps: 1
+runtime:
+  param_dtype: bfloat16
+  reduce_dtype: float32
+  activation_checkpoint: full
+  compile: false
+distributed:
+  backend: single
+  dp_shard: auto
+  cp: 1
+  tp: 1
+checkpoint:
+  save_every_steps: 100
+  async: false

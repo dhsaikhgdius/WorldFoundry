@@ -5,6 +5,7 @@ import torch
 import torch.distributed as dist
 
 from .generic_collectives import get_rank, get_world_size  # noqa: F401 - public compatibility exports
+from .tensor_collectives import all_gather_concat, all_to_all_concat
 
 
 def _distributed_ready():
@@ -23,6 +24,13 @@ def all_to_all(x, scatter_dim, gather_dim, group=None, **kwargs):
     """
     world_size = dist.get_world_size(group) if _distributed_ready() else get_world_size()
     if world_size > 1:
+        if not kwargs:
+            return all_to_all_concat(
+                x,
+                scatter_dim=scatter_dim,
+                gather_dim=gather_dim,
+                group=group,
+            )
         inputs = [u.contiguous() for u in x.chunk(world_size, dim=scatter_dim)]
         outputs = [torch.empty_like(u) for u in inputs]
         dist.all_to_all(outputs, inputs, group=group, **kwargs)
@@ -89,5 +97,4 @@ def gather_forward(input, dim):
         return input
 
     # gather sequence
-    output = all_gather(input)
-    return torch.cat(output, dim=dim).contiguous()
+    return all_gather_concat(input, dim=dim)

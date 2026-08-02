@@ -5,6 +5,7 @@
     "local-assets",
     "tui",
     "inference",
+    "training",
     "supported-models",
     "studio",
     "add-model",

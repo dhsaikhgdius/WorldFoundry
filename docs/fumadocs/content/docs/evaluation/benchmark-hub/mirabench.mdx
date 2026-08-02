@@ -16,7 +16,7 @@ Official references:
 - Dataset: [TencentARC/MiraData](https://huggingface.co/datasets/TencentARC/MiraData)
 - Official source reference: [mira-space/MiraData](https://github.com/mira-space/MiraData)
 
-## Evaluation Protocol
+## Evaluation protocol
 
 MiraBench uses metadata CSV files with structured captions. WorldFoundry bundles the official example files:
 
@@ -55,7 +55,7 @@ Primary metric: `mirabench_average`.
 | `fvd`, `fid`, `kid` | Distribution metrics; lower is better. |
 | `mirabench_average` | Official aggregate when present, or mean over available metrics. |
 
-## Data And Checkpoint Preparation
+## Data and checkpoint preparation
 
 Start from the WorldFoundry repository root:
 
@@ -84,7 +84,7 @@ export WORLDFOUNDRY_MIRABENCH_DEVICE=cuda
 
 For quick local wiring runs, `WORLDFOUNDRY_MIRABENCH_SCORER_BACKEND=mock` writes deterministic placeholder metric values. Do not use that backend for reported benchmark numbers.
 
-## Generate Candidate Videos
+## Generate candidate videos
 
 Use the `dense_caption` or `short_caption` fields from `meta_generated.csv` as generation prompts. For WorldFoundry-integrated models, run the model's synthesis workflow over those prompts, then export one video per `video_idx`:
 
@@ -95,7 +95,7 @@ Use the `dense_caption` or `short_caption` fields from `meta_generated.csv` as g
   ...
 ```
 
-## Run Official Scoring
+## Run official scoring
 
 Run the in-tree MiraBench official scorer:
 
@@ -114,7 +114,7 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
 
 The official backend dispatches the in-tree `calculate_score.py`, materializes an updated generated meta CSV with absolute video paths, and converts the produced `average_score.csv` into a WorldFoundry scorecard.
 
-## Import Existing Results
+## Import existing results
 
 If you already have a MiraBench `average_score.csv` or equivalent JSON/CSV result export, import it directly:
 
@@ -152,4 +152,4 @@ The run writes:
 - `per_sample_scores.jsonl`: per-video rows when the result file exposes sample-level values.
 - `upstream_scorer/`: materialized meta CSV, extracted frames, and official scorer outputs for `--run-official`.
 
-[Back to Benchmark Hub](/docs/evaluation/benchmark-hub)
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

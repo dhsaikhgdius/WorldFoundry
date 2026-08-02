@@ -15,6 +15,7 @@ import sys
 import tempfile
 import threading
 import warnings
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, MutableMapping
@@ -41,10 +42,79 @@ class CompileCacheLayout:
     inductor: Path
     triton: Path
     fingerprint: str
+    cuda: Path | None = None
+    torch_extensions: Path | None = None
 
 
 _CONFIGURE_LOCK = threading.Lock()
 _COMPILE_LOCK = threading.RLock()
+_DEFAULT_CACHE_LAYOUT: CompileCacheLayout | None = None
+_DEFAULT_CACHE_CONTEXT: tuple[str, str | None, str | None, str | None] | None = None
+
+
+def _freeze_compile_option(value: Any) -> object:
+    """Return a hashable identity for nested ``torch.compile`` options."""
+
+    if isinstance(value, Mapping):
+        entries = ((str(key), _freeze_compile_option(item)) for key, item in value.items())
+        return ("mapping", tuple(sorted(entries, key=lambda entry: entry[0])))
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+        return ("sequence", tuple(_freeze_compile_option(item) for item in value))
+    if isinstance(value, (set, frozenset)):
+        items = tuple(sorted((_freeze_compile_option(item) for item in value), key=repr))
+        return ("set", items)
+    try:
+        hash(value)
+    except TypeError:
+        return ("repr", repr(value))
+    return ("value", value)
+
+
+def _compile_variant_key(
+    policy: CompilePolicy,
+    options: Mapping[str, Any] | None,
+) -> tuple[object, ...]:
+    return (
+        policy.backend,
+        policy.mode,
+        policy.fullgraph,
+        policy.dynamic,
+        _freeze_compile_option(options or {}),
+    )
+
+
+def _callable_variant_owner(function: Any) -> tuple[Any, object | None]:
+    """Return a stable cache owner for functions, modules, and bound methods."""
+
+    owner = getattr(function, "__self__", None)
+    implementation = getattr(function, "__func__", None)
+    if owner is not None and implementation is not None:
+        return owner, (
+            "bound_method",
+            getattr(implementation, "__module__", ""),
+            getattr(implementation, "__qualname__", repr(implementation)),
+        )
+    return function, None
+
+
+def _compile_target(
+    compile_fn: Any,
+    target: Any,
+    *,
+    policy: CompilePolicy,
+    options: Mapping[str, Any] | None,
+) -> Any:
+    kwargs: dict[str, Any] = {
+        "backend": policy.backend,
+        "mode": policy.mode,
+        "fullgraph": policy.fullgraph,
+        "dynamic": policy.dynamic,
+    }
+    if options:
+        # Copy the mapping so caller mutation cannot change compiler behaviour
+        # after the variant cache key has been constructed.
+        kwargs["options"] = dict(options)
+    return compile_fn(target, **kwargs)
 
 
 def _safe_token(value: Any) -> str:
@@ -116,8 +186,7 @@ def _torch_fingerprint() -> str:
     except Exception:
         accelerator = "accelerator-unknown"
     return _safe_token(
-        f"torch-{version}-triton-{triton_version}-cudnn-{cudnn_version or 'unknown'}-"
-        f"{python_tag}-{accelerator}"
+        f"torch-{version}-triton-{triton_version}-cudnn-{cudnn_version or 'unknown'}-{python_tag}-{accelerator}"
     )
 
 
@@ -136,8 +205,7 @@ def _ensure_cache_directory(directory: Path, *, fingerprint: str, kind: str) -> 
         fallback = Path(tempfile.gettempdir()) / "worldfoundry-compile" / fingerprint / kind
         fallback.mkdir(parents=True, exist_ok=True)
         warnings.warn(
-            f"Cannot use compiler cache directory {directory}: {exc}. "
-            f"Falling back to {fallback}.",
+            f"Cannot use compiler cache directory {directory}: {exc}. Falling back to {fallback}.",
             RuntimeWarning,
             stacklevel=3,
         )
@@ -151,40 +219,81 @@ def configure_persistent_compile_cache(
 ) -> CompileCacheLayout:
     """Configure persistent Inductor and Triton caches once per process.
 
-    Explicit ``TORCHINDUCTOR_CACHE_DIR`` and ``TRITON_CACHE_DIR`` values are
-    respected. Otherwise caches live below ``WORLDFOUNDRY_CACHE_DIR`` and are
-    partitioned by torch/runtime/accelerator compatibility. Compatible model
-    namespaces intentionally share the binary/autotune cache; Inductor's own
-    graph keys prevent collisions, while a process-global environment variable
-    cannot safely point at a different directory for every compiled module.
+    Explicit cache environment values are respected. Otherwise Inductor,
+    Triton, CUDA driver JIT, and torch C++/CUDA extension caches live below
+    ``WORLDFOUNDRY_CACHE_DIR``. Generated-code caches are partitioned by the
+    torch/runtime/accelerator fingerprint; the CUDA driver cache is safe to
+    share because its own key includes device and code identities.
     """
+
+    global _DEFAULT_CACHE_CONTEXT, _DEFAULT_CACHE_LAYOUT
 
     del namespace
     env = os.environ if environ is None else environ
-    fingerprint = _torch_fingerprint()
     configured_root = env.get("WORLDFOUNDRY_COMPILE_CACHE_DIR", "").strip()
-    base = Path(configured_root).expanduser() if configured_root else resolve_cache_dir(env) / "compile"
-    root = base / fingerprint
+    cache_context = (
+        configured_root,
+        env.get("CUDA_VISIBLE_DEVICES"),
+        env.get("NVIDIA_VISIBLE_DEVICES"),
+        env.get("CUDA_DEVICE_ORDER"),
+    )
+    cache_default_environment = env is os.environ
 
     with _CONFIGURE_LOCK:
+        if (
+            cache_default_environment
+            and _DEFAULT_CACHE_LAYOUT is not None
+            and _DEFAULT_CACHE_CONTEXT == cache_context
+            and env.get("CUDA_CACHE_PATH") == str(_DEFAULT_CACHE_LAYOUT.cuda)
+            and env.get("TORCHINDUCTOR_CACHE_DIR") == str(_DEFAULT_CACHE_LAYOUT.inductor)
+            and env.get("TRITON_CACHE_DIR") == str(_DEFAULT_CACHE_LAYOUT.triton)
+            and env.get("TORCH_EXTENSIONS_DIR") == str(_DEFAULT_CACHE_LAYOUT.torch_extensions)
+        ):
+            return _DEFAULT_CACHE_LAYOUT
+
+        base = Path(configured_root).expanduser() if configured_root else resolve_cache_dir(env) / "compile"
+        # Set the driver cache before querying GPU properties in
+        # _torch_fingerprint; some runtimes initialize CUDA while collecting
+        # those properties. This ordering applies to the process environment;
+        # custom mappings remain side-effect-free test/configuration inputs.
+        cuda = Path(env.get("CUDA_CACHE_PATH") or base / "cuda").expanduser()
+        cuda = _ensure_cache_directory(cuda, fingerprint="cuda-driver", kind="cuda")
+        env["CUDA_CACHE_PATH"] = str(cuda)
+        env.setdefault("CUDA_CACHE_MAXSIZE", str(4 * 1024**3))
+
+        fingerprint = _torch_fingerprint()
+        root = base / fingerprint
         inductor = Path(env.get("TORCHINDUCTOR_CACHE_DIR") or root / "inductor").expanduser()
         triton = Path(env.get("TRITON_CACHE_DIR") or root / "triton").expanduser()
+        torch_extensions = Path(env.get("TORCH_EXTENSIONS_DIR") or root / "torch_extensions").expanduser()
         inductor = _ensure_cache_directory(inductor, fingerprint=fingerprint, kind="inductor")
         triton = _ensure_cache_directory(triton, fingerprint=fingerprint, kind="triton")
+        torch_extensions = _ensure_cache_directory(
+            torch_extensions,
+            fingerprint=fingerprint,
+            kind="torch_extensions",
+        )
         # Assignment is intentional: when an explicitly configured path is not
         # writable, _ensure_cache_directory has selected a valid fallback.
         env["TORCHINDUCTOR_CACHE_DIR"] = str(inductor)
         env["TRITON_CACHE_DIR"] = str(triton)
+        env["TORCH_EXTENSIONS_DIR"] = str(torch_extensions)
         env.setdefault("TORCHINDUCTOR_FX_GRAPH_CACHE", "1")
         env.setdefault("TORCHINDUCTOR_AUTOTUNE_LOCAL_CACHE", "1")
         env.setdefault("TORCHINDUCTOR_AUTOTUNE_REMOTE_CACHE", "0")
 
-    return CompileCacheLayout(
-        root=root,
-        inductor=inductor,
-        triton=triton,
-        fingerprint=fingerprint,
-    )
+        layout = CompileCacheLayout(
+            root=root,
+            inductor=inductor,
+            triton=triton,
+            fingerprint=fingerprint,
+            cuda=cuda,
+            torch_extensions=torch_extensions,
+        )
+        if cache_default_environment:
+            _DEFAULT_CACHE_LAYOUT = layout
+            _DEFAULT_CACHE_CONTEXT = cache_context
+        return layout
 
 
 def compile_module_cached(
@@ -192,8 +301,15 @@ def compile_module_cached(
     *,
     policy: CompilePolicy | None = None,
     namespace: str = "modules",
+    options: Mapping[str, Any] | None = None,
+    strict: bool = False,
 ) -> Any:
-    """Return one cached ``torch.compile`` wrapper per module and policy."""
+    """Return one cached ``torch.compile`` wrapper per module and policy.
+
+    Compiler options participate in the wrapper identity.  This prevents two
+    callers that request different Inductor settings from accidentally sharing
+    the first wrapper attached to a long-lived model instance.
+    """
 
     selected = CompilePolicy() if policy is None else policy
     if not selected.enabled:
@@ -201,18 +317,18 @@ def compile_module_cached(
     if hasattr(module, "_orig_mod"):
         return module
 
-    configure_persistent_compile_cache(namespace=namespace)
-    torch = importlib.import_module("torch")
+    try:
+        configure_persistent_compile_cache(namespace=namespace)
+        torch = importlib.import_module("torch")
+    except Exception:
+        if strict:
+            raise
+        return module
     compile_fn = getattr(torch, "compile", None)
     if not callable(compile_fn):
         return module
 
-    key = (
-        selected.backend,
-        selected.mode,
-        selected.fullgraph,
-        selected.dynamic,
-    )
+    key = _compile_variant_key(selected, options)
     with _COMPILE_LOCK:
         variants = getattr(module, "_worldfoundry_compiled_variants", None)
         if not isinstance(variants, dict):
@@ -225,14 +341,15 @@ def compile_module_cached(
         if cached is not None:
             return cached
         try:
-            compiled = compile_fn(
+            compiled = _compile_target(
+                compile_fn,
                 module,
-                backend=selected.backend,
-                mode=selected.mode,
-                fullgraph=selected.fullgraph,
-                dynamic=selected.dynamic,
+                policy=selected,
+                options=options,
             )
         except Exception:
+            if strict:
+                raise
             return module
         variants[key] = compiled
         return compiled
@@ -243,46 +360,51 @@ def compile_callable_cached(
     *,
     policy: CompilePolicy | None = None,
     namespace: str = "functions",
+    options: Mapping[str, Any] | None = None,
+    strict: bool = False,
 ) -> Any:
     """Compile a callable once without selecting compilation implicitly."""
 
     selected = CompilePolicy() if policy is None else policy
     if not selected.enabled:
         return function
-    configure_persistent_compile_cache(namespace=namespace)
-    torch = importlib.import_module("torch")
+    try:
+        configure_persistent_compile_cache(namespace=namespace)
+        torch = importlib.import_module("torch")
+    except Exception:
+        if strict:
+            raise
+        return function
     compile_fn = getattr(torch, "compile", None)
     if not callable(compile_fn):
         return function
 
-    key = (
-        selected.backend,
-        selected.mode,
-        selected.fullgraph,
-        selected.dynamic,
-    )
+    cache_owner, callable_identity = _callable_variant_owner(function)
+    key = (callable_identity, *_compile_variant_key(selected, options))
     with _COMPILE_LOCK:
-        variants = getattr(function, "_worldfoundry_compiled_variants", None)
+        variants = getattr(cache_owner, "_worldfoundry_compiled_variants", None)
         if not isinstance(variants, dict):
             variants = {}
             try:
-                setattr(function, "_worldfoundry_compiled_variants", variants)
+                setattr(cache_owner, "_worldfoundry_compiled_variants", variants)
             except Exception:
-                # Bound methods cannot always carry attributes. Their owner
-                # should retain the returned wrapper when repeated reuse matters.
+                # Some extension-backed callables and immutable owners cannot
+                # carry attributes. Compilation remains usable for this call,
+                # but those objects cannot retain a reusable wrapper.
                 variants = {}
         cached = variants.get(key)
         if cached is not None:
             return cached
         try:
-            compiled = compile_fn(
+            compiled = _compile_target(
+                compile_fn,
                 function,
-                backend=selected.backend,
-                mode=selected.mode,
-                fullgraph=selected.fullgraph,
-                dynamic=selected.dynamic,
+                policy=selected,
+                options=options,
             )
         except Exception:
+            if strict:
+                raise
             return function
         variants[key] = compiled
         return compiled

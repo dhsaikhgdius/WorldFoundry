@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from worldfoundry.core.io.paths import cache_root_path
+from worldfoundry.core.process import run_logged_subprocess
 from worldfoundry.evaluation.tasks.execution.framework.benchmark_assets import bundled_benchmark_asset
 from worldfoundry.evaluation.tasks.execution.framework.io import env_path, utc_now_iso, write_json, write_jsonl
 from worldfoundry.evaluation.utils import REPO_ROOT
@@ -830,18 +831,16 @@ def run_official_vbench(args: argparse.Namespace) -> dict[str, Any]:
     if "VBENCH_BERT_BASE_UNCASED" not in env and DEFAULT_BERT_BASE_UNCASED.is_dir():
         env["VBENCH_BERT_BASE_UNCASED"] = str(DEFAULT_BERT_BASE_UNCASED)
     start = time.monotonic()
-    completed = subprocess.run(
+    completed = run_logged_subprocess(
         command,
+        stdout_path=stdout_path,
+        stderr_path=stderr_path,
         cwd=args.vbench_root,
         env=env,
-        capture_output=True,
-        text=True,
         timeout=args.timeout,
-        check=False,
+        start_new_session=False,
     )
     duration_seconds = time.monotonic() - start
-    stdout_path.write_text(completed.stdout, encoding="utf-8")
-    stderr_path.write_text(completed.stderr, encoding="utf-8")
 
     upstream_results_path = latest_upstream_results(upstream_output_dir)
     if upstream_results_path is None:

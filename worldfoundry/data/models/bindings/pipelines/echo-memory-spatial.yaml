@@ -1,0 +1,28 @@
+schema_version: 2
+binding_id: echo-memory-spatial
+model_id: echo-memory-spatial
+runner: worldfoundry.pipeline
+pipeline:
+  target: worldfoundry.pipelines.echo_memory.pipeline_echo_memory:EchoMemorySpatialPipeline
+  loading:
+    method: from_pretrained
+    signature: unified
+  invocation:
+    mode: native_or_standard_invocation
+aliases:
+- echo-spatial-memory
+runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
+availability:
+  status: source_available
+  open_source: true
+  code: native_worldfoundry
+  weights: retracted_misaligned_by_upstream
+  license: cc-by-4.0
+checkpoint_refs:
+- role: echo_memory_finetune
+  repo_id: Echo-Team/Echo-Memory
+  filename: spatial_mem/epoch-0.safetensors
+  status: retracted_misaligned_by_upstream
+  license: cc-by-4.0
+- role: wan_2p1_t2v_1p3b_backbone
+  repo_id: Wan-AI/Wan2.1-T2V-1.3B

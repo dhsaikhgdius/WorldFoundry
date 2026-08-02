@@ -17,6 +17,7 @@ from diffusers.models.modeling_outputs import Transformer2DModelOutput
 from diffusers.models.modeling_utils import ModelMixin
 from diffusers.models.normalization import RMSNorm, LayerNorm, FP32LayerNorm, AdaLayerNormContinuous
 from diffusers_helper.utils import zero_module
+from worldfoundry.core.attention import get_cu_seqlens
 
 
 accelerate.accelerator.convert_outputs_to_fp32 = lambda x: x
@@ -127,24 +128,6 @@ def center_down_sample_3d(x, kernel_size):
     # xc = xp[cp]
     # return xc
     return torch.nn.functional.avg_pool3d(x, kernel_size, stride=kernel_size)
-
-
-def get_cu_seqlens(text_mask, img_len):
-    batch_size = text_mask.shape[0]
-    text_len = text_mask.sum(dim=1)
-    max_len = text_mask.shape[1] + img_len
-
-    cu_seqlens = torch.zeros([2 * batch_size + 1], dtype=torch.int32, device="cuda")
-
-    for i in range(batch_size):
-        s = text_len[i] + img_len
-        s1 = i * max_len + s
-        s2 = (i + 1) * max_len
-        cu_seqlens[2 * i + 1] = s1
-        cu_seqlens[2 * i + 2] = s2
-
-    return cu_seqlens
-
 
 def apply_rotary_emb_transposed(x, freqs_cis):
     cos, sin = freqs_cis.unsqueeze(-2).chunk(2, dim=-1)

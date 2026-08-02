@@ -5,16 +5,16 @@ from __future__ import annotations
 import json
 import os
 import re
-import shutil
 from pathlib import Path
 from typing import Any
 
+from worldfoundry.core.io.file_utils import materialize_file
 from worldfoundry.evaluation.api import GenerationRequest, GenerationResult
-from worldfoundry.evaluation.utils import write_jsonl, worldfoundry_hfd_dataset_root
 from worldfoundry.evaluation.tasks.execution.framework.benchmark_assets import (
     bundled_benchmark_asset,
     bundled_benchmark_assets_root,
 )
+from worldfoundry.evaluation.utils import worldfoundry_hfd_dataset_root, write_jsonl
 
 BENCHMARK_ID = "aigcbench"
 IN_TREE_AIGCBENCH_ROOT = Path(__file__).resolve().parent / "runtime" / "aigcbench"
@@ -368,7 +368,7 @@ def copy_aigcbench_generated_videos(
         if not source_path.is_file():
             continue
         target_path = generated_artifact_dir / video_filename_for_prompt_id(sample_id)
-        shutil.copy2(source_path, target_path)
+        materialize_file(source_path, target_path, writable=False)
         materialized += 1
         manifest_rows.append({"sample_id": sample_id, "artifact": output_artifact, "path": str(target_path)})
 
@@ -378,7 +378,7 @@ def copy_aigcbench_generated_videos(
                 continue
             sample_id = path.stem
             target_path = generated_artifact_dir / video_filename_for_prompt_id(sample_id)
-            shutil.copy2(path, target_path)
+            materialize_file(path, target_path, writable=False)
             materialized += 1
             manifest_rows.append({"sample_id": sample_id, "artifact": output_artifact, "path": str(target_path)})
 

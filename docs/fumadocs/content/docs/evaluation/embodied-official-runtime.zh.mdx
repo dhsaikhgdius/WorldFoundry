@@ -9,7 +9,7 @@ WorldFoundry 在仓库内提供具身 benchmark 的 **结果归一化、CLI 和 
 
 两类测评 surface：
 
-| Surface | Benchmark ids | 在 WorldFoundry 里能做什么 |
+| Surface | Benchmark IDs | 在 WorldFoundry 里能做什么 |
 | --- | --- | --- |
 | 原生闭环 simulator | `ai2thor`, `behavior1k`, `calvin`, `kinetix`, `libero`, `libero-mem`, `libero-plus`, `libero-pro`, `maniskill2`, `maniskill`, `mikasa`, `molmospaces`, `rlbench`, `robocasa`, `robocerebra`, `robomme`, `robotwin`, `simpler-env`, `vlabench` | official result import、in-tree simulator API、Docker-backed rollout hooks |
 | 仅结果导入 | `bridgedata-v2`, `libero-para`, `metaworld` | 归一化官方格式的结果文件 |
@@ -101,7 +101,7 @@ export WORLDFOUNDRY_LOCAL_ASSET_MANIFEST=/path/to/your/local_assets_manifest.yam
 | 验证框架接线 | `worldfoundry-eval zoo benchmarks --json` | 否 |
 | Official result import | `worldfoundry-eval zoo benchmark-run --benchmark-id robotwin --mode official-validation --official-results-path <official_results.json> --output-dir tmp/benchmark_zoo/official_validation/robotwin --json` | 否 |
 | 检查还缺哪些 env / 路径 | `worldfoundry-eval zoo benchmark-show --benchmark-id robotwin --json` | 否（会列出缺失项） |
-| 导入已有 official 结果 | 见下文「导入官方结果」 | 只需结果文件 |
+| 导入已有 official 结果 | 见下文“导入官方结果” | 只需结果文件 |
 | 完整 simulator rollout | 在上游 repo 内按官方文档跑 | 是 |
 
 ---
@@ -134,7 +134,7 @@ source tmp/worldfoundry_unified_env.sh
 
 每个 benchmark 用独立 env 指向 **你的** checkout、checkpoint 和结果文件：
 
-| Benchmark id | Split | Policy checkpoint | Official results |
+| Benchmark ID | Split | Policy checkpoint | Official results |
 | --- | --- | --- | --- |
 | `ai2thor` | eval config 中的 `scene` / `benchmark_kwargs` | policy checkpoint 或 external policy server | `WORLDFOUNDRY_AI2THOR_RESULTS_PATH` |
 | `libero` | `WORLDFOUNDRY_LIBERO_SUITE` | `WORLDFOUNDRY_LIBERO_POLICY_CHECKPOINT` | `WORLDFOUNDRY_LIBERO_RESULTS_PATH` |
@@ -177,7 +177,7 @@ worldfoundry-eval zoo benchmark-run \
 
 使用 Docker-backed official evaluator 或 VLA evaluation harness 运行指定 policy checkpoint，生成 result 文件，再用上一节的 `official-validation` 导入。
 
-Rollout 前建议记录：benchmark id、上游 commit、simulator 版本、dataset split、checkpoint 路径、action/observation 约定、结果文件路径。
+Rollout 前建议记录：benchmark ID、上游 commit、simulator 版本、dataset split、checkpoint 路径、action/observation 约定、结果文件路径。
 
 
 接入真实 policy 时，把 eval config 里的 `model_id` 换成已配置的 VLA policy，或通过 `server.url` 指向 external policy server；policy 返回 `{"token": "forward"}` 或等价离散 action 即可。

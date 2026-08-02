@@ -21,7 +21,6 @@ from worldfoundry.core.io.paths import (
     hfd_root_path,
     resolve_local_hf_model_path,
 )
-from worldfoundry.base_models.diffusion_model.video.wan import wan_variant_root
 from worldfoundry.evaluation.utils import worldfoundry_data_path
 
 
@@ -31,7 +30,6 @@ _BUNDLED_REPO_ROOT = (
 )
 _CONFIG_ROOT = worldfoundry_data_path("models", "runtime", "configs", "inspatio_world")
 _TRAJECTORY_ROOT = _CONFIG_ROOT / "traj"
-_WAN_BASE_ROOT = wan_variant_root("inspatio-world")
 
 DEFAULT_CHECKPOINT_REPO = "inspatio/world"
 DEFAULT_WAN_MODEL_REPO = "Wan-AI/Wan2.1-T2V-1.3B"
@@ -368,7 +366,7 @@ class InspatioWorldRuntime:
                     f"InSpatio-World requires offline model loading; {name}={value!r} is not allowed."
                 )
         source_root = str(package_root("worldfoundry").parent)
-        pythonpath = [source_root, str(_WAN_BASE_ROOT), self.repo_root]
+        pythonpath = [source_root, self.repo_root]
         if env.get("PYTHONPATH"):
             pythonpath.append(env["PYTHONPATH"])
         env["PYTHONPATH"] = os.pathsep.join(pythonpath)

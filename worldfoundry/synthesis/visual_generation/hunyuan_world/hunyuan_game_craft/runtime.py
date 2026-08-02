@@ -552,7 +552,7 @@ class HunyuanGameCraftRuntime:
             if isinstance(negative_prompt, str):
                 negative_prompt = [negative_prompt] * batch_size
 
-        from worldfoundry.base_models.diffusion_model.video.hunyuan_video.diffusion.schedulers import (
+        from worldfoundry.synthesis.visual_generation.hunyuan_world.hunyuan_worldplay.schedulers.scheduling_flow_match_discrete import (
             FlowMatchDiscreteScheduler,
         )
 
@@ -727,7 +727,16 @@ class HunyuanGameCraftRuntime:
 
             if rank == 0:
                 sub_samples = outputs["samples"][0]
-                out_cat = sub_samples if out_cat is None else torch.cat([out_cat, sub_samples], dim=2)
+                # Every autoregressive action segment repeats the final frame
+                # of its predecessor as its first decoded frame. Keep the
+                # initial segment intact and remove that overlap thereafter;
+                # four official 33-frame actions therefore yield 129 frames,
+                # not 132 frames with three duplicated boundaries.
+                out_cat = (
+                    sub_samples
+                    if out_cat is None
+                    else torch.cat([out_cat, sub_samples[:, :, 1:]], dim=2)
+                )
 
         video_frames = convert_videos_to_grid(out_cat, n_rows=1) if rank == 0 and out_cat is not None else None
         if return_latents:

@@ -1,0 +1,172 @@
+---
+title: 训练
+description: 运行由 WorldFoundry 自己拥有的 SFT、SiD、DMD 与 diffusion-policy RL 基础设施。
+---
+
+WorldFoundry 自己拥有完整训练执行面：模型 forward、corruption/loss、rollout/replay、optimizer cadence、分布式状态、checkpoint、metrics 与 export。模型作者和算法作者仓库只作为固定版本的正确性/性能 oracle；WorldFoundry recipe 不能把 optimizer loop 委托给其他仓库。
+
+## 安装
+
+若 unified 环境已有兼容的 CUDA PyTorch，可直接复用，只补训练 overlay：
+
+```bash
+python -m pip install -e '.[train_core,train_video]'
+```
+
+环境必须通过 training tests 以及所需 FSDP2/DCP capability 检查。上游训练环境不会被安装进或由 WorldFoundry runtime 调用。
+
+## 执行所有权
+
+所有 SFT/post-training recipe 都包含：
+
+```yaml
+execution_owner: worldfoundry-native
+```
+
+其他值以及旧的外部执行字段都会被 strict parser 拒绝。代表性的 checked-in 原生 recipe 为：
+
+- `configs/training/sana_600m_flow_lora_single_device.yaml`
+- `configs/training/sana_600m_flow_lora.yaml`
+- `configs/training/wan_1p3b_flow_lora_single_device.yaml`
+- `configs/training/wan_1p3b_flow_lora.yaml`
+- `configs/post_training/sana_sprint_600m_sid.yaml`
+- `configs/post_training/sana_sprint_600m_scm_ladd.yaml`
+- `configs/post_training/wan_1p3b_dmd.yaml`
+- `configs/post_training/wan_1p3b_flow_grpo.yaml`
+
+## 正确性门禁
+
+上游引用和许可证说明放在实施计划与 acknowledgement 中，不进入 runtime recipe。`tests/training/test_official_parity.py` 会直接执行数值 parity fixture；正常训练不会加载 repository catalog、上游源码 checkout 或上游 launcher。
+
+## 数据工作流
+
+训练显式使用三类 artifact：
+
+1. 包含媒体 hash、caption、geometry、split、conditions 与 safety state 的 source manifest；
+2. audited manifest 与 ShieldGemma decision sidecar；
+3. 绑定 audited manifest 和精确 encoder assets 的 immutable feature cache。
+
+先审计 prompt：
+
+```bash
+worldfoundry-eval train-audit-prompts \
+  --manifest data/wan_train.raw.jsonl \
+  --output-manifest data/wan_train.jsonl \
+  --output-audits data/wan_train.prompt-audits.json
+```
+
+再构建模型特征。Wan 会分开 UMT5/VAE 的显存驻留阶段，正式训练只加载 denoiser：
+
+```bash
+worldfoundry-eval train-cache \
+  --recipe configs/training/wan_1p3b_flow_lora_single_device.yaml \
+  --base-dir . \
+  --prompt-audits data/wan_train.prompt-audits.json
+```
+
+本地 asset 可通过重复的 `--checkpoint-override NAME=PATH` 提供；revision 与文件摘要仍进入 cache identity。
+
+## 原生 SFT
+
+单卡 Wan 示例：
+
+```bash
+worldfoundry-eval train \
+  --recipe configs/training/wan_1p3b_flow_lora_single_device.yaml \
+  --base-dir . \
+  --steps 1000 \
+  --checkpoint-override dit=/models/Wan2.1-T2V-1.3B
+```
+
+correctness pilot 可固定 batch/corruption，并要求实际 loss 降幅：
+
+```bash
+worldfoundry-eval train \
+  --recipe configs/training/wan_1p3b_flow_lora_single_device.yaml \
+  --base-dir . \
+  --steps 20 \
+  --one-batch-overfit \
+  --maximum-loss-ratio 0.95 \
+  --checkpoint-override dit=/models/Wan2.1-T2V-1.3B
+```
+
+每个 output directory 都是独占的。LoRA 成功后默认导出带完整 digest 的 PEFT artifact。
+
+## 可扩展 FSDP2
+
+topology 从已初始化 process group 推导，recipe 不要求固定 8 卡：
+
+```bash
+GPU_COUNT="${GPU_COUNT:?从调度器分配中设置 GPU_COUNT}"
+
+torchrun --standalone --nproc-per-node="${GPU_COUNT}" \
+  -m worldfoundry.cli train \
+  --recipe configs/training/wan_1p3b_flow_lora.yaml \
+  --base-dir . \
+  --steps 1000 \
+  --checkpoint-override dit=/models/Wan2.1-T2V-1.3B
+```
+
+FSDP2、DTensor-aware gradient clipping 与 DCP 全部由 `worldfoundry/training` 拥有，并复用 `worldfoundry/core` 的 integrity primitive。exact resume 恢复 model、全部 optimizers、engine counters、loader state 与 Python/CPU/CUDA/objective RNG；recipe、cache、frozen base、源码 identity 或 topology 漂移都会 fail closed。
+
+## 原生 post-training
+
+当前 post-training package 已提供：
+
+- SANA SiD 的独立 student/teacher/fake-score 角色、few-step detached prefix、双 AdamW update、cache/prompt-only data path、exact DCP resume、状态文件与定期/最终 student export；
+- 独立 re-noise 的 few-step DMD prefix simulation、三模型角色、双 optimizer、官方 cadence、EMA/scheduler seam 与 multi-optimizer DCP；
+- mixed ODE/SDE flow rollout、FP32 transition math、exact likelihood replay、group advantage、clipped Flow-GRPO update、可选 frozen-reference KL 与 logical policy revision；
+- vector reward、冻结 scalarization，以及同步的原生 DMD/Flow-GRPO session；
+- 动态 data-parallel loss scaling 与 group ownership audit。
+
+模型执行复用 native Wan/SANA adapter 和 `worldfoundry/core`，不会导入第三方 trainer。checked-in post-training recipe 是严格配置和 parity profile；完整真模型 GPU 验收仍是独立门禁。
+
+SANA SiD 先用同一份 audited manifest 构建 immutable cache。随后把三个角色指向完整的本地 Diffusers SANA 目录；它们可以来自同一个初始目录，但运行时会独立加载，文件摘要会写入 resume identity：
+
+```bash
+worldfoundry-eval train-cache \
+  --recipe configs/post_training/sana_sprint_600m_sid.yaml \
+  --base-dir . \
+  --prompt-audits data/post_training/sana-sprint-600m/prompt-audits.json
+
+GPU_COUNT="${GPU_COUNT:?从调度器分配中设置 GPU_COUNT}"
+SANA_DIR="${SANA_DIR:?设置本地 Diffusers SANA-Sprint 目录}"
+
+torchrun --standalone --nproc-per-node="${GPU_COUNT}" \
+  -m worldfoundry.cli post-train \
+  --recipe configs/post_training/sana_sprint_600m_sid.yaml \
+  --base-dir . \
+  --steps 50 \
+  --checkpoint-override student="${SANA_DIR}" \
+  --checkpoint-override teacher="${SANA_DIR}" \
+  --checkpoint-override fake_score="${SANA_DIR}"
+```
+
+目录至少需要 Diffusers `transformer/` 资产；当 recipe 不使用 cache、改走 prompt-only 模式时，student 目录还必须包含 text encoder 与 tokenizer。运行目录会写 `run.json`、DCP checkpoints 和带 digest 的 student export。CLI/materializer 回归通过只说明产品路径已接通，真权重短跑、2+ GPU 与质量/显存结果仍需单独留存 gate report。
+
+已有 cache 的单卡真权重 update→checkpoint→exact resume→Safetensors reload 门禁可直接运行；`--work-dir` 必须是尚不存在的新目录：
+
+```bash
+python scripts/training/validate_sana_sid_roundtrip.py \
+  --model-root "${SANA_DIR}" \
+  --manifest data/post_training/sana-sprint-600m/manifest.jsonl \
+  --cache data/post_training/sana-sprint-600m/cache \
+  --work-dir /path/to/new-sana-sid-gate
+```
+
+## 正确性门禁
+
+unit tests 证明 contract 和数值不变量，不等于最终模型质量。一个 model/algorithm 组合只有满足以下条件才算通过：
+
+- 固定 commit 的官方 source/report 审计；
+- corruption、prediction parameterization、transition mean/scale/log-prob、loss、gradient 与一次 update 的确定性 tensor parity；
+- exact checkpoint-resume parity；
+- one-batch overfit 与真模型短 GPU run；
+- 每个声明 hardware profile 上的 held-out quality、reward hacking、吞吐与显存门禁。
+
+软件门禁：
+
+```bash
+python -m pytest -q tests/training
+ruff check worldfoundry/training tests/training
+```

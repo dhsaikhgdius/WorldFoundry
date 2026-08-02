@@ -30,7 +30,7 @@ except ImportError:
     BICUBIC = Image.BICUBIC
     BILINEAR = Image.BILINEAR
 
-from .distributed import (
+from worldfoundry.core.distributed.evaluation_collectives import (
     get_rank,
     barrier,
 )

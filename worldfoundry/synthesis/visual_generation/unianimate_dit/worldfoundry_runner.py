@@ -74,53 +74,7 @@ def _rewrite_demo_script(
         "start_frame = 0 # random.randint(0, _total_frame_num-cover_frame_num-1)",
         text,
     )
-    if use_usp:
-        if "import torch.distributed as dist" not in text:
-            text = text.replace("import sys  \n", "import sys  \nimport torch.distributed as dist\n")
-        setup = """dist.init_process_group(
-    backend="nccl",
-    init_method="env://",
-)
-from xfuser.core.distributed import (initialize_model_parallel,
-                                     init_distributed_environment)
-init_distributed_environment(
-    rank=dist.get_rank(), world_size=dist.get_world_size())
-
-initialize_model_parallel(
-    sequence_parallel_degree=dist.get_world_size(),
-    ring_degree=1,
-    ulysses_degree=dist.get_world_size(),
-)
-torch.cuda.set_device(dist.get_rank())
-
-pipe = WanUniAnimateVideoPipeline.from_model_manager(
-    model_manager,
-    torch_dtype=torch.bfloat16,
-    device=f"cuda:{dist.get_rank()}",
-    use_usp=True if dist.get_world_size() > 1 else False,
-)
-pipe.enable_vram_management(num_persistent_param_in_dit=6*10**9)
-# pipe.enable_vram_management(num_persistent_param_in_dit=0)
-"""
-        text = re.sub(
-            r"pipe\s*=\s*WanUniAnimateVideoPipeline\.from_model_manager\(model_manager,\s*torch_dtype=torch\.bfloat16,\s*device=\"cuda\"\)\s*\n"
-            r"pipe\.enable_vram_management\(num_persistent_param_in_dit=6\*10\*\*9\).*?\n",
-            setup,
-            text,
-            flags=re.DOTALL,
-        )
-        text = re.sub(
-            r"(\s*)os\.makedirs\(\"\.\/outputs\", exist_ok=True\)\s*\n"
-            r"\s*save_video\(video_out, \"outputs/video_480P_(.*?)\", fps=15, quality=5\)",
-            r'\1if dist.get_rank() == 0:\n\1    os.makedirs("./outputs", exist_ok=True)\n\1    save_video(video_out, "outputs/video_usp_480P_\2", fps=15, quality=5)',
-            text,
-        )
-        text = re.sub(
-            r"(\s*)os\.makedirs\(\"\.\/outputs\", exist_ok=True\)\s*\n"
-            r"\s*save_video\(video_out, \"outputs/video_480P_(.*?)\"\.format\((.*?)\), fps=15, quality=5\)",
-            r'\1if dist.get_rank() == 0:\n\1    os.makedirs("./outputs", exist_ok=True)\n\1    save_video(video_out, "outputs/video_usp_480P_\2".format(\3), fps=15, quality=5)',
-            text,
-        )
+    del use_usp
     return text
 
 
@@ -271,10 +225,11 @@ def main() -> None:
     )
     before = time.time()
     env = os.environ.copy()
-    diffsynth_parent = package_root("worldfoundry.base_models.diffusion_model.diffsynth").parent
+    worldfoundry_parent = package_root("worldfoundry").parent
     env["PYTHONPATH"] = os.pathsep.join(
-        item for item in (str(diffsynth_parent), str(repo_root), str(workspace_root), env.get("PYTHONPATH", "")) if item
+        item for item in (str(worldfoundry_parent), str(repo_root), str(workspace_root), env.get("PYTHONPATH", "")) if item
     )
+    env["WORLDFOUNDRY_UNIANIMATE_USE_USP"] = "1" if _as_bool(args.use_usp) else "0"
     if _as_bool(args.use_usp):
         command = [
             sys.executable,

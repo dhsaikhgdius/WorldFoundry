@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping
 
+from worldfoundry.core.io.paths import project_root
 from worldfoundry.evaluation.models.runtime.profiles import load_runtime_profile
 from worldfoundry.runtime.assets import expand_worldfoundry_path
 
@@ -75,6 +76,25 @@ WORLD_MODEL_RUNTIME_SPECS: Mapping[str, WorldModelRuntimeSpec] = {
         entrypoint_relative="scripts/rollout_replay_traj.py",
         blocked_reason="Ctrl-World source is vendored in-tree; execution still requires official checkpoints and task assets.",
         input_schema=_ROBOT_INPUTS,
+    ),
+    "causal-rcm": WorldModelRuntimeSpec(
+        model_id="causal-rcm",
+        display_name="Causal-rCM",
+        runtime_module="worldfoundry.synthesis.visual_generation.rcm.worldfoundry_runtime",
+        runtime_root_attr="RUNTIME_DIR",
+        entrypoint_attr="INFERENCE_ENTRYPOINT",
+        # Source is vendored under Apache-2.0, so only checkpoints gate execution;
+        # the adapter's missing_requirements owns that check.
+        blocked_reason="",
+        official_repo_url="https://github.com/NVlabs/rcm",
+        required_assets=(
+            "Causal-rCM distilled DiT checkpoint",
+            "Wan2.1 VAE (Wan2.1_VAE.pth)",
+            "umT5 text encoder (models_t5_umt5-xxl-enc-bf16.pth)",
+        ),
+        # The released causal entrypoint is prompt/image conditioned; the block
+        # schedule is the streaming control surface, not a discrete action space.
+        input_schema={"prompt": True, "image": True, "video": False, "actions": []},
     ),
     "diamond": WorldModelRuntimeSpec(
         model_id="diamond",
@@ -149,16 +169,33 @@ WORLD_MODEL_RUNTIME_SPECS: Mapping[str, WorldModelRuntimeSpec] = {
         runtime_module="worldfoundry.synthesis.visual_generation.world_model.open_oasis.worldfoundry_runtime",
         input_schema=_MINECRAFT_INPUTS,
     ),
+    "open-dreamer": WorldModelRuntimeSpec(
+        model_id="open-dreamer",
+        display_name="Open Dreamer",
+        runtime_module="worldfoundry.synthesis.visual_generation.world_model.open_dreamer.worldfoundry_runtime",
+        runtime_root_attr=None,
+        runtime_root_func="runtime_root",
+        entrypoint_attr=None,
+        entrypoint_relative="inference.py",
+        # Gating lives in the adapter's missing_requirements so a fully staged
+        # checkout, JAX environment, and checkpoint can actually execute.
+        blocked_reason="",
+        official_repo_url="https://github.com/next-state/open-dreamer",
+        required_assets=(
+            "reactor-team/open-dreamer checkout staged under ${WORLDFOUNDRY_MODEL_SOURCE_DIR}/open-dreamer-inference",
+            "Open Dreamer Orbax checkpoint containing tokenizer and dynamics weights",
+            "Minecraft/VPT context clip at 368x640 (or 360x640)",
+        ),
+        input_schema=_MINECRAFT_INPUTS,
+    ),
     "sana-wm": WorldModelRuntimeSpec(
         model_id="sana-wm",
         display_name="SANA-WM",
-        runtime_module="worldfoundry.base_models.diffusion_model.image.sana.worldfoundry_runtime",
-        runtime_root_attr="SANA_WM_RUNTIME_DIR",
-        entrypoint_attr="SANA_WM_OFFICIAL_ENTRYPOINT",
-        blocked_reason=(
-            "SANA-WM official source is vendored in-tree; execution still requires "
-            "the official dependency environment, checkpoints, and task assets."
-        ),
+        runtime_module="worldfoundry.synthesis.visual_generation.sana_wm.realtime",
+        runtime_root_attr=None,
+        entrypoint_attr=None,
+        blocked_reason="",
+        backend="worldfoundry.native_diffusion",
         input_schema={
             "prompt": True,
             "image": True,
@@ -566,7 +603,9 @@ class WorldModelRuntimeSynthesis(BaseSynthesis):
         if hook is not None:
             extra_entries = hook(runtime_root=self.runtime_root, options=self.options, profile=self.runtime_profile)
             pythonpath_entries.extend(str(item) for item in extra_entries or ())
-        pythonpath_entries.extend([str(self.runtime_root), env.get("PYTHONPATH", "")])
+        pythonpath_entries.extend(
+            [str(self.runtime_root), str(project_root(__file__)), env.get("PYTHONPATH", "")]
+        )
         env["PYTHONPATH"] = os.pathsep.join(item for item in pythonpath_entries if item)
         env["WORLDFOUNDRY_MODEL_ID"] = self.model_id
         env["WORLDFOUNDRY_OUTPUT_PATH"] = str(output_path)
@@ -756,6 +795,41 @@ class WorldModelRuntimeSynthesis(BaseSynthesis):
         }
 
 
+def plan_payload(context: Mapping[str, Any]) -> dict[str, Any]:
+    """Load the runtime plan a command builder was handed, or an empty mapping.
+
+    :meth:`WorldModelRuntimeSynthesis.predict` writes the plan to disk before it
+    builds the command, so ``context["plan_path"]`` is readable from inside a
+    ``build_command`` hook. A missing or malformed plan is not fatal: the caller
+    falls back to load-time options.
+    """
+    plan_path = context.get("plan_path")
+    if not plan_path:
+        return {}
+    path = Path(str(plan_path))
+    if not path.is_file():
+        return {}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def command_settings(context: Mapping[str, Any]) -> dict[str, Any]:
+    """Merge load-time options with the call-time kwargs recorded in the plan.
+
+    Only ``self.options`` reaches a runtime manifest hook directly; per-call
+    kwargs arrive through ``plan["extra"]``. Call-time values win so a single
+    loaded pipeline can serve several differently-parameterized requests.
+    """
+    settings = dict(context.get("options") or {})
+    extra = plan_payload(context).get("extra")
+    if isinstance(extra, Mapping):
+        settings.update(extra)
+    return settings
+
+
 def runtime_spec(model_id: str) -> WorldModelRuntimeSpec:
     key = model_id.lower().replace("_", "-")
     try:
@@ -838,6 +912,8 @@ __all__ = [
     "WORLD_MODEL_RUNTIME_SPECS",
     "WorldModelRuntimeSpec",
     "WorldModelRuntimeSynthesis",
+    "command_settings",
+    "plan_payload",
     "resolve_runtime_manifest",
     "runtime_spec",
 ]

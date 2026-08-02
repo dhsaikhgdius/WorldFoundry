@@ -13,9 +13,9 @@ import argparse
 import os
 from pathlib import Path
 
-from .utils import json_dump, load_json_mapping, parse_key_value_mapping
 from worldfoundry.evaluation.utils import BENCHMARK_TASK_ROOT, TMP_ROOT
 
+from .utils import json_dump, load_json_mapping, parse_key_value_mapping
 
 DEFAULT_TASK_ROOT = BENCHMARK_TASK_ROOT
 DEFAULT_BENCHMARK_TASK_ROOT = DEFAULT_TASK_ROOT

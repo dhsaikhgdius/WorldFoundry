@@ -12,9 +12,9 @@ from logging import getLogger
 
 import torch
 import torch.distributed as dist
-from torcheval.metrics import FrechetInceptionDistance
 
 from .generic_collectives import (
+    get_collective_device,
     get_rank,
     get_world_size,
 )
@@ -100,7 +100,11 @@ class SmoothedValue:
     def synchronize_between_processes(self):
         if not is_dist_avail_and_initialized():
             return
-        tensor = torch.tensor([self.count, self.total], dtype=torch.float64, device="cuda")
+        tensor = torch.tensor(
+            [self.count, self.total],
+            dtype=torch.float64,
+            device=get_collective_device(),
+        )
         dist.barrier()
         dist.all_reduce(tensor)
         values = tensor.tolist()
@@ -237,6 +241,8 @@ def sync_fid_loss_fns(fid_loss_fn, device="cuda"):
 
     dist.barrier()
     dist.all_gather_object(gathered_fid_loss_fn, serialized_fid_loss_fn)
+
+    from torcheval.metrics import FrechetInceptionDistance
 
     final_fid_loss_fn = {sec: FrechetInceptionDistance(feature_dim=2048).to(device) for sec in [1, 2, 4, 8, 16]}
     for serialized_rank_metrics in gathered_fid_loss_fn:

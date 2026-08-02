@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import os
 import shutil
 import subprocess
@@ -10,6 +9,7 @@ import time
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
+from worldfoundry.core.io import file_sha256
 
 MEDIA_SUFFIXES = frozenset({".mp4", ".mov", ".webm", ".gif", ".png", ".jpg", ".jpeg"})
 
@@ -137,7 +137,7 @@ def execute_in_tree(
         "status": "succeeded",
         "video": str(output),
         "artifact_path": str(output),
-        "artifact_sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
+        "artifact_sha256": file_sha256(output),
         "backend_quality": "in_tree_official_runtime",
         "metadata": {
             "command": rendered,

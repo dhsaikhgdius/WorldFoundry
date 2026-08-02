@@ -214,7 +214,7 @@ dreamsim_dist = compute_dreamsim(ref, gen)
 | `worldfoundry-eval metric show <id>` | Show one entry, resolved aliases, parameterized prefix. |
 | `worldfoundry-eval metric validate <id>...` | Bulk-resolve ids; exit 1 on unknown ids. |
 | `worldfoundry-eval evaluate --metric ...` | **Built-in existing-results metrics only** (`artifact_count`, `required_artifacts_present`, `has_artifact:<name>`, `numeric`, `numeric:<name>`). |
-| `worldfoundry-eval plan create --metric ...` | Same built-in metric ids when constructing a run plan JSON. |
+| `worldfoundry-eval plan create --metric ...` | Same built-in metric IDs when constructing a run plan JSON. |
 
 Distribution and perceptual metrics are invoked through Python today. Benchmark runners may call the same underlying implementations when computing official metric stacks (EvalCrafter IS/FID paths, MiraBench FVD, and similar). Multimodal scorers (CLIPScore, VQAScore, ITMScore) are exposed through `worldfoundry.evaluation.tasks.metrics.get_score_model(...)` and implemented in `execution/runners/_scorers/`.
 

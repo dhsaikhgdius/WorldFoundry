@@ -9,17 +9,17 @@ import sys
 from pathlib import Path
 from typing import Any
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from worldfoundry.evaluation.api import GENERATION_REQUEST_SCHEMA_VERSION
-from worldfoundry.evaluation.runner import ModelBenchmarkSuiteRequest, run_model_benchmark_suite
-from worldfoundry.evaluation.tasks.execution.framework.benchmark_data import materialize_sample_generated_videos
-from worldfoundry.evaluation.tasks.execution.framework.runner_registry import VIDEO_RUNNER_REGISTRY
-from worldfoundry.evaluation.utils import BENCHMARK_ZOO_DIR, MODEL_ZOO_DIR
-
+from worldfoundry.evaluation.api import GENERATION_REQUEST_SCHEMA_VERSION  # noqa: E402
+from worldfoundry.evaluation.runner import ModelBenchmarkSuiteRequest, run_model_benchmark_suite  # noqa: E402
+from worldfoundry.evaluation.tasks.execution.framework.benchmark_data import (  # noqa: E402
+    materialize_sample_generated_videos,
+)
+from worldfoundry.evaluation.tasks.execution.framework.runner_registry import VIDEO_RUNNER_REGISTRY  # noqa: E402
+from worldfoundry.evaluation.utils import BENCHMARK_ZOO_DIR, MODEL_ZOO_DIR  # noqa: E402
 
 DEFAULT_PROMPT = "A small robot explores a bright workshop, cinematic motion, high quality."
 
@@ -97,6 +97,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--timeout-seconds", type=float, default=900.0)
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--plan-only", action="store_true")
+    parser.add_argument("--model-workers", type=int, default=1)
+    parser.add_argument(
+        "--model-worker-device",
+        action="append",
+        default=None,
+        metavar="CUDA_VISIBLE_DEVICES",
+        help="CUDA device group for one model worker; repeat for multiple workers.",
+    )
     parser.add_argument("--no-skip-incompatible", dest="skip_incompatible", action="store_false", default=True)
     parser.add_argument(
         "--fixture-video",
@@ -142,6 +150,8 @@ def main(argv: list[str] | None = None) -> int:
             benchmark_ids=tuple(benchmark_ids),
             mode=args.mode,
             execute=not args.plan_only,
+            model_workers=args.model_workers,
+            worker_cuda_devices=tuple(args.model_worker_device or ()),
             skip_incompatible=args.skip_incompatible,
             model_runner=args.model_runner,
             model_variant_id=args.model_variant,

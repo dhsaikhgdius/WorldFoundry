@@ -12,7 +12,7 @@ The benchmark was introduced with the CameraBench project and paper, "Towards Un
 WorldFoundry currently covers the reproducible aggregation stage. You provide either an official CameraBench result JSON or a prepared CameraBench `score_dir`, and WorldFoundry writes a standard scorecard. Producing the raw CameraBench score JSONs from videos still requires the CameraBench scorer assets and the fine-tuned VLM checkpoints described below.
 
 
-## Official References
+## Official references
 
 | Resource | Link |
 | --- | --- |
@@ -22,7 +22,7 @@ WorldFoundry currently covers the reproducible aggregation stage. You provide ei
 | HF dataset | [syCen/CameraBench](https://huggingface.co/datasets/syCen/CameraBench) |
 | In-tree runner | `worldfoundry/evaluation/tasks/execution/runners/camerabench/run_camerabench_official_runner.py` |
 
-## What To Prepare
+## What to prepare
 
 ### Dataset
 
@@ -46,7 +46,7 @@ The local root should contain the test metadata and video assets:
 
 Use this path for `WORLDFOUNDRY_CAMERABENCH_DATA_ROOT` or `--benchmark-data-root`.
 
-### Scorer Checkpoints
+### Scorer checkpoints
 
 CameraBench reports use fine-tuned Qwen2.5-VL camera-motion models. Download checkpoints from Hugging Face into your normal model cache or a shared checkpoint directory:
 
@@ -58,7 +58,7 @@ hf download chancharikm/qwen2.5-vl-72b-cam-motion --local-dir /path/to/checkpoin
 
 The WorldFoundry base-model tree already contains reusable Qwen/VQAScore infrastructure under `worldfoundry/base_models/`. Keep checkpoint paths outside the source tree unless you are preparing a local release bundle.
 
-### Score Directory
+### Score directory
 
 The in-tree CameraBench runner consumes prepared JSON score files. The expected filenames are:
 
@@ -71,9 +71,9 @@ The in-tree CameraBench runner consumes prepared JSON score files. The expected 
 
 Each file should include a top-level `scores` list and optional `metadata` with `model_name`, `checkpoint`, and `split_name`. These are the same score families used by the official CameraBench evaluation code: binary camera-motion classification, VQA/retrieval, and caption matching.
 
-## Run Evaluation
+## Run evaluation
 
-### Aggregate A Prepared Score Directory
+### Aggregate a prepared score directory
 
 ```bash
 export WORLDFOUNDRY_CAMERABENCH_DATA_ROOT=/path/to/datasets/CameraBench
@@ -91,7 +91,7 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
 
 To run only part of the suite, set `--task binary`, `--task vqa_retrieval`, or `--task caption`. Caption matching can use an API-backed judge when you pass `--openai-api-key "$OPENAI_API_KEY"`; omit caption if your local reproduction only covers binary and VQA/retrieval metrics.
 
-### Use The Public CLI
+### Use the public CLI
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
@@ -103,7 +103,7 @@ worldfoundry-eval zoo benchmark-run \
   --json
 ```
 
-### Import Existing Official Results
+### Import existing official results
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
@@ -140,4 +140,4 @@ The runner writes:
 
 For a leaderboard-quality reproduction, make sure the local dataset root covers the full test split and the score directory contains all metric families you intend to report.
 
-[Back to Benchmark Hub](/docs/evaluation/benchmark-hub)
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

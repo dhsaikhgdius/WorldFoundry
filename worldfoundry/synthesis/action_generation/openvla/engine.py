@@ -1,15 +1,14 @@
 # Inference-only OpenVLA source retained in-tree.
 from __future__ import annotations
 
-import hashlib
 import json
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from worldfoundry.core.io import file_sha256
 from worldfoundry.core.io.paths import project_root, resolve_worldfoundry_path
-
 
 SYSTEM_PROMPT = (
     "A chat between a curious user and an artificial intelligence assistant. "
@@ -309,7 +308,7 @@ class OpenVLARuntime:
             "duration_seconds": round(time.monotonic() - started, 3),
         }
         target.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        artifact_hash = hashlib.sha256(target.read_bytes()).hexdigest()
+        artifact_hash = file_sha256(target)
         return {
             "status": "success",
             "model_id": "openvla",

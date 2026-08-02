@@ -18,7 +18,6 @@ from worldfoundry.evaluation.api import GenerationRequest, GenerationResult
 from .invocation import PipelineInvocation, build_pipeline_invocation, invoke_pipeline, request_output_dir
 from .results import PipelineResultContext, generation_result_from_pipeline
 
-
 # ── Protocol interfaces ────────────────────────────────────────────────
 
 
@@ -138,8 +137,12 @@ class WorldFoundryPipelineLifecycle:
         from worldfoundry.core import worldfoundry_inference_context
 
         with worldfoundry_inference_context():
-            invocation = self.build_invocation(request)
-            return self.normalize(invocation, self.invoke(invocation))
+            return self.generate_in_context(request)
+
+    def generate_in_context(self, request: GenerationRequest) -> GenerationResult:
+        """Generate one request when the caller already owns the inference context."""
+        invocation = self.build_invocation(request)
+        return self.normalize(invocation, self.invoke(invocation))
 
 
 __all__ = [

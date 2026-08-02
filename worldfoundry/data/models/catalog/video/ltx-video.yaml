@@ -1,5 +1,10 @@
 id: ltx-video
 name: LTX-Video
+description: >-
+  Native WorldFoundry integration for the LTX-Video 0.9.8 distilled
+  image-to-video route. The implemented path uses the official spatial
+  upscaler between two denoising stages; broader upstream task support is not
+  yet exposed as a WorldFoundry runner.
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 pipeline_binding: ltx-video
 runtime_profile: runtime-profile:ltx-video-i2v
@@ -51,12 +56,16 @@ checkpoint:
 demo_parity:
   status: pending
   notes:
-    - The in-tree LTX-Video I2V route is wired with local checkpoint assets,
+    - The native LTX-Video I2V route is wired with local checkpoint assets,
       reference image, fps, guidance_scale, resolution, frame count, step count,
       and seed controls.
     - Full upstream parity remains pending; per-run artifact checks are tracked
       outside the model catalog.
-notes: License is reported as 'other' in the official HF cards.
+notes:
+  - License is reported as 'other' in the official Hugging Face cards.
+  - The runnable WorldFoundry route is LTX-Video 0.9.8 I2V. Family-level T2V labels are upstream capability metadata, not a current local route.
+  - The spatial upscaler runs automatically between the first and second denoising stages; it is not a separate Studio refiner switch.
+  - Full checkpoint-backed parity with the upstream LTX-Video pipeline remains pending.
 catalog_category: video
 catalog_scope: Official GitHub and/or Hugging Face confirmed open-source or open-weight video generation models. Checkpoints are not tracked in git; local validation may download selected repos under cache/hfd.
 catalog_policy:
@@ -66,11 +75,12 @@ catalog_policy:
 integration:
   status: integrated
   notes:
-    - WorldFoundry wraps the in-tree LTX-Video I2V runtime.
+    - WorldFoundry implements LTX-Video 0.9.8 with the same native transformer, VAE, scheduler, loader, and joint-state runner used by LTX-2.x.
+    - Transformers supplies the T5 architecture only; Diffusers is not used as an inference backend.
 runner_parity:
   status: pending
   notes:
-    - WorldFoundry LTX-Video I2V pipeline target is registered.
+    - WorldFoundry LTX-Video I2V native pipeline target is registered.
     - Broader T2V/I2V upstream parity remains a separate validation stage.
 variants:
   - id: ltx-video-i2v
@@ -83,5 +93,5 @@ variants:
     runner_parity:
       status: pending
       notes:
-        - The in-tree LTX-Video I2V route is wired; per-run artifact checks are
+        - The native LTX-Video I2V route is wired; per-run artifact checks are
           tracked outside the model catalog.

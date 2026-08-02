@@ -17,7 +17,6 @@ from .runner import (
     run_model_benchmark_suite,
 )
 
-
 WORLDFOUNDRY_RUN_RESULT_SCHEMA_VERSION = "worldfoundry-run-result"
 
 
@@ -37,6 +36,8 @@ class WorldFoundryRunRequest:
     engine: str = "auto"
     benchmark_mode: str = "official-run"
     execute: bool = True
+    model_workers: int = 1
+    worker_cuda_devices: Sequence[str] = ()
     resume: bool = False
     skip_incompatible: bool = True
     fail_on_skipped: bool = False
@@ -404,6 +405,8 @@ def _run_suite(request: WorldFoundryRunRequest, model_ids: Sequence[str], benchm
             benchmark_ids=tuple(benchmark_ids),
             mode=request.benchmark_mode,
             execute=request.execute,
+            model_workers=request.model_workers,
+            worker_cuda_devices=tuple(request.worker_cuda_devices),
             resume=request.resume,
             skip_incompatible=request.skip_incompatible,
             fail_on_skipped=request.fail_on_skipped,
@@ -423,7 +426,13 @@ def _should_run_suite(
     benchmark_ids: Sequence[str],
 ) -> bool:
     """Determine whether the requested parameters necessitate executing a multi-benchmark suite."""
-    if _suite_ids(request) or len(model_ids) > 1 or len(benchmark_ids) > 1:
+    if (
+        _suite_ids(request)
+        or len(model_ids) > 1
+        or len(benchmark_ids) > 1
+        or request.model_workers != 1
+        or bool(request.worker_cuda_devices)
+    ):
         return True
     return bool(benchmark_ids) and not request.execute
 

@@ -22,14 +22,15 @@ official_sources:
 integration:
   status: integrated
   notes:
-  - WorldFoundry vendors the official LongVie DiffSynth runtime under worldfoundry/synthesis/visual_generation/longvie/longvie_runtime.
+  - WorldFoundry implements LongVie over the canonical Wan model, encoders, VAE,
+    VACE/control roles, checkpoint loaders, and shared staged runner.
   - The LongVie-1 adapter uses the control-weight path without the optional LongVie
     2 DiT attention override; pass execute=True to run the checkpoint-backed GPU path.
 runner_parity:
   status: pending
   notes:
-  - The runner preserves the official LongVie direct DiffSynth pipeline, target 640x352
-    segment size, history/noise continuation state, VRAM management, and optional
+  - The native runner preserves the official target 640x352 segment size,
+    history/noise continuation state, VRAM management, and optional
     USP ring/ulysses controls.
   - Official release-parity evidence remains pending; per-run artifact checks are
     tracked outside the model catalog.

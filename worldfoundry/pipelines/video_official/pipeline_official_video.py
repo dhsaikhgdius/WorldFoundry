@@ -6,10 +6,10 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from worldfoundry.evaluation.models.pipelines.invocation import PipelineInvocation
-from worldfoundry.synthesis.visual_generation.memory.video import VideoArtifactMemory
 from worldfoundry.operators.runtime_video_operator import RuntimeVideoOperator
-from worldfoundry.pipelines.pipeline_utils import PipelineABC
 from worldfoundry.pipelines.lyra.lyra_utils import load_pil_image, materialize_image_input
+from worldfoundry.pipelines.pipeline_utils import PipelineABC
+from worldfoundry.synthesis.visual_generation.memory.video import VideoArtifactMemory
 from worldfoundry.synthesis.visual_generation.official_video_runtime import OfficialVideoRuntime
 
 
@@ -156,24 +156,6 @@ class FramePackPipeline(OfficialVideoPipeline):
     GENERATION_TYPE = "i2v"
 
 
-class HunyuanVideo15T2VPipeline(OfficialVideoPipeline):
-    """Pipeline implementation for HunyuanVideo15T2V visual generation."""
-    MODEL_ID = "hunyuanvideo-1.5-t2v"
-    GENERATION_TYPE = "t2v"
-
-
-class HunyuanVideo15I2VPipeline(OfficialVideoPipeline):
-    """Pipeline implementation for HunyuanVideo15I2V visual generation."""
-    MODEL_ID = "hunyuanvideo-1.5-i2v"
-    GENERATION_TYPE = "i2v"
-
-
-class HunyuanVideoI2VPipeline(OfficialVideoPipeline):
-    """Pipeline implementation for HunyuanVideo I2V visual generation."""
-    MODEL_ID = "hunyuanvideo-i2v"
-    GENERATION_TYPE = "i2v"
-
-
 class I2VGenXLPipeline(OfficialVideoPipeline):
     """Pipeline implementation for I2VGenXL visual generation."""
     MODEL_ID = "i2vgen-xl"
@@ -207,12 +189,6 @@ class OpenSoraPlanPipeline(OfficialVideoPipeline):
 class OpenSoraPipeline(OfficialVideoPipeline):
     """Pipeline implementation for OpenSora visual generation."""
     MODEL_ID = "open-sora"
-    GENERATION_TYPE = "t2v"
-
-
-class SkyReelsV2Pipeline(OfficialVideoPipeline):
-    """Pipeline implementation for SkyReelsV2 visual generation."""
-    MODEL_ID = "skyreels-v2"
     GENERATION_TYPE = "t2v"
 
 
@@ -276,17 +252,9 @@ class UniAnimateDiTPipeline(OfficialVideoPipeline):
     GENERATION_TYPE = "i2v"
 
 
-class Wan21VACEPipeline(OfficialVideoPipeline):
-    """Pipeline implementation for Wan21VACE visual generation."""
-    MODEL_ID = "wan2.1-vace"
-    GENERATION_TYPE = "v2v"
-
-
 __all__ = [
     "Emu35Pipeline",
     "FramePackPipeline",
-    "HunyuanVideo15I2VPipeline",
-    "HunyuanVideo15T2VPipeline",
     "I2VGenXLPipeline",
     "KreaRealtimeVideoPipeline",
     "MAGI1Pipeline",
@@ -299,10 +267,8 @@ __all__ = [
     "OfficialVideoPipeline",
     "Qwen25OmniPipeline",
     "SAMA14BPipeline",
-    "SkyReelsV2Pipeline",
     "SpatialLadderPipeline",
     "SpatialReasonerPipeline",
     "ThinkSoundPipeline",
     "UniAnimateDiTPipeline",
-    "Wan21VACEPipeline",
 ]

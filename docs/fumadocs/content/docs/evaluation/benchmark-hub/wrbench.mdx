@@ -74,17 +74,17 @@ Natural-25 camera intervention benchmark for persistent visual world state.
 PYTHONPATH=. ${WORLDFOUNDRY_UNIFIED_PYTHON:-python} worldfoundry/evaluation/tasks/execution/runners/wrbench/run_wrbench_official_runner.py --run-fixture --output-dir tmp/worldfoundry_preflight/wrbench --json
 ```
 
-## Run Evaluation
+## Run evaluation
 
 After preparing the assets and candidate artifacts listed on this page, use the public run entry points below.
 
-### Set Candidate Artifacts
+### Set candidate artifacts
 
 ```bash
 export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/generated/artifacts
 ```
 
-### Import Official Results
+### Import official results
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
@@ -96,7 +96,7 @@ worldfoundry-eval zoo benchmark-run \
   --json
 ```
 
-### Score Generated Artifacts
+### Score generated artifacts
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
@@ -107,7 +107,7 @@ worldfoundry-eval zoo benchmark-run \
   --json
 ```
 
-### Direct In-Tree Runner
+### Direct in-tree runner
 
 ```bash
 ${WORLDFOUNDRY_UNIFIED_PYTHON:-python} worldfoundry/evaluation/tasks/execution/runners/wrbench/run_wrbench_official_runner.py --benchmark-id wrbench --run-official --output-dir "$WORLDFOUNDRY_BENCHMARK_OUTPUT_DIR" --generated-artifact-dir "$WORLDFOUNDRY_GENERATED_ARTIFACT_DIR" --json

@@ -69,27 +69,31 @@ def native_sdpa_priority(
 ) -> tuple[str, ...]:
     """Return an exact PyTorch SDPA order for one workload.
 
-    Unmasked CUDA attention uses PyTorch's shape-aware dispatcher: cuDNN and
-    FlashAttention cross over at different sequence/head shapes even on one
-    GPU. Masked attention prefers cuDNN explicitly because PyTorch releases can
-    otherwise choose the slower memory-efficient path despite cuDNN supporting
-    the mask. The environment override remains available for offline tuning.
+    Ampere, Ada, and Hopper use PyTorch's shape-aware dispatcher: cuDNN and
+    FlashAttention cross over at different sequence/head/mask shapes even on
+    one GPU. Blackwell data-center and client targets prefer cuDNN before the
+    generic fallbacks because it is the architecture-native exact path; SM110
+    embedded targets retain PyTorch's automatic choice until physically
+    calibrated. The environment override remains available for offline tuning
+    on a concrete deployment.
     """
 
     configured = os.getenv("WORLDFOUNDRY_NATIVE_SDPA_PRIORITY", "").strip()
     if configured:
         known = {"cudnn", "flash", "efficient", "math"}
         requested = tuple(
-            item.strip().lower().replace("_attention", "")
-            for item in configured.split(",")
-            if item.strip()
+            item.strip().lower().replace("_attention", "") for item in configured.split(",") if item.strip()
         )
         invalid = tuple(item for item in requested if item not in known)
         if invalid:
             raise ValueError(f"Unknown native SDPA backends: {invalid}")
         return requested
 
-    parsed = torch.device("cuda", torch.cuda.current_device()) if device is None and torch.cuda.is_available() else torch.device(device or "cpu")
+    parsed = (
+        torch.device("cuda", torch.cuda.current_device())
+        if device is None and torch.cuda.is_available()
+        else torch.device(device or "cpu")
+    )
     if parsed.type != "cuda":
         return ("math",)
     if getattr(torch.version, "hip", None) is not None:
@@ -101,10 +105,11 @@ def native_sdpa_priority(
     except (AssertionError, RuntimeError, TypeError, ValueError):
         return ()
     if major >= 8:
-        if has_mask or major in {10, 12}:
+        if major in {10, 12}:
             # PyTorch's default order can reach efficient/math before cuDNN on
             # Blackwell even though cuDNN is the architecture-native exact
-            # path. Hopper remains shape-dispatched when no mask is present.
+            # path. Ampere, Ada, Hopper, and SM110 embedded Blackwell retain
+            # shape-dispatched selection for masked and unmasked workloads.
             return ("cudnn", "flash", "efficient", "math")
         return ()
     return ("efficient", "math")
@@ -199,7 +204,7 @@ def scaled_dot_product_attention(
                 key, value = _repeat_key_value_for_gqa(key, value, query)
                 kwargs.pop("enable_gqa", None)
                 output = sdpa(query, key, value, **kwargs)
-        return _zero_fully_masked_rows(output, attn_mask, query, key)
+        return normalize_fully_masked_rows(output, attn_mask, query, key)
 
     if enable_gqa:
         key, value = _repeat_key_value_for_gqa(key, value, query)
@@ -220,10 +225,10 @@ def scaled_dot_product_attention(
     if dropout_p:
         weights = F.dropout(weights, p=float(dropout_p), training=True)
     output = torch.matmul(weights, value)
-    return _zero_fully_masked_rows(output, attn_mask, query, key)
+    return normalize_fully_masked_rows(output, attn_mask, query, key)
 
 
-def _zero_fully_masked_rows(
+def normalize_fully_masked_rows(
     output: Any,
     attn_mask: Any,
     query: Any,
@@ -489,5 +494,6 @@ __all__ = [
     "attention_backend_info",
     "flattened_multihead_attention",
     "native_sdpa_priority",
+    "normalize_fully_masked_rows",
     "scaled_dot_product_attention",
 ]

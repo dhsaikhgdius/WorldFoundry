@@ -1,6 +1,6 @@
 schema_version: 2
 model_id: track-anything-prior
-display_name: Segment and Track Anything Prior
+display_name: Segment and Track Anything
 task_family: three_dimension
 groups:
 - 3d

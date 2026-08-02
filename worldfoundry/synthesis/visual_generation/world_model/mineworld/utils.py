@@ -4,7 +4,7 @@ import os
 from rich import print
 from typing import Union
 
-from worldfoundry.base_models.diffusion_model.video.lvdm.utils import (
+from worldfoundry.core.model_loading.factory import (
     get_obj_from_str,
     instantiate_from_config,
 )

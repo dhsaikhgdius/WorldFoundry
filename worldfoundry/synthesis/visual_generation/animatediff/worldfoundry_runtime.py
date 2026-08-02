@@ -16,9 +16,9 @@ from typing import Any, Sequence
 
 import numpy as np
 
+from worldfoundry.core.io import file_sha256
 from worldfoundry.evaluation.utils import REPO_ROOT, worldfoundry_data_path
 from worldfoundry.runtime.env import resolve_hfd_root
-
 
 # Default paths for AnimateDiff repository, integrated assets, configurations, and models.
 DEFAULT_ANIMATEDIFF_REPO_ROOT = Path(__file__).resolve().parent
@@ -133,7 +133,7 @@ class AnimateDiffRuntime:
         Returns:
             A hexadecimal string representing the SHA256 hash.
         """
-        return hashlib.sha256(path.read_bytes()).hexdigest()
+        return file_sha256(path)
 
     @staticmethod
     def frames_sha256(frames: Sequence[Any] | np.ndarray) -> str:
@@ -473,7 +473,7 @@ class AnimateDiffRuntime:
             "artifact_path": str(target),
             "artifact_size": target.stat().st_size,
             "frames_sha256": self.frames_sha256(frames),
-            "video_sha256": hashlib.sha256(target.read_bytes()).hexdigest(),
+            "video_sha256": file_sha256(target),
             "profile": self.profile.to_dict(),
             "runtime": "official_repo.AnimateDiff.AnimationPipeline",
             "motion_module_path": self.motion_module_path,

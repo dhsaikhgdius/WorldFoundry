@@ -63,14 +63,17 @@ _BACKEND_ALIASES: Mapping[str, str] = {
     "flash_attn": _FLASH_AUTO,
     "flash_attention": _FLASH_AUTO,
     "flash_attention_2": "flash_attention_2",
+    "flash2": "flash_attention_2",
     "flash_attn_2": "flash_attention_2",
     "flash_attn2": "flash_attention_2",
     "flash_attention_3": "flash_attention_3",
+    "flash3": "flash_attention_3",
     "flash_attn_3": "flash_attention_3",
     "flash_attn3": "flash_attention_3",
     "sage": "sage_attention",
     "sage_attn": "sage_attention",
     "sage_attention": "sage_attention",
+    "sageattn": "sage_attention",
     "sage_attn_three": "sage_attention_3",
     "sage_attention_3": "sage_attention_3",
     "sage3": "sage_attention_3",
@@ -78,6 +81,8 @@ _BACKEND_ALIASES: Mapping[str, str] = {
     "xformers_attention": "xformers",
     "video_sparse_attn": "video_sparse_attention",
     "video_sparse_attention": "video_sparse_attention",
+    "flex_block_attn": "flex_block_attention",
+    "flex_block_attention": "flex_block_attention",
     "vmoba": "vmoba_attention",
     "vmoba_attn": "vmoba_attention",
     "vmoba_attention": "vmoba_attention",
@@ -98,6 +103,7 @@ _REPORT_PRIORITY = (
 )
 _EXPLICIT_PRIORITY = ("sage_attention_3",)
 _EXPERIMENTAL_PRIORITY = (
+    "flex_block_attention",
     "video_sparse_attention",
     "vmoba_attention",
     "sla_attention",
@@ -159,6 +165,10 @@ def _probe_attention_backends_cached(
     flash_gpu = capability is not None and capability[0] in {8, 9}
     flash3_gpu = capability == (9, 0)
     sage_gpu = capability is not None and capability[0] in {8, 9}
+    # Keep this aligned with the architectures compiled by SageAttention3's
+    # upstream Blackwell extension.  In particular, its current build does not
+    # target SM103, so B300/GB300 must retain exact cuDNN/SDPA rather than being
+    # accepted merely because they share the Blackwell generation name.
     sage3_gpu = capability in {(10, 0), (12, 0), (12, 1)}
     return {
         "flash_attention_3": _package_capability(
@@ -203,6 +213,13 @@ def _probe_attention_backends_cached(
             usable_if=nvidia_cuda,
             unavailable_reason="video sparse attention kernel package is not installed",
             unusable_reason="Video sparse attention requires CUDA and model-specific kernels",
+        ),
+        "flex_block_attention": _package_capability(
+            name="flex_block_attention",
+            package="flex_block_attn",
+            usable_if=nvidia_cuda,
+            unavailable_reason="flex_block_attn is not installed",
+            unusable_reason="FlexBlockAttention requires an NVIDIA CUDA device",
         ),
         "vmoba_attention": _package_capability(
             name="vmoba_attention",

@@ -55,7 +55,16 @@ sync_to_local() {
   sync_repo_links
   (
     cd "${LOCAL_FUMADOCS}"
-    export PATH="${WF_DOCS_NODE_BIN:-/mnt/cpfs/yangboxue/visual_generation/juanxi/shell-config/codex/node/bin}:/mnt/cpfs/yangboxue/visual_generation/juanxi/shell-config/codex/npm-global/bin:${PATH}"
+    if [[ -n "${WF_DOCS_NODE_BIN:-}" ]]; then
+      export PATH="${WF_DOCS_NODE_BIN}:${PATH}"
+    fi
+    if [[ -n "${WF_DOCS_NPM_BIN:-}" ]]; then
+      export PATH="${WF_DOCS_NPM_BIN}:${PATH}"
+    fi
+    if ! command -v npm >/dev/null 2>&1; then
+      echo "npm is required; install Node.js or set WF_DOCS_NODE_BIN/WF_DOCS_NPM_BIN" >&2
+      exit 1
+    fi
     npm run mdx:generate
   )
   echo "Local mirror ready at ${LOCAL_FUMADOCS}"
@@ -91,6 +100,8 @@ Commands:
 
 Environment:
   WF_DOCS_LOCAL_ROOT  Override local repo root (default: /tmp/wf-docs-dev/WorldFoundry)
+  WF_DOCS_NODE_BIN    Optional directory containing node/npm executables
+  WF_DOCS_NPM_BIN     Optional directory containing global npm executables
 EOF
 }
 

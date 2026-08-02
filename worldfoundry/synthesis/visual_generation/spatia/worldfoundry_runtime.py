@@ -59,11 +59,6 @@ class SpatiaRuntime:
         return Path(__file__).resolve().parent / "spatia_runtime"
 
     @staticmethod
-    def diffsynth_root() -> Path:
-        worldfoundry_root = Path(__file__).resolve().parents[3]
-        return worldfoundry_root / "base_models" / "diffusion_model"
-
-    @staticmethod
     def project_root() -> Path:
         return Path(__file__).resolve().parents[4]
 
@@ -204,7 +199,6 @@ class SpatiaRuntime:
             python_paths=(
                 self.project_root(),
                 self.repo_root,
-                self.diffsynth_root(),
                 self.mapanything_root(),
                 self.uniception_root(),
             ),

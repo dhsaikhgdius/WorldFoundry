@@ -1,9 +1,9 @@
 import math
+
 import torch
 import torch.nn as nn
-from einops import rearrange, repeat
 
-from worldfoundry.base_models.diffusion_model.video.hunyuan_video.utils.helpers import to_2tuple
+from worldfoundry.core.nn.layers import to_2tuple
 
 
 class PatchEmbed(nn.Module):

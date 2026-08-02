@@ -194,7 +194,7 @@ def main():
 
     from PIL import Image
 
-    from worldfoundry.base_models.diffusion_model.video.wan.configs.action_wan2p2 import MAX_AREA_CONFIGS, WAN_CONFIGS
+    from worldfoundry.base_models.diffusion_model.recipes.wan_configs.action_22 import MAX_AREA_CONFIGS, WAN_CONFIGS
     import pipeline.inference_pipeline as mg3_inference
     from utils.cam_utils import get_extrinsics
     from worldfoundry.core.utils.torch_utils import set_seed_everywhere

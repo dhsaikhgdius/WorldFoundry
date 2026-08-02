@@ -20,7 +20,7 @@ import os
 import torch
 import torch.distributed.checkpoint as dcp
 
-from worldfoundry.base_models.diffusion_model.video.cosmos.cosmos2.runtime.cosmos_predict2.cosmos_predict2._src.predict2.checkpointer.dcp import (
+from worldfoundry.core.checkpoint.dcp import (
     DefaultLoadPlanner,
     DistributedCheckpointer,
     ModelWrapper,

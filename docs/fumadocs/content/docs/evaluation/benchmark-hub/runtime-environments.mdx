@@ -68,7 +68,7 @@ test -x "$EVALCRAFTER_PYTHON"
 
 Calling `"$EVALCRAFTER_PYTHON"` directly is the environment switch; shell activation is not required. This profile now mirrors the official pinned revision: Python 3.9.17, pip 23.2.1, Torch 2.0.1, torchvision 0.15.2, TensorFlow 2.12.0, PaddlePaddle-GPU 2.5.1, MMCV 2.0.1, and MMAction2 1.1.0. The official RAFT native extension and checkpoint tree are separate preparation steps. Environment installation or import verification is not evidence that the full 700-video suite passed. See the [EvalCrafter page](/docs/evaluation/benchmark-hub/evalcrafter) for the pinned upstream checkout, CUDA 11.7 note, checkpoint layout, bounded raw-video command, and official-result import.
 
-## Video Generation benchmarks — 30
+## Video generation benchmarks — 30
 
 | Benchmark | Boundary and extra configuration | Verified scope / current blocker |
 | --- | --- | --- |
@@ -103,11 +103,11 @@ Calling `"$EVALCRAFTER_PYTHON"` directly is the environment switch; shell activa
 | [Visual Chronometer](/docs/evaluation/benchmark-hub/visual-chronometer) | **U + metric stack**; stage `vc_common_10_60fps.ckpt` or import a compatible `results.csv`. | Runtime/normalizer surfaces exist; no release-verified full official run is claimed. |
 | [MemoBench](/docs/evaluation/benchmark-hub/memobench) | **U + service/metric stack**; Step 1 uses local metrics, while full ORS/VQA needs SAM-3 and Gemini-compatible judge access. | Step 1 only is runnable; this must not be reported as the full MemoBench suite. |
 
-## World Model benchmarks — 12
+## World model benchmarks — 12
 
 | Benchmark | Boundary and extra configuration | Verified scope / current blocker |
 | --- | --- | --- |
-| [WorldModelBench](/docs/evaluation/benchmark-hub/worldmodelbench) | **U + metric stack**; provide the 350-instance data root and a VILA-compatible judge checkpoint/model id. | Result import and manifest coverage checks are verified; full judge checkpoint execution is not. |
+| [WorldModelBench](/docs/evaluation/benchmark-hub/worldmodelbench) | **U + metric stack**; provide the 350-instance data root and a VILA-compatible judge checkpoint/model ID. | Result import and manifest coverage checks are verified; full judge checkpoint execution is not. |
 | [WorldScore](/docs/evaluation/benchmark-hub/worldscore) | **U + metric stack**; full metrics need DROID/`lietorch`, GroundingDINO, SAM, optical-flow/interpolation, Mamba, and matching checkpoints/extensions. | A bounded dynamic component is verified; full metric-tree execution is not. |
 | [WorldBench](/docs/evaluation/benchmark-hub/worldbench) | **U** for official-result normalization only. | No confirmed redistributable official raw-video evaluator is in tree; `official-run` from videos is unavailable. |
 | [WBench](/docs/evaluation/benchmark-hub/wbench) | **U + metric stack**; full multi-turn scoring needs the WBench metric assets and official case layout. | A real single-video temporal-flicker component is verified; the 289-case multi-turn protocol is not. |
@@ -118,6 +118,7 @@ Calling `"$EVALCRAFTER_PYTHON"` directly is the environment switch; shell activa
 | [EWMBench](/docs/evaluation/benchmark-hub/ewmbench) | **U** for result normalization; full evaluation needs official judge assets, result files, and complete generated outputs. | Normalizer only; upstream judge execution is pending. |
 | [4DWorldBench](/docs/evaluation/benchmark-hub/4dworldbench) | **U + metric stack/service**; selected dimensions may need Keye-VL, DROID/`lietorch`, FAST-VQA, Qwen utilities, or an OpenAI-compatible judge. | Official runtime path exists, but real-data full-suite validation is pending. |
 | [WorldReasonBench](/docs/evaluation/benchmark-hub/worldreasonbench) | **U + service**; real QA/reward evaluation needs restricted official assets and an OpenAI-compatible multimodal endpoint. The server has its own environment. | Result normalization/QA component code exists; no complete official judge run is claimed. |
+| [WorldOlympiad](/docs/evaluation/benchmark-hub/worldolympiad) | **U + metric stack/services**; the official evaluator is checked in, so no external checkout is needed. Scored runs additionally need the DA3 source tree (`--da3-src`), DA3/SAM3/QwenVL/CLIP weights (`--weights-dir`), and running QwenVL, SAM3, and DA3 reward services. | The in-tree batch plan (`--run-official --dry-run`) and judge-output normalization are verified; no scored triathlon run is claimed. |
 | [WRBench](/docs/evaluation/benchmark-hub/wrbench) | **U + metric stack**; full D1–D6 scoring needs a runtime config pointing to VGGT-Omega, DINOv2, Qwen3.5, and Qwen3-VL checkpoints. | Natural-25 request materialization and result normalization are available; full D1–D6 execution is unverified. |
 
 ## Rules for additional environments
