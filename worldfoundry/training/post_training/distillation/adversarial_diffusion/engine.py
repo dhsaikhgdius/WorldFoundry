@@ -111,8 +111,6 @@ class NativeADDTrainEngine:
             raise ValueError("ADD student, teacher, decoder, discriminator, and feature modules must be distinct")
         if not isinstance(loss_adapter, ADDLossAdapter):
             raise TypeError("loss_adapter must implement ADDLossAdapter")
-        if not isinstance(loss_adapter.config_digest, str) or not loss_adapter.config_digest:
-            raise ValueError("ADD loss adapter config_digest must be a non-empty string")
         for role, module in (
             ("teacher", teacher_module),
             ("decoder", decoder_module),
@@ -185,10 +183,6 @@ class NativeADDTrainEngine:
         self.discriminator_optimizer_steps = 0
         self._phase = "idle"
         self._poisoned = False
-
-    @property
-    def config_digest(self) -> str:
-        return str(self.loss_adapter.config_digest)
 
     def _backward_role(
         self,
@@ -402,7 +396,6 @@ class NativeADDTrainEngine:
             "discriminator_max_grad_norm": self.discriminator_max_grad_norm,
             "student_scheduler_enabled": self.student_scheduler is not None,
             "discriminator_scheduler_enabled": self.discriminator_scheduler is not None,
-            "config_digest": self.config_digest,
             "data_parallel_size": self.parallel_context.world_size,
         }
 
@@ -420,15 +413,12 @@ class NativeADDTrainEngine:
             "discriminator_max_grad_norm",
             "student_scheduler_enabled",
             "discriminator_scheduler_enabled",
-            "config_digest",
             "data_parallel_size",
         }
         if set(state_dict) != expected:
             raise ValueError("ADD engine state fields differ from the active schema")
         if state_dict["schema"] != ADD_ENGINE_STATE_SCHEMA:
             raise ValueError(f"unsupported ADD engine schema: {state_dict['schema']!r}")
-        if str(state_dict["config_digest"]) != self.config_digest:
-            raise ValueError("saved ADD objective differs from the active engine")
         for name, active in (
             ("discriminator_updates_per_generator", self.discriminator_updates_per_generator),
             ("gradient_accumulation_steps", self.gradient_accumulation_steps),

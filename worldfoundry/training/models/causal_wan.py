@@ -24,9 +24,6 @@ SELF_FORCING_ODE_CHECKPOINT = CheckpointSpec(
     repo_id="gdhe17/Self-Forcing",
     revision="47f4d3cf430cf000fcad587ba02c83ed971bba69",
     files=("checkpoints/ode_init.pt",),
-    file_sha256={
-        "checkpoints/ode_init.pt": "b5396b8076ab3b920c9e4f4a2b52daa2c98c9983fb5e067ae5160fdf778dce21",
-    },
     file_size_bytes={"checkpoints/ode_init.pt": 5_676_203_690},
 )
 

@@ -149,9 +149,17 @@ def read_jsonl_objects(path: str | Path) -> list[dict[str, Any]]:
 def _atomic_write_text(path: Path, text: str, *, atomic: bool) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     if atomic:
-        tmp_path = path.with_name(f".{path.name}.tmp")
-        tmp_path.write_text(text, encoding="utf-8")
-        tmp_path.replace(path)
+        # Unique sibling temp name (same pattern as ``write_jsonl``): a fixed
+        # ``.name.tmp`` would let two concurrent writers truncate each other's
+        # temp file and publish interleaved content.
+        tmp_path = path.with_name(f".{path.name}.{uuid4().hex}.tmp")
+        try:
+            with tmp_path.open("x", encoding="utf-8") as handle:
+                handle.write(text)
+            tmp_path.replace(path)
+        except BaseException:
+            tmp_path.unlink(missing_ok=True)
+            raise
     else:
         path.write_text(text, encoding="utf-8")
     return path
@@ -315,7 +323,15 @@ def load_serialized(
     encoding: str = "utf-8",
     **kwargs: Any,
 ) -> Any:
-    """Load a structured object from a URI or file object."""
+    """Load a structured object from a URI or file object.
+
+    Trust boundary (CF-37): the ``.pkl``/``.pickle`` and ``.gz`` branches call
+    ``pickle.loads``, which executes arbitrary code embedded in the payload --
+    only load pickle files from sources you would run as code (torch formats
+    default to ``weights_only=True`` and do not have this exposure). ``.gz``
+    is additionally assumed to be gzip-compressed pickle; use an explicit
+    ``file_format`` for other gzipped content.
+    """
 
     fmt = infer_serialization_format(file, file_format)
     if fmt in _BYTE_FORMATS:

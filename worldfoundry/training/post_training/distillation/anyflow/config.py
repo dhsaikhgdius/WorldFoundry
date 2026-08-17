@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from math import isfinite
 
 from worldfoundry.core.attention.chunk_partition import TemporalChunkPartition
-from worldfoundry.core.io.integrity import canonical_sha256
 
 
 def _finite(value: object, *, field_name: str, positive: bool = False) -> float:
@@ -21,6 +20,25 @@ def _positive_integer(value: object, *, field_name: str) -> int:
     if isinstance(value, bool) or int(value) != value or int(value) <= 0:
         raise ValueError(f"{field_name} must be a positive integer")
     return int(value)
+
+
+def _training_schedule(instance: object) -> None:
+    scheduler = str(getattr(instance, "lr_scheduler")).strip().lower().replace("_", "-")
+    if scheduler != "constant-with-warmup":
+        raise ValueError("AnyFlow lr_scheduler must be 'constant-with-warmup'")
+    warmup = getattr(instance, "lr_warmup_steps")
+    ema_warmup = getattr(instance, "ema_warmup_steps")
+    if isinstance(warmup, bool) or int(warmup) < 0:
+        raise ValueError("lr_warmup_steps must be a non-negative integer")
+    if isinstance(ema_warmup, bool) or int(ema_warmup) < 0:
+        raise ValueError("ema_warmup_steps must be a non-negative integer")
+    decay = _finite(getattr(instance, "ema_decay"), field_name="ema_decay")
+    if not 0 <= decay < 1:
+        raise ValueError("ema_decay must lie in [0,1)")
+    object.__setattr__(instance, "lr_scheduler", scheduler)
+    object.__setattr__(instance, "lr_warmup_steps", int(warmup))
+    object.__setattr__(instance, "ema_decay", decay)
+    object.__setattr__(instance, "ema_warmup_steps", int(ema_warmup))
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,6 +137,10 @@ class AnyFlowPretrainConfig:
     far: AnyFlowFARConfig = field(default_factory=AnyFlowFARConfig)
     bidirectional_modeling_probability: float = 0.1
     conditioning_dropout_probability: float = 0.1
+    lr_scheduler: str = "constant-with-warmup"
+    lr_warmup_steps: int = 1000
+    ema_decay: float = 0.999
+    ema_warmup_steps: int = 1000
 
     def __post_init__(self) -> None:
         if not isinstance(self.flow_map, AnyFlowMapConfig):
@@ -143,10 +165,7 @@ class AnyFlowPretrainConfig:
             probability,
         )
         object.__setattr__(self, "conditioning_dropout_probability", dropout)
-
-    @property
-    def digest(self) -> str:
-        return canonical_sha256({"schema": "worldfoundry-anyflow-pretrain", **asdict(self)})
+        _training_schedule(self)
 
 
 @dataclass(frozen=True, slots=True)
@@ -169,6 +188,8 @@ class AnyFlowOnPolicyConfig:
     discriminator_update_ratio: int = 1
     ema_decay: float = 0.99
     ema_warmup_steps: int = 200
+    lr_scheduler: str = "constant-with-warmup"
+    lr_warmup_steps: int = 0
     synchronized_seed: int = 0
 
     def __post_init__(self) -> None:
@@ -232,11 +253,7 @@ class AnyFlowOnPolicyConfig:
             self.discriminator_update_ratio,
             field_name="discriminator_update_ratio",
         )
-        decay = _finite(self.ema_decay, field_name="ema_decay")
-        if not 0 <= decay < 1:
-            raise ValueError("ema_decay must lie in [0,1)")
-        if isinstance(self.ema_warmup_steps, bool) or int(self.ema_warmup_steps) < 0:
-            raise ValueError("ema_warmup_steps must be a non-negative integer")
+        _training_schedule(self)
         if isinstance(self.synchronized_seed, bool) or int(self.synchronized_seed) < 0:
             raise ValueError("synchronized_seed must be a non-negative integer")
         object.__setattr__(self, "inference_steps", schedule)
@@ -254,13 +271,7 @@ class AnyFlowOnPolicyConfig:
         )
         object.__setattr__(self, "conditioning_dropout_probability", dropout)
         object.__setattr__(self, "discriminator_update_ratio", ratio)
-        object.__setattr__(self, "ema_decay", decay)
-        object.__setattr__(self, "ema_warmup_steps", int(self.ema_warmup_steps))
         object.__setattr__(self, "synchronized_seed", int(self.synchronized_seed))
-
-    @property
-    def digest(self) -> str:
-        return canonical_sha256({"schema": "worldfoundry-anyflow-on-policy", **asdict(self)})
 
 
 @dataclass(frozen=True, slots=True)
@@ -270,6 +281,10 @@ class AnyFlowBidirectionalPretrainConfig:
     flow_map: AnyFlowMapConfig = field(default_factory=AnyFlowMapConfig)
     image_conditioning_probability: float = 0.0
     conditioning_dropout_probability: float = 0.1
+    lr_scheduler: str = "constant-with-warmup"
+    lr_warmup_steps: int = 1000
+    ema_decay: float = 0.999
+    ema_warmup_steps: int = 1000
 
     def __post_init__(self) -> None:
         if not isinstance(self.flow_map, AnyFlowMapConfig):
@@ -288,10 +303,7 @@ class AnyFlowBidirectionalPretrainConfig:
             raise ValueError("conditioning_dropout_probability must lie in [0,1]")
         object.__setattr__(self, "image_conditioning_probability", probability)
         object.__setattr__(self, "conditioning_dropout_probability", dropout)
-
-    @property
-    def digest(self) -> str:
-        return canonical_sha256({"schema": "worldfoundry-anyflow-bidirectional-pretrain", **asdict(self)})
+        _training_schedule(self)
 
 
 @dataclass(frozen=True, slots=True)
@@ -313,6 +325,8 @@ class AnyFlowBidirectionalOnPolicyConfig:
     discriminator_update_ratio: int = 1
     ema_decay: float = 0.99
     ema_warmup_steps: int = 200
+    lr_scheduler: str = "constant-with-warmup"
+    lr_warmup_steps: int = 0
     synchronized_seed: int = 0
 
     def __post_init__(self) -> None:
@@ -374,11 +388,7 @@ class AnyFlowBidirectionalOnPolicyConfig:
             self.discriminator_update_ratio,
             field_name="discriminator_update_ratio",
         )
-        decay = _finite(self.ema_decay, field_name="ema_decay")
-        if not 0 <= decay < 1:
-            raise ValueError("ema_decay must lie in [0,1)")
-        if isinstance(self.ema_warmup_steps, bool) or int(self.ema_warmup_steps) < 0:
-            raise ValueError("ema_warmup_steps must be a non-negative integer")
+        _training_schedule(self)
         if isinstance(self.synchronized_seed, bool) or int(self.synchronized_seed) < 0:
             raise ValueError("synchronized_seed must be a non-negative integer")
         object.__setattr__(self, "inference_steps", schedule)
@@ -392,14 +402,7 @@ class AnyFlowBidirectionalOnPolicyConfig:
         object.__setattr__(self, "image_conditioning_probability", image_probability)
         object.__setattr__(self, "conditioning_dropout_probability", dropout)
         object.__setattr__(self, "discriminator_update_ratio", ratio)
-        object.__setattr__(self, "ema_decay", decay)
-        object.__setattr__(self, "ema_warmup_steps", int(self.ema_warmup_steps))
         object.__setattr__(self, "synchronized_seed", int(self.synchronized_seed))
-
-    @property
-    def digest(self) -> str:
-        return canonical_sha256({"schema": "worldfoundry-anyflow-bidirectional-on-policy", **asdict(self)})
-
 
 __all__ = [
     "AnyFlowBidirectionalOnPolicyConfig",

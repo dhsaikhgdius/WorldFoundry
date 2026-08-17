@@ -24,8 +24,12 @@
 # pylint: disable=undefined-loop-variable
 
 import sys
+from pathlib import Path
 
-sys.path.append("base/droid_slam")
+# Modified by WorldFoundry: anchor the DROID-SLAM import path to this file's
+# location; upstream appended the CWD-relative "base/droid_slam", which only
+# resolved when the process CWD happened to be the mega_sam runtime root.
+sys.path.append(str(Path(__file__).resolve().parents[1] / "base" / "droid_slam"))
 
 from tqdm import tqdm
 import numpy as np

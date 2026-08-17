@@ -1,3 +1,9 @@
+
+import pytest
+
+# This test module imports worldfoundry code that requires the optional
+# "omegaconf" dependency at import time; skip when it is unavailable.
+pytest.importorskip("omegaconf")
 from types import SimpleNamespace
 
 import torch

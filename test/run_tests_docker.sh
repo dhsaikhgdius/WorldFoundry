@@ -15,7 +15,7 @@ Use `make:<target>` as the first argument to run a Make target instead.
 Examples:
   test/run_tests_docker.sh
   test/run_tests_docker.sh test/eval_core/test_cli_ux.py
-  test/run_tests_docker.sh make:test-ux
+  test/run_tests_docker.sh make:test-training
 
 Environment overrides:
   WORLDFOUNDRY_TEST_IMAGE         Docker image. Default: nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04

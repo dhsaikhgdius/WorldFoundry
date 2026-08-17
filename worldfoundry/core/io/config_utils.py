@@ -1,6 +1,14 @@
-"""Hydra/OmegaConf helpers: resolvers, class registry, and config instantiation."""
+"""Hydra/OmegaConf helpers: resolvers, class registry, and config instantiation.
+
+LEGACY (vendored jimfan-utils lineage): frozen API kept for existing callers.
+This is the ``cls``/``class`` instantiation vocabulary; do not adopt it in new
+code -- use ``worldfoundry.core.configuration.lazy_config.instantiate``
+(``_target_``) or ``worldfoundry.core.model_loading.factory`` instead, and
+``worldfoundry.core.registry.TypedRegistry`` for new registries.
+"""
 
 import importlib.resources
+import logging
 import os
 import sys
 from copy import deepcopy
@@ -12,18 +20,28 @@ from omegaconf import DictConfig, OmegaConf
 from ..utils.functional_utils import call_once, is_mapping, is_sequence, meta_decorator
 from .print_utils import to_scientific_str
 
+_logger = logging.getLogger(__name__)
+
 _CLASS_REGISTRY = {}  # for instantiation
 
 
 def resource_file_path(pkg_name, fname) -> str:
-    """Return the absolute path to a package resource file."""
+    """Return the absolute path to a package resource file.
+
+    Caveat: for zip/wheel installs where the resource is materialized to a
+    temporary file, that file is deleted when the internal context manager
+    exits, so the returned path may not exist. Reliable only for regular
+    on-disk installs (the current deployment model).
+    """
     with importlib.resources.path(pkg_name, fname) as p:
         return str(p)
 
 
 def print_config(cfg: DictConfig) -> None:
     """Print a resolved Hydra config to stdout."""
-    print(cfg.pretty(resolve=True))
+    # DictConfig.pretty() was removed in omegaconf 2.1; to_yaml is the
+    # supported replacement.
+    print(OmegaConf.to_yaml(cfg, resolve=True))
 
 
 def is_hydra_initialized() -> bool:
@@ -109,23 +127,33 @@ def register_omegaconf_resolvers() -> None:
 # ---------------------------------------------------------------------------
 
 
+def _registry_put(name, class_type) -> None:
+    """Insert into the legacy registry, warning on silent replacement."""
+    existing = _CLASS_REGISTRY.get(name)
+    if existing is not None and existing is not class_type:
+        _logger.warning(
+            "config_utils class registry: %r is being re-registered (%r replaces %r)", name, class_type, existing
+        )
+    _CLASS_REGISTRY[name] = class_type
+
+
 def register_callable(name, class_type) -> None:
     """Register a callable in the class registry under *name*."""
     if isinstance(class_type, str):
         class_type, name = name, class_type
     assert callable(class_type)
-    _CLASS_REGISTRY[name] = class_type
+    _registry_put(name, class_type)
 
 
 @meta_decorator
 def register_class(cls, alias=None):
     """Decorator that registers a class (and optional aliases) for config instantiation."""
     assert callable(cls)
-    _CLASS_REGISTRY[cls.__name__] = cls
+    _registry_put(cls.__name__, cls)
     if alias:
         assert is_sequence(alias)
         for a in alias:
-            _CLASS_REGISTRY[str(a)] = cls
+            _registry_put(str(a), cls)
     return cls
 
 
@@ -216,7 +244,7 @@ def _instantiate_single(cfg):
             class_type = get_class(cls)
             return class_type(*args, **kwargs)
         except Exception as e:
-            raise RuntimeError(f"Error instantiating {cls}: {e}")
+            raise RuntimeError(f"Error instantiating {cls}: {e}") from e
     else:
         return None
 

@@ -338,7 +338,11 @@ class UniDepthV2(
             model_file: The model file.
         """
         device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-        dict_model = torch.load(model_file, map_location=device, weights_only=False)
+        # Modified by WorldFoundry: was ``weights_only=False``. This entry point
+        # only consumes a tensor state dict (optionally nested under 'model'),
+        # so unrestricted pickle deserialization is not needed
+        # (plan/code_review/11_vendored_integration.md [VI-23]).
+        dict_model = torch.load(model_file, map_location=device, weights_only=True)
         if "model" in dict_model:
             dict_model = dict_model["model"]
         dict_model = {k.replace("module.", ""): v for k, v in dict_model.items()}

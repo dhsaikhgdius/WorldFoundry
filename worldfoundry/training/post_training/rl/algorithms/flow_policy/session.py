@@ -16,10 +16,14 @@ from ....rewards.scalarization import (
     RewardScalarizationResult,
     WeightedRewardScalarizer,
 )
-from ...contracts import FlowRolloutBatch, FlowTrajectory, TrajectoryRewardAdapter
+from ...contracts import (
+    FlowRolloutBatch,
+    FlowTrajectory,
+    FlowTrajectorySamplingAdapter,
+    TrajectoryRewardAdapter,
+)
 from ...rollout_strategies.contracts import FlowSDEIndexResolver
 from ...rollout_strategies.sparse_sde_steps import FlowSDEIndexSchedule
-from ...trajectory import FlowTrajectorySampler
 from .engine import FlowPolicyStepResult, NativeFlowPolicyEngine
 
 
@@ -43,7 +47,7 @@ class NativeFlowPolicyTrainingSession:
     def __init__(
         self,
         *,
-        sampler: FlowTrajectorySampler,
+        sampler: FlowTrajectorySamplingAdapter,
         reward_adapter: TrajectoryRewardAdapter,
         scalarizer: WeightedRewardScalarizer,
         engine: NativeFlowPolicyEngine,
@@ -60,8 +64,8 @@ class NativeFlowPolicyTrainingSession:
         asynchronous_checkpoints: bool = False,
         event_sink: Callable[[Mapping[str, object]], None] | None = None,
     ) -> None:
-        if not isinstance(sampler, FlowTrajectorySampler):
-            raise TypeError("sampler must be FlowTrajectorySampler")
+        if not isinstance(sampler, FlowTrajectorySamplingAdapter):
+            raise TypeError("sampler must implement FlowTrajectorySamplingAdapter")
         if not isinstance(reward_adapter, TrajectoryRewardAdapter):
             raise TypeError("reward_adapter must implement TrajectoryRewardAdapter")
         if not isinstance(scalarizer, WeightedRewardScalarizer):

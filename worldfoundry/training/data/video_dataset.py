@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import math
-from collections.abc import Iterator, Sequence
+import random
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import overload
@@ -11,16 +12,17 @@ from typing import overload
 import torch
 import torch.nn.functional as torch_functional
 
-from worldfoundry.core.io.integrity import canonical_sha256
 from worldfoundry.training.api.contracts import TrainingBatch
 
 from .dataset import TrainingManifestDataset
-from .manifest import TrainingSample, file_sha256, resolve_local_media_path
+from .manifest import TrainingSample, resolve_local_media_path
 from .video_bucketing import VideoBucketAssignment, VideoBucketKey
 
 VIDEO_DECODE_TRANSFORM_SCHEMA = "worldfoundry-video-decode-transform"
-_FRAME_SAMPLING_MODES = frozenset({"head", "uniform-full"})
+_FRAME_SAMPLING_MODES = frozenset({"head", "seeded-random-contiguous", "uniform-full"})
 _INTERPOLATION_MODES = frozenset({"bilinear", "bicubic"})
+_RESIZE_ROUNDING_MODES = frozenset({"ceil", "floor"})
+_SPATIAL_TRANSFORM_MODES = frozenset({"cover-resize-center-crop", "direct-resize"})
 _VALUE_RANGES = frozenset({"zero-one", "minus-one-one"})
 _THREAD_TYPES = frozenset({"auto", "slice"})
 
@@ -48,6 +50,8 @@ def video_frame_indices(
     target_num_frames: int,
     *,
     mode: str,
+    seed: int = 0,
+    sample_index: int = 0,
 ) -> tuple[int, ...]:
     """Return exact decoded-frame ordinals without floating-point rounding."""
 
@@ -60,6 +64,9 @@ def video_frame_indices(
         raise ValueError(f"frame sampling mode must be one of {sorted(_FRAME_SAMPLING_MODES)}")
     if resolved_mode == "head":
         return tuple(range(target))
+    if resolved_mode == "seeded-random-contiguous":
+        start = random.Random(int(seed) + int(sample_index)).randint(0, source - target)
+        return tuple(range(start, start + target))
     if target == 1:
         return ((source - 1) // 2,)
     denominator = target - 1
@@ -74,10 +81,12 @@ def video_frame_indices(
 @dataclass(frozen=True, slots=True)
 class VideoDecodeConfig:
     frame_sampling: str = "head"
+    frame_sampling_seed: int = 0
     interpolation: str = "bicubic"
+    resize_rounding: str = "ceil"
+    spatial_transform: str = "cover-resize-center-crop"
     value_range: str = "minus-one-one"
     decoder_thread_type: str = "auto"
-    verify_media_sha256: bool = False
     verify_manifest_frame_count: bool = True
     verify_manifest_geometry: bool = True
     fps_tolerance: float = 0.05
@@ -89,6 +98,8 @@ class VideoDecodeConfig:
         for name, supported in (
             ("frame_sampling", _FRAME_SAMPLING_MODES),
             ("interpolation", _INTERPOLATION_MODES),
+            ("resize_rounding", _RESIZE_ROUNDING_MODES),
+            ("spatial_transform", _SPATIAL_TRANSFORM_MODES),
             ("value_range", _VALUE_RANGES),
             ("decoder_thread_type", _THREAD_TYPES),
         ):
@@ -96,8 +107,8 @@ class VideoDecodeConfig:
             if value not in supported:
                 raise ValueError(f"{name} must be one of {sorted(supported)}")
             object.__setattr__(self, name, value)
+        object.__setattr__(self, "frame_sampling_seed", int(self.frame_sampling_seed))
         for name in (
-            "verify_media_sha256",
             "verify_manifest_frame_count",
             "verify_manifest_geometry",
         ):
@@ -113,18 +124,16 @@ class VideoDecodeConfig:
         return {
             "schema": self.schema,
             "frame_sampling": self.frame_sampling,
+            "frame_sampling_seed": self.frame_sampling_seed,
             "interpolation": self.interpolation,
+            "resize_rounding": self.resize_rounding,
+            "spatial_transform": self.spatial_transform,
             "value_range": self.value_range,
             "decoder_thread_type": self.decoder_thread_type,
-            "verify_media_sha256": self.verify_media_sha256,
             "verify_manifest_frame_count": self.verify_manifest_frame_count,
             "verify_manifest_geometry": self.verify_manifest_geometry,
             "fps_tolerance": self.fps_tolerance,
         }
-
-    @property
-    def digest(self) -> str:
-        return canonical_sha256(self.to_dict())
 
 
 @dataclass(frozen=True, slots=True)
@@ -137,8 +146,8 @@ class DecodedVideoSample:
     selected_frame_indices: tuple[int, ...]
     decoded_frame_count: int
     decoded_fps: float | None
-    frame_sampling_digest: str
-    spatial_transform_digest: str
+    frame_sampling: Mapping[str, object]
+    spatial_transform: Mapping[str, object]
 
     def __post_init__(self) -> None:
         if not str(self.sample_id).strip() or not str(self.prompt).strip():
@@ -162,7 +171,7 @@ class DecodedVideoSample:
         if not isinstance(self.valid_mask, torch.Tensor) or tuple(self.valid_mask.shape) != (1, *expected[1:]):
             raise ValueError("valid_mask must be [1,T,H,W] matching pixel_values")
         if self.valid_mask.dtype is not torch.bool or not bool(self.valid_mask.all()):
-            raise ValueError("cover-cropped decoded video valid_mask must be all-true bool")
+            raise ValueError("decoded video valid_mask must be all-true bool")
         indices = tuple(int(index) for index in self.selected_frame_indices)
         if len(indices) != expected[1] or any(index < 0 for index in indices):
             raise ValueError("selected_frame_indices do not match the target frame count")
@@ -179,11 +188,11 @@ class DecodedVideoSample:
             if not math.isfinite(fps) or fps <= 0:
                 raise ValueError("decoded_fps must be finite and positive")
             object.__setattr__(self, "decoded_fps", fps)
-        for name in ("frame_sampling_digest", "spatial_transform_digest"):
-            value = str(getattr(self, name)).strip().lower()
-            if len(value) != 64 or any(character not in "0123456789abcdef" for character in value):
-                raise ValueError(f"{name} must be a lowercase SHA-256 digest")
-            object.__setattr__(self, name, value)
+        for name in ("frame_sampling", "spatial_transform"):
+            value = getattr(self, name)
+            if not isinstance(value, Mapping):
+                raise TypeError(f"{name} must be a mapping")
+            object.__setattr__(self, name, dict(value))
 
 
 def _stream_fps(stream: object) -> float | None:
@@ -265,13 +274,25 @@ def _cover_resize_center_crop(
     target_height: int,
     target_width: int,
     interpolation: str,
+    resize_rounding: str,
 ) -> tuple[torch.Tensor, dict[str, int]]:
     if frames.ndim != 4 or int(frames.shape[1]) != 3:
         raise ValueError("decoded frames must be [T,3,H,W]")
     source_height, source_width = (int(value) for value in frames.shape[-2:])
-    scale = max(target_height / source_height, target_width / source_width)
-    resized_height = max(target_height, math.ceil(source_height * scale))
-    resized_width = max(target_width, math.ceil(source_width * scale))
+    if resize_rounding == "floor":
+        if source_width * target_height > target_width * source_height:
+            resized_height = target_height
+            resized_width = max(target_width, target_height * source_width // source_height)
+        elif source_width * target_height < target_width * source_height:
+            resized_width = target_width
+            resized_height = max(target_height, target_width * source_height // source_width)
+        else:
+            resized_height = target_height
+            resized_width = target_width
+    else:
+        scale = max(target_height / source_height, target_width / source_width)
+        resized_height = max(target_height, math.ceil(source_height * scale))
+        resized_width = max(target_width, math.ceil(source_width * scale))
     pixels = frames.to(dtype=torch.float32).div_(255.0)
     if (resized_height, resized_width) != (source_height, source_width):
         pixels = torch_functional.interpolate(
@@ -307,6 +328,35 @@ def _cover_resize_center_crop(
     }
 
 
+def _direct_resize(
+    frames: torch.Tensor,
+    *,
+    target_height: int,
+    target_width: int,
+    interpolation: str,
+) -> tuple[torch.Tensor, dict[str, int]]:
+    """Resize every frame to the exact target geometry without preserving aspect ratio."""
+
+    if frames.ndim != 4 or int(frames.shape[1]) != 3:
+        raise ValueError("decoded frames must be [T,3,H,W]")
+    source_height, source_width = (int(value) for value in frames.shape[-2:])
+    pixels = frames.to(dtype=torch.float32).div_(255.0)
+    if (source_height, source_width) != (target_height, target_width):
+        pixels = torch_functional.interpolate(
+            pixels,
+            size=(target_height, target_width),
+            mode=interpolation,
+            align_corners=False,
+            antialias=True,
+        )
+    return pixels.clamp_(0.0, 1.0).contiguous(), {
+        "source_height": source_height,
+        "source_width": source_width,
+        "target_height": target_height,
+        "target_width": target_width,
+    }
+
+
 def decode_video_sample(
     sample: TrainingSample,
     assignment: VideoBucketAssignment,
@@ -330,20 +380,15 @@ def decode_video_sample(
     if not isinstance(resolved_config, VideoDecodeConfig):
         raise TypeError("config must be a VideoDecodeConfig")
     path = Path(media_path).expanduser().resolve()
-    if not path.is_file() or path.is_symlink():
-        raise FileNotFoundError(f"local video media is missing or is a symlink: {path}")
-    if resolved_config.verify_media_sha256:
-        actual_digest = file_sha256(path)
-        if actual_digest != sample.media.sha256:
-            raise ValueError(
-                f"video media SHA-256 mismatch for {sample.sample_id!r}: "
-                f"expected {sample.media.sha256}, got {actual_digest}"
-            )
+    if not path.is_file():
+        raise FileNotFoundError(f"local video media is missing: {path}")
 
     indices = video_frame_indices(
         sample.num_frames,
         assignment.target_num_frames,
         mode=resolved_config.frame_sampling,
+        seed=resolved_config.frame_sampling_seed,
+        sample_index=assignment.sample_index,
     )
     frames, decoded_count, decoded_fps = _decode_selected_rgb_frames(
         path,
@@ -351,12 +396,21 @@ def decode_video_sample(
         selected_indices=indices,
         config=resolved_config,
     )
-    pixels, spatial_parameters = _cover_resize_center_crop(
-        frames,
-        target_height=assignment.target_height,
-        target_width=assignment.target_width,
-        interpolation=resolved_config.interpolation,
-    )
+    if resolved_config.spatial_transform == "direct-resize":
+        pixels, spatial_parameters = _direct_resize(
+            frames,
+            target_height=assignment.target_height,
+            target_width=assignment.target_width,
+            interpolation=resolved_config.interpolation,
+        )
+    else:
+        pixels, spatial_parameters = _cover_resize_center_crop(
+            frames,
+            target_height=assignment.target_height,
+            target_width=assignment.target_width,
+            interpolation=resolved_config.interpolation,
+            resize_rounding=resolved_config.resize_rounding,
+        )
     if resolved_config.value_range == "minus-one-one":
         pixels = pixels.mul(2.0).sub_(1.0)
     pixel_values = pixels.permute(1, 0, 2, 3).contiguous()
@@ -364,26 +418,27 @@ def decode_video_sample(
         (1, assignment.target_num_frames, assignment.target_height, assignment.target_width),
         dtype=torch.bool,
     )
-    frame_sampling_digest = canonical_sha256(
-        {
-            "schema": "worldfoundry-video-frame-sampling",
-            "media_sha256": sample.media.sha256,
-            "source_num_frames": sample.num_frames,
-            "source_fps": sample.fps,
-            "mode": resolved_config.frame_sampling,
-            "selected_frame_indices": list(indices),
-        }
-    )
-    spatial_transform_digest = canonical_sha256(
-        {
-            "schema": "worldfoundry-video-spatial-transform",
-            "media_sha256": sample.media.sha256,
-            "mode": "cover-resize-center-crop",
-            "interpolation": resolved_config.interpolation,
-            "value_range": resolved_config.value_range,
-            "parameters": spatial_parameters,
-        }
-    )
+    frame_sampling = {
+        "source_num_frames": sample.num_frames,
+        "source_fps": sample.fps,
+        "mode": resolved_config.frame_sampling,
+        "selected_frame_indices": list(indices),
+    }
+    if resolved_config.frame_sampling == "seeded-random-contiguous":
+        frame_sampling.update(
+            {
+                "seed": resolved_config.frame_sampling_seed,
+                "sample_index": assignment.sample_index,
+            }
+        )
+    spatial_transform = {
+        "mode": resolved_config.spatial_transform,
+        "interpolation": resolved_config.interpolation,
+        "value_range": resolved_config.value_range,
+        "parameters": spatial_parameters,
+    }
+    if resolved_config.spatial_transform == "cover-resize-center-crop":
+        spatial_transform["resize_rounding"] = resolved_config.resize_rounding
     return DecodedVideoSample(
         sample_id=sample.sample_id,
         prompt=sample.prompt,
@@ -393,8 +448,8 @@ def decode_video_sample(
         selected_frame_indices=indices,
         decoded_frame_count=decoded_count,
         decoded_fps=decoded_fps,
-        frame_sampling_digest=frame_sampling_digest,
-        spatial_transform_digest=spatial_transform_digest,
+        frame_sampling=frame_sampling,
+        spatial_transform=spatial_transform,
     )
 
 
@@ -424,19 +479,6 @@ class VideoDecodingDataset(Sequence[DecodedVideoSample]):
         self.manifest_dataset = manifest_dataset
         self.assignments = values
         self.config = resolved_config
-        self.index_sha256 = canonical_sha256(
-            {
-                "schema": "worldfoundry-decoded-video-dataset-index",
-                "dataset_digest": manifest_dataset.dataset_digest,
-                "manifest_sha256": manifest_dataset.manifest_sha256,
-                "decode_config": resolved_config.to_dict(),
-                "assignments": [assignment.to_dict() for assignment in values],
-            }
-        )
-
-    @property
-    def dataset_digest(self) -> str:
-        return self.manifest_dataset.dataset_digest
 
     @property
     def sample_ids(self) -> tuple[str, ...]:
@@ -501,13 +543,12 @@ def collate_decoded_video_samples(samples: Sequence[DecodedVideoSample]) -> Trai
         metadata={
             "decode_schema": VIDEO_DECODE_TRANSFORM_SCHEMA,
             "bucket_key": bucket_key.to_dict(),
-            "bucket_digest": bucket_key.digest,
             "samples_per_microbatch": len(values),
             "latent_tokens_per_sample": bucket_key.token_count,
             "latent_tokens_per_microbatch": len(values) * bucket_key.token_count,
             "selected_frame_indices": tuple(sample.selected_frame_indices for sample in values),
-            "frame_sampling_digest": tuple(sample.frame_sampling_digest for sample in values),
-            "spatial_transform_digest": tuple(sample.spatial_transform_digest for sample in values),
+            "frame_sampling": tuple(dict(sample.frame_sampling) for sample in values),
+            "spatial_transform": tuple(dict(sample.spatial_transform) for sample in values),
         },
     )
 

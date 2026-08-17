@@ -7,7 +7,6 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
-from worldfoundry.core.io.file_utils import file_sha256
 from worldfoundry.core.io.integrity import canonical_json, write_exclusive_text
 from worldfoundry.training.safety.shieldgemma import (
     PromptSafetyAudit,
@@ -54,10 +53,9 @@ class _RolloutPromptSource:
 
 @dataclass(frozen=True, slots=True)
 class RolloutPromptAuditResult:
-    """The immutable manifest emitted by one complete prompt audit."""
+    """The manifest emitted by one complete prompt audit."""
 
     manifest_path: Path
-    manifest_sha256: str
     records: tuple[RolloutPromptRecord, ...]
 
 
@@ -119,7 +117,6 @@ def audit_rollout_prompts(
     write_exclusive_text(destination, rows, root=destination.parent)
     return RolloutPromptAuditResult(
         manifest_path=destination,
-        manifest_sha256=file_sha256(destination),
         records=records,
     )
 

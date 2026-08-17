@@ -51,10 +51,6 @@ class CausalODEObjective:
         self.config = config
 
     @property
-    def config_digest(self) -> str:
-        return self.config.digest
-
-    @property
     def num_trajectory_steps(self) -> int:
         return len(self.config.trajectory_timesteps)
 

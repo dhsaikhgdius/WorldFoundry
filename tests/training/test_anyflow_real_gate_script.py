@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
+import pytest
 import torch
 
 
@@ -16,7 +17,7 @@ def _gate_module():
     return module
 
 
-def test_real_anyflow_gate_binds_audited_checkpoint_without_loading_weights() -> None:
+def test_real_anyflow_gate_binds_pinned_checkpoint_without_loading_weights() -> None:
     gate = _gate_module()
 
     identity = gate._checkpoint_identity()
@@ -32,16 +33,23 @@ def test_real_anyflow_gate_binds_audited_checkpoint_without_loading_weights() ->
     assert gate._torch_dtype("bfloat16") is torch.bfloat16
 
 
-def test_real_anyflow_gate_state_digest_is_byte_sensitive() -> None:
+def test_real_anyflow_gate_compares_nested_state_directly() -> None:
     gate = _gate_module()
-    first = {
+    expected = gate.snapshot_state(
+        {
+            "tensor": torch.tensor([1.0, 2.0]),
+            "optimizer_step": torch.tensor(1.0),
+            "nested": {"values": [1, 2]},
+        }
+    )
+    actual = {
         "tensor": torch.tensor([1.0, 2.0]),
         "optimizer_step": torch.tensor(1.0),
-    }
-    second = {
-        "tensor": torch.tensor([1.0, 3.0]),
-        "optimizer_step": torch.tensor(1.0),
+        "nested": {"values": [1, 2]},
     }
 
-    assert gate._state_digest(first) == gate._state_digest(first)
-    assert gate._state_digest(first) != gate._state_digest(second)
+    gate.assert_state_equal(expected, actual, path="state")
+
+    actual["tensor"][1] = 3.0
+    with pytest.raises(AssertionError, match="tensor values differ"):
+        gate.assert_state_equal(expected, actual, path="state")

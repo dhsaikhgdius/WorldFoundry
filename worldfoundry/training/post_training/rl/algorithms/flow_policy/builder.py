@@ -30,6 +30,7 @@ from ....shared.prediction import (
     NativeClassifierFreeGuidance,
     NativeFlowPredictionAdapter,
 )
+from ...contracts import FlowTrajectorySamplingAdapter
 from ...rollout_strategies.contracts import FlowSDEIndexResolver
 from ...rollout_strategies.sparse_sde_steps import FlowSDEIndexSchedule
 from ...rollout_strategies.transition import (
@@ -47,7 +48,7 @@ from .runtime import resolve_flow_policy_algorithm_runtime
 class NativeFlowPolicyTrainingStack:
     """Algorithm-neutral rollout, scalarization, replay, and update plane."""
 
-    sampler: FlowTrajectorySampler
+    sampler: FlowTrajectorySamplingAdapter
     replay: NativeFlowTrajectoryReplay
     reference_replay: NativeFlowTrajectoryReplay | None
     scalarizer: WeightedRewardScalarizer
@@ -84,7 +85,7 @@ def _classifier_free_guidance(
     guidance_scale: float,
     role: str,
 ) -> FlowPredictionAdapter:
-    if guidance_scale == 1:
+    if guidance_scale <= 1:
         return adapter
     if not isinstance(adapter, NativeFlowPredictionAdapter):
         raise TypeError(f"native flow-policy CFG requires a NativeFlowPredictionAdapter {role}")
@@ -165,9 +166,9 @@ def build_native_flow_policy_training_stack(
     replay = NativeFlowTrajectoryReplay(active_policy)
     scalarizer = WeightedRewardScalarizer(
         algorithm.reward_weights,
-        calibration_mean=algorithm.reward_model.calibration_mean,
-        calibration_std=algorithm.reward_model.calibration_std,
-        normalization_epsilon=algorithm.reward_model.normalization_epsilon,
+        calibration_mean=getattr(algorithm.reward_model, "calibration_mean", None),
+        calibration_std=getattr(algorithm.reward_model, "calibration_std", None),
+        normalization_epsilon=float(getattr(algorithm.reward_model, "normalization_epsilon", 0.0)),
     )
     engine = runtime.engine_factory(
         algorithm,

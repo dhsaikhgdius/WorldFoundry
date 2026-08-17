@@ -5,17 +5,13 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from worldfoundry.evaluation.tasks.execution.orchestration.service import (
-    GenerateAndScoreIntent,
-    ReproduceIntent,
-    ScoreArtifactsIntent,
-    ScoreResultsIntent,
-    execute_prepared_evaluation,
-    prepare_evaluation,
-)
 from worldfoundry.evaluation.utils import BENCHMARK_ZOO_DIR, MODEL_ZOO_DIR, TMP_ROOT
 
 from .utils import json_dump, parse_key_value_mapping
+
+# NOTE: the orchestration service stack is imported inside each handler, never
+# at module import time: registering these subparsers happens on every CLI
+# start (including ``--help``) and must stay lightweight (CM-02).
 
 
 def _print_prepared(prepared, *, as_json: bool) -> None:
@@ -31,6 +27,8 @@ def _print_prepared(prepared, *, as_json: bool) -> None:
 
 
 def _finish(prepared, args: argparse.Namespace) -> int:
+    from worldfoundry.evaluation.tasks.execution.orchestration.service import execute_prepared_evaluation
+
     if args.plan_only or not prepared.ready:
         _print_prepared(prepared, as_json=args.json)
         return 0 if prepared.ready else 1
@@ -45,6 +43,12 @@ def _finish(prepared, args: argparse.Namespace) -> int:
 
 
 def _handle_score(args: argparse.Namespace) -> int:
+    from worldfoundry.evaluation.tasks.execution.orchestration.service import (
+        ScoreArtifactsIntent,
+        ScoreResultsIntent,
+        prepare_evaluation,
+    )
+
     if args.benchmark:
         if args.artifacts is None:
             raise ValueError("score --benchmark requires --artifacts")
@@ -77,6 +81,11 @@ def _handle_score(args: argparse.Namespace) -> int:
 
 
 def _handle_reproduce(args: argparse.Namespace) -> int:
+    from worldfoundry.evaluation.tasks.execution.orchestration.service import (
+        ReproduceIntent,
+        prepare_evaluation,
+    )
+
     prepared = prepare_evaluation(
         ReproduceIntent(
             output_dir=args.output_dir,
@@ -89,6 +98,11 @@ def _handle_reproduce(args: argparse.Namespace) -> int:
 
 
 def _handle_generate_score(args: argparse.Namespace) -> int:
+    from worldfoundry.evaluation.tasks.execution.orchestration.service import (
+        GenerateAndScoreIntent,
+        prepare_evaluation,
+    )
+
     intent = GenerateAndScoreIntent(
         output_dir=args.output_dir,
         model_id=args.model,

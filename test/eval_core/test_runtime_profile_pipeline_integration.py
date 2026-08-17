@@ -6,6 +6,10 @@ from typing import Any, Mapping
 
 import pytest
 
+# worldfoundry.studio.workspace_app requires the optional fastapi dependency at
+# import time; skip this module in environments without the [api] extra.
+pytest.importorskip("fastapi")
+
 from worldfoundry.evaluation.api import GenerationRequest, WorldModelConfig
 from worldfoundry.evaluation.models.catalog import load_model_zoo_registry
 from worldfoundry.evaluation.models import resolve_model_zoo_config, resolve_model_zoo_runner

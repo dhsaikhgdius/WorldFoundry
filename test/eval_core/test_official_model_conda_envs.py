@@ -13,7 +13,7 @@ from worldfoundry.runtime.conda import (
     is_cuda_profile_supported,
     load_runtime_conda_env_specs,
 )
-from worldfoundry.synthesis.visual_generation.animatediff.animatediff_synthesis import DEFAULT_ANIMATEDIFF_REPO_ROOT
+from worldfoundry.synthesis.visual_generation.animatediff.worldfoundry_runtime import DEFAULT_ANIMATEDIFF_REPO_ROOT
 from worldfoundry.evaluation.models.runtime.profiles import load_runtime_profiles
 
 

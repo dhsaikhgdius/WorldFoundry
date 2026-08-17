@@ -29,7 +29,7 @@ from worldfoundry.evaluation.tasks.execution.framework.io import (
     write_jsonl,
 )
 from worldfoundry.evaluation.tasks.catalog.benchmark_catalog import formal_benchmark_ids
-from worldfoundry.runtime import resolve_cache_dir
+from worldfoundry.runtime.env import resolve_cache_dir
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]

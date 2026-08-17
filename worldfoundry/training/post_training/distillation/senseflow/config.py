@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from math import isfinite
 from typing import Literal
 
-from worldfoundry.core.io.integrity import canonical_sha256
 from worldfoundry.training.objectives.flow_matching import flow_shift_sigmas
 from worldfoundry.training.recipes.post_training.algorithms.senseflow import (
     SenseFlowAlgorithmSpec,
@@ -128,23 +127,6 @@ class SenseFlowSchedule:
             raise ValueError("SenseFlow anchor index is out of range")
         assert self.adversarial_scales is not None
         return self.adversarial_scales[index]
-
-    @property
-    def digest(self) -> str:
-        return canonical_sha256(
-            {
-                "schema": "worldfoundry-senseflow-schedule",
-                "timesteps": self.timesteps,
-                "sigmas": self.sigmas,
-                "isg_margin": self.isg_margin,
-                "num_train_timesteps": self.num_train_timesteps,
-                "flow_shift": self.flow_shift,
-                "timestep_index_offset": self.timestep_index_offset,
-                "terminal_timestep": self.terminal_timestep,
-                "terminal_sigma": self.terminal_sigma,
-                "adversarial_scales": self.adversarial_scales,
-            }
-        )
 
     @classmethod
     def sd35_released(cls) -> SenseFlowSchedule:
@@ -306,37 +288,6 @@ class SenseFlowConfig:
     def ida_enabled(self) -> bool:
         return self.ida_decay < 1.0
 
-    @property
-    def digest(self) -> str:
-        return canonical_sha256(
-            {
-                "schema": "worldfoundry-senseflow-config",
-                "schedule_digest": self.schedule.digest,
-                "generator_update_interval": self.generator_update_interval,
-                "backward_simulation_probability": self.backward_simulation_probability,
-                "ida_decay": self.ida_decay,
-                "isg_weight": self.isg_weight,
-                "isg_loss": self.isg_loss,
-                "isg_epsilon": self.isg_epsilon,
-                "isg_teacher_guidance": self.isg_teacher_guidance,
-                "dmd_teacher_guidance": self.dmd_teacher_guidance,
-                "score_sampling": self.score_sampling,
-                "fake_score_sampling": self.fake_score_sampling,
-                "score_min_timestep_fraction": self.score_min_timestep_fraction,
-                "score_max_timestep_fraction": self.score_max_timestep_fraction,
-                "fake_score_min_timestep_fraction": self.fake_score_min_timestep_fraction,
-                "fake_score_max_timestep_fraction": self.fake_score_max_timestep_fraction,
-                "score_flow_shift": self.score_flow_shift,
-                "normalization_epsilon": self.normalization_epsilon,
-                "distribution_matching_weight": self.distribution_matching_weight,
-                "generator_adversarial_weight": self.generator_adversarial_weight,
-                "fake_score_weight": self.fake_score_weight,
-                "discriminator_weight": self.discriminator_weight,
-                "seed": self.seed,
-                "student_scheduler_cadence": self.student_scheduler_cadence,
-            }
-        )
-
     @classmethod
     def sd35_large_released(cls) -> SenseFlowConfig:
         """Controls from the released SD3.5 Large trainer."""
@@ -457,26 +408,6 @@ class SenseFlowOptimizerConfig:
         object.__setattr__(self, "betas", betas)
         object.__setattr__(self, "weight_decay", decay)
         object.__setattr__(self, "warmup_start_ratio", start_ratio)
-
-    @property
-    def digest(self) -> str:
-        return canonical_sha256(
-            {
-                "schema": "worldfoundry-senseflow-optimizer-config",
-                "student_learning_rate": self.student_learning_rate,
-                "fake_score_learning_rate": self.fake_score_learning_rate,
-                "discriminator_learning_rate": self.discriminator_learning_rate,
-                "betas": self.betas,
-                "epsilon": self.epsilon,
-                "weight_decay": self.weight_decay,
-                "student_max_grad_norm": self.student_max_grad_norm,
-                "fake_score_max_grad_norm": self.fake_score_max_grad_norm,
-                "discriminator_max_grad_norm": self.discriminator_max_grad_norm,
-                "gradient_accumulation_steps": self.gradient_accumulation_steps,
-                "warmup_steps": self.warmup_steps,
-                "warmup_start_ratio": self.warmup_start_ratio,
-            }
-        )
 
     @classmethod
     def sd35_released(cls) -> SenseFlowOptimizerConfig:

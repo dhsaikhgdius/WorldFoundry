@@ -249,6 +249,13 @@ train_core = [
 train_video = [
     "av>=12,<20",
     "numpy>=1.26,<3",
+    "torchaudio>=2.9,<2.12.0",
+]
+train_runtime = [
+    "fastapi>=0.116,<1",
+    "ray[default]>=2.9,<3",
+    "requests>=2.32,<3",
+    "uvicorn[standard]>=0.35,<1",
 ]
 profiling = [
     "torchprofile>=0.1.0,<0.2",

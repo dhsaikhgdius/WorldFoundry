@@ -41,6 +41,7 @@ import logging
 import os
 import re
 import sys
+import threading
 import traceback
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -81,6 +82,7 @@ _DATEFMT = "%Y-%m-%d %H:%M:%S"
 
 _CONFIGURED = False
 _CONFIGURED_LEVEL: int = logging.INFO
+_CONFIGURE_LOCK = threading.Lock()
 
 # ``ContextVar`` makes one run's correlation fields flow across asyncio tasks
 # without leaking into concurrent runs in the same process.  The fields are
@@ -411,8 +413,12 @@ def _parse_bytes(value: str | int, default: int) -> int:
         num += text[idx]
         idx += 1
     unit = text[idx:].strip()
+    if not num:
+        # A bare unit like "mb" has no magnitude; multiplying the default by
+        # the unit factor would inflate it, so return the default unchanged.
+        return default
     try:
-        base = float(num) if num else float(default)
+        base = float(num)
     except ValueError:
         return default
     factor = _BYTES_UNITS.get(unit, 1)
@@ -720,50 +726,54 @@ def configure_logging(
     """
     global _CONFIGURED, _CONFIGURED_LEVEL
 
-    if _CONFIGURED and not force:
-        return
+    # Serialize concurrent first calls: the idempotence check and the
+    # remove()/add() sink surgery below are not atomic on their own, and two
+    # racing configurations can otherwise duplicate sinks.
+    with _CONFIGURE_LOCK:
+        if _CONFIGURED and not force:
+            return
 
-    _bind_log_context_from_environment()
+        _bind_log_context_from_environment()
 
-    # Child processes inherit these from the parent CLI's env; an explicit
-    # argument always wins, ``None`` means "consult the env then the default".
-    if level is None:
-        level = os.environ.get(_LOG_LEVEL_ENV, "INFO")
-    if log_file is None:
-        log_file = os.environ.get(_LOG_FILE_ENV)
-    if json is None:
-        json = os.environ.get(_LOG_JSON_ENV, "").strip().lower() in {"1", "true", "yes", "on"}
+        # Child processes inherit these from the parent CLI's env; an explicit
+        # argument always wins, ``None`` means "consult the env then the default".
+        if level is None:
+            level = os.environ.get(_LOG_LEVEL_ENV, "INFO")
+        if log_file is None:
+            log_file = os.environ.get(_LOG_FILE_ENV)
+        if json is None:
+            json = os.environ.get(_LOG_JSON_ENV, "").strip().lower() in {"1", "true", "yes", "on"}
 
-    resolved = _resolve_level(level, logging.INFO)
-    level_name = logging.getLevelName(resolved)
+        resolved = _resolve_level(level, logging.INFO)
+        level_name = logging.getLevelName(resolved)
 
-    # Prevent the sequence-parallel stack from reconfiguring the root logger
-    # later; ``sp.envs`` reads this lazily at import time.
-    os.environ.setdefault(_SP_CONFIGURE_ENV, "0")
+        # Prevent the sequence-parallel stack from reconfiguring the root logger
+        # later; ``sp.envs`` reads this lazily at import time.
+        os.environ.setdefault(_SP_CONFIGURE_ENV, "0")
 
-    if _LOGURU_AVAILABLE:
-        _configure_loguru(
-            level=resolved,
-            level_name=level_name,
-            log_file=log_file,
-            json_file=json,
-            rotation=rotation,
-            retention=retention,
-            colorize=colorize,
-        )
-    else:  # pragma: no cover - depends on loguru being uninstalled.
-        _configure_stdlib(
-            level=resolved,
-            log_file=log_file,
-            json_file=json,
-            rotation=rotation,
-            retention=retention,
-        )
+        if _LOGURU_AVAILABLE:
+            _configure_loguru(
+                level=resolved,
+                level_name=level_name,
+                log_file=log_file,
+                json_file=json,
+                rotation=rotation,
+                retention=retention,
+                colorize=colorize,
+            )
+        else:  # pragma: no cover - depends on loguru being uninstalled.
+            _configure_stdlib(
+                level=resolved,
+                log_file=log_file,
+                json_file=json,
+                rotation=rotation,
+                retention=retention,
+            )
 
-    _apply_distributed_logger(resolved)
+        _apply_distributed_logger(resolved)
 
-    _CONFIGURED = True
-    _CONFIGURED_LEVEL = resolved
+        _CONFIGURED = True
+        _CONFIGURED_LEVEL = resolved
 
 
 def is_configured() -> bool:

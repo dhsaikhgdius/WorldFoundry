@@ -5,7 +5,6 @@ from pathlib import Path
 
 import pytest
 
-from worldfoundry.core.io.integrity import text_sha256
 from worldfoundry.training.data import (
     RolloutPromptAuditResult,
     RolloutPromptDataset,
@@ -23,7 +22,7 @@ class _StaticSafeFilter(ShieldGemmaPromptFilter):
         self.batches.append(values)
         return tuple(
             PromptSafetyAudit(
-                prompt_sha256=text_sha256(prompt),
+                prompt=prompt,
                 unsafe_probabilities={
                     "dangerous": 0.01,
                     "harassment": 0.02,
@@ -69,7 +68,6 @@ def test_rollout_prompt_audit_builds_the_cache_consumable_manifest(tmp_path) -> 
 
     assert isinstance(result, RolloutPromptAuditResult)
     assert result.manifest_path == destination.resolve()
-    assert len(result.manifest_sha256) == 64
     assert prompt_filter.batches == [
         ("A red cube rolls slowly.",),
         ("A blue sphere bounces gently.",),

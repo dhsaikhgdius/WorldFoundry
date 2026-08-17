@@ -1,16 +1,10 @@
 #!/usr/bin/env python3
-"""Run real Wan cache, training/resume, PEFT, inference, and FSDP gates.
-
-Architecture and asset identities are pinned to the official Wan2.1 source
-and Wan-AI/Wan2.1-T2V-1.3B model revisions declared by the native recipe.  The
-small lossless input video is generated locally and declared CC0-1.0.
-"""
+"""Run real Wan cache, training/resume, PEFT, inference, and FSDP checks."""
 
 from __future__ import annotations
 
 import argparse
 import gc
-import hashlib
 import json
 import os
 import socket
@@ -98,7 +92,7 @@ def _fixture_audit(prompt: str) -> PromptSafetyAudit:
     """Create a caller-owned safe audit for a fixed non-user pilot prompt."""
 
     return PromptSafetyAudit(
-        prompt_sha256=hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
+        prompt=prompt,
         unsafe_probabilities={name: 0.0 for name in SHIELDGEMMA_PROMPT_POLICIES},
         threshold=0.5,
     )
@@ -111,7 +105,6 @@ def _write_manifest(
     prompt: str,
     audit: PromptSafetyAudit,
 ) -> None:
-    payload = video_path.read_bytes()
     row = {
         "schema": TRAINING_SAMPLE_SCHEMA,
         "sample_id": "synthetic-moving-gradient",
@@ -119,8 +112,7 @@ def _write_manifest(
         "prompt": prompt,
         "media": {
             "uri": video_path.name,
-            "sha256": hashlib.sha256(payload).hexdigest(),
-            "size_bytes": len(payload),
+            "size_bytes": video_path.stat().st_size,
             "mime_type": "video/x-matroska",
         },
         "width": 64,
@@ -129,12 +121,9 @@ def _write_manifest(
         "fps": 8,
         "conditions": {},
         "split": "train",
-        "license": "CC0-1.0",
-        "provenance": {"source": "locally-generated-training-gate"},
-        "quality": {"accepted": True, "purpose": "implementation-gate"},
         "safety": {
-            "filter": "pre-audited-fixed-fixture",
-            "prompt_audit_digest": audit.digest,
+            "prompt_safe": audit.safe,
+            "model_revision": audit.model_revision,
         },
     }
     path.write_text(json.dumps(row, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -156,7 +145,6 @@ def _recipe(
                 "id": f"wan-1p3b-real-{backend}-gate",
                 "output_dir": str(work_dir / f"{backend}-unused"),
             },
-            "provider": {"name": "native"},
             "model": {
                 "recipe": "wan2.1-t2v-1.3b",
                 "checkpoint": "default",
@@ -196,7 +184,6 @@ def _recipe(
                         "interpolation": "bicubic",
                         "value_range": "minus-one-one",
                         "decoder_thread_type": "auto",
-                        "verify_media_sha256": True,
                         "verify_manifest_frame_count": True,
                         "verify_manifest_geometry": True,
                         "fps_tolerance": 0.01,
@@ -243,13 +230,6 @@ def _recipe(
             "checkpoint": {
                 "save_every_steps": save_every_steps,
                 "async": False,
-                "export_every_steps": 0,
-            },
-            "validation": {"every_steps": 0, "fixed_seed": 42},
-            "export": {"format": "peft", "merge_adapter": False},
-            "metadata": {
-                "gate": "real-cache-overfit-resume-export-inference",
-                "generated_sample_license": "CC0-1.0",
             },
         }
     )
@@ -385,7 +365,7 @@ def main() -> int:
         device="cuda",
         checkpoint_overrides=overrides,
         safety_audits=(fixture_audit,),
-        verify_media_hashes=True,
+        verify_media_files=True,
     )
     _release()
 
@@ -394,7 +374,7 @@ def main() -> int:
         device="cuda",
         output_dir=work_dir / "continuous-resume",
         checkpoint_overrides=overrides,
-        verify_media_hashes=True,
+        verify_media_files=True,
         audit_cache_on_open=True,
         verify_cache_on_read=True,
         force_torch_attention=True,
@@ -417,7 +397,7 @@ def main() -> int:
         device="cuda",
         output_dir=work_dir / "resumed",
         checkpoint_overrides=overrides,
-        verify_media_hashes=True,
+        verify_media_files=True,
         audit_cache_on_open=True,
         verify_cache_on_read=True,
         force_torch_attention=True,
@@ -435,10 +415,9 @@ def main() -> int:
     for name, parameter in resumed_state.items():
         torch.testing.assert_close(parameter, continuous_state[name], rtol=0, atol=0)
     resumed_artifact = resumed.export_peft()
-    if (
-        resumed_artifact.file_digests["adapter_model.safetensors"]
-        != continuous_artifact.file_digests["adapter_model.safetensors"]
-    ):
+    if (resumed_artifact.path / "adapter_model.safetensors").read_bytes() != (
+        continuous_artifact.path / "adapter_model.safetensors"
+    ).read_bytes():
         raise AssertionError("resumed Wan adapter bytes differ from the continuous run")
     resumed.close()
     del resumed, resumed_state, continuous_state
@@ -456,7 +435,7 @@ def main() -> int:
         device="cuda",
         output_dir=work_dir / "overfit",
         checkpoint_overrides=overrides,
-        verify_media_hashes=True,
+        verify_media_files=True,
         audit_cache_on_open=True,
         verify_cache_on_read=True,
         force_torch_attention=True,
@@ -617,7 +596,7 @@ def main() -> int:
             device="cuda",
             output_dir=work_dir / "fsdp2-world-one",
             checkpoint_overrides=overrides,
-            verify_media_hashes=True,
+            verify_media_files=True,
             audit_cache_on_open=True,
             verify_cache_on_read=True,
             force_torch_attention=True,
@@ -630,7 +609,7 @@ def main() -> int:
             fsdp_report = {
                 "world_size": fsdp_session.world_size,
                 "summary": fsdp_summary.to_dict(),
-                "adapter_manifest_sha256": fsdp_artifact.manifest_sha256,
+                "adapter_file_size_bytes": dict(fsdp_artifact.file_size_bytes),
             }
         finally:
             fsdp_session.close()
@@ -643,15 +622,13 @@ def main() -> int:
             "recipe": native_recipe.model_id,
             "model_root": str(model_root),
             "revision": native_recipe.checkpoints["dit"].revision,
-            "source_revision": native_recipe.metadata["upstream_source_revision"],
         },
         "cache": {
-            "dataset_digest": cache_result.index.dataset_digest,
-            "index_sha256": cache_result.index.index_sha256,
-            "object_sha256": cache_result.entries[0].object_sha256,
+            "index": cache_result.index.to_dict(),
+            "entry": cache_result.entries[0].to_dict(),
             "latent_shape": list(cache_result.entries[0].tensors["clean_latents"].shape),
             "context_shape": list(cache_result.entries[0].tensors["condition.context"].shape),
-            "fixture_audit_digest": fixture_audit.digest,
+            "fixture_audit": fixture_audit.to_dict(),
         },
         "training": training_summary.to_dict(),
         "resume": {
@@ -662,8 +639,7 @@ def main() -> int:
             "adapter_byte_parity": "exact",
         },
         "adapter": {
-            "manifest_sha256": artifact.manifest_sha256,
-            "file_sha256": dict(artifact.file_digests),
+            "file_size_bytes": dict(artifact.file_size_bytes),
             "reload_max_abs": reload_max_abs,
             "merge_max_abs": merge_max_abs,
             "merge_rmse": merge_rmse,

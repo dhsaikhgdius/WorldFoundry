@@ -24,14 +24,12 @@ from worldfoundry.training.data import (  # noqa: E402
     VideoResolutionBucket,
     assign_video_buckets,
     collate_video_cached_samples,
-    file_sha256,
-    text_sha256,
 )
 from worldfoundry.training.data.wan.contracts import (  # noqa: E402
     WAN_LATENT_MEAN,
     WAN_LATENT_STD,
-    wan_cache_contract_digest,
-    wan_latent_normalization_digest,
+    wan_cache_contract,
+    wan_latent_normalization,
 )
 from worldfoundry.training.data.wan.encoding import (  # noqa: E402
     WanFeatureEncoder,
@@ -70,7 +68,7 @@ def _write_video(
 
 def _safe_audit(prompt: str) -> PromptSafetyAudit:
     return PromptSafetyAudit(
-        prompt_sha256=text_sha256(prompt),
+        prompt=prompt,
         unsafe_probabilities={name: 0.0 for name in SHIELDGEMMA_PROMPT_POLICIES},
         threshold=0.5,
     )
@@ -87,7 +85,6 @@ def _dataset(tmp_path: Path) -> tuple[VideoDecodingDataset, PromptSafetyAudit]:
         prompt=prompt,
         media=MediaReference(
             uri=video.name,
-            sha256=file_sha256(video),
             mime_type="video/x-matroska",
             size_bytes=video.stat().st_size,
         ),
@@ -97,14 +94,13 @@ def _dataset(tmp_path: Path) -> tuple[VideoDecodingDataset, PromptSafetyAudit]:
         fps=5.0,
         conditions={},
         split="train",
-        safety={"accepted": True, "prompt_audit_digest": audit.digest},
+        safety={"prompt_safe": True, "model_revision": audit.model_revision},
     )
     manifest_path = tmp_path / "train.jsonl"
     manifest_path.write_text(json.dumps(sample.to_dict()) + "\n", encoding="utf-8")
     manifest = TrainingManifestDataset.from_file(
         manifest_path,
         verify_files=True,
-        verify_hashes=True,
     )
     assignments = assign_video_buckets(
         tuple(manifest),
@@ -116,7 +112,7 @@ def _dataset(tmp_path: Path) -> tuple[VideoDecodingDataset, PromptSafetyAudit]:
         VideoDecodingDataset(
             manifest,
             assignments,
-            config=VideoDecodeConfig(verify_media_sha256=True),
+            config=VideoDecodeConfig(),
         ),
         audit,
     )
@@ -177,21 +173,21 @@ def test_wan_feature_cache_round_trip_binds_official_contract(tmp_path: Path) ->
         feature_encoder=WanFeatureEncoder(_FakeCodec(), _FakeConditioner()),
         safety_audits=(audit,),
         model_recipe="wan2.1-t2v-1.3b",
-        codec_digest="1" * 64,
-        conditioner_digest="2" * 64,
-        tokenizer_digest="3" * 64,
+        codec={"repo_id": "vae", "revision": "main"},
+        conditioner={"repo_id": "umt5", "revision": "main"},
+        tokenizer={"repo_id": "tokenizer", "revision": "main"},
     )
 
     cached = VideoCachedDataset(
         tmp_path / "cache",
-        expected_dataset_digest=dataset.dataset_digest,
+        expected_sample_ids=dataset.sample_ids,
     )
     batch = collate_video_cached_samples((cached[0],))
     entry = result.entries[0]
 
-    assert result.index.index_sha256 == cached.index_sha256
-    assert entry.provenance.model_recipe_digest == wan_cache_contract_digest("wan2.1-t2v-1.3b")
-    assert entry.provenance.latent_normalization_digest == wan_latent_normalization_digest()
+    assert result.index == cached.index
+    assert entry.provenance.model_recipe == "wan2.1-t2v-1.3b"
+    assert entry.provenance.latent_normalization == wan_latent_normalization()
     assert tuple(batch.conditions["clean_latents"].shape) == (1, 16, 2, 2, 2)
     assert tuple(batch.conditions["context"].shape) == (1, 512, 4096)
     assert tuple(batch.conditions["latent_loss_mask"].shape) == (1, 1, 2, 2, 2)
@@ -199,9 +195,9 @@ def test_wan_feature_cache_round_trip_binds_official_contract(tmp_path: Path) ->
     assert entry.tensors["condition.context"].layout == "sequence-features"
     unconditional = SharedConditioningStore(tmp_path / "cache").read("unconditional")
     assert result.unconditional_conditioning == unconditional.artifact
-    assert unconditional.artifact.identity.model_recipe_digest == wan_cache_contract_digest("wan2.1-t2v-1.3b")
-    assert unconditional.artifact.identity.conditioner_digest == "2" * 64
-    assert unconditional.artifact.identity.tokenizer_digest == "3" * 64
+    assert unconditional.artifact.identity.model_recipe == "wan2.1-t2v-1.3b"
+    assert unconditional.artifact.identity.conditioner == {"repo_id": "umt5", "revision": "main"}
+    assert unconditional.artifact.identity.tokenizer == {"repo_id": "tokenizer", "revision": "main"}
     assert unconditional.tensors["context"][0, 0].item() == 2
 
 
@@ -213,14 +209,14 @@ def test_wan_codec_normalization_drift_is_rejected() -> None:
         WanVideoFeatureEncoder(codec)
 
 
-def test_wan_cache_contract_digest_changes_with_denoiser_geometry() -> None:
-    baseline = wan_cache_contract_digest("wan2.1-t2v-1.3b")
+def test_wan_cache_contract_records_denoiser_geometry() -> None:
+    baseline = wan_cache_contract("wan2.1-t2v-1.3b")
 
-    assert baseline != wan_cache_contract_digest(
+    assert baseline != wan_cache_contract(
         "wan2.1-t2v-1.3b",
         latent_patch_size=(1, 1, 2),
     )
-    assert baseline != wan_cache_contract_digest(
+    assert baseline != wan_cache_contract(
         "wan2.1-t2v-1.3b",
         context_features=2048,
     )

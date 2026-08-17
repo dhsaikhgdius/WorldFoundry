@@ -1,11 +1,29 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping
 
 from worldfoundry.evaluation.api.json_contract import JsonContract, require_mapping, to_plain
 from worldfoundry.evaluation.utils import load_manifest
+
+_LOGGER = logging.getLogger(__name__)
+_WARNED_UNRECOGNIZED_STATUSES: set[tuple[str, str]] = set()
+
+
+def _warn_unrecognized_status(kind: str, value: str, fallback: str) -> None:
+    """Log (once per value) when a free-text status silently degrades to a fallback."""
+    key = (kind, value)
+    if key in _WARNED_UNRECOGNIZED_STATUSES:
+        return
+    _WARNED_UNRECOGNIZED_STATUSES.add(key)
+    _LOGGER.warning(
+        "unrecognized catalog %s status %r degrades to %r; add an alias or fix the manifest if this is unintended",
+        kind,
+        value,
+        fallback,
+    )
 
 SOURCE_STATUSES = frozenset({"open_source", "api", "closed", "unknown"})
 OPEN_SOURCE_STATUSES = frozenset(
@@ -262,6 +280,8 @@ def _normalize_source_status(value: Any) -> str:
         return "api"
     if normalized in _CLOSED_ALIASES:
         return "closed"
+    if normalized:
+        _warn_unrecognized_status("source", normalized, "unknown")
     return "unknown"
 
 
@@ -283,6 +303,8 @@ def _normalize_integration_status(value: Any) -> str:
         return "blocked"
     if normalized in _PENDING_INTEGRATION_ALIASES or normalized.startswith("pending"):
         return "planned"
+    if normalized:
+        _warn_unrecognized_status("integration", normalized, "planned")
     return "planned"
 
 

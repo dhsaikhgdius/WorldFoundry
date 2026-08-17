@@ -1,10 +1,9 @@
-"""Content-addressed Safetensors artifacts for fully tuned native models."""
+"""Safetensors artifacts for fully tuned native models."""
 
 from __future__ import annotations
 
 import json
 import os
-import re
 import shutil
 import tempfile
 from collections.abc import Mapping
@@ -17,15 +16,13 @@ import torch
 from torch import nn
 from torch.distributed.tensor import DTensor
 
-from worldfoundry.core.io.file_utils import file_sha256
-from worldfoundry.core.io.integrity import canonical_json, sync_directory, write_exclusive_json
+from worldfoundry.core.io.integrity import sync_directory, write_exclusive_json
 
 FULL_MODEL_ARTIFACT_SCHEMA = "worldfoundry-full-model"
 FULL_MODEL_MANIFEST_NAME = "worldfoundry_model.json"
 FULL_MODEL_INDEX_NAME = "model.safetensors.index.json"
 DEFAULT_MAX_SHARD_SIZE_BYTES = 2 * 1024**3
 
-_SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
 _SAFETENSORS_DTYPES = {
     "bool": "BOOL",
     "uint8": "U8",
@@ -56,12 +53,10 @@ _DTYPE_SIZE_BYTES = {
 
 @dataclass(frozen=True, slots=True)
 class FullModelArtifact:
-    """A validated immutable full-model artifact."""
+    """A validated full-model artifact."""
 
     path: Path
-    manifest_sha256: str
-    file_digests: Mapping[str, str]
-    metadata: Mapping[str, object]
+    file_size_bytes: Mapping[str, int]
     tensor_count: int
     tensor_element_count: int
     parameter_count: int
@@ -69,16 +64,10 @@ class FullModelArtifact:
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "path", Path(self.path))
-        if _SHA256_PATTERN.fullmatch(str(self.manifest_sha256)) is None:
-            raise ValueError("full-model manifest_sha256 must be a SHA-256 digest")
-        digests = dict(self.file_digests)
-        if not digests or any(
-            not isinstance(name, str) or not name or _SHA256_PATTERN.fullmatch(str(digest)) is None
-            for name, digest in digests.items()
-        ):
-            raise ValueError("full-model file digests are invalid")
-        object.__setattr__(self, "file_digests", MappingProxyType(digests))
-        object.__setattr__(self, "metadata", MappingProxyType(dict(self.metadata)))
+        sizes = {str(name): int(size) for name, size in self.file_size_bytes.items()}
+        if not sizes or any(not name or size < 0 for name, size in sizes.items()):
+            raise ValueError("full-model file sizes are invalid")
+        object.__setattr__(self, "file_size_bytes", MappingProxyType(sizes))
         for name in (
             "tensor_count",
             "tensor_element_count",
@@ -88,20 +77,6 @@ class FullModelArtifact:
             value = getattr(self, name)
             if isinstance(value, bool) or int(value) < 0:
                 raise ValueError(f"full-model {name} must be a non-negative integer")
-
-
-def _json_object(value: Mapping[str, object] | None, *, field_name: str) -> dict[str, object]:
-    if value is None:
-        return {}
-    if not isinstance(value, Mapping):
-        raise TypeError(f"{field_name} must be a mapping")
-    try:
-        normalized = json.loads(canonical_json(dict(value)))
-    except (TypeError, ValueError) as error:
-        raise TypeError(f"{field_name} must contain strict JSON values") from error
-    if not isinstance(normalized, dict):
-        raise TypeError(f"{field_name} must resolve to a JSON object")
-    return normalized
 
 
 def _positive_shard_size(value: object) -> int:
@@ -190,16 +165,14 @@ def save_full_model(
     model: nn.Module,
     output_dir: str | Path,
     *,
-    metadata: Mapping[str, object] | None = None,
     model_state_dict: Mapping[str, object] | None = None,
     max_shard_size_bytes: int = DEFAULT_MAX_SHARD_SIZE_BYTES,
 ) -> FullModelArtifact:
-    """Atomically export one complete native model with audited shards."""
+    """Atomically export one complete native model."""
 
     if not isinstance(model, nn.Module):
         raise TypeError("full-model export requires an nn.Module")
     shard_limit = _positive_shard_size(max_shard_size_bytes)
-    normalized_metadata = _json_object(metadata, field_name="full-model metadata")
     state = model.state_dict() if model_state_dict is None else model_state_dict
     inventory, total_size = _state_inventory(state)
     shards = _partition_keys(inventory, max_shard_size_bytes=shard_limit)
@@ -235,14 +208,11 @@ def save_full_model(
                 },
                 root=temporary,
             )
-        payload_files: dict[str, dict[str, object]] = {}
+        payload_files: dict[str, int] = {}
         for candidate in sorted(temporary.iterdir()):
             if candidate.is_symlink() or not candidate.is_file():
                 raise ValueError(f"full-model staging entry is invalid: {candidate}")
-            payload_files[candidate.name] = {
-                "sha256": file_sha256(candidate),
-                "size_bytes": candidate.stat().st_size,
-            }
+            payload_files[candidate.name] = candidate.stat().st_size
         parameter_count = sum(int(parameter.numel()) for parameter in model.parameters())
         trainable_count = sum(int(parameter.numel()) for parameter in model.parameters() if parameter.requires_grad)
         manifest = {
@@ -256,7 +226,6 @@ def save_full_model(
             "tensors": inventory,
             "weight_map": weight_map,
             "files": payload_files,
-            "metadata": normalized_metadata,
         }
         write_exclusive_json(
             temporary / FULL_MODEL_MANIFEST_NAME,
@@ -282,7 +251,7 @@ def _safe_relative_file(value: object, *, field_name: str) -> str:
 
 
 def inspect_full_model(input_dir: str | Path) -> FullModelArtifact:
-    """Verify the manifest, every payload digest, and every tensor header."""
+    """Validate the manifest, payload sizes, and tensor headers."""
 
     source = Path(input_dir).expanduser().resolve()
     if not source.is_dir() or source.is_symlink():
@@ -306,7 +275,6 @@ def inspect_full_model(input_dir: str | Path) -> FullModelArtifact:
         "tensors",
         "weight_map",
         "files",
-        "metadata",
     }
     if not isinstance(manifest, dict) or set(manifest) != expected_fields:
         raise ValueError("full-model manifest fields differ from the active schema")
@@ -315,15 +283,12 @@ def inspect_full_model(input_dir: str | Path) -> FullModelArtifact:
     tensors = manifest["tensors"]
     weight_map = manifest["weight_map"]
     files = manifest["files"]
-    metadata = manifest["metadata"]
     if not isinstance(tensors, dict) or not tensors:
         raise ValueError("full-model tensor inventory must be a non-empty object")
     if not isinstance(weight_map, dict) or set(weight_map) != set(tensors):
         raise ValueError("full-model weight map differs from the tensor inventory")
     if not isinstance(files, dict) or not files:
         raise ValueError("full-model file inventory must be a non-empty object")
-    if not isinstance(metadata, dict):
-        raise TypeError("full-model metadata must be an object")
 
     tensor_count = int(manifest["tensor_count"])
     tensor_elements = int(manifest["tensor_element_count"])
@@ -369,24 +334,21 @@ def inspect_full_model(input_dir: str | Path) -> FullModelArtifact:
     if calculated_elements != tensor_elements or calculated_size != total_size:
         raise ValueError("full-model aggregate tensor inventory is inconsistent")
 
-    normalized_files: dict[str, str] = {}
-    for raw_name, descriptor in files.items():
+    normalized_files: dict[str, int] = {}
+    for raw_name, raw_size in files.items():
         name = _safe_relative_file(raw_name, field_name="full-model payload filename")
-        if not isinstance(descriptor, dict) or set(descriptor) != {"sha256", "size_bytes"}:
-            raise ValueError(f"full-model file descriptor is invalid for {name!r}")
-        digest = str(descriptor["sha256"]).lower()
-        size = int(descriptor["size_bytes"])
+        if isinstance(raw_size, bool) or not isinstance(raw_size, int):
+            raise ValueError(f"full-model file size is invalid for {name!r}")
+        size = raw_size
         candidate = source / name
         if (
-            _SHA256_PATTERN.fullmatch(digest) is None
-            or size < 0
+            size < 0
             or not candidate.is_file()
             or candidate.is_symlink()
             or candidate.stat().st_size != size
-            or file_sha256(candidate) != digest
         ):
             raise ValueError(f"full-model payload verification failed for {name!r}")
-        normalized_files[name] = digest
+        normalized_files[name] = size
     actual_files = {
         candidate.name
         for candidate in source.iterdir()
@@ -439,9 +401,7 @@ def inspect_full_model(input_dir: str | Path) -> FullModelArtifact:
         raise ValueError("full-model shards do not cover the complete tensor inventory")
     return FullModelArtifact(
         path=source,
-        manifest_sha256=file_sha256(manifest_path),
-        file_digests=normalized_files,
-        metadata=metadata,
+        file_size_bytes=normalized_files,
         tensor_count=tensor_count,
         tensor_element_count=tensor_elements,
         parameter_count=parameter_count,
@@ -450,7 +410,7 @@ def inspect_full_model(input_dir: str | Path) -> FullModelArtifact:
 
 
 def load_full_model(model: nn.Module, input_dir: str | Path) -> FullModelArtifact:
-    """Digest-verify and strictly restore a full artifact into a native model."""
+    """Strictly restore a full artifact into a native model."""
 
     if not isinstance(model, nn.Module):
         raise TypeError("full-model load requires an nn.Module")

@@ -2,19 +2,18 @@
 
 from __future__ import annotations
 
-import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from types import MappingProxyType
 
 from worldfoundry.training.data.rollout_cache import RolloutConditioningDataset
-from worldfoundry.training.data.sana_cache import text_sha256
 from worldfoundry.training.data.shared_conditioning import SharedConditioningSample
 from worldfoundry.training.models.wan import WanTrainAdapter
 from worldfoundry.training.recipes.post_training.algorithms.flow_policy import (
     FlowPolicyAlgorithmSpec,
 )
 from worldfoundry.training.recipes.post_training.recipe import PostTrainingRecipe
+from worldfoundry.training.recipes.post_training.rollout import LocalRolloutSpec
 
 _FLOW_DATA_OPTIONS = frozenset(
     {
@@ -197,6 +196,8 @@ def validate_wan_flow_policy_recipe(
         raise TypeError("recipe must be PostTrainingRecipe")
     if not isinstance(recipe.algorithm, FlowPolicyAlgorithmSpec):
         raise TypeError("Wan flow-policy materialization requires a flow-policy algorithm")
+    if not isinstance(recipe.rollout, LocalRolloutSpec):
+        raise ValueError("Wan2.1 flow-policy materialization currently requires local rollout")
     if recipe.model.recipe != "wan2.1-t2v-1.3b":
         raise ValueError("native Wan flow-policy currently requires wan2.1-t2v-1.3b")
     if recipe.data.cache is None:
@@ -240,18 +241,15 @@ def audit_conditioning_cache(
     adapter: WanTrainAdapter,
     *,
     model_recipe: str,
-    model_recipe_digest: str,
-    conditioner_digest: str,
-    tokenizer_digest: str,
+    conditioner: Mapping[str, object],
+    tokenizer: Mapping[str, object],
 ) -> None:
     index = dataset.index
     if index.model_recipe != model_recipe:
         raise ValueError("rollout conditioning cache belongs to another model recipe")
-    if index.model_recipe_digest != model_recipe_digest:
-        raise ValueError("rollout conditioning cache model contract differs")
-    if index.conditioner_digest != conditioner_digest:
+    if index.conditioner != conditioner:
         raise ValueError("rollout conditioning cache uses another conditioner checkpoint")
-    if index.tokenizer_digest != tokenizer_digest:
+    if index.tokenizer != tokenizer:
         raise ValueError("rollout conditioning cache uses another tokenizer checkpoint")
     expected_shape = (adapter.expected_text_length, adapter.expected_context_features)
     for entry in index.entries:
@@ -267,19 +265,19 @@ def audit_unconditional_conditioning(
     sample: SharedConditioningSample,
     adapter: WanTrainAdapter,
     *,
-    model_recipe_digest: str,
-    conditioner_digest: str,
-    tokenizer_digest: str,
+    model_recipe: str,
+    conditioner: Mapping[str, object],
+    tokenizer: Mapping[str, object],
 ) -> None:
     if not isinstance(sample, SharedConditioningSample):
         raise TypeError("unconditional conditioning must be SharedConditioningSample")
     identity = sample.artifact.identity
-    if identity.branch != "unconditional" or identity.prompt_sha256 != text_sha256(""):
+    if identity.branch != "unconditional" or identity.prompt != "":
         raise ValueError("Wan CFG cache must be the empty-prompt conditioning branch")
     if (
-        identity.model_recipe_digest != model_recipe_digest
-        or identity.conditioner_digest != conditioner_digest
-        or identity.tokenizer_digest != tokenizer_digest
+        identity.model_recipe != model_recipe
+        or identity.conditioner != conditioner
+        or identity.tokenizer != tokenizer
     ):
         raise ValueError("Wan CFG cache identity differs from the rollout conditioner")
     expected_shape = (adapter.expected_text_length, adapter.expected_context_features)
@@ -293,7 +291,7 @@ def audit_unconditional_conditioning(
 def audit_component_overrides(
     values: Mapping[str, object] | None,
 ) -> dict[str, object]:
-    """Accept only byte-audited local or immutable Hub component checkpoints."""
+    """Validate optional local or Hub component checkpoints."""
 
     from worldfoundry.base_models.diffusion_model.loaders import CheckpointSpec
 
@@ -304,15 +302,11 @@ def audit_component_overrides(
         raise ValueError(f"unknown Wan flow-policy component overrides: {unknown}")
     for name, value in overrides.items():
         if not isinstance(value, CheckpointSpec):
-            raise TypeError(f"audited component override {name!r} must be CheckpointSpec")
-        if value.sources:
-            declared = set(value.files)
-            if not declared or set(value.file_sha256) != declared or set(value.file_size_bytes) != declared:
-                raise ValueError(
-                    f"local component override {name!r} requires SHA-256 and byte size for every loaded file"
-                )
-        elif value.revision is None or re.fullmatch(r"[0-9a-f]{40}", value.revision) is None:
-            raise ValueError(f"Hub component override {name!r} requires an immutable commit revision")
+            raise TypeError(f"component override {name!r} must be CheckpointSpec")
+        if value.sources and not value.files:
+            raise ValueError(f"local component override {name!r} must declare loaded files")
+        if not value.sources and (not value.repo_id or not value.revision):
+            raise ValueError(f"Hub component override {name!r} must declare a repository and revision")
     return overrides
 
 

@@ -363,7 +363,11 @@ class UniK3D(
         Args:
             model_file: The model file.
         """
-        dict_model = torch.load(model_file, map_location="cpu", weights_only=False)
+        # Modified by WorldFoundry: was ``weights_only=False``. This entry point
+        # only consumes a tensor state dict (optionally nested under 'model'),
+        # so unrestricted pickle deserialization is not needed
+        # (plan/code_review/11_vendored_integration.md [VI-23]).
+        dict_model = torch.load(model_file, map_location="cpu", weights_only=True)
         if "model" in dict_model:
             dict_model = dict_model["model"]
         self.load_state_dict(dict_model, strict=False)

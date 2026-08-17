@@ -23,8 +23,8 @@ from worldfoundry.training.data.shared_conditioning import (
     SharedConditioningStore,
 )
 from worldfoundry.training.data.wan.contracts import (
-    wan_cache_contract_digest,
-    wan_checkpoint_asset_digest,
+    wan_cache_contract,
+    wan_checkpoint_asset_identity,
 )
 from worldfoundry.training.distributed.parallel import (
     DistributedTrainingContext,
@@ -75,9 +75,9 @@ class WanRolloutAssets:
     native_recipe: object
     component_overrides: Mapping[str, object]
     resolved_component_checkpoints: Mapping[str, object]
-    model_contract_digest: str
-    conditioner_digest: str
-    tokenizer_digest: str
+    model_contract: Mapping[str, object]
+    conditioner: Mapping[str, object]
+    tokenizer: Mapping[str, object]
     dtype: torch.dtype
     base_seed: int
 
@@ -92,6 +92,9 @@ class WanRolloutAssets:
             "resolved_component_checkpoints",
             MappingProxyType(dict(self.resolved_component_checkpoints)),
         )
+        object.__setattr__(self, "model_contract", MappingProxyType(dict(self.model_contract)))
+        object.__setattr__(self, "conditioner", MappingProxyType(dict(self.conditioner)))
+        object.__setattr__(self, "tokenizer", MappingProxyType(dict(self.tokenizer)))
 
 
 @dataclass(frozen=True, slots=True)
@@ -230,9 +233,9 @@ def prepare_wan_rollout_assets(
             native_recipe,
             component_overrides,
         )
-        model_contract_digest = wan_cache_contract_digest(recipe.model.recipe)
-        conditioner_digest = wan_checkpoint_asset_digest(resolved_component_checkpoints["text-encoder"])
-        tokenizer_digest = wan_checkpoint_asset_digest(resolved_component_checkpoints["tokenizer"])
+        model_contract = wan_cache_contract(recipe.model.recipe)
+        conditioner = wan_checkpoint_asset_identity(resolved_component_checkpoints["text-encoder"])
+        tokenizer = wan_checkpoint_asset_identity(resolved_component_checkpoints["tokenizer"])
         if isinstance(initialization_seed, bool):
             raise TypeError("initialization_seed must be an integer, not bool")
         base_seed = int(recipe.data.shuffle_seed if initialization_seed is None else initialization_seed)
@@ -255,9 +258,9 @@ def prepare_wan_rollout_assets(
             native_recipe=native_recipe,
             component_overrides=component_overrides,
             resolved_component_checkpoints=resolved_component_checkpoints,
-            model_contract_digest=model_contract_digest,
-            conditioner_digest=conditioner_digest,
-            tokenizer_digest=tokenizer_digest,
+            model_contract=model_contract,
+            conditioner=conditioner,
+            tokenizer=tokenizer,
             dtype=torch_dtype(recipe.runtime.param_dtype),
             base_seed=base_seed,
         )
@@ -283,9 +286,8 @@ def build_wan_rollout_source(
         assets.conditioning,
         policy,
         model_recipe=recipe.model.recipe,
-        model_recipe_digest=assets.model_contract_digest,
-        conditioner_digest=assets.conditioner_digest,
-        tokenizer_digest=assets.tokenizer_digest,
+        conditioner=assets.conditioner,
+        tokenizer=assets.tokenizer,
     )
     if not isinstance(requires_unconditional, bool):
         raise TypeError("requires_unconditional must be a bool")
@@ -301,9 +303,9 @@ def build_wan_rollout_source(
         audit_unconditional_conditioning(
             unconditional,
             policy,
-            model_recipe_digest=assets.model_contract_digest,
-            conditioner_digest=assets.conditioner_digest,
-            tokenizer_digest=assets.tokenizer_digest,
+            model_recipe=recipe.model.recipe,
+            conditioner=assets.conditioner,
+            tokenizer=assets.tokenizer,
         )
     _audit_distributed_rollout_collectives(
         world_size=assets.world_size,
@@ -313,7 +315,6 @@ def build_wan_rollout_source(
     )
     sampler = DeterministicDistributedSampler(
         assets.conditioning,
-        dataset_digest=assets.conditioning.dataset_digest,
         seed=recipe.data.shuffle_seed,
         shuffle=recipe.data.shuffle,
         rank=assets.rank,

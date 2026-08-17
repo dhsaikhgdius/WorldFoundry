@@ -170,10 +170,6 @@ class NativeRCMTrainEngine:
         self._poisoned = False
         self.teacher_module.eval()
 
-    @property
-    def config_digest(self) -> str:
-        return str(self.loss_adapter.config_digest)
-
     def is_student_phase(self, iteration: int) -> bool:
         step = non_negative_int(iteration, field_name="iteration")
         return (
@@ -390,7 +386,6 @@ class NativeRCMTrainEngine:
             "student_update_frequency": self.student_update_frequency,
             "dmd_enabled": self.dmd_enabled,
             "gradient_accumulation_steps": self.gradient_accumulation_steps,
-            "config_digest": self.config_digest,
         }
 
     def load_state_dict(self, state_dict: Mapping[str, object]) -> None:
@@ -405,7 +400,6 @@ class NativeRCMTrainEngine:
             "student_update_frequency",
             "dmd_enabled",
             "gradient_accumulation_steps",
-            "config_digest",
         }
         if set(state_dict) != expected:
             raise ValueError("rCM engine state fields differ from the active schema")
@@ -416,7 +410,6 @@ class NativeRCMTrainEngine:
             "student_update_frequency": self.student_update_frequency,
             "dmd_enabled": self.dmd_enabled,
             "gradient_accumulation_steps": self.gradient_accumulation_steps,
-            "config_digest": self.config_digest,
         }
         for name, value in active.items():
             if state_dict[name] != value:

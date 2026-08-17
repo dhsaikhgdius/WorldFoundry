@@ -132,8 +132,6 @@ class ADDLossResult:
 class ADDLossAdapter(Protocol):
     """Loss seam consumed by the atomic generator/discriminator engine."""
 
-    config_digest: str
-
     def loss_denominator(self, batch: ADDTrainingBatch, *, role: str) -> object: ...
 
     def generator_loss(

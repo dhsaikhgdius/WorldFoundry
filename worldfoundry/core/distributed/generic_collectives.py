@@ -20,11 +20,33 @@ This is useful when doing distributed training.
 """
 
 import gc
+import logging
 import os
 import shutil
 
 import torch
 import torch.distributed as dist
+
+logger = logging.getLogger(__name__)
+
+#: Environment variables that indicate this process was launched by a
+#: distributed launcher (torchrun/torch.distributed.launch or a scheduler
+#: that pre-populates the rendezvous contract). ``MASTER_PORT`` alone is
+#: deliberately excluded: several tools set a default port preemptively
+#: without implying a multi-process launch.
+_DISTRIBUTED_LAUNCH_ENV_VARS = (
+    "RANK",
+    "WORLD_SIZE",
+    "LOCAL_RANK",
+    "MASTER_ADDR",
+    "TORCHELASTIC_RUN_ID",
+)
+
+
+def _distributed_launch_indicators() -> dict[str, str]:
+    """Return the subset of distributed-launcher env vars present in this process."""
+
+    return {name: os.environ[name] for name in _DISTRIBUTED_LAUNCH_ENV_VARS if name in os.environ}
 
 
 def get_collective_device(group=None) -> torch.device:
@@ -116,16 +138,44 @@ def synchronize():
 
 
 def dist_init() -> None:
+    """Initialize the default NCCL process group, or fall back to single-process mode.
+
+    Failure semantics:
+    - If the environment carries distributed-launcher indicators (``RANK``,
+      ``WORLD_SIZE``, ``LOCAL_RANK``, ``MASTER_ADDR``, ``TORCHELASTIC_RUN_ID``),
+      an initialization failure re-raises. Masquerading a failed rank as a
+      standalone ``RANK=0/WORLD_SIZE=1`` process would skip every collective,
+      write rank-0 output paths, and leave the surviving ranks hanging at their
+      first collective until the NCCL timeout — a data-corruption path.
+    - If no such indicator is present (plain ``python script.py``), the
+      single-process fallback is legitimate and is kept.
+    """
+
     if is_dist_initialized():
         return
     try:
         torch.distributed.init_process_group(backend="nccl")
-        assert torch.distributed.is_initialized()
-    except Exception:
+        if not torch.distributed.is_initialized():
+            raise RuntimeError("torch.distributed.init_process_group returned but the process group is not initialized")
+    except Exception as exc:
+        indicators = _distributed_launch_indicators()
+        if indicators:
+            rendered = ", ".join(f"{key}={value!r}" for key, value in sorted(indicators.items()))
+            logger.error(
+                "Distributed process-group initialization failed in a distributed launch environment (%s). "
+                "Refusing the single-process fallback; failing fast instead: %s",
+                rendered,
+                exc,
+            )
+            raise
         os.environ["RANK"] = "0"
         os.environ["WORLD_SIZE"] = "1"
         os.environ["LOCAL_RANK"] = "0"
-        print("warning: dist not init")
+        logger.warning(
+            "No distributed launch environment detected; continuing as a single process "
+            "(process-group init failed with: %s)",
+            exc,
+        )
 
 
 def is_dist_initialized() -> bool:

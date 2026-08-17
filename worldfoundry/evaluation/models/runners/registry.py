@@ -147,7 +147,9 @@ class ModelRunnerRegistry:
                 self.register(
                     ModelRunnerRegistryEntry(
                         name=entry.name,
-                        runner_target=entry.name,
+                        # Lazy builtins carry a module:Class target so the
+                        # class is only imported at resolve time.
+                        runner_target=entry.runner_target or entry.name,
                         aliases=entry.aliases,
                         description=entry.description,
                         source="builtin",

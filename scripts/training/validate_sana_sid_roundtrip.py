@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import copy
 import gc
-import hashlib
 import json
 import math
 import random
@@ -20,6 +19,12 @@ from worldfoundry.core.io.integrity import replace_json_atomic
 from worldfoundry.training.engine.sana.sid import materialize_sana_sid_training_run
 from worldfoundry.training.models.sana_sid import build_local_diffusers_sana_sid_adapter
 from worldfoundry.training.recipes import PostTrainingRecipe
+from worldfoundry.training.state_comparison import (
+    assert_state_equal,
+    file_size_inventory,
+    snapshot_state,
+    state_changed,
+)
 from worldfoundry.training.tuning import FullModelArtifact, load_full_model
 
 _LOADER_DIAGNOSTIC_FIELDS = ("_num_yielded", "_sampler_iter_yielded")
@@ -104,75 +109,6 @@ def _release() -> None:
         torch.cuda.empty_cache()
 
 
-def _framed(hasher: object, label: str, payload: bytes) -> None:
-    hasher.update(label.encode("utf-8"))
-    hasher.update(len(payload).to_bytes(8, "big"))
-    hasher.update(payload)
-
-
-def _update_digest(hasher: object, value: object) -> None:
-    if value is None:
-        _framed(hasher, "none", b"")
-        return
-    if isinstance(value, bool):
-        _framed(hasher, "bool", b"1" if value else b"0")
-        return
-    if isinstance(value, int):
-        _framed(hasher, "int", str(value).encode("ascii"))
-        return
-    if isinstance(value, float):
-        _framed(hasher, "float", value.hex().encode("ascii"))
-        return
-    if isinstance(value, str):
-        _framed(hasher, "str", value.encode("utf-8"))
-        return
-    if isinstance(value, bytes):
-        _framed(hasher, "bytes", value)
-        return
-    if isinstance(value, Path):
-        _framed(hasher, "path", str(value).encode("utf-8"))
-        return
-    if isinstance(value, (torch.dtype, torch.device)):
-        _framed(hasher, type(value).__name__, str(value).encode("ascii"))
-        return
-    if isinstance(value, torch.Tensor):
-        if value.layout is not torch.strided:
-            raise TypeError(f"gate digest does not support tensor layout {value.layout}")
-        _framed(hasher, "tensor-dtype", str(value.dtype).encode("ascii"))
-        _update_digest(hasher, tuple(value.shape))
-        raw = value.detach().contiguous().reshape(-1).view(torch.uint8).cpu().numpy()
-        _framed(hasher, "tensor-bytes", memoryview(raw))
-        return
-    if isinstance(value, Mapping):
-        _framed(hasher, "mapping-size", str(len(value)).encode("ascii"))
-        for key in sorted(value, key=lambda item: (type(item).__qualname__, repr(item))):
-            _update_digest(hasher, key)
-            _update_digest(hasher, value[key])
-        return
-    if isinstance(value, tuple):
-        _framed(hasher, "tuple-size", str(len(value)).encode("ascii"))
-        for item in value:
-            _update_digest(hasher, item)
-        return
-    if isinstance(value, list):
-        _framed(hasher, "list-size", str(len(value)).encode("ascii"))
-        for item in value:
-            _update_digest(hasher, item)
-        return
-    if isinstance(value, (set, frozenset)):
-        _framed(hasher, "set-size", str(len(value)).encode("ascii"))
-        for item in sorted(value, key=lambda item: (type(item).__qualname__, repr(item))):
-            _update_digest(hasher, item)
-        return
-    raise TypeError(f"unsupported gate digest value: {type(value).__name__}")
-
-
-def _digest(value: object) -> str:
-    hasher = hashlib.sha256()
-    _update_digest(hasher, value)
-    return hasher.hexdigest()
-
-
 def _logical_loader_state(value: object) -> object:
     state = copy.deepcopy(value)
 
@@ -193,7 +129,7 @@ def _logical_loader_state(value: object) -> object:
     return state
 
 
-def _run_state(run: object, *, logical_loader: bool) -> dict[str, str]:
+def _run_state(run: object, *, logical_loader: bool) -> dict[str, object]:
     checkpoint_state = run.checkpoint_state
     loader_state = checkpoint_state.dataloader.state_dict()
     if logical_loader:
@@ -203,35 +139,31 @@ def _run_state(run: object, *, logical_loader: bool) -> dict[str, str]:
         for name, component in checkpoint_state._optional_stateful.items()
     }
     return {
-        "student": _digest(run.roles.student.module.state_dict()),
-        "fake_score": _digest(run.roles.fake_score.module.state_dict()),
-        "student_optimizer": _digest(checkpoint_state.optimizers[0].state_dict()),
-        "fake_score_optimizer": _digest(checkpoint_state.optimizers[1].state_dict()),
-        "engine": _digest(checkpoint_state.engine.state_dict()),
-        "progress": _digest(checkpoint_state.progress.state_dict()),
-        "dataloader": _digest(loader_state),
-        "objective_generator": _digest(
-            checkpoint_state.objective_generator.get_state()
-        ),
-        "optional_state": _digest(optional),
-        "torch_cpu_rng": _digest(torch.get_rng_state()),
-        "torch_cuda_rng": _digest(torch.cuda.get_rng_state_all()),
-        "python_rng": _digest(random.getstate()),
-        "resume_identity": checkpoint_state.identity_digest,
+        "student": snapshot_state(run.roles.student.module.state_dict()),
+        "fake_score": snapshot_state(run.roles.fake_score.module.state_dict()),
+        "student_optimizer": snapshot_state(checkpoint_state.optimizers[0].state_dict()),
+        "fake_score_optimizer": snapshot_state(checkpoint_state.optimizers[1].state_dict()),
+        "engine": snapshot_state(checkpoint_state.engine.state_dict()),
+        "progress": snapshot_state(checkpoint_state.progress.state_dict()),
+        "dataloader": snapshot_state(loader_state),
+        "objective_generator": snapshot_state(checkpoint_state.objective_generator.get_state()),
+        "optional_state": snapshot_state(optional),
+        "torch_cpu_rng": snapshot_state(torch.get_rng_state()),
+        "torch_cuda_rng": snapshot_state(torch.cuda.get_rng_state_all()),
+        "python_rng": snapshot_state(random.getstate()),
     }
 
 
 def _assert_same(
-    expected: Mapping[str, str],
-    actual: Mapping[str, str],
+    expected: Mapping[str, object],
+    actual: Mapping[str, object],
     *,
     label: str,
 ) -> int:
     if set(expected) != set(actual):
         raise AssertionError(f"{label} state component inventory differs")
-    mismatches = [name for name in expected if expected[name] != actual[name]]
-    if mismatches:
-        raise AssertionError(f"{label} state digests differ: {mismatches}")
+    for name in expected:
+        assert_state_equal(expected[name], actual[name], path=f"{label}.{name}")
     return len(expected)
 
 
@@ -287,9 +219,7 @@ def main() -> int:
         "base_dir": work_dir,
         "device": device,
         "local_role_paths": role_paths,
-        "verify_media_hashes": True,
         "audit_cache_on_open": True,
-        "verify_cache_on_read": True,
         "fused_adamw": False,
         "initialization_seed": args.seed,
     }
@@ -300,20 +230,19 @@ def main() -> int:
         **common,
     )
     try:
-        student_before = _digest(split.roles.student.module.state_dict())
-        fake_before = _digest(split.roles.fake_score.module.state_dict())
+        student_before = snapshot_state(split.roles.student.module.state_dict())
+        fake_before = snapshot_state(split.roles.fake_score.module.state_dict())
         split_summary = split.run(max_steps=args.steps)
         split_state = _run_state(split, logical_loader=False)
-        if split_state["student"] == student_before:
+        if not state_changed(student_before, split_state["student"]):
             raise AssertionError("real SANA SiD did not update the student")
-        if split_state["fake_score"] == fake_before:
+        if not state_changed(fake_before, split_state["fake_score"]):
             raise AssertionError("real SANA SiD did not update the fake-score model")
         checkpoint_path = split.checkpointer.root / f"step-{split_summary.final_step:08d}"
         checkpoint = split.checkpointer.inspect(checkpoint_path)
         artifact = split.export_student()
         if not isinstance(artifact, FullModelArtifact):
             raise TypeError("real SANA SiD gate requires a Safetensors full-model export")
-        asset_digests = dict(split.roles.asset_digests)
         data_identity = dict(split.data_identity)
     finally:
         split.close()
@@ -329,7 +258,7 @@ def main() -> int:
     try:
         if resumed.resume_artifact is None:
             raise AssertionError("real SANA SiD resume did not bind a checkpoint")
-        if resumed.resume_artifact.manifest_sha256 != checkpoint.manifest_sha256:
+        if resumed.resume_artifact.path.resolve() != checkpoint.path.resolve():
             raise AssertionError("real SANA SiD resumed a different checkpoint")
         immediate_components = _assert_same(
             split_state,
@@ -391,20 +320,22 @@ def main() -> int:
         load_conditioner=False,
     )
     load_full_model(restored.module, artifact.path)
-    restored_digest = _digest(restored.module.state_dict())
-    if restored_digest != split_state["student"]:
-        raise AssertionError("exported SANA SiD student differs after fresh-model reload")
+    assert_state_equal(
+        split_state["student"],
+        restored.module.state_dict(),
+        path="exported student",
+    )
     del preparation, restored
     _release()
 
     report = {
         "schema": "worldfoundry-sana-sid-roundtrip-gate",
         "execution_owner": recipe.execution_owner,
-        "recipe_digest": recipe.digest,
+        "recipe": recipe.to_dict(),
         "model": {
             "recipe": recipe.model.recipe,
             "root": str(model_root),
-            "role_asset_sha256": asset_digests,
+            "role_paths": {name: str(path) for name, path in role_paths.items()},
             "trainable_parameter_dtype": "float32",
             "compute_dtype": recipe.runtime.param_dtype,
         },
@@ -417,8 +348,8 @@ def main() -> int:
         },
         "checkpoint": {
             "path": str(checkpoint.path),
-            "manifest_sha256": checkpoint.manifest_sha256,
-            "identity_digest": checkpoint.identity_digest,
+            "files": file_size_inventory(checkpoint.path),
+            "identity": dict(checkpoint.identity),
             "immediate_resume": {
                 "exact": True,
                 "state_components": immediate_components,
@@ -432,8 +363,7 @@ def main() -> int:
         },
         "artifact": {
             "path": str(artifact.path),
-            "manifest_sha256": artifact.manifest_sha256,
-            "file_sha256": dict(artifact.file_digests),
+            "files": file_size_inventory(artifact.path),
             "fresh_model_reload_exact": True,
         },
         "system": {

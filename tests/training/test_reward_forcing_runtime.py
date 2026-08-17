@@ -7,7 +7,6 @@ import pytest
 
 torch = pytest.importorskip("torch")
 
-from worldfoundry.core.io.integrity import text_sha256  # noqa: E402
 from worldfoundry.training.checkpoint import (  # noqa: E402
     TrainingCheckpointer,
     TrainingProgress,
@@ -308,22 +307,21 @@ class _StatefulLoader:
 
 def _conditioned_prompt() -> RolloutConditionedPrompt:
     prompt = "a running horse"
-    prompt_sha = text_sha256(prompt)
     record = RolloutPromptRecord(
         prompt_id="horse",
         prompt=prompt,
         safety_audit=PromptSafetyAudit(
-            prompt_sha256=prompt_sha,
+            prompt=prompt,
             unsafe_probabilities={name: 0.01 for name in SHIELDGEMMA_PROMPT_POLICIES},
             threshold=0.5,
         ),
     )
     identity = SharedConditioningIdentity(
-        branch=f"rollout-{prompt_sha}",
-        prompt_sha256=prompt_sha,
-        model_recipe_digest="a" * 64,
-        conditioner_digest="b" * 64,
-        tokenizer_digest="c" * 64,
+        branch="rollout-horse",
+        prompt=prompt,
+        model_recipe="wan2.1-t2v-1.3b",
+        conditioner={"repository": "test/conditioner", "revision": "test"},
+        tokenizer={"repository": "test/tokenizer", "revision": "test"},
         tensors={
             "context": CacheTensorDescriptor(
                 dtype="float32",
@@ -337,10 +335,8 @@ def _conditioned_prompt() -> RolloutConditionedPrompt:
         conditioning={"context": torch.ones(3, 4)},
         artifact=SharedConditioningArtifact(
             identity=identity,
-            identity_sha256=identity.digest,
-            object_sha256="d" * 64,
             object_size_bytes=100,
-            object_path=f"shared-objects/dd/{'d' * 64}.safetensors",
+            object_path="shared-objects/rollout-horse.safetensors",
         ),
     )
 
@@ -451,9 +447,7 @@ def test_builder_uses_released_optimizers_and_accepts_arbitrary_accumulation() -
     assert stack.student_optimizer.param_groups[0]["weight_decay"] == 1.0e-2
     assert stack.engine.gradient_accumulation_steps == 7
     assert stack.engine.generator_update_interval == 5
-    assert stack.execution_digest == stack.engine.execution_digest
     assert isinstance(stack.recipe.algorithm, RewardForcingAlgorithmSpec)
-    assert len(stack.execution_digest) == 64
     assert not student.module.training
     assert not real.module.training
     assert not fake.module.training
@@ -621,28 +615,6 @@ def test_session_implements_one_generator_per_five_fake_updates_with_fresh_batch
     assert set(reward.calls[0]).isdisjoint(reward.calls[2])
 
 
-def test_engine_resume_gate_includes_optimizer_behavior() -> None:
-    stack, _, _, _, _, _ = _build(17, accumulation=2)
-    saved = stack.engine.state_dict()
-
-    torch.manual_seed(19)
-    changed = build_native_reward_forcing_training_stack(
-        _recipe(
-            accumulation=2,
-            student_learning_rate=3.0e-6,
-        ),
-        student=_Student(),
-        real_score=_Score(0.75, frozen=True),
-        fake_score=_Score(0.45),
-        reward_decoder=_Decoder(),
-        motion_reward=_Reward(),
-        fused_adamw=False,
-    )
-    assert changed.execution_digest != stack.execution_digest
-    with pytest.raises(ValueError, match="Reward-Forcing execution behavior differs"):
-        changed.engine.load_state_dict(saved)
-
-
 def _checkpointable(seed: int):
     student_scheduler = _Counter()
     fake_score_scheduler = _Counter()
@@ -672,10 +644,7 @@ def _checkpointable(seed: int):
         dataloader=loader,
         objective_generator=generator,
         progress=progress,
-        identity={
-            "algorithm": "reward-forcing",
-            "execution_digest": stack.execution_digest,
-        },
+        identity={"algorithm": "reward-forcing"},
         lr_scheduler=stack.scheduler_state,
         ema=stack.ema_state,
     )

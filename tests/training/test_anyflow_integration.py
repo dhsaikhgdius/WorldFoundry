@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+import pytest
+
+# This test module imports worldfoundry code that requires the optional
+# "transformers" dependency at import time; skip when it is unavailable.
+pytest.importorskip("transformers")
+
 from collections.abc import Mapping
 from copy import deepcopy
 from types import SimpleNamespace
@@ -85,6 +91,7 @@ def _batch(*, offset: float = 0.0, prefix: str = "sample") -> AnyFlowTrainingBat
 def _algorithm(algorithm_type: str) -> dict[str, object]:
     common: dict[str, object] = {
         "type": algorithm_type,
+        "lr_scheduler": "constant-with-warmup",
         "flow_map": {
             "num_train_timesteps": 10,
             "timestep_shift": 1.0,
@@ -105,15 +112,24 @@ def _algorithm(algorithm_type: str) -> dict[str, object]:
     if "on-policy" in algorithm_type:
         common.update(
             {
+                "lr_warmup_steps": 0,
                 "real_score_checkpoint": "real-score",
                 "fake_score_checkpoint": "fake-score",
                 "inference_steps": [2],
                 "dmd_batch_size": 1,
                 "cotrain_flowmap": False,
-                "discriminator_update_ratio": 2,
+                "discriminator_update_ratio": 1,
                 "ema_decay": 0.9,
                 "ema_warmup_steps": 0,
                 "synchronized_seed": 13,
+            }
+        )
+    else:
+        common.update(
+            {
+                "lr_warmup_steps": 1000,
+                "ema_decay": 0.999,
+                "ema_warmup_steps": 1000,
             }
         )
     return common
@@ -157,8 +173,12 @@ def test_anyflow_recipe_roundtrip_preserves_every_behavior_field(
     recipe = _recipe(algorithm_type)
     restored = PostTrainingRecipe.from_mapping(recipe.to_dict())
     assert restored.algorithm.type == algorithm_type
-    assert restored.digest == recipe.digest
+    assert restored == recipe
     assert restored.algorithm.flow_map.num_train_timesteps == 10
+    assert restored.algorithm.lr_scheduler == "constant-with-warmup"
+    assert restored.algorithm.lr_warmup_steps == (
+        0 if "on-policy" in algorithm_type else 1000
+    )
 
 
 def test_anyflow_recipe_enforces_optimizer_topology() -> None:
@@ -176,6 +196,13 @@ def test_anyflow_recipe_enforces_optimizer_topology() -> None:
         PostTrainingRecipe.from_mapping(pretrain)
 
 
+def test_anyflow_recipe_limits_released_discriminator_cadence_to_one() -> None:
+    payload = _recipe("anyflow-far-on-policy").to_dict()
+    payload["algorithm"]["discriminator_update_ratio"] = 2
+    with pytest.raises(ValueError, match="discriminator_update_ratio=1"):
+        PostTrainingRecipe.from_mapping(payload)
+
+
 def test_anyflow_pretrain_builder_binds_recipe_and_checkpoint_identity() -> None:
     recipe = _recipe("anyflow-far-pretrain")
     student = NativeAnyFlowFARAdapter(
@@ -189,8 +216,28 @@ def test_anyflow_pretrain_builder_binds_recipe_and_checkpoint_identity() -> None
     )
     assert stack.config.far.chunk_partition == (1, 1)
     assert stack.config.flow_map.timestep_shift == 1.0
+    assert stack.config.lr_scheduler == "constant-with-warmup"
+    assert stack.config.lr_warmup_steps == 1000
+    assert stack.config.ema_decay == pytest.approx(0.999)
+    assert stack.config.ema_warmup_steps == 1000
     assert stack.engine.gradient_accumulation_steps == 1
     assert tuple(stack.model) == ("student",)
+    checkpoint_state = stack.checkpoint_state_kwargs()
+    assert checkpoint_state["lr_scheduler"] is stack.scheduler_state
+    assert checkpoint_state["ema"] is stack.ema
+
+    initial = student.module.weight.detach().clone()
+    generator = torch.Generator().manual_seed(5)
+    stack.engine.train_step(_batch(), generator=generator)
+    stack.engine.train_step(_batch(), generator=generator)
+    assert stack.ema.optimizer_steps.item() == 2
+    assert not torch.equal(student.module.weight.detach(), initial)
+    live = student.module.weight.detach().clone()
+    student.module.weight.data.add_(1.0)
+    with stack.use_ema_weights() as ema_student:
+        assert ema_student is student.module
+        torch.testing.assert_close(student.module.weight, live)
+    torch.testing.assert_close(student.module.weight, live + 1.0)
 
     anonymous = NativeAnyFlowFARAdapter(_AnyFlowModule())
     with pytest.raises(ValueError, match="checkpoint_identity"):
@@ -238,7 +285,8 @@ def test_anyflow_on_policy_builder_and_session_consume_fresh_role_batches() -> N
         fused_adamw=False,
     )
     assert not any(parameter.requires_grad for parameter in real.module.parameters())
-    assert stack.engine.discriminator_update_ratio == 2
+    assert stack.engine.discriminator_update_ratio == 1
+    assert stack.config.lr_warmup_steps == 0
     assert stack.checkpoint_state_kwargs()["ema"] is stack.ema
 
     loader = _StatefulLoader()
@@ -248,11 +296,11 @@ def test_anyflow_on_policy_builder_and_session_consume_fresh_role_batches() -> N
         max_steps=1,
         generator=torch.Generator().manual_seed(17),
     )
-    assert loader.cursor == 3
-    assert progress.microbatches_seen == 3
-    assert progress.samples_seen == 6
+    assert loader.cursor == 2
+    assert progress.microbatches_seen == 2
+    assert progress.samples_seen == 4
     assert summary.student_optimizer_steps == 1
-    assert summary.fake_score_optimizer_steps == 2
+    assert summary.fake_score_optimizer_steps == 1
     assert summary.final_step == 1
 
     with pytest.raises(TypeError, match="fresh AnyFlow fake-score batches"):

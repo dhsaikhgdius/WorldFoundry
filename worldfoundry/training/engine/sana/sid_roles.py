@@ -32,7 +32,7 @@ class SanaSIDRoleBundle:
     student: SanaSIDPredictionAdapter
     teacher: SanaSIDPredictionAdapter
     fake_score: SanaSIDPredictionAdapter
-    asset_digests: dict[str, str]
+    asset_identity: dict[str, object]
     student_fsdp: FSDP2Application | None = None
     teacher_fsdp: FSDP2Application | None = None
     fake_score_fsdp: FSDP2Application | None = None

@@ -21,6 +21,7 @@ from worldfoundry.core.time import utc_now_iso  # noqa: E402
 from worldfoundry.evaluation.reporting.scorecard import SCORECARD_SCHEMA_VERSION  # noqa: E402
 from worldfoundry.evaluation.tasks.catalog.zoo_registry import load_benchmark_zoo_registry  # noqa: E402
 from worldfoundry.evaluation.tasks.execution.framework.io import env_path, write_json  # noqa: E402
+from worldfoundry.evaluation.tasks.execution.framework.official_runner import default_benchmark_timeout  # noqa: E402
 from worldfoundry.evaluation.tasks.execution.framework.result_normalizer import (  # noqa: E402
     OfficialResultsNormalizer,
 )
@@ -256,7 +257,15 @@ def run_official_worldarena(args: argparse.Namespace, output_dir: Path) -> Path:
         command.append("--overwrite")
     env = os.environ.copy()
     env["PYTHONPATH"] = str(runtime_root) + os.pathsep + env.get("PYTHONPATH", "")
-    proc = subprocess.run(command, cwd=str(runtime_root), env=env, text=True, capture_output=True, check=False)
+    proc = subprocess.run(
+        command,
+        cwd=str(runtime_root),
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=default_benchmark_timeout(),
+    )
     log_path = output_dir / "worldarena_official_runtime.log"
     log_path.write_text((proc.stdout or "") + ("\n[stderr]\n" + proc.stderr if proc.stderr else ""), encoding="utf-8")
     if proc.returncode != 0:

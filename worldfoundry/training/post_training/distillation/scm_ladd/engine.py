@@ -141,10 +141,6 @@ class NativeSCMLADDTrainEngine:
         self.teacher_module.eval()
         self.discriminator_feature_module.eval()
 
-    @property
-    def config_digest(self) -> str:
-        return str(self.loss_adapter.config_digest)
-
     def train_step(
         self,
         batch: SCMLADDTrainingBatch | Sequence[SCMLADDTrainingBatch],
@@ -311,7 +307,6 @@ class NativeSCMLADDTrainEngine:
             "discriminator_optimizer_steps": self.discriminator_optimizer_steps,
             "next_phase": self.next_phase,
             "gradient_accumulation_steps": self.gradient_accumulation_steps,
-            "config_digest": self.config_digest,
             "data_parallel_size": self.parallel_context.world_size,
         }
 
@@ -325,15 +320,12 @@ class NativeSCMLADDTrainEngine:
             "discriminator_optimizer_steps",
             "next_phase",
             "gradient_accumulation_steps",
-            "config_digest",
             "data_parallel_size",
         }
         if set(state_dict) != expected:
             raise ValueError("SCM-LADD engine state fields differ from the active schema")
         if state_dict["schema"] != SCM_LADD_ENGINE_STATE_SCHEMA:
             raise ValueError(f"unsupported SCM-LADD engine schema: {state_dict['schema']!r}")
-        if state_dict["config_digest"] != self.config_digest:
-            raise ValueError("saved SCM-LADD recipe differs from the active engine")
         if int(state_dict["gradient_accumulation_steps"]) != self.gradient_accumulation_steps:
             raise ValueError("saved SCM-LADD accumulation cadence differs from the active engine")
         if int(state_dict["data_parallel_size"]) != self.parallel_context.world_size:

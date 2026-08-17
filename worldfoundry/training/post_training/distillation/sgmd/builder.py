@@ -55,9 +55,6 @@ def _audit_flow_process(adapters: tuple[SGMDPredictionAdapter, ...]) -> None:
     }
     if kinds != {"flow-matching"}:
         raise ValueError("SGMD requires every role to expose the same flow-matching process")
-    digests = {str(adapter.noise_process_digest).strip() for adapter in adapters}
-    if "" in digests or len(digests) != 1:
-        raise ValueError("SGMD roles must expose one matching non-empty noise process digest")
 
 
 def _audit_independent_roles(modules: tuple[torch.nn.Module, ...]) -> None:
@@ -160,7 +157,6 @@ def build_native_sgmd_training_stack(
         teacher,
         fake_score,
         config,
-        config_digest=recipe.digest,
     )
     engine = NativeSGMDTrainEngine(
         student_module=student_module,

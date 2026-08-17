@@ -300,7 +300,6 @@ class DiagonalRolloutSampler:
         self.last_base_exit_indices: tuple[int, ...] = ()
         self.last_block_exit_indices: tuple[int, ...] = ()
         self.rollout_count = 0
-        self.execution_digest = config.digest
 
     @property
     def generator(self) -> torch.Generator:
@@ -360,7 +359,7 @@ class DiagonalRolloutSampler:
         generator: object | None,
         training: bool,
     ) -> DiagonalFewStepPrediction:
-        if schedule.digest != self.config.base_schedule.digest:
+        if schedule != self.config.base_schedule:
             raise ValueError("DMD and diagonal base schedules differ")
         rng = self._require_generator(generator)
         reference = batch.clean_latents
@@ -407,7 +406,6 @@ class DiagonalRolloutSampler:
     def state_dict(self) -> dict[str, object]:
         return {
             "schema": DIAGONAL_SAMPLER_STATE_SCHEMA,
-            "config_digest": self.config.digest,
             "data_parallel_size": self.parallel_context.world_size,
             "rng_device": self._rng_device,
             "rng_state": self._rng.get_state().clone(),
@@ -421,7 +419,6 @@ class DiagonalRolloutSampler:
             raise TypeError("diagonal sampler state must be a mapping")
         expected = {
             "schema",
-            "config_digest",
             "data_parallel_size",
             "rng_device",
             "rng_state",
@@ -434,7 +431,6 @@ class DiagonalRolloutSampler:
         if state_dict["schema"] != DIAGONAL_SAMPLER_STATE_SCHEMA:
             raise ValueError(f"unsupported diagonal sampler schema: {state_dict['schema']!r}")
         active = {
-            "config_digest": self.config.digest,
             "data_parallel_size": self.parallel_context.world_size,
             "rng_device": self._rng_device,
         }
@@ -489,7 +485,6 @@ class DiagonalFixedTeacherSampler:
         self.adapter = adapter
         self.config = config
         self.parallel_context = parallel_context or PostTrainingParallelContext.current()
-        self.execution_digest = config.digest
 
     def sample(
         self,

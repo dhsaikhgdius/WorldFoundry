@@ -24,6 +24,8 @@ import logging
 from pathlib import Path
 from typing import Any, ClassVar, Dict, Mapping, Optional
 
+from ..base_synthesis import BaseSynthesis
+
 #: Every hosted call is a long-running generation request; fail rather than hang.
 REQUEST_TIMEOUT = 300
 
@@ -31,8 +33,20 @@ REQUEST_TIMEOUT = 300
 DOWNLOAD_CHUNK_SIZE = 1024 * 1024
 
 
-class CredentialedSynthesis:
-    """Endpoint and credential handling shared by every hosted backend."""
+class CredentialedSynthesis(BaseSynthesis):
+    """Endpoint and credential handling shared by every hosted backend.
+
+    Inherits :class:`~worldfoundry.synthesis.base_synthesis.BaseSynthesis` so
+    hosted API backends (Kling, Luma, MiniMax, Runway, Sora, Veo, ...) take part
+    in ``isinstance``-based dispatch alongside local models. Contract mapping:
+
+    - ``api_init`` is overridden as a *classmethod factory* returning a
+      configured instance (the base declares an instance method); every
+      pipeline call site uses ``Vendor.api_init(endpoint=..., api_key=...)``.
+    - ``from_pretrained`` keeps the base ``NotImplementedError``: hosted
+      backends have no local weights to load.
+    - ``predict`` is implemented by each vendor adapter.
+    """
 
     #: Endpoint used when the caller does not name one.
     DEFAULT_ENDPOINT: ClassVar[str] = ""
@@ -44,6 +58,7 @@ class CredentialedSynthesis:
         logger=None,
     ) -> None:
         """Store the endpoint, credential and optional logger."""
+        super().__init__()
         self.endpoint = endpoint or self.DEFAULT_ENDPOINT
         self.api_key = api_key
         self.logger = logger
@@ -56,6 +71,9 @@ class CredentialedSynthesis:
         keys a given vendor does not understand are filtered out here rather
         than being re-declared in each adapter's signature. The constructor
         stays the single place a backend's defaults are written down.
+
+        Unlike ``BaseSynthesis.api_init`` (an instance method), this is a
+        factory: it returns a new configured instance.
         """
         accepted = inspect.signature(cls).parameters
         takes_var_kwargs = any(

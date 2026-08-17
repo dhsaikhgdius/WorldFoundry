@@ -1,3 +1,9 @@
+
+import pytest
+
+# This test module imports worldfoundry code that requires the optional
+# "diffusers" dependency at import time; skip when it is unavailable.
+pytest.importorskip("diffusers")
 from worldfoundry.synthesis.action_generation.diffusion_policy.modeling.mask import (
     LowdimMaskGenerator,
 )

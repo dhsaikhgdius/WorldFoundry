@@ -7,6 +7,11 @@ from math import isfinite
 from numbers import Real
 
 from ..common import strict_mapping
+from .auxiliary_optimizers import (
+    AuxiliaryOptimizerRule,
+    forbids_auxiliary,
+    requires_auxiliary,
+)
 
 
 def _checkpoint(value: object, *, field_name: str) -> str:
@@ -230,6 +235,19 @@ class AdversarialDiffusionAlgorithmSpec:
             self,
             "discriminator_updates_per_generator",
             discriminator_updates,
+        )
+
+    def auxiliary_optimizer_rules(self) -> tuple[AuxiliaryOptimizerRule, ...]:
+        return (
+            requires_auxiliary(
+                "discriminator_optimizer",
+                "adversarial diffusion distillation requires discriminator_optimizer",
+            ),
+            forbids_auxiliary(
+                "fake_score_optimizer",
+                "guidance_optimizer",
+                message="adversarial diffusion distillation only accepts discriminator_optimizer",
+            ),
         )
 
 

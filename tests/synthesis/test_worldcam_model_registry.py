@@ -1,5 +1,11 @@
 """Regression coverage for WorldCam checkpoint-class bindings."""
 
+import pytest
+
+# This test module imports worldfoundry code that requires the optional
+# "ftfy" dependency at import time; skip when it is unavailable.
+pytest.importorskip("ftfy")
+
 from worldfoundry.base_models.diffusion_model.models.encoders.wan import (
     WanTextEncoder,
 )

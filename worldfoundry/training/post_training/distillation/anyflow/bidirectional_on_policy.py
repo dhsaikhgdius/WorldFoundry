@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import asdict
+
 import torch
 from torch import Tensor
 
@@ -70,7 +72,7 @@ class NativeAnyFlowBidirectionalOnPolicyLossAdapter:
         self.generator_decision_draws = 2 + (
             self.pixel.decision_draws_per_student_loss if config.cotrain_flowmap else 0
         )
-        self.config_digest = config.digest
+        self.config_state = asdict(config)
 
     def loss_denominator(self, batch: AnyFlowTrainingBatch, *, role: str) -> Tensor:
         if role not in {"generator", "fake-score"}:

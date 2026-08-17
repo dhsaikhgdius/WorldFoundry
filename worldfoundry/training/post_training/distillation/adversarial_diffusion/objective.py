@@ -6,7 +6,7 @@ import torch
 from torch import Tensor
 
 from .adapters import audit_add_model_graph
-from .config import ADDConfig, ADDNoiseSchedule, add_execution_digest
+from .config import ADDConfig, ADDNoiseSchedule
 from .contracts import (
     ADDDecoderAdapter,
     ADDDiscriminatorAdapter,
@@ -67,7 +67,6 @@ class NativeADDLossAdapter:
         self.student_schedule = student_schedule
         self.teacher_schedule = teacher_schedule
         self.config = config
-        self.config_digest = add_execution_digest(config, student_schedule, teacher_schedule)
 
     def loss_denominator(self, batch: ADDTrainingBatch, *, role: str) -> int:
         if not isinstance(batch, ADDTrainingBatch):

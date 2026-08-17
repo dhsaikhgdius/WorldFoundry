@@ -43,20 +43,6 @@ ANYFLOW_FAR_WAN_SMALL_CHECKPOINT = CheckpointSpec(
         "transformer/config.json",
         "transformer/diffusion_pytorch_model.safetensors",
     ),
-    file_sha256={
-        "transformer/diffusion_pytorch_model.safetensors": (
-            "cb52e9899ac7ec0cbe4687594b950600aa58f2f72588c8d16bcb5f8035a90f75"
-        ),
-    },
-    file_size_bytes={
-        "transformer/diffusion_pytorch_model.safetensors": 2_844_379_104,
-    },
-    resource_sha256={
-        "transformer/config.json": (
-            "a6ad22169dc90bbf6c38621d64e7acf838bb6ed1a8ccf3b78ee15ce5c12b4caf"
-        ),
-    },
-    resource_size_bytes={"transformer/config.json": 671},
 )
 
 ANYFLOW_BIDIRECTIONAL_WAN_SMALL_CHECKPOINT = CheckpointSpec(
@@ -67,20 +53,6 @@ ANYFLOW_BIDIRECTIONAL_WAN_SMALL_CHECKPOINT = CheckpointSpec(
         "transformer/config.json",
         "transformer/diffusion_pytorch_model.safetensors",
     ),
-    file_sha256={
-        "transformer/diffusion_pytorch_model.safetensors": (
-            "2b6fee76a341e425da9f916f78ca0b5376ad4d4eaf8dbb341fb92f960a40ba26"
-        ),
-    },
-    file_size_bytes={
-        "transformer/diffusion_pytorch_model.safetensors": 2_843_589_400,
-    },
-    resource_sha256={
-        "transformer/config.json": (
-            "a72bc7169c3316888718f0315d5825a49e55a2bda10c7e7eefc5cefd4b4c624e"
-        ),
-    },
-    resource_size_bytes={"transformer/config.json": 499},
 )
 
 AnyFlowCheckpoint = CheckpointSpec | ResolvedRoleCheckpoint

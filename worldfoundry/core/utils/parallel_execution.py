@@ -59,7 +59,14 @@ def parallel_execution(
     desc=None,
     **kwargs,
 ):
-    """Map *action* over zipped *args* and *kwargs* using a thread or process pool."""
+    """Map *action* over zipped *args* and *kwargs* using a THREAD pool.
+
+    Despite the ``num_processes`` name (kept for API compatibility), workers
+    are threads (``multiprocessing.pool.ThreadPool``): CPU-bound actions do
+    not run in parallel under the GIL; use ``parallel_processes`` for those.
+    With ``async_return=True`` the live pool is returned and the caller owns
+    it (must ``close()``/``join()`` after retrieving results).
+    """
     args = list(args)
 
     def get_length(args: List, kwargs: Dict):
@@ -82,17 +89,23 @@ def parallel_execution(
     if not sequential:
         pool = ProcessThreadPool(processes=num_processes)
         results = []
-        asyncs = []
-        length = get_length(args, kwargs)
-        for i in range(length):
-            action_args, action_kwargs = get_action_args(length, args, kwargs, i)
-            asyncs.append(pool.apply_async(action, action_args, action_kwargs))
+        try:
+            asyncs = []
+            length = get_length(args, kwargs)
+            for i in range(length):
+                action_args, action_kwargs = get_action_args(length, args, kwargs, i)
+                asyncs.append(pool.apply_async(action, action_args, action_kwargs))
 
-        if async_return:
-            return pool
+            if async_return:
+                return pool
 
-        for async_result in tqdm(asyncs, desc=desc, disable=not print_progress):
-            results.append(async_result.get())
+            for async_result in tqdm(asyncs, desc=desc, disable=not print_progress):
+                results.append(async_result.get())
+        except BaseException:
+            # Historical behavior leaked the pool when an action raised.
+            pool.terminate()
+            pool.join()
+            raise
         pool.close()
         pool.join()
         return results

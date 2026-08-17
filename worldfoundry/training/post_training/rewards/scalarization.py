@@ -1,4 +1,4 @@
-"""Content-addressed vector reward scalarization."""
+"""Vector reward scalarization."""
 
 from __future__ import annotations
 
@@ -7,15 +7,12 @@ from dataclasses import dataclass
 from math import isfinite
 from types import MappingProxyType
 
-from worldfoundry.core.io.integrity import canonical_sha256
-
 
 @dataclass(frozen=True, slots=True)
 class RewardScalarizationResult:
     scalar_rewards: object
     normalized_components: Mapping[str, object]
     valid_mask: object
-    scalarizer_digest: str
 
 
 class WeightedRewardScalarizer:
@@ -65,10 +62,6 @@ class WeightedRewardScalarizer:
         self.calibration_std = MappingProxyType(std)
         self.normalization_epsilon = epsilon
         self.invalid_policy = invalid_policy
-
-    @property
-    def digest(self) -> str:
-        return canonical_sha256(self.state_dict())
 
     def state_dict(self) -> dict[str, object]:
         return {
@@ -152,7 +145,6 @@ class WeightedRewardScalarizer:
             scalar_rewards=scalar,
             normalized_components=MappingProxyType(normalized),
             valid_mask=joint_valid,
-            scalarizer_digest=self.digest,
         )
 
 

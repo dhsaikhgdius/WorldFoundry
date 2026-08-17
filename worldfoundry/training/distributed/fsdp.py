@@ -11,7 +11,6 @@ from torch.distributed.device_mesh import DeviceMesh
 from torch.distributed.fsdp import MixedPrecisionPolicy, fully_shard
 from torch.distributed.tensor import DTensor
 
-from worldfoundry.core.io.integrity import canonical_sha256
 from worldfoundry.training.api.contracts import TrainModelAdapter
 
 from .parallel import ParallelPlan
@@ -41,6 +40,40 @@ def _module_device_audit(module: nn.Module, expected: torch.device) -> None:
             "FSDP2 requires the trainable module to be materialized on the current CUDA "
             f"device {expected}; mismatches: {mismatches}"
         )
+
+
+def _precision_island_modules(
+    module: nn.Module,
+    *,
+    param_dtype: torch.dtype,
+    master_parameter_dtype: torch.dtype | None,
+) -> dict[torch.dtype, list[tuple[str, nn.Module]]]:
+    islands: dict[torch.dtype, list[tuple[str, nn.Module]]] = {}
+    for name, child in module.named_modules():
+        direct_parameters = tuple(child.parameters(recurse=False))
+        non_compute_parameters = tuple(parameter for parameter in direct_parameters if parameter.dtype != param_dtype)
+        if not non_compute_parameters:
+            continue
+        if master_parameter_dtype is not None and all(
+            parameter.dtype == master_parameter_dtype for parameter in non_compute_parameters
+        ):
+            continue
+        direct_dtypes = {parameter.dtype for parameter in direct_parameters}
+        if len(direct_dtypes) != 1:
+            raise ValueError(
+                f"FSDP2 precision-island module {name!r} has mixed direct parameter dtypes: "
+                f"{sorted(map(str, direct_dtypes))}"
+            )
+        direct_ids = {id(parameter) for parameter in direct_parameters}
+        descendant_parameters = tuple(parameter for parameter in child.parameters() if id(parameter) not in direct_ids)
+        if descendant_parameters:
+            raise ValueError(
+                f"FSDP2 precision-island module {name!r} owns parameterized descendants; "
+                "declare a leaf-level model policy instead of guessing a mixed communication group"
+            )
+        dtype = next(iter(direct_dtypes))
+        islands.setdefault(dtype, []).append((name, child))
+    return islands
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,7 +121,6 @@ class FSDP2Application:
         return {
             "schema": self.schema,
             "parallel_plan": self.parallel_plan.to_dict(),
-            "parallel_plan_digest": self.parallel_plan.digest,
             "block_module_names": list(self.block_module_names),
             "block_class_names": list(self.block_class_names),
             "parameter_names": list(self.parameter_names),
@@ -103,10 +135,6 @@ class FSDP2Application:
             "original_parameter_dtypes": list(self.original_parameter_dtypes),
         }
 
-    @property
-    def digest(self) -> str:
-        return canonical_sha256(self.to_dict())
-
 
 def _apply_fsdp2(
     adapter: TrainModelAdapter,
@@ -116,8 +144,9 @@ def _apply_fsdp2(
     param_dtype: torch.dtype,
     reduce_dtype: torch.dtype,
     parameter_mode: str,
+    master_parameter_dtype: torch.dtype | None,
 ) -> FSDP2Application:
-    """Apply block-wise FSDP2 in-place and return its immutable audit.
+    """Apply block-wise FSDP2 in-place and return its execution description.
 
     The caller must inject/freeze adapters before this function and must build
     the optimizer after it returns. FSDP2 changes parameters to DTensor values,
@@ -142,6 +171,8 @@ def _apply_fsdp2(
         raise NotImplementedError("context/tensor parallel plans require a family-specific implementation")
     param_dtype_name = _dtype_name(param_dtype)
     reduce_dtype_name = _dtype_name(reduce_dtype)
+    if master_parameter_dtype is not None:
+        _dtype_name(master_parameter_dtype)
     if tuple(mesh.mesh.shape) != plan.mesh_shape or mesh.mesh_dim_names != (
         "dp_replicate",
         "dp_shard",
@@ -199,26 +230,11 @@ def _apply_fsdp2(
         output_dtype=param_dtype,
     )
     fsdp_mesh = plan.fsdp_mesh(mesh)
-    precision_islands: dict[torch.dtype, list[tuple[str, nn.Module]]] = {}
-    for name, child in module.named_modules():
-        direct_parameters = tuple(child.parameters(recurse=False))
-        if not direct_parameters or all(parameter.dtype == param_dtype for parameter in direct_parameters):
-            continue
-        direct_dtypes = {parameter.dtype for parameter in direct_parameters}
-        if len(direct_dtypes) != 1:
-            raise ValueError(
-                f"FSDP2 precision-island module {name!r} has mixed direct parameter dtypes: "
-                f"{sorted(map(str, direct_dtypes))}"
-            )
-        direct_ids = {id(parameter) for parameter in direct_parameters}
-        descendant_parameters = tuple(parameter for parameter in child.parameters() if id(parameter) not in direct_ids)
-        if descendant_parameters:
-            raise ValueError(
-                f"FSDP2 precision-island module {name!r} owns parameterized descendants; "
-                "declare a leaf-level model policy instead of guessing a mixed communication group"
-            )
-        dtype = next(iter(direct_dtypes))
-        precision_islands.setdefault(dtype, []).append((name, child))
+    precision_islands = _precision_island_modules(
+        module,
+        param_dtype=param_dtype,
+        master_parameter_dtype=master_parameter_dtype,
+    )
 
     island_policy = MixedPrecisionPolicy(
         param_dtype=None,
@@ -289,8 +305,9 @@ def apply_fsdp2(
     mesh: DeviceMesh,
     param_dtype: torch.dtype,
     reduce_dtype: torch.dtype,
+    master_parameter_dtype: torch.dtype | None = None,
 ) -> FSDP2Application:
-    """Shard a role that owns optimizer-visible trainable parameters."""
+    """Shard a trainable role, retaining opt-in master dtype for its optimizer."""
 
     return _apply_fsdp2(
         adapter,
@@ -299,6 +316,7 @@ def apply_fsdp2(
         param_dtype=param_dtype,
         reduce_dtype=reduce_dtype,
         parameter_mode="trainable",
+        master_parameter_dtype=master_parameter_dtype,
     )
 
 
@@ -319,6 +337,7 @@ def apply_fsdp2_frozen_reference(
         param_dtype=param_dtype,
         reduce_dtype=reduce_dtype,
         parameter_mode="frozen-reference",
+        master_parameter_dtype=None,
     )
 
 

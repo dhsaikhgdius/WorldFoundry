@@ -1,5 +1,4 @@
 import os
-import warnings
 from pathlib import Path
 from typing import Optional, Dict, Any, Union, Tuple
 from contextlib import contextmanager
@@ -10,6 +9,8 @@ import numpy as np
 from PIL import Image
 
 from huggingface_hub import snapshot_download
+
+from worldfoundry.core.model_loading import load_torch_checkpoint
 
 from ...base_representation import BaseRepresentation
 
@@ -399,9 +400,15 @@ class GenerationSystem(nn.Module):
         self.add_feedback_for_transformer()
 
         if ckpt_path is not None:
-            with warnings.catch_warnings():
-                warnings.filterwarnings("ignore", category=FutureWarning, message=".*weights_only.*")
-                state_dict = torch.load(ckpt_path, map_location="cpu", weights_only=False)
+            # The checkpoint is consumed purely as nested state_dicts; load
+            # weights-only by default and only fall back to unrestricted pickle
+            # on legacy wrapped checkpoints that fail the safe path.
+            state_dict = load_torch_checkpoint(
+                ckpt_path,
+                map_location="cpu",
+                weights_only=True,
+                allow_unsafe_pickle_fallback=True,
+            )
             self.transformer.load_state_dict(state_dict["transformer"])
             self.recon_decoder.load_state_dict(state_dict["recon_decoder"])
             print(f"Loaded {ckpt_path}.")

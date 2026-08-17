@@ -10,7 +10,6 @@ import torch
 from torch import nn
 
 from worldfoundry.core.gradient import clip_grad_norm_
-from worldfoundry.core.io.integrity import canonical_sha256
 from worldfoundry.training.optimization import (
     audit_optimizer_parameters,
     trainable_parameters,
@@ -245,14 +244,9 @@ class NativeDiffusionNFTEngine:
 
         if self.old_policy_refreshes == 0:
             return self.initial_old_policy_revision
-        return canonical_sha256(
-            {
-                "schema": "worldfoundry-diffusion-nft-collection-policy-revision",
-                "initial_old_policy_revision": self.initial_old_policy_revision,
-                "old_policy_refreshes": self.old_policy_refreshes,
-                "last_old_policy_refresh_step": self.last_old_policy_refresh_step,
-                "old_policy_refresh": self.old_policy_refresh.state_dict(),
-            }
+        return (
+            f"{self.initial_old_policy_revision}:refresh-{self.old_policy_refreshes}"
+            f":step-{self.last_old_policy_refresh_step}"
         )
 
     @torch.no_grad()
@@ -521,14 +515,9 @@ class NativeDiffusionNFTEngine:
         expected_collection_revision = (
             self.initial_old_policy_revision
             if refreshes == 0
-            else canonical_sha256(
-                {
-                    "schema": "worldfoundry-diffusion-nft-collection-policy-revision",
-                    "initial_old_policy_revision": self.initial_old_policy_revision,
-                    "old_policy_refreshes": refreshes,
-                    "last_old_policy_refresh_step": last_refresh,
-                    "old_policy_refresh": self.old_policy_refresh.state_dict(),
-                }
+            else (
+                f"{self.initial_old_policy_revision}:refresh-{refreshes}"
+                f":step-{last_refresh}"
             )
         )
         if state_dict["collection_policy_revision"] != expected_collection_revision:

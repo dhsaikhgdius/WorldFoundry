@@ -4,14 +4,6 @@ from __future__ import annotations
 
 from ..components import ComponentKey, ComponentKind, ComponentSpec, ExecutionSpec
 from ..loaders import CheckpointSpec
-from ..models.autoencoders.cosmos2p5 import build_cosmos25_video_codec
-from ..models.denoisers.cosmos2p5 import (
-    build_cosmos25_2b_denoiser,
-    build_cosmos25_14b_denoiser,
-    build_cosmos25_transfer_2b_denoiser,
-)
-from ..models.encoders.cosmos2p5 import build_cosmos25_prompt_conditioner
-from ..schedulers import build_wan_flow_unipc_scheduler
 from .spec import NativeDiffusionRecipe
 
 COSMOS25_2B_MODEL_ID = "cosmos-predict2.5-2b"
@@ -22,6 +14,7 @@ COSMOS25_14B_REPO_ID = "nvidia/Cosmos-Predict2.5-14B"
 COSMOS25_TRANSFER_2B_REPO_ID = "nvidia/Cosmos-Transfer2.5-2B"
 COSMOS25_REASON_REPO_ID = "nvidia/Cosmos-Reason1-7B"
 COSMOS25_2B_REVISION = "f176dc95b4a70f53ce01c4b302851595e7322b00"
+COSMOS25_2B_PRETRAINED_REVISION = "15a82a2ec231bc318692aa0456a36537c806e7d4"
 COSMOS25_14B_REVISION = "71ebf3e8af30ecfe440bf0481115975fcc052b46"
 COSMOS25_REASON_REVISION = "375e24000b24baed78f4618d3dd779e47cd96323"
 COSMOS25_TRANSFER_2B_REVISION = "bd963eabcfc2d61dc4ea365cacf41d45ac480aa5"
@@ -34,6 +27,42 @@ _REASON_TOKENIZER_FILES = (
 )
 
 
+def _build_cosmos25_2b_denoiser(context):
+    from ..models.denoisers.cosmos2p5 import build_cosmos25_2b_denoiser
+
+    return build_cosmos25_2b_denoiser(context)
+
+
+def _build_cosmos25_14b_denoiser(context):
+    from ..models.denoisers.cosmos2p5 import build_cosmos25_14b_denoiser
+
+    return build_cosmos25_14b_denoiser(context)
+
+
+def _build_cosmos25_transfer_2b_denoiser(context):
+    from ..models.denoisers.cosmos2p5 import build_cosmos25_transfer_2b_denoiser
+
+    return build_cosmos25_transfer_2b_denoiser(context)
+
+
+def _build_cosmos25_prompt_conditioner(context):
+    from ..models.encoders.cosmos2p5 import build_cosmos25_prompt_conditioner
+
+    return build_cosmos25_prompt_conditioner(context)
+
+
+def _build_cosmos25_video_codec(context):
+    from ..models.autoencoders.cosmos2p5 import build_cosmos25_video_codec
+
+    return build_cosmos25_video_codec(context)
+
+
+def _build_cosmos25_scheduler(context):
+    from ..schedulers import build_wan_flow_unipc_scheduler
+
+    return build_wan_flow_unipc_scheduler(context)
+
+
 def _recipe(
     *,
     model_id: str,
@@ -44,6 +73,7 @@ def _recipe(
     aliases: tuple[str, ...],
     capabilities: frozenset[str] | None = None,
     architecture: str = "cosmos-predict2.5-minimal-v1-lvg-dit",
+    pretrained_checkpoint: CheckpointSpec | None = None,
 ) -> NativeDiffusionRecipe:
     denoiser = ComponentKey(ComponentKind.DENOISER)
     conditioner = ComponentKey(ComponentKind.CONDITIONER)
@@ -75,6 +105,8 @@ def _recipe(
             allow_patterns=_REASON_TOKENIZER_FILES,
         ),
     }
+    if pretrained_checkpoint is not None:
+        checkpoints["transformer-pretrained"] = pretrained_checkpoint
     return NativeDiffusionRecipe(
         model_id=model_id,
         aliases=aliases,
@@ -82,13 +114,13 @@ def _recipe(
             ComponentSpec(denoiser, denoiser_factory, {"weights": "transformer"}),
             ComponentSpec(
                 conditioner,
-                build_cosmos25_prompt_conditioner,
+                _build_cosmos25_prompt_conditioner,
                 {"weights": "text-encoder", "tokenizer": "tokenizer"},
             ),
-            ComponentSpec(codec, build_cosmos25_video_codec, {"weights": "vae"}),
+            ComponentSpec(codec, _build_cosmos25_video_codec, {"weights": "vae"}),
             ComponentSpec(
                 scheduler,
-                build_wan_flow_unipc_scheduler,
+                _build_cosmos25_scheduler,
                 options={"shift": 5.0, "use_karras_sigma": True},
             ),
         ),
@@ -128,8 +160,14 @@ def cosmos25_2b_recipe() -> NativeDiffusionRecipe:
         repo_id=COSMOS25_2B_REPO_ID,
         revision=COSMOS25_2B_REVISION,
         weight_file="base/post-trained/81edfebe-bd6a-4039-8c1d-737df1a790bf_ema_bf16.pt",
-        denoiser_factory=build_cosmos25_2b_denoiser,
+        denoiser_factory=_build_cosmos25_2b_denoiser,
         aliases=("cosmos-predict2.5", "cosmos-predict2p5", COSMOS25_2B_REPO_ID),
+        pretrained_checkpoint=CheckpointSpec(
+            repo_id=COSMOS25_2B_REPO_ID,
+            revision=COSMOS25_2B_PRETRAINED_REVISION,
+            files=("base/pre-trained/d20b7120-df3e-4911-919d-db6e08bad31c_ema_bf16.pt",),
+            allow_patterns=("base/pre-trained/d20b7120-df3e-4911-919d-db6e08bad31c_ema_bf16.pt",),
+        ),
     )
 
 
@@ -139,7 +177,7 @@ def cosmos25_14b_recipe() -> NativeDiffusionRecipe:
         repo_id=COSMOS25_14B_REPO_ID,
         revision=COSMOS25_14B_REVISION,
         weight_file="base/post-trained/e21d2a49-4747-44c8-ba44-9f6f9243715f_ema_bf16.pt",
-        denoiser_factory=build_cosmos25_14b_denoiser,
+        denoiser_factory=_build_cosmos25_14b_denoiser,
         aliases=(COSMOS25_14B_REPO_ID,),
     )
 
@@ -150,7 +188,7 @@ def cosmos25_transfer_2b_recipe() -> NativeDiffusionRecipe:
         repo_id=COSMOS25_TRANSFER_2B_REPO_ID,
         revision=COSMOS25_TRANSFER_2B_REVISION,
         weight_file="general/edge/ecd0ba00-d598-4f94-aa09-e8627899c431_ema_bf16.pt",
-        denoiser_factory=build_cosmos25_transfer_2b_denoiser,
+        denoiser_factory=_build_cosmos25_transfer_2b_denoiser,
         aliases=(
             "cosmos-transfer-2.5",
             "cosmos-transfer2.5",

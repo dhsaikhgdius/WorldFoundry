@@ -4,22 +4,16 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
-from math import prod
 
 import torch
 
 from worldfoundry.training.checkpoint.checkpointer import TrainingCheckpointer
 from worldfoundry.training.checkpoint.staging import PendingTrainingCheckpoint
 from worldfoundry.training.checkpoint.state import TrainingProgress
+from worldfoundry.training.post_training.shared.batching import latent_token_count as _latent_tokens
 
 from .contracts import DMD2TrainingBatch
 from .engine import DMD2TrainResult, NativeDMD2TrainEngine
-
-
-def _latent_tokens(tensor: torch.Tensor) -> int:
-    if tensor.ndim < 2:
-        raise ValueError("latent tensor must include batch and feature dimensions")
-    return int(tensor.shape[0]) * prod(int(size) for size in tensor.shape[2:])
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,7 +28,7 @@ class DMD2RunSummary:
 
 
 class NativeDMD2TrainingSession:
-    """Drive atomic G→guidance iterations and checkpoint only committed state."""
+    """Drive atomic DMD2 iterations and checkpoint only committed state."""
 
     def __init__(
         self,
@@ -89,9 +83,16 @@ class NativeDMD2TrainingSession:
         *,
         max_steps: int,
         generator: torch.Generator | None = None,
+        boundary_every_steps: int = 0,
+        boundary_sink: Callable[[int, int], None] | None = None,
     ) -> DMD2RunSummary:
         if isinstance(max_steps, bool) or int(max_steps) <= 0:
             raise ValueError("max_steps must be positive")
+        if isinstance(boundary_every_steps, bool) or int(boundary_every_steps) < 0:
+            raise ValueError("boundary_every_steps must be non-negative")
+        boundary_cadence = int(boundary_every_steps)
+        if (boundary_sink is None) != (boundary_cadence == 0):
+            raise ValueError("boundary_sink and a positive boundary_every_steps must be configured together")
         initial_step = self.engine.global_step
         iterator = iter(self.dataloader)
         final_result: DMD2TrainResult | None = None
@@ -110,6 +111,7 @@ class NativeDMD2TrainingSession:
                     if not isinstance(batch, DMD2TrainingBatch):
                         raise TypeError("DMD2 dataloader must emit DMD2TrainingBatch values")
                     batches.append(batch)
+                previous_step = self.engine.global_step
                 final_result = self.engine.train_step(tuple(batches), generator=generator)
                 samples = sum(batch.batch_size for batch in batches)
                 self.progress.record_step(
@@ -125,6 +127,7 @@ class NativeDMD2TrainingSession:
                             "schema": "worldfoundry-dmd2-step-event",
                             "global_step": self.engine.global_step,
                             "generator_updated": final_result.generator_updated,
+                            "guidance_updated": final_result.guidance_updated,
                             "microbatches": len(batches),
                             "samples": samples,
                             "generator_loss": float(final_result.generator_loss.item()),
@@ -132,6 +135,12 @@ class NativeDMD2TrainingSession:
                         }
                     )
                 self._checkpoint_if_due()
+                if boundary_cadence and self.engine.global_step // boundary_cadence > (
+                    previous_step // boundary_cadence
+                ):
+                    self.wait_for_checkpoints()
+                    assert boundary_sink is not None
+                    boundary_sink(previous_step, self.engine.global_step)
         finally:
             self.wait_for_checkpoints()
         assert final_result is not None

@@ -1,6 +1,7 @@
 """Astra visual generation pipeline module."""
 
 from ..pipeline_utils import PipelineABC
+import logging
 import torch
 import os
 import numpy as np
@@ -12,6 +13,8 @@ from typing import Optional, Dict, Any, List, Sequence, Union
 from ...operators.astra_operator import AstraOperator
 from ...synthesis.visual_generation.kling.astra_synthesis import AstraSynthesis
 from ...synthesis.visual_generation.memory.kling.astra import AstraMemory
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -77,7 +80,7 @@ class AstraPipeline(PipelineABC):
             if hasattr(config, k):
                 setattr(config, k, v)
 
-        print(f"Loading Astra components on {device}...")
+        logger.info("Loading Astra components on %s...", device)
         synthesis = AstraSynthesis.from_pretrained(config, device=device)
         operator = AstraOperator(device=device)
         memory = AstraMemory(capacity=config.max_history_frames)
@@ -173,7 +176,7 @@ class AstraPipeline(PipelineABC):
         total_frames = per_direction_frames * num_directions
 
         # 1. Load and encode the condition image (Perception -> Representation)
-        print(f"Processing image: {condition_image}")
+        logger.info("Processing image: %s", condition_image)
         frames = self.operator.process_perception(condition_image=condition_image)
         latents = self.synthesis.encode_frames(frames)
 
@@ -189,7 +192,7 @@ class AstraPipeline(PipelineABC):
         initial_latents = history_latents  # backup for final concatenation
 
         # 2. Encode the text prompt (Interaction -> Representation)
-        print(f"Encoding prompt: {prompt}")
+        logger.info("Encoding prompt: %s", prompt)
         prompt_emb_pos = self.synthesis.pipe.encode_prompt(prompt)
         prompt_emb_neg = None
         if args.text_guidance_scale > 1.0:
@@ -204,9 +207,10 @@ class AstraPipeline(PipelineABC):
         #    Why stitch: memory.select() indexes into camera_embedding_full using the
         #    absolute history length T. After direction 0's frames are generated, T
         #    has advanced, so direction 1's poses must sit at the correct offset.
-        print(f"Generating camera embeddings for directions: {directions} "
-              f"({num_directions} step(s) x {per_direction_frames} frames "
-              f"= {total_frames} total frames)...")
+        logger.info(
+            "Generating camera embeddings for directions: %s (%s step(s) x %s frames = %s total frames)...",
+            directions, num_directions, per_direction_frames, total_frames,
+        )
 
         direction_embeddings = []
         for direction in directions:
@@ -341,7 +345,7 @@ class AstraPipeline(PipelineABC):
         # Autoregressive generation loop over all direction steps
         while total_generated < total_frames:
             current_generation = min(args.frames_per_generation, total_frames - total_generated)
-            print(f"Generation step: {total_generated}/{total_frames}")
+            logger.info("Generation step: %s/%s", total_generated, total_frames)
 
             framepack_data = self.memory.select(
                 current_generation,
@@ -371,7 +375,7 @@ class AstraPipeline(PipelineABC):
             [initial_latents.to(all_generated.device), all_generated], dim=1
         ).unsqueeze(0)
 
-        print("Decoding video...")
+        logger.info("Decoding video...")
         video_np = self.synthesis.decode_video(final_video_latents)
         pil_frames = [Image.fromarray(frame) for frame in video_np]
         if return_dict:

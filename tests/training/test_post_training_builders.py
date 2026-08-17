@@ -30,7 +30,7 @@ class _FlowPredictor:
         self,
         *,
         trainable: bool = True,
-        checkpoint_identity: str = "model-digest",
+        checkpoint_identity: str = "model-checkpoint",
     ) -> None:
         self.module = torch.nn.Linear(2, 2, bias=False)
         self.module.requires_grad_(trainable)
@@ -92,7 +92,7 @@ def _dmd_recipe_mapping() -> dict[str, object]:
         "schema": "worldfoundry-post-training",
         "execution_owner": "worldfoundry-native",
         "run": {"id": "dmd-test", "output_dir": "runs/dmd-test"},
-        "model": {"recipe": "wan2.1-t2v-1.3b", "checkpoint": "model-digest"},
+        "model": {"recipe": "wan2.1-t2v-1.3b", "checkpoint": "model-checkpoint"},
         "tuning": {"mode": "full"},
         "export": {"format": "safetensors"},
         "data": {"manifest": "data/train.jsonl", "shuffle": False},
@@ -100,8 +100,8 @@ def _dmd_recipe_mapping() -> dict[str, object]:
             "type": "dmd",
             "student_timesteps": [1000, 750, 500],
             "student_sigmas": [1.0, 0.75, 0.5],
-            "real_score_checkpoint": "teacher-digest",
-            "fake_score_checkpoint": "critic-digest",
+            "real_score_checkpoint": "teacher-checkpoint",
+            "fake_score_checkpoint": "critic-checkpoint",
             "score_flow_shift": 5.0,
             "teacher_guidance_scale": 3.5,
             "generator_update_interval": 3,
@@ -177,9 +177,9 @@ def test_dmd_builder_materializes_recipe_math_optimizers_and_checkpoint_inventor
     student = _FlowPredictor()
     teacher = _FlowPredictor(
         trainable=False,
-        checkpoint_identity="teacher-digest",
+        checkpoint_identity="teacher-checkpoint",
     )
-    fake_score = _FlowPredictor(checkpoint_identity="critic-digest")
+    fake_score = _FlowPredictor(checkpoint_identity="critic-checkpoint")
     student_scheduler = _StatefulCounter()
     fake_score_scheduler = _StatefulCounter()
     ema = _StatefulCounter()
@@ -229,7 +229,7 @@ def test_flow_grpo_builder_materializes_rollout_replay_scalarizer_and_update_con
     stack = build_native_flow_policy_training_stack(
         recipe,
         policy=policy,
-        initial_policy_revision="policy-checkpoint-digest",
+        initial_policy_revision="policy-checkpoint",
         fused_adamw=False,
     )
 
@@ -275,7 +275,7 @@ def test_flow_policy_builder_dispatches_dppo_without_copying_shared_stack() -> N
     stack = build_native_flow_policy_training_stack(
         recipe,
         policy=_FlowPredictor(),
-        initial_policy_revision="policy-checkpoint-digest",
+        initial_policy_revision="policy-checkpoint",
         fused_adamw=False,
     )
 
@@ -308,7 +308,7 @@ def test_flow_policy_builder_materializes_sliding_sde_window_without_mutable_sta
     stack = build_native_flow_policy_training_stack(
         recipe,
         policy=_FlowPredictor(),
-        initial_policy_revision="policy-checkpoint-digest",
+        initial_policy_revision="policy-checkpoint",
         fused_adamw=False,
     )
 
@@ -329,9 +329,9 @@ def test_builders_materialize_dmd_accumulation_and_reject_unused_reference_seman
         student=_FlowPredictor(),
         real_score=_FlowPredictor(
             trainable=False,
-            checkpoint_identity="teacher-digest",
+            checkpoint_identity="teacher-checkpoint",
         ),
-        fake_score=_FlowPredictor(checkpoint_identity="critic-digest"),
+        fake_score=_FlowPredictor(checkpoint_identity="critic-checkpoint"),
         fused_adamw=False,
     )
     assert dmd_stack.engine.gradient_accumulation_steps == 2
@@ -342,6 +342,6 @@ def test_builders_materialize_dmd_accumulation_and_reject_unused_reference_seman
             flow,
             policy=_FlowPredictor(),
             reference_policy=_FlowPredictor(trainable=False),
-            initial_policy_revision="policy-checkpoint-digest",
+            initial_policy_revision="policy-checkpoint",
             fused_adamw=False,
         )

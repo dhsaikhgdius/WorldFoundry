@@ -26,10 +26,15 @@ from diffusers_helper.utils import (
     AsyncStream,
     async_run,
 )
-from diffusers_helper.model import HunyuanVideoTransformer3DModelPacked
+from diffusers_helper.model import HunyuanVideoTransformer3DModelPacked, enable_framepack_global_patches
 from diffusers_helper.sampling import sample_hunyuan
 from diffusers_helper.memory import cpu, gpu, get_cuda_free_memory_gb, move_model_to_device_with_memory_preservation, offload_model_from_device_for_memory_preservation, fake_diffusers_current_device, DynamicSwapInstaller, unload_complete_models, load_model_as_complete
 from transformers import SiglipImageProcessor, SiglipVisionModel
+
+# Modified by WorldFoundry: FramePack's process-global norm/accelerate patches are no
+# longer applied when diffusers_helper.model is merely imported; this official runtime
+# entry activates them explicitly before any model is constructed.
+enable_framepack_global_patches()
 
 free_mem_gb = get_cuda_free_memory_gb(gpu)
 high_vram = free_mem_gb > 60

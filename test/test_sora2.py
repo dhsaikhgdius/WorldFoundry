@@ -22,9 +22,13 @@ image = Image.open(image_path).convert('RGB')
 test_prompt = "An old-fashioned European village with thatched roofs on the houses."
 output_dir = "./output/sora2"
 
+api_key = os.getenv("OPENAI_API_KEY", "")
+if not api_key:
+    raise SystemExit("Please set OPENAI_API_KEY before running this example.")
+
 pipeline = Sora2Pipeline.api_init(
-    endpoint="https://api.openai.com/v1", 
-    api_key="your api key"
+    endpoint=os.getenv("OPENAI_API_ENDPOINT", "https://api.openai.com/v1"),
+    api_key=api_key
 )
 
 # 自动判断任务类型，pipeline 内部轮询等待完成

@@ -44,6 +44,7 @@ def dmd2_distribution_gradient(
     *,
     normalization_axes: tuple[int, ...],
     normalization_epsilon: float = 0.0,
+    calculation_dtype: str = "float32",
 ) -> tuple[object, object]:
     """Return ``(x0_fake-x0_real)/mean(|x-x0_real|)`` per sample."""
 
@@ -63,16 +64,24 @@ def dmd2_distribution_gradient(
     epsilon = float(normalization_epsilon)
     if not isfinite(epsilon) or epsilon < 0:
         raise ValueError("normalization_epsilon must be finite and non-negative")
-    sample = score_sample.float()
-    fake = fake_score_clean.float()
-    real = real_score_clean.float()
+    dtype = torch.float64 if calculation_dtype == "float64" else torch.float32
+    if calculation_dtype not in {"float32", "float64"}:
+        raise ValueError("calculation_dtype must be 'float32' or 'float64'")
+    sample = score_sample.to(dtype=dtype)
+    fake = fake_score_clean.to(dtype=dtype)
+    real = real_score_clean.to(dtype=dtype)
     denominator = (sample - real).abs().mean(dim=axes, keepdim=True)
     divisor = denominator.clamp_min(epsilon) if epsilon > 0 else denominator
     gradient = torch.nan_to_num((fake - real) / divisor)
     return gradient, denominator.reshape(int(sample.shape[0]))
 
 
-def dmd2_proxy_loss_per_sample(generated_clean: object, distribution_gradient: object) -> object:
+def dmd2_proxy_loss_per_sample(
+    generated_clean: object,
+    distribution_gradient: object,
+    *,
+    calculation_dtype: str = "float32",
+) -> object:
     """Return the half-MSE proxy whose gradient equals the supplied DM field."""
 
     torch = _require_torch()
@@ -80,8 +89,11 @@ def dmd2_proxy_loss_per_sample(generated_clean: object, distribution_gradient: o
         raise TypeError("DMD2 proxy-loss inputs must be tensors")
     if generated_clean.ndim < 2 or generated_clean.shape != distribution_gradient.shape:
         raise ValueError("DMD2 proxy-loss inputs must share a [B,...] shape")
-    generated = generated_clean.float()
-    target = (generated - distribution_gradient.float()).detach()
+    dtype = torch.float64 if calculation_dtype == "float64" else torch.float32
+    if calculation_dtype not in {"float32", "float64"}:
+        raise ValueError("calculation_dtype must be 'float32' or 'float64'")
+    generated = generated_clean.to(dtype=dtype)
+    target = (generated - distribution_gradient.to(dtype=dtype)).detach()
     return 0.5 * (generated - target).square().reshape(int(generated.shape[0]), -1).mean(dim=1)
 
 

@@ -33,7 +33,6 @@ def _batch(value: float, *, count: int = 2, weights=None) -> DFDTrainingBatch:
 
 
 class _EngineLosses:
-    config_digest = "dfd-engine-test"
     data_forcing_probability = 1.0
     student_update_frequency = 5
 
@@ -226,7 +225,6 @@ def _expand(levels, reference):
 
 class _PredictionAdapter:
     noise_process_kind = "flow-matching"
-    noise_process_digest = "linear-flow"
 
     def __init__(self, value: float, identity: str, *, frozen=False) -> None:
         self.module = _Scale(value)
@@ -421,11 +419,10 @@ def _checkpointable_stack(seed: int):
         dataloader=loader,
         objective_generator=generator,
         progress=progress,
-        identity={
-            "algorithm": "dfd",
-            "config_digest": engine.config_digest,
-            "gradient_accumulation_steps": engine.gradient_accumulation_steps,
-        },
+            identity={
+                "algorithm": "dfd",
+                "gradient_accumulation_steps": engine.gradient_accumulation_steps,
+            },
         lr_scheduler=NamedStatefulCollection(
             {
                 "student": student_scheduler,

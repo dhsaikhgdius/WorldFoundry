@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from worldfoundry.core.io.integrity import canonical_sha256
-
 from ..shared.contracts import FlowPredictionAdapter
 from .contracts import FlowReplayResult, FlowTrajectory, FlowTrajectoryReplayBatch
 from .rollout_strategies.transition import (
@@ -70,25 +68,6 @@ def _slice_batched_mapping(
         else:
             result[str(key)] = value
     return result
-
-
-def flow_trajectory_schedule_digest(
-    sigmas: object,
-    *,
-    sde_step_indices: tuple[int, ...],
-    transition_identity: Mapping[str, object],
-) -> str:
-    """Hash every transition-semantic input used by rollout and replay."""
-
-    values = sigmas.detach().float().cpu().tolist()
-    return canonical_sha256(
-        {
-            "schema": "worldfoundry-flow-trajectory-schedule",
-            "transition": dict(transition_identity),
-            "sigmas": values,
-            "sde_step_indices": tuple(int(index) for index in sde_step_indices),
-        }
-    )
 
 
 class FlowTrajectorySampler:
@@ -238,16 +217,10 @@ class FlowTrajectorySampler:
                 current = flow_ode_step(velocity, current, sigma, sigma_next).to(dtype=storage_dtype)
             states.append(current.detach())
 
-        digest = flow_trajectory_schedule_digest(
-            schedule,
-            sde_step_indices=selected,
-            transition_identity=self.transition_strategy.identity,
-        )
         return FlowTrajectory(
             sample_ids=sample_ids,
             group_ids=group_ids,
             policy_revision=policy_revision,
-            schedule_digest=digest,
             latents=torch.stack(states, dim=1),
             sigmas=schedule,
             step_indices=selected,
@@ -279,14 +252,6 @@ class NativeFlowTrajectoryReplay:
         if not isinstance(trajectory, (FlowTrajectory, FlowTrajectoryReplayBatch)):
             raise TypeError("trajectory must be FlowTrajectory or FlowTrajectoryReplayBatch")
         transition_strategy = flow_transition_strategy_from_identity(trajectory.transition_identity)
-        expected_digest = flow_trajectory_schedule_digest(
-            trajectory.sigmas,
-            sde_step_indices=trajectory.step_indices,
-            transition_identity=trajectory.transition_identity,
-        )
-        if expected_digest != trajectory.schedule_digest:
-            raise ValueError("trajectory schedule semantics differ from its digest")
-
         log_probs: list[object] = []
         means: list[object] = []
         scales: list[object] = []
@@ -361,7 +326,6 @@ def slice_flow_trajectory(
         raise ValueError("trajectory slice must be a non-empty in-range interval")
     begin = int(start)
     stop = int(end)
-    sigmas = trajectory.sigmas[begin:stop] if trajectory.sigmas.ndim == 2 else trajectory.sigmas
     conditioning = _slice_batched_mapping(
         trajectory.conditioning,
         start=begin,
@@ -374,11 +338,6 @@ def slice_flow_trajectory(
         source=trajectory,
         start=begin,
         end=stop,
-        schedule_digest=flow_trajectory_schedule_digest(
-            sigmas,
-            sde_step_indices=trajectory.step_indices,
-            transition_identity=trajectory.transition_identity,
-        ),
         conditioning=conditioning,
         metadata=metadata,
     )
@@ -387,6 +346,5 @@ def slice_flow_trajectory(
 __all__ = [
     "FlowTrajectorySampler",
     "NativeFlowTrajectoryReplay",
-    "flow_trajectory_schedule_digest",
     "slice_flow_trajectory",
 ]

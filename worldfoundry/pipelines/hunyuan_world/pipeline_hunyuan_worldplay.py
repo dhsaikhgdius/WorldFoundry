@@ -1,5 +1,6 @@
 """Hunyuan Worldplay visual generation pipeline module."""
 
+import logging
 import os
 from typing import TYPE_CHECKING, Any, Generator, List, Mapping, Optional, Sequence
 
@@ -17,6 +18,8 @@ from ..pipeline_utils import PipelineABC
 
 if TYPE_CHECKING:
     from ...synthesis.visual_generation.hunyuan_world.hunyuan_worldplay_synthesis import HunyuanWorldPlaySynthesis
+
+logger = logging.getLogger(__name__)
 
 
 def _initialize_worldplay_parallel_runtime() -> None:
@@ -266,7 +269,9 @@ class HunyuanWorldPlayPipeline(PipelineABC):
             raise ValueError("pose or interactions must be provided")
         inferred_video_length = self.operators.infer_video_length(pose_value)
         if video_length != inferred_video_length:
-            print(f"video_length {video_length} != inferred_video_length {inferred_video_length}, auto setting")
+            logger.warning(
+                "video_length %s != inferred_video_length %s, auto setting", video_length, inferred_video_length
+            )
             video_length = inferred_video_length
         processed = self.process(
             input_=input_image,
@@ -386,9 +391,3 @@ class HunyuanWorldPlayPipeline(PipelineABC):
 
         if self._realtime_session is not None:
             self._realtime_session.reset()
-
-    def save_pretrained(self, save_directory: str):
-        """
-        保存模型（训练 pipeline 准备好后完成）
-        """
-        pass

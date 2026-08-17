@@ -288,18 +288,9 @@ class VideoEncoder(nn.Module):
             spatial_padding_mode=encoder_spatial_padding_mode,
         )
 
-    def forward(self, sample: torch.Tensor) -> torch.Tensor:
-        r"""
-        Encode video frames into normalized latent representation.
-        Args:
-            sample: Input video (B, C, F, H, W). F should be 1 + 8*k (e.g., 1, 9, 17, 25, 33...).
-                If not, the encoder crops the last frames to the nearest valid length.
-                Should be normalized to [-1, 1] range before encoding.
-        Returns:
-            Normalized latent means (B, 128, F', H', W') where F' = 1+(F-1)/8, H' = H/32, W' = W/32.
-            Example: (B, 3, 33, 512, 512) -> (B, 128, 5, 16, 16).
-        """
-        # Validate frame count (crop to nearest valid length if needed)
+    def _posterior_moments(self, sample: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """Encode pixels to the checkpoint posterior before latent normalization."""
+
         frames_count = sample.shape[2]
         if ((frames_count - 1) % 8) != 0:
             frames_to_crop = (frames_count - 1) % 8
@@ -310,60 +301,66 @@ class VideoEncoder(nn.Module):
             )
             sample = sample[:, :, :-frames_to_crop, ...]
 
-        # Initial spatial compression: trade spatial resolution for channel depth
-        # This reduces H,W by patch_size and increases channels, making convolutions more efficient
-        # Example: (B, 3, F, 512, 512) -> (B, 48, F, 128, 128) with patch_size=4
         sample = patchify(sample, patch_size_hw=self.patch_size, patch_size_t=1)
         sample = self.conv_in(sample)
-
         for down_block in self.down_blocks:
             sample = down_block(sample)
-
         sample = self.conv_norm_out(sample)
         sample = self.conv_act(sample)
         sample = self.conv_out(sample)
 
         if self.latent_log_var == LogVarianceType.UNIFORM:
-            # Uniform Variance: model outputs N means and 1 shared log-variance channel.
-            # We need to expand the single logvar to match the number of means channels
-            # to create a format compatible with PER_CHANNEL (means + logvar, each with N channels).
-            # Sample shape: (B, N+1, ...) where N = latent_channels (e.g., 128 means + 1 logvar = 129)
-            # Target shape: (B, 2*N, ...) where first N are means, last N are logvar
-
-            if sample.shape[1] < 2:
-                raise ValueError(
-                    f"Invalid channel count for UNIFORM mode: expected at least 2 channels "
-                    f"(N means + 1 logvar), got {sample.shape[1]}"
-                )
-
-            # Extract means (first N channels) and logvar (last 1 channel)
-            means = sample[:, :-1, ...]  # (B, N, ...)
-            logvar = sample[:, -1:, ...]  # (B, 1, ...)
-
-            # Repeat logvar N times to match means channels
-            # Use expand/repeat pattern that works for both 4D and 5D tensors
-            num_channels = means.shape[1]
-            repeat_shape = [1, num_channels] + [1] * (sample.ndim - 2)
-            repeated_logvar = logvar.repeat(*repeat_shape)  # (B, N, ...)
-
-            # Concatenate to create (B, 2*N, ...) format: [means, repeated_logvar]
-            sample = torch.cat([means, repeated_logvar], dim=1)
+            means = sample[:, :-1, ...]
+            logvar = sample[:, -1:, ...].expand_as(means)
         elif self.latent_log_var == LogVarianceType.CONSTANT:
-            sample = sample[:, :-1, ...]
-            approx_ln_0 = -30  # this is the minimal clamp value in DiagonalGaussianDistribution objects
-            sample = torch.cat(
-                [sample, torch.ones_like(sample, device=sample.device) * approx_ln_0],
-                dim=1,
-            )
+            means = sample[:, :-1, ...]
+            logvar = torch.full_like(means, -30.0)
+        elif self.latent_log_var == LogVarianceType.PER_CHANNEL:
+            means, logvar = torch.chunk(sample, 2, dim=1)
+        else:
+            means = sample
+            logvar = torch.full_like(means, -30.0)
+        return means, logvar
 
-        # Split into means and logvar, then normalize means
-        means, _ = torch.chunk(sample, 2, dim=1)
+    def forward(self, sample: torch.Tensor) -> torch.Tensor:
+        r"""Encode video frames into the normalized posterior mean.
+
+        Args:
+            sample: Input video (B, C, F, H, W). F should be 1 + 8*k (e.g., 1, 9, 17, 25, 33...).
+                If not, the encoder crops the last frames to the nearest valid length.
+                Should be normalized to [-1, 1] range before encoding.
+        Returns:
+            Normalized latent means (B, 128, F', H', W') where F' = 1+(F-1)/8, H' = H/32, W' = W/32.
+            Example: (B, 3, 33, 512, 512) -> (B, 128, 5, 16, 16).
+        """
+        means, _ = self._posterior_moments(sample)
         return self.per_channel_statistics.normalize(means)
+
+    def sample_posterior(
+        self,
+        sample: torch.Tensor,
+        *,
+        generator: torch.Generator | None = None,
+    ) -> torch.Tensor:
+        """Sample and normalize the VAE posterior used by LTX-Video training."""
+
+        means, logvar = self._posterior_moments(sample)
+        noise = torch.randn(
+            means.shape,
+            generator=generator,
+            device=means.device,
+            dtype=means.dtype,
+        )
+        latent = means + torch.exp(0.5 * logvar.clamp(-30.0, 20.0)) * noise
+        return self.per_channel_statistics.normalize(latent)
 
     def tiled_encode(
         self,
         video: torch.Tensor,
         tiling_config: TilingConfig | None = None,
+        *,
+        sample_posterior: bool = False,
+        generator: torch.Generator | None = None,
     ) -> torch.Tensor:
         """Encode video to latent using tiled processing of the given video tensor.
         Device Handling:
@@ -425,7 +422,11 @@ class VideoEncoder(nn.Module):
                 video_tile = video_tile.to(device=model_device, dtype=model_dtype)
 
             # Encode tile to latent (output on model device)
-            latent_tile = self.forward(video_tile)
+            latent_tile = (
+                self.sample_posterior(video_tile, generator=generator)
+                if sample_posterior
+                else self.forward(video_tile)
+            )
 
             # Move blend mask to model device
             mask = tile.blend_mask.to(

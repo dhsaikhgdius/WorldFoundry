@@ -38,6 +38,23 @@ from .env import (
 LOCAL_ASSET_MANIFEST_ENV = "WORLDFOUNDRY_LOCAL_ASSET_MANIFEST"
 
 
+def _path_is_ready(path: Path | None) -> bool:
+    """Return whether a resolved asset path looks usable.
+
+    Plain existence is not enough for file assets: interrupted downloads and
+    copies commonly leave zero-byte files behind, which then fail much later
+    inside model loading instead of at asset resolution time.
+    """
+    if path is None:
+        return False
+    try:
+        if path.is_file():
+            return path.stat().st_size > 0
+        return path.exists()
+    except OSError:
+        return False
+
+
 @dataclass(frozen=True)
 class LocalAsset:
     """Describe one locally staged benchmark or model asset.
@@ -86,7 +103,7 @@ class LocalAsset:
         raw_canonical_path = item.get("canonical_path")
         path = expand_worldfoundry_path(raw_path, env) if raw_path else None
         canonical_path = expand_worldfoundry_path(raw_canonical_path, env) if raw_canonical_path else None
-        ready = bool(path and path.exists())
+        ready = _path_is_ready(path)
         status = "available" if ready else "missing"
         metadata = {
             key: value

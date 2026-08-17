@@ -237,38 +237,49 @@ def _suite_ids(request: WorldFoundryRunRequest) -> tuple[str, ...]:
 
 
 def _canonical_model_id_or_self(value: str, manifest_dir: str | Path | None) -> str:
-    """Lookup and return the canonical model ID from the model-zoo registry, falling back to original value."""
+    """Lookup and return the canonical model ID from the model-zoo registry.
+
+    Unknown IDs pass through unchanged so the downstream runner can report
+    them; genuine catalog loading failures (corrupt YAML, schema errors)
+    propagate instead of silently disabling alias resolution.
+    """
     if manifest_dir is None:
         return value
     root = Path(manifest_dir)
     if not root.exists() or not root.is_dir():
         return value
-    try:
-        from worldfoundry.evaluation.models.catalog import load_model_zoo_registry
+    from worldfoundry.evaluation.models.catalog import load_model_zoo_registry
+    from worldfoundry.evaluation.models.catalog.zoo_registry import UnknownModelZooKeyError
 
+    try:
         return load_model_zoo_registry(root).get(value).model_id
-    except (KeyError, TypeError, ValueError):
+    except UnknownModelZooKeyError:
         return value
 
 
 def _canonical_benchmark_id_or_self(value: str, manifest_dir: str | Path | None) -> str:
-    """Lookup and return the canonical benchmark ID from the benchmark-zoo registry, falling back to original value."""
+    """Lookup and return the canonical benchmark ID from the benchmark-zoo registry.
+
+    Unknown IDs pass through unchanged; catalog loading failures propagate
+    (see :func:`_canonical_model_id_or_self`).
+    """
     if manifest_dir is None:
         return value
     root = Path(manifest_dir)
     if not root.exists():
         return value
-    try:
-        from worldfoundry.evaluation.tasks.catalog.schema import load_entries
-        from worldfoundry.evaluation.tasks.catalog.zoo_registry import (
-            BenchmarkZooRegistry,
-            load_benchmark_zoo_registry,
-        )
+    from worldfoundry.evaluation.tasks.catalog.schema import load_entries
+    from worldfoundry.evaluation.tasks.catalog.zoo_registry import (
+        BenchmarkZooRegistry,
+        UnknownBenchmarkZooKeyError,
+        load_benchmark_zoo_registry,
+    )
 
+    try:
         if root.is_file():
             return BenchmarkZooRegistry(load_entries(root)).get(value).benchmark_id
         return load_benchmark_zoo_registry(root).get(value).benchmark_id
-    except (KeyError, TypeError, ValueError):
+    except UnknownBenchmarkZooKeyError:
         return value
 
 
@@ -336,7 +347,8 @@ def _model_manifest_dir_for(request: WorldFoundryRunRequest, model_id: str | Non
 
         if model_id == CONTRACT_VALIDATION_ID:
             return None
-    except Exception:  # noqa: BLE001 - fallback to normal model-zoo resolution.
+    except ImportError:
+        # Orchestration extras unavailable — fall back to model-zoo resolution.
         pass
     return request.model_manifest_dir
 

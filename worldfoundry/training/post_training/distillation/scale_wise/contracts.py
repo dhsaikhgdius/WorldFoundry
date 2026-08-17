@@ -133,7 +133,6 @@ class ScaleWiseCriticAdapter(ScaleWisePredictionAdapter, Protocol):
 class ScaleWiseLossAdapter(Protocol):
     """Two-role loss seam consumed by the scale-wise optimizer engine."""
 
-    config_digest: str
     num_intervals: int
     fake_updates_per_iteration: int
     batch_mmd: bool

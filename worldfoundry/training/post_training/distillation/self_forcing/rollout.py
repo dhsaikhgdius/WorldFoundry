@@ -87,7 +87,6 @@ class SelfForcingRolloutSampler:
         self.adapter = adapter
         self.config = config
         self.parallel_context = parallel_context or PostTrainingParallelContext.current()
-        self.execution_digest = config.digest
 
     def _frame_dim(self, reference: Tensor) -> int:
         resolved = self.config.frame_dim % reference.ndim
@@ -276,7 +275,7 @@ class SelfForcingRolloutSampler:
     ) -> FewStepPrediction:
         """DMD student-sampler seam; every invocation creates a fresh rollout."""
 
-        if schedule.digest != self.config.schedule.digest:
+        if schedule != self.config.schedule:
             raise ValueError("DMD and self-forcing few-step schedules differ")
         reference = batch.clean_latents
         if not isinstance(reference, Tensor):

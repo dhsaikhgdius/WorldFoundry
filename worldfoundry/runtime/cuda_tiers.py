@@ -60,12 +60,22 @@ def cuda_version_tuple(version: str | None) -> tuple[int, int]:
         return (0, 0)
 
 
-@lru_cache(maxsize=1)
 def detect_nvidia_driver_cuda() -> str | None:
-    """Detect the NVIDIA driver CUDA version via ``nvidia-smi`` or env override."""
+    """Detect the NVIDIA driver CUDA version via ``nvidia-smi`` or env override.
+
+    The env override is read on every call so tests and long-lived processes
+    that change ``WORLDFOUNDRY_DETECTED_DRIVER_CUDA`` see the update; only the
+    ``nvidia-smi`` probe result is cached.
+    """
     override = os.environ.get("WORLDFOUNDRY_DETECTED_DRIVER_CUDA")
     if override:
         return override
+    return _detect_nvidia_driver_cuda_from_smi()
+
+
+@lru_cache(maxsize=1)
+def _detect_nvidia_driver_cuda_from_smi() -> str | None:
+    """Probe ``nvidia-smi`` once per process for the driver CUDA version."""
     nvidia_smi = shutil.which("nvidia-smi")
     if not nvidia_smi:
         return None

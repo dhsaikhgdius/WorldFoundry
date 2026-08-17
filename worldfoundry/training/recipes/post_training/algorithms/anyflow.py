@@ -6,6 +6,31 @@ from dataclasses import dataclass, field
 from math import isfinite
 
 from ..common import positive_int, strict_mapping
+from .auxiliary_optimizers import (
+    AuxiliaryOptimizerRule,
+    forbids_auxiliary,
+    requires_auxiliary,
+)
+
+_PRETRAIN_AUXILIARY_RULES = (
+    forbids_auxiliary(
+        "fake_score_optimizer",
+        "guidance_optimizer",
+        "discriminator_optimizer",
+        message="AnyFlow pretraining accepts only the primary optimizer",
+    ),
+)
+_ON_POLICY_AUXILIARY_RULES = (
+    requires_auxiliary(
+        "fake_score_optimizer",
+        "AnyFlow on-policy training requires fake_score_optimizer",
+    ),
+    forbids_auxiliary(
+        "guidance_optimizer",
+        "discriminator_optimizer",
+        message="AnyFlow on-policy training only accepts fake_score_optimizer",
+    ),
+)
 
 
 def _finite(
@@ -33,6 +58,28 @@ def _checkpoint(value: object, *, field_name: str) -> str:
     if not resolved:
         raise ValueError(f"{field_name} must be a non-empty checkpoint reference")
     return resolved
+
+
+def _training_schedule(instance: object) -> None:
+    scheduler = str(getattr(instance, "lr_scheduler")).strip().lower().replace("_", "-")
+    if scheduler != "constant-with-warmup":
+        raise ValueError("AnyFlow lr_scheduler must be 'constant-with-warmup'")
+    warmup = getattr(instance, "lr_warmup_steps")
+    if isinstance(warmup, bool) or int(warmup) < 0:
+        raise ValueError("lr_warmup_steps must be a non-negative integer")
+    decay = _probability(
+        getattr(instance, "ema_decay"),
+        field_name="algorithm.ema_decay",
+    )
+    if decay == 1.0:
+        raise ValueError("ema_decay must be less than one")
+    ema_warmup = getattr(instance, "ema_warmup_steps")
+    if isinstance(ema_warmup, bool) or int(ema_warmup) < 0:
+        raise ValueError("ema_warmup_steps must be a non-negative integer")
+    object.__setattr__(instance, "lr_scheduler", scheduler)
+    object.__setattr__(instance, "lr_warmup_steps", int(warmup))
+    object.__setattr__(instance, "ema_decay", decay)
+    object.__setattr__(instance, "ema_warmup_steps", int(ema_warmup))
 
 
 @dataclass(frozen=True, slots=True)
@@ -148,6 +195,10 @@ class AnyFlowFARPretrainAlgorithmSpec:
     far: AnyFlowFARSpec = field(default_factory=AnyFlowFARSpec)
     bidirectional_modeling_probability: float = 0.1
     conditioning_dropout_probability: float = 0.1
+    lr_scheduler: str = "constant-with-warmup"
+    lr_warmup_steps: int = 1000
+    ema_decay: float = 0.999
+    ema_warmup_steps: int = 1000
     type: str = "anyflow-far-pretrain"
 
     def __post_init__(self) -> None:
@@ -174,7 +225,11 @@ class AnyFlowFARPretrainAlgorithmSpec:
                 field_name="algorithm.conditioning_dropout_probability",
             ),
         )
+        _training_schedule(self)
         object.__setattr__(self, "type", algorithm_type)
+
+    def auxiliary_optimizer_rules(self) -> tuple[AuxiliaryOptimizerRule, ...]:
+        return _PRETRAIN_AUXILIARY_RULES
 
 
 @dataclass(frozen=True, slots=True)
@@ -182,6 +237,10 @@ class AnyFlowBidirectionalPretrainAlgorithmSpec:
     flow_map: AnyFlowMapSpec = field(default_factory=AnyFlowMapSpec)
     image_conditioning_probability: float = 0.0
     conditioning_dropout_probability: float = 0.1
+    lr_scheduler: str = "constant-with-warmup"
+    lr_warmup_steps: int = 1000
+    ema_decay: float = 0.999
+    ema_warmup_steps: int = 1000
     type: str = "anyflow-bidirectional-pretrain"
 
     def __post_init__(self) -> None:
@@ -206,7 +265,11 @@ class AnyFlowBidirectionalPretrainAlgorithmSpec:
                 field_name="algorithm.conditioning_dropout_probability",
             ),
         )
+        _training_schedule(self)
         object.__setattr__(self, "type", algorithm_type)
+
+    def auxiliary_optimizer_rules(self) -> tuple[AuxiliaryOptimizerRule, ...]:
+        return _PRETRAIN_AUXILIARY_RULES
 
 
 def _validate_on_policy(instance: object, *, expected_type: str) -> None:
@@ -303,28 +366,17 @@ def _validate_on_policy(instance: object, *, expected_type: str) -> None:
     object.__setattr__(instance, "conditioning_dropout_probability", dropout)
     if not isinstance(getattr(instance, "cotrain_flowmap"), bool):
         raise TypeError("algorithm.cotrain_flowmap must be a bool")
-    object.__setattr__(
-        instance,
-        "discriminator_update_ratio",
-        positive_int(
-            getattr(instance, "discriminator_update_ratio"),
-            field_name="algorithm.discriminator_update_ratio",
-        ),
+    ratio = positive_int(
+        getattr(instance, "discriminator_update_ratio"),
+        field_name="algorithm.discriminator_update_ratio",
     )
-    decay = _probability(
-        getattr(instance, "ema_decay"),
-        field_name="algorithm.ema_decay",
-    )
-    if decay == 1.0:
-        raise ValueError("ema_decay must be less than one")
-    object.__setattr__(instance, "ema_decay", decay)
-    warmup = getattr(instance, "ema_warmup_steps")
+    if ratio != 1:
+        raise ValueError("released AnyFlow recipes require discriminator_update_ratio=1")
+    object.__setattr__(instance, "discriminator_update_ratio", ratio)
+    _training_schedule(instance)
     seed = getattr(instance, "synchronized_seed")
-    if isinstance(warmup, bool) or int(warmup) < 0:
-        raise ValueError("ema_warmup_steps must be a non-negative integer")
     if isinstance(seed, bool) or int(seed) < 0:
         raise ValueError("synchronized_seed must be a non-negative integer")
-    object.__setattr__(instance, "ema_warmup_steps", int(warmup))
     object.__setattr__(instance, "synchronized_seed", int(seed))
     object.__setattr__(instance, "type", algorithm_type)
 
@@ -349,6 +401,8 @@ class AnyFlowFAROnPolicyAlgorithmSpec:
     discriminator_update_ratio: int = 1
     ema_decay: float = 0.99
     ema_warmup_steps: int = 200
+    lr_scheduler: str = "constant-with-warmup"
+    lr_warmup_steps: int = 0
     synchronized_seed: int = 0
     type: str = "anyflow-far-on-policy"
 
@@ -364,6 +418,9 @@ class AnyFlowFAROnPolicyAlgorithmSpec:
                 field_name="algorithm.bidirectional_modeling_probability",
             ),
         )
+
+    def auxiliary_optimizer_rules(self) -> tuple[AuxiliaryOptimizerRule, ...]:
+        return _ON_POLICY_AUXILIARY_RULES
 
 
 @dataclass(frozen=True, slots=True)
@@ -385,6 +442,8 @@ class AnyFlowBidirectionalOnPolicyAlgorithmSpec:
     discriminator_update_ratio: int = 1
     ema_decay: float = 0.99
     ema_warmup_steps: int = 200
+    lr_scheduler: str = "constant-with-warmup"
+    lr_warmup_steps: int = 0
     synchronized_seed: int = 0
     type: str = "anyflow-bidirectional-on-policy"
 
@@ -398,6 +457,9 @@ class AnyFlowBidirectionalOnPolicyAlgorithmSpec:
                 field_name="algorithm.image_conditioning_probability",
             ),
         )
+
+    def auxiliary_optimizer_rules(self) -> tuple[AuxiliaryOptimizerRule, ...]:
+        return _ON_POLICY_AUXILIARY_RULES
 
 
 AnyFlowAlgorithmSpec = (

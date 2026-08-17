@@ -101,8 +101,6 @@ class SCMLADDLossResult:
 class SCMLADDLossAdapter(Protocol):
     """Loss seam consumed by the alternating native optimizer engine."""
 
-    config_digest: str
-
     def loss_denominator(
         self,
         batch: SCMLADDTrainingBatch,

@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from math import isfinite
 from typing import Literal
-
-from worldfoundry.core.io.integrity import canonical_sha256
 
 LatentConsistencyPredictionType = Literal["epsilon", "v_prediction"]
 LatentConsistencyLossType = Literal["l2", "pseudo_huber"]
@@ -46,15 +44,6 @@ class LatentConsistencyNoiseSchedule:
     @property
     def num_train_timesteps(self) -> int:
         return len(self.alpha_cumprods)
-
-    @property
-    def digest(self) -> str:
-        return canonical_sha256(
-            {
-                "kind": "latent-consistency-noise-schedule",
-                "alpha_cumprods": self.alpha_cumprods,
-            }
-        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -167,10 +156,6 @@ class LatentConsistencyConfig:
         object.__setattr__(self, "timestep_scaling", timestep_scaling)
         object.__setattr__(self, "pseudo_huber_c", huber_c)
         object.__setattr__(self, "ema_decay", ema_decay)
-
-    @property
-    def digest(self) -> str:
-        return canonical_sha256({"kind": "latent-consistency-config", **asdict(self)})
 
 
 def build_latent_consistency_ddim_schedule(

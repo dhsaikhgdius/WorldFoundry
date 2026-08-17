@@ -21,11 +21,9 @@ from torch.distributed.checkpoint.state_dict import (
 from torch.distributed.checkpoint.stateful import Stateful
 
 from worldfoundry.core.io.integrity import canonical_json as _core_canonical_json
-from worldfoundry.core.io.integrity import canonical_sha256 as _core_canonical_sha256
 
 from .artifacts import (
     OPTIONAL_TRAINING_STATE_NAMES,
-    SHA256_PATTERN,
     normalize_non_negative_int,
 )
 from .errors import TrainingCheckpointCompatibilityError
@@ -50,13 +48,6 @@ def _canonical_mapping(value: Mapping[str, object], *, field_name: str) -> dict[
     return normalized
 
 
-def _canonical_sha256(value: object) -> str:
-    try:
-        return _core_canonical_sha256(value)
-    except (TypeError, ValueError) as error:
-        raise TypeError("training checkpoint metadata must be canonical JSON") from error
-
-
 def _distributed_context() -> tuple[int, int]:
     if dist.is_available() and dist.is_initialized():
         return dist.get_rank(), dist.get_world_size()
@@ -79,6 +70,10 @@ class TrainingProgress:
     microbatches_seen: int = 0
     samples_seen: int = 0
     latent_tokens_seen: int = 0
+    # Always 0 by construction: sessions only checkpoint at optimizer-step
+    # boundaries and ``record_step`` never mutates it.  The field is kept in
+    # the schema as a second guard -- ``__post_init__`` rejects any non-zero
+    # value a corrupted or hand-edited checkpoint might carry.
     gradient_accumulation_phase: int = 0
 
     def __post_init__(self) -> None:
@@ -213,15 +208,11 @@ class TrainingState(Stateful):
         self._options = StateDictOptions(
             ignore_frozen_params=ignore_frozen_parameters,
             # Adapter-only checkpoints intentionally omit frozen base tensors.
-            # Their exact base identity is bound separately by ``identity``;
+            # Their base identity is bound separately by ``identity``;
             # the explicit model-state key inventory below keeps adapter loads
             # strict without asking nn.Module.load_state_dict for absent base keys.
             strict=not ignore_frozen_parameters,
         )
-
-    @property
-    def identity_digest(self) -> str:
-        return _canonical_sha256(dict(self.identity))
 
     @property
     def optional_state_presence(self) -> dict[str, bool]:
@@ -288,7 +279,6 @@ class TrainingState(Stateful):
             "optimizer": optimizer_state,
             "optimizer_count": len(self.optimizers),
             "identity": dict(self.identity),
-            "identity_digest": self.identity_digest,
             "world_size": world_size,
             "ignore_frozen_parameters": self.ignore_frozen_parameters,
             "optional_state": {
@@ -307,7 +297,6 @@ class TrainingState(Stateful):
             "optimizer",
             "optimizer_count",
             "identity",
-            "identity_digest",
             "world_size",
             "ignore_frozen_parameters",
             "optional_state",
@@ -319,10 +308,7 @@ class TrainingState(Stateful):
             state_dict["identity"],
             field_name="saved training resume identity",
         )
-        saved_digest = str(state_dict["identity_digest"])
-        if SHA256_PATTERN.fullmatch(saved_digest) is None or saved_digest != _canonical_sha256(saved_identity):
-            raise TrainingCheckpointCompatibilityError("saved training identity digest is invalid")
-        if saved_digest != self.identity_digest:
+        if saved_identity != dict(self.identity):
             raise TrainingCheckpointCompatibilityError(
                 "saved training identity differs from the active recipe/data/model/runtime"
             )

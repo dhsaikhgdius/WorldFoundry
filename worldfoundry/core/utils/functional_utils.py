@@ -239,6 +239,11 @@ class NoopContext:
 
 def make_registry_metaclass(class_name):
     """
+    LEGACY (vendored): do not use for new registries. Duplicate names are
+    silently overwritten (last registration wins), unlike
+    ``worldfoundry.core.registry.TypedRegistry`` which raises -- prefer that
+    for new code.
+
     Usage:
 
       TrainerRegistry = make_registry_metaclass('TrainerRegistry')
@@ -309,6 +314,9 @@ def make_registry_metaclass(class_name):
 
 class ClassRegistry:
     """
+    LEGACY (vendored): duplicate names are silently overwritten; prefer
+    ``worldfoundry.core.registry.TypedRegistry`` for new code.
+
     May be a preferred way over make_registry_metaclass if your code does not support
     metaclass well, e.g. pickle or Ray
 

@@ -32,11 +32,29 @@ def initialize_attention_priority():
 
 
 ATTENTION_IMPLEMENTATION = initialize_attention_priority()
-_CAPABILITIES = probe_attention_backends()
-FLASH_ATTN_3_AVAILABLE = _CAPABILITIES["flash_attention_3"].available
-FLASH_ATTN_2_AVAILABLE = _CAPABILITIES["flash_attention_2"].available
-SAGE_ATTN_AVAILABLE = _CAPABILITIES["sage_attention"].available
-XFORMERS_AVAILABLE = _CAPABILITIES["xformers"].available
+
+# CC-07: capability probing calls ``torch.cuda.get_device_capability`` which
+# lazily creates a CUDA context. Doing that at import time breaks fork-based
+# workers and pins a context on GPU 0 before ``torch.cuda.set_device``.
+# ``_CAPABILITIES`` and the ``*_AVAILABLE`` flags are therefore resolved on
+# first attribute access instead of at import, and are never frozen into
+# module globals (``probe_attention_backends`` already caches per runtime
+# signature).
+_LAZY_CAPABILITY_EXPORTS = {
+    "FLASH_ATTN_3_AVAILABLE": "flash_attention_3",
+    "FLASH_ATTN_2_AVAILABLE": "flash_attention_2",
+    "SAGE_ATTN_AVAILABLE": "sage_attention",
+    "XFORMERS_AVAILABLE": "xformers",
+}
+
+
+def __getattr__(name: str):
+    if name == "_CAPABILITIES":
+        return probe_attention_backends()
+    backend_name = _LAZY_CAPABILITY_EXPORTS.get(name)
+    if backend_name is not None:
+        return probe_attention_backends()[backend_name].available
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def _gpu_supports_flash_attention():

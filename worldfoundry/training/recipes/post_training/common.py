@@ -60,8 +60,8 @@ def scheduled_clip_range(
     """Resolve UniRL-compatible clipping at an exact optimizer step."""
 
     base = float(base_clip_range)
-    if not isfinite(base) or base <= 0:
-        raise ValueError("base_clip_range must be finite and positive")
+    if not isfinite(base) or base < 0:
+        raise ValueError("base_clip_range must be finite and non-negative")
     resolved, steps = validate_clip_schedule(schedule, schedule_steps)
     if isinstance(optimizer_step, bool) or not isinstance(optimizer_step, int):
         raise TypeError("optimizer_step must be an integer")

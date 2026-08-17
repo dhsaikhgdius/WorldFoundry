@@ -319,8 +319,10 @@ def f_remove(*fpath, verbose=False, plan_only=False):
             if e.errno == errno.ENOTDIR:
                 try:
                     os.remove(f)
-                except Exception as e:  # final resort safeguard
-                    pass
+                except Exception as remove_error:  # final resort safeguard
+                    import logging
+
+                    logging.getLogger(__name__).warning('f_remove failed to delete "%s": %s', f, remove_error)
     if verbose:
         print(f'Deleted "{fpath}"')
 
@@ -613,12 +615,29 @@ def extract_tar(source_tarball, output_dir=".", members=None):
         source_tarball: extract members from archive
         output_dir: default to current working dir
         members: must be a subset of the list returned by getmembers()
+
+    Extraction uses the PEP 706 ``"data"`` filter, which rejects archive
+    members that would escape ``output_dir`` (``../`` or absolute paths,
+    CVE-2007-4559) and strips dangerous metadata. On interpreters without
+    filter support the member names are validated manually before extraction.
     """
     import tarfile
 
     source_tarball, output_dir = f_expand(source_tarball), f_expand(output_dir)
     with tarfile.open(source_tarball, "r:*") as tar:
-        tar.extractall(output_dir, members=members)
+        try:
+            tar.extractall(output_dir, members=members, filter="data")
+        except TypeError:  # Python < 3.10.12 / 3.11.4 without PEP 706
+            from worldfoundry.core.io.integrity import safe_relative_path
+
+            for member in members if members is not None else tar.getmembers():
+                safe_relative_path(member.name, field_name="tar member")
+                if member.islnk() or member.issym():
+                    raise ValueError(
+                        f"tar member {member.name!r} is a link; refusing to extract "
+                        "without PEP 706 tarfile filters"
+                    )
+            tar.extractall(output_dir, members=members)
 
 
 def move_with_backup(*fpath, suffix=".bak"):
@@ -665,12 +684,20 @@ def next_available_file_name(
 
     def fstring(fmt_str, **kwargs):
         """
-        Simulate python f-string but without `f`
-        """
-        import shlex
+        Simulate python f-string but without `f`.
 
-        locals().update(kwargs)
-        return eval("f" + shlex.quote(fmt_str))
+        Each ``{...}`` placeholder is evaluated against exactly the provided
+        keyword arguments. The previous ``locals().update`` + ``eval`` trick
+        relied on a CPython <= 3.12 implementation detail that PEP 667
+        (Python 3.13) removes, and its ``shlex.quote`` wrapping broke on
+        templates containing single quotes.
+        """
+        import re
+
+        def substitute(match):
+            return str(eval(match.group(1), {"__builtins__": {}}, dict(kwargs)))  # noqa: S307 - caller-authored template
+
+        return re.sub(r"\{([^{}]+)\}", substitute, fmt_str)
 
     orig_file_path = f_join(*fpath)
     i = 0

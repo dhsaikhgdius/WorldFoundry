@@ -40,7 +40,6 @@ def dmd_batch_from_prepared(
         unconditional_conditioning=unconditional,
         loss_mask=prepared.loss_mask,
         sample_weights=prepared.sample_weights,
-        metadata=prepared.metadata,
     )
 
 

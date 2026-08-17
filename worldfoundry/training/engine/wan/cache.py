@@ -7,14 +7,13 @@ import math
 from worldfoundry.training.data.dataset import TrainingManifestDataset
 from worldfoundry.training.data.latent_token_sampler import LatentTokenBatchSampler
 from worldfoundry.training.data.loader import build_stateful_dataloader
-from worldfoundry.training.data.sana_cache import text_sha256
 from worldfoundry.training.data.video_cache import (
     VideoCachedDataset,
     collate_video_cached_samples,
 )
 from worldfoundry.training.data.wan.contracts import (
-    wan_cache_contract_digest,
-    wan_latent_normalization_digest,
+    wan_cache_contract,
+    wan_latent_normalization,
 )
 from worldfoundry.training.models.wan import WanTrainAdapter
 from worldfoundry.training.recipes.post_training.recipe import PostTrainingRecipe
@@ -66,10 +65,10 @@ def validate_wan_cache_contract(
     recipe: WanCacheRecipe,
     adapter: WanTrainAdapter,
     dataset: VideoCachedDataset,
-) -> str:
+) -> dict[str, object]:
     """Audit tensor geometry, preprocessing, and encoder identity for one run."""
 
-    expected_contract = wan_cache_contract_digest(
+    expected_contract = wan_cache_contract(
         recipe.model.recipe,
         latent_channels=adapter.expected_latent_channels,
         temporal_compression=adapter.temporal_compression,
@@ -78,17 +77,17 @@ def validate_wan_cache_contract(
         context_features=adapter.expected_context_features,
         latent_patch_size=adapter.patch_size,
     )
-    expected_normalization = wan_latent_normalization_digest()
-    asset_identities: set[tuple[str, ...]] = set()
+    expected_normalization = wan_latent_normalization()
+    asset_identity: tuple[object, object, object] | None = None
     for entry in dataset.index.entries:
         provenance = entry.provenance
         latents = entry.tensors["clean_latents"]
         context = entry.tensors.get("condition.context")
         loss_mask = entry.tensors.get("latent_loss_mask")
         valid_mask = entry.tensors.get("valid_latent_mask")
-        if provenance.model_recipe_digest != expected_contract:
+        if provenance.model_recipe != expected_contract["model_recipe"]:
             raise ValueError(f"cache entry {entry.sample_id!r} was created for a different Wan contract")
-        if provenance.latent_normalization_digest != expected_normalization:
+        if provenance.latent_normalization != expected_normalization:
             raise ValueError(f"cache entry {entry.sample_id!r} has incompatible latent normalization")
         if provenance.latent_geometry.temporal_alignment != "first-frame" or (
             provenance.latent_geometry.temporal_compression,
@@ -115,16 +114,11 @@ def validate_wan_cache_contract(
             raise ValueError(f"cache entry {entry.sample_id!r} lacks latent validity masks")
         if provenance.conditioning_layout != "umt5-sequence":
             raise ValueError(f"cache entry {entry.sample_id!r} has incompatible conditioning layout")
-        asset_identities.add(
-            (
-                provenance.codec_digest,
-                provenance.conditioner_digest,
-                provenance.tokenizer_digest,
-                provenance.latent_normalization_digest,
-            )
-        )
-    if len(asset_identities) != 1:
-        raise ValueError("one Wan run cannot mix cache objects from different encoder assets")
+        current_identity = (provenance.codec, provenance.conditioner, provenance.tokenizer)
+        if asset_identity is None:
+            asset_identity = current_identity
+        elif current_identity != asset_identity:
+            raise ValueError("one Wan run cannot mix cache objects from different encoder assets")
     return expected_contract
 
 
@@ -190,10 +184,10 @@ def audit_wan_cache_against_manifest(
         raise ValueError("Wan cache sample order/identity differs from the selected manifest")
     for entry, sample in zip(cache.index.entries, manifest):
         provenance = entry.provenance
-        if provenance.media_sha256 != sample.media.sha256:
-            raise ValueError(f"Wan cache media digest differs for sample {sample.sample_id!r}")
-        if provenance.prompt_sha256 != text_sha256(sample.prompt):
-            raise ValueError(f"Wan cache prompt digest differs for sample {sample.sample_id!r}")
+        if provenance.media_uri != sample.media.uri:
+            raise ValueError(f"Wan cache media URI differs for sample {sample.sample_id!r}")
+        if provenance.prompt != sample.prompt:
+            raise ValueError(f"Wan cache prompt differs for sample {sample.sample_id!r}")
         if (
             provenance.source_num_frames,
             provenance.source_height,
@@ -207,11 +201,12 @@ def audit_wan_cache_against_manifest(
             abs_tol=1e-9,
         ):
             raise ValueError(f"Wan cache source fps differs for sample {sample.sample_id!r}")
-        audit_digest = sample.safety.get("prompt_audit_digest")
-        if audit_digest is None:
-            raise ValueError(f"manifest sample {sample.sample_id!r} lacks safety.prompt_audit_digest")
-        if provenance.safety_audit_digest != str(audit_digest).lower():
-            raise ValueError(f"Wan cache safety audit digest differs for sample {sample.sample_id!r}")
+        if sample.safety.get("prompt_safe") is not True or provenance.safety_audit.get("safe") is not True:
+            raise ValueError(f"Wan cache safety decision differs for sample {sample.sample_id!r}")
+        model = provenance.safety_audit.get("model")
+        revision = model.get("revision") if isinstance(model, dict) else None
+        if revision != sample.safety.get("model_revision"):
+            raise ValueError(f"Wan cache safety model revision differs for sample {sample.sample_id!r}")
 
 
 __all__ = [

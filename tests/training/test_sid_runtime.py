@@ -61,7 +61,6 @@ class _FakeScale(_Scale):
 
 class _Adapter:
     noise_process_kind = "flow-matching"
-    noise_process_digest = "linear-flow"
 
     def __init__(self, module: _Scale, checkpoint_identity: str) -> None:
         self.module = module
@@ -270,7 +269,7 @@ def test_local_diffusers_sana_loader_separates_master_and_compute_dtypes(
     assert calls["pipeline"]["torch_dtype"] is torch.bfloat16
 
 
-def test_sana_sid_asset_digest_covers_sharded_diffusers_weights(tmp_path: Path) -> None:
+def test_sana_sid_asset_identity_covers_sharded_diffusers_weights(tmp_path: Path) -> None:
     transformer = tmp_path / "transformer"
     transformer.mkdir()
     (transformer / "config.json").write_text("{}", encoding="utf-8")
@@ -283,20 +282,23 @@ def test_sana_sid_asset_digest_covers_sharded_diffusers_weights(tmp_path: Path) 
         encoding="utf-8",
     )
 
-    digest = sana_sid_engine._asset_digest(
+    identity = sana_sid_engine._asset_identity(
         tmp_path,
         conditioner=False,
-        hash_cache={},
     )
     (transformer / second).write_bytes(b"changed")
-    changed = sana_sid_engine._asset_digest(
+    changed = sana_sid_engine._asset_identity(
         tmp_path,
         conditioner=False,
-        hash_cache={},
     )
 
-    assert len(digest) == 64
-    assert changed != digest
+    assert set(identity["files"]) == {
+        "transformer/config.json",
+        "transformer/diffusion_pytorch_model.safetensors.index.json",
+        f"transformer/{first}",
+        f"transformer/{second}",
+    }
+    assert changed != identity
 
 
 def _config(**changes) -> SIDConfig:
@@ -481,7 +483,6 @@ class _EMA:
 
 
 class _EngineLosses:
-    config_digest = "sid-engine-test"
     num_student_steps = 3
 
     def __init__(self, student, fake, *, fail_generator_call=None, use_generator=False) -> None:
@@ -645,11 +646,10 @@ def _checkpointable_stack(seed: int):
         dataloader=loader,
         objective_generator=objective_generator,
         progress=progress,
-        identity={
-            "algorithm": "sid",
-            "config_digest": engine.config_digest,
-            "gradient_accumulation_steps": engine.gradient_accumulation_steps,
-        },
+            identity={
+                "algorithm": "sid",
+                "gradient_accumulation_steps": engine.gradient_accumulation_steps,
+            },
         lr_scheduler=NamedStatefulCollection(
             {"student": student_scheduler, "fake_score": fake_scheduler}
         ),
@@ -758,14 +758,14 @@ def test_sana_sid_run_exposes_cli_state_and_writes_status(tmp_path: Path) -> Non
         checkpoint_state=SimpleNamespace(objective_generator=None),
         checkpointer=SimpleNamespace(root=tmp_path / "checkpoints"),
         roles=SimpleNamespace(
-            asset_digests={
-                "student": "a" * 64,
-                "teacher": "b" * 64,
-                "fake_score": "c" * 64,
+            asset_identity={
+                "student": {"path": "student", "files": {"model.safetensors": 10}},
+                "teacher": {"path": "teacher", "files": {"model.safetensors": 11}},
+                "fake_score": {"path": "fake-score", "files": {"model.safetensors": 12}},
             }
         ),
         output_dir=tmp_path,
-        data_identity={"dataset_digest": "digest"},
+        data_identity={"prompt_records": [{"prompt_id": "prompt-0"}]},
         resume_artifact=None,
         distributed_context=None,
     )
@@ -779,8 +779,8 @@ def test_sana_sid_run_exposes_cli_state_and_writes_status(tmp_path: Path) -> Non
     manifest = json.loads(run.manifest_path.read_text(encoding="utf-8"))
     assert manifest["schema"] == SANA_SID_RUN_SCHEMA
     assert manifest["status"] == "complete"
-    assert manifest["role_asset_sha256"]["student"] == "a" * 64
-    assert manifest["data_identity"] == {"dataset_digest": "digest"}
+    assert manifest["role_assets"]["student"]["path"] == "student"
+    assert manifest["data_identity"] == {"prompt_records": [{"prompt_id": "prompt-0"}]}
     assert manifest["resumed_from"] is None
     assert manifest["progress"]["optimizer_steps"] == 2
 
@@ -856,12 +856,18 @@ def test_sana_sid_materializer_builds_independent_roles_and_resume_identity(
         return SimpleNamespace(), prediction
 
     class PromptDataset:
-        dataset_digest = "d" * 64
-
         def __init__(self) -> None:
             self.records = (
-                SimpleNamespace(prompt_id="prompt-0", generation={}),
-                SimpleNamespace(prompt_id="prompt-1", generation={}),
+                SimpleNamespace(
+                    prompt_id="prompt-0",
+                    generation={},
+                    to_dict=lambda: {"prompt_id": "prompt-0", "generation": {}},
+                ),
+                SimpleNamespace(
+                    prompt_id="prompt-1",
+                    generation={},
+                    to_dict=lambda: {"prompt_id": "prompt-1", "generation": {}},
+                ),
             )
 
         def __len__(self):
@@ -962,7 +968,7 @@ def test_sana_sid_materializer_builds_independent_roles_and_resume_identity(
         None,
         torch.float32,
     ]
-    assert set(run.roles.asset_digests) == {"student", "teacher", "fake_score"}
+    assert set(run.roles.asset_identity) == {"student", "teacher", "fake_score"}
     assert run.data_identity["kind"] == "prompt-only"
     assert run.checkpoint_state.identity["schema"] == (
         "worldfoundry-sana-sid-resume-identity"

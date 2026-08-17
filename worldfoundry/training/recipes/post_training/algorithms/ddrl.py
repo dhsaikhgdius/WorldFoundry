@@ -12,6 +12,7 @@ from ..common import (
     strict_mapping,
 )
 from ..rewards.videoalign import VIDEOALIGN_REWARD_FIELDS, VideoAlignRewardSpec
+from .auxiliary_optimizers import AuxiliaryOptimizerRule, forbids_auxiliary
 
 DDRL_ALGORITHM_FIELDS = {
     "type",
@@ -136,6 +137,16 @@ class DDRLAlgorithmSpec:
         object.__setattr__(self, "kl_beta", kl_beta)
         object.__setattr__(self, "data_beta", data_beta)
         object.__setattr__(self, "reward_weights", reward_weights)
+
+    def auxiliary_optimizer_rules(self) -> tuple[AuxiliaryOptimizerRule, ...]:
+        return tuple(
+            forbids_auxiliary(name, message=f"DDRL cannot configure {name}")
+            for name in (
+                "fake_score_optimizer",
+                "guidance_optimizer",
+                "discriminator_optimizer",
+            )
+        )
 
 
 def parse_ddrl_algorithm(value: object) -> DDRLAlgorithmSpec:

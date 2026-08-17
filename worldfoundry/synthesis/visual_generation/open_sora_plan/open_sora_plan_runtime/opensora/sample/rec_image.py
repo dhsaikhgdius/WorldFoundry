@@ -1,5 +1,12 @@
 import sys
-sys.path.append(".")
+from pathlib import Path
+
+# Modified by WorldFoundry: upstream appended the CWD-relative '.' (only valid when the
+# process CWD is the Open-Sora-Plan repo root). Anchor to the open_sora_plan_runtime root
+# instead so the bare `opensora` import below resolves regardless of CWD.
+_OPEN_SORA_PLAN_RUNTIME_ROOT = str(Path(__file__).resolve().parents[2])
+if _OPEN_SORA_PLAN_RUNTIME_ROOT not in sys.path:
+    sys.path.append(_OPEN_SORA_PLAN_RUNTIME_ROOT)
 from PIL import Image
 import torch
 from torchvision.transforms import ToTensor, Compose, Resize, Normalize, Lambda

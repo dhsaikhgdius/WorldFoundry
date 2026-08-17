@@ -12,7 +12,6 @@ import torch.distributed as dist
 from torch import nn
 
 from worldfoundry.core.gradient import clip_grad_norm_
-from worldfoundry.core.io.integrity import canonical_sha256
 from worldfoundry.training.optimization import (
     audit_optimizer_parameters,
     trainable_parameters,
@@ -153,13 +152,7 @@ class NativeFlowPolicyEngine:
     def _policy_revision_for_step(self, global_step: int) -> str:
         if global_step == 0:
             return self.initial_policy_revision
-        return canonical_sha256(
-            {
-                "schema": "worldfoundry-logical-policy-revision",
-                "initial_policy_revision": self.initial_policy_revision,
-                "optimizer_steps": global_step,
-            }
-        )
+        return f"{self.initial_policy_revision}:step-{global_step}"
 
     @property
     def has_active_trajectory(self) -> bool:
@@ -280,21 +273,7 @@ class NativeFlowPolicyEngine:
         if needs_old_means and old_means is None:
             raise RuntimeError(f"{self.display_name} failed to capture old transition means")
         frozen_advantages = advantages.detach().to(device=device, dtype=torch.float32)
-        active_id = canonical_sha256(
-            {
-                "schema": self.anchor_schema,
-                "owner_token": self._owner_token,
-                "sample_ids": trajectory.sample_ids,
-                "schedule_digest": trajectory.schedule_digest,
-                "policy_revision": trajectory.policy_revision,
-                "optimizer_step": self.global_step,
-                "update_step_mask": (
-                    None
-                    if update_step_mask is None
-                    else update_step_mask.to(device="cpu", dtype=torch.uint8).tolist()
-                ),
-            }
-        )
+        active_id = f"{self._owner_token}:step-{self.global_step}"
         self._active_trajectory = trajectory
         self._active_anchor = StageAnchor(
             old_log_probs=old_log_probs.clone(),

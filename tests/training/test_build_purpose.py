@@ -2,6 +2,12 @@ from __future__ import annotations
 
 import pytest
 
+# This test module imports worldfoundry code that requires the optional
+# "ftfy" dependency at import time; skip when it is unavailable.
+pytest.importorskip("ftfy")
+
+import pytest
+
 torch = pytest.importorskip("torch")
 
 from worldfoundry.base_models.diffusion_model.assembly import NativeDiffusionAssembler  # noqa: E402

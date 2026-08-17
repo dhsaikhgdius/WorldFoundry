@@ -23,8 +23,7 @@ from worldfoundry.training.data import (  # noqa: E402
     VideoLatentGeometry,
 )
 from worldfoundry.training.data.wan.contracts import (  # noqa: E402
-    wan_cache_contract_digest,
-    wan_latent_normalization_digest,
+    wan_latent_normalization,
 )
 from worldfoundry.training.distributed import DistributedTrainingContext  # noqa: E402
 from worldfoundry.training.engine import (  # noqa: E402
@@ -121,17 +120,17 @@ def _cache(tmp_path: Path) -> VideoCachedDataset:
     root = tmp_path / "cache"
     store = VideoCacheStore(root)
     provenance = VideoCacheProvenance(
-        media_sha256="1" * 64,
-        prompt_sha256="2" * 64,
-        model_recipe_digest=wan_cache_contract_digest("wan2.1-t2v-1.3b"),
-        codec_digest="3" * 64,
-        conditioner_digest="4" * 64,
-        tokenizer_digest="5" * 64,
-        conditioning_inputs_digest="6" * 64,
-        safety_audit_digest="7" * 64,
-        frame_sampling_digest="8" * 64,
-        spatial_transform_digest="9" * 64,
-        latent_normalization_digest=wan_latent_normalization_digest(),
+        media_uri="cached-video.mp4",
+        prompt="cached video prompt",
+        model_recipe="wan2.1-t2v-1.3b",
+        codec={"repo_id": "vae", "revision": "main"},
+        conditioner={"repo_id": "umt5", "revision": "main"},
+        tokenizer={"repo_id": "tokenizer", "revision": "main"},
+        conditioning_inputs={"task": "t2v", "conditions": {}},
+        safety_audit={"prompt": "cached video prompt", "safe": True},
+        frame_sampling={"mode": "head", "selected_frame_indices": [0, 1, 2, 3, 4]},
+        spatial_transform={"mode": "identity"},
+        latent_normalization=wan_latent_normalization(),
         task="t2v",
         conditioning_layout="umt5-sequence",
         aspect_bin="1:1",
@@ -157,7 +156,7 @@ def _cache(tmp_path: Path) -> VideoCachedDataset:
         latent_loss_mask=torch.ones(1, 2, 2, 2),
         valid_latent_mask=torch.ones(1, 2, 2, 2, dtype=torch.bool),
     )
-    store.write_index(dataset_digest="a" * 64, entries=(entry,))
+    store.write_index(entries=(entry,))
     return VideoCachedDataset(root)
 
 
@@ -213,8 +212,8 @@ def test_wan_session_exact_resume_export_and_only_lora_gradients(tmp_path: Path)
     for name, parameter in resumed_state.items():
         torch.testing.assert_close(parameter, continuous_state[name], rtol=0, atol=0)
     assert (
-        resumed_artifact.file_digests["adapter_model.safetensors"]
-        == continuous_artifact.file_digests["adapter_model.safetensors"]
+        resumed_artifact.file_size_bytes["adapter_model.safetensors"]
+        == continuous_artifact.file_size_bytes["adapter_model.safetensors"]
     )
     resumed_manifest = json.loads(resumed.manifest_path.read_text(encoding="utf-8"))
     assert resumed_manifest["initial_global_step"] == 1
@@ -256,7 +255,7 @@ def test_wan_fsdp2_world_one_step_and_adapter_export(
 
         assert summary.changed_parameter_tensors > 0
         assert artifact.path.is_dir()
-        assert "adapter_model.safetensors" in artifact.file_digests
+        assert "adapter_model.safetensors" in artifact.file_size_bytes
         assert session.engine.application.parallel_plan.world_size == 1
     finally:
         if session is not None:

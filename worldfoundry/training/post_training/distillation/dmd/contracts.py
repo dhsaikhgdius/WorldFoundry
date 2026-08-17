@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Literal, Protocol, runtime_checkable
 
 from ...shared.contracts import (
@@ -25,7 +25,6 @@ class DMDTrainingBatch:
     unconditional_conditioning: Mapping[str, object]
     loss_mask: TensorLike | None = None
     sample_weights: TensorLike | None = None
-    metadata: Mapping[str, object] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         sample_ids = non_empty_ids(self.sample_ids, field_name="sample_ids", unique=True)
@@ -60,12 +59,6 @@ class DMDTrainingBatch:
                 field_name="unconditional_conditioning",
             ),
         )
-        object.__setattr__(
-            self,
-            "metadata",
-            freeze_mapping(self.metadata, field_name="metadata"),
-        )
-
     @property
     def batch_size(self) -> int:
         return len(self.sample_ids)
@@ -74,8 +67,6 @@ class DMDTrainingBatch:
 @runtime_checkable
 class DMDLossAdapter(Protocol):
     """Loss seam consumed by the native two-optimizer DMD engine."""
-
-    schedule_digest: str
 
     def loss_denominator(
         self,

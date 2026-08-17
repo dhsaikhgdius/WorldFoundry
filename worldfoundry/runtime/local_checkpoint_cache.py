@@ -10,13 +10,39 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 import shutil
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Iterable, Iterator
+
+logger = logging.getLogger(__name__)
 
 _READY_FILE = ".worldfoundry-local-cache.json"
+
+
+@contextmanager
+def _publish_lock(cache_root: Path, target_name: str) -> Iterator[None]:
+    """Serialize the publish step across unrelated processes via ``flock``.
+
+    Staging copies may run concurrently, but replacing the published target
+    directory must be exclusive: without the lock, one process could delete a
+    directory that a concurrent process just published and started reading.
+    """
+    try:
+        import fcntl
+    except ImportError:  # pragma: no cover - non-POSIX platforms
+        yield
+        return
+    lock_path = cache_root / f".{target_name}.lock"
+    with open(lock_path, "w", encoding="utf-8") as handle:
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(handle, fcntl.LOCK_UN)
 
 
 def _enabled(source: Path) -> bool:
@@ -137,10 +163,11 @@ def _stage_rank_zero(
     temporary = cache_root / f".{target.name}.tmp-{os.getpid()}"
     if temporary.exists():
         shutil.rmtree(temporary)
-    print(
-        f"[worldfoundry] staging {source_bytes / 1024**3:.1f} GiB checkpoint "
-        f"from {source} to {target}",
-        flush=True,
+    logger.info(
+        "staging %.1f GiB checkpoint from %s to %s",
+        source_bytes / 1024**3,
+        source,
+        target,
     )
     try:
         _copy_tree_parallel(source, temporary, include_paths=include_paths)
@@ -155,9 +182,16 @@ def _stage_rank_zero(
             ),
             encoding="utf-8",
         )
-        if target.exists():
-            shutil.rmtree(target)
-        temporary.rename(target)
+        with _publish_lock(cache_root, target.name):
+            if _is_ready(target, source, required_paths):
+                # A concurrent process published a valid tree while we were
+                # copying. Reuse it and discard the duplicate; deleting the
+                # published tree here would break readers already loading it.
+                shutil.rmtree(temporary, ignore_errors=True)
+                return target
+            if target.exists():
+                shutil.rmtree(target)
+            temporary.rename(target)
     except Exception:
         shutil.rmtree(temporary, ignore_errors=True)
         raise

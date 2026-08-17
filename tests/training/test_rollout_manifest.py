@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from worldfoundry.core.io.integrity import canonical_json, text_sha256
+from worldfoundry.core.io.integrity import canonical_json
 from worldfoundry.training.data import RolloutPromptDataset, RolloutPromptRecord
 from worldfoundry.training.safety import PromptSafetyAudit
 from worldfoundry.training.safety.shieldgemma import SHIELDGEMMA_PROMPT_POLICIES
@@ -12,7 +12,7 @@ from worldfoundry.training.safety.shieldgemma import SHIELDGEMMA_PROMPT_POLICIES
 
 def _audit(prompt: str) -> PromptSafetyAudit:
     return PromptSafetyAudit(
-        prompt_sha256=text_sha256(prompt),
+        prompt=prompt,
         unsafe_probabilities={key: 0.01 for key in SHIELDGEMMA_PROMPT_POLICIES},
         threshold=0.5,
     )
@@ -28,7 +28,7 @@ def _record(prompt_id: str, prompt: str, *, split: str = "train") -> RolloutProm
     )
 
 
-def test_rollout_prompt_manifest_is_safe_strict_and_content_addressed(tmp_path) -> None:
+def test_rollout_prompt_manifest_is_safe_and_strict(tmp_path) -> None:
     path = tmp_path / "prompts.jsonl"
     records = (
         _record("first", "A red cube rotates slowly."),
@@ -53,8 +53,6 @@ def test_rollout_prompt_manifest_is_safe_strict_and_content_addressed(tmp_path) 
         "generation",
         "safety_audit",
     }
-    assert len(dataset.dataset_digest) == 64
-    assert len(dataset.manifest_sha256) == 64
 
 
 def test_rollout_prompt_manifest_rejects_tampering_and_duplicate_groups(tmp_path) -> None:
@@ -86,7 +84,7 @@ def test_rollout_prompt_manifest_rejects_tampering_and_duplicate_groups(tmp_path
 def test_rollout_prompt_record_rejects_unsafe_audit() -> None:
     prompt = "A test prompt."
     unsafe = PromptSafetyAudit(
-        prompt_sha256=text_sha256(prompt),
+        prompt=prompt,
         unsafe_probabilities={key: (0.9 if key == "dangerous" else 0.01) for key in SHIELDGEMMA_PROMPT_POLICIES},
         threshold=0.5,
     )

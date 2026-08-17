@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+import pytest
+
+# This test module imports worldfoundry code that requires the optional
+# "transformers" dependency at import time; skip when it is unavailable.
+pytest.importorskip("transformers")
+
 import json
 from dataclasses import replace
 from pathlib import Path
@@ -91,7 +97,7 @@ class _Roles:
 
     @staticmethod
     def runtime_identity():
-        return {"policy": {"checkpoint": {"digest": "policy"}}}
+        return {"policy": {"checkpoint": {"repository": "policy"}}}
 
 
 def _iteration_result() -> DiffusionNFTIterationResult:
@@ -120,7 +126,6 @@ def _iteration_result() -> DiffusionNFTIterationResult:
         scalar_rewards=torch.tensor([0.25, 0.75]),
         normalized_components={"video_quality": torch.tensor([0.25, 0.75])},
         valid_mask=torch.ones(2, dtype=torch.bool),
-        scalarizer_digest="scalarizer",
     )
     return DiffusionNFTIterationResult(
         rollout=rollout,

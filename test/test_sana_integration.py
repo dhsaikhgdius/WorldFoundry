@@ -1,3 +1,9 @@
+
+import pytest
+
+# This test module imports worldfoundry code that requires the optional
+# "ftfy" dependency at import time; skip when it is unavailable.
+pytest.importorskip("ftfy")
 import importlib
 import pkgutil
 from pathlib import Path

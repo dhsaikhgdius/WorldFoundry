@@ -2,6 +2,12 @@
 
 from __future__ import annotations
 
+import pytest
+
+# This test module imports worldfoundry code that requires the optional
+# "hydra" dependency at import time; skip when it is unavailable.
+pytest.importorskip("hydra")
+
 import json
 from pathlib import Path
 

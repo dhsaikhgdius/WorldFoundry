@@ -6,7 +6,6 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 import torch
-import torch.distributed as dist
 from torch import nn
 
 from worldfoundry.core.gradient import clip_grad_norm_
@@ -151,10 +150,6 @@ class NativeSGMDTrainEngine:
         self.teacher_module.eval()
         self.fake_score_module.eval()
 
-    @property
-    def config_digest(self) -> str:
-        return str(self.loss_adapter.config_digest)
-
     def _target_index(
         self,
         *,
@@ -172,7 +167,9 @@ class NativeSGMDTrainEngine:
         if self.parallel_context.world_size > 1:
             if self.parallel_context.rank != 0:
                 value.zero_()
-            dist.broadcast(value, src=0, group=self.parallel_context.process_group)
+            # broadcast_from_coordinator translates group-local rank zero to
+            # its global rank; a raw src=0 is wrong for non-world subgroups.
+            self.parallel_context.broadcast_from_coordinator(value)
         return int(value.item())
 
     def train_step(
@@ -374,7 +371,6 @@ class NativeSGMDTrainEngine:
             "student_optimizer_steps": self.student_optimizer_steps,
             "fake_score_optimizer_steps": self.fake_score_optimizer_steps,
             "gradient_accumulation_steps": self.gradient_accumulation_steps,
-            "config_digest": self.config_digest,
             "data_parallel_size": self.parallel_context.world_size,
         }
 
@@ -387,15 +383,12 @@ class NativeSGMDTrainEngine:
             "student_optimizer_steps",
             "fake_score_optimizer_steps",
             "gradient_accumulation_steps",
-            "config_digest",
             "data_parallel_size",
         }
         if set(state_dict) != expected:
             raise ValueError("SGMD engine state fields differ from the active schema")
         if state_dict["schema"] != SGMD_ENGINE_STATE_SCHEMA:
             raise ValueError(f"unsupported SGMD engine schema: {state_dict['schema']!r}")
-        if str(state_dict["config_digest"]) != self.config_digest:
-            raise ValueError("saved SGMD configuration differs from the active engine")
         if int(state_dict["gradient_accumulation_steps"]) != self.gradient_accumulation_steps:
             raise ValueError("saved SGMD accumulation differs from the active engine")
         if int(state_dict["data_parallel_size"]) != self.parallel_context.world_size:

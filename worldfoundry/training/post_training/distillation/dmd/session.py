@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from dataclasses import dataclass
-from math import prod
 from typing import Protocol, runtime_checkable
 
 import torch
@@ -12,15 +11,10 @@ import torch
 from worldfoundry.training.checkpoint.checkpointer import TrainingCheckpointer
 from worldfoundry.training.checkpoint.staging import PendingTrainingCheckpoint
 from worldfoundry.training.checkpoint.state import TrainingProgress
+from worldfoundry.training.post_training.shared.batching import latent_token_count as _latent_tokens
 
 from .contracts import DMDTrainingBatch
 from .engine import DMDTrainResult
-
-
-def _latent_tokens(tensor: torch.Tensor) -> int:
-    if tensor.ndim < 2:
-        raise ValueError("latent tensor must include batch and channel/feature dimensions")
-    return int(tensor.shape[0]) * prod(int(size) for size in tensor.shape[2:])
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,6 +37,8 @@ class DMDTrainingEngine(Protocol):
     fake_score_optimizer_steps: int
     gradient_accumulation_steps: int
     generator_update_interval: int
+
+    def generator_update_due(self) -> bool: ...
 
     def train_step(
         self,
@@ -91,6 +87,7 @@ class NativeDMDTrainingSession:
         self.fresh_fake_score_batches = bool(fresh_fake_score_batches)
         self.event_sink = event_sink
         self._pending: list[PendingTrainingCheckpoint] = []
+        self._iterator: Iterator[DMDTrainingBatch] | None = None
 
     def _emit(self, payload: Mapping[str, object]) -> None:
         if self.event_sink is not None:
@@ -128,17 +125,17 @@ class NativeDMDTrainingSession:
         if (boundary_sink is None) != (boundary_cadence == 0):
             raise ValueError("boundary_sink and a positive boundary_every_steps must be configured together")
         initial_step = self.engine.global_step
-        iterator = iter(self.dataloader)
         final_result: DMDTrainResult | None = None
 
         def next_microbatch() -> DMDTrainingBatch:
-            nonlocal iterator
+            if self._iterator is None:
+                self._iterator = iter(self.dataloader)
             try:
-                value = next(iterator)
+                value = next(self._iterator)
             except StopIteration:
-                iterator = iter(self.dataloader)
+                self._iterator = iter(self.dataloader)
                 try:
-                    value = next(iterator)
+                    value = next(self._iterator)
                 except StopIteration as error:
                     raise RuntimeError("DMD dataloader is empty") from error
             if not isinstance(value, DMDTrainingBatch):
@@ -148,7 +145,7 @@ class NativeDMDTrainingSession:
         try:
             for _ in range(int(max_steps)):
                 batches = [next_microbatch() for _ in range(self.engine.gradient_accumulation_steps)]
-                generator_due = self.engine.global_step % self.engine.generator_update_interval == 0
+                generator_due = self.engine.generator_update_due()
                 fake_batches = (
                     [next_microbatch() for _ in range(self.engine.gradient_accumulation_steps)]
                     if self.fresh_fake_score_batches and generator_due

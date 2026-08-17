@@ -10,6 +10,7 @@ import torch
 
 from worldfoundry.training.checkpoint.checkpointer import TrainingCheckpointer
 from worldfoundry.training.checkpoint.state import TrainingProgress
+from worldfoundry.training.checkpoint.stateful import NamedStatefulCollection
 from worldfoundry.training.recipes.post_training.algorithms.token_policy import (
     TokenCPPOAlgorithmSpec,
     TokenDPPOAlgorithmSpec,
@@ -54,10 +55,20 @@ class NativeTokenPolicyTrainingStack:
     sampling_temperature: float
 
     def checkpoint_state_kwargs(self) -> dict[str, object | None]:
+        algorithm_state: object = self.scalarizer
+        if callable(getattr(self.rollout_adapter, "state_dict", None)) and callable(
+            getattr(self.rollout_adapter, "load_state_dict", None)
+        ):
+            algorithm_state = NamedStatefulCollection(
+                {
+                    "reward_scalarizer": self.scalarizer,
+                    "rollout": self.rollout_adapter,
+                }
+            )
         return {
             "lr_scheduler": None,
             "ema": None,
-            "algorithm_state": self.scalarizer,
+            "algorithm_state": algorithm_state,
         }
 
     def build_session(

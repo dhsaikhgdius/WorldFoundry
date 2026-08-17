@@ -5,7 +5,8 @@ from __future__ import annotations
 import math
 import random
 import time
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Iterator, Mapping
+from contextlib import contextmanager
 from pathlib import Path
 from types import MappingProxyType
 
@@ -19,10 +20,23 @@ from worldfoundry.training.checkpoint.checkpointer import TrainingCheckpointer
 from worldfoundry.training.checkpoint.staging import PendingTrainingCheckpoint
 from worldfoundry.training.checkpoint.state import TrainingProgress, TrainingState
 from worldfoundry.training.distributed.parallel import DistributedTrainingContext
+from worldfoundry.training.recipes.post_training.recipe import PostTrainingRecipe
 from worldfoundry.training.recipes.spec import TrainingRecipe
+from worldfoundry.training.tuning.application import AdapterApplication, AdapterArtifact
+from worldfoundry.training.tuning.full_model import (
+    DEFAULT_MAX_SHARD_SIZE_BYTES,
+    FullModelArtifact,
+)
 from worldfoundry.training.tuning.peft import PeftAdapterArtifact, PeftLoraApplication
 
-from ..artifacts import create_run_directory, export_peft_application
+from ..artifacts import (
+    create_run_directory,
+    export_adapter_application,
+    export_peft_application,
+)
+from ..artifacts import (
+    export_full_model as export_full_model_artifact,
+)
 from ..single_device import SingleDeviceTrainEngine
 from .io import (
     TRAINING_METRIC_SCHEMA,
@@ -45,16 +59,20 @@ class SingleDeviceTrainingSession:
     def __init__(
         self,
         *,
-        recipe: TrainingRecipe,
+        recipe: TrainingRecipe | PostTrainingRecipe,
         engine: SingleDeviceTrainEngine,
         dataloader: Iterable[TrainingBatch],
         output_dir: str | Path | None = None,
         peft_application: PeftLoraApplication | None = None,
+        adapter_application: AdapterApplication | None = None,
         data_identity: Mapping[str, object] | None = None,
         distributed_context: DistributedTrainingContext | None = None,
+        lr_scheduler: object | None = None,
+        ema: object | None = None,
+        export_ema: bool = False,
     ) -> None:
-        if not isinstance(recipe, TrainingRecipe):
-            raise TypeError("recipe must be TrainingRecipe")
+        if not isinstance(recipe, (TrainingRecipe, PostTrainingRecipe)):
+            raise TypeError("recipe must be TrainingRecipe or PostTrainingRecipe")
         if not isinstance(engine, SingleDeviceTrainEngine):
             raise TypeError("engine must be SingleDeviceTrainEngine")
         if recipe.execution_owner != "worldfoundry-native":
@@ -75,6 +93,21 @@ class SingleDeviceTrainingSession:
             world_size = distributed_context.world_size
         if not isinstance(dataloader, Iterable):
             raise TypeError("dataloader must be iterable")
+        if lr_scheduler is not None and (
+            not callable(getattr(lr_scheduler, "state_dict", None))
+            or not callable(getattr(lr_scheduler, "load_state_dict", None))
+        ):
+            raise TypeError("lr_scheduler must expose state_dict/load_state_dict or be None")
+        if ema is not None and (
+            not callable(getattr(ema, "state_dict", None)) or not callable(getattr(ema, "load_state_dict", None))
+        ):
+            raise TypeError("ema must expose state_dict/load_state_dict or be None")
+        if not isinstance(export_ema, bool):
+            raise TypeError("export_ema must be bool")
+        if export_ema and ema is None:
+            raise ValueError("export_ema requires an EMA component")
+        if peft_application is not None and adapter_application is not None:
+            raise ValueError("pass either peft_application or adapter_application, not both")
         destination = Path(output_dir or recipe.run.output_dir).expanduser().resolve()
         create_run_directory(destination, distributed_context)
 
@@ -82,11 +115,17 @@ class SingleDeviceTrainingSession:
         self.engine = engine
         self.dataloader = dataloader
         self.output_dir = destination
-        self.peft_application = peft_application
+        self.adapter_application = adapter_application or peft_application
+        self.peft_application = (
+            self.adapter_application if isinstance(self.adapter_application, PeftLoraApplication) else None
+        )
         self.distributed_context = distributed_context
         self.rank = rank
         self.world_size = world_size
         self.data_identity = MappingProxyType(dict(data_identity or {}))
+        self.lr_scheduler = lr_scheduler
+        self.ema = ema
+        self.export_ema = export_ema
         self.metrics_path = destination / "metrics.jsonl"
         self.manifest_path = destination / "run.json"
         self.summary: SingleDeviceRunSummary | None = None
@@ -146,13 +185,14 @@ class SingleDeviceTrainingSession:
                 int(properties.major),
                 int(properties.minor),
             ]
+        behavior_key = "objective" if isinstance(self.recipe, TrainingRecipe) else "algorithm"
         return {
             "schema": "worldfoundry-training-resume-identity",
-            "recipe_digest": self.recipe.digest,
             "model": recipe["model"],
             "tuning": recipe["tuning"],
-            "objective": recipe["objective"],
+            behavior_key: recipe[behavior_key],
             "optimizer": recipe["optimizer"],
+            "scheduler": recipe.get("scheduler"),
             "runtime": recipe["runtime"],
             "distributed": recipe["distributed"],
             "data": dict(self.data_identity),
@@ -195,6 +235,9 @@ class SingleDeviceTrainingSession:
                 fixed_corruption=fixed_corruption,
             ),
             ignore_frozen_parameters=self.recipe.tuning.mode == "lora",
+            lr_scheduler=self.lr_scheduler,
+            ema=self.ema,
+            grad_scaler=self.engine.grad_scaler,
         )
         self._checkpoint_state = state
         return state
@@ -208,9 +251,8 @@ class SingleDeviceTrainingSession:
                 "global_step": artifact.global_step,
                 "staging_strategy": artifact.staging_strategy,
                 "optional_state_presence": dict(artifact.optional_state_presence),
-                "manifest_sha256": artifact.manifest_sha256,
-                "identity_digest": artifact.identity_digest,
-                "file_sha256": dict(artifact.file_sha256),
+                "identity": dict(artifact.identity),
+                "file_size_bytes": dict(artifact.file_size_bytes),
                 "recorded_at": utc_now_iso(),
             }
         )
@@ -232,7 +274,6 @@ class SingleDeviceTrainingSession:
             "schema": TRAINING_RUN_SCHEMA,
             "status": "running",
             "run_id": self.recipe.run.id,
-            "recipe_digest": self.recipe.digest,
             "recipe": self.recipe.to_dict(),
             "data": dict(self.data_identity),
             "rank_count": self.world_size,
@@ -257,8 +298,7 @@ class SingleDeviceTrainingSession:
                 else {
                     "path": str(resumed_from.path),
                     "global_step": resumed_from.global_step,
-                    "manifest_sha256": resumed_from.manifest_sha256,
-                    "identity_digest": resumed_from.identity_digest,
+                    "identity": dict(resumed_from.identity),
                 }
             ),
         }
@@ -278,7 +318,13 @@ class SingleDeviceTrainingSession:
         maximum_final_to_initial_loss_ratio: float | None = None,
         resume_checkpoint: str | Path | None = None,
     ) -> SingleDeviceRunSummary:
-        """Execute optimizer steps and persist a complete or failed run record."""
+        """Execute optimizer steps and persist a complete or failed run record.
+
+        ``max_steps`` counts optimizer steps executed by *this* call, not a
+        global training horizon: after ``resume_checkpoint`` the session runs
+        ``max_steps`` additional steps on top of the restored global step
+        (recorded as ``initial_global_step`` in the run manifest).
+        """
 
         if self._started:
             raise RuntimeError("a training session can only run once")
@@ -514,7 +560,6 @@ class SingleDeviceTrainingSession:
         record: dict[str, object] = {
             "schema": TRAINING_METRIC_SCHEMA,
             "run_id": self.recipe.run.id,
-            "recipe_digest": self.recipe.digest,
             "optimizer_step": self.engine.global_step,
             "run_step_index": step_index,
             "microbatch_count": microbatch_count,
@@ -538,32 +583,104 @@ class SingleDeviceTrainingSession:
             }
         return record
 
+    @contextmanager
+    def _export_parameter_scope(self) -> Iterator[torch.nn.Module]:
+        module = getattr(self.engine.adapter, "trainable_module", None)
+        if not isinstance(module, torch.nn.Module):
+            raise TypeError("training adapter must expose an nn.Module for export")
+        if not self.export_ema:
+            yield module
+            return
+
+        assert self.ema is not None
+        for name in ("store", "copy_to", "restore"):
+            if not callable(getattr(self.ema, name, None)):
+                raise TypeError(f"EMA export requires {name}()")
+        parameters = tuple(module.parameters())
+        self.ema.store(parameters)
+        try:
+            self.ema.copy_to(module)
+            yield module
+        finally:
+            self.ema.restore(parameters)
+
     def export_peft(self, output_dir: str | Path | None = None) -> PeftAdapterArtifact:
-        """Export and attach a digest-audited PEFT artifact to the run manifest."""
+        """Export a PEFT artifact and attach it to the run manifest."""
 
         if self.summary is None or self._manifest is None:
             raise RuntimeError("training must complete before PEFT export")
         if self.peft_application is None:
             raise RuntimeError("this training session has no PEFT application to export")
         destination = Path(output_dir or (self.output_dir / "adapter"))
-        metadata = {
-            "run_id": self.recipe.run.id,
-            "recipe_digest": self.recipe.digest,
-            "data": dict(self.data_identity),
-            "training_summary": self.summary.to_dict(),
-        }
-        artifact = export_peft_application(
-            self.peft_application,
-            destination,
-            metadata=metadata,
-            distributed_context=self.distributed_context,
-            role="training PEFT adapter",
-        )
+        with self._export_parameter_scope():
+            artifact = export_peft_application(
+                self.peft_application,
+                destination,
+                distributed_context=self.distributed_context,
+                role="training PEFT adapter",
+            )
         artifacts = dict(self._manifest.get("artifacts", {}))
         artifacts["peft_adapter"] = {
             "path": str(artifact.path),
-            "manifest_sha256": artifact.manifest_sha256,
-            "file_sha256": dict(artifact.file_digests),
+            "file_size_bytes": dict(artifact.file_size_bytes),
+            "weights": "ema" if self.export_ema else "online",
+        }
+        self._manifest["artifacts"] = artifacts
+        self._write_manifest()
+        return artifact
+
+    def export_adapter(self, output_dir: str | Path | None = None) -> AdapterArtifact:
+        """Export a model-native adapter and attach it to the run manifest."""
+
+        if self.summary is None or self._manifest is None:
+            raise RuntimeError("training must complete before adapter export")
+        if self.adapter_application is None:
+            raise RuntimeError("this training session has no adapter application to export")
+        destination = Path(output_dir or (self.output_dir / "adapter"))
+        with self._export_parameter_scope():
+            artifact = export_adapter_application(
+                self.adapter_application,
+                destination,
+                distributed_context=self.distributed_context,
+                role="training adapter",
+            )
+        artifacts = dict(self._manifest.get("artifacts", {}))
+        artifacts["adapter"] = {
+            "format": getattr(self.recipe, "export", None).format if hasattr(self.recipe, "export") else "peft",
+            "path": str(artifact.path),
+            "file_size_bytes": dict(artifact.file_size_bytes),
+            "weights": "ema" if self.export_ema else "online",
+        }
+        self._manifest["artifacts"] = artifacts
+        self._write_manifest()
+        return artifact
+
+    def export_full_model(
+        self,
+        output_dir: str | Path | None = None,
+        *,
+        max_shard_size_bytes: int = DEFAULT_MAX_SHARD_SIZE_BYTES,
+    ) -> FullModelArtifact:
+        """Export the final fully tuned graph, using EMA weights when configured."""
+
+        if self.summary is None or self._manifest is None:
+            raise RuntimeError("training must complete before full-model export")
+        if self.recipe.tuning.mode not in {"full", "partial"}:
+            raise RuntimeError("full-model export requires full or selected-parameter tuning")
+        with self._export_parameter_scope() as module:
+            destination = Path(output_dir or (self.output_dir / "model"))
+            artifact = export_full_model_artifact(
+                module,
+                destination,
+                distributed_context=self.distributed_context,
+                role="training full model",
+                max_shard_size_bytes=max_shard_size_bytes,
+            )
+        artifacts = dict(self._manifest.get("artifacts", {}))
+        artifacts["full_model"] = {
+            "path": str(artifact.path),
+            "file_size_bytes": dict(artifact.file_size_bytes),
+            "weights": "ema" if self.export_ema else "online",
         }
         self._manifest["artifacts"] = artifacts
         self._write_manifest()

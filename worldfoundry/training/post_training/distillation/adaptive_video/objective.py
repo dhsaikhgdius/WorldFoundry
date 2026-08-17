@@ -48,7 +48,6 @@ class FlowAdaptiveVideoLossAdapter:
         config: AdaptiveVideoConfig,
         *,
         student_sampler: DMDStudentSampler | None = None,
-        config_digest: str | None = None,
     ) -> None:
         if not isinstance(config, AdaptiveVideoConfig):
             raise TypeError("config must be AdaptiveVideoConfig")
@@ -65,10 +64,6 @@ class FlowAdaptiveVideoLossAdapter:
             )
         self.student = student
         self.config = config
-        self.config_digest = str(config_digest or config.digest)
-        if not self.config_digest.strip():
-            raise ValueError("config_digest must be non-empty")
-        self.schedule_digest = self.config_digest
         self.regression_ema = AdaptiveRegressionEMA(
             len(config.dmd.schedule.sigmas),
             decay=config.regression_ema_decay,
@@ -278,19 +273,16 @@ class FlowAdaptiveVideoLossAdapter:
     def adaptive_state_dict(self) -> dict[str, object]:
         return {
             "schema": ADAPTIVE_VIDEO_OBJECTIVE_STATE_SCHEMA,
-            "config_digest": self.config_digest,
             "regression_ema": self.regression_ema.state_dict(),
         }
 
     def load_adaptive_state_dict(self, state_dict: Mapping[str, object]) -> None:
         if not isinstance(state_dict, Mapping):
             raise TypeError("adaptive objective state must be a mapping")
-        if set(state_dict) != {"schema", "config_digest", "regression_ema"}:
+        if set(state_dict) != {"schema", "regression_ema"}:
             raise ValueError("adaptive objective state fields differ from the active schema")
         if state_dict["schema"] != ADAPTIVE_VIDEO_OBJECTIVE_STATE_SCHEMA:
             raise ValueError("unsupported adaptive objective state schema")
-        if state_dict["config_digest"] != self.config_digest:
-            raise ValueError("saved adaptive objective configuration differs")
         regression_state = state_dict["regression_ema"]
         if not isinstance(regression_state, Mapping):
             raise TypeError("saved adaptive regression EMA must be a mapping")

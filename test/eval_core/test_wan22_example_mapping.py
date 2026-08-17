@@ -2,6 +2,12 @@ from __future__ import annotations
 
 import types
 
+import pytest
+
+# worldfoundry.pipelines.wan.pipeline_wan_2p2 imports ftfy (optional
+# dependency) at module load time; skip in environments without it.
+pytest.importorskip("ftfy")
+
 import worldfoundry.pipelines.wan.pipeline_wan_2p2 as wan22_module
 
 from worldfoundry.pipelines.wan.pipeline_wan_2p2 import Wan2p2Pipeline

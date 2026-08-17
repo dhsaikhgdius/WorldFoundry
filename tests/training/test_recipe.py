@@ -28,6 +28,14 @@ def _recipe_mapping() -> dict:
         },
         "objective": {"type": "flow_matching", "timestep_sampler": "logit_normal"},
         "optimizer": {"type": "adamw", "learning_rate": 1.0e-4},
+        "scheduler": {
+            "type": "warmup_cosine",
+            "warmup_steps": 100,
+            "total_steps": 1000,
+            "start_factor": 0.0,
+            "peak_factor": 0.5,
+            "end_factor": 0.2,
+        },
         "distributed": {"backend": "fsdp2", "dp_shard": "auto", "cp": 1, "tp": 1},
         "checkpoint": {"save_every_steps": 10, "async": True},
     }
@@ -40,9 +48,10 @@ def test_training_recipe_is_canonical_and_round_trips() -> None:
     assert recipe.run.id == "sana-demo"
     assert recipe.objective.type == "flow-matching"
     assert recipe.data.tail_policy == "drop"
+    assert recipe.scheduler is not None
+    assert recipe.scheduler.type == "warmup-cosine"
+    assert recipe.scheduler.warmup_steps == 100
     assert restored == recipe
-    assert restored.digest == recipe.digest
-    assert len(recipe.digest) == 64
 
 
 def test_training_recipe_rejects_unknown_fields() -> None:
@@ -69,6 +78,16 @@ def test_training_recipe_canonicalizes_prediction_type_to_contract_spelling() ->
 
     assert recipe.objective.prediction_type == "flow_velocity"
     assert recipe.to_dict()["objective"]["prediction_type"] == "flow_velocity"
+
+
+def test_training_recipe_can_disable_gradient_clipping() -> None:
+    payload = _recipe_mapping()
+    payload["optimizer"]["max_grad_norm"] = None
+
+    recipe = TrainingRecipe.from_mapping(payload)
+
+    assert recipe.optimizer.max_grad_norm is None
+    assert TrainingRecipe.from_mapping(recipe.to_dict()) == recipe
 
 
 def test_training_recipe_rejects_external_execution_fields() -> None:

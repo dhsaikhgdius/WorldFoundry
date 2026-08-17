@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+import pytest
+
+# This test module imports worldfoundry code that requires the optional
+# "fastapi" dependency at import time; skip when it is unavailable.
+pytest.importorskip("fastapi")
+
 import json
 import time
 from pathlib import Path

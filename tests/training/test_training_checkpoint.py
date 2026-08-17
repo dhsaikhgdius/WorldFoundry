@@ -139,7 +139,6 @@ def _stack(
     dataset = _Dataset()
     sampler = DeterministicDistributedSampler(
         dataset,
-        dataset_digest="d" * 64,
         seed=47,
         shuffle=True,
         rank=0,
@@ -165,8 +164,8 @@ def _stack(
         objective_generator=generator,
         progress=progress,
         identity={
-            "recipe_digest": identity_suffix * 64,
-            "dataset_digest": "d" * 64,
+            "recipe": {"variant": identity_suffix},
+            "sample_ids": list(dataset.sample_ids),
             "model_recipe": "sana-tiny",
             "prediction_type": "flow_velocity",
             "parallel_plan": {"backend": "single", "world_size": 1},
@@ -235,7 +234,7 @@ def test_dcp_resume_restores_exact_next_data_rng_loss_and_update(tmp_path: Path)
         torch.testing.assert_close(value, expected_parameters[name], rtol=0, atol=0)
 
 
-def test_async_dcp_save_commits_manifest_checksums_and_latest_pointer(tmp_path: Path) -> None:
+def test_async_dcp_save_commits_manifest_and_latest_pointer(tmp_path: Path) -> None:
     stack = _stack()
     iterator = iter(stack.loader)
     _step(stack, iterator)
@@ -258,7 +257,7 @@ def test_async_dcp_save_commits_manifest_checksums_and_latest_pointer(tmp_path: 
     assert restored.progress.optimizer_steps == 1
 
 
-def test_checkpoint_rejects_incomplete_tampered_and_incompatible_state(tmp_path: Path) -> None:
+def test_checkpoint_rejects_incomplete_modified_and_incompatible_state(tmp_path: Path) -> None:
     incomplete_stack = _stack()
     _step(incomplete_stack, iter(incomplete_stack.loader))
     incomplete_manager = TrainingCheckpointer(tmp_path / "incomplete")

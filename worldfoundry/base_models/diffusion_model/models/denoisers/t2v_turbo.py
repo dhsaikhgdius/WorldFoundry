@@ -12,7 +12,6 @@ from ...contracts import DenoiserInput, DenoiserOutput
 from ...loaders import ModuleLoadSpec, NativeCheckpointResolver, NativeModuleLoader
 from ..networks.lvdm.unet3d import UNetModel
 
-
 T2V_TURBO_UNET_CONFIG = {
     "in_channels": 4,
     "out_channels": 4,
@@ -37,7 +36,9 @@ T2V_TURBO_UNET_CONFIG = {
 }
 
 
-def _seeded_projection(reference: torch.Tensor) -> torch.Tensor:
+def t2v_turbo_guidance_projection(reference: torch.Tensor) -> torch.Tensor:
+    """Return the frozen guidance projection used when VideoCrafter has no such key."""
+
     generator = torch.Generator(device="cpu").manual_seed(0)
     bound = 1.0 / math.sqrt(256.0)
     value = torch.empty((320, 256), dtype=torch.float32).uniform_(
@@ -59,7 +60,7 @@ def _unet_state_dict(state_dict: Mapping[str, object]) -> Mapping[str, object]:
         raise KeyError("VideoCrafter checkpoint contains no model.diffusion_model parameters")
     if "time_cond_proj.weight" not in converted:
         reference = next(value for value in converted.values() if isinstance(value, torch.Tensor))
-        converted["time_cond_proj.weight"] = _seeded_projection(reference)
+        converted["time_cond_proj.weight"] = t2v_turbo_guidance_projection(reference)
     return converted
 
 
@@ -119,4 +120,5 @@ __all__ = [
     "T2VTurboDenoiser",
     "T2V_TURBO_UNET_CONFIG",
     "build_t2v_turbo_denoiser",
+    "t2v_turbo_guidance_projection",
 ]

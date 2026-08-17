@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from math import isfinite
 
-from worldfoundry.core.io.integrity import canonical_sha256
 from worldfoundry.core.nn.diffusion_schedulers import FlowMatchScheduler
 
 
@@ -70,10 +69,6 @@ class CausalODEConfig:
         if self.frame_dim == 0:
             raise ValueError("frame_dim cannot be the batch dimension")
         object.__setattr__(self, "trajectory_timesteps", values)
-
-    @property
-    def digest(self) -> str:
-        return canonical_sha256({"schema": "worldfoundry-causal-ode-config", **asdict(self)})
 
 
 __all__ = ["CausalODEConfig", "warped_causal_ode_timesteps"]

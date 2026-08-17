@@ -19,7 +19,13 @@ from typing import List
 import torch
 from tqdm import tqdm
 
-from worldfoundry.runtime.compile_cache import CompilePolicy, compile_callable_cached
+# Layering debt: the tiled-VAE blend helpers are compiled through
+# ``worldfoundry.runtime.compile_cache``, which lives *above* core and itself
+# imports core (core.io.paths via runtime.env). Importing it lazily inside
+# ``VideoTiler.__init__`` keeps ``worldfoundry.core.io`` importable on its own
+# and avoids the core -> runtime -> core import cycle at module-import time.
+# The proper fix is to sink the compile-cache primitives below core.io; see
+# review finding CF-1.
 
 
 class ParallelHelper:
@@ -308,6 +314,10 @@ class TileProcessor:
         self.temporal_tile_overlap_factor = temporal_tile_overlap_factor
         self.sr_ratio = sr_ratio
         self.parallel_group = parallel_group
+        # Lazy upper-layer import; see the layering-debt note at the top of
+        # this module (review finding CF-1).
+        from worldfoundry.runtime.compile_cache import CompilePolicy, compile_callable_cached
+
         blend_policy = CompilePolicy(dynamic=False)
         self._blend_t_compiled = compile_callable_cached(
             self.blend_t,

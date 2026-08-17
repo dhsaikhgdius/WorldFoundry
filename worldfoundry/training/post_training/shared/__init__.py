@@ -11,6 +11,7 @@ _EXPORTS = {
     "ResolvedRoleCheckpoint": ".role_checkpoints",
     "TensorLike": ".contracts",
     "batch_shared_conditioning": ".batching",
+    "latent_token_count": ".batching",
     "resolve_role_checkpoint": ".role_checkpoints",
     "NativeSingleOptimizerTrainingSession": ".session",
     "SingleOptimizerEngine": ".session",

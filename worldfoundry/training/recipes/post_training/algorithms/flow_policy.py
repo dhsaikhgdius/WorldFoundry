@@ -14,7 +14,10 @@ from ..common import (
     positive_int,
     strict_mapping,
 )
+from ..rewards.remote import REMOTE_REWARD_FIELDS, RemoteRewardSpec
 from ..rewards.videoalign import VIDEOALIGN_REWARD_FIELDS, VideoAlignRewardSpec
+
+FlowPolicyRewardSpec = VideoAlignRewardSpec | RemoteRewardSpec
 
 FLOW_POLICY_ALGORITHM_FIELDS = {
     "type",
@@ -63,9 +66,13 @@ class FlowSDEWindowSpec:
             self.iterations_per_window,
             field_name="sde_window.iterations_per_window",
         )
-        stride = window_size if self.stride is None else positive_int(
-            self.stride,
-            field_name="sde_window.stride",
+        stride = (
+            window_size
+            if self.stride is None
+            else positive_int(
+                self.stride,
+                field_name="sde_window.stride",
+            )
         )
         if stride > window_size:
             raise ValueError("sde_window.stride cannot exceed window_size")
@@ -92,7 +99,7 @@ class FlowPolicyAlgorithmSpec:
 
     sigmas: tuple[float, ...]
     reward_weights: Mapping[str, float]
-    reward_model: VideoAlignRewardSpec
+    reward_model: FlowPolicyRewardSpec
     sde_step_indices: tuple[int, ...] | None = None
     sde_timestep_fraction: tuple[float, float] | None = None
     num_sde_steps: int | None = None
@@ -195,8 +202,8 @@ class FlowPolicyAlgorithmSpec:
             raise ValueError("eta must be positive")
         if sigma_max is not None and (not isfinite(sigma_max) or not 0 < sigma_max < 1):
             raise ValueError("sigma_max must be finite and in (0,1)")
-        if float(self.guidance_scale) < 1:
-            raise ValueError("guidance_scale must be at least one")
+        if float(self.guidance_scale) < 0:
+            raise ValueError("guidance_scale must be non-negative")
         if not isinstance(self.init_same_noise, bool):
             raise TypeError("init_same_noise must be a bool")
         if float(self.reference_kl_weight) < 0 or float(self.advantage_epsilon) <= 0:
@@ -217,8 +224,8 @@ class FlowPolicyAlgorithmSpec:
         )
         if dtype not in {"bfloat16", "float16", "float32"}:
             raise ValueError("trajectory_dtype must be bfloat16, float16, or float32")
-        if not isinstance(self.reward_model, VideoAlignRewardSpec):
-            raise TypeError("flow-policy reward_model must be VideoAlignRewardSpec")
+        if not isinstance(self.reward_model, VideoAlignRewardSpec | RemoteRewardSpec):
+            raise TypeError("flow-policy reward_model must be VideoAlignRewardSpec or RemoteRewardSpec")
         reward_weights = frozen_float_mapping(
             self.reward_weights,
             field_name="reward_weights",
@@ -293,20 +300,37 @@ def parse_flow_policy_fields(
         if missing:
             raise ValueError(f"algorithm.sde_window is missing fields: {missing}")
         algorithm_payload["sde_window"] = FlowSDEWindowSpec(**window_payload)
-    reward_payload = strict_mapping(
+    raw_reward = mapping(
         algorithm_payload.pop("reward_model"),
         field_name="algorithm.reward_model",
-        allowed=VIDEOALIGN_REWARD_FIELDS,
     )
+    reward_type = str(raw_reward.get("type", "")).strip().lower().replace("_", "-")
+    if reward_type == "videoalign":
+        reward_payload = strict_mapping(
+            raw_reward,
+            field_name="algorithm.reward_model",
+            allowed=VIDEOALIGN_REWARD_FIELDS,
+        )
+        reward_model: FlowPolicyRewardSpec = VideoAlignRewardSpec(**reward_payload)
+    elif reward_type == "remote":
+        reward_payload = strict_mapping(
+            raw_reward,
+            field_name="algorithm.reward_model",
+            allowed=REMOTE_REWARD_FIELDS,
+        )
+        reward_model = RemoteRewardSpec(**reward_payload)
+    else:
+        raise ValueError("flow-policy reward_model.type must be 'videoalign' or 'remote'")
     return {
         **algorithm_payload,
-        "reward_model": VideoAlignRewardSpec(**reward_payload),
+        "reward_model": reward_model,
     }
 
 
 __all__ = [
     "FLOW_POLICY_ALGORITHM_FIELDS",
     "FlowPolicyAlgorithmSpec",
+    "FlowPolicyRewardSpec",
     "FlowSDEWindowSpec",
     "parse_flow_policy_fields",
 ]

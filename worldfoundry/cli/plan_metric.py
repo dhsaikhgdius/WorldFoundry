@@ -15,38 +15,18 @@ from pathlib import Path
 
 from worldfoundry.evaluation.utils import BENCHMARK_TASK_ROOT, TMP_ROOT
 
-from .utils import json_dump, load_json_mapping, parse_key_value_mapping
+from .utils import (
+    json_dump,
+    load_json_mapping,
+    parse_key_value_mapping,
+    task_roots_from_args as _task_roots_from_args,
+)
 
 DEFAULT_TASK_ROOT = BENCHMARK_TASK_ROOT
 DEFAULT_BENCHMARK_TASK_ROOT = DEFAULT_TASK_ROOT
 
 
 # ── Plan helpers ────────────────────────────────────────────
-
-
-def _task_roots_from_args(args: argparse.Namespace) -> tuple[Path, ...]:
-    """Collect all task-root directories from CLI args and environment variables.
-
-    Merges paths from ``--task-root``, ``--include-path``, and the
-    ``WORLDFOUNDRY_TASK_ROOTS`` / ``WORLDFOUNDRY_BENCHMARK_INCLUDE_PATH`` env
-    vars, deduplicating by path value.
-
-    Args:
-        args: Parsed CLI namespace.
-
-    Returns:
-        Deduplicated tuple of :class:`Path` directories to search for
-        task definitions.
-    """
-    roots = list(args.task_root or ())
-    if not roots:
-        roots = [root for root in (DEFAULT_TASK_ROOT, DEFAULT_BENCHMARK_TASK_ROOT) if root.exists()]
-    for env_name in ("WORLDFOUNDRY_TASK_ROOTS", "WORLDFOUNDRY_BENCHMARK_INCLUDE_PATH"):
-        for item in os.environ.get(env_name, "").split(os.pathsep):
-            if item.strip():
-                roots.append(Path(item))
-    roots.extend(getattr(args, "include_path", None) or ())
-    return tuple(dict.fromkeys(Path(root) for root in roots))
 
 
 def _build_run_plan_from_cli_args(args: argparse.Namespace):

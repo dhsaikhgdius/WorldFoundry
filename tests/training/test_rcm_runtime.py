@@ -258,8 +258,6 @@ def test_native_builder_constructs_both_optimizer_roles_and_accumulates() -> Non
 
 
 class _EngineLoss:
-    config_digest = "engine-test"
-
     def __init__(self, student: _ScalarModule, fake: _ScalarModule) -> None:
         self.student = student
         self.fake = fake

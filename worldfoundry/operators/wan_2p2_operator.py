@@ -61,6 +61,8 @@ class Wan2p2Operator(BaseOperator):
         prompt_extend_method: str = "local_qwen",
         prompt_extend_model: Optional[str] = None,
         prompt_extend_target_lang: str = "zh",
+        # 由调用方注入 prompt 扩写模型所用的设备，避免钉死 cuda:0。
+        prompt_extend_device: Union[int, str] = 0,
         base_seed: int = -1,
         **kwargs,
     ) -> Dict[str, Any]:
@@ -93,7 +95,7 @@ class Wan2p2Operator(BaseOperator):
                     model_name=prompt_extend_model,
                     mode=mode,
                     is_vl=images is not None,
-                    device=0,
+                    device=prompt_extend_device,
                 )
             else:
                 raise NotImplementedError(

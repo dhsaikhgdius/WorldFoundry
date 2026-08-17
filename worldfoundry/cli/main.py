@@ -69,7 +69,9 @@ _PUBLIC_ROOT_COMMANDS = (
     "train",
     "post-train",
     "train-audit-prompts",
+    "train-audit-rollout-prompts",
     "train-cache",
+    "train-reward-service",
     "run",
 )
 
@@ -336,6 +338,8 @@ def _handle_tui(args: argparse.Namespace) -> int:
         argv.append("--catalog-json")
     if args.print_command:
         argv.append("--print-command")
+    if getattr(args, "write_suite_plan", False):
+        argv.append("--write-suite-plan")
     return tui_main(argv)
 
 
@@ -993,7 +997,9 @@ def _handle_run(args: argparse.Namespace) -> int:
 
     if not _has_complete_task_args(args):
         print(
-            "error: --task-type, --benchmark-name, and --data-path are required unless --plan is provided",
+            "error: select a run target: `run --benchmark <id> --model <id>` for a benchmark-zoo cell, "
+            "`run <model-id>` for direct model inference, or `run --plan <plan.json>` for replay. "
+            "(The legacy --task-type/--benchmark-name/--data-path flow is retired.)",
             file=sys.stderr,
         )
         return 2
@@ -1079,10 +1085,24 @@ def _handle_run_in_process(args: argparse.Namespace) -> int:
     return result.exit_code
 
 
+def _cli_prog_name() -> str:
+    """Match usage/help branding to the console script that was invoked.
+
+    ``worldfoundry`` and ``worldfoundry-eval`` share this parser; anything
+    else (``python -m worldfoundry.cli``, tests, ...) keeps the historical
+    ``worldfoundry-eval`` branding.
+    """
+
+    name = Path(sys.argv[0]).name
+    if name in {"worldfoundry", "worldfoundry-eval"}:
+        return name
+    return "worldfoundry-eval"
+
+
 def _build_parser(model_run_schema: Any | None = None) -> argparse.ArgumentParser:
     """Build all CLI commands, keeping parser wiring near handler selection."""
     parser = WorldFoundryArgumentParser(
-        prog="worldfoundry-eval",
+        prog=_cli_prog_name(),
         description="WorldFoundry benchmark evaluation subsystem for the WorldFoundry repository.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
@@ -1117,6 +1137,14 @@ def _build_parser(model_run_schema: Any | None = None) -> argparse.ArgumentParse
         action="store_true",
         default=False,
         help="Emit the file sink as JSON Lines (env: WORLDFOUNDRY_LOG_JSON).",
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        dest="verbose",
+        action="store_true",
+        default=False,
+        help="Show the full traceback when a command fails.",
     )
     subparsers = parser.add_subparsers(dest="command")
 
@@ -1181,6 +1209,7 @@ def _build_parser(model_run_schema: Any | None = None) -> argparse.ArgumentParse
     tui_parser.add_argument("--fallback", action="store_true")
     tui_parser.add_argument("--catalog-json", action="store_true")
     tui_parser.add_argument("--print-command", action="store_true")
+    tui_parser.add_argument("--write-suite-plan", action="store_true")
     tui_parser.set_defaults(func=_handle_tui)
 
     from .tasks import register_task_subparsers
@@ -1325,16 +1354,19 @@ def _build_parser(model_run_schema: Any | None = None) -> argparse.ArgumentParse
     )
     evaluate_parser.add_argument(
         "--task-type",
-        help="Optional benchmark task type to materialize into GenerationRequest rows.",
+        help=(
+            "Retired legacy materialization flow; kept for compatibility and always fails with "
+            "guidance. Use `run --benchmark <id> --model <id>` or `task materialize` instead."
+        ),
     )
     evaluate_parser.add_argument(
         "--benchmark-name",
-        help="Optional benchmark name paired with --task-type.",
+        help="Retired; see --task-type.",
     )
     evaluate_parser.add_argument(
         "--data-path",
         type=Path,
-        help="Dataset root used with --task-type and --benchmark-name.",
+        help="Retired; see --task-type.",
     )
     evaluate_parser.add_argument(
         "--num-samples",
@@ -1513,9 +1545,13 @@ def _build_parser(model_run_schema: Any | None = None) -> argparse.ArgumentParse
     run_parser.add_argument("--resume", action="store_true", help="Reuse completed suite cells when fingerprints match.")
     run_parser.add_argument("--no-skip-incompatible", dest="skip_incompatible", action="store_false", default=True)
     run_parser.add_argument("--fail-on-skipped", action="store_true")
-    run_parser.add_argument("--task-type")
-    run_parser.add_argument("--benchmark-name")
-    run_parser.add_argument("--data-path", type=Path)
+    _RETIRED_TASK_FLAG_HELP = (
+        "Retired legacy flow; kept for compatibility and always fails with guidance. "
+        "Use --benchmark/--model or `task materialize` instead."
+    )
+    run_parser.add_argument("--task-type", help=_RETIRED_TASK_FLAG_HELP)
+    run_parser.add_argument("--benchmark-name", help=_RETIRED_TASK_FLAG_HELP)
+    run_parser.add_argument("--data-path", type=Path, help=_RETIRED_TASK_FLAG_HELP)
     run_parser.add_argument("--task-name", help="Task YAML name for benchmark-zoo model generation.")
     run_parser.add_argument("--task-root", action="append", type=Path, default=None)
     run_parser.add_argument("--task-benchmark")
@@ -1613,15 +1649,16 @@ def _build_parser(model_run_schema: Any | None = None) -> argparse.ArgumentParse
 
 def _extract_logging_flags(
     argv: list[str],
-) -> tuple[str | None, str | None, bool | None, list[str]]:
-    """Pre-scan ``argv`` for the global logging flags, returning them plus the
-    remaining argv with those flags stripped.
+) -> tuple[str | None, str | None, bool | None, bool, list[str]]:
+    """Pre-scan ``argv`` for the global logging/verbosity flags, returning them
+    plus the remaining argv with those flags stripped.
 
     Recognizes both ``--flag value`` and ``--flag=value`` forms; the flags are
     accepted in any position (before *or* after the subcommand) because the
     real application happens here, ahead of argparse.
     """
     level = log_file = log_json = None
+    verbose = False
     out: list[str] = []
     i = 0
     while i < len(argv):
@@ -1646,9 +1683,13 @@ def _extract_logging_flags(
             log_json = True
             i += 1
             continue
+        if token in ("-v", "--verbose"):
+            verbose = True
+            i += 1
+            continue
         out.append(token)
         i += 1
-    return level, log_file, log_json, out
+    return level, log_file, log_json, verbose, out
 
 
 def _configure_cli_logging(
@@ -1713,6 +1754,11 @@ def _prepare_cli_run_observability(
 
     output_dir = getattr(args, "output_dir", None)
     if output_dir in (None, ""):
+        _bind_cli_log_context(args)
+        return None
+    if getattr(args, "plan_only", False) or getattr(args, "print_config", False):
+        # Dry-run flows must not create ``logs/`` under the output tree or
+        # rewrite the process logging environment (CM-09).
         _bind_cli_log_context(args)
         return None
 
@@ -1788,12 +1834,75 @@ def _write_cli_run_lifecycle(
     )
 
 
+# Long-lived or workload-owning commands whose in-process logging must run
+# through the configured pipeline even when the parsed namespace does not
+# carry an ``output_dir`` value (e.g. ``train`` without ``--output-dir``).
+_EAGER_LOGGING_COMMANDS = frozenset(
+    {
+        "tui",
+        "mcp",
+        "train",
+        "post-train",
+        "train-cache",
+        "train-audit-prompts",
+        "train-audit-rollout-prompts",
+        "train-reward-service",
+    }
+)
+
+
+def _logging_flags_requested(level: str | None, log_file: str | None, log_json: bool | None) -> bool:
+    """Whether the caller explicitly asked for configured logging (flag or env)."""
+
+    if level is not None or log_file is not None or log_json is not None:
+        return True
+    return any(
+        os.environ.get(name)
+        for name in ("WORLDFOUNDRY_LOG_LEVEL", "WORLDFOUNDRY_LOG_FILE", "WORLDFOUNDRY_LOG_JSON")
+    )
+
+
+def _command_wants_eager_logging(args: argparse.Namespace) -> bool:
+    """Whether the selected command should configure logging before dispatch.
+
+    Pure query commands skip ``configure_logging`` entirely: its
+    ``core.distributed`` reparenting currently drags ``torch`` into every
+    process (CM-01), which query paths must not pay for.  Workload commands
+    (anything owning an output tree, training, TUI, MCP server) keep the
+    configured pipeline.  Dry-run variants (``--plan-only`` /
+    ``--print-config`` / ``--model-status``) stay unconfigured like queries.
+    """
+
+    if getattr(args, "plan_only", False) or getattr(args, "print_config", False):
+        return False
+    if getattr(args, "command", None) in _EAGER_LOGGING_COMMANDS:
+        return True
+    return getattr(args, "output_dir", None) not in (None, "")
+
+
+def _format_cli_error(exc: BaseException) -> str:
+    """Render one concise, typed error line for terminal users."""
+
+    message = str(exc).strip()
+    type_name = type(exc).__name__
+    if not message:
+        return type_name
+    # ``str(KeyError("x"))`` is just ``"'x'"``; always carry the type so bare
+    # messages stay interpretable.
+    return f"{type_name}: {message}"
+
+
 def main(argv: list[str] | None = None) -> int:
     """CLI entrypoint: parse args and dispatch to the selected command handler."""
     raw_argv = list(sys.argv[1:] if argv is None else argv)
-    _log_level, _log_file, _log_json, raw_argv = _extract_logging_flags(raw_argv)
-    _configure_cli_logging(_log_level, _log_file, _log_json)
+    _log_level, _log_file, _log_json, _verbose, raw_argv = _extract_logging_flags(raw_argv)
+    # CM-01: defer configure_logging so ``--help`` and pure query commands do
+    # not pull the heavy core.distributed/torch import chain. Explicit flags
+    # or WORLDFOUNDRY_LOG_* environment values keep today's eager behaviour.
+    if _logging_flags_requested(_log_level, _log_file, _log_json):
+        _configure_cli_logging(_log_level, _log_file, _log_json)
     if "--tui" in raw_argv:
+        _configure_cli_logging(_log_level, _log_file, _log_json)
         from worldfoundry.cli.tui import main as tui_main
 
         return tui_main([item for item in raw_argv if item != "--tui"])
@@ -1831,19 +1940,24 @@ def main(argv: list[str] | None = None) -> int:
     if not hasattr(args, "func"):
         _print_first_run_banner()
         return 0
+    if _command_wants_eager_logging(args):
+        _configure_cli_logging(_log_level, _log_file, _log_json)
     run_observability = _prepare_cli_run_observability(args, explicit_log_file=_log_file)
 
     try:
         exit_code = args.func(args)
-        from worldfoundry.core import get_logger
+        from worldfoundry.core.logging_setup import is_configured
 
-        get_logger(__name__).event(
-            "INFO" if exit_code == 0 else "ERROR",
-            "cli.command.finished",
-            "CLI command finished",
-            command=getattr(args, "command", None),
-            exit_code=exit_code,
-        )
+        if is_configured():
+            from worldfoundry.core import get_logger
+
+            get_logger(__name__).event(
+                "INFO" if exit_code == 0 else "ERROR",
+                "cli.command.finished",
+                "CLI command finished",
+                command=getattr(args, "command", None),
+                exit_code=exit_code,
+            )
         _write_cli_run_lifecycle(
             run_observability,
             event="run.finished",
@@ -1853,15 +1967,18 @@ def main(argv: list[str] | None = None) -> int:
         )
         return exit_code
     except KeyboardInterrupt:
-        from worldfoundry.core import get_logger
+        from worldfoundry.core.logging_setup import is_configured
 
-        get_logger(__name__).event(
-            "WARNING",
-            "cli.command.cancelled",
-            "CLI command interrupted",
-            command=getattr(args, "command", None),
-            exit_code=130,
-        )
+        if is_configured():
+            from worldfoundry.core import get_logger
+
+            get_logger(__name__).event(
+                "WARNING",
+                "cli.command.cancelled",
+                "CLI command interrupted",
+                command=getattr(args, "command", None),
+                exit_code=130,
+            )
         _write_cli_run_lifecycle(
             run_observability,
             event="run.cancelled",
@@ -1871,24 +1988,45 @@ def main(argv: list[str] | None = None) -> int:
         )
         parser.exit(130, "Interrupted.\n")
     except Exception as exc:
-        from worldfoundry.core import get_logger
+        from worldfoundry.core.logging_setup import is_configured
 
-        get_logger(__name__).event(
-            "ERROR",
-            "cli.command_failed",
-            "CLI command failed",
-            exc_info=True,
-            command=getattr(args, "command", None),
-        )
+        if is_configured():
+            from worldfoundry.core import get_logger
+
+            get_logger(__name__).event(
+                "ERROR",
+                "cli.command_failed",
+                "CLI command failed",
+                exc_info=_verbose,
+                command=getattr(args, "command", None),
+                error_type=type(exc).__name__,
+                error=str(exc),
+            )
         _write_cli_run_lifecycle(
             run_observability,
             event="run.failed",
             level="ERROR",
             message="WorldFoundry command failed",
-            exit_code=2,
+            exit_code=1,
             exception=exc,
         )
-        parser.exit(2, f"error: {exc}\n")
+        # Machine consumers asked for JSON: keep stdout a parseable contract
+        # even on failure (CM-07), with the runtime-failure exit code 1 kept
+        # distinct from argparse usage errors (exit 2).
+        if getattr(args, "json", False):
+            json_dump(
+                {
+                    "status": "error",
+                    "command": getattr(args, "command", None),
+                    "error": {"type": type(exc).__name__, "message": str(exc)},
+                    "exit_code": 1,
+                }
+            )
+        if _verbose:
+            import traceback
+
+            traceback.print_exc()
+        parser.exit(1, f"error: {_format_cli_error(exc)}\n")
 
 
 if __name__ == "__main__":

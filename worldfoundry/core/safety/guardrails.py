@@ -1,13 +1,21 @@
-"""Model-independent safety and postprocessing guardrail orchestration."""
+"""Model-independent safety and postprocessing guardrail orchestration.
+
+This module is interface-level (two Protocols and an orchestration class), so
+it deliberately avoids heavyweight imports: logging goes through the stdlib
+and numpy is imported only for type checking. Concrete guardrail
+implementations bring their own model dependencies.
+"""
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Sequence
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
-import numpy as np
+if TYPE_CHECKING:
+    import numpy as np
 
-from worldfoundry.core.distributed.logging import log
+log = logging.getLogger(__name__)
 
 
 class ContentSafetyGuardrail(Protocol):
@@ -52,14 +60,19 @@ class GuardrailRunner:
         self.postprocessors = postprocessors
 
     def run_safety_check(self, input: Any) -> tuple[bool, str]:
-        """Run classifiers in order and return the first block or final safe result."""
+        """Run classifiers in order and return the first block or final safe result.
+
+        Note the deliberate fail-open default: with no configured safety
+        models the input is reported safe (with a warning). Deployments that
+        require enforcement must configure at least one classifier.
+        """
         if not self.safety_models:
             log.warning("No safety models found, returning safe")
             return True, self.generic_safe_msg
 
         for guardrail in self.safety_models:
             guardrail_name = type(guardrail).__name__.upper()
-            log.debug("Running guardrail: {}", guardrail_name)
+            log.debug("Running guardrail: %s", guardrail_name)
             safe, message = guardrail.is_safe(input)
             if not safe:
                 return False, self.generic_block_msg or f"{guardrail_name}: {message}"
@@ -72,6 +85,6 @@ class GuardrailRunner:
             return frames
 
         for guardrail in self.postprocessors:
-            log.debug("Running guardrail: {}", type(guardrail).__name__.upper())
+            log.debug("Running guardrail: %s", type(guardrail).__name__.upper())
             frames = guardrail.postprocess(frames)
         return frames

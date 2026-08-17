@@ -7,7 +7,7 @@ from collections.abc import Iterator, Mapping
 import torch
 
 from worldfoundry.training.api.contracts import TrainingBatch
-from worldfoundry.training.data.sana_cache import SanaCachedDataset, text_sha256
+from worldfoundry.training.data.sana_cache import SanaCachedDataset
 from worldfoundry.training.data.shared_conditioning import SharedConditioningSample
 from worldfoundry.training.models.sana import SanaTrainAdapter
 from worldfoundry.training.post_training.distillation.scm_ladd.contracts import (
@@ -26,14 +26,15 @@ def audit_sana_scm_ladd_unconditional(
     if not isinstance(dataset, SanaCachedDataset):
         raise TypeError("dataset must be SanaCachedDataset")
     identity = sample.artifact.identity
-    if identity.branch != "unconditional" or identity.prompt_sha256 != text_sha256(""):
+    if identity.branch != "unconditional" or identity.prompt != "":
         raise ValueError("SANA SCM-LADD requires an empty-prompt unconditional artifact")
     provenances = tuple(entry.provenance for entry in dataset.index.entries)
-    if {value.model_recipe_digest for value in provenances} != {identity.model_recipe_digest}:
+    if any(value.model_recipe != identity.model_recipe for value in provenances):
         raise ValueError("SANA unconditional conditioning belongs to another model contract")
-    if {
-        (value.conditioner_digest, value.tokenizer_digest) for value in provenances
-    } != {(identity.conditioner_digest, identity.tokenizer_digest)}:
+    if any(
+        value.conditioner != identity.conditioner or value.tokenizer != identity.tokenizer
+        for value in provenances
+    ):
         raise ValueError("SANA unconditional conditioning encoder identity differs from the cache")
     if set(sample.tensors) != {"context", "context_mask"}:
         raise ValueError("SANA unconditional conditioning must contain context and context_mask")

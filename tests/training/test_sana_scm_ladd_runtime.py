@@ -1,8 +1,16 @@
 from __future__ import annotations
 
+import pytest
+
+# This test module imports worldfoundry code that requires the optional
+# "transformers" dependency at import time; skip when it is unavailable.
+pytest.importorskip("transformers")
+
 from copy import deepcopy
+from functools import partial
 
 import torch
+from transformers import get_constant_schedule_with_warmup
 
 from worldfoundry.base_models.diffusion_model.models.denoisers.sana import SanaDenoiser
 from worldfoundry.base_models.diffusion_model.models.networks.sana.ladd import (
@@ -77,14 +85,20 @@ def test_real_sana_scm_student_and_ladd_heads_backpropagate_with_role_isolation(
         SanaDenoiser(_tiny_sana_scm(student=True), output_scale=0.5),
         role="student",
         checkpoint_identity="default",
+        fp32_attention=True,
         expected_latent_channels=4,
     )
     teacher = SanaSCMVelocityAdapter(
         SanaDenoiser(_tiny_sana_scm(student=False), output_scale=0.5),
         role="teacher",
         checkpoint_identity="default",
+        fp32_attention=False,
         expected_latent_channels=4,
     )
+    assert student.fp32_attention is True
+    assert teacher.fp32_attention is False
+    assert all(module.fp32_attention is True for module in student.module.modules())
+    assert all(module.fp32_attention is False for module in teacher.module.modules())
     heads = SANAFeatureDiscriminatorHeads(hidden_size=16, block_ids=(0, 1))
     discriminator = SanaLADDDiscriminatorAdapter(teacher, heads)
     latents = torch.randn(2, 4, 2, 2, requires_grad=True)
@@ -190,12 +204,14 @@ def test_real_sana_scm_compound_dcp_restores_both_mutable_roles_and_phase(tmp_pa
         SanaDenoiser(_tiny_sana_scm(student=True), output_scale=0.5),
         role="student",
         checkpoint_identity="default",
+        fp32_attention=True,
         expected_latent_channels=4,
     )
     teacher = SanaSCMVelocityAdapter(
         SanaDenoiser(_tiny_sana_scm(student=False), output_scale=0.5),
         role="teacher",
         checkpoint_identity="default",
+        fp32_attention=False,
         expected_latent_channels=4,
     )
     discriminator = SanaLADDDiscriminatorAdapter(
@@ -207,10 +223,18 @@ def test_real_sana_scm_compound_dcp_restores_both_mutable_roles_and_phase(tmp_pa
         student=student,
         teacher=teacher,
         discriminator=discriminator,
+        student_scheduler_factory=partial(
+            get_constant_schedule_with_warmup,
+            num_warmup_steps=4,
+        ),
         fused_adamw=False,
     )
     assert isinstance(stack.student_optimizer, CAME)
     assert isinstance(stack.discriminator_optimizer, CAME)
+    assert stack.scheduler_state is not None
+    assert stack.scheduler_state.component_names == ("student",)
+    assert stack.engine.discriminator_scheduler is None
+    assert stack.student_optimizer.param_groups[0]["lr"] == 0.0
     conditioning = _conditioning()
     batch = SCMLADDTrainingBatch(
         sample_ids=("a", "b"),
@@ -221,10 +245,13 @@ def test_real_sana_scm_compound_dcp_restores_both_mutable_roles_and_phase(tmp_pa
     generator = torch.Generator().manual_seed(17)
     progress = TrainingProgress()
     loader = _CheckpointableLoader()
+    learning_rates: list[float] = []
     for _ in range(2):
         stack.engine.train_step(batch, generator=generator)
+        learning_rates.append(float(stack.student_optimizer.param_groups[0]["lr"]))
         loader.cursor += 1
         progress.record_step(microbatches=1, samples=2, latent_tokens=8)
+    assert learning_rates == [2.5e-5, 2.5e-5]
 
     model = SanaSCMLADDTrainableRoles(student.module, discriminator.module)
     state = TrainingState(
@@ -234,7 +261,7 @@ def test_real_sana_scm_compound_dcp_restores_both_mutable_roles_and_phase(tmp_pa
         dataloader=loader,
         objective_generator=generator,
         progress=progress,
-        identity={"recipe_digest": stack.recipe.digest, "roles": ["student", "discriminator-heads"]},
+        identity={"algorithm": "scm-ladd", "roles": ["student", "discriminator-heads"]},
         **stack.checkpoint_state_kwargs(),
     )
     expected = {name: value.detach().clone() for name, value in model.state_dict().items()}
@@ -243,6 +270,7 @@ def test_real_sana_scm_compound_dcp_restores_both_mutable_roles_and_phase(tmp_pa
         deepcopy(optimizer.state_dict())
         for optimizer in (stack.student_optimizer, stack.discriminator_optimizer)
     )
+    expected_scheduler_step = stack.engine.student_scheduler.last_epoch
     checkpointer = TrainingCheckpointer(tmp_path / "checkpoints")
     artifact = checkpointer.save(state, asynchronous=False)
     assert isinstance(artifact, TrainingCheckpointArtifact)
@@ -258,6 +286,7 @@ def test_real_sana_scm_compound_dcp_restores_both_mutable_roles_and_phase(tmp_pa
     progress.optimizer_steps = 0
     loader.cursor = 0
     generator.manual_seed(999)
+    stack.engine.student_scheduler.last_epoch = 999
     for optimizer in (stack.student_optimizer, stack.discriminator_optimizer):
         for optimizer_state in optimizer.state.values():
             optimizer_state["step"] = -1
@@ -272,6 +301,7 @@ def test_real_sana_scm_compound_dcp_restores_both_mutable_roles_and_phase(tmp_pa
     assert progress.optimizer_steps == 2
     assert loader.cursor == 2
     assert torch.equal(generator.get_state(), expected_generator)
+    assert stack.engine.student_scheduler.last_epoch == expected_scheduler_step == 1
     restored = model.state_dict()
     assert restored.keys() == expected.keys()
     assert all(torch.equal(restored[name], value) for name, value in expected.items())

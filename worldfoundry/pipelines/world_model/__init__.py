@@ -1,6 +1,5 @@
 """World Model visual generation pipeline module."""
 
-from ..dreamx_world import DreamXWorld5BARPipeline, DreamXWorld5BCamPipeline
 from .pipeline_runtime_manifest import (
     AdaWorldPipeline,
     CausalRCMPipeline,
@@ -47,8 +46,6 @@ __all__ = [
     "DIAMONDPipeline",
     "DinoWMPipeline",
     "DROIDWPipeline",
-    "DreamXWorld5BARPipeline",
-    "DreamXWorld5BCamPipeline",
     "EgoWMPipeline",
     "GenieEnvisionerPipeline",
     "GigaWorld0Pipeline",

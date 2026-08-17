@@ -10,8 +10,6 @@ from typing import Literal
 
 import torch
 
-from worldfoundry.core.io.file_utils import file_sha256
-from worldfoundry.core.io.integrity import canonical_sha256
 from worldfoundry.training.checkpoint.checkpointer import TrainingCheckpointer
 from worldfoundry.training.checkpoint.state import TrainingProgress, TrainingState
 from worldfoundry.training.data.dataset import TrainingManifestDataset
@@ -63,6 +61,8 @@ def _dtype(value: str) -> torch.dtype:
 
 
 def _positive_int(value: object, *, field_name: str) -> int:
+    if value is None:
+        raise ValueError(f"{field_name} is required")
     if isinstance(value, bool) or int(value) <= 0:
         raise ValueError(f"{field_name} must be a positive integer")
     return int(value)
@@ -139,12 +139,11 @@ def _role_paths(
     return result
 
 
-def _asset_digest(
+def _asset_identity(
     path: Path,
     *,
     conditioner: bool,
-    hash_cache: dict[Path, str],
-) -> str:
+) -> dict[str, object]:
     def model_files(directory: Path, *, stem: str) -> list[Path]:
         single = directory / f"{stem}.safetensors"
         index = directory / f"{stem}.safetensors.index.json"
@@ -198,19 +197,13 @@ def _asset_digest(
         missing = [str(value) for value in files if not value.is_file()]
         raise FileNotFoundError(f"local SANA asset set is incomplete: {missing}")
 
-    def digest_file(value: Path) -> str:
-        digest = hash_cache.get(value)
-        if digest is None:
-            digest = file_sha256(value)
-            hash_cache[value] = digest
-        return digest
-
-    return canonical_sha256(
-        {
-            str(value.relative_to(path)): digest_file(value)
+    return {
+        "path": str(path),
+        "files": {
+            str(value.relative_to(path)): value.stat().st_size
             for value in files
-        }
-    )
+        },
+    }
 
 
 def _audit_prompt_geometry(
@@ -238,7 +231,7 @@ def materialize_sana_sid_training_run(
     output_dir: str | Path | None = None,
     resume_checkpoint: str | Path | None = None,
     local_role_paths: Mapping[str, str | Path] | None = None,
-    verify_media_hashes: bool = True,
+    verify_media_files: bool = True,
     audit_cache_on_open: bool = True,
     verify_cache_on_read: bool = True,
     fused_adamw: bool | Literal["auto"] = "auto",
@@ -296,7 +289,8 @@ def materialize_sana_sid_training_run(
             options.pop("snapshot_every_n_steps", 1),
             field_name="data.options.snapshot_every_n_steps",
         )
-        assert not options
+        if options:
+            raise ValueError(f"unconsumed SANA SiD data options: {sorted(options)}")
 
         dtype = _dtype(recipe.runtime.param_dtype)
         base_seed = int(recipe.data.shuffle_seed if initialization_seed is None else initialization_seed)
@@ -366,7 +360,6 @@ def materialize_sana_sid_training_run(
             _audit_prompt_geometry(prompts, height=height, width=width)
             sampler = DeterministicDistributedSampler(
                 prompts,
-                dataset_digest=prompts.dataset_digest,
                 seed=recipe.data.shuffle_seed,
                 shuffle=recipe.data.shuffle,
                 rank=rank,
@@ -395,7 +388,7 @@ def materialize_sana_sid_training_run(
             )
             data_identity = {
                 "kind": "prompt-only",
-                "dataset_digest": prompts.dataset_digest,
+                "prompt_records": [record.to_dict() for record in prompts],
                 "height": height,
                 "width": width,
             }
@@ -407,19 +400,18 @@ def materialize_sana_sid_training_run(
             manifest = TrainingManifestDataset.from_file(
                 manifest_path,
                 split=recipe.data.split,
-                verify_files=True,
-                verify_hashes=verify_media_hashes,
+                verify_files=verify_media_files,
             )
             cache = SanaCachedDataset(
                 cache_path,
-                expected_dataset_digest=manifest.dataset_digest,
+                expected_sample_ids=manifest.sample_ids,
                 audit_on_open=audit_cache_on_open,
                 verify_on_read=verify_cache_on_read,
             )
             audit_sana_cache_against_manifest(cache, manifest)
             unconditional = SharedConditioningStore(cache_path).read("unconditional")
             audit_sana_scm_ladd_unconditional(unconditional, cache)
-            contract_digest = validate_sana_cache_contract(
+            cache_contract = validate_sana_cache_contract(
                 recipe,
                 student_preparation,
                 cache,
@@ -427,7 +419,6 @@ def materialize_sana_sid_training_run(
             )
             sampler = DeterministicDistributedSampler(
                 cache,
-                dataset_digest=cache.dataset_digest,
                 seed=recipe.data.shuffle_seed,
                 shuffle=recipe.data.shuffle,
                 rank=rank,
@@ -458,10 +449,10 @@ def materialize_sana_sid_training_run(
             )
             data_identity = {
                 "kind": "sana-cache",
-                "dataset_digest": cache.dataset_digest,
-                "cache_index_sha256": cache.index_sha256,
-                "cache_contract_sha256": contract_digest,
-                "unconditional_identity_sha256": unconditional.artifact.identity_sha256,
+                "sample_ids": list(cache.sample_ids),
+                "cache_index": cache.index.to_dict(),
+                "cache_contract": dict(cache_contract),
+                "unconditional_conditioning": unconditional.artifact.to_dict(),
                 "height": height,
                 "width": width,
             }
@@ -474,22 +465,18 @@ def materialize_sana_sid_training_run(
             parallel_context=PostTrainingParallelContext.current(),
             fused_adamw=fused_adamw,
         )
-        hash_cache: dict[Path, str] = {}
-        asset_digests = {
-            "student": _asset_digest(
+        asset_identity = {
+            "student": _asset_identity(
                 paths["student"],
                 conditioner=prompt_only,
-                hash_cache=hash_cache,
             ),
-            "teacher": _asset_digest(
+            "teacher": _asset_identity(
                 paths["teacher"],
                 conditioner=False,
-                hash_cache=hash_cache,
             ),
-            "fake_score": _asset_digest(
+            "fake_score": _asset_identity(
                 paths["fake_score"],
                 conditioner=False,
-                hash_cache=hash_cache,
             ),
         }
         roles = SanaSIDRoleBundle(
@@ -499,7 +486,7 @@ def materialize_sana_sid_training_run(
             student=student,
             teacher=teacher,
             fake_score=fake_score,
-            asset_digests=asset_digests,
+            asset_identity=asset_identity,
             student_fsdp=student_fsdp,
             teacher_fsdp=teacher_fsdp,
             fake_score_fsdp=fake_fsdp,
@@ -511,10 +498,10 @@ def materialize_sana_sid_training_run(
         identity = {
             "schema": "worldfoundry-sana-sid-resume-identity",
             "algorithm": "sid",
-            "recipe_digest": recipe.digest,
-            "assets": asset_digests,
+            "recipe": recipe.to_dict(),
+            "assets": asset_identity,
             "data": data_identity,
-            "parallel_plan_digest": plan.digest,
+            "parallel_plan": plan.to_dict(),
             "initialization_seed": base_seed,
         }
         checkpoint_state = TrainingState(

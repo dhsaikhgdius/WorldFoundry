@@ -8,7 +8,6 @@ from dataclasses import dataclass
 from typing import Literal
 
 import torch
-import torch.distributed as dist
 from torch import nn
 
 from worldfoundry.core.gradient import clip_grad_norm_, get_total_norm
@@ -224,10 +223,6 @@ class NativeDFDTrainEngine:
         self.teacher_module.eval()
 
     @property
-    def config_digest(self) -> str:
-        return str(self.loss_adapter.config_digest)
-
-    @property
     def next_phase(self) -> Literal["student", "guidance"]:
         return (
             "student"
@@ -250,11 +245,9 @@ class NativeDFDTrainEngine:
                 sampled = torch.rand((), device=device, generator=generator)
                 decision.copy_((sampled < probability).to(dtype=torch.int64))
         if self.parallel_context.world_size > 1:
-            dist.broadcast(
-                decision,
-                src=0,
-                group=self.parallel_context.process_group,
-            )
+            # broadcast_from_coordinator translates group-local rank zero to
+            # its global rank; a raw src=0 is wrong for non-world subgroups.
+            self.parallel_context.broadcast_from_coordinator(decision)
         return bool(decision.item())
 
     def _zero_all(self) -> None:
@@ -438,7 +431,6 @@ class NativeDFDTrainEngine:
             "fake_score_max_grad_norm": self.fake_score_max_grad_norm,
             "discriminator_max_grad_norm": self.discriminator_max_grad_norm,
             "adversarial_enabled": self.discriminator_module is not None,
-            "config_digest": self.config_digest,
             "data_parallel_size": self.parallel_context.world_size,
         }
 
@@ -457,15 +449,12 @@ class NativeDFDTrainEngine:
             "fake_score_max_grad_norm",
             "discriminator_max_grad_norm",
             "adversarial_enabled",
-            "config_digest",
             "data_parallel_size",
         }
         if set(state_dict) != expected:
             raise ValueError("DFD engine state fields differ from the active schema")
         if state_dict["schema"] != DFD_ENGINE_STATE_SCHEMA:
             raise ValueError(f"unsupported DFD engine schema: {state_dict['schema']!r}")
-        if str(state_dict["config_digest"]) != self.config_digest:
-            raise ValueError("saved DFD configuration differs from the active engine")
         if int(state_dict["student_update_frequency"]) != self.student_update_frequency:
             raise ValueError("saved DFD update frequency differs from the active engine")
         if int(state_dict["gradient_accumulation_steps"]) != self.gradient_accumulation_steps:

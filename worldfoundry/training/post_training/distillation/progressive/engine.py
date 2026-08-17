@@ -243,10 +243,6 @@ class NativeProgressiveDistillationTrainEngine:
         self._poisoned = False
 
     @property
-    def config_digest(self) -> str:
-        return self.objective.config_digest
-
-    @property
     def student_num_steps(self) -> int:
         return self.objective.config.student_steps[self.stage_index]
 
@@ -509,7 +505,6 @@ class NativeProgressiveDistillationTrainEngine:
             "teacher_num_steps": self.teacher_num_steps,
             "complete": self._complete,
             "gradient_accumulation_steps": self.gradient_accumulation_steps,
-            "config_digest": self.config_digest,
             "data_parallel_size": self.parallel_context.world_size,
             "rng_device": self._rng_device,
             "rng_state": self._rng.get_state().clone(),
@@ -529,7 +524,6 @@ class NativeProgressiveDistillationTrainEngine:
             "teacher_num_steps",
             "complete",
             "gradient_accumulation_steps",
-            "config_digest",
             "data_parallel_size",
             "rng_device",
             "rng_state",
@@ -543,7 +537,6 @@ class NativeProgressiveDistillationTrainEngine:
             raise ValueError("unsupported progressive engine schema")
         active = {
             "gradient_accumulation_steps": self.gradient_accumulation_steps,
-            "config_digest": self.config_digest,
             "data_parallel_size": self.parallel_context.world_size,
             "rng_device": self._rng_device,
         }

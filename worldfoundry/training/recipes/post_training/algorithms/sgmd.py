@@ -6,6 +6,11 @@ from dataclasses import dataclass
 from math import isfinite
 
 from ..common import positive_int, strict_mapping
+from .auxiliary_optimizers import (
+    AuxiliaryOptimizerRule,
+    forbids_auxiliary,
+    requires_auxiliary,
+)
 
 
 def _finite_float(value: object, *, field_name: str) -> float:
@@ -105,6 +110,16 @@ class SGMDAlgorithmSpec:
         object.__setattr__(self, "diversity_anchor_step", anchor_step)
         for name, value in {**positive_values, **non_negative_values}.items():
             object.__setattr__(self, name, value)
+
+    def auxiliary_optimizer_rules(self) -> tuple[AuxiliaryOptimizerRule, ...]:
+        return (
+            requires_auxiliary("fake_score_optimizer", "SGMD requires fake_score_optimizer"),
+            forbids_auxiliary(
+                "guidance_optimizer",
+                "discriminator_optimizer",
+                message="SGMD only accepts fake_score_optimizer",
+            ),
+        )
 
 
 SGMD_ALGORITHM_FIELDS = frozenset(SGMDAlgorithmSpec.__dataclass_fields__)

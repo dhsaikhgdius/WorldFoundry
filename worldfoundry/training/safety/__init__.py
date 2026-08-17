@@ -1,4 +1,9 @@
-"""Fail-closed safety gates for native training inputs."""
+"""Fail-closed safety gates for native training inputs.
+
+Scope: prompt-text audits only, enforced by the cache tool chain rather than
+the training loop; audit records are integrity-checked but unsigned.  See the
+``shieldgemma`` module docstring for the exact trust boundary.
+"""
 
 from .shieldgemma import (
     SHIELDGEMMA_PROMPT_AUDIT_SCHEMA,

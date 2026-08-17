@@ -24,11 +24,12 @@ from .diffusion_nft import (
     DiffusionNFTOldPolicyRefreshSpec,
     DiffusionNFTTerminalLatentCollectionSpec,
 )
+from .diffusion_opd import DiffusionOPDAlgorithmSpec, DiffusionOPDTeacherSpec
 from .dmd import DMDAlgorithmSpec
 from .dmd2 import DMD2AlgorithmSpec
 from .flow_dppo import FlowDPPOAlgorithmSpec
 from .flow_grpo import FlowGRPOAlgorithmSpec
-from .flow_policy import FlowPolicyAlgorithmSpec, FlowSDEWindowSpec
+from .flow_policy import FlowPolicyAlgorithmSpec, FlowPolicyRewardSpec, FlowSDEWindowSpec
 from .grpo_guard import GRPOGuardAlgorithmSpec
 from .latent_consistency import LatentConsistencyAlgorithmSpec
 from .mix_grpo import MixGRPOAlgorithmSpec
@@ -42,6 +43,7 @@ from .self_gradient_forcing import SelfGradientForcingAlgorithmSpec
 from .senseflow import SenseFlowAlgorithmSpec, SenseFlowScheduleSpec
 from .sgmd import SGMDAlgorithmSpec
 from .sid import SIDAlgorithmSpec
+from .t2v_turbo import T2VTurboAlgorithmSpec
 from .token_policy import (
     TokenCPPOAlgorithmSpec,
     TokenDPPOAlgorithmSpec,
@@ -50,6 +52,7 @@ from .token_policy import (
     TokenGSPOAlgorithmSpec,
     TokenPolicyAlgorithmSpec,
 )
+from .token_ppo import TokenPPOAlgorithmSpec
 
 PostTrainingAlgorithmSpec = (
     AdaptiveVideoAlgorithmSpec
@@ -62,6 +65,7 @@ PostTrainingAlgorithmSpec = (
     | DiagonalAlgorithmSpec
     | DiffusionDPOAlgorithmSpec
     | DiffusionNFTAlgorithmSpec
+    | DiffusionOPDAlgorithmSpec
     | FlowPolicyAlgorithmSpec
     | CausalConsistencyAlgorithmSpec
     | CausalODEAlgorithmSpec
@@ -78,6 +82,8 @@ PostTrainingAlgorithmSpec = (
     | SIDAlgorithmSpec
     | SGMDAlgorithmSpec
     | TokenPolicyAlgorithmSpec
+    | TokenPPOAlgorithmSpec
+    | T2VTurboAlgorithmSpec
 )
 
 __all__ = [
@@ -104,9 +110,12 @@ __all__ = [
     "DiffusionNFTAlgorithmSpec",
     "DiffusionNFTOldPolicyRefreshSpec",
     "DiffusionNFTTerminalLatentCollectionSpec",
+    "DiffusionOPDAlgorithmSpec",
+    "DiffusionOPDTeacherSpec",
     "FlowDPPOAlgorithmSpec",
     "FlowGRPOAlgorithmSpec",
     "FlowPolicyAlgorithmSpec",
+    "FlowPolicyRewardSpec",
     "FlowSDEWindowSpec",
     "GRPOGuardAlgorithmSpec",
     "LatentConsistencyAlgorithmSpec",
@@ -129,4 +138,6 @@ __all__ = [
     "TokenGRPOAlgorithmSpec",
     "TokenGSPOAlgorithmSpec",
     "TokenPolicyAlgorithmSpec",
+    "TokenPPOAlgorithmSpec",
+    "T2VTurboAlgorithmSpec",
 ]

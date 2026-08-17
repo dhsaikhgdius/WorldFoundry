@@ -13,12 +13,19 @@ from typing import Any, Mapping, Sequence
 from worldfoundry.evaluation.utils import (
     escape_markdown_cell as _escape_markdown_cell,
     format_value as _format_value,
+    mapping_or_empty as _mapping,
     write_json,
     write_text,
 )
 
 from .comparison_identity import compare_identities, comparison_identity_from_summary
-from .run_report import _dedupe_labels, _mapping, _number_or_none, _row_from_summary, _run_summary_path, load_run_summary
+from .run_report import (
+    dedupe_labels as _dedupe_labels,
+    load_run_summary,
+    number_or_none as _number_or_none,
+    resolve_run_summary_path as _run_summary_path,
+    row_from_summary as _row_from_summary,
+)
 
 RUN_COMPARISON_SCHEMA_VERSION = "worldfoundry-run-comparison"
 

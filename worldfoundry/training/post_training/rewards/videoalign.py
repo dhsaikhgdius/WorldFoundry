@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Native, fail-closed VideoAlign reward inference.
+"""Native VideoAlign reward inference.
 
 The reward-head architecture, prompt, preprocessing constants, and LoRA
 topology are adapted from KlingAIResearch/VideoAlign (MIT) and checked against
@@ -26,7 +26,6 @@ from worldfoundry.base_models.diffusion_model.loaders import (
     CheckpointSpec,
     NativeCheckpointResolver,
 )
-from worldfoundry.core.io.integrity import canonical_sha256
 from worldfoundry.training.recipes.post_training.rewards.videoalign import (
     VIDEOALIGN_REWARD_IDS,
     VideoAlignRewardSpec,
@@ -35,8 +34,6 @@ from worldfoundry.training.recipes.post_training.rewards.videoalign import (
 from .contracts import RewardEvaluator, RewardRequest, RewardResult
 from .videoalign_model import NativeVideoAlignRewardModel, load_videoalign_checkpoint
 from .videoalign_preprocessing import (
-    VIDEOALIGN_CHAT_TEMPLATE_SHA256,
-    VIDEOALIGN_DETAILED_PROMPT,
     VIDEOALIGN_SPECIAL_TOKEN_IDS,
     VIDEOALIGN_SPECIAL_TOKENS,
     PreparedVideoAlignVideo,
@@ -133,7 +130,6 @@ def _videoalign_base_checkpoint(spec: VideoAlignRewardSpec) -> CheckpointSpec:
         revision=spec.base_model_revision,
         files=_BASE_MODEL_FILES,
         allow_patterns=_BASE_MODEL_FILES,
-        metadata={"purpose": "native-videoalign-base"},
     )
 
 
@@ -146,9 +142,7 @@ def _videoalign_reward_checkpoint(spec: VideoAlignRewardSpec) -> CheckpointSpec:
         revision=spec.checkpoint_revision,
         files=files,
         allow_patterns=files,
-        file_sha256={spec.checkpoint_file: spec.checkpoint_sha256},
         file_size_bytes={spec.checkpoint_file: spec.checkpoint_size_bytes},
-        metadata={"purpose": "native-videoalign-reward"},
     )
 
 
@@ -194,7 +188,6 @@ class VideoAlignRewardEvaluator(RewardEvaluator):
                     "repository": spec.checkpoint_repository,
                     "revision": spec.checkpoint_revision,
                     "file": spec.checkpoint_file,
-                    "sha256": spec.checkpoint_sha256,
                     "size_bytes": spec.checkpoint_size_bytes,
                 },
                 "reward_ids": list(VIDEOALIGN_REWARD_IDS),
@@ -205,8 +198,6 @@ class VideoAlignRewardEvaluator(RewardEvaluator):
                         strict=True,
                     )
                 ),
-                "chat_template_sha256": VIDEOALIGN_CHAT_TEMPLATE_SHA256,
-                "prompt_sha256": canonical_sha256(VIDEOALIGN_DETAILED_PROMPT),
                 "preprocessing": {
                     "source_fps": spec.source_fps,
                     "target_fps": spec.target_fps,
@@ -219,15 +210,10 @@ class VideoAlignRewardEvaluator(RewardEvaluator):
                 },
             }
         )
-        canonical_sha256(dict(self._identity))
 
     @property
     def identity(self) -> dict[str, object]:
         return dict(self._identity)
-
-    @property
-    def digest(self) -> str:
-        return canonical_sha256(self.identity)
 
     def _evaluate_batch(
         self,
@@ -290,7 +276,6 @@ class VideoAlignRewardEvaluator(RewardEvaluator):
         for index, (request, prepared_video) in enumerate(zip(requests, prepared, strict=True)):
             diagnostic = MappingProxyType(
                 {
-                    "evaluator_digest": self.digest,
                     "frame_indices": list(prepared_video.frame_indices),
                     "source_shape": list(prepared_video.source_shape),
                     "resized_shape": list(prepared_video.resized_shape),
@@ -377,8 +362,8 @@ def build_videoalign_reward_evaluator(
             f"ids={resolved_ids}, size={len(tokenizer)}"
         )
     chat_template = getattr(tokenizer, "chat_template", None)
-    if not isinstance(chat_template, str) or (canonical_sha256(chat_template) != VIDEOALIGN_CHAT_TEMPLATE_SHA256):
-        raise ValueError("VideoAlign tokenizer chat template differs from the official checkpoint")
+    if not isinstance(chat_template, str) or not chat_template.strip():
+        raise ValueError("VideoAlign tokenizer does not provide a chat template")
     image_processor = AutoImageProcessor.from_pretrained(
         base.root,
         local_files_only=True,

@@ -4,6 +4,20 @@ import json
 import subprocess
 from pathlib import Path
 
+import pytest
+
+# HANDOVER(module owners): worldfoundry.evaluation.tasks.official.solaris_multiplayer
+# was removed together with the tasks.official package and has no replacement
+# under evaluation.tasks.execution. The solaris pipeline/synthesis still exist,
+# so this suite needs a rewrite against the current eval task surface (if the
+# multiplayer eval flow still has one). Skipped so `pytest test` can collect.
+# See plan/code_review/fixes/14_tests_ci_fixes.md.
+pytest.skip(
+    "worldfoundry.evaluation.tasks.official.solaris_multiplayer was removed; "
+    "suite needs rewrite against the current eval task surface",
+    allow_module_level=True,
+)
+
 import worldfoundry.evaluation.tasks.official.solaris_multiplayer as solaris_task_module
 
 

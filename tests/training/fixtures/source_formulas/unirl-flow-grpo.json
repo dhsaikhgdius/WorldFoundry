@@ -22,7 +22,8 @@
       "old_log_probs": [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0]],
       "new_log_probs": [[-0.001, 0.002], [0.003, -0.004], [0.0001, 0.0002], [-0.0003, 0.0004]],
       "clip_range": 0.0001,
-      "advantage_epsilon": 0.00000001
+      "advantage_epsilon": 0.00000001,
+      "advantage_normalization": "group-population-std"
     },
     "reward": {
       "weights": {

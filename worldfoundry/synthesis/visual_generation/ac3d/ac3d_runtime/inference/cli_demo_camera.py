@@ -1,6 +1,12 @@
 import sys
+from pathlib import Path
 
-sys.path.append('..')
+# Modified by WorldFoundry: upstream appended the CWD-relative '..' (only valid when the
+# process CWD is inference/). Anchor to the ac3d_runtime root instead so the bare imports
+# below (cogvideo_controlnet, controlnet_pipeline, inference.*) resolve regardless of CWD.
+_AC3D_RUNTIME_ROOT = str(Path(__file__).resolve().parents[1])
+if _AC3D_RUNTIME_ROOT not in sys.path:
+    sys.path.append(_AC3D_RUNTIME_ROOT)
 import argparse
 import os
 

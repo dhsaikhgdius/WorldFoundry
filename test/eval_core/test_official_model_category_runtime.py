@@ -48,7 +48,6 @@ from worldfoundry.pipelines.component_pipelines import GigaBrain0Pipeline
 from worldfoundry.pipelines.component_pipelines import LingBotVAPipeline
 from worldfoundry.pipelines.component_pipelines import OctoPipeline
 from worldfoundry.pipelines.component_pipelines import OpenVLAPipeline
-from worldfoundry.pipelines.component_pipelines import StepVideoT2VPipeline
 from worldfoundry.pipelines.component_pipelines import Splatt3RPipeline
 from worldfoundry.synthesis.action_generation.starvla.runtime import (
     StarVLARuntimeConfig,
@@ -60,7 +59,7 @@ from worldfoundry.synthesis.action_generation.lingbot_va.runtime import (
     LingBotVARuntimeConfig,
     build_server_command as build_lingbot_va_server_command,
 )
-from worldfoundry.synthesis.action_generation.roboflamingo.roboflamingo_runtime.inference import (
+from worldfoundry.synthesis.action_generation.roboflamingo.runtime import (
     select_roboflamingo_runtime_config,
 )
 from worldfoundry.evaluation.models.runtime.profiles import load_runtime_profiles
@@ -736,13 +735,18 @@ def test_dreamdojo_operator_preserves_robot_world_model_action_contract() -> Non
 
 
 @pytest.mark.parametrize(
-    ("pipeline_cls", "model_id"),
+    ("pipeline_target", "model_id"),
     [
-        (StepVideoT2VPipeline, "step-video-t2v"),
-        (Splatt3RPipeline, "splatt3r"),
+        # StepVideoT2VPipeline is imported lazily: its module transitively
+        # imports optional dependencies (ftfy via the wan text encoders).
+        ("worldfoundry.pipelines.step_video.pipeline_step_video_t2v:StepVideoT2VPipeline", "step-video-t2v"),
+        ("worldfoundry.pipelines.component_pipelines:Splatt3RPipeline", "splatt3r"),
     ],
 )
-def test_model_specific_pipeline_stubs_load_without_official_cli_bridge(pipeline_cls, model_id: str) -> None:
+def test_model_specific_pipeline_stubs_load_without_official_cli_bridge(pipeline_target: str, model_id: str) -> None:
+    module_name, _, class_name = pipeline_target.partition(":")
+    module = pytest.importorskip(module_name)
+    pipeline_cls = getattr(module, class_name)
     pipe = pipeline_cls.from_pretrained({"model_id": model_id}, device="cpu")
     assert isinstance(pipe, pipeline_cls)
     assert pipe.model_id == model_id
@@ -765,7 +769,7 @@ def test_examples_mapping_uses_path_a_catalog_targets() -> None:
     registry = load_model_zoo_registry(REPO_ROOT / "worldfoundry" / "data" / "models" / "catalog")
     expected_targets = {
         "animatediff": "worldfoundry.pipelines.component_pipelines:AnimateDiffPipeline",
-        "step-video-t2v": "worldfoundry.pipelines.component_pipelines:StepVideoT2VPipeline",
+        "step-video-t2v": "worldfoundry.pipelines.step_video.pipeline_step_video_t2v:StepVideoT2VPipeline",
         "open-magvit2": "worldfoundry.pipelines.component_pipelines:OpenMAGVIT2Pipeline",
         "show-o": "worldfoundry.pipelines.component_pipelines:ShowOPipeline",
         "cameractrl": "worldfoundry.pipelines.component_pipelines:CameraCtrlPipeline",

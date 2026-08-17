@@ -97,10 +97,6 @@ class ProgressiveDistillationObjective:
         self.teacher_module = teacher_module
         self.config = config
 
-    @property
-    def config_digest(self) -> str:
-        return self.config.digest
-
     @staticmethod
     def loss_denominator(batch: ProgressiveDistillationBatch) -> int:
         if not isinstance(batch, ProgressiveDistillationBatch):

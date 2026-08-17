@@ -34,15 +34,6 @@ from .env import resolve_ckpt_dir, resolve_hfd_root
 
 # ── Defaults ─────────────────────────────────────────────────────────────────
 
-def project_root() -> Path:
-    """Resolve the project root by searching for ``pyproject.toml`` upwards."""
-    current = Path(__file__).resolve()
-    for parent in current.parents:
-        if (parent / "pyproject.toml").is_file():
-            return parent
-    return current.parents[5]
-
-
 DEFAULT_ENV_MANIFEST = DATA_ROOT / "models" / "runtime" / "environments"
 DEFAULT_ENV_ROOT = conda_envs_root_path()
 RUNTIME_ENV_INSTALLING_MARKER = ".worldfoundry-installing"
@@ -375,7 +366,7 @@ def _load_runtime_conda_env_specs_uncached(
             driver_status=str(item.get("driver_status") or "compatible"),
             conda_packages=_tuple_of_str(item.get("conda_packages")),
             pip_packages=_tuple_of_str(item.get("pip_packages")),
-            pip_extra_index_url="" if pip_extra_index is None else str(pip_extra_index),
+            pip_extra_index_url=None if pip_extra_index is None else str(pip_extra_index),
             pip_find_links=_tuple_of_str(item.get("pip_find_links") or item.get("pip_find_links_url")),
             channels=_tuple_of_str(item.get("channels")) or default_channels,
             validation_imports=_tuple_of_str(item.get("validation_imports")),

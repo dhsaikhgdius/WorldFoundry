@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import importlib.util
 import json
 
@@ -11,7 +10,9 @@ torch = pytest.importorskip("torch")
 from worldfoundry.training.tuning import (  # noqa: E402
     SANA_ATTENTION,
     WAN_ATTENTION,
+    LoraTargetAudit,
     apply_peft_lora,
+    apply_peft_lora_with_audit,
     audit_lora_targets,
     inspect_peft_adapter,
     load_peft_adapter,
@@ -148,8 +149,31 @@ def test_peft_dependency_is_lazy_or_injection_matches_the_audit() -> None:
     assert all(parameter.grad is None for parameter in application.model.parameters() if not parameter.requires_grad)
 
 
+def test_model_family_can_apply_an_exact_precomputed_lora_audit() -> None:
+    model = _TinyWan(blocks=1)
+    selected = ("blocks.0.self_attn.q", "blocks.0.self_attn.v")
+    audit = LoraTargetAudit(
+        preset="tiny-attention",
+        target_pattern=r"blocks\.0\.self_attn\.(?:q|v)",
+        module_names=selected,
+        module_shapes={name: (24, 24) for name in selected},
+        block_count=1,
+        base_parameter_count=sum(parameter.numel() for parameter in model.parameters()),
+    )
+
+    application = apply_peft_lora_with_audit(
+        model,
+        audit=audit,
+        rank=2,
+        alpha=2,
+    )
+
+    assert set(application.targeted_module_names) == set(selected)
+    assert application.trainable_parameter_count == audit.expected_trainable_parameters(2)
+
+
 @pytest.mark.skipif(importlib.util.find_spec("peft") is None, reason="PEFT is not installed")
-def test_peft_adapter_save_reload_merge_and_digest_parity(tmp_path) -> None:
+def test_peft_adapter_save_reload_and_merge(tmp_path) -> None:
     torch.manual_seed(17)
     base_model = _TinySana()
     base_state = {name: value.detach().clone() for name, value in base_model.state_dict().items()}
@@ -165,15 +189,11 @@ def test_peft_adapter_save_reload_merge_and_digest_parity(tmp_path) -> None:
     artifact = save_peft_adapter(
         application,
         output_dir,
-        metadata={"source": "unit-test", "preset": SANA_ATTENTION},
     )
 
     assert artifact.path == output_dir
-    assert artifact.metadata["preset"] == SANA_ATTENTION
-    assert "adapter_model.safetensors" in artifact.file_digests
-    assert len(artifact.manifest_sha256) == 64
-    manifest = json.loads((output_dir / "worldfoundry_adapter.json").read_text(encoding="utf-8"))
-    assert manifest["schema"] == "worldfoundry-peft-adapter"
+    assert artifact.file_size_bytes["adapter_model.safetensors"] > 0
+    assert not (output_dir / "worldfoundry_adapter.json").exists()
     assert inspect_peft_adapter(output_dir) == artifact
 
     restored_base = _TinySana()
@@ -192,7 +212,7 @@ def test_peft_adapter_save_reload_merge_and_digest_parity(tmp_path) -> None:
     assert merged.config is None
     assert all("lora_" not in name for name, _ in merged.named_parameters())
 
-    with pytest.raises(ValueError, match="target audit is incompatible"):
+    with pytest.raises(ValueError, match="targets are incompatible"):
         load_peft_adapter(
             _TinySana(blocks=1),
             output_dir,
@@ -204,10 +224,6 @@ def test_peft_adapter_save_reload_merge_and_digest_parity(tmp_path) -> None:
     config = json.loads(config_path.read_text(encoding="utf-8"))
     config["peft_type"] = "UNSUPPORTED"
     config_path.write_text(json.dumps(config, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    manifest_path = output_dir / "worldfoundry_adapter.json"
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    manifest["files"]["adapter_config.json"] = hashlib.sha256(config_path.read_bytes()).hexdigest()
-    manifest_path.write_text(json.dumps(manifest, sort_keys=True) + "\n", encoding="utf-8")
     with pytest.raises(ValueError, match="unsupported PEFT adapter type"):
         load_peft_adapter(
             _TinySana(),
@@ -215,13 +231,6 @@ def test_peft_adapter_save_reload_merge_and_digest_parity(tmp_path) -> None:
             expected_preset=SANA_ATTENTION,
             expected_base_model_id="sana-test",
         )
-
-    weights_path = output_dir / "adapter_model.safetensors"
-    with weights_path.open("ab") as handle:
-        handle.write(b"tampered")
-    with pytest.raises(ValueError, match="digest audit failed"):
-        inspect_peft_adapter(output_dir)
-
 
 @pytest.mark.skipif(importlib.util.find_spec("peft") is None, reason="PEFT is not installed")
 def test_wan_peft_merge_supports_native_offload_linear_wrappers(tmp_path) -> None:

@@ -2,8 +2,27 @@
 
 The SANA 600M weight license names ShieldGemma-2B as its required input
 filter.  This module follows Google's prompt-only scoring contract and uses
-the next-token probabilities of the ``Yes`` and ``No`` tokens.  It stores only
-prompt hashes in audit records so reports do not become a second prompt corpus.
+the next-token probabilities of the ``Yes`` and ``No`` tokens.
+
+Trust boundary
+--------------
+The filter itself fails closed (it refuses truncation, non-finite logits, and
+category drift), but what is actually guaranteed depends on where it runs:
+
+- Enforcement lives in the cache tool chain, not the training loop.  Cache
+  builders validate every manifest sample through
+  ``worldfoundry.training.data.video_precompute.validate_video_prompt_audits``
+  (SANA precompute performs the same ``prompt_safe`` check), and the wan/sana
+  cache loaders re-check both ``sample.safety`` and the cache provenance
+  ``safety_audit`` flag before serving batches.  Training on data that never
+  went through the audited cache tool chain carries no safety gate at all.
+- Audits attest replay integrity, not authenticity.  ``PromptSafetyAudit``
+  re-derives the decision fields and pins repository/revision, but carries no
+  signature: a manifest ``safety`` block written by hand -- bypassing the CLI
+  audit flow (``cli/training_commands/handlers/cache.py``) that wires
+  ``PromptAuditSet.select_for_manifest`` -- passes the flag checks.  Producing
+  honest audit sidecars is the manifest author's obligation.
+- Coverage is prompt text only; pixel/video content is never scored.
 """
 
 from __future__ import annotations
@@ -20,7 +39,6 @@ from worldfoundry.base_models.diffusion_model.loaders import CheckpointSpec
 from worldfoundry.base_models.diffusion_model.loaders.materialize import (
     NativeCheckpointResolver,
 )
-from worldfoundry.core.io.integrity import canonical_json, text_sha256
 
 SHIELDGEMMA_PROMPT_AUDIT_SCHEMA = "worldfoundry-shieldgemma-prompt-audit"
 SHIELDGEMMA_REPO_ID = "google/shieldgemma-2b"
@@ -35,18 +53,6 @@ SHIELDGEMMA_FILES = (
     "tokenizer.json",
     "tokenizer.model",
     "tokenizer_config.json",
-)
-SHIELDGEMMA_FILE_SHA256 = MappingProxyType(
-    {
-        "config.json": "a6ed3351158dadd870db10fa19ec69b897001f37c1339881165bfbd267875b42",
-        "model-00001-of-00002.safetensors": "343f39c3f075eda5077dab58476d3e3231432ea3cddeb81e6f5ad106b0b524f5",
-        "model-00002-of-00002.safetensors": "ce68ef43056ff896f0fa55bada30885eb192a1a439cc984d44d836329c752f21",
-        "model.safetensors.index.json": "974f980f459399b2fda03e556f9917f5d03228f4c07dfbe7a6b146be02d4e91c",
-        "special_tokens_map.json": "db82f8bd9b25d14f9c788e6bde64de84d42f1c2538f1c245ba6cb3e872d14b18",
-        "tokenizer.json": "3f289bc05132635a8bc7aca7aa21255efd5e18f3710f43e3cdb96bcd41be4922",
-        "tokenizer.model": "61a7b147390c64585d6c3543dd6fc636906c9af3865a5548f27f31aee1d4c8e2",
-        "tokenizer_config.json": "20dc327cc0ddb4bad2ebc5042f561f89fc980855a87db593ed80ac07ca5efcba",
-    }
 )
 SHIELDGEMMA_FILE_SIZE_BYTES = MappingProxyType(
     {
@@ -93,10 +99,6 @@ SHIELDGEMMA_PROMPT_POLICIES = MappingProxyType(
 )
 
 
-def _policy_digest() -> str:
-    return text_sha256(canonical_json(dict(SHIELDGEMMA_PROMPT_POLICIES)))
-
-
 def _format_prompt(prompt: str, policy: str) -> str:
     return (
         "You are a policy expert trying to help determine whether a user prompt is in "
@@ -111,27 +113,30 @@ def _format_prompt(prompt: str, policy: str) -> str:
 
 @dataclass(frozen=True, slots=True)
 class PromptSafetyAudit:
-    """One content-addressed ShieldGemma decision without raw prompt text."""
+    """One ShieldGemma decision tied to its exact prompt text.
 
-    prompt_sha256: str
+    ``from_mapping`` re-derives and cross-checks every dependent field, so a
+    serialized audit whose ``safe``/``blocked_categories`` disagree with the
+    recorded probabilities is rejected.  It cannot prove the probabilities
+    came from a real ShieldGemma forward pass; treat stored audits as
+    integrity-checked, not authenticated (see the module docstring).
+    """
+
+    prompt: str
     unsafe_probabilities: Mapping[str, float]
     threshold: float
     model_revision: str = SHIELDGEMMA_REVISION
-    policy_digest: str = _policy_digest()
     schema: str = SHIELDGEMMA_PROMPT_AUDIT_SCHEMA
 
     def __post_init__(self) -> None:
         if self.schema != SHIELDGEMMA_PROMPT_AUDIT_SCHEMA:
             raise ValueError(f"unsupported prompt safety audit schema: {self.schema!r}")
-        if len(self.prompt_sha256) != 64 or any(
-            character not in "0123456789abcdef" for character in self.prompt_sha256
-        ):
-            raise ValueError("prompt_sha256 must be lowercase SHA-256")
+        prompt = str(self.prompt).strip()
+        if not prompt:
+            raise ValueError("prompt safety audit prompt cannot be empty")
         revision = str(self.model_revision).strip()
         if not revision:
             raise ValueError("prompt safety model_revision cannot be empty")
-        if self.policy_digest != _policy_digest():
-            raise ValueError("prompt safety policy digest differs from the pinned policies")
         if set(self.unsafe_probabilities) != set(SHIELDGEMMA_PROMPT_POLICIES):
             raise ValueError("prompt safety audit categories differ from the pinned policies")
         scores = {str(name): float(value) for name, value in self.unsafe_probabilities.items()}
@@ -141,6 +146,7 @@ class PromptSafetyAudit:
         if not isfinite(threshold) or not 0.0 < threshold < 1.0:
             raise ValueError("prompt safety threshold must be finite and in (0, 1)")
         object.__setattr__(self, "unsafe_probabilities", MappingProxyType(scores))
+        object.__setattr__(self, "prompt", prompt)
         object.__setattr__(self, "threshold", threshold)
         object.__setattr__(self, "model_revision", revision)
 
@@ -155,9 +161,8 @@ class PromptSafetyAudit:
     def to_dict(self) -> dict[str, object]:
         return {
             "schema": self.schema,
-            "prompt_sha256": self.prompt_sha256,
+            "prompt": self.prompt,
             "model": {"repository": SHIELDGEMMA_REPO_ID, "revision": self.model_revision},
-            "policy_digest": self.policy_digest,
             "threshold": self.threshold,
             "unsafe_probabilities": dict(self.unsafe_probabilities),
             "safe": self.safe,
@@ -173,9 +178,8 @@ class PromptSafetyAudit:
         fields = {str(key): item for key, item in value.items()}
         expected = {
             "schema",
-            "prompt_sha256",
+            "prompt",
             "model",
-            "policy_digest",
             "threshold",
             "unsafe_probabilities",
             "safe",
@@ -196,11 +200,10 @@ class PromptSafetyAudit:
         if not isinstance(probabilities, Mapping):
             raise TypeError("prompt safety audit unsafe_probabilities must be a mapping")
         audit = cls(
-            prompt_sha256=str(fields["prompt_sha256"]),
+            prompt=str(fields["prompt"]),
             unsafe_probabilities={str(key): float(item) for key, item in probabilities.items()},
             threshold=float(fields["threshold"]),
             model_revision=str(model["revision"]),
-            policy_digest=str(fields["policy_digest"]),
             schema=str(fields["schema"]),
         )
         blocked = fields["blocked_categories"]
@@ -212,35 +215,25 @@ class PromptSafetyAudit:
             raise ValueError("prompt safety audit derived decision fields are inconsistent")
         return audit
 
-    @property
-    def digest(self) -> str:
-        return text_sha256(canonical_json(self.to_dict()))
-
-
 class UnsafeTrainingPromptError(ValueError):
     """Raised when any prompt fails the pinned ShieldGemma policy gate."""
 
     def __init__(self, audits: Sequence[PromptSafetyAudit]) -> None:
         blocked = tuple(audit for audit in audits if not audit.safe)
         self.audits = blocked
-        summary = [{"prompt_sha256": audit.prompt_sha256, "categories": audit.blocked_categories} for audit in blocked]
+        summary = [{"prompt": audit.prompt, "categories": audit.blocked_categories} for audit in blocked]
         super().__init__(f"training prompts failed ShieldGemma safety filtering: {summary}")
 
 
 def shieldgemma_checkpoint_spec() -> CheckpointSpec:
-    """Return the pinned and fully content-audited ShieldGemma checkpoint."""
+    """Return the pinned ShieldGemma checkpoint."""
 
     return CheckpointSpec(
         repo_id=SHIELDGEMMA_REPO_ID,
         revision=SHIELDGEMMA_REVISION,
         files=SHIELDGEMMA_FILES,
         allow_patterns=SHIELDGEMMA_FILES,
-        file_sha256=SHIELDGEMMA_FILE_SHA256,
         file_size_bytes=SHIELDGEMMA_FILE_SIZE_BYTES,
-        metadata={
-            "license": "Gemma Terms of Use",
-            "purpose": "SANA licensed input safety filtering",
-        },
     )
 
 
@@ -322,7 +315,7 @@ class ShieldGemmaPromptFilter:
             offset = index * category_count
             audits.append(
                 PromptSafetyAudit(
-                    prompt_sha256=text_sha256(prompt),
+                    prompt=prompt,
                     unsafe_probabilities={
                         name: float(unsafe[offset + category_index]) for category_index, name in enumerate(categories)
                     },
@@ -347,7 +340,7 @@ def build_shieldgemma_prompt_filter(
     threshold: float = 0.5,
     max_input_tokens: int = 4096,
 ) -> ShieldGemmaPromptFilter:
-    """Load the pinned checkpoint locally after complete content verification."""
+    """Load the pinned checkpoint locally."""
 
     spec = checkpoint or shieldgemma_checkpoint_spec()
     materialized = NativeCheckpointResolver().materialize(spec)

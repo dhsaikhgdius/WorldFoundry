@@ -27,8 +27,9 @@ from worldfoundry.evaluation.reporting import (
     write_scorecard,
 )
 
+# Created in main(), not at import time: importing a module must not write
+# into the package directory.
 DEMO_DIR = Path(__file__).parent / "_demo_out"
-DEMO_DIR.mkdir(exist_ok=True)
 
 # A single shared evaluation protocol so all three runs are *comparable*
 # (identical comparison_identity strict fields -> same comparison_key).
@@ -175,6 +176,7 @@ def build_one(run_spec: dict, index: int) -> Path:
 
 def main() -> None:
     print(f"=== reporting demo → {DEMO_DIR} ===\n")
+    DEMO_DIR.mkdir(exist_ok=True)
     run_dirs = [build_one(spec, i) for i, spec in enumerate(RUNS)]
 
     # 1) Single-run Markdown report (show one inline).

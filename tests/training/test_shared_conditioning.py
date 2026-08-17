@@ -5,23 +5,22 @@ import pytest
 torch = pytest.importorskip("torch")
 pytest.importorskip("safetensors")
 
-from worldfoundry.core.io.integrity import text_sha256  # noqa: E402
 from worldfoundry.training.data import SharedConditioningStore  # noqa: E402
 
 
 def _write(store: SharedConditioningStore):
     return store.write(
         branch="unconditional",
-        prompt_sha256=text_sha256(""),
-        model_recipe_digest="1" * 64,
-        conditioner_digest="2" * 64,
-        tokenizer_digest="3" * 64,
+        prompt="",
+        model_recipe="wan2.1-t2v-1.3b",
+        conditioner={"repo_id": "encoder", "revision": "main"},
+        tokenizer={"repo_id": "tokenizer", "revision": "main"},
         tensors={"context": torch.arange(32, dtype=torch.bfloat16).reshape(4, 8)},
         layouts={"context": "sequence-features"},
     )
 
 
-def test_shared_conditioning_round_trip_is_content_addressed_and_idempotent(tmp_path) -> None:
+def test_shared_conditioning_round_trip_is_idempotent(tmp_path) -> None:
     store = SharedConditioningStore(tmp_path)
     artifact = _write(store)
     same = _write(store)
@@ -29,22 +28,20 @@ def test_shared_conditioning_round_trip_is_content_addressed_and_idempotent(tmp_
 
     assert same == artifact
     assert loaded.artifact == artifact
-    assert artifact.identity.prompt_sha256 == text_sha256("")
-    assert artifact.object_path.startswith("shared-objects/")
+    assert artifact.identity.prompt == ""
+    assert artifact.object_path == "shared-objects/unconditional.safetensors"
     torch.testing.assert_close(
         loaded.tensors["context"],
         torch.arange(32, dtype=torch.bfloat16).reshape(4, 8),
     )
 
 
-def test_shared_conditioning_detects_object_and_manifest_tampering(tmp_path) -> None:
+def test_shared_conditioning_validates_object_size_and_manifest_branch(tmp_path) -> None:
     object_store = SharedConditioningStore(tmp_path / "object")
     artifact = _write(object_store)
     object_path = object_store.root / artifact.object_path
-    payload = bytearray(object_path.read_bytes())
-    payload[-1] ^= 1
-    object_path.write_bytes(payload)
-    with pytest.raises(ValueError, match="SHA-256 mismatch"):
+    object_path.write_bytes(object_path.read_bytes()[:-1])
+    with pytest.raises(ValueError, match="size mismatch"):
         object_store.read("unconditional")
 
     manifest_store = SharedConditioningStore(tmp_path / "manifest")
@@ -54,5 +51,5 @@ def test_shared_conditioning_detects_object_and_manifest_tampering(tmp_path) -> 
         manifest.read_text(encoding="utf-8").replace('"branch":"unconditional"', '"branch":"changed"'),
         encoding="utf-8",
     )
-    with pytest.raises(ValueError, match="manifest digest"):
+    with pytest.raises(ValueError, match="object_path"):
         manifest_store.read("unconditional")

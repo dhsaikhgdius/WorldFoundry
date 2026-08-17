@@ -7,8 +7,6 @@ from collections.abc import Mapping
 import torch
 from torch import Tensor, nn
 
-from worldfoundry.core.io.integrity import canonical_sha256
-
 from .config import SenseFlowConfig
 from .contracts import (
     SenseFlowDiscriminatorAdapter,
@@ -132,12 +130,6 @@ class NativeSenseFlowLossAdapter:
         )
         if set(process_kinds) != {"flow-matching"}:
             raise ValueError("native SenseFlow adapters must expose a flow-matching process")
-        process_digests = tuple(
-            str(adapter.noise_process_digest).strip()
-            for adapter in (student, teacher, fake_score)
-        )
-        if not all(process_digests) or len(set(process_digests)) != 1:
-            raise ValueError("SenseFlow roles must use the same non-empty noise process digest")
         self.student = student
         self.teacher = teacher
         self.fake_score = fake_score
@@ -146,13 +138,6 @@ class NativeSenseFlowLossAdapter:
         self.generator_update_interval = config.generator_update_interval
         self.ida_decay = config.ida_decay
         self.ida_enabled = config.ida_enabled
-        self.config_digest = canonical_sha256(
-            {
-                "schema": "worldfoundry-senseflow-execution",
-                "config_digest": config.digest,
-                "noise_process_digest": process_digests[0],
-            }
-        )
 
     def loss_denominator(self, batch: SenseFlowTrainingBatch, *, role: str) -> Tensor:
         if role not in {"generator", "fake-score", "discriminator"}:

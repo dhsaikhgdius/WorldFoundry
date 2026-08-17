@@ -1,13 +1,32 @@
-"""High-level model construction with optional VRAM management and disk mapping."""
+"""High-level model construction with optional VRAM management and disk mapping.
+
+transformers is only needed for the DeepSpeed ZeRO-3 integration, so it is
+imported lazily; loading a plain torch model must not pay (or require) the
+transformers import.
+"""
+
+import contextlib
 
 import torch
-from transformers.integrations import is_deepspeed_zero3_enabled
-from transformers.utils import ContextManagers
 
 from worldfoundry.core.model_loading.file import load_state_dict
 from worldfoundry.core.vram.disk_map import DiskMap
 from worldfoundry.core.vram.initialization import skip_model_initialization
 from worldfoundry.core.vram.layers import enable_vram_management
+
+
+def is_deepspeed_zero3_enabled() -> bool:
+    """Lazy proxy for ``transformers.integrations.is_deepspeed_zero3_enabled``.
+
+    Returns False when transformers is not installed: the ZeRO-3 loading path
+    is only reachable through the transformers integration in the first place.
+    """
+
+    try:
+        from transformers.integrations import is_deepspeed_zero3_enabled as _impl
+    except ImportError:
+        return False
+    return _impl()
 
 
 def _restore_checkpoint_buffers(
@@ -92,7 +111,10 @@ def load_model(
         raise ValueError("non-strict loading is not supported with wrapped VRAM modules")
     init_contexts = get_init_context(torch_dtype=torch_dtype, device=device) if strict else []
     try:
-        with ContextManagers(init_contexts):
+        # Equivalent of transformers.utils.ContextManagers without the import.
+        with contextlib.ExitStack() as init_stack:
+            for init_context in init_contexts:
+                init_stack.enter_context(init_context)
             model = model_class(**config)
     except NotImplementedError as exc:
         # Some third-party-compatible modules move their parameters inside
@@ -215,8 +237,29 @@ def load_model_with_disk_offload(
         "computation_dtype": torch_dtype,
         "computation_device": device,
     }
-    enable_vram_management(model, module_map, vram_config=vram_config, disk_map=disk_map, vram_limit=80)
+    enable_vram_management(
+        model, module_map, vram_config=vram_config, disk_map=disk_map, vram_limit=_disk_offload_vram_limit(device)
+    )
     return model
+
+
+def _disk_offload_vram_limit(device) -> float:
+    """Used-memory budget (GiB) for keeping disk-backed weights resident.
+
+    Derived from the actual device capacity (90% of total memory) instead of
+    the historical hard-coded ``80`` GiB, which assumed A100/H100-80G and let
+    smaller cards keep weights resident until they OOMed. Falls back to the
+    legacy value when the device capacity cannot be determined.
+    """
+
+    try:
+        device_obj = torch.device(device)
+        if device_obj.type == "cuda" and torch.cuda.is_available():
+            total_gib = torch.cuda.get_device_properties(device_obj).total_memory / (1024**3)
+            return total_gib * 0.9
+    except Exception:
+        pass
+    return 80.0
 
 
 def get_init_context(torch_dtype, device):

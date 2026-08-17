@@ -1,3 +1,9 @@
+
+import pytest
+
+# This test module imports worldfoundry code that requires the optional
+# "transformers" dependency at import time; skip when it is unavailable.
+pytest.importorskip("transformers")
 import torch
 
 from worldfoundry.base_models.diffusion_model.recipes.gamma_world import (

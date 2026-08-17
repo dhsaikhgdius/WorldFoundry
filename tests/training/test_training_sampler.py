@@ -12,8 +12,6 @@ from worldfoundry.training.data import (
 
 
 class _Dataset:
-    dataset_digest = "a" * 64
-
     def __init__(self, size: int) -> None:
         self.size = size
         self.sample_ids = tuple(f"sample-{index}" for index in range(size))
@@ -57,10 +55,10 @@ def test_sampler_state_round_trip_resumes_at_the_next_unseen_sample() -> None:
 def test_sampler_rejects_dataset_and_topology_changes_for_exact_resume() -> None:
     state = DeterministicDistributedSampler(_Dataset(8), rank=0, world_size=2).state_dict()
 
-    changed_digest = _Dataset(8)
-    changed_digest.dataset_digest = "b" * 64
-    with pytest.raises(SamplerStateMismatchError, match="dataset_digest"):
-        DeterministicDistributedSampler(changed_digest, rank=0, world_size=2).load_state_dict(state)
+    changed_samples = _Dataset(8)
+    changed_samples.sample_ids = tuple(f"other-{index}" for index in range(8))
+    with pytest.raises(SamplerStateMismatchError, match="sample_ids"):
+        DeterministicDistributedSampler(changed_samples, rank=0, world_size=2).load_state_dict(state)
 
     with pytest.raises(SamplerStateMismatchError, match="world_size"):
         DeterministicDistributedSampler(_Dataset(8), rank=0, world_size=1).load_state_dict(state)

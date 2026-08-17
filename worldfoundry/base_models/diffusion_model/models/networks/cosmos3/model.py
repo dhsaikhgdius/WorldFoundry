@@ -20,6 +20,7 @@ import torch.nn as nn
 
 from worldfoundry.core.attention import rotate_half as _rotate_half
 from worldfoundry.core.attention import scaled_dot_product_attention
+from worldfoundry.core.gradient import gradient_checkpoint_forward
 from worldfoundry.core.nn import DomainAwareLinear
 from worldfoundry.core.nn.timestep import TimestepEmbedding, Timesteps
 
@@ -322,6 +323,7 @@ class Cosmos3OmniTransformer(nn.Module):
                 for _ in range(num_hidden_layers)
             ]
         )
+        self._enable_gradient_checkpointing = False
         self.norm = nn.RMSNorm(hidden_size, eps=rms_norm_eps, elementwise_affine=True)
         self.norm_moe_gen = nn.RMSNorm(hidden_size, eps=rms_norm_eps, elementwise_affine=True)
         self.rotary_emb = Cosmos3VLTextRotaryEmbedding(
@@ -350,6 +352,11 @@ class Cosmos3OmniTransformer(nn.Module):
             self.audio_proj_in = nn.Linear(sound_dim, hidden_size, bias=True)
             self.audio_proj_out = nn.Linear(hidden_size, sound_dim, bias=True)
             self.audio_modality_embed = nn.Parameter(torch.zeros(hidden_size))
+
+    def set_gradient_checkpointing(self, enable: bool) -> None:
+        """Checkpoint each native MoT decoder block during training."""
+
+        self._enable_gradient_checkpointing = bool(enable)
 
     # -------------------------------------------------------------------------
     # Pure-tensor packing/unpacking helpers (no layer state).
@@ -644,7 +651,14 @@ class Cosmos3OmniTransformer(nn.Module):
         gen_seq = hidden_states[und_len:]
         rotary_emb = (cos[:und_len], sin[:und_len], cos[und_len:], sin[und_len:])
         for decoder_layer in self.layers:
-            und_seq, gen_seq = decoder_layer(und_seq, gen_seq, rotary_emb)
+            und_seq, gen_seq = gradient_checkpoint_forward(
+                decoder_layer,
+                self._enable_gradient_checkpointing and self.training,
+                False,
+                und_seq,
+                gen_seq,
+                rotary_emb,
+            )
         und_out = self.norm(und_seq)
         gen_out = self.norm_moe_gen(gen_seq)
         last_hidden_state = torch.cat([und_out, gen_out], dim=0)

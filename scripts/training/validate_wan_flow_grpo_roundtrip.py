@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Run a real-weight WorldFoundry Wan Flow-GRPO update and DCP resume gate.
+"""Run a real-weight Wan Flow-GRPO update and DCP resume check.
 
-The gate consumes an already-audited Wan video-training cache only to reuse
-its UMT5 conditioning bytes.  It does not execute an external trainer and it
-does not load the 11 GB text encoder again.  Wan DiT/VAE and VideoAlign are
-still materialized through their native WorldFoundry execution paths.
+The check reuses UMT5 conditioning from a validated Wan video-training cache,
+so it does not load the 11 GB text encoder again. Wan DiT/VAE and VideoAlign
+are loaded normally.
 """
 
 from __future__ import annotations
@@ -25,7 +24,6 @@ from worldfoundry.base_models.diffusion_model.loaders import CheckpointSpec
 from worldfoundry.base_models.diffusion_model.recipes.registry import (
     default_native_diffusion_registry,
 )
-from worldfoundry.core.io.file_utils import file_sha256
 from worldfoundry.core.io.integrity import canonical_json
 from worldfoundry.training.data import (
     RolloutPromptDataset,
@@ -35,8 +33,7 @@ from worldfoundry.training.data import (
     prepare_rollout_conditioning_cache,
 )
 from worldfoundry.training.data.wan.contracts import (
-    wan_cache_contract_digest,
-    wan_checkpoint_asset_digest,
+    wan_checkpoint_asset_identity,
 )
 from worldfoundry.training.engine import materialize_wan_flow_policy_training_run
 from worldfoundry.training.recipes import PostTrainingRecipe
@@ -82,10 +79,10 @@ def _prepare_rollout_cache(
     source_cache: Path,
     source_manifest: Path,
     work_dir: Path,
-    source_conditioner_digest: str,
-    source_tokenizer_digest: str,
-    conditioner_digest: str,
-    tokenizer_digest: str,
+    source_conditioner: Mapping[str, object],
+    source_tokenizer: Mapping[str, object],
+    conditioner: Mapping[str, object],
+    tokenizer: Mapping[str, object],
 ) -> tuple[Path, Path, dict[str, object]]:
     """Convert one audited cached context into the strict rollout-cache schema."""
 
@@ -102,20 +99,17 @@ def _prepare_rollout_cache(
     if not isinstance(context, torch.Tensor) or tuple(context.shape) != (512, 4096):
         raise ValueError("source Wan cache lacks one official [512,4096] UMT5 context")
     provenance = sample.entry.provenance
-    if (
-        provenance.conditioner_digest != source_conditioner_digest
-        or provenance.tokenizer_digest != source_tokenizer_digest
-    ):
+    if provenance.conditioner != source_conditioner or provenance.tokenizer != source_tokenizer:
         raise ValueError(
             "source cached context was not produced by the same resolved Wan conditioner/tokenizer"
         )
 
     audit = PromptSafetyAudit(
-        prompt_sha256=provenance.prompt_sha256,
+        prompt=prompt,
         unsafe_probabilities={name: 0.0 for name in SHIELDGEMMA_PROMPT_POLICIES},
         threshold=0.5,
     )
-    if audit.digest != provenance.safety_audit_digest:
+    if dict(provenance.safety_audit) != audit.to_dict():
         raise ValueError("source fixture safety audit differs from the fixed zero-risk gate audit")
     record = RolloutPromptRecord(
         prompt_id=sample_id,
@@ -154,25 +148,23 @@ def _prepare_rollout_cache(
         cache_root=cache_path,
         encoder=CachedContextEncoder(),
         model_recipe="wan2.1-t2v-1.3b",
-        model_recipe_digest=wan_cache_contract_digest("wan2.1-t2v-1.3b"),
-        conditioner_digest=conditioner_digest,
-        tokenizer_digest=tokenizer_digest,
+        conditioner=conditioner,
+        tokenizer=tokenizer,
     )
     source_unconditional = SharedConditioningStore(source_cache).read("unconditional")
     source_identity = source_unconditional.artifact.identity
     if (
-        source_identity.conditioner_digest != source_conditioner_digest
-        or source_identity.tokenizer_digest != source_tokenizer_digest
-        or source_identity.model_recipe_digest
-        != wan_cache_contract_digest("wan2.1-t2v-1.3b")
+        source_identity.conditioner != source_conditioner
+        or source_identity.tokenizer != source_tokenizer
+        or source_identity.model_recipe != "wan2.1-t2v-1.3b"
     ):
         raise ValueError("source unconditional context identity differs from the resolved Wan assets")
     unconditional = SharedConditioningStore(cache_path).write(
         branch="unconditional",
-        prompt_sha256=source_unconditional.artifact.identity.prompt_sha256,
-        model_recipe_digest=source_unconditional.artifact.identity.model_recipe_digest,
-        conditioner_digest=conditioner_digest,
-        tokenizer_digest=tokenizer_digest,
+        prompt=source_unconditional.artifact.identity.prompt,
+        model_recipe=source_unconditional.artifact.identity.model_recipe,
+        conditioner=conditioner,
+        tokenizer=tokenizer,
         tensors=source_unconditional.tensors,
         layouts={"context": "sequence-features"},
     )
@@ -180,10 +172,10 @@ def _prepare_rollout_cache(
         manifest_path,
         cache_path,
         {
-            "source_cache_index_sha256": source.index.index_sha256,
-            "rollout_index_sha256": prepared.index.digest,
-            "conditioning_object_sha256": prepared.entries[0].artifact.object_sha256,
-            "unconditional_object_sha256": unconditional.object_sha256,
+            "source_cache_index": source.index.to_dict(),
+            "rollout_index": prepared.index.to_dict(),
+            "conditioning_artifact": prepared.entries[0].artifact.to_dict(),
+            "unconditional_artifact": unconditional.to_dict(),
         },
     )
 
@@ -280,8 +272,6 @@ def _recipe(
         "export_every_steps": 0,
     }
     payload["export"] = {"format": "peft"}
-    payload.pop("validation", None)
-    payload.pop("metadata", None)
     return PostTrainingRecipe.from_mapping(payload)
 
 
@@ -310,44 +300,41 @@ def _configure_offline_hub(cache: Path) -> None:
 
 def _resolved_overrides(
     model_root: Path,
-) -> tuple[dict[str, object], dict[str, object], object, dict[str, str]]:
+) -> tuple[dict[str, object], dict[str, object], object, dict[str, dict[str, object]]]:
     native_recipe = default_native_diffusion_registry().resolve("wan2.1-t2v-1.3b")
     assembler = NativeDiffusionAssembler()
     resolved = assembler.resolve_checkpoints(
         native_recipe,
         {name: str(model_root) for name in ("dit", "text-encoder", "tokenizer", "vae")},
     )
-    source_digests = {
-        "conditioner": wan_checkpoint_asset_digest(resolved["text-encoder"]),
-        "tokenizer": wan_checkpoint_asset_digest(resolved["tokenizer"]),
+    source_assets = {
+        "conditioner": wan_checkpoint_asset_identity(resolved["text-encoder"]),
+        "tokenizer": wan_checkpoint_asset_identity(resolved["tokenizer"]),
     }
     tokenizer = resolved["tokenizer"]
     if len(tokenizer.sources) != 1:
         raise ValueError("local Wan tokenizer must resolve from one directory")
     tokenizer_root = Path(tokenizer.sources[0]).expanduser().resolve()
-    tokenizer_hashes = dict(tokenizer.file_sha256)
     tokenizer_sizes = dict(tokenizer.file_size_bytes)
     for name in tokenizer.files:
         path = tokenizer_root / name
         if not path.is_file() or path.is_symlink():
             raise FileNotFoundError(f"local Wan tokenizer file is absent or a symlink: {path}")
         tokenizer_sizes[name] = path.stat().st_size
-        tokenizer_hashes.setdefault(name, file_sha256(path))
     resolved["tokenizer"] = CheckpointSpec(
         source=tokenizer.sources,
+        repo_id=tokenizer.repo_id,
+        revision=tokenizer.revision,
         files=tokenizer.files,
         allow_patterns=tokenizer.allow_patterns,
-        metadata=tokenizer.metadata,
-        file_sha256=tokenizer_hashes,
         file_size_bytes=tokenizer_sizes,
-        resource_sha256=tokenizer.resource_sha256,
         resource_size_bytes=tokenizer.resource_size_bytes,
     )
     return (
         {"policy": resolved["dit"]},
         {name: resolved[name] for name in ("text-encoder", "tokenizer", "vae")},
         native_recipe,
-        source_digests,
+        source_assets,
     )
 
 
@@ -417,19 +404,19 @@ def main() -> int:
         role_overrides,
         component_overrides,
         native_recipe,
-        source_digests,
+        source_assets,
     ) = _resolved_overrides(model_root)
     _stage("wan-assets-audited")
     manifest_path, cache_path, cache_identity = _prepare_rollout_cache(
         source_cache=source_cache,
         source_manifest=source_manifest,
         work_dir=work_dir,
-        source_conditioner_digest=source_digests["conditioner"],
-        source_tokenizer_digest=source_digests["tokenizer"],
-        conditioner_digest=wan_checkpoint_asset_digest(
+        source_conditioner=source_assets["conditioner"],
+        source_tokenizer=source_assets["tokenizer"],
+        conditioner=wan_checkpoint_asset_identity(
             component_overrides["text-encoder"]
         ),
-        tokenizer_digest=wan_checkpoint_asset_digest(component_overrides["tokenizer"]),
+        tokenizer=wan_checkpoint_asset_identity(component_overrides["tokenizer"]),
     )
     _stage("rollout-cache-ready", **cache_identity)
     recipe = _recipe(
@@ -524,8 +511,8 @@ def main() -> int:
         "policy_update": delta,
         "checkpoint": {
             "path": str(checkpoint.path),
-            "manifest_sha256": checkpoint.manifest_sha256,
-            "identity_digest": checkpoint.identity_digest,
+            "identity": dict(checkpoint.identity),
+            "file_size_bytes": dict(checkpoint.file_size_bytes),
             "restored_parameter_tensors": restored_tensors,
             "engine_state_exact": True,
             "progress_exact": True,
@@ -534,8 +521,7 @@ def main() -> int:
         },
         "export": {
             "path": str(exported.path),
-            "manifest_sha256": exported.manifest_sha256,
-            "file_sha256": dict(exported.file_digests),
+            "file_size_bytes": dict(exported.file_size_bytes),
         },
         "reward": reward_identity,
         "runtime": {

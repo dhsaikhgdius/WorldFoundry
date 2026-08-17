@@ -1,6 +1,7 @@
 """Kling Api visual generation pipeline module."""
 
 from ..pipeline_utils import PipelineABC
+import logging
 import time
 from typing import Optional, Dict, Any, Union
 
@@ -12,6 +13,8 @@ from ..api_runtime import resolve_api_key
 
 
 _API_KEY_ENV = ("KLING_API_KEY", "KLING_ACCESS_TOKEN")
+
+logger = logging.getLogger(__name__)
 
 
 class KlingApiPipeline(PipelineABC):
@@ -156,7 +159,7 @@ class KlingApiPipeline(PipelineABC):
             video_url = self._extract_video_url(task_info)
 
             if status and status != last_status:
-                print(f"Kling task {task_id}: {status}")
+                logger.info("Kling task %s: %s", task_id, status)
                 last_status = status
 
             if video_url and not any(marker in status for marker in failed_markers):

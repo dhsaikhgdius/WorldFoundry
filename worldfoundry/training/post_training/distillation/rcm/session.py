@@ -4,22 +4,16 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
-from math import prod
 
 import torch
 
 from worldfoundry.training.checkpoint.checkpointer import TrainingCheckpointer
 from worldfoundry.training.checkpoint.staging import PendingTrainingCheckpoint
 from worldfoundry.training.checkpoint.state import TrainingProgress
+from worldfoundry.training.post_training.shared.batching import latent_token_count as _latent_tokens
 
 from .contracts import RCMTrainingBatch
 from .engine import NativeRCMTrainEngine, RCMTrainResult
-
-
-def _latent_tokens(tensor: torch.Tensor) -> int:
-    if tensor.ndim < 2:
-        raise ValueError("latent tensor must include batch and feature dimensions")
-    return int(tensor.shape[0]) * prod(int(size) for size in tensor.shape[2:])
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,8 +114,8 @@ class NativeRCMTrainingSession:
             raise TypeError("generator must be torch.Generator or None")
         if isinstance(boundary_every_steps, bool) or int(boundary_every_steps) < 0:
             raise ValueError("boundary_every_steps must be non-negative")
-        if boundary_every_steps and boundary_sink is None:
-            raise ValueError("boundary cadence requires boundary_sink")
+        if (boundary_sink is None) != (int(boundary_every_steps) == 0):
+            raise ValueError("boundary_sink and a positive boundary_every_steps must be configured together")
         initial_step = self.engine.global_step
         iterator: object = iter(self.dataloader)
         final_student: RCMTrainResult | None = None

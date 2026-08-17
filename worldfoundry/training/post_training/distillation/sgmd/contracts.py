@@ -56,7 +56,6 @@ class SGMDPredictionAdapter(Protocol):
     module: object
     checkpoint_identity: str
     noise_process_kind: str
-    noise_process_digest: str
 
     def predict_velocity(
         self,
@@ -74,7 +73,6 @@ class SGMDPredictionAdapter(Protocol):
 class SGMDLossAdapter(Protocol):
     """Two-phase loss seam consumed by the SGMD optimizer engine."""
 
-    config_digest: str
     num_student_steps: int
     minimum_student_target_index: int
 

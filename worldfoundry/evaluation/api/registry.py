@@ -1,11 +1,12 @@
+"""Registries and store implementations for WorldFoundry models and metrics."""
+
 from __future__ import annotations
 
 from collections.abc import Callable as CollectionsCallable
 from typing import Any, Callable, Generic, Iterable, Iterator, Mapping, TypeVar
 
-from . import MetricSpec, WorldModelManifest
-
-"""Registries and store implementations for WorldFoundry models and metrics."""
+from .metrics import MetricSpec
+from .world_model_manifest import WorldModelManifest
 
 
 ItemT = TypeVar("ItemT")
@@ -177,7 +178,10 @@ def _model_aliases(manifest: WorldModelManifest) -> tuple[str, ...]:
     """Compute all aliases and names for a WorldModelManifest."""
     aliases = list(getattr(manifest, "aliases", ()))
     aliases.extend(_metadata_aliases(manifest))
-    if manifest.name and manifest.name != manifest.model_id:
+    # Compare with the same casefold normalization used at registration; a
+    # name differing from model_id only in case is the same key, and adding it
+    # as an alias would self-collide (EF-02).
+    if manifest.name and lookup_key(manifest.name) != lookup_key(manifest.model_id):
         aliases.append(manifest.name)
     return tuple(aliases)
 
@@ -233,7 +237,20 @@ class _Registry(Generic[SpecT]):
     def register(self, item: SpecT) -> SpecT:
         item_name = self._key_fn(item)
         canonical_key = lookup_key(item_name)
-        aliases = tuple(lookup_key(alias) for alias in self._alias_fn(item))
+        # Repeats *within* the item's own alias list collapse silently
+        # (mirrors AliasRegistryStore.register_with_conflict).  An alias that
+        # equals the item's own canonical key stays an error: upstream
+        # builders deliberately leave duplicate source keys for the registry
+        # to reject — but report it as a self-collision, not a cross-item
+        # conflict (EF-02).
+        aliases = tuple(dict.fromkeys(lookup_key(alias) for alias in self._alias_fn(item)))
+        for alias_key in aliases:
+            if alias_key == canonical_key:
+                raise DuplicateRegistryKeyError(
+                    f"duplicate {self._kind} key {alias_key!r} in {item_name!r}: "
+                    "an alias duplicates the item's own canonical key "
+                    "(redundant alias or duplicate source keys)"
+                )
         self._validate_new_keys(canonical_key, aliases, item_name)
 
         self._items[canonical_key] = item
@@ -272,15 +289,8 @@ class _Registry(Generic[SpecT]):
         aliases: tuple[str, ...],
         item_name: str,
     ) -> None:
-        seen = {canonical_key}
-        for alias in aliases:
-            if alias in seen:
-                raise DuplicateRegistryKeyError(
-                    f"duplicate {self._kind} key {alias!r} in {item_name!r}"
-                )
-            seen.add(alias)
-
-        for key in seen:
+        """Reject keys that collide with a *different* already-registered item."""
+        for key in (canonical_key, *aliases):
             existing_name = self._existing_name_for_key(key)
             if existing_name is not None:
                 raise DuplicateRegistryKeyError(
@@ -289,10 +299,11 @@ class _Registry(Generic[SpecT]):
                 )
 
     def _existing_name_for_key(self, key: str) -> str | None:
+        # Use _key_fn: MetricSpec has no .name attribute (EF-01).
         if key in self._items:
-            return self._items[key].name
+            return self._key_fn(self._items[key])
         if key in self._aliases:
-            return self._items[self._aliases[key]].name
+            return self._key_fn(self._items[self._aliases[key]])
         return None
 
 

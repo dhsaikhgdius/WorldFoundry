@@ -11,7 +11,6 @@ import torch
 import torch.distributed as dist
 from torch.distributed.device_mesh import DeviceMesh, init_device_mesh
 
-from worldfoundry.core.io.integrity import canonical_sha256
 from worldfoundry.training.recipes.spec import DistributedSpec
 
 PARALLEL_PLAN_SCHEMA = "worldfoundry-training-parallel-plan"
@@ -129,10 +128,6 @@ class ParallelPlan:
     @property
     def data_parallel_size(self) -> int:
         return self.dp_replicate * self.dp_shard
-
-    @property
-    def digest(self) -> str:
-        return canonical_sha256(self.to_dict())
 
     def to_dict(self) -> dict[str, object]:
         return {

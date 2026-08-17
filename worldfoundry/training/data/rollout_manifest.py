@@ -9,12 +9,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from types import MappingProxyType
 
-from worldfoundry.core.io.file_utils import file_sha256
-from worldfoundry.core.io.integrity import canonical_json, canonical_sha256
+from worldfoundry.core.io.integrity import canonical_json
 from worldfoundry.training.safety.shieldgemma import PromptSafetyAudit
 
 ROLLOUT_PROMPT_SCHEMA = "worldfoundry-rollout-prompt"
-ROLLOUT_PROMPT_DATASET_SCHEMA = "worldfoundry-rollout-prompt-dataset"
 _IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]*")
 
 
@@ -62,9 +60,7 @@ class RolloutPromptRecord:
         split = _identifier(self.split, field_name="split").lower()
         if not isinstance(self.safety_audit, PromptSafetyAudit):
             raise TypeError("safety_audit must be PromptSafetyAudit")
-        from worldfoundry.core.io.integrity import text_sha256
-
-        if self.safety_audit.prompt_sha256 != text_sha256(prompt):
+        if self.safety_audit.prompt != prompt:
             raise ValueError("rollout prompt text differs from its safety audit")
         if not self.safety_audit.safe:
             raise ValueError("unsafe rollout prompts cannot enter a training manifest")
@@ -86,10 +82,6 @@ class RolloutPromptRecord:
             "generation": dict(self.generation),
             "safety_audit": self.safety_audit.to_dict(),
         }
-
-    @property
-    def digest(self) -> str:
-        return canonical_sha256(self.to_dict())
 
     @classmethod
     def from_mapping(cls, value: object) -> RolloutPromptRecord:
@@ -115,7 +107,7 @@ class RolloutPromptRecord:
 
 
 class RolloutPromptDataset(Sequence[RolloutPromptRecord]):
-    """A selected immutable split with byte- and content-level identity."""
+    """A selected prompt split."""
 
     def __init__(
         self,
@@ -123,7 +115,6 @@ class RolloutPromptDataset(Sequence[RolloutPromptRecord]):
         *,
         split: str,
         manifest_path: Path,
-        manifest_sha256: str,
     ) -> None:
         values = tuple(records)
         if not values or not all(isinstance(item, RolloutPromptRecord) for item in values):
@@ -132,24 +123,15 @@ class RolloutPromptDataset(Sequence[RolloutPromptRecord]):
         if any(record.split != selected_split for record in values):
             raise ValueError("rollout prompt dataset contains records from another split")
         ids = tuple(record.prompt_id for record in values)
-        hashes = tuple(record.safety_audit.prompt_sha256 for record in values)
+        prompts = tuple(record.prompt for record in values)
         if len(ids) != len(set(ids)):
             raise ValueError("rollout prompt_id values must be unique")
-        if len(hashes) != len(set(hashes)):
+        if len(prompts) != len(set(prompts)):
             raise ValueError("duplicate prompt text would create ambiguous reward groups")
         self._records = values
         self.split = selected_split
         self.manifest_path = Path(manifest_path).resolve()
-        self.manifest_sha256 = str(manifest_sha256).lower()
         self.sample_ids = ids
-        self.dataset_digest = canonical_sha256(
-            {
-                "schema": ROLLOUT_PROMPT_DATASET_SCHEMA,
-                "manifest_sha256": self.manifest_sha256,
-                "split": self.split,
-                "records": [record.to_dict() for record in values],
-            }
-        )
 
     @classmethod
     def from_file(
@@ -159,7 +141,7 @@ class RolloutPromptDataset(Sequence[RolloutPromptRecord]):
         split: str = "train",
     ) -> RolloutPromptDataset:
         source = Path(path).expanduser().resolve()
-        if source.is_symlink() or not source.is_file():
+        if not source.is_file():
             raise FileNotFoundError(f"rollout prompt manifest does not exist: {source}")
         if source.suffix.lower() != ".jsonl":
             raise ValueError("rollout prompt manifest must use JSONL")
@@ -183,7 +165,6 @@ class RolloutPromptDataset(Sequence[RolloutPromptRecord]):
             records,
             split=split,
             manifest_path=source,
-            manifest_sha256=file_sha256(source),
         )
 
     def __len__(self) -> int:
@@ -197,7 +178,6 @@ class RolloutPromptDataset(Sequence[RolloutPromptRecord]):
 
 
 __all__ = [
-    "ROLLOUT_PROMPT_DATASET_SCHEMA",
     "ROLLOUT_PROMPT_SCHEMA",
     "RolloutPromptDataset",
     "RolloutPromptRecord",

@@ -22,7 +22,6 @@ class SenseFlowPredictionAdapter(Protocol):
     module: object
     checkpoint_identity: str
     noise_process_kind: str
-    noise_process_digest: str
 
     def add_noise(
         self,
@@ -140,7 +139,6 @@ class SenseFlowGeneratorPhase:
 class SenseFlowLossAdapter(Protocol):
     """Three optimizer losses and the single shared generator rollout."""
 
-    config_digest: str
     generator_update_interval: int
     ida_decay: float
     ida_enabled: bool

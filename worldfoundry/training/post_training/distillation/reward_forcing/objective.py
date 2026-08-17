@@ -7,7 +7,6 @@ from collections.abc import Mapping
 import torch
 from torch import Tensor
 
-from worldfoundry.core.io.integrity import canonical_sha256
 from worldfoundry.training.objectives.flow_matching import (
     flow_interpolate,
     flow_matching_denominator,
@@ -100,14 +99,6 @@ class NativeRewardForcingLossAdapter:
             config.dmd_config,
             student_sampler=student_sampler,
         )
-        self.schedule_digest = canonical_sha256(
-            {
-                "schema": "worldfoundry-reward-forcing-execution",
-                "config_digest": config.digest,
-                "student_execution_digest": student_sampler.execution_digest,
-            }
-        )
-
     def _validate_geometry(self, batch: RewardForcingTrainingBatch) -> Tensor:
         latents = batch.clean_latents
         if not isinstance(latents, Tensor) or not latents.is_floating_point():

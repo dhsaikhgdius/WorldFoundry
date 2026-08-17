@@ -62,7 +62,6 @@ class WanFlowPolicyRoleBundle:
             "policy": {
                 "checkpoint": {
                     **self.policy_checkpoint.to_dict(),
-                    "digest": self.policy_checkpoint.digest,
                 },
                 "peft": peft_identity(self.policy_peft),
                 "fsdp2": fsdp_identity(self.policy_fsdp),
@@ -73,7 +72,6 @@ class WanFlowPolicyRoleBundle:
                 else {
                     "checkpoint": {
                         **self.reference_checkpoint.to_dict(),
-                        "digest": self.reference_checkpoint.digest,
                     },
                     "peft": None,
                     "fsdp2": fsdp_identity(self.reference_fsdp),
@@ -173,7 +171,6 @@ class WanFlowPolicyTrainingRun:
             "schema": self.run_schema,
             "status": status,
             "run_id": self.recipe.run.id,
-            "recipe_digest": self.recipe.digest,
             "recipe": self.recipe.to_dict(),
             "rank_count": self.world_size,
             "data": dict(self.data_identity),
@@ -188,8 +185,6 @@ class WanFlowPolicyTrainingRun:
                 else {
                     "path": str(self.resume_artifact.path),
                     "global_step": self.resume_artifact.global_step,
-                    "manifest_sha256": self.resume_artifact.manifest_sha256,
-                    "identity_digest": self.resume_artifact.identity_digest,
                 }
             ),
             "error": error,
@@ -277,7 +272,6 @@ class WanFlowPolicyTrainingRun:
                                 "policy_revision": self.session.engine.current_policy_revision,
                                 **final_metrics,
                                 "run_id": self.recipe.run.id,
-                                "recipe_digest": self.recipe.digest,
                                 "recorded_at": utc_now_iso(),
                             },
                             root=self.output_dir,
@@ -319,17 +313,6 @@ class WanFlowPolicyTrainingRun:
             )
         return self._summary
 
-    def _policy_export_metadata(self) -> dict[str, object]:
-        return {
-            "run_id": self.recipe.run.id,
-            "recipe_digest": self.recipe.digest,
-            "global_step": self.session.engine.global_step,
-            "role": "policy",
-            "roles": self.roles.runtime_identity(),
-            "data": dict(self.data_identity),
-            "reward": dict(self.reward_identity),
-        }
-
     def _record_export(
         self,
         artifact: PeftAdapterArtifact | FullModelArtifact | TrainingCheckpointArtifact,
@@ -340,11 +323,6 @@ class WanFlowPolicyTrainingRun:
         self._exported_steps.add(step)
         if not self.is_coordinator:
             return
-        file_digests = (
-            dict(artifact.file_sha256)
-            if isinstance(artifact, TrainingCheckpointArtifact)
-            else dict(artifact.file_digests)
-        )
         append_jsonl_durable(
             self.metrics_path,
             {
@@ -353,10 +331,7 @@ class WanFlowPolicyTrainingRun:
                 "role": "policy",
                 "format": self.recipe.export.format,
                 "path": str(artifact.path),
-                "manifest_sha256": artifact.manifest_sha256,
-                "file_sha256": file_digests,
                 "run_id": self.recipe.run.id,
-                "recipe_digest": self.recipe.digest,
                 "recorded_at": utc_now_iso(),
             },
             root=self.output_dir,
@@ -372,7 +347,6 @@ class WanFlowPolicyTrainingRun:
             raise RuntimeError("Wan policy training must complete before export")
         self.session.wait_for_checkpoints()
         step = self.session.engine.global_step
-        metadata = self._policy_export_metadata()
         export_format = self.recipe.export.format
         if export_format == "distributed-checkpoint":
             if output_dir is not None:
@@ -395,13 +369,10 @@ class WanFlowPolicyTrainingRun:
                     raise RuntimeError("Wan flow-policy PEFT export requires a LoRA policy")
                 if destination.exists():
                     artifact = inspect_peft_adapter(destination)
-                    if dict(artifact.metadata) != metadata:
-                        raise ValueError("existing flow-policy policy artifact metadata differs")
                 else:
                     artifact = export_peft_application(
                         application,
                         destination,
-                        metadata=metadata,
                         distributed_context=self.distributed_context,
                         role="Wan policy",
                     )
@@ -410,13 +381,10 @@ class WanFlowPolicyTrainingRun:
                     raise RuntimeError("full flow-policy export cannot serialize an unmerged PEFT policy")
                 if destination.exists():
                     artifact = inspect_full_model(destination)
-                    if dict(artifact.metadata) != metadata:
-                        raise ValueError("existing flow-policy policy artifact metadata differs")
                 else:
                     artifact = export_full_model(
                         self.roles.policy.trainable_module,
                         destination,
-                        metadata=metadata,
                         distributed_context=self.distributed_context,
                         role="Wan policy",
                         max_shard_size_bytes=int(
@@ -446,7 +414,7 @@ class WanFlowPolicyTrainingRun:
         self,
         output_dir: str | Path | None = None,
     ) -> PeftAdapterArtifact | FullModelArtifact | TrainingCheckpointArtifact:
-        """Export the configured, digest-audited policy artifact."""
+        """Export the configured policy artifact."""
 
         return self._export_policy_artifact(output_dir, require_complete=True)
 

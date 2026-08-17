@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import Any, Mapping
 
 from ..pipelines.aliases import load_pipeline_alias_registry
 from ..pipelines.bindings import load_pipeline_binding_registry, resolve_pipeline_binding
-from .assets import load_runtime_asset_profile_by_id
-from .environments import load_runtime_environment_profile_by_id
+from .assets import RuntimeAssetProfile, load_runtime_asset_profile_by_id
+from .environments import RuntimeEnvironmentProfile, load_runtime_environment_profile_by_id
 from .profiles import RuntimeProfile
 
 # Recognized artifact kinds that a runtime profile may declare.
@@ -75,6 +75,8 @@ def validate_runtime_profile_references(
     environment_root: str | None = None,
     asset_root: str | None = None,
     binding_root: str | None = None,
+    environments: Mapping[str, RuntimeEnvironmentProfile] | None = None,
+    assets: Mapping[str, RuntimeAssetProfile] | None = None,
 ) -> tuple[RuntimeValidationIssue, ...]:
     """Validate strict target-profile references without importing model weights.
 
@@ -87,6 +89,11 @@ def validate_runtime_profile_references(
         environment_root: Optional root override for environment manifest lookup.
         asset_root: Optional root override for asset manifest lookup.
         binding_root: Optional root override for pipeline binding lookup.
+        environments: Optional pre-loaded environment profiles keyed by id.
+            When given, lookups use this mapping instead of re-scanning the
+            manifest tree per call (see :func:`validate_runtime_registry`).
+        assets: Optional pre-loaded asset profiles keyed by id (same contract
+            as ``environments``).
 
     Returns:
         A tuple of :class:`RuntimeValidationIssue` instances (may be empty).
@@ -99,7 +106,7 @@ def validate_runtime_profile_references(
 
     if environment_id:
         try:
-            environment = load_runtime_environment_profile_by_id(environment_id, root=environment_root)
+            environment = _lookup_environment(environment_id, environments, environment_root)
             if environment.model_id != profile.model_id and environment.environment_id != environment_id:
                 issues.append(
                     RuntimeValidationIssue(
@@ -122,19 +129,15 @@ def validate_runtime_profile_references(
 
     if asset_id:
         try:
-            assets = load_runtime_asset_profile_by_id(
-                asset_id,
-                root=asset_root,
-                runtime_profiles={profile.model_id: profile},
-            )
-            if assets.model_id != profile.model_id and assets.asset_profile_id != asset_id:
+            asset_profile = _lookup_asset(asset_id, assets, asset_root, profile)
+            if asset_profile.model_id != profile.model_id and asset_profile.asset_profile_id != asset_id:
                 issues.append(
                     RuntimeValidationIssue(
                         code="runtime_assets_model_mismatch",
                         field="execution.assets",
                         message=(
                             f"runtime profile {profile.model_id!r} references assets {asset_id!r} "
-                            f"for model {assets.model_id!r}"
+                            f"for model {asset_profile.model_id!r}"
                         ),
                     )
                 )
@@ -235,14 +238,24 @@ def validate_runtime_registry(
     *,
     profile_root: str | Path | None = None,
 ) -> tuple[RuntimeValidationIssue, ...]:
-    """Validate runtime profile manifests and pipeline alias references."""
+    """Validate runtime profile manifests and pipeline alias references.
 
+    Environments and assets are loaded once up front and shared across all
+    per-profile checks (previously each profile re-scanned both manifest
+    trees, making the validation O(N²) in file IO).
+    """
+
+    from .assets import load_runtime_asset_profiles
+    from .environments import load_runtime_environment_profiles
     from .profiles import DEFAULT_RUNTIME_PROFILES_ROOT, load_runtime_profile_manifests
 
     issues: list[RuntimeValidationIssue] = []
     issues.extend(validate_pipeline_aliases_against_bindings())
-    for profile in load_runtime_profile_manifests(profile_root or DEFAULT_RUNTIME_PROFILES_ROOT):
-        issues.extend(validate_runtime_profile_references(profile))
+    profiles = tuple(load_runtime_profile_manifests(profile_root or DEFAULT_RUNTIME_PROFILES_ROOT))
+    environments = load_runtime_environment_profiles()
+    assets = load_runtime_asset_profiles(runtime_profiles={profile.model_id: profile for profile in profiles})
+    for profile in profiles:
+        issues.extend(validate_runtime_profile_references(profile, environments=environments, assets=assets))
     return tuple(issues)
 
 
@@ -300,6 +313,37 @@ def _text_or_none(value: Any) -> str | None:
         return None
     text = str(value).strip()
     return text or None
+
+
+def _lookup_environment(
+    environment_id: str,
+    environments: Mapping[str, RuntimeEnvironmentProfile] | None,
+    environment_root: str | None,
+) -> RuntimeEnvironmentProfile:
+    """Resolve an environment profile from the preloaded mapping or by re-scanning."""
+    if environments is None:
+        return load_runtime_environment_profile_by_id(environment_id, root=environment_root)
+    if environment_id not in environments:
+        raise KeyError(f"unknown runtime environment profile: {environment_id}")
+    return environments[environment_id]
+
+
+def _lookup_asset(
+    asset_id: str,
+    assets: Mapping[str, RuntimeAssetProfile] | None,
+    asset_root: str | None,
+    profile: RuntimeProfile,
+) -> RuntimeAssetProfile:
+    """Resolve an asset profile from the preloaded mapping or by re-scanning."""
+    if assets is None:
+        return load_runtime_asset_profile_by_id(
+            asset_id,
+            root=asset_root,
+            runtime_profiles={profile.model_id: profile},
+        )
+    if asset_id not in assets:
+        raise KeyError(f"unknown runtime asset profile: {asset_id}")
+    return assets[asset_id]
 
 
 __all__ = [

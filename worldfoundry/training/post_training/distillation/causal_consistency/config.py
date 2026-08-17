@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from math import isfinite
 
-from worldfoundry.core.io.integrity import canonical_sha256
 from worldfoundry.core.nn.diffusion_schedulers import FlowMatchScheduler
 
 
@@ -66,12 +65,6 @@ class CausalConsistencyConfig:
             raise TypeError("frame_dim must be an integer")
         if self.frame_dim == 0:
             raise ValueError("frame_dim cannot be the batch dimension")
-
-    @property
-    def digest(self) -> str:
-        return canonical_sha256(
-            {"schema": "worldfoundry-causal-consistency-config", **asdict(self)}
-        )
 
 
 def build_causal_consistency_schedule(config: CausalConsistencyConfig) -> CausalConsistencySchedule:

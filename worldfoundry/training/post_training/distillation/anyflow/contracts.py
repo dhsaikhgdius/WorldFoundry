@@ -196,7 +196,7 @@ class AnyFlowLossResult:
 
 @runtime_checkable
 class AnyFlowPretrainLossAdapter(Protocol):
-    config_digest: str
+    config_state: Mapping[str, object]
     decision_draws_per_student_loss: int
     student: AnyFlowModuleAdapter
     decisions: object
@@ -218,7 +218,7 @@ class AnyFlowPretrainLossAdapter(Protocol):
 
 @runtime_checkable
 class AnyFlowOnPolicyLossAdapter(Protocol):
-    config_digest: str
+    config_state: Mapping[str, object]
     generator_decision_draws: int
     fake_score_decision_draws: int
     discriminator_update_ratio: int

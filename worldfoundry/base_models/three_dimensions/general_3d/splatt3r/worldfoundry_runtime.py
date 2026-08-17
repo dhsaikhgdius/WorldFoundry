@@ -134,6 +134,7 @@ class Splatt3RRuntime:
         import torch
 
         from worldfoundry.base_models.three_dimensions.general_3d.mast3r import ensure_import_paths
+        from worldfoundry.core.model_loading import load_torch_checkpoint
 
         ensure_import_paths()
         from omegaconf import OmegaConf
@@ -143,7 +144,13 @@ class Splatt3RRuntime:
         )
 
         device = self.device if str(self.device).startswith("cuda") and torch.cuda.is_available() else "cpu"
-        checkpoint = torch.load(self._resolve_checkpoint(), map_location="cpu", weights_only=False)
+        # Splatt3R ships a PyTorch-Lightning checkpoint whose ``hyper_parameters``
+        # payload contains pickled config objects, so the weights-only attempt
+        # needs the explicit unsafe-pickle fallback for this pinned artifact
+        # (plan/code_review/11_vendored_integration.md [VI-23]).
+        checkpoint = load_torch_checkpoint(
+            self._resolve_checkpoint(), map_location="cpu", allow_unsafe_pickle_fallback=True
+        )
         hyper_parameters = checkpoint.get("hyper_parameters", {}) if isinstance(checkpoint, dict) else {}
         config_payload = hyper_parameters.get("config", {}) if isinstance(hyper_parameters, Mapping) else {}
         config = OmegaConf.create(config_payload)

@@ -6,8 +6,6 @@ from dataclasses import dataclass
 from math import isfinite
 from typing import Literal
 
-from worldfoundry.core.io.integrity import canonical_sha256
-
 from ..dmd.objective import FewStepSchedule
 
 ExitStepMode = Literal["sequence", "block"]
@@ -58,18 +56,5 @@ class SelfForcingConfig:
             raise ValueError("exit_step_mode must be 'sequence' or 'block'")
         object.__setattr__(self, "frames_per_block", int(self.frames_per_block))
         object.__setattr__(self, "exit_step_mode", mode)
-
-    @property
-    def digest(self) -> str:
-        return canonical_sha256(
-            {
-                "schema": "worldfoundry-self-forcing-config",
-                "schedule_digest": self.schedule.digest,
-                "frames_per_block": self.frames_per_block,
-                "frame_dim": self.frame_dim,
-                "exit_step_mode": self.exit_step_mode,
-            }
-        )
-
 
 __all__ = ["ExitStepMode", "SelfForcingConfig", "shifted_few_step_schedule"]

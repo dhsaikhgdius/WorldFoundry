@@ -32,9 +32,11 @@
       "student_learning_rate": 0.000002,
       "fake_score_learning_rate": 0.000002,
       "student_weight_decay": 0.01,
-      "fake_score_weight_decay": 0.01
+      "fake_score_weight_decay": 0.01,
+      "student_gradient_accumulation_steps": 8,
+      "fake_score_gradient_accumulation_steps": 8
     },
-    "generator_update_cadence": [true, false, false, false, false, true, false, false, false, false],
+    "generator_update_cadence": [false, false, false, false, true, false, false, false, false, true],
     "guided_real_score": [[5.5, 7.5], [4.5, 2.5]],
     "distribution": {
       "denominator": 4.0,

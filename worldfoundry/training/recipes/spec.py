@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import json
+import math
 from collections.abc import Mapping
 from dataclasses import dataclass, field, fields, is_dataclass
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any
-
-from worldfoundry.core.io.integrity import canonical_json, canonical_sha256
 
 TRAINING_RECIPE_SCHEMA = "worldfoundry-training"
 _DTYPES = frozenset({"bfloat16", "float16", "float32"})
@@ -225,7 +224,7 @@ class OptimizerSpec:
     betas: tuple[float, ...] = (0.9, 0.999)
     epsilon: float | tuple[float, float] = 1.0e-8
     update_clip_threshold: float | None = None
-    max_grad_norm: float = 1.0
+    max_grad_norm: float | None = 1.0
     gradient_accumulation_steps: int = 1
 
     def __post_init__(self) -> None:
@@ -235,14 +234,16 @@ class OptimizerSpec:
         object.__setattr__(self, "type", optimizer_type)
         learning_rate = float(self.learning_rate)
         weight_decay = float(self.weight_decay)
-        max_grad_norm = float(self.max_grad_norm)
+        max_grad_norm = None if self.max_grad_norm is None else float(self.max_grad_norm)
         accumulation = _positive_int(
             self.gradient_accumulation_steps,
             field_name="optimizer.gradient_accumulation_steps",
         )
         betas = tuple(float(value) for value in self.betas)
-        if learning_rate <= 0 or max_grad_norm <= 0:
-            raise ValueError("optimizer learning_rate and max_grad_norm must be positive")
+        if learning_rate <= 0:
+            raise ValueError("optimizer.learning_rate must be positive")
+        if max_grad_norm is not None and max_grad_norm <= 0:
+            raise ValueError("optimizer.max_grad_norm must be positive or null")
         if weight_decay < 0:
             raise ValueError("optimizer.weight_decay must be non-negative")
         if optimizer_type == "adamw":
@@ -276,6 +277,51 @@ class OptimizerSpec:
         object.__setattr__(self, "update_clip_threshold", update_clip_threshold)
         object.__setattr__(self, "max_grad_norm", max_grad_norm)
         object.__setattr__(self, "gradient_accumulation_steps", accumulation)
+
+
+@dataclass(frozen=True, slots=True)
+class LRSchedulerSpec:
+    type: str
+    total_steps: int
+    start_factor: float = 1.0
+    end_factor: float = 0.1
+    warmup_steps: int = 0
+    peak_factor: float | None = None
+
+    def __post_init__(self) -> None:
+        scheduler_type = _normalize_id(self.type, field_name="scheduler.type")
+        if scheduler_type not in {"linear", "warmup-cosine"}:
+            raise ValueError(f"unsupported scheduler.type: {scheduler_type!r}")
+        total_steps = _positive_int(self.total_steps, field_name="scheduler.total_steps")
+        warmup_steps = _positive_int(
+            self.warmup_steps,
+            field_name="scheduler.warmup_steps",
+            allow_zero=True,
+        )
+        start_factor = float(self.start_factor)
+        end_factor = float(self.end_factor)
+        peak_factor = None if self.peak_factor is None else float(self.peak_factor)
+        factors = (start_factor, end_factor) if peak_factor is None else (start_factor, end_factor, peak_factor)
+        if not all(math.isfinite(value) for value in factors):
+            raise ValueError("scheduler factors must be finite")
+        if scheduler_type == "linear":
+            if start_factor <= 0.0 or end_factor <= 0.0:
+                raise ValueError("linear scheduler factors must be positive")
+            if warmup_steps != 0 or peak_factor is not None:
+                raise ValueError("linear scheduler only accepts total_steps and start/end factors")
+        else:
+            if peak_factor is None:
+                raise ValueError("warmup-cosine scheduler requires peak_factor")
+            if warmup_steps >= total_steps:
+                raise ValueError("scheduler.warmup_steps must be smaller than total_steps")
+            if not 0.0 <= start_factor <= peak_factor or not 0.0 <= end_factor <= peak_factor:
+                raise ValueError("warmup-cosine start/end factors must be within [0, peak_factor]")
+        object.__setattr__(self, "type", scheduler_type)
+        object.__setattr__(self, "total_steps", total_steps)
+        object.__setattr__(self, "warmup_steps", warmup_steps)
+        object.__setattr__(self, "start_factor", start_factor)
+        object.__setattr__(self, "end_factor", end_factor)
+        object.__setattr__(self, "peak_factor", peak_factor)
 
 
 @dataclass(frozen=True, slots=True)
@@ -394,6 +440,7 @@ class TrainingRecipe:
     data: DatasetSpec
     objective: ObjectiveSpec
     optimizer: OptimizerSpec
+    scheduler: LRSchedulerSpec | None = None
     execution_owner: str = NATIVE_EXECUTION_OWNER
     runtime: TrainingRuntimeSpec = TrainingRuntimeSpec()
     distributed: DistributedSpec = DistributedSpec()
@@ -424,6 +471,7 @@ class TrainingRecipe:
                 "data",
                 "objective",
                 "optimizer",
+                "scheduler",
                 "runtime",
                 "distributed",
                 "checkpoint",
@@ -484,6 +532,23 @@ class TrainingRecipe:
                     },
                 )
             ),
+            scheduler=(
+                None
+                if root.get("scheduler") is None
+                else LRSchedulerSpec(
+                    **section(
+                        "scheduler",
+                        {
+                            "type",
+                            "total_steps",
+                            "start_factor",
+                            "end_factor",
+                            "warmup_steps",
+                            "peak_factor",
+                        },
+                    )
+                )
+            ),
             runtime=TrainingRuntimeSpec(
                 **section("runtime", {"param_dtype", "reduce_dtype", "activation_checkpoint", "compile"})
             ),
@@ -520,22 +585,12 @@ class TrainingRecipe:
     def to_dict(self) -> dict[str, object]:
         return _plain(self)  # type: ignore[return-value]
 
-    def canonical_json(self) -> str:
-        try:
-            return canonical_json(self.to_dict())
-        except (TypeError, ValueError) as error:
-            raise TypeError("training recipe values must be JSON serializable") from error
-
-    @property
-    def digest(self) -> str:
-        return canonical_sha256(self.to_dict())
-
-
 __all__ = [
     "CheckpointSpec",
     "DatasetSpec",
     "DistributedSpec",
     "ExportSpec",
+    "LRSchedulerSpec",
     "ModelSpec",
     "ObjectiveSpec",
     "OptimizerSpec",

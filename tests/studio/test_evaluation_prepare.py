@@ -1,3 +1,9 @@
+
+import pytest
+
+# This test module imports worldfoundry code that requires the optional
+# "fastapi" dependency at import time; skip when it is unavailable.
+pytest.importorskip("fastapi")
 from pathlib import Path
 
 from fastapi.testclient import TestClient

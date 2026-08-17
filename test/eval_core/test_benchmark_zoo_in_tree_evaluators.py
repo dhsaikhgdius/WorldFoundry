@@ -7,7 +7,7 @@ import pytest
 import yaml
 
 from worldfoundry.evaluation.api import ArtifactRef, GenerationRequest, GenerationResult
-from worldfoundry.evaluation.tasks.official.in_tree import (
+from worldfoundry.evaluation.tasks.execution.framework.in_tree_evaluator import (
     BenchmarkZooInTreeEvaluator,
     evaluate_benchmark_metrics,
 )
@@ -25,9 +25,9 @@ TARGET_BENCHMARKS = (
     "ewmbench",
 )
 NEW_BENCHMARKS_WITH_EVALUATORS = (
+    # t2vphysbench was removed from the external benchmark catalog.
     "evalcrafter",
     "fetv",
-    "t2vphysbench",
     "t2vworldbench",
     "videoverse",
     "physvidbench",
@@ -213,7 +213,13 @@ def test_in_tree_evaluator_runs_through_existing_results_runner(tmp_path: Path) 
 def test_target_benchmark_task_yaml_runtime_roots_are_env_names() -> None:
     for benchmark_id in TARGET_BENCHMARKS:
         manifest = yaml.safe_load((TASK_ROOT / f"{benchmark_id}.yaml").read_text(encoding="utf-8"))
-        root_env = manifest["metadata"]["runtime"]["root_env"]
+        runtime = manifest["metadata"]["runtime"]
+        if "root_env" not in runtime:
+            # world-in-world switched to bundled assets (asset_override_env /
+            # prompt_manifest_env) and no longer exposes a runtime repo root.
+            assert benchmark_id == "world-in-world"
+            continue
+        root_env = runtime["root_env"]
 
         assert isinstance(root_env, str)
         assert root_env.startswith("WORLDFOUNDRY_")
@@ -241,7 +247,6 @@ def test_metric_protocol_returns_uniform_blocked_result() -> None:
 def test_new_benchmark_metric_evaluator_paths_are_discoverable() -> None:
     from worldfoundry.evaluation.tasks.contracts.external import get_external_benchmark_contract
     from worldfoundry.evaluation.tasks.metrics import list_external_metric_evaluators
-    from worldfoundry.evaluation.tasks.official.physics_video import is_physics_video_benchmark
     from worldfoundry.evaluation.tasks.execution.framework.video_quality_contract import (
         supports_video_quality_benchmark,
     )
@@ -256,9 +261,10 @@ def test_new_benchmark_metric_evaluator_paths_are_discoverable() -> None:
         }
 
         assert evaluator_ids == set(contract.metric_ids)
+        # physics-video benchmark family (is_physics_video_benchmark) was removed
+        # from the catalog together with tasks.official.physics_video.
         assert (
             benchmark_id in in_tree_ids
-            or is_physics_video_benchmark(benchmark_id)
             or supports_video_quality_benchmark(benchmark_id)
             or evaluator_ids
         )

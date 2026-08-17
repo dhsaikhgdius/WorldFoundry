@@ -1,0 +1,83 @@
+schema: worldfoundry-post-training
+execution_owner: worldfoundry-native
+run:
+  id: anyflow-bidirectional-on-policy-1p3b
+  output_dir: runs/anyflow-bidirectional-on-policy-1p3b
+model:
+  recipe: wan2.1-t2v-1.3b
+  checkpoint: default
+tuning:
+  mode: full
+data:
+  manifest: data/post_training/anyflow-81f-latents.jsonl
+  cache: cache/post_training/anyflow-81f-latents
+  split: train
+  shuffle: true
+  shuffle_seed: 0
+  tail_policy: drop
+  max_latent_tokens_per_microbatch: 262080
+  options:
+    num_workers: 0
+    pin_memory: true
+    snapshot_every_n_steps: 1
+algorithm:
+  type: anyflow-bidirectional-on-policy
+  real_score_checkpoint: default
+  fake_score_checkpoint: default
+  flow_map:
+    num_train_timesteps: 1000
+    timestep_shift: 5.0
+    central_difference_epsilon: 5.0
+    diffusion_ratio: 0.5
+    consistency_ratio: 0.25
+    fused_guidance_scale: 3.0
+  inference_steps: [2, 4, 8, 16, 50]
+  dmd_weight: 1.0
+  real_guidance_scale: 3.0
+  fake_score_logit_mean: 0.0
+  fake_score_logit_std: 1.0
+  dmd_batch_size: 2
+  dmd_min_timestep: 0.0
+  dmd_max_timestep: 1000.0
+  image_conditioning_probability: 0.0
+  conditioning_dropout_probability: 0.1
+  cotrain_flowmap: true
+  discriminator_update_ratio: 1
+  ema_decay: 0.99
+  ema_warmup_steps: 200
+  lr_scheduler: constant-with-warmup
+  lr_warmup_steps: 0
+  synchronized_seed: 0
+optimizer:
+  type: adamw
+  learning_rate: 0.000002
+  weight_decay: 0.0
+  betas: [0.0, 0.999]
+  epsilon: 0.00000001
+  max_grad_norm: 1.0
+  gradient_accumulation_steps: 1
+fake_score_optimizer:
+  type: adamw
+  learning_rate: 0.000002
+  weight_decay: 0.0
+  betas: [0.0, 0.999]
+  epsilon: 0.00000001
+  max_grad_norm: 1.0
+  gradient_accumulation_steps: 1
+runtime:
+  param_dtype: bfloat16
+  reduce_dtype: float32
+  activation_checkpoint: full
+  compile: false
+distributed:
+  backend: single
+  dp_replicate: 1
+  dp_shard: auto
+  cp: 1
+  tp: 1
+checkpoint:
+  save_every_steps: 50
+  async: false
+  export_every_steps: 400
+export:
+  format: safetensors

@@ -57,7 +57,6 @@ def _checkpointable_rcm():
         progress=progress,
         identity={
             "algorithm": "rcm",
-            "config_digest": engine.config_digest,
             "gradient_accumulation_steps": engine.gradient_accumulation_steps,
         },
     )

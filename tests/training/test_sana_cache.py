@@ -1,38 +1,31 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import pytest
 
 torch = pytest.importorskip("torch")
 
-from worldfoundry.core.io.integrity import canonical_sha256  # noqa: E402
 from worldfoundry.training.data import (  # noqa: E402
     SanaCachedDataset,
     SanaCacheEntry,
     SanaCacheProvenance,
     SanaCacheStore,
     collate_sana_cached_samples,
-    text_sha256,
 )
-
-
-def _digest(label: str) -> str:
-    return text_sha256(label)
 
 
 def _provenance(*, height: int = 64, width: int = 64) -> SanaCacheProvenance:
     return SanaCacheProvenance(
-        media_sha256=_digest("media"),
-        prompt_sha256=_digest("a blue cup"),
-        model_recipe_digest=_digest("sana recipe"),
-        codec_digest=_digest("dcae"),
-        conditioner_digest=_digest("gemma"),
-        tokenizer_digest=_digest("tokenizer"),
-        safety_audit_digest=_digest("safe"),
-        pixel_transform_digest=_digest("rgb[-1,1]"),
-        prompt_enhancement_digest=_digest("enhancement enabled and pinned"),
+        media_uri="media.png",
+        prompt="a blue cup",
+        model_recipe="sana-600m-1024",
+        codec={"repo_id": "dcae", "revision": "main"},
+        conditioner={"repo_id": "gemma", "revision": "main"},
+        tokenizer={"repo_id": "tokenizer", "revision": "main"},
+        safety_audit={"safe": True, "model_revision": "main"},
+        pixel_transform={"range": "[-1,1]"},
+        prompt_enhancement={"enabled": True, "prefix": "describe"},
         image_height=height,
         image_width=width,
         spatial_compression=32,
@@ -59,22 +52,20 @@ def _write_sample(
     )
 
 
-def test_sana_cache_round_trip_is_content_addressed_and_prompt_free(tmp_path: Path) -> None:
+def test_sana_cache_round_trip_uses_explicit_identity(tmp_path: Path) -> None:
     store = SanaCacheStore(tmp_path)
     first = _write_sample(store, sample_id="first")
     second = _write_sample(store, sample_id="second")
-    dataset_digest = _digest("dataset")
-    index = store.write_index(dataset_digest=dataset_digest, entries=[first, second])
+    index = store.write_index(entries=[first, second])
 
-    assert first.object_sha256 == second.object_sha256
-    assert first.identity_sha256 == second.identity_sha256
-    assert first.object_path.endswith(f"{first.object_sha256}.safetensors")
-    assert len(tuple((tmp_path / "objects").rglob("*.safetensors"))) == 1
+    assert first.object_path == "objects/first.safetensors"
+    assert second.object_path == "objects/second.safetensors"
+    assert len(tuple((tmp_path / "objects").rglob("*.safetensors"))) == 2
     raw_index = (tmp_path / "index.json").read_text(encoding="utf-8")
-    assert "a blue cup" not in raw_index
-    assert json.loads(raw_index)["index_sha256"] == index.index_sha256
+    assert "a blue cup" in raw_index
+    assert index.entries == (first, second)
 
-    dataset = SanaCachedDataset(tmp_path, expected_dataset_digest=dataset_digest)
+    dataset = SanaCachedDataset(tmp_path, expected_sample_ids=("first", "second"))
     batch = collate_sana_cached_samples([dataset[0], dataset[1]])
 
     assert dataset.sample_ids == ("first", "second")
@@ -84,46 +75,46 @@ def test_sana_cache_round_trip_is_content_addressed_and_prompt_free(tmp_path: Pa
     assert batch.conditions["context_mask"].shape == (2, 3)
     assert batch.conditions["latent_loss_mask"].shape == (2, 1, 2, 2)
     torch.testing.assert_close(batch.sample_weights, torch.tensor([0.75, 0.75]))
-    assert all(prompt.startswith("sha256:") for prompt in batch.prompts)
+    assert batch.prompts == ("a blue cup", "a blue cup")
 
 
-def test_sana_cache_rejects_object_tampering(tmp_path: Path) -> None:
+def test_sana_cache_rejects_truncated_object(tmp_path: Path) -> None:
     store = SanaCacheStore(tmp_path)
     entry = _write_sample(store)
-    store.write_index(dataset_digest=_digest("dataset"), entries=[entry])
+    store.write_index(entries=[entry])
     object_path = tmp_path / entry.object_path
-    payload = bytearray(object_path.read_bytes())
-    payload[-1] ^= 1
-    object_path.write_bytes(payload)
+    object_path.write_bytes(object_path.read_bytes()[:-1])
 
-    with pytest.raises(ValueError, match="SHA-256 mismatch"):
+    with pytest.raises(ValueError, match="size mismatch"):
         SanaCachedDataset(tmp_path, audit_on_open=False)[0]
 
 
-def test_sana_cache_rejects_logical_identity_mismatch(tmp_path: Path) -> None:
+def test_sana_cache_rejects_object_path_mismatch(tmp_path: Path) -> None:
     entry = _write_sample(SanaCacheStore(tmp_path))
     payload = entry.to_dict()
-    payload["provenance"]["max_text_length"] = 4
+    payload["object_path"] = "objects/other.safetensors"
 
-    with pytest.raises(ValueError, match="logical identity"):
+    with pytest.raises(ValueError, match="object_path"):
         SanaCacheEntry.from_mapping(payload)
 
 
-def test_sana_cache_rejects_index_tampering_and_wrong_dataset(tmp_path: Path) -> None:
+def test_sana_cache_rejects_index_identity_changes_and_wrong_sample_ids(tmp_path: Path) -> None:
     store = SanaCacheStore(tmp_path)
     entry = _write_sample(store)
-    store.write_index(dataset_digest=_digest("dataset"), entries=[entry])
+    store.write_index(entries=[entry])
     index_path = tmp_path / "index.json"
+    import json
+
     payload = json.loads(index_path.read_text(encoding="utf-8"))
-    payload["dataset_digest"] = _digest("different dataset")
+    payload["entries"][0]["provenance"]["model_recipe"] = "different"
     index_path.write_text(json.dumps(payload), encoding="utf-8")
 
-    with pytest.raises(ValueError, match="index digest"):
+    with pytest.raises(ValueError, match="metadata mismatch"):
         SanaCachedDataset(tmp_path)
 
-    store.write_index(dataset_digest=_digest("dataset"), entries=[entry])
-    with pytest.raises(ValueError, match="dataset digest mismatch"):
-        SanaCachedDataset(tmp_path, expected_dataset_digest=_digest("wrong"))
+    store.write_index(entries=[entry])
+    with pytest.raises(ValueError, match="sample IDs"):
+        SanaCachedDataset(tmp_path, expected_sample_ids=("wrong",))
 
 
 def test_sana_cache_collator_rejects_incompatible_preprocessing_buckets(tmp_path: Path) -> None:
@@ -139,17 +130,17 @@ def test_sana_cache_collator_rejects_incompatible_preprocessing_buckets(tmp_path
         latent_loss_mask=torch.ones(1, 3, 2),
         sample_weight=torch.tensor(1.0),
     )
-    store.write_index(dataset_digest=canonical_sha256({"samples": 2}), entries=[small, large])
+    store.write_index(entries=[small, large])
     dataset = SanaCachedDataset(tmp_path)
 
-    with pytest.raises(ValueError, match="shapes, dtypes, and layouts"):
+    with pytest.raises(ValueError, match="tensor descriptors"):
         collate_sana_cached_samples([dataset[0], dataset[1]])
 
 
 def test_sana_cache_validates_tensor_contract_before_write(tmp_path: Path) -> None:
     store = SanaCacheStore(tmp_path)
 
-    with pytest.raises(ValueError, match="context sequence length"):
+    with pytest.raises(ValueError, match="context must have shape"):
         store.write_sample(
             sample_id="bad",
             provenance=_provenance(),

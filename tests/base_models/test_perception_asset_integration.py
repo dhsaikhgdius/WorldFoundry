@@ -1,3 +1,9 @@
+
+import pytest
+
+# This test module imports worldfoundry code that requires the optional
+# "hydra" dependency at import time; skip when it is unavailable.
+pytest.importorskip("hydra")
 from pathlib import Path
 
 from hydra import compose

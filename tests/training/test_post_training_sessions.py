@@ -21,8 +21,6 @@ from worldfoundry.training.post_training import (  # noqa: E402
 
 
 class _ToyDMDLosses:
-    schedule_digest = "a" * 64
-
     def __init__(self, student: torch.nn.Linear, fake_score: torch.nn.Linear) -> None:
         self.student = student
         self.fake_score = fake_score
@@ -80,13 +78,13 @@ def test_native_dmd_session_drives_cadence_progress_and_events() -> None:
 
     assert summary.initial_step == 0
     assert summary.final_step == 3
-    assert summary.student_optimizer_steps == 2
+    assert summary.student_optimizer_steps == 1
     assert summary.fake_score_optimizer_steps == 3
     assert progress.optimizer_steps == 3
     assert progress.microbatches_seen == 3
     assert progress.samples_seen == 6
     assert progress.latent_tokens_seen == 36
-    assert [event["generator_updated"] for event in events] == [True, False, True]
+    assert [event["generator_updated"] for event in events] == [False, True, False]
 
 
 def test_native_dmd_session_runs_export_callbacks_only_at_safe_boundaries() -> None:
@@ -106,6 +104,33 @@ def test_native_dmd_session_runs_export_callbacks_only_at_safe_boundaries() -> N
     session = NativeDMDTrainingSession(engine, [batch], TrainingProgress())
     with pytest.raises(ValueError, match="configured together"):
         session.run(max_steps=1, boundary_every_steps=1)
+
+
+def test_native_dmd_session_keeps_one_iterator_across_run_calls() -> None:
+    engine, batch = _dmd_stack()
+
+    class _FiniteLoader:
+        def __init__(self) -> None:
+            self.iterator_count = 0
+            self.yielded: list[int] = []
+
+        def __iter__(self):
+            self.iterator_count += 1
+            for index in (1, 2):
+                self.yielded.append(index)
+                yield batch
+
+    loader = _FiniteLoader()
+    session = NativeDMDTrainingSession(engine, loader, TrainingProgress())
+
+    first = session.run(max_steps=1)
+    second = session.run(max_steps=1)
+
+    assert first.initial_step == 0
+    assert second.initial_step == 1
+    assert second.final_step == 2
+    assert loader.iterator_count == 1
+    assert loader.yielded == [1, 2]
 
 
 class _ToyPolicy:
@@ -194,7 +219,6 @@ def test_native_flow_grpo_session_closes_rollout_reward_replay_update_loop() -> 
     assert result.updates[-1].trajectory_complete is True
     torch.testing.assert_close(result.updates[0].metrics["ratio_mean"], torch.tensor(1.0), rtol=0, atol=0)
     assert result.rewards.scalar_rewards.shape == (4,)
-    assert result.rewards.scalarizer_digest == session.scalarizer.digest
     assert not engine.has_active_trajectory
     assert engine.global_step == 2
     assert progress.optimizer_steps == 2

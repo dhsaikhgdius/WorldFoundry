@@ -88,10 +88,11 @@ def merge_video_audio(video_path: str, audio_path: str):
         shutil.move(temp_output, video_path)
         logging.info(f"Merge completed, saved to {video_path}")
 
-    except Exception as e:
+    finally:
+        # Failures propagate to the caller; only the temp mux output is
+        # cleaned up (the original video stays in place).
         if os.path.exists(temp_output):
             os.remove(temp_output)
-        logging.error(f"merge_video_audio failed with error: {e}")
 
 
 def save_video(tensor,
@@ -135,7 +136,9 @@ def save_video(tensor,
             writer.append_data(frame)
         writer.close()
     except Exception as e:
-        logging.info(f'save_video failed, error: {e}')
+        # Vendored contract swallows the error; log at ERROR so a missing
+        # output file is at least visible in logs.
+        logging.error(f'save_video failed, error: {e}')
 
 
 def save_image(tensor, save_file, nrow=8, normalize=True, value_range=(-1, 1)):
@@ -166,7 +169,8 @@ def save_image(tensor, save_file, nrow=8, normalize=True, value_range=(-1, 1)):
             value_range=value_range)
         return save_file
     except Exception as e:
-        logging.info(f'save_image failed, error: {e}')
+        # Vendored contract swallows the error (returns None); log at ERROR.
+        logging.error(f'save_image failed, error: {e}')
 
 
 def masks_like(tensor, zero=False, generator=None, p=0.2, current_latent_num=None):

@@ -100,8 +100,6 @@ class NativeSCMLADDLossAdapter:
         teacher: TrigFlowPredictionAdapter,
         discriminator: SCMLADDDiscriminatorAdapter,
         config: SCMLADDAlgorithmSpec,
-        *,
-        config_digest: str,
     ) -> None:
         if not isinstance(student, TrigFlowPredictionAdapter):
             raise TypeError("student must implement TrigFlowPredictionAdapter")
@@ -111,13 +109,10 @@ class NativeSCMLADDLossAdapter:
             raise TypeError("discriminator must implement SCMLADDDiscriminatorAdapter")
         if not isinstance(config, SCMLADDAlgorithmSpec):
             raise TypeError("config must be SCMLADDAlgorithmSpec")
-        if not str(config_digest).strip():
-            raise ValueError("config_digest cannot be empty")
         self.student = student
         self.teacher = teacher
         self.discriminator = discriminator
         self.config = config
-        self.config_digest = str(config_digest)
 
     def loss_denominator(
         self,

@@ -1,14 +1,33 @@
-"""Shared evaluation utilities."""
+"""Shared evaluation utilities.
+
+Sections: JSON/text IO re-exports, YAML manifest loading, repository/data
+paths, and version/fingerprint capture.  Importing this module has no global
+side effects (notably, it does not touch ``sys.path``; see
+:func:`ensure_repo_root_on_sys_path` for the explicit opt-in).
+"""
 
 from __future__ import annotations
 
-
-
-# io.py
+import hashlib
 import json
+import os
+import platform
+import subprocess
+import sys
+from functools import lru_cache
+from importlib import metadata
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+import yaml
+
+from worldfoundry.core.io.paths import (
+    package_data_path,
+    package_data_root,
+    package_root,
+    project_root,
+    resolve_worldfoundry_path,
+)
 from worldfoundry.core.io.serialization import (
     append_jsonl,
     jsonable,
@@ -21,13 +40,21 @@ from worldfoundry.core.io.serialization import (
     write_jsonl,
     write_text_file,
 )
-from worldfoundry.core.io.paths import (
-    package_data_path,
-    package_data_root,
-    package_root,
-    project_root,
-    resolve_worldfoundry_path,
+from worldfoundry.evaluation.api import (
+    AGGREGATE_RESULT_SCHEMA_VERSION,
+    ARTIFACT_REF_SCHEMA_VERSION,
+    BENCHMARK_SPEC_SCHEMA_VERSION,
+    GENERATION_REQUEST_SCHEMA_VERSION,
+    GENERATION_RESULT_SCHEMA_VERSION,
+    METRIC_RESULT_SCHEMA_VERSION,
+    METRIC_SPEC_SCHEMA_VERSION,
+    WORLD_MODEL_CONFIG_SCHEMA_VERSION,
+    WORLD_MODEL_MANIFEST_SCHEMA_VERSION,
+    WORLD_TASK_CONFIG_SCHEMA_VERSION,
 )
+from worldfoundry.evaluation.api.json_contract import sha256_file, to_plain
+
+# ── JSON / text formatting helpers ─────────────────────────────────────
 
 
 def mapping_or_empty(value: Any) -> dict[str, Any]:
@@ -64,24 +91,29 @@ def write_text(path: str | Path, payload: str, *, atomic: bool = True) -> Path:
     return write_text_file(path, payload, atomic=atomic)
 
 
-# manifest.py
-from pathlib import Path
-from typing import Any
-
-import yaml
-
+# ── YAML manifest loading ──────────────────────────────────────────────
 
 MANIFEST_SUFFIXES = (".yaml", ".yml")
 
 
 def load_manifest(path: str | Path) -> Any:
-    """Load a checked-in YAML WorldFoundry manifest."""
+    """Load a checked-in YAML WorldFoundry manifest.
+
+    Raises:
+        ValueError: If the path suffix is not ``.yaml``/``.yml``.
+        yaml.YAMLError: On parse failure, re-raised with the file path in the
+            message so callers can locate the broken manifest.
+    """
 
     resolved = Path(path)
     suffix = resolved.suffix.lower()
     if suffix not in MANIFEST_SUFFIXES:
         raise ValueError(f"unsupported manifest suffix for {resolved}: expected .yaml or .yml")
-    return yaml.safe_load(resolved.read_text(encoding="utf-8"))
+    text = resolved.read_text(encoding="utf-8")
+    try:
+        return yaml.safe_load(text)
+    except yaml.YAMLError as exc:
+        raise yaml.YAMLError(f"failed to parse manifest {resolved}: {exc}") from exc
 
 
 def manifest_paths(root: str | Path) -> tuple[Path, ...]:
@@ -133,21 +165,12 @@ def load_manifest_collection(root: str | Path, *, item_key: str) -> dict[str, An
     return payload
 
 
-# resources.py
-import os
-from pathlib import Path
-
+# ── Repository / data paths ────────────────────────────────────────────
 
 WORLDFOUNDRY_PACKAGE_ROOT = package_root()
 worldfoundry_repository_root = project_root
 worldfoundry_data_root = package_data_root
 worldfoundry_data_path = package_data_path
-
-
-# paths.py
-import sys
-from pathlib import Path
-
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
 REPO_ROOT = worldfoundry_repository_root()
@@ -158,6 +181,15 @@ BENCHMARK_ZOO_DIR = BENCHMARKS_DATA_ROOT / "catalog"
 BENCHMARK_TASK_ROOT = BENCHMARKS_DATA_ROOT / "tasks" / "external"
 BENCHMARK_ASSETS_ROOT = BENCHMARKS_DATA_ROOT / "assets"
 BENCHMARK_RUNTIME_PROFILE_DIR = BENCHMARKS_DATA_ROOT / "runtime_profiles"
+MODEL_ZOO_DIR = DATA_ROOT / "models" / "catalog"
+MODEL_RUNTIME_ROOT = DATA_ROOT / "models" / "runtime"
+MODEL_RUNTIME_PROFILES_ROOT = MODEL_RUNTIME_ROOT / "profiles"
+MODEL_RUNTIME_CONFIGS_ROOT = MODEL_RUNTIME_ROOT / "configs"
+MODEL_RUNTIME_ENVIRONMENTS_ROOT = MODEL_RUNTIME_ROOT / "environments"
+MODEL_RUNTIME_ASSETS_ROOT = MODEL_RUNTIME_ROOT / "assets"
+TMP_ROOT = REPO_ROOT / "tmp"
+CACHE_ROOT = REPO_ROOT / "cache"
+HFD_DATASET_CACHE_ROOT = resolve_worldfoundry_path("${WORLDFOUNDRY_CACHE_DIR}/data/hfd_datasets")
 
 
 def benchmark_task_sample_path(benchmark_id: str) -> Path | None:
@@ -171,15 +203,6 @@ def benchmark_task_sample_path(benchmark_id: str) -> Path | None:
         if path.is_file():
             return path
     return None
-MODEL_ZOO_DIR = DATA_ROOT / "models" / "catalog"
-MODEL_RUNTIME_ROOT = DATA_ROOT / "models" / "runtime"
-MODEL_RUNTIME_PROFILES_ROOT = MODEL_RUNTIME_ROOT / "profiles"
-MODEL_RUNTIME_CONFIGS_ROOT = MODEL_RUNTIME_ROOT / "configs"
-MODEL_RUNTIME_ENVIRONMENTS_ROOT = MODEL_RUNTIME_ROOT / "environments"
-MODEL_RUNTIME_ASSETS_ROOT = MODEL_RUNTIME_ROOT / "assets"
-TMP_ROOT = REPO_ROOT / "tmp"
-CACHE_ROOT = REPO_ROOT / "cache"
-HFD_DATASET_CACHE_ROOT = resolve_worldfoundry_path("${WORLDFOUNDRY_CACHE_DIR}/data/hfd_datasets")
 
 
 def worldfoundry_hfd_dataset_root() -> Path:
@@ -205,39 +228,31 @@ def worldfoundry_hfd_dataset_root() -> Path:
 
     return HFD_DATASET_CACHE_ROOT
 
-# Side effect: benchmarks and model-registry discovery rely on repo-root imports.
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
+
+def ensure_repo_root_on_sys_path() -> Path:
+    """Explicitly put the repository root on ``sys.path`` and return it.
+
+    This used to happen implicitly whenever this module was imported, which
+    polluted host processes embedding the evaluation framework (and, in
+    installed deployments, could promote the site-packages parent directory to
+    ``sys.path[0]``).  Callers that resolve repo-relative dynamic imports
+    (benchmark/model discovery from a source checkout) must now opt in.
+    """
+    root_text = str(REPO_ROOT)
+    if root_text not in sys.path:
+        sys.path.insert(0, root_text)
+    return REPO_ROOT
 
 
-# versioning.py
-from functools import lru_cache
-import hashlib
-import json
-from importlib import metadata
-import platform
-import subprocess
-import sys
-from pathlib import Path
-from typing import Any, Mapping, Sequence
-
-from worldfoundry.evaluation.api import (
-    AGGREGATE_RESULT_SCHEMA_VERSION,
-    ARTIFACT_REF_SCHEMA_VERSION,
-    BENCHMARK_SPEC_SCHEMA_VERSION,
-    GENERATION_REQUEST_SCHEMA_VERSION,
-    GENERATION_RESULT_SCHEMA_VERSION,
-    METRIC_RESULT_SCHEMA_VERSION,
-    METRIC_SPEC_SCHEMA_VERSION,
-    WORLD_MODEL_CONFIG_SCHEMA_VERSION,
-    WORLD_MODEL_MANIFEST_SCHEMA_VERSION,
-    WORLD_TASK_CONFIG_SCHEMA_VERSION,
-)
-
+# ── Version / fingerprint capture ──────────────────────────────────────
 
 VERSION_CONTEXT_SCHEMA_VERSION = "worldfoundry-version-context"
 RUN_FINGERPRINT_SCHEMA_VERSION = "worldfoundry-run-fingerprint"
-EVALUATION_ENGINE_VERSION = "worldfoundry-eval-engine"
+# Explicit engine revision: bump the numeric suffix when evaluation-engine
+# behavior changes in a way that affects results, so run manifests written by
+# different engine revisions are distinguishable (the package version alone is
+# "unknown" in source checkouts).
+EVALUATION_ENGINE_VERSION = "worldfoundry-eval-engine/1"
 
 
 def _repo_root() -> Path:
@@ -271,27 +286,22 @@ def _run_git(root: Path, *args: str) -> str | None:
     return result.stdout.strip()
 
 
-@lru_cache(maxsize=16)
-def _git_metadata_cached(root_key: str) -> tuple[bool, str | None, bool | None]:
-    """Retrieve and cache git repository metadata (existence, commit hash, and dirty status)."""
-    root = Path(root_key)
-    commit = _run_git(root, "rev-parse", "HEAD")
-    status = _run_git(root, "status", "--porcelain", "--untracked-files=no")
-    if commit is None:
-        return False, None, None
-    return True, commit, None if status is None else bool(status)
-
-
 def git_metadata(repo_root: str | Path | None = None) -> dict[str, Any]:
-    """Get status and commit metadata of the current git repository."""
+    """Get status and commit metadata of the current git repository.
+
+    Captured fresh on every call (no caching): version contexts and run
+    manifests must record the git state at run time, and a long-lived process
+    (service, notebook) may commit or dirty the tree between runs.
+    """
     root = Path(repo_root) if repo_root is not None else _repo_root()
-    available, commit, dirty = _git_metadata_cached(str(root.resolve()))
-    if not available:
+    commit = _run_git(root, "rev-parse", "HEAD")
+    if commit is None:
         return {"available": False, "commit": None, "dirty": None}
+    status = _run_git(root, "status", "--porcelain", "--untracked-files=no")
     return {
         "available": True,
         "commit": commit,
-        "dirty": dirty,
+        "dirty": None if status is None else bool(status),
     }
 
 
@@ -305,8 +315,13 @@ def _callable_reference(value: Any) -> str:
 
 
 def stable_json_dumps(value: Any) -> str:
-    """Serialize a JSON-safe dictionary with stable key-sorting and no extra whitespace."""
-    return json.dumps(jsonable(value), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    """Serialize a JSON-safe dictionary with stable key-sorting and no extra whitespace.
+
+    Canonicalizes through :func:`~worldfoundry.evaluation.api.json_contract.to_plain`
+    first so ``set``/``frozenset`` members are deterministically ordered (plain
+    ``jsonable`` preserves set iteration order, which varies across processes).
+    """
+    return json.dumps(jsonable(to_plain(value)), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
 def sha256_text(text: str) -> str:
@@ -320,12 +335,12 @@ def stable_hash(value: Any) -> str:
 
 
 def file_sha256(path: str | Path) -> str:
-    """Calculate the SHA-256 hash of a file on disk by reading in chunks."""
-    hasher = hashlib.sha256()
-    with Path(path).open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            hasher.update(chunk)
-    return hasher.hexdigest()
+    """Calculate the SHA-256 hash of a file on disk.
+
+    Delegates to :func:`worldfoundry.evaluation.api.json_contract.sha256_file`
+    (single canonical chunked implementation).
+    """
+    return sha256_file(path)
 
 
 def contract_versions() -> dict[str, str]:

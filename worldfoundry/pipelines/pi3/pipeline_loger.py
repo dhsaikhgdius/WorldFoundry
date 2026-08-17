@@ -1,8 +1,12 @@
-"""Loger visual generation pipeline module."""
+"""LoGeR (Pi3-based long-sequence geometry reconstruction) pipeline module.
+
+Note: "loger" in this filename refers to the LoGeR model, not a logging utility.
+"""
 
 from ..pipeline_utils import PipelineABC
 import os
 import json
+import logging
 import math
 from typing import List, Optional, Union, Dict, Any
 
@@ -12,6 +16,8 @@ from PIL import Image
 from ...operators.pi3_operator import Pi3Operator
 from ...representations.point_clouds_generation.pi3.loger_representation import LoGeRRepresentation
 from worldfoundry.core.io.artifacts import render_point_cloud
+
+logger = logging.getLogger(__name__)
 
 
 def _apply_camera_delta(c2w: np.ndarray, delta: List[float]) -> np.ndarray:
@@ -471,7 +477,7 @@ class LoGeRPipeline(PipelineABC):
 
         # ── 有新输入：先做重建 ──
         if visual_input is not None:
-            print("--- Stream: reconstructing scene ---")
+            logger.info("--- Stream: reconstructing scene ---")
             processed = self.process(images=visual_input, interval=kwargs.get("interval", -1))
             result = self._run_inference(processed, **kwargs)
             self._cached_result = result

@@ -56,17 +56,11 @@ class SanaSCMLADDRoleBundle:
         def fsdp(value: FSDP2Application | None) -> dict[str, object] | None:
             if value is None:
                 return None
-            return {"digest": value.digest, "parameter_mode": value.parameter_mode}
+            return value.to_dict()
 
         return {
-            "student_checkpoint": {
-                **self.student_checkpoint.to_dict(),
-                "digest": self.student_checkpoint.digest,
-            },
-            "teacher_checkpoint": {
-                **self.teacher_checkpoint.to_dict(),
-                "digest": self.teacher_checkpoint.digest,
-            },
+            "student_checkpoint": self.student_checkpoint.to_dict(),
+            "teacher_checkpoint": self.teacher_checkpoint.to_dict(),
             "student": {"peft": peft, "fsdp2": fsdp(self.student_fsdp)},
             "teacher": {"fsdp2": fsdp(self.teacher_fsdp)},
             "discriminator_heads": {"fsdp2": fsdp(self.discriminator_fsdp)},

@@ -19,6 +19,23 @@ from worldfoundry.core.time import utc_now_iso as _utc_now_iso
 
 TERMINAL_JOB_STATUSES = frozenset({"completed", "failed", "cancelled"})
 
+# asyncio streams default to a 64 KiB readline buffer; model CLIs routinely
+# print JSON results larger than that, which used to raise ValueError, mark the
+# job failed, and orphan the child process group.
+_STREAM_BUFFER_LIMIT = 2**20
+
+
+def _iso_to_epoch(value: str | None) -> float | None:
+    """Convert an ISO-8601 timestamp (with optional ``Z`` suffix) to epoch seconds."""
+    if not value:
+        return None
+    from datetime import datetime
+
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return None
+
 
 def python_module_command(command: Sequence[str], *, python_executable: str | None = None) -> tuple[str, ...]:
     """Run a ``worldfoundry-eval`` command through the current Python interpreter."""
@@ -212,8 +229,11 @@ class CommandJob:
 class AsyncCommandJobStore:
     """Small in-process command runner used by local UI and MCP surfaces."""
 
-    def __init__(self, *, max_log_lines: int = 4000) -> None:
+    def __init__(self, *, max_log_lines: int = 4000, max_jobs: int | None = None) -> None:
         self.max_log_lines = max_log_lines
+        # Optional retention bound for terminal jobs; ``None`` keeps every job
+        # (legacy behaviour). Long-lived UI/MCP processes should set a bound.
+        self.max_jobs = max_jobs
         self._jobs: dict[str, CommandJob] = {}
 
     def submit(
@@ -226,6 +246,7 @@ class AsyncCommandJobStore:
         output_dir: str | Path | None = None,
         metadata: Mapping[str, Any] | None = None,
         job_id: str | None = None,
+        timeout: float | None = None,
     ) -> CommandJob:
         """Submit a command as an async job and start it immediately.
 
@@ -237,6 +258,8 @@ class AsyncCommandJobStore:
             output_dir: Directory for persistent output artifacts.
             metadata: Arbitrary metadata attached to the job.
             job_id: Optional explicit job identifier; auto-generated if ``None``.
+            timeout: Optional per-job wall-clock bound in seconds. On expiry the
+                subprocess group is terminated and the job is marked failed.
 
         Returns:
             The newly created :class:`CommandJob`.
@@ -244,6 +267,10 @@ class AsyncCommandJobStore:
         Raises:
             ValueError: If *job_id* already exists in the store.
         """
+        if timeout is not None and timeout <= 0:
+            raise ValueError(f"timeout must be positive, got {timeout}")
+        if self.max_jobs is not None:
+            self.prune(max_jobs=self.max_jobs)
         resolved_job_id = job_id or uuid.uuid4().hex[:12]
         if resolved_job_id in self._jobs:
             raise ValueError(f"job already exists: {resolved_job_id}")
@@ -271,7 +298,7 @@ class AsyncCommandJobStore:
         )
         self._jobs[job.job_id] = job
         self._write_lifecycle_event(job, "INFO", "job.queued", "WorldFoundry job queued")
-        job._task = asyncio.create_task(self._run(job, dict(env or {})))
+        job._task = asyncio.create_task(self._run(job, dict(env or {}), timeout=timeout))
         return job
 
     def get(self, job_id: str) -> CommandJob | None:
@@ -281,6 +308,39 @@ class AsyncCommandJobStore:
     def list(self) -> list[CommandJob]:
         """Return all jobs sorted by creation time (most recent first)."""
         return sorted(self._jobs.values(), key=lambda job: job.created_at, reverse=True)
+
+    def prune(self, *, max_age_seconds: float | None = None, max_jobs: int | None = None) -> int:
+        """Evict terminal jobs to bound memory in long-lived UI/MCP processes.
+
+        Running or queued jobs are never evicted. ``max_age_seconds`` drops
+        terminal jobs whose completion (or creation) timestamp is older than
+        the cutoff; ``max_jobs`` keeps at most that many jobs by evicting the
+        oldest terminal ones first.
+
+        Returns:
+            The number of jobs removed.
+        """
+        removed = 0
+        if max_age_seconds is not None:
+            cutoff = time.time() - max_age_seconds
+            for job_id, job in list(self._jobs.items()):
+                if not job.terminal:
+                    continue
+                stamp = _iso_to_epoch(job.completed_at or job.created_at)
+                if stamp is not None and stamp < cutoff:
+                    del self._jobs[job_id]
+                    removed += 1
+        if max_jobs is not None and len(self._jobs) > max_jobs:
+            excess = len(self._jobs) - max_jobs
+            for job in sorted(self._jobs.values(), key=lambda item: item.created_at):
+                if excess <= 0:
+                    break
+                if not job.terminal:
+                    continue
+                del self._jobs[job.job_id]
+                removed += 1
+                excess -= 1
+        return removed
 
     async def cancel(self, job_id: str) -> tuple[bool, str]:
         """Cancel a running or queued job by identifier.
@@ -306,7 +366,7 @@ class AsyncCommandJobStore:
         job.completed_at = job.completed_at or _utc_now_iso()
         return True, "cancelled"
 
-    async def _run(self, job: CommandJob, env: Mapping[str, str]) -> None:
+    async def _run(self, job: CommandJob, env: Mapping[str, str], *, timeout: float | None = None) -> None:
         """Execute the job subprocess, stream logs, and set the final status."""
         # Async runner lifecycle: spawn process -> stream logs -> parse result -> set final status.
         job.status = "running"
@@ -334,12 +394,30 @@ class AsyncCommandJobStore:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 start_new_session=True,
+                limit=_STREAM_BUFFER_LIMIT,
             )
-            await asyncio.gather(
-                self._read_stream(job, "stdout", job._process.stdout),
-                self._read_stream(job, "stderr", job._process.stderr),
-            )
-            job.returncode = await job._process.wait()
+
+            async def _pump_and_wait() -> None:
+                await asyncio.gather(
+                    self._read_stream(job, "stdout", job._process.stdout),
+                    self._read_stream(job, "stderr", job._process.stderr),
+                )
+                job.returncode = await job._process.wait()
+
+            if timeout is None:
+                await _pump_and_wait()
+            else:
+                try:
+                    await asyncio.wait_for(_pump_and_wait(), timeout=timeout)
+                except asyncio.TimeoutError:
+                    await self._terminate_process(job)
+                    job.returncode = job._process.returncode
+                    if job.status != "cancelled":
+                        job.status = "failed"
+                        job.error = f"job timed out after {timeout}s"
+                        self._append_job_log(job, "stderr", f"TimeoutError: job exceeded {timeout}s\n")
+                        self._write_lifecycle_event(job, "ERROR", "job.timeout", "WorldFoundry job timed out")
+                    return
             if job.status == "cancelled":
                 return
             job.result = _extract_json_from_logs(job.logs)
@@ -356,6 +434,13 @@ class AsyncCommandJobStore:
             self._write_lifecycle_event(job, "WARNING", "job.cancelled", "WorldFoundry job cancelled")
             raise
         except Exception as exc:  # noqa: BLE001 - surfaced through UI/MCP status.
+            # Never leave the spawned process group running when the runner
+            # itself fails, otherwise the child keeps occupying GPUs while the
+            # job is reported as failed.
+            try:
+                await self._terminate_process(job)
+            except Exception:  # noqa: BLE001 - cleanup must not mask the original error.
+                pass
             job.status = "failed"
             job.error = str(exc)
             self._append_job_log(job, "stderr", f"{type(exc).__name__}: {exc}\n")
@@ -374,7 +459,18 @@ class AsyncCommandJobStore:
         if stream is None:
             return
         while True:
-            chunk = await stream.readline()
+            try:
+                chunk = await stream.readline()
+            except ValueError:
+                # A single line exceeded the stream buffer limit; the reader
+                # already dropped the oversized data. Record a marker and keep
+                # draining instead of failing the job (and orphaning the child).
+                self._append_job_log(
+                    job,
+                    stream_name,
+                    f"[worldfoundry] dropped output line exceeding {_STREAM_BUFFER_LIMIT} bytes\n",
+                )
+                continue
             if not chunk:
                 break
             text = chunk.decode("utf-8", errors="replace")
@@ -440,7 +536,9 @@ class AsyncCommandJobStore:
             else:
                 os.killpg(process.pid, signal.SIGTERM)
             await asyncio.wait_for(process.wait(), timeout=5)
-        except TimeoutError:
+        # Catch both spellings: asyncio.TimeoutError is only an alias of the
+        # builtin TimeoutError on Python >= 3.11.
+        except (TimeoutError, asyncio.TimeoutError):
             if sys.platform == "win32":
                 process.kill()
             else:

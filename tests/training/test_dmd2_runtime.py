@@ -50,7 +50,6 @@ def _expand_levels(levels: torch.Tensor, reference: torch.Tensor) -> torch.Tenso
 
 class _PredictionAdapter:
     noise_process_kind = "flow-matching"
-    noise_process_digest = "linear-flow"
 
     def __init__(self, module: _Scale, checkpoint_identity: str) -> None:
         self.module = module
@@ -82,7 +81,6 @@ class _PredictionAdapter:
 
 class _GuidanceAdapter:
     noise_process_kind = "flow-matching"
-    noise_process_digest = "linear-flow"
 
     def __init__(self, checkpoint_identity: str = "guidance-init") -> None:
         self.module = _GuidanceModule()
@@ -195,6 +193,77 @@ def test_dmd2_few_step_prefix_is_no_grad_and_independently_renoised() -> None:
     assert not torch.equal(student.noises[0], student.noises[1])
 
 
+def test_dmd2_few_step_prefix_can_reuse_the_initial_noise() -> None:
+    from worldfoundry.training.post_training import simulate_dmd2_student
+
+    student = _PredictionAdapter(_Scale(0.8), "student-init")
+    simulate_dmd2_student(
+        student,
+        _batch([1.0, 2.0]),
+        FewStepSchedule((1000.0, 700.0, 300.0), (1.0, 0.7, 0.3)),
+        target_index=2,
+        generator=torch.Generator().manual_seed(7),
+        rollout_noise_mode="shared-initial",
+    )
+    assert len(student.noises) == 2
+    torch.testing.assert_close(student.noises[0], student.noises[1], rtol=0, atol=0)
+
+
+class _FusedGuidanceAdapter(_GuidanceAdapter):
+    def __init__(self) -> None:
+        super().__init__()
+        self.fused_calls = 0
+
+    def predict_clean_and_logits(
+        self,
+        noisy_latents,
+        noise_levels,
+        *,
+        sample_ids,
+        conditioning,
+        training,
+    ):
+        del noise_levels, conditioning, training
+        self.fused_calls += 1
+        clean = noisy_latents * self.module.score_weight
+        logits = noisy_latents.float().reshape(noisy_latents.shape[0], -1).mean(1) * self.module.discriminator_weight
+        self.discriminator_sample_ids.append(sample_ids)
+        return clean, logits
+
+    def denoising_loss_from_clean_per_sample(
+        self,
+        clean_latents,
+        predicted_clean,
+        noise_levels,
+        *,
+        conditioning,
+    ):
+        del noise_levels, conditioning
+        return (predicted_clean - clean_latents).float().square().flatten(1).mean(1)
+
+
+def test_dmd2_fused_guidance_reuses_one_fake_score_forward() -> None:
+    student = _PredictionAdapter(_Scale(0.8), "student-init")
+    teacher = _PredictionAdapter(_Scale(0.6).requires_grad_(False), "teacher-init")
+    guidance = _FusedGuidanceAdapter()
+    losses = NativeDMD2LossAdapter(
+        student,
+        teacher,
+        guidance,
+        _config(shared_adversarial_score_input=True),
+    )
+
+    losses.generator_loss(_batch([1.0, 2.0]), generator=torch.Generator().manual_seed(5))
+    assert guidance.fused_calls == 1
+    assert guidance.score_calls == 0
+    assert guidance.discriminator_calls == 0
+
+    losses.guidance_loss(_batch([1.0, 2.0]), generator=torch.Generator().manual_seed(7))
+    assert guidance.fused_calls == 2
+    assert guidance.denoising_calls == 0
+    assert guidance.discriminator_calls == 1
+
+
 def test_dmd2_generator_adversarial_gradient_only_updates_student_graph() -> None:
     losses, student, teacher, guidance = _native_losses(_config())
     result = losses.generator_loss(_batch([1.0, 2.0]), generator=torch.Generator().manual_seed(5))
@@ -266,8 +335,6 @@ class _EMA:
 
 
 class _EngineLosses:
-    config_digest = "d" * 64
-
     def __init__(self, student, guidance, *, use_generator=False, fail_guidance_call=None) -> None:
         self.student = student
         self.guidance = guidance
@@ -288,11 +355,7 @@ class _EngineLosses:
         return torch.rand((), generator=generator, device=device) * 0.05
 
     def _result(self, per_sample, batch):
-        weights = (
-            torch.ones_like(per_sample)
-            if batch.sample_weights is None
-            else batch.sample_weights.to(per_sample)
-        )
+        weights = torch.ones_like(per_sample) if batch.sample_weights is None else batch.sample_weights.to(per_sample)
         denominator = weights.sum()
         numerator = (per_sample * weights).sum()
         return DMD2LossResult(
@@ -325,6 +388,7 @@ def _engine(
     cadence: str = "generator-update",
     use_generator: bool = False,
     fail_guidance_call=None,
+    update_mode: str = "generator-then-guidance",
 ):
     torch.manual_seed(seed)
     student = torch.nn.Linear(1, 1, bias=False)
@@ -353,6 +417,7 @@ def _engine(
         student_scheduler=student_scheduler,
         guidance_scheduler=guidance_scheduler,
         student_scheduler_cadence=cadence,
+        update_mode=update_mode,
         student_ema=ema,
     )
     return engine, losses, student_scheduler, guidance_scheduler, ema
@@ -405,6 +470,45 @@ def test_dmd2_cadence_and_poison_after_generator_commit() -> None:
     assert not torch.equal(poisoned.student_module.weight.detach(), before)
     with pytest.raises(RuntimeError, match="partially committed"):
         poisoned.state_dict()
+
+
+def test_dmd2_alternating_cadence_updates_exactly_one_role() -> None:
+    engine, _, student_scheduler, guidance_scheduler, _ = _engine(
+        seed=31,
+        accumulation_steps=1,
+        interval=5,
+        cadence="generator-update",
+        update_mode="alternating",
+    )
+    results = [engine.train_step(_batch([1.0])) for _ in range(11)]
+    assert [result.generator_updated for result in results] == [
+        True,
+        False,
+        False,
+        False,
+        False,
+        True,
+        False,
+        False,
+        False,
+        False,
+        True,
+    ]
+    assert [result.guidance_updated for result in results] == [
+        False,
+        True,
+        True,
+        True,
+        True,
+        False,
+        True,
+        True,
+        True,
+        True,
+        False,
+    ]
+    assert student_scheduler.steps == 3
+    assert guidance_scheduler.steps == 8
 
 
 def _recipe_mapping() -> dict[str, object]:
@@ -507,9 +611,7 @@ def _checkpointable_stack(seed: int):
             "guidance": engine.guidance_module,
         }
     )
-    scheduler_state = NamedStatefulCollection(
-        {"student": student_scheduler, "guidance": guidance_scheduler}
-    )
+    scheduler_state = NamedStatefulCollection({"student": student_scheduler, "guidance": guidance_scheduler})
     ema_state = NamedStatefulCollection({"student": ema})
     state = TrainingState(
         model=model,
@@ -520,7 +622,6 @@ def _checkpointable_stack(seed: int):
         progress=progress,
         identity={
             "algorithm": "dmd2",
-            "config_digest": engine.config_digest,
             "gradient_accumulation_steps": engine.gradient_accumulation_steps,
         },
         lr_scheduler=scheduler_state,
@@ -571,6 +672,70 @@ def test_dmd2_dcp_split_resume_restores_rng_roles_optimizers_schedulers_and_ema(
     torch.testing.assert_close(restored_ema.shadow, expected_ema, rtol=0, atol=0)
     for name, value in restored_model.state_dict().items():
         torch.testing.assert_close(value, expected_parameters[name], rtol=0, atol=0)
+
+
+def test_dmd2_immediate_checkpoint_resumes_into_critic_phase(tmp_path: Path) -> None:
+    def stack(seed: int):
+        engine, _, student_scheduler, guidance_scheduler, _ = _engine(
+            seed=seed,
+            accumulation_steps=1,
+            interval=5,
+            cadence="generator-update",
+            use_generator=True,
+            update_mode="alternating",
+        )
+        loader = _StatefulLoader()
+        progress = TrainingProgress()
+        generator = torch.Generator().manual_seed(211)
+        model = torch.nn.ModuleDict({"student": engine.student_module, "guidance": engine.guidance_module})
+        state = TrainingState(
+            model=model,
+            optimizer=(engine.student_optimizer, engine.guidance_optimizer),
+            engine=engine,
+            dataloader=loader,
+            objective_generator=generator,
+            progress=progress,
+            identity={"algorithm": "dmd2", "update_mode": "alternating"},
+            lr_scheduler=NamedStatefulCollection({"student": student_scheduler, "guidance": guidance_scheduler}),
+        )
+        return engine, loader, progress, generator, model, state, student_scheduler, guidance_scheduler
+
+    baseline = stack(37)
+    engine, loader, progress, generator, model, state, student_scheduler, guidance_scheduler = baseline
+    session = NativeDMD2TrainingSession(engine, loader, progress)
+    first = session.run(max_steps=1, generator=generator)
+    assert first.student_optimizer_steps == 1
+    assert first.guidance_optimizer_steps == 0
+    manager = TrainingCheckpointer(tmp_path / "checkpoints")
+    artifact = manager.save(state)
+    expected = session.run(max_steps=1, generator=generator)
+    expected_state = {name: value.detach().clone() for name, value in model.state_dict().items()}
+    expected_schedulers = (student_scheduler.steps, guidance_scheduler.steps)
+
+    restored = stack(41)
+    (
+        restored_engine,
+        restored_loader,
+        restored_progress,
+        restored_generator,
+        restored_model,
+        restored_state,
+        restored_student_scheduler,
+        restored_guidance_scheduler,
+    ) = restored
+    manager.load(restored_state, artifact.path)
+    actual = NativeDMD2TrainingSession(
+        restored_engine,
+        restored_loader,
+        restored_progress,
+    ).run(max_steps=1, generator=restored_generator)
+
+    assert actual.student_optimizer_steps == expected.student_optimizer_steps == 1
+    assert actual.guidance_optimizer_steps == expected.guidance_optimizer_steps == 1
+    assert restored_loader.cursor == loader.cursor == 2
+    assert (restored_student_scheduler.steps, restored_guidance_scheduler.steps) == expected_schedulers
+    for name, value in restored_model.state_dict().items():
+        torch.testing.assert_close(value, expected_state[name], rtol=0, atol=0)
 
 
 def test_dmd2_public_exports_are_lazy_and_resolvable() -> None:

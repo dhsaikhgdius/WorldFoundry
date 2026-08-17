@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+import pytest
+
+# This test module imports worldfoundry code that requires the optional
+# "ftfy" dependency at import time; skip when it is unavailable.
+pytest.importorskip("ftfy")
+
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -14,6 +20,7 @@ from worldfoundry.base_models.diffusion_model.components import (
 )
 from worldfoundry.base_models.diffusion_model.loaders import CheckpointSpec
 from worldfoundry.base_models.diffusion_model.models.denoisers import wan as wan_denoiser
+from worldfoundry.base_models.diffusion_model.models.networks.wan.model import WanModel
 from worldfoundry.base_models.diffusion_model.optimizations import RuntimePolicy
 from worldfoundry.evaluation.api import WorldModelConfig
 from worldfoundry.evaluation.models.pipelines.loading import (
@@ -21,6 +28,7 @@ from worldfoundry.evaluation.models.pipelines.loading import (
     call_pipeline_from_pretrained,
 )
 from worldfoundry.pipelines.wan.pipeline_wan_2p1_t2v import Wan2p1T2VPipeline
+from worldfoundry.training.tuning import WAN_ATTENTION, apply_peft_lora
 
 
 def _checkpoint(*, revision: str = "a" * 40) -> CheckpointSpec:
@@ -28,8 +36,6 @@ def _checkpoint(*, revision: str = "a" * 40) -> CheckpointSpec:
         repo_id="Wan-AI/Wan2.1-T2V-1.3B",
         revision=revision,
         files=("diffusion_pytorch_model.safetensors",),
-        file_sha256={"diffusion_pytorch_model.safetensors": "b" * 64},
-        file_size_bytes={"diffusion_pytorch_model.safetensors": 123},
     )
 
 
@@ -127,39 +133,56 @@ def test_wan_denoiser_rejects_unknown_component_options_before_loading() -> None
         wan_denoiser.build_wan21_t2v_1p3b_denoiser(_context(component_options={"peft_adapter_pat": "/tmp/adapter"}))
 
 
-def test_wan_adapter_checkpoint_must_match_selected_recipe(
-    monkeypatch: pytest.MonkeyPatch,
+def _tiny_wan(seed: int) -> WanModel:
+    torch.manual_seed(seed)
+    return WanModel(
+        dim=24,
+        in_dim=4,
+        ffn_dim=48,
+        out_dim=4,
+        text_dim=16,
+        freq_dim=16,
+        eps=1e-6,
+        patch_size=(1, 2, 2),
+        num_heads=2,
+        num_layers=1,
+        has_image_input=False,
+    )
+
+
+def test_standard_training_peft_adapter_loads_and_forwards(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from worldfoundry.training import tuning
-
-    selected = _checkpoint()
-    exported = wan_denoiser._checkpoint_payload(selected)
-    artifact = SimpleNamespace(
-        path=tmp_path / "adapter",
-        metadata={
-            "role": "policy",
-            "roles": {
-                "policy": {
-                    "checkpoint": {
-                        "checkpoint": exported,
-                    }
-                }
-            },
-        },
+    source = _tiny_wan(23)
+    application = apply_peft_lora(source, preset=WAN_ATTENTION, rank=2, alpha=2)
+    with torch.no_grad():
+        for name, parameter in application.model.named_parameters():
+            if "lora_B" in name:
+                parameter.fill_(0.05)
+    application.model.eval()
+    torch.manual_seed(29)
+    inputs = (
+        torch.randn(1, 4, 1, 2, 2),
+        torch.tensor([500.0]),
+        torch.randn(1, 3, 16),
     )
-    monkeypatch.setattr(tuning, "inspect_peft_adapter", lambda path: artifact)
+    with torch.no_grad():
+        expected = application.model(*inputs)
+    adapter_path = tmp_path / "policy"
+    application.model.save_pretrained(adapter_path, safe_serialization=True)
+    assert not (adapter_path / "worldfoundry_adapter.json").exists()
 
-    assert (
-        wan_denoiser._validated_wan_peft_adapter(
-            _context(checkpoint=selected),
-            artifact.path,
-        )
-        == artifact.path
-    )
+    def load_with_post_hook(self, spec, checkpoint, policy):
+        del self, checkpoint, policy
+        loaded = _tiny_wan(23).eval()
+        assert spec.post_load_hook is not None
+        spec.post_load_hook(loaded)
+        return loaded
 
-    with pytest.raises(ValueError, match="base checkpoint differs"):
-        wan_denoiser._validated_wan_peft_adapter(
-            _context(checkpoint=_checkpoint(revision="c" * 40)),
-            artifact.path,
-        )
+    monkeypatch.setattr(wan_denoiser.NativeModuleLoader, "load", load_with_post_hook)
+    context = _context(component_options={"peft_adapter_path": str(adapter_path)})
+    denoiser = wan_denoiser.build_wan21_t2v_1p3b_denoiser(context)
+    with torch.no_grad():
+        actual = denoiser.model(*inputs)
+    torch.testing.assert_close(actual, expected)

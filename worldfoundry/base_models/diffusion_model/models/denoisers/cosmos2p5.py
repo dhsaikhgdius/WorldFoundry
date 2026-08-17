@@ -115,10 +115,15 @@ class Cosmos25Denoiser:
         condition_indicator = condition_indicator.to(device=latents.device, dtype=latents.dtype)
         initial_noise = initial_noise.to(device=latents.device, dtype=latents.dtype)
         model_latents = condition_mask * condition_latents + (1 - condition_mask) * latents
-        sigma = model_input.timestep.to(device=latents.device, dtype=latents.dtype).reshape(1, 1) / 1000.0
-        conditional_timestep = float(values.get("conditional_frame_timestep", 0.0))
-        timestep = condition_indicator[:, 0, :, 0, 0] * conditional_timestep
-        timestep = timestep + (1 - condition_indicator[:, 0, :, 0, 0]) * sigma
+        timestep = model_input.timestep.to(device=latents.device, dtype=latents.dtype).reshape(-1, 1) / 1000.0
+        if timestep.shape[0] == 1:
+            timestep = timestep.expand(latents.shape[0], -1)
+        elif timestep.shape[0] != latents.shape[0]:
+            raise ValueError("Cosmos2.5 timestep must be scalar or match the latent batch")
+        conditional_timestep = float(values.get("conditional_frame_timestep", -1.0))
+        if conditional_timestep >= 0.0:
+            indicator = condition_indicator[:, 0, :, 0, 0]
+            timestep = indicator * (conditional_timestep / 1000.0) + (1 - indicator) * timestep
         padding_mask = values.get("padding_mask")
         prediction = self.model(
             model_latents,
@@ -156,10 +161,15 @@ class Cosmos25TransferDenoiser(Cosmos25Denoiser):
             value.to(device=latents.device, dtype=latents.dtype) for value in conditions
         )
         model_latents = condition_mask * condition_latents + (1 - condition_mask) * latents
-        sigma = model_input.timestep.to(device=latents.device, dtype=latents.dtype).reshape(1, 1) / 1000.0
-        conditional_timestep = float(values.get("conditional_frame_timestep", 0.0))
-        timestep = condition_indicator[:, 0, :, 0, 0] * conditional_timestep
-        timestep = timestep + (1 - condition_indicator[:, 0, :, 0, 0]) * sigma
+        timestep = model_input.timestep.to(device=latents.device, dtype=latents.dtype).reshape(-1, 1) / 1000.0
+        if timestep.shape[0] == 1:
+            timestep = timestep.expand(latents.shape[0], -1)
+        elif timestep.shape[0] != latents.shape[0]:
+            raise ValueError("Cosmos Transfer2.5 timestep must be scalar or match the latent batch")
+        conditional_timestep = float(values.get("conditional_frame_timestep", -1.0))
+        if conditional_timestep >= 0.0:
+            indicator = condition_indicator[:, 0, :, 0, 0]
+            timestep = indicator * (conditional_timestep / 1000.0) + (1 - indicator) * timestep
         padding_mask = values.get("padding_mask")
         prediction = self.model(
             model_latents,

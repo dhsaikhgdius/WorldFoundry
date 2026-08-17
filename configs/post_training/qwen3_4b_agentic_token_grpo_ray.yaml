@@ -1,0 +1,71 @@
+schema: worldfoundry-post-training
+execution_owner: worldfoundry-native
+run:
+  id: qwen3-4b-agentic-token-grpo-ray
+  output_dir: runs/qwen3-4b-agentic-token-grpo-ray
+model:
+  recipe: qwen3-4b
+  checkpoint: Qwen/Qwen3-4B
+  options:
+    attention_implementation: sdpa
+    enable_thinking: false
+    max_new_tokens: 2048
+tuning:
+  mode: full
+data:
+  manifest: data/post_training/qwen3-agentic-prompts.jsonl
+  split: train
+  shuffle: true
+  shuffle_seed: 42
+  tail_policy: pad
+  options:
+    groups_per_batch: 1
+    max_turns: 8
+algorithm:
+  type: token-grpo
+  reward_weights:
+    correctness: 1.0
+    tool-success: 0.1
+  updates_per_trajectory: 1
+  group_size: 2
+  old_log_prob_source: rollout
+  advantage_epsilon: 0.00000001
+  advantage_normalization: group-population-std
+  sampling_temperature: 1.0
+  replay_microbatch_size: 1
+  first_update_log_ratio_tolerance: 0.00001
+  clip_range: 0.2
+  clip_schedule: constant
+  reduction: seq-mean-token-mean
+  horizon: 2048
+optimizer:
+  type: adamw
+  learning_rate: 0.000001
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+runtime:
+  param_dtype: bfloat16
+  reduce_dtype: float32
+  activation_checkpoint: full
+  compile: false
+distributed:
+  backend: single
+rollout:
+  backend: ray
+  trainer_binding: actor
+  placement: separate
+  trainer_devices: 1
+  rollout_devices: 1
+  weight_kind: full
+  weight_bucket_bytes: 268435456
+  pool:
+    num_devices: 2
+    devices_per_node: 2
+    workers_per_device: 1
+    cpus_per_worker: 2
+    accelerator_resource: GPU
+checkpoint:
+  save_every_steps: 1
+  async: false
+export:
+  format: safetensors

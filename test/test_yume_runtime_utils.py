@@ -1,3 +1,9 @@
+
+import pytest
+
+# This test module imports worldfoundry code that requires the optional
+# "ftfy" dependency at import time; skip when it is unavailable.
+pytest.importorskip("ftfy")
 import torch
 
 from worldfoundry.synthesis.visual_generation.yume.yume_runtime.yume.worldfoundry_runtime import (

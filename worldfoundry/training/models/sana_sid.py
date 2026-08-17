@@ -12,7 +12,6 @@ from worldfoundry.base_models.diffusion_model.contracts import (
     DenoiserOutput,
     DiffusionRequest,
 )
-from worldfoundry.core.io.integrity import canonical_sha256
 from worldfoundry.training.models.sana import SanaTrainAdapter
 from worldfoundry.training.objectives.flow_matching import flow_interpolate
 from worldfoundry.training.post_training.shared.prediction import NativeFlowPredictionAdapter
@@ -44,13 +43,6 @@ class SanaSIDPredictionAdapter:
         self.trainable_module = self.module
         self.checkpoint_identity = identity
         self.fsdp_block_classes = adapter.fsdp_block_classes
-        self.noise_process_digest = canonical_sha256(
-            {
-                "kind": self.noise_process_kind,
-                "model_timestep_scale": adapter.model_timestep_scale,
-                "num_train_timesteps": adapter.num_train_timesteps,
-            }
-        )
 
     def add_noise(
         self,

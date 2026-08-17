@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import re
+import copy
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -17,9 +17,6 @@ OPTIONAL_TRAINING_STATE_NAMES = (
     "grad_scaler",
     "algorithm_state",
 )
-SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
-
-
 def normalize_non_negative_int(value: object, *, field_name: str) -> int:
     if isinstance(value, bool):
         raise TypeError(f"{field_name} must be an integer, not bool")
@@ -31,15 +28,14 @@ def normalize_non_negative_int(value: object, *, field_name: str) -> int:
 
 @dataclass(frozen=True, slots=True)
 class TrainingCheckpointArtifact:
-    """One checksum-verified, atomically committed training checkpoint."""
+    """One atomically committed training checkpoint."""
 
     path: Path
     global_step: int
     staging_strategy: str
     optional_state_presence: Mapping[str, bool]
-    manifest_sha256: str
-    identity_digest: str
-    file_sha256: Mapping[str, str]
+    identity: Mapping[str, object]
+    file_size_bytes: Mapping[str, int]
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "path", Path(self.path))
@@ -60,13 +56,18 @@ class TrainingCheckpointArtifact:
             "optional_state_presence",
             MappingProxyType(optional_presence),
         )
-        for name, value in (
-            ("manifest_sha256", self.manifest_sha256),
-            ("identity_digest", self.identity_digest),
-        ):
-            if SHA256_PATTERN.fullmatch(str(value)) is None:
-                raise ValueError(f"{name} must be a SHA-256 digest")
-        object.__setattr__(self, "file_sha256", MappingProxyType(dict(self.file_sha256)))
+        if not isinstance(self.identity, Mapping):
+            raise TypeError("identity must be a mapping")
+        object.__setattr__(
+            self,
+            "identity",
+            MappingProxyType(copy.deepcopy(dict(self.identity))),
+        )
+        sizes = {
+            str(name): normalize_non_negative_int(size, field_name=f"file size for {name}")
+            for name, size in self.file_size_bytes.items()
+        }
+        object.__setattr__(self, "file_size_bytes", MappingProxyType(sizes))
 
 
 __all__ = [

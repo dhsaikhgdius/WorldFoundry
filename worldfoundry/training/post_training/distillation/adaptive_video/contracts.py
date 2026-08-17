@@ -136,7 +136,6 @@ class AdaptiveVideoTrainingBatch(DMDTrainingBatch):
             unconditional_conditioning=generated.unconditional_conditioning,
             loss_mask=generated.loss_mask,
             sample_weights=generated.sample_weights,
-            metadata=generated.metadata,
             real_sample_ids=real.sample_ids,
             real_latents=real.latents,
             real_conditioning=real.conditioning,
@@ -148,8 +147,6 @@ class AdaptiveVideoTrainingBatch(DMDTrainingBatch):
 @runtime_checkable
 class AdaptiveVideoLossAdapter(DMDLossAdapter, Protocol):
     """DMD loss seam plus checkpointable adaptive-regression state."""
-
-    config_digest: str
 
     def commit_generator_step(self, results: tuple[object, ...]) -> None: ...
 

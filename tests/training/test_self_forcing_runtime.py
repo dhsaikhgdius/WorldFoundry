@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+import pytest
+
+# This test module imports worldfoundry code that requires the optional
+# "transformers" dependency at import time; skip when it is unavailable.
+pytest.importorskip("transformers")
+
 from collections.abc import Iterator, Mapping
 from pathlib import Path
 from types import SimpleNamespace
@@ -8,7 +14,6 @@ import pytest
 
 torch = pytest.importorskip("torch")
 
-from worldfoundry.core.io.integrity import text_sha256  # noqa: E402
 from worldfoundry.training.data.rollout_cache import RolloutConditionedPrompt  # noqa: E402
 from worldfoundry.training.data.rollout_manifest import RolloutPromptRecord  # noqa: E402
 from worldfoundry.training.data.sana_cache import CacheTensorDescriptor  # noqa: E402
@@ -84,22 +89,21 @@ def _recipe_mapping(tmp_path: Path) -> dict[str, object]:
 
 def _conditioned(prompt_id: str, value: float) -> RolloutConditionedPrompt:
     prompt = f"prompt {prompt_id}"
-    prompt_sha = text_sha256(prompt)
     record = RolloutPromptRecord(
         prompt_id=prompt_id,
         prompt=prompt,
         safety_audit=PromptSafetyAudit(
-            prompt_sha256=prompt_sha,
+            prompt=prompt,
             unsafe_probabilities={name: 0.01 for name in SHIELDGEMMA_PROMPT_POLICIES},
             threshold=0.5,
         ),
     )
     identity = SharedConditioningIdentity(
-        branch=f"rollout-{prompt_sha}",
-        prompt_sha256=prompt_sha,
-        model_recipe_digest="a" * 64,
-        conditioner_digest="b" * 64,
-        tokenizer_digest="c" * 64,
+        branch=f"rollout-{prompt_id}",
+        prompt=prompt,
+        model_recipe="wan2.1-t2v-1.3b",
+        conditioner={"repository": "test/conditioner", "revision": "test"},
+        tokenizer={"repository": "test/tokenizer", "revision": "test"},
         tensors={
             "context": CacheTensorDescriptor(
                 dtype="float32",
@@ -108,13 +112,10 @@ def _conditioned(prompt_id: str, value: float) -> RolloutConditionedPrompt:
             )
         },
     )
-    object_sha = ("d" if prompt_id == "first" else "e") * 64
     artifact = SharedConditioningArtifact(
         identity=identity,
-        identity_sha256=identity.digest,
-        object_sha256=object_sha,
         object_size_bytes=100,
-        object_path=f"shared-objects/{object_sha[:2]}/{object_sha}.safetensors",
+        object_path=f"shared-objects/{identity.branch}.safetensors",
     )
     return RolloutConditionedPrompt(
         record=record,
@@ -185,9 +186,6 @@ def test_official_causal_checkpoint_converter_is_strict() -> None:
     converted = convert_self_forcing_causal_state_dict({"generator": {"model.patch_embedding.weight": weight}})
     assert converted == {"patch_embedding.weight": weight}
     assert SELF_FORCING_ODE_CHECKPOINT.revision == "47f4d3cf430cf000fcad587ba02c83ed971bba69"
-    assert SELF_FORCING_ODE_CHECKPOINT.file_sha256["checkpoints/ode_init.pt"] == (
-        "b5396b8076ab3b920c9e4f4a2b52daa2c98c9983fb5e067ae5160fdf778dce21"
-    )
 
     with pytest.raises(ValueError, match="mixes wrapped"):
         convert_self_forcing_causal_state_dict({"model.weight": weight, "bias": torch.zeros(2)})
@@ -200,7 +198,7 @@ def test_self_forcing_recipe_and_prompt_loader_consume_every_active_field(tmp_pa
     restored = PostTrainingRecipe.from_mapping(recipe.to_dict())
     algorithm, plan = validate_wan_self_forcing_recipe(recipe)
     assert restored == recipe
-    assert restored.digest == recipe.digest
+    assert restored == recipe
     assert algorithm.real_score_model_recipe == "wan2.1-t2v-14b"
     assert plan.generation == {"height": 32, "width": 32, "num_frames": 9}
 
@@ -288,11 +286,12 @@ def test_materializer_resolves_14b_teacher_and_1p3b_fake_as_distinct_roles(
     recipe = PostTrainingRecipe.from_mapping(_recipe_mapping(tmp_path))
 
     class _Conditioning:
-        dataset_digest = "conditioned"
-        index = SimpleNamespace(digest="index")
+        index = SimpleNamespace(to_dict=lambda: {"entries": []})
 
         def __len__(self):
             return 2
+
+    prompt_records = tuple(_conditioned(name, value).record for name, value in (("first", 1.0), ("second", 2.0)))
 
     assets = SimpleNamespace(
         root=tmp_path,
@@ -305,14 +304,14 @@ def test_materializer_resolves_14b_teacher_and_1p3b_fake_as_distinct_roles(
         parallel_plan=ParallelPlan.resolve(recipe.distributed, world_size=1),
         world_size=1,
         rank=0,
-        prompts=SimpleNamespace(manifest_sha256="manifest", dataset_digest="prompts"),
+        prompts=prompt_records,
         conditioning=_Conditioning(),
         generation_geometry=(32, 32, 9),
         assembler=object(),
         native_recipe=object(),
-        model_contract_digest="model-contract",
-        conditioner_digest="conditioner",
-        tokenizer_digest="tokenizer",
+        model_contract={"model_recipe": "wan2.1-t2v-1.3b"},
+        conditioner={"repository": "test/conditioner", "revision": "test"},
+        tokenizer={"repository": "test/tokenizer", "revision": "test"},
         dtype=torch.float32,
         base_seed=42,
     )

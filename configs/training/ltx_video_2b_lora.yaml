@@ -1,0 +1,83 @@
+schema: worldfoundry-training
+execution_owner: worldfoundry-native
+run:
+  id: ltx-video-2b-lora
+  output_dir: runs/ltx-video-2b-lora
+model:
+  recipe: ltx-video-i2v
+  checkpoint: checkpoints/ltxv-2b-0.9.6-dev-04-25.safetensors
+tuning:
+  mode: lora
+  preset: ltx-attention
+  rank: 32
+  alpha: 32
+  dropout: 0.0
+data:
+  manifest: data/ltx_video_train.jsonl
+  cache: cache/ltx-video-2b
+  max_latent_tokens_per_microbatch: 4032
+  split: train
+  shuffle: true
+  shuffle_seed: 42
+  tail_policy: pad
+  options:
+    video_buckets:
+      - num_frames: 89
+        height: 448
+        width: 768
+        conditioning_layout: t5-sequence
+        tasks: [i2v, t2v]
+    bucket_policy:
+      allow_spatial_upscale: false
+      allow_temporal_padding: false
+    decode:
+      frame_sampling: head
+      resize_rounding: floor
+      interpolation: bicubic
+      value_range: minus-one-one
+      decoder_thread_type: auto
+      verify_manifest_frame_count: true
+      verify_manifest_geometry: true
+      fps_tolerance: 0.05
+    num_workers: 2
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 2
+    snapshot_every_n_steps: 1
+objective:
+  type: flow_matching
+  prediction_type: flow_velocity
+  timestep_sampler: shifted_logit_normal
+  conditioning_dropout: 0.0
+  options:
+    standard_deviation: 1.0
+    epsilon: 0.001
+    uniform_probability: 0.1
+    first_frame_conditioning_probability: 0.1
+optimizer:
+  type: adamw
+  learning_rate: 2.0e-4
+  weight_decay: 0.01
+  betas: [0.9, 0.999]
+  epsilon: 1.0e-8
+  max_grad_norm: 1.0
+  gradient_accumulation_steps: 1
+scheduler:
+  type: linear
+  total_steps: 1500
+  start_factor: 1.0
+  end_factor: 0.1
+runtime:
+  param_dtype: bfloat16
+  reduce_dtype: float32
+  activation_checkpoint: none
+  compile: false
+distributed:
+  backend: fsdp2
+  dp_replicate: 1
+  dp_shard: auto
+  cp: 1
+  tp: 1
+checkpoint:
+  save_every_steps: 250
+  async: true

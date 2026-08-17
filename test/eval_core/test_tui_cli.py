@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import importlib
+import json
 import sys
 
 import pytest
@@ -11,12 +11,10 @@ from worldfoundry import cli
 from worldfoundry.cli.tui import main as tui_main
 from worldfoundry.cli.tui_discovery import (
     INFER_MODEL_VARIANTS,
-    INFER_VARIANT_GROUPS,
     build_model_benchmark_command,
     build_model_infer_command,
     build_suite_command,
     format_shell_command,
-    build_training_command,
     infer_control_specs,
     infer_model_variant_ids,
     is_infer_model_row,
@@ -41,12 +39,11 @@ def test_tui_catalog_loads_model_and_benchmark_rows() -> None:
     summary = catalog.to_dict()["summary"]
     assert summary["models"] == len(catalog.models)
     assert summary["benchmarks"] == len(catalog.benchmarks)
-    assert summary["training_targets"] == len(catalog.training_targets)
-    assert summary["training_stages"] >= len(catalog.training_targets)
+    # TUI training support (training_targets / training_stages) was removed
+    # from tui_discovery together with worldfoundry.training.visual_generation.
     assert summary["runtime_profiles"] == len(catalog.runtime_profiles)
     assert "leaderboard_ready_benchmarks" in summary
     assert any(row.profile_id == "openvla" for row in catalog.runtime_profiles)
-    assert any(row.target_id == "wan-action2v" for row in catalog.training_targets)
     assert not [row.model_id for row in catalog.models if row.integration_status == "infer"]
     robotwin = next(row for row in catalog.benchmarks if row.benchmark_id == "robotwin")
     assert robotwin.maturity
@@ -86,17 +83,20 @@ def test_tui_infer_catalog_uses_official_script_models_by_default() -> None:
     assert is_infer_model_row(depth_row)
     assert depth_row.runner_kind == "infer_script"
     assert any("scripts/inference/run_infer.sh" in note for note in depth_row.notes)
+    # Infer commands were consolidated onto the Studio workspace_job pipeline;
+    # run_infer.sh is now a thin exec shim over the same entry point
+    # (tui_discovery.exec_run_infer_sh), so the built command targets
+    # workspace_job directly and GPU selection rides on CUDA_VISIBLE_DEVICES.
     command = build_model_infer_command(
         model_id="depth-anything-v2",
         output_dir="runs/tui/infer",
         input_path="/tmp/input.png",
     )
     command_text = format_shell_command(command)
-    assert "scripts/inference/run_infer.sh" in command_text
-    assert "--category depth" in command_text
-    assert "--model depth-anything-v2" in command_text
-    assert "--input /tmp/input.png" in command_text
-    assert "--gpu" not in command_text
+    assert "-m worldfoundry.studio.workspace_job infer" in command_text
+    assert "--model-id depth-anything-v2" in command_text
+    assert "--input-path /tmp/input.png" in command_text
+    assert "CUDA_VISIBLE_DEVICES" not in command_text
 
     explicit_gpu_command = build_model_infer_command(
         model_id="depth-anything-v2",
@@ -104,7 +104,7 @@ def test_tui_infer_catalog_uses_official_script_models_by_default() -> None:
         input_path="/tmp/input.png",
         gpu="0",
     )
-    assert "--gpu 0" in format_shell_command(explicit_gpu_command)
+    assert "CUDA_VISIBLE_DEVICES=0" in format_shell_command(explicit_gpu_command)
 
 
 def test_tui_infer_control_schema_is_variant_specific() -> None:
@@ -148,7 +148,11 @@ def test_tui_keeps_studio_runtime_for_non_script_infer_models() -> None:
     for model_id in ("hy-worldplay", "multiworld"):
         row = next(row for row in catalog.models if row.model_id == model_id)
         assert row.integration_status == "integrated"
-        assert row.runner_status == "ready"
+        # runner_status vocabulary moved from "ready" to evidence-based values
+        # (_inference_runner_status): verified / partially_verified /
+        # contract_ready. The exact value depends on recorded inference
+        # evidence, so assert membership rather than pin one value.
+        assert row.runner_status in {"verified", "partially_verified", "contract_ready"}
         assert row.runner_kind == "studio_runtime"
         assert is_infer_model_row(row)
         command = build_model_infer_command(
@@ -160,8 +164,12 @@ def test_tui_keeps_studio_runtime_for_non_script_infer_models() -> None:
 
 def test_tui_script_infer_variants_all_build_official_commands() -> None:
     for model_id, variants in INFER_MODEL_VARIANTS.items():
-        assert set(infer_model_variant_ids(model_id)) == set(variants)
-        for variant_id in variants:
+        resolved = infer_model_variant_ids(model_id)
+        # infer_variant_options drops declared variants that no longer map to
+        # a Studio runtime target (obsolete IDs are not forwarded to
+        # workspace_job), so the resolved set is a subset of the declaration.
+        assert set(resolved) <= set(variants)
+        for variant_id in resolved:
             command = build_model_infer_command(
                 model_id=model_id,
                 ckpt_type=variant_id,
@@ -171,57 +179,12 @@ def test_tui_script_infer_variants_all_build_official_commands() -> None:
             )
             command_text = format_shell_command(command)
 
-            assert "scripts/inference/run_infer.sh" in command_text
-            assert f"--category {INFER_VARIANT_GROUPS[variant_id]}" in command_text
-            assert f"--model {model_id}" in command_text
-            assert "--ckpt-root /ckpt" in command_text
-            assert "--env-root /conda/envs" in command_text
-            assert "--gpu" not in command_text
-
-
-def test_tui_training_command_uses_workspace_training_runtime() -> None:
-    command = build_training_command(
-        target_id="wan-action2v",
-        stage_id="ar-teacher-forcing",
-        output_dir="runs/tui/training/wan-action2v__ar-teacher-forcing",
-        config_path="configs/train.yaml",
-        env_overrides=("CUDA_VISIBLE_DEVICES=0",),
-        extra_args=("--max-steps", "1"),
-    )
-    command_text = format_shell_command(command)
-
-    assert "worldfoundry.studio.workspace_job train" in command_text
-    assert "--training-target-id wan-action2v" in command_text
-    assert "--training-stage-id ar-teacher-forcing" in command_text
-    assert "--config-path configs/train.yaml" in command_text
-    assert "--env CUDA_VISIBLE_DEVICES=0" in command_text
-    assert "--extra-arg=--max-steps" in command_text
-    assert "--execute" not in command
-
-    execute_command = build_training_command(
-        target_id="wan-action2v",
-        stage_id="ar-teacher-forcing",
-        output_dir="runs/tui/training/wan-action2v__ar-teacher-forcing",
-        execute=True,
-    )
-    assert "--execute" in execute_command
-
-
-def test_tui_training_env_parser_keeps_comma_values_when_available() -> None:
-    pytest.importorskip("textual")
-
-    from worldfoundry.cli.tui_app import _parse_training_env_overrides, _split_env_assignments
-
-    value = "CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7,WORLDFOUNDRY_VISUAL_GENERATION_NPROC_PER_NODE=8"
-
-    assert _split_env_assignments(value) == (
-        "CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7",
-        "WORLDFOUNDRY_VISUAL_GENERATION_NPROC_PER_NODE=8",
-    )
-    assert _parse_training_env_overrides(value) == {
-        "CUDA_VISIBLE_DEVICES": "0,1,2,3,4,5,6,7",
-        "WORLDFOUNDRY_VISUAL_GENERATION_NPROC_PER_NODE": "8",
-    }
+            assert "-m worldfoundry.studio.workspace_job infer" in command_text
+            assert "--model-id" in command_text
+            assert "--variant-id" in command_text
+            assert "WORLDFOUNDRY_CKPT_DIR=/ckpt" in command_text
+            assert "WORLDFOUNDRY_CONDA_ENVS_ROOT=/conda/envs" in command_text
+            assert "CUDA_VISIBLE_DEVICES" not in command_text
 
 
 def test_suite_command_defaults_to_plan_only() -> None:
@@ -251,7 +214,6 @@ def test_tui_cli_catalog_json_does_not_import_textual(capsys) -> None:
     payload = json.loads(capsys.readouterr().out)
     assert payload["summary"]["models"] >= 1
     assert payload["summary"]["benchmarks"] >= 1
-    assert payload["summary"]["training_targets"] >= 1
     assert payload["summary"]["runtime_profiles"] >= 1
     assert "conda_status" in payload
 
@@ -296,9 +258,11 @@ def test_tui_fallback_lists_catalog_runtime_and_conda(capsys) -> None:
     assert "WorldFoundry TUI fallback" in output
     assert "Runtime Profiles" in output
     assert "Conda" in output
-    assert "Training Targets" in output
+    # "Training Targets" section removed together with TUI training support.
     assert "Suite plan command" in output
-    assert "Benchmark contract command" in output
+    # Section renamed from "Benchmark contract command" alongside the
+    # zoo benchmark-run CLI consolidation.
+    assert "Benchmark run command" in output
     assert "-m worldfoundry.cli zoo benchmark-run" in output
     assert "--benchmark-id robotwin" in output
     assert "Runtime preflight command" in output
@@ -355,6 +319,7 @@ def test_textual_app_training_preflight_accepts_multi_gpu_env_when_available() -
     pytest.importorskip("textual")
 
     from textual.widgets import Input
+
     from worldfoundry.cli.tui_app import WorldFoundryTui
 
     async def run_app() -> tuple[str, ...]:
@@ -384,6 +349,7 @@ def test_textual_app_training_minwm_fields_build_command_when_available(tmp_path
     pytest.importorskip("textual")
 
     from textual.widgets import Input, Select
+
     from worldfoundry.cli.tui_app import WorldFoundryTui
 
     async def run_app() -> str:
@@ -425,6 +391,7 @@ def test_textual_app_training_sp_size_defaults_to_runner_auto_when_available() -
     pytest.importorskip("textual")
 
     from textual.widgets import Input
+
     from worldfoundry.cli.tui_app import WorldFoundryTui
 
     async def run_app() -> tuple[str, str]:
@@ -467,6 +434,7 @@ def test_textual_app_wan_lmdb_stage_defaults_to_data_dir_when_available(tmp_path
 def test_textual_app_headless_button_interactions_when_available(tmp_path) -> None:
     pytest.importorskip("textual")
     from textual.widgets import Button, Collapsible
+
     from worldfoundry.cli.tui_app import WorldFoundryTui
 
     async def wait_until(predicate, timeout: float = 5.0) -> bool:
@@ -534,6 +502,7 @@ def test_textual_app_headless_button_interactions_when_available(tmp_path) -> No
 def test_textual_app_headless_selects_and_tables_when_available() -> None:
     pytest.importorskip("textual")
     from textual.widgets import DataTable, Input, Label, Select
+
     from worldfoundry.cli.tui_app import WorldFoundryTui
 
     async def run_app() -> dict[str, bool]:

@@ -25,7 +25,12 @@ CONFIG = ors.BenchRunnerConfig(
     default_repo_subdir='worldfoundry/evaluation/tasks/execution/runners/devil_dynamics/runtime/official',
     metric_order=('dynamics_range', 'dynamics_controllability', 'dynamics_quality', 'devil_dynamics_average'),
     metric_specs={'dynamics_range': {'name': 'Dynamics Range', 'group': 'dynamics', 'higher_is_better': True}, 'dynamics_controllability': {'name': 'Dynamics Controllability', 'group': 'dynamics', 'higher_is_better': True}, 'dynamics_quality': {'name': 'Dynamics Quality', 'group': 'dynamics', 'higher_is_better': True}, 'devil_dynamics_average': {'name': 'DEVIL Dynamics Average', 'group': 'aggregate', 'higher_is_better': True}},
-    metric_aliases={'dynamics_range': 'dynamics_range', 'dynamics_controllability': 'dynamics_controllability', 'dynamics_quality': 'dynamics_quality', 'dynamics_based_quality': 'dynamics_quality', 'overall': 'devil_dynamics_average', 'devil_dynamics_average': 'devil_dynamics_average', 'motion_smoothness': 'dynamics_controllability', 'naturalness': 'dynamics_quality', 'subject_consistency': 'dynamics_range', 'background_consistency': 'dynamics_range'},
+    # Only official DEVIL result keys belong here (devil_dynamics_results.json emits the
+    # canonical ids; the quality xlsx generic row keys are mapped by DEVIL_KEY_TO_METRIC).
+    # Cross-benchmark generic names (subject_consistency, background_consistency,
+    # motion_smoothness, naturalness) were removed: aliasing them to dynamics metrics
+    # mis-scores payloads that carry same-named metrics from other benchmarks (ET-13).
+    metric_aliases={'dynamics_range': 'dynamics_range', 'dynamics_controllability': 'dynamics_controllability', 'dynamics_quality': 'dynamics_quality', 'dynamics_based_quality': 'dynamics_quality', 'overall': 'devil_dynamics_average', 'devil_dynamics_average': 'devil_dynamics_average'},
     average_metric_id='devil_dynamics_average',
     official_entry='worldfoundry.evaluation.tasks.execution.runners.devil_dynamics.runtime.official.devil_official_runtime',
     official_output_globs=(

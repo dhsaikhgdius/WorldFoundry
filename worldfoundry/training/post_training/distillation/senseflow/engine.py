@@ -101,7 +101,6 @@ class NativeSenseFlowTrainEngine:
         fake_score_scheduler: object | None = None,
         discriminator_scheduler: object | None = None,
         student_scheduler_cadence: str = "iteration",
-        execution_config_digest: str | None = None,
         discriminator_frozen_modules: Sequence[nn.Module] = (),
         parallel_context: PostTrainingParallelContext | None = None,
     ) -> None:
@@ -149,12 +148,6 @@ class NativeSenseFlowTrainEngine:
             ("discriminator_scheduler", discriminator_scheduler),
         ):
             validate_stateful_or_none(scheduler, field_name=name)
-        if execution_config_digest is None:
-            resolved_config_digest = str(loss_adapter.config_digest)
-        elif not isinstance(execution_config_digest, str) or not execution_config_digest.strip():
-            raise ValueError("execution_config_digest must be a non-empty string")
-        else:
-            resolved_config_digest = execution_config_digest.strip()
         frozen_discriminator_modules = tuple(discriminator_frozen_modules)
         discriminator_descendants = {id(module) for module in discriminator_module.modules()}
         if len({id(module) for module in frozen_discriminator_modules}) != len(
@@ -227,7 +220,6 @@ class NativeSenseFlowTrainEngine:
         self.fake_score_scheduler = fake_score_scheduler
         self.discriminator_scheduler = discriminator_scheduler
         self.student_scheduler_cadence = cadence
-        self._config_digest = resolved_config_digest
         self.discriminator_frozen_modules = frozen_discriminator_modules
         self.parallel_context = parallel_context or PostTrainingParallelContext.current()
         self.parallel_context.audit_synchronized_module(student_module, role="SenseFlow student")
@@ -253,10 +245,6 @@ class NativeSenseFlowTrainEngine:
         self.teacher_module.eval()
         for module in self.discriminator_frozen_modules:
             module.eval()
-
-    @property
-    def config_digest(self) -> str:
-        return self._config_digest
 
     def _zero_grad(self) -> None:
         self.student_optimizer.zero_grad(set_to_none=True)
@@ -573,7 +561,6 @@ class NativeSenseFlowTrainEngine:
             "generator_update_interval": self.generator_update_interval,
             "gradient_accumulation_steps": self.gradient_accumulation_steps,
             "student_scheduler_cadence": self.student_scheduler_cadence,
-            "config_digest": self.config_digest,
             "data_parallel_size": self.parallel_context.world_size,
             "rng_state": self.generator.get_state().clone(),
         }
@@ -591,7 +578,6 @@ class NativeSenseFlowTrainEngine:
             "generator_update_interval",
             "gradient_accumulation_steps",
             "student_scheduler_cadence",
-            "config_digest",
             "data_parallel_size",
             "rng_state",
         }
@@ -599,8 +585,6 @@ class NativeSenseFlowTrainEngine:
             raise ValueError("SenseFlow engine state fields differ from the active schema")
         if state_dict["schema"] != SENSEFLOW_ENGINE_STATE_SCHEMA:
             raise ValueError(f"unsupported SenseFlow engine schema: {state_dict['schema']!r}")
-        if str(state_dict["config_digest"]) != self.config_digest:
-            raise ValueError("saved SenseFlow configuration differs from the active engine")
         for name, active in (
             ("generator_update_interval", self.generator_update_interval),
             ("gradient_accumulation_steps", self.gradient_accumulation_steps),

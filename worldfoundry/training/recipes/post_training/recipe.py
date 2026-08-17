@@ -8,8 +8,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from worldfoundry.core.io.integrity import canonical_json, canonical_sha256
-
 from ..spec import (
     NATIVE_EXECUTION_OWNER,
     DatasetSpec,
@@ -36,6 +34,7 @@ from .algorithms import (
     DFDAlgorithmSpec,
     DiagonalAlgorithmSpec,
     DiffusionNFTAlgorithmSpec,
+    DiffusionOPDAlgorithmSpec,
     DMD2AlgorithmSpec,
     DMDAlgorithmSpec,
     FlowDPPOAlgorithmSpec,
@@ -56,14 +55,17 @@ from .algorithms import (
     SenseFlowAlgorithmSpec,
     SGMDAlgorithmSpec,
     SIDAlgorithmSpec,
+    T2VTurboAlgorithmSpec,
     TokenCPPOAlgorithmSpec,
     TokenDPPOAlgorithmSpec,
     TokenDRPOAlgorithmSpec,
     TokenGRPOAlgorithmSpec,
     TokenGSPOAlgorithmSpec,
     TokenPolicyAlgorithmSpec,
+    TokenPPOAlgorithmSpec,
 )
 from .algorithms.adaptive_video import parse_adaptive_video_algorithm
+from .algorithms.auxiliary_optimizers import validate_auxiliary_optimizers
 from .algorithms.adversarial_diffusion import parse_adversarial_diffusion_algorithm
 from .algorithms.anyflow import (
     parse_anyflow_bidirectional_on_policy_algorithm,
@@ -80,6 +82,7 @@ from .algorithms.dfd import parse_dfd_algorithm
 from .algorithms.diagonal import parse_diagonal_algorithm
 from .algorithms.diffusion_dpo import parse_diffusion_dpo_algorithm
 from .algorithms.diffusion_nft import parse_diffusion_nft_algorithm
+from .algorithms.diffusion_opd import parse_diffusion_opd_algorithm
 from .algorithms.dmd import parse_dmd_algorithm
 from .algorithms.dmd2 import parse_dmd2_algorithm
 from .algorithms.flow_dppo import parse_flow_dppo_algorithm
@@ -99,7 +102,9 @@ from .algorithms.self_gradient_forcing import (
 from .algorithms.senseflow import parse_senseflow_algorithm
 from .algorithms.sgmd import parse_sgmd_algorithm
 from .algorithms.sid import parse_sid_algorithm
+from .algorithms.t2v_turbo import parse_t2v_turbo_algorithm
 from .algorithms.token_policy import parse_token_policy_algorithm
+from .algorithms.token_ppo import parse_token_ppo_algorithm
 from .common import mapping, plain_data, strict_mapping
 from .rewards import (
     VIDEOALIGN_BASE_MODEL_REPOSITORY,
@@ -109,11 +114,11 @@ from .rewards import (
     VIDEOALIGN_CHECKPOINT_FILE,
     VIDEOALIGN_CHECKPOINT_REPOSITORY,
     VIDEOALIGN_CHECKPOINT_REVISION,
-    VIDEOALIGN_CHECKPOINT_SHA256,
     VIDEOALIGN_CHECKPOINT_SIZE_BYTES,
     VIDEOALIGN_REWARD_IDS,
     VideoAlignRewardSpec,
 )
+from .rollout import LocalRolloutSpec, RayRolloutSpec, RolloutSpec, parse_rollout_spec
 
 POST_TRAINING_RECIPE_SCHEMA = "worldfoundry-post-training"
 
@@ -133,6 +138,7 @@ _ROOT_FIELDS = {
     "distributed",
     "checkpoint",
     "export",
+    "rollout",
 }
 _REQUIRED_ROOT_FIELDS = {"run", "model", "tuning", "data", "algorithm", "optimizer"}
 _OPTIMIZER_FIELDS = {
@@ -165,147 +171,43 @@ class PostTrainingRecipe:
     distributed: DistributedSpec = DistributedSpec()
     checkpoint: PostTrainingCheckpointSpec = PostTrainingCheckpointSpec()
     export: ExportSpec = ExportSpec()
+    rollout: RolloutSpec = LocalRolloutSpec()
     schema: str = POST_TRAINING_RECIPE_SCHEMA
 
     def __post_init__(self) -> None:
         if self.schema != POST_TRAINING_RECIPE_SCHEMA:
             raise ValueError(f"unsupported post-training recipe schema: {self.schema!r}")
+        if isinstance(self.rollout, RayRolloutSpec) and not isinstance(
+            self.algorithm,
+            (FlowPolicyAlgorithmSpec, TokenPolicyAlgorithmSpec),
+        ):
+            raise ValueError("Ray rollout is implemented for flow-policy and grouped token-policy algorithms")
+        if (
+            isinstance(self.rollout, RayRolloutSpec)
+            and self.rollout.weight_kind == "lora"
+            and self.tuning.mode != "lora"
+        ):
+            raise ValueError("rollout.weight_kind=lora requires tuning.mode=lora")
         owner = str(self.execution_owner).strip().lower().replace("_", "-")
         if owner != NATIVE_EXECUTION_OWNER:
             raise ValueError(
                 f"execution_owner must be {NATIVE_EXECUTION_OWNER!r}; external training loops are unsupported"
             )
-        if isinstance(
+        # Auxiliary-optimizer compatibility is declared per algorithm spec
+        # (``auxiliary_optimizer_rules``); specs without a declaration reject
+        # every auxiliary optimizer.  See algorithms/auxiliary_optimizers.py.
+        validate_auxiliary_optimizers(
             self.algorithm,
-            (
-                AnyFlowFAROnPolicyAlgorithmSpec,
-                AnyFlowBidirectionalOnPolicyAlgorithmSpec,
-            ),
-        ):
-            if self.fake_score_optimizer is None:
-                raise ValueError("AnyFlow on-policy training requires fake_score_optimizer")
-            if self.guidance_optimizer is not None or self.discriminator_optimizer is not None:
-                raise ValueError("AnyFlow on-policy training only accepts fake_score_optimizer")
-        elif isinstance(
-            self.algorithm,
-            (
-                AnyFlowFARPretrainAlgorithmSpec,
-                AnyFlowBidirectionalPretrainAlgorithmSpec,
-            ),
-        ):
-            if any(
-                value is not None
-                for value in (
-                    self.fake_score_optimizer,
-                    self.guidance_optimizer,
-                    self.discriminator_optimizer,
-                )
-            ):
-                raise ValueError("AnyFlow pretraining accepts only the primary optimizer")
-        elif isinstance(self.algorithm, AdversarialDiffusionAlgorithmSpec):
-            if self.discriminator_optimizer is None:
-                raise ValueError("adversarial diffusion distillation requires discriminator_optimizer")
-            if self.fake_score_optimizer is not None or self.guidance_optimizer is not None:
-                raise ValueError(
-                    "adversarial diffusion distillation only accepts discriminator_optimizer"
-                )
-        elif isinstance(self.algorithm, RewardForcingAlgorithmSpec):
-            if self.fake_score_optimizer is None:
-                raise ValueError("Reward-Forcing requires fake_score_optimizer")
-            if self.guidance_optimizer is not None or self.discriminator_optimizer is not None:
-                raise ValueError("Reward-Forcing only accepts fake_score_optimizer")
-        elif isinstance(self.algorithm, SenseFlowAlgorithmSpec):
-            if self.fake_score_optimizer is None:
-                raise ValueError("SenseFlow requires fake_score_optimizer")
-            if self.discriminator_optimizer is None:
-                raise ValueError("SenseFlow requires discriminator_optimizer")
-            if self.guidance_optimizer is not None:
-                raise ValueError("SenseFlow does not accept guidance_optimizer")
-        elif isinstance(self.algorithm, (AdaptiveVideoAlgorithmSpec, DMDAlgorithmSpec)):
-            if self.fake_score_optimizer is None:
-                algorithm_name = (
-                    "DMD" if isinstance(self.algorithm, DMDAlgorithmSpec) else "adaptive video distillation"
-                )
-                raise ValueError(f"{algorithm_name} requires fake_score_optimizer")
-            if self.guidance_optimizer is not None or self.discriminator_optimizer is not None:
-                raise ValueError(f"{self.algorithm.type} only accepts fake_score_optimizer")
-        elif isinstance(self.algorithm, (CausalRCMAlgorithmSpec, RCMAlgorithmSpec)):
-            dmd_enabled = self.algorithm.dmd_loss_scale > 0
-            if dmd_enabled and self.fake_score_optimizer is None:
-                raise ValueError("rCM DMD requires fake_score_optimizer")
-            if not dmd_enabled and self.fake_score_optimizer is not None:
-                raise ValueError("rCM without DMD cannot configure fake_score_optimizer")
-            if self.guidance_optimizer is not None or self.discriminator_optimizer is not None:
-                raise ValueError("rCM only accepts fake_score_optimizer when DMD is enabled")
-        elif isinstance(self.algorithm, DMD2AlgorithmSpec):
-            if self.guidance_optimizer is None:
-                raise ValueError("DMD2 requires guidance_optimizer")
-            if self.fake_score_optimizer is not None or self.discriminator_optimizer is not None:
-                raise ValueError("DMD2 only accepts guidance_optimizer")
-        elif isinstance(self.algorithm, DFDAlgorithmSpec):
-            if self.fake_score_optimizer is None:
-                raise ValueError("DFD requires fake_score_optimizer")
-            if self.algorithm.adversarial_enabled:
-                if self.discriminator_optimizer is None:
-                    raise ValueError("DFD GAN loss requires discriminator_optimizer")
-            elif self.discriminator_optimizer is not None:
-                raise ValueError("DFD without GAN loss cannot configure discriminator_optimizer")
-            if self.guidance_optimizer is not None:
-                raise ValueError("DFD does not accept guidance_optimizer")
-        elif isinstance(self.algorithm, DiagonalAlgorithmSpec):
-            if self.fake_score_optimizer is None:
-                raise ValueError("diagonal distillation requires fake_score_optimizer")
-            if self.guidance_optimizer is not None or self.discriminator_optimizer is not None:
-                raise ValueError("diagonal distillation only accepts fake_score_optimizer")
-        elif isinstance(self.algorithm, SCMLADDAlgorithmSpec):
-            if self.discriminator_optimizer is None:
-                raise ValueError("SCM-LADD requires discriminator_optimizer")
-            if self.fake_score_optimizer is not None or self.guidance_optimizer is not None:
-                raise ValueError("SCM-LADD only accepts discriminator_optimizer")
-        elif isinstance(self.algorithm, ScaleWiseAlgorithmSpec):
-            if self.algorithm.dmd_enabled:
-                if self.fake_score_optimizer is None:
-                    raise ValueError("scale-wise DMD requires fake_score_optimizer")
-            elif self.fake_score_optimizer is not None:
-                raise ValueError("MMD-only scale-wise training cannot configure fake_score_optimizer")
-            if self.guidance_optimizer is not None or self.discriminator_optimizer is not None:
-                raise ValueError("scale-wise distillation only accepts fake_score_optimizer")
-        elif isinstance(
-            self.algorithm,
-            (SelfForcingAlgorithmSpec, SelfGradientForcingAlgorithmSpec),
-        ):
-            if self.fake_score_optimizer is None:
-                raise ValueError(f"{self.algorithm.type} DMD requires fake_score_optimizer")
-            if self.guidance_optimizer is not None or self.discriminator_optimizer is not None:
-                raise ValueError(f"{self.algorithm.type} only accepts fake_score_optimizer")
-        elif isinstance(self.algorithm, SIDAlgorithmSpec):
-            if self.fake_score_optimizer is None:
-                raise ValueError("SiD requires fake_score_optimizer")
-            if self.guidance_optimizer is not None or self.discriminator_optimizer is not None:
-                raise ValueError("SiD only accepts fake_score_optimizer")
-        elif isinstance(self.algorithm, SGMDAlgorithmSpec):
-            if self.fake_score_optimizer is None:
-                raise ValueError("SGMD requires fake_score_optimizer")
-            if self.guidance_optimizer is not None or self.discriminator_optimizer is not None:
-                raise ValueError("SGMD only accepts fake_score_optimizer")
-        elif isinstance(self.algorithm, DDRLAlgorithmSpec):
-            if self.fake_score_optimizer is not None:
-                raise ValueError("DDRL cannot configure fake_score_optimizer")
-            if self.guidance_optimizer is not None:
-                raise ValueError("DDRL cannot configure guidance_optimizer")
-            if self.discriminator_optimizer is not None:
-                raise ValueError("DDRL cannot configure discriminator_optimizer")
-        elif self.fake_score_optimizer is not None:
-            raise ValueError("this algorithm cannot configure fake_score_optimizer")
-        elif self.guidance_optimizer is not None:
-            raise ValueError("this algorithm cannot configure guidance_optimizer")
-        elif self.discriminator_optimizer is not None:
-            raise ValueError("this algorithm cannot configure discriminator_optimizer")
+            fake_score_optimizer=self.fake_score_optimizer,
+            guidance_optimizer=self.guidance_optimizer,
+            discriminator_optimizer=self.discriminator_optimizer,
+        )
         if self.tuning.mode == "lora":
-            if self.export.format != "peft":
-                raise ValueError("LoRA post-training export.format must be 'peft'")
+            expected_export = "native-lora" if self.model.recipe == "t2v-turbo" else "peft"
+            if self.export.format != expected_export:
+                raise ValueError(f"{self.model.recipe} LoRA post-training export.format must be {expected_export!r}")
             if self.export.options:
-                raise ValueError("PEFT post-training export.options must be empty")
+                raise ValueError("LoRA post-training export.options must be empty")
         elif self.tuning.mode == "full":
             if self.export.format not in {"safetensors", "distributed-checkpoint"}:
                 raise ValueError("full post-training export.format must be safetensors or distributed-checkpoint")
@@ -353,6 +255,7 @@ class PostTrainingRecipe:
             "dance-grpo": parse_dance_grpo_algorithm,
             "diffusion-dpo": parse_diffusion_dpo_algorithm,
             "diffusion-nft": parse_diffusion_nft_algorithm,
+            "diffusion-opd": parse_diffusion_opd_algorithm,
             "flow-dppo": parse_flow_dppo_algorithm,
             "flow-grpo": parse_flow_grpo_algorithm,
             "grpo-guard": parse_grpo_guard_algorithm,
@@ -373,6 +276,8 @@ class PostTrainingRecipe:
             "token-drpo": parse_token_policy_algorithm,
             "token-grpo": parse_token_policy_algorithm,
             "token-gspo": parse_token_policy_algorithm,
+            "token-ppo": parse_token_ppo_algorithm,
+            "t2v-turbo-distillation": parse_t2v_turbo_algorithm,
         }
         parser = algorithm_parsers.get(algorithm_type)
         if parser is None:
@@ -463,6 +368,7 @@ class PostTrainingRecipe:
             ),
             checkpoint=PostTrainingCheckpointSpec(**checkpoint_payload),
             export=ExportSpec(**section("export", {"format", "options"})),
+            rollout=parse_rollout_spec(root.get("rollout", {})),
         )
 
     @classmethod
@@ -483,20 +389,19 @@ class PostTrainingRecipe:
     def to_dict(self) -> dict[str, object]:
         result = plain_data(self)
         assert isinstance(result, dict)
-        # Keep legacy recipe identities stable.  The DMD2-only optimizer is
-        # serialized when active and is otherwise absent, not a dead null key.
+        # Omit inactive optional sections so serialized recipes contain only
+        # fields that change execution.
         if self.guidance_optimizer is None:
             result.pop("guidance_optimizer", None)
         if self.discriminator_optimizer is None:
             result.pop("discriminator_optimizer", None)
+        if isinstance(self.rollout, LocalRolloutSpec):
+            result.pop("rollout", None)
+        elif isinstance(self.rollout, RayRolloutSpec) and self.rollout.trainer_devices is None:
+            rollout = result["rollout"]
+            assert isinstance(rollout, dict)
+            rollout.pop("trainer_devices", None)
         return result
-
-    def canonical_json(self) -> str:
-        return canonical_json(self.to_dict())
-
-    @property
-    def digest(self) -> str:
-        return canonical_sha256(self.to_dict())
 
 
 __all__ = [
@@ -510,6 +415,7 @@ __all__ = [
     "DMDAlgorithmSpec",
     "DMD2AlgorithmSpec",
     "DiffusionNFTAlgorithmSpec",
+    "DiffusionOPDAlgorithmSpec",
     "FlowDPPOAlgorithmSpec",
     "FlowGRPOAlgorithmSpec",
     "FlowPolicyAlgorithmSpec",
@@ -517,6 +423,7 @@ __all__ = [
     "GRPOGuardAlgorithmSpec",
     "LatentConsistencyAlgorithmSpec",
     "MixGRPOAlgorithmSpec",
+    "LocalRolloutSpec",
     "POST_TRAINING_RECIPE_SCHEMA",
     "PostTrainingCheckpointSpec",
     "PostTrainingAlgorithmSpec",
@@ -536,6 +443,8 @@ __all__ = [
     "TokenGRPOAlgorithmSpec",
     "TokenGSPOAlgorithmSpec",
     "TokenPolicyAlgorithmSpec",
+    "TokenPPOAlgorithmSpec",
+    "T2VTurboAlgorithmSpec",
     "VIDEOALIGN_BASE_MODEL_REPOSITORY",
     "VIDEOALIGN_BASE_MODEL_REVISION",
     "VIDEOALIGN_CALIBRATION_MEAN",
@@ -543,7 +452,6 @@ __all__ = [
     "VIDEOALIGN_CHECKPOINT_FILE",
     "VIDEOALIGN_CHECKPOINT_REPOSITORY",
     "VIDEOALIGN_CHECKPOINT_REVISION",
-    "VIDEOALIGN_CHECKPOINT_SHA256",
     "VIDEOALIGN_CHECKPOINT_SIZE_BYTES",
     "VIDEOALIGN_REWARD_IDS",
     "VideoAlignRewardSpec",

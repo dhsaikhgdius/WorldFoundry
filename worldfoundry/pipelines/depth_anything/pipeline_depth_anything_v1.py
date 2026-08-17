@@ -1,6 +1,7 @@
 """Depth Anything V1 visual generation pipeline module."""
 
 from ..pipeline_utils import PipelineABC
+import logging
 import os
 from typing import Any, List, Optional, Union, Dict
 
@@ -15,6 +16,8 @@ from ...operators.depth_anything_operator import DepthAnythingOperator
 from ...representations.depth_generation.depth_anything.depth_anything_v1_representation import (
     DepthAnything1Representation,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class DepthResult:
@@ -213,8 +216,8 @@ class DepthAnything1Pipeline(PipelineABC):
                     'filename': filename,
                     'stem': stem,
                 })
-            except Exception as e:
-                print(f"Error processing {filename}: {e}")
+            except Exception:
+                logger.warning("Skipping image %s after processing failure", filename, exc_info=True)
                 continue
         
         return DepthResult(results, data_type="image")
@@ -238,6 +241,8 @@ class DepthAnything1Pipeline(PipelineABC):
             try:
                 raw_frames, metadata = read_video(filename)
             except Exception:
+                # Skipped samples silently distort benchmark counts, so record them.
+                logger.warning("Skipping unreadable video %s", filename, exc_info=True)
                 continue
 
             frame_height, frame_width = raw_frames.shape[1:3]

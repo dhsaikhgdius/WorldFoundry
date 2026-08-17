@@ -9,14 +9,13 @@ module does not import the synthesis rCM runtime.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from math import isfinite
 from typing import Literal, Protocol, runtime_checkable
 
 import torch
 
 from worldfoundry.core.attention.block_pattern import AttnMaskSpec, BlockPattern
-from worldfoundry.core.io.integrity import canonical_sha256
 
 from ..consistency.math import (
     batch_coefficients,
@@ -116,10 +115,6 @@ class CausalRCMConfig:
     @property
     def dmd_enabled(self) -> bool:
         return self.dmd_loss_scale > 0
-
-    @property
-    def digest(self) -> str:
-        return canonical_sha256({"schema": "worldfoundry-causal-rcm-config", **asdict(self)})
 
 
 @runtime_checkable
@@ -358,7 +353,6 @@ class NativeCausalRCMLossAdapter:
         self.fake_score = fake_score
         self.config = config
         self.tensor_synchronizer = tensor_synchronizer
-        self.config_digest = config.digest
 
     def _synchronize(self, value: torch.Tensor) -> torch.Tensor:
         return synchronize_rcm_tensor(value, self.tensor_synchronizer)

@@ -697,7 +697,6 @@ def _checkpointable(seed: int):
         progress=progress,
         identity={
             "algorithm": "adversarial-diffusion-distillation",
-            "config_digest": stack.engine.config_digest,
             "gradient_accumulation_steps": stack.engine.gradient_accumulation_steps,
         },
     )

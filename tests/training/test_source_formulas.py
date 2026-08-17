@@ -125,6 +125,7 @@ def test_pinned_unirl_source_formulas_match_flow_grpo_math() -> None:
         torch.tensor(objective_input["rewards"], dtype=torch.float32),
         tuple(objective_input["group_ids"]),
         epsilon=float(objective_input["advantage_epsilon"]),
+        normalization=str(objective_input["advantage_normalization"]),
     ).advantages
     objective = clipped_policy_loss(
         torch.tensor(objective_input["new_log_probs"], dtype=torch.float32),
@@ -340,8 +341,17 @@ def test_pinned_fastvideo_source_formulas_match_dmd_math_and_profile() -> None:
             "fake_score_learning_rate": recipe.fake_score_optimizer.learning_rate,
             "student_weight_decay": recipe.optimizer.weight_decay,
             "fake_score_weight_decay": recipe.fake_score_optimizer.weight_decay,
+            "student_gradient_accumulation_steps": (
+                recipe.optimizer.gradient_accumulation_steps
+            ),
+            "fake_score_gradient_accumulation_steps": (
+                recipe.fake_score_optimizer.gradient_accumulation_steps
+            ),
         },
-        "generator_update_cadence": [step % algorithm.generator_update_interval == 0 for step in range(10)],
+        "generator_update_cadence": [
+            (step + 1) % algorithm.generator_update_interval == 0
+            for step in range(10)
+        ],
         "guided_real_score": guided,
         "distribution": {
             "denominator": denominator,
@@ -360,4 +370,4 @@ def test_pinned_fastvideo_source_formulas_match_dmd_math_and_profile() -> None:
         },
     }
 
-    assert _assert_source_formula(fixture, actual) == 48
+    assert _assert_source_formula(fixture, actual) == 50

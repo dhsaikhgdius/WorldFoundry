@@ -4,6 +4,10 @@ from pathlib import Path
 
 import pytest
 
+# worldfoundry.pipelines.vchitect imports ftfy (optional dependency) at module
+# load time; skip in environments without it.
+pytest.importorskip("ftfy")
+
 from worldfoundry.evaluation.models.catalog import load_model_zoo_registry
 from worldfoundry.evaluation.models import resolve_model_zoo_runner
 from worldfoundry.evaluation.runner import ModelBenchmarkSuiteRequest, run_model_benchmark_suite

@@ -1,5 +1,6 @@
 """Lingbot World visual generation pipeline module."""
 
+import logging
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
@@ -40,6 +41,8 @@ WMFACTORY_INTERACTION_KEYS: Dict[str, tuple[str, ...]] = {
     "camera_dl": ("k", "j"),
     "camera_dr": ("k", "l"),
 }
+
+logger = logging.getLogger(__name__)
 
 
 def _wmfactory_trajectory_from_interactions(
@@ -113,7 +116,7 @@ class LingBotPipeline(PipelineABC):
             DEFAULT_LINGBOT_ACT_REPO if resolved_model_id == "lingbot-world-act" else DEFAULT_LINGBOT_BASE_REPO
         )
 
-        print(f"Loading LingBot World Model from {model_path}...")
+        logger.info("Loading LingBot World Model from %s...", model_path)
 
         synthesis_model = LingBotSynthesis.from_pretrained(
             pretrained_model_path=model_path,
@@ -291,7 +294,7 @@ class LingBotPipeline(PipelineABC):
         # 1. Initialize Memory if images provided (First Turn)
         """Stream visual generation outputs chunk by chunk."""
         if images is not None:
-            print("--- Stream Started ---")
+            logger.info("--- Stream Started ---")
             self.memory_module.manage(action="reset") # Clear old memory
             self.memory_module.record(images, type="image")
 

@@ -5,7 +5,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from .serialization import dump_serialized, load_serialized
+from .serialization import (
+    _TORCH_FORMATS,
+    dump_serialized,
+    infer_serialization_format,
+    load_serialized,
+)
 from .storage import copy_uri, exists_uri, list_uri
 
 
@@ -34,22 +39,45 @@ class EasyIO:
         return options
 
     def exists(self, path, **kwargs) -> bool:
+        """Return whether *path* resolves to an existing file or object.
+
+        The vendored-facade contract is "never raise"; a missing path is
+        reported as False. Unexpected failures (auth errors, network
+        timeouts, bad arguments while resolving hf:// paths) also return
+        False for compatibility, but are logged so environment problems are
+        not permanently misdiagnosed as missing files.
+        """
         try:
             resolved = resolve_checkpoint_path(path)
             return exists_uri(resolved, **self._options(**kwargs))
-        except Exception:
+        except (FileNotFoundError, IsADirectoryError, NotADirectoryError):
+            return False
+        except Exception as exc:
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "easy_io.exists(%r) failed with %s: %s; reporting non-existent", path, type(exc).__name__, exc
+            )
             return False
 
     def load(self, path, *, map_location="cpu", weights_only=True, **kwargs):
-        """Load serialized data, defaulting PyTorch formats to safe tensor-only mode."""
+        """Load serialized data, defaulting PyTorch formats to safe tensor-only mode.
+
+        ``map_location``/``weights_only`` are torch-loader options; forwarding
+        them to the JSON/YAML/pickle loaders would raise ``TypeError``, so they
+        are attached only when the inferred format is a torch checkpoint.
+        """
 
         options = {key: value for key, value in kwargs.items() if key in {"encoding", "file_format", "loader"}}
-        return load_serialized(
-            resolve_checkpoint_path(path),
-            map_location=map_location,
-            weights_only=weights_only,
-            **options,
-        )
+        resolved = resolve_checkpoint_path(path)
+        try:
+            inferred_format = infer_serialization_format(resolved, options.get("file_format"))
+        except ValueError:
+            inferred_format = None
+        if inferred_format in _TORCH_FORMATS:
+            options["map_location"] = map_location
+            options["weights_only"] = weights_only
+        return load_serialized(resolved, **options)
 
     def dump(self, value, path, **kwargs):
         options = {key: item for key, item in kwargs.items() if key in {"encoding", "file_format"}}

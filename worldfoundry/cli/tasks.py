@@ -9,7 +9,7 @@ from pathlib import Path
 
 from worldfoundry.evaluation.utils import BENCHMARK_TASK_ROOT, write_json, write_jsonl
 
-from .utils import json_dump
+from .utils import json_dump, task_roots_from_args as _task_roots_from_args
 
 DEFAULT_TASK_ROOT = BENCHMARK_TASK_ROOT
 DEFAULT_BENCHMARK_TASK_ROOT = DEFAULT_TASK_ROOT
@@ -212,19 +212,6 @@ def _handle_suites_show(args: argparse.Namespace) -> int:
 
 # ── Filesystem task catalog commands ─────────────────────────────
 
-
-def _task_roots_from_args(args: argparse.Namespace) -> tuple[Path, ...]:
-    """Resolve task root paths from CLI flags, defaults, and environment variables."""
-    if args.task_root:
-        roots = list(args.task_root)
-    else:
-        roots = [root for root in (DEFAULT_TASK_ROOT, DEFAULT_BENCHMARK_TASK_ROOT) if root.exists()]
-    for env_name in ("WORLDFOUNDRY_TASK_ROOTS", "WORLDFOUNDRY_BENCHMARK_INCLUDE_PATH"):
-        for item in os.environ.get(env_name, "").split(os.pathsep):
-            if item.strip():
-                roots.append(Path(item))
-    roots.extend(getattr(args, "include_path", None) or ())
-    return tuple(dict.fromkeys(Path(root) for root in roots))
 
 def _load_filesystem_task_registry(args: argparse.Namespace):
     """Load a task registry from filesystem YAML roots derived from CLI args."""

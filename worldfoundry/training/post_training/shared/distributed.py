@@ -54,6 +54,15 @@ class PostTrainingParallelContext:
             return
         raise TypeError(f"multi-rank {role} must be wrapped by DDP or FSDP2 before engine creation")
 
+    def broadcast_from_coordinator(self, value: torch.Tensor) -> torch.Tensor:
+        """Broadcast one tensor from rank zero of this data-parallel group."""
+
+        if self.world_size == 1:
+            return value
+        source = 0 if self.process_group is None else dist.get_global_rank(self.process_group, 0)
+        dist.broadcast(value, src=source, group=self.process_group)
+        return value
+
     def scale_local_mean(self, local_mean: torch.Tensor, local_weight: torch.Tensor | float | int) -> torch.Tensor:
         """Scale a local mean for gradient averaging over uneven rank weights."""
 

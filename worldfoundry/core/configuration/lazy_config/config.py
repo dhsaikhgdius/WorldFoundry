@@ -10,6 +10,7 @@ import builtins
 import importlib.machinery
 import importlib.util
 import inspect
+import threading
 import uuid
 from collections import OrderedDict
 from collections.abc import Mapping
@@ -45,6 +46,14 @@ def _module_name(path: Path) -> str:
     return f"{_CONFIG_PACKAGE_PREFIX}{path.stem}_{uuid.uuid4().hex[:8]}"
 
 
+# Serializes _patch_relative_imports so concurrent/nested config loads cannot
+# interleave the save/restore of builtins.__import__ (which would leave the
+# patched hook installed permanently). Loads themselves become sequential;
+# imports from other threads during a load still pass through patched_import,
+# which delegates every non-config import to the original untouched.
+_IMPORT_PATCH_LOCK = threading.RLock()
+
+
 @contextmanager
 def _patch_relative_imports():
     original_import = builtins.__import__
@@ -72,11 +81,12 @@ def _patch_relative_imports():
             return module
         return original_import(name, globals, locals, fromlist=fromlist, level=level)
 
-    builtins.__import__ = patched_import
-    try:
-        yield
-    finally:
-        builtins.__import__ = original_import
+    with _IMPORT_PATCH_LOCK:
+        builtins.__import__ = patched_import
+        try:
+            yield
+        finally:
+            builtins.__import__ = original_import
 
 
 def _plain_config(value: Any) -> Any:
@@ -106,7 +116,15 @@ def _sort_recursive(value: Any) -> Any:
 
 
 class LazyConfig:
-    """Load local Python/YAML lazy configs and save resolved inference configs."""
+    """Load local Python/YAML lazy configs and save resolved inference configs.
+
+    Trust boundary: ``.py`` configs are executed (detectron2 LazyConfig
+    design) -- only load Python configs you would run as code. YAML configs
+    are parsed with ``yaml.safe_load`` and cannot instantiate arbitrary
+    Python objects; ``save_yaml`` only ever emits plain YAML, so framework
+    round-trips are unaffected. Configs needing Python objects belong in
+    ``.py`` files.
+    """
 
     @staticmethod
     def load_rel(filename: str, keys: str | tuple[str, ...] | None = None):
@@ -128,7 +146,10 @@ class LazyConfig:
                 exec(compile(path.read_text(encoding="utf-8"), str(path), "exec"), namespace)
             result: Any = namespace
         else:
-            result = OmegaConf.create(yaml.unsafe_load(path.read_text(encoding="utf-8")), flags={"allow_objects": True})
+            # safe_load: YAML is data, not code. ``save_yaml`` emits plain
+            # YAML only, and no repository config uses python object tags;
+            # anything needing Python objects must be a ``.py`` config.
+            result = OmegaConf.create(yaml.safe_load(path.read_text(encoding="utf-8")), flags={"allow_objects": True})
 
         if keys is not None:
             if isinstance(keys, str):

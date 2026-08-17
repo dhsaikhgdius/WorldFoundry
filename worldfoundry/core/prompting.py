@@ -1,10 +1,13 @@
-"""Framework-neutral prompt preprocessing hooks used by inference components."""
+"""Framework-neutral prompt preprocessing hooks used by inference components.
+
+torch is imported lazily inside the methods that need gradient suppression so
+that importing this module (e.g. via ``from worldfoundry.core import
+PromptProcessor``) stays lightweight.
+"""
 
 from __future__ import annotations
 
 from collections.abc import Sequence
-
-import torch
 
 
 class PromptProcessor:
@@ -22,21 +25,25 @@ class PromptProcessor:
         for extender_class in extender_classes:
             self.extenders.append(extender_class.from_model_manager(model_source))
 
-    @torch.no_grad()
     def process_prompt(self, prompt, positive: bool = True):
-        if isinstance(prompt, list):
-            return [self.process_prompt(item, positive=positive) for item in prompt]
-        for refiner in self.refiners:
-            prompt = refiner(prompt, positive=positive)
-        return prompt
+        import torch
 
-    @torch.no_grad()
+        with torch.no_grad():
+            if isinstance(prompt, list):
+                return [self.process_prompt(item, positive=positive) for item in prompt]
+            for refiner in self.refiners:
+                prompt = refiner(prompt, positive=positive)
+            return prompt
+
     def extend_prompt(self, prompt: str, positive: bool = True):
+        import torch
+
         del positive
-        extended = {"prompt": prompt}
-        for extender in self.extenders:
-            extended = extender(extended)
-        return extended
+        with torch.no_grad():
+            extended = {"prompt": prompt}
+            for extender in self.extenders:
+                extended = extender(extended)
+            return extended
 
 
 __all__ = ["PromptProcessor"]

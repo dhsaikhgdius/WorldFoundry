@@ -58,7 +58,6 @@ class DMD2PredictionAdapter(Protocol):
 
     module: object
     noise_process_kind: str
-    noise_process_digest: str
     checkpoint_identity: str
 
     def add_noise(
@@ -96,6 +95,30 @@ class DMD2GuidanceAdapter(DMD2PredictionAdapter, Protocol):
         training: bool,
     ) -> TensorLike: ...
 
+
+@runtime_checkable
+class DMD2FusedGuidanceAdapter(DMD2GuidanceAdapter, Protocol):
+    """Optional one-backbone-forward seam for coupled score and GAN losses."""
+
+    def predict_clean_and_logits(
+        self,
+        noisy_latents: TensorLike,
+        noise_levels: TensorLike,
+        *,
+        sample_ids: tuple[str, ...],
+        conditioning: Mapping[str, object],
+        training: bool,
+    ) -> tuple[TensorLike, TensorLike]: ...
+
+    def denoising_loss_from_clean_per_sample(
+        self,
+        clean_latents: TensorLike,
+        predicted_clean: TensorLike,
+        noise_levels: TensorLike,
+        *,
+        conditioning: Mapping[str, object],
+    ) -> TensorLike: ...
+
     def discriminator_logits(
         self,
         latents: TensorLike,
@@ -110,8 +133,6 @@ class DMD2GuidanceAdapter(DMD2PredictionAdapter, Protocol):
 @runtime_checkable
 class DMD2LossAdapter(Protocol):
     """Loss seam consumed by the two-optimizer DMD2 engine."""
-
-    config_digest: str
 
     def loss_denominator(
         self,
@@ -137,6 +158,7 @@ class DMD2LossAdapter(Protocol):
 
 __all__ = [
     "DMD2GuidanceAdapter",
+    "DMD2FusedGuidanceAdapter",
     "DMD2LossAdapter",
     "DMD2PredictionAdapter",
     "DMD2TrainingBatch",

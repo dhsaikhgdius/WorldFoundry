@@ -55,13 +55,43 @@ def unproject_depth(
 
 
 class Sparse3DCache:
-    """Rank candidate RGBD frames by visible coverage in target camera views."""
+    """Rank candidate RGBD frames by visible coverage in target camera views.
 
-    def __init__(self, *, downsample: int = 4) -> None:
+    Args:
+        downsample: Spatial downsampling factor applied to cached world points.
+        max_entries: Optional capacity bound. ``None`` (default) keeps the
+            historical unbounded behavior; when set, the oldest cached frames
+            are evicted FIFO once the limit is exceeded, keeping memory and
+            retrieval cost bounded for long streaming sessions (CC-36).
+    """
+
+    def __init__(self, *, downsample: int = 4, max_entries: int | None = None) -> None:
         self.downsample = max(1, int(downsample))
+        if max_entries is not None and int(max_entries) <= 0:
+            raise ValueError(f"max_entries must be positive or None, got {max_entries!r}")
+        self.max_entries = None if max_entries is None else int(max_entries)
         self._world_points: list[torch.Tensor] = []
         self._latent_indices: list[int] = []
         self._frame_ids: list[int] = []
+
+    def __len__(self) -> int:
+        return len(self._world_points)
+
+    def clear(self) -> None:
+        """Drop all cached frames (and their device tensors)."""
+
+        self._world_points.clear()
+        self._latent_indices.clear()
+        self._frame_ids.clear()
+
+    def _evict_to_capacity(self) -> None:
+        if self.max_entries is None:
+            return
+        excess = len(self._world_points) - self.max_entries
+        if excess > 0:
+            del self._world_points[:excess]
+            del self._latent_indices[:excess]
+            del self._frame_ids[:excess]
 
     @staticmethod
     def _scale_intrinsics(intrinsic: torch.Tensor, scale: float) -> torch.Tensor:
@@ -87,6 +117,7 @@ class Sparse3DCache:
         self._world_points.append(points.detach())
         self._latent_indices.append(int(latent_index))
         self._frame_ids.append(int(latent_index) if frame_id is None else int(frame_id))
+        self._evict_to_capacity()
 
     def add(
         self,

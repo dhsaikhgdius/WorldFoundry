@@ -5,7 +5,6 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from math import isfinite
 
-from worldfoundry.core.io.integrity import canonical_sha256
 from worldfoundry.training.recipes.post_training.algorithms.dfd import (
     DFDAlgorithmSpec,
 )
@@ -123,10 +122,6 @@ class DFDConfig:
     @property
     def adversarial_enabled(self) -> bool:
         return self.generator_adversarial_weight > 0.0
-
-    @property
-    def digest(self) -> str:
-        return canonical_sha256({"schema": "worldfoundry-dfd-config", **asdict(self)})
 
     @classmethod
     def from_recipe(cls, algorithm: DFDAlgorithmSpec) -> DFDConfig:

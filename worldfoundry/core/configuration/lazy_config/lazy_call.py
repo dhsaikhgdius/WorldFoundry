@@ -16,7 +16,6 @@
 import collections.abc as abc
 import inspect
 from dataclasses import is_dataclass
-from typing import ClassVar
 
 import attrs
 from omegaconf import DictConfig
@@ -27,12 +26,18 @@ __all__ = ["LazyCall"]
 
 
 def get_default_params(cls_or_func):
+    """Return the target's keyword defaults, or ``{}`` when they can't be inspected.
+
+    Classes are callable, so both functions and classes take the first branch
+    (``inspect.signature`` already resolves a class to its ``__init__``).
+    String import targets are *not* resolved here: their defaults are
+    intentionally skipped so that building a config never imports the target
+    module.
+    """
     if callable(cls_or_func):
-        # inspect signature for function
         signature = inspect.signature(cls_or_func)
     else:
-        # inspect signature for class
-        signature = inspect.signature(cls_or_func.__init__)
+        return {}
     params = signature.parameters
     default_params = {
         name: param.default for name, param in params.items() if param.default is not inspect.Parameter.empty
@@ -40,8 +45,10 @@ def get_default_params(cls_or_func):
     return default_params
 
 
-_CONVERT_TARGET_TO_STRING: ClassVar[bool] = False
-"""Used by tests to enforce conversion of target to string."""
+# Used by tests to enforce conversion of target to string (module-level flag,
+# not a ClassVar; the previous ClassVar annotation is only meaningful inside a
+# class body).
+_CONVERT_TARGET_TO_STRING = False
 
 
 class LazyCall:

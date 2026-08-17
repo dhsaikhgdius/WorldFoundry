@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+import pytest
+
+# This test module imports worldfoundry code that requires the optional
+# "transformers" dependency at import time; skip when it is unavailable.
+pytest.importorskip("transformers")
+
 import multiprocessing as multiprocessing_module
 from collections.abc import Mapping
 from pathlib import Path
@@ -8,9 +14,11 @@ import pytest
 import torch
 import torch.distributed as dist
 from torch import nn
+from transformers import get_constant_schedule_with_warmup
 
 from worldfoundry.training.checkpoint.checkpointer import TrainingCheckpointer
 from worldfoundry.training.checkpoint.state import TrainingProgress, TrainingState
+from worldfoundry.training.checkpoint.stateful import NamedStatefulCollection
 from worldfoundry.training.post_training.distillation.anyflow import (
     AnyFlowBidirectionalOnPolicyConfig,
     AnyFlowBidirectionalPretrainConfig,
@@ -390,6 +398,14 @@ def _checkpointable_bidirectional_stack(objective_seed: int):
     ema = AnyFlowEMA(student.module, decay=config.ema_decay, warmup_steps=0)
     student_optimizer = torch.optim.AdamW(student.module.parameters(), lr=1.0e-3)
     fake_optimizer = torch.optim.AdamW(fake.module.parameters(), lr=1.0e-3)
+    student_scheduler = get_constant_schedule_with_warmup(
+        student_optimizer,
+        num_warmup_steps=3,
+    )
+    fake_scheduler = get_constant_schedule_with_warmup(
+        fake_optimizer,
+        num_warmup_steps=3,
+    )
     engine = NativeAnyFlowOnPolicyEngine(
         student_module=student.module,
         real_score_module=real.module,
@@ -401,6 +417,8 @@ def _checkpointable_bidirectional_stack(objective_seed: int):
         discriminator_update_ratio=config.discriminator_update_ratio,
         student_max_grad_norm=1.0,
         fake_score_max_grad_norm=1.0,
+        student_scheduler=student_scheduler,
+        fake_score_scheduler=fake_scheduler,
         student_ema=ema,
     )
     loader = _StatefulLoader()
@@ -422,9 +440,15 @@ def _checkpointable_bidirectional_stack(objective_seed: int):
         progress=progress,
         identity={
             "algorithm": "anyflow-bidirectional",
-            "config_digest": engine.config_digest,
+            "configuration": engine.config_state,
             "gradient_accumulation_steps": engine.gradient_accumulation_steps,
         },
+        lr_scheduler=NamedStatefulCollection(
+            {
+                "student": student_scheduler,
+                "fake_score": fake_scheduler,
+            }
+        ),
         ema=ema,
     )
     return engine, loader, progress, generator, model, ema, state
@@ -463,6 +487,8 @@ def test_bidirectional_dcp_resume_reproduces_exact_next_update(tmp_path: Path) -
     }
     expected_generator = generator.get_state().clone()
     expected_decisions = engine.decisions.generator.get_state().clone()
+    expected_student_scheduler = engine.student_scheduler.state_dict()
+    expected_fake_scheduler = engine.fake_score_scheduler.state_dict()
 
     restored = _checkpointable_bidirectional_stack(999)
     (
@@ -496,3 +522,5 @@ def test_bidirectional_dcp_resume_reproduces_exact_next_update(tmp_path: Path) -
         torch.testing.assert_close(value, expected_model[name], rtol=0, atol=0)
     for name, value in restored_ema.state_dict().items():
         torch.testing.assert_close(value, expected_ema[name], rtol=0, atol=0)
+    assert restored_engine.student_scheduler.state_dict() == expected_student_scheduler
+    assert restored_engine.fake_score_scheduler.state_dict() == expected_fake_scheduler

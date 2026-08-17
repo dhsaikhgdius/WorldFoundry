@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import argparse
 import gc
-import hashlib
 import json
 import math
 import os
@@ -39,6 +38,10 @@ from worldfoundry.training.post_training import (
     build_native_anyflow_pretraining_stack,
 )
 from worldfoundry.training.recipes import PostTrainingRecipe
+from worldfoundry.training.state_comparison import (
+    assert_state_equal,
+    snapshot_state,
+)
 
 
 class _GateLoader:
@@ -143,29 +146,14 @@ def _torch_dtype(name: str) -> torch.dtype:
     }[name]
 
 
-def _checkpoint_identity() -> str:
-    return _audited_checkpoint_identity(
-        ANYFLOW_BIDIRECTIONAL_WAN_SMALL_CHECKPOINT
-    )
+def _checkpoint_identity(
+    checkpoint: CheckpointSpec = ANYFLOW_BIDIRECTIONAL_WAN_SMALL_CHECKPOINT,
+) -> str:
+    return f"{checkpoint.repo_id}@{checkpoint.revision}"
 
 
 def _far_checkpoint_identity() -> str:
-    return _audited_checkpoint_identity(ANYFLOW_FAR_WAN_SMALL_CHECKPOINT)
-
-
-def _audited_checkpoint_identity(checkpoint: CheckpointSpec) -> str:
-    if checkpoint.repo_id is None or checkpoint.revision is None:
-        raise RuntimeError("AnyFlow real gate requires an immutable Hub checkpoint")
-    weight = "transformer/diffusion_pytorch_model.safetensors"
-    if set(checkpoint.file_sha256) != {weight} or set(
-        checkpoint.file_size_bytes
-    ) != {weight}:
-        raise RuntimeError("AnyFlow real gate checkpoint has no strict weight audit")
-    if set(checkpoint.resource_sha256) != {"transformer/config.json"} or set(
-        checkpoint.resource_size_bytes
-    ) != {"transformer/config.json"}:
-        raise RuntimeError("AnyFlow real gate checkpoint has no strict config audit")
-    return f"{checkpoint.repo_id}@{checkpoint.revision}"
+    return _checkpoint_identity(ANYFLOW_FAR_WAN_SMALL_CHECKPOINT)
 
 
 def _recipe(
@@ -224,39 +212,8 @@ def _recipe(
     )
 
 
-def _hash_value(digest: object, value: object) -> None:
-    if isinstance(value, torch.Tensor):
-        tensor = value.detach().contiguous().cpu()
-        descriptor = {
-            "dtype": str(tensor.dtype),
-            "shape": list(tensor.shape),
-        }
-        digest.update(b"tensor:")
-        digest.update(json.dumps(descriptor, sort_keys=True).encode("utf-8"))
-        digest.update(memoryview(tensor.reshape(-1).view(torch.uint8).numpy()))
-        return
-    if isinstance(value, Mapping):
-        digest.update(b"mapping:")
-        for key in sorted(value, key=lambda item: (type(item).__name__, repr(item))):
-            _hash_value(digest, key)
-            _hash_value(digest, value[key])
-        return
-    if isinstance(value, (tuple, list)):
-        digest.update(f"{type(value).__name__}:".encode("utf-8"))
-        for item in value:
-            _hash_value(digest, item)
-        return
-    digest.update(f"scalar:{type(value).__name__}:{value!r}".encode("utf-8"))
-
-
-def _state_digest(value: object) -> str:
-    digest = hashlib.sha256()
-    _hash_value(digest, value)
-    return digest.hexdigest()
-
-
-def _runtime_rng_digest(objective_generator: torch.Generator) -> str:
-    return _state_digest(
+def _runtime_rng_state(objective_generator: torch.Generator) -> object:
+    return snapshot_state(
         {
             "torch_cpu": torch.get_rng_state(),
             "torch_cuda": tuple(torch.cuda.get_rng_state_all()),
@@ -385,17 +342,8 @@ def _run_far_forward(
     if not bool(torch.isfinite(output).all()):
         raise FloatingPointError("AnyFlow FAR checkpoint produced non-finite output")
 
-    weight = "transformer/diffusion_pytorch_model.safetensors"
     summary = {
         "checkpoint_identity": identity,
-        "weight_size_bytes": checkpoint.file_size_bytes[weight],
-        "weight_sha256": checkpoint.file_sha256[weight],
-        "config_size_bytes": checkpoint.resource_size_bytes[
-            "transformer/config.json"
-        ],
-        "config_sha256": checkpoint.resource_sha256[
-            "transformer/config.json"
-        ],
         "parameter_count": sum(
             parameter.numel() for parameter in adapter.module.parameters()
         ),
@@ -506,10 +454,7 @@ def main() -> int:
         objective_generator=objective_generator,
         progress=progress,
         identity={
-            "recipe_digest": recipe.digest,
             "checkpoint": identity,
-            "weight_sha256": dict(checkpoint.file_sha256),
-            "config_sha256": dict(checkpoint.resource_sha256),
             "input": {
                 "frames": args.frames,
                 "height": args.height,
@@ -553,43 +498,61 @@ def main() -> int:
     if not bool(torch.count_nonzero(tracked_gradient)):
         raise AssertionError("AnyFlow production engine produced a zero tracked gradient")
 
-    checkpoint_engine_state = stack.engine.state_dict()
-    checkpoint_engine_digest = _state_digest(checkpoint_engine_state)
-    checkpoint_progress_state = progress.state_dict()
-    checkpoint_model_digest = _state_digest(stack.model.state_dict())
-    checkpoint_optimizer_digest = _state_digest(stack.optimizer.state_dict())
-    checkpoint_rng_digest = _runtime_rng_digest(objective_generator)
+    checkpoint_engine_state = snapshot_state(stack.engine.state_dict())
+    checkpoint_progress_state = snapshot_state(progress.state_dict())
+    checkpoint_model_state = snapshot_state(stack.model.state_dict())
+    checkpoint_optimizer_state = snapshot_state(stack.optimizer.state_dict())
+    checkpoint_rng_state = _runtime_rng_state(objective_generator)
 
     session.save_every_steps = 0
     stage = time.perf_counter()
     continuous_summary = session.run(max_steps=1)
     _synchronize(device)
     timings["continuous_update_seconds"] = time.perf_counter() - stage
-    expected_engine_state = stack.engine.state_dict()
-    expected_engine_digest = _state_digest(expected_engine_state)
-    expected_progress_state = progress.state_dict()
-    expected_model_digest = _state_digest(stack.model.state_dict())
-    expected_optimizer_digest = _state_digest(stack.optimizer.state_dict())
-    expected_rng_digest = _runtime_rng_digest(objective_generator)
+    expected_engine_state = snapshot_state(stack.engine.state_dict())
+    expected_progress_state = snapshot_state(progress.state_dict())
+    expected_model_state = snapshot_state(stack.model.state_dict())
+    expected_optimizer_state = snapshot_state(stack.optimizer.state_dict())
+    expected_rng_state = _runtime_rng_state(objective_generator)
 
     stage = time.perf_counter()
-    loaded = manager.load(state, artifact.path)
+    manager.load(state, artifact.path)
     _synchronize(device)
     timings["dcp_load_seconds"] = time.perf_counter() - stage
-    if progress.state_dict() != checkpoint_progress_state:
-        raise AssertionError("AnyFlow DCP did not restore production progress state")
-    if _state_digest(stack.engine.state_dict()) != checkpoint_engine_digest:
-        raise AssertionError("AnyFlow DCP did not restore engine decisions and cadence")
     if loader.cursor != 1:
         raise AssertionError("AnyFlow DCP did not restore the data cursor")
-    if _state_digest(stack.model.state_dict()) != checkpoint_model_digest:
-        raise AssertionError("AnyFlow DCP model bytes differ at the restored boundary")
-    if _state_digest(stack.optimizer.state_dict()) != checkpoint_optimizer_digest:
-        raise AssertionError(
-            "AnyFlow DCP optimizer bytes differ at the restored boundary"
-        )
-    if _runtime_rng_digest(objective_generator) != checkpoint_rng_digest:
-        raise AssertionError("AnyFlow DCP did not restore all rank-local RNG state")
+    assert_state_equal(
+        checkpoint_engine_state,
+        stack.engine.state_dict(),
+        path="checkpoint.engine",
+    )
+    assert_state_equal(
+        checkpoint_progress_state,
+        progress.state_dict(),
+        path="checkpoint.progress",
+    )
+    assert_state_equal(
+        checkpoint_model_state,
+        stack.model.state_dict(),
+        path="checkpoint.model",
+    )
+    assert_state_equal(
+        checkpoint_optimizer_state,
+        stack.optimizer.state_dict(),
+        path="checkpoint.optimizer",
+    )
+    assert_state_equal(
+        checkpoint_rng_state,
+        _runtime_rng_state(objective_generator),
+        path="checkpoint.rng",
+    )
+    del (
+        checkpoint_engine_state,
+        checkpoint_progress_state,
+        checkpoint_model_state,
+        checkpoint_optimizer_state,
+        checkpoint_rng_state,
+    )
 
     stage = time.perf_counter()
     resumed_summary = session.run(max_steps=1)
@@ -597,26 +560,35 @@ def main() -> int:
     timings["resumed_update_seconds"] = time.perf_counter() - stage
     if resumed_summary.final_loss != continuous_summary.final_loss:
         raise AssertionError("AnyFlow resumed continuation loss is not bit-exact")
-    if _state_digest(stack.engine.state_dict()) != expected_engine_digest:
-        raise AssertionError("AnyFlow resumed engine decisions are not exact")
-    if progress.state_dict() != expected_progress_state:
-        raise AssertionError("AnyFlow resumed progress counters are not exact")
-    resumed_model_digest = _state_digest(stack.model.state_dict())
-    resumed_optimizer_digest = _state_digest(stack.optimizer.state_dict())
-    if resumed_model_digest != expected_model_digest:
-        raise AssertionError("AnyFlow resumed model update is not byte-exact")
-    if resumed_optimizer_digest != expected_optimizer_digest:
-        raise AssertionError("AnyFlow resumed optimizer update is not byte-exact")
-    if _runtime_rng_digest(objective_generator) != expected_rng_digest:
-        raise AssertionError("AnyFlow resumed rank-local RNG continuation is not exact")
-    if loaded.manifest_sha256 != artifact.manifest_sha256:
-        raise AssertionError("AnyFlow resumed a different DCP artifact")
+    assert_state_equal(
+        expected_engine_state,
+        stack.engine.state_dict(),
+        path="continuation.engine",
+    )
+    assert_state_equal(
+        expected_progress_state,
+        progress.state_dict(),
+        path="continuation.progress",
+    )
+    assert_state_equal(
+        expected_model_state,
+        stack.model.state_dict(),
+        path="continuation.model",
+    )
+    assert_state_equal(
+        expected_optimizer_state,
+        stack.optimizer.state_dict(),
+        path="continuation.optimizer",
+    )
+    assert_state_equal(
+        expected_rng_state,
+        _runtime_rng_state(objective_generator),
+        path="continuation.rng",
+    )
 
     timings["total_seconds"] = time.perf_counter() - started
     summary = {
         "checkpoint_identity": identity,
-        "checkpoint_manifest_sha256": artifact.manifest_sha256,
-        "recipe_digest": recipe.digest,
         "parameter_count": parameter_count,
         "device": str(device),
         "dtype": str(dtype),
@@ -631,10 +603,6 @@ def main() -> int:
         ),
         "parameter_delta_l2": float(first_delta.double().square().sum().sqrt()),
         "parameter_delta_max_abs": float(first_delta.abs().max()),
-        "checkpoint_model_digest": checkpoint_model_digest,
-        "checkpoint_optimizer_digest": checkpoint_optimizer_digest,
-        "continuation_model_digest": expected_model_digest,
-        "continuation_optimizer_digest": expected_optimizer_digest,
         "engine_decision_draw_count": int(
             expected_engine_state["decisions"]["draw_count"]
         ),

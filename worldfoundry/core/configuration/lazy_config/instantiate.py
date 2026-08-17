@@ -67,7 +67,7 @@ def instantiate(cfg, *args, **kwargs):
     Returns:
         object instantiated by cfg
     """
-    from omegaconf import DictConfig, ListConfig, OmegaConf
+    from omegaconf import DictConfig, ListConfig
 
     if isinstance(cfg, ListConfig):
         lst = [instantiate(x) for x in cfg]
@@ -80,7 +80,12 @@ def instantiate(cfg, *args, **kwargs):
     # If input is a DictConfig backed by dataclasses (i.e. omegaconf's structured config),
     # instantiate it to the actual dataclass.
     if isinstance(cfg, DictConfig) and is_dataclass_or_attrs(cfg._metadata.object_type):
-        return OmegaConf.to_object(cfg)
+        # Call the package-local to_object directly instead of relying on the
+        # global ``OmegaConf.to_object`` monkey-patch installed by
+        # ``lazy_config/__init__`` (identical behavior; see CF-3).
+        from worldfoundry.core.configuration.lazy_config.omegaconf_patch import to_object
+
+        return to_object(cfg)
 
     if isinstance(cfg, abc.Mapping) and "_target_" in cfg:
         # conceptually equivalent to hydra.utils.instantiate(cfg) with _convert_=all,

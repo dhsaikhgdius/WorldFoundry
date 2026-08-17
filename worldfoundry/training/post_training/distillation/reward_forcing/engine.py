@@ -1,9 +1,8 @@
-"""Exact-resume engine identity for native Reward-Forcing."""
+"""Native Reward-Forcing optimizer engine."""
 
 from __future__ import annotations
 
-import re
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 
 import torch
 from torch import nn
@@ -13,23 +12,13 @@ from ..dmd.contracts import DMDTrainingBatch
 from ..dmd.engine import DMDTrainResult, NativeDMDTrainEngine
 from .objective import NativeRewardForcingLossAdapter
 
-_SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
-
 
 class NativeRewardForcingTrainEngine(NativeDMDTrainEngine):
-    """DMD engine whose resume gate covers all Reward-Forcing behavior.
-
-    The shared DMD engine records ``schedule_digest`` at every checkpoint.  A
-    Reward-Forcing run also depends on its two optimizer configurations, so
-    this specialization exposes the builder's composite execution digest at
-    that gate rather than accepting a checkpoint with silently different
-    learning rates, clipping, or accumulation.
-    """
+    """DMD engine with the released Reward-Forcing evaluation semantics."""
 
     def __init__(
         self,
         *,
-        execution_digest: str,
         student_module: nn.Module,
         real_score_module: nn.Module,
         fake_score_module: nn.Module,
@@ -47,12 +36,8 @@ class NativeRewardForcingTrainEngine(NativeDMDTrainEngine):
         student_ema_start_step: int = 0,
         parallel_context: PostTrainingParallelContext | None = None,
     ) -> None:
-        digest = str(execution_digest).strip().lower()
-        if _SHA256_PATTERN.fullmatch(digest) is None:
-            raise ValueError("Reward-Forcing execution_digest must be 64 lowercase hex")
         if not isinstance(loss_adapter, NativeRewardForcingLossAdapter):
             raise TypeError("Reward-Forcing engine requires NativeRewardForcingLossAdapter")
-        self.execution_digest = digest
         super().__init__(
             student_module=student_module,
             real_score_module=real_score_module,
@@ -72,9 +57,19 @@ class NativeRewardForcingTrainEngine(NativeDMDTrainEngine):
             parallel_context=parallel_context,
         )
 
+    def generator_update_due(self) -> bool:
+        """Keep the released Reward-Forcing cadence, starting at iteration zero."""
+
+        return self.global_step % self.generator_update_interval == 0
+
     @property
-    def schedule_digest(self) -> str:
-        return self.execution_digest
+    def generator_update_phase(self) -> str:
+        return "start-of-interval"
+
+    def _expected_student_optimizer_steps(self, completed_iterations: int) -> int:
+        if completed_iterations == 0:
+            return 0
+        return (completed_iterations - 1) // self.generator_update_interval + 1
 
     def _set_released_eval_modes(self) -> None:
         self.student_module.eval()
@@ -108,17 +103,5 @@ class NativeRewardForcingTrainEngine(NativeDMDTrainEngine):
             )
         finally:
             self._set_released_eval_modes()
-
-    def load_state_dict(self, state_dict: Mapping[str, object]) -> None:
-        """Name a composite-behavior mismatch before the shared DMD checks."""
-
-        if (
-            isinstance(state_dict, Mapping)
-            and "schedule_digest" in state_dict
-            and state_dict["schedule_digest"] != self.execution_digest
-        ):
-            raise ValueError("saved Reward-Forcing execution behavior differs from the active engine")
-        super().load_state_dict(state_dict)
-
 
 __all__ = ["NativeRewardForcingTrainEngine"]

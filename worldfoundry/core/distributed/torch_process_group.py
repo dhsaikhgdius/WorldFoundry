@@ -104,8 +104,10 @@ def init() -> int | None:
         except Exception as exc:
             logger.warning("Failed to set GPU CPU affinity: %s", exc)
 
-    os.environ["TORCH_NCCL_BLOCKING_WAIT"] = "0"
-    os.environ["TORCH_NCCL_ASYNC_ERROR_HANDLING"] = "1"
+    # Respect explicit user overrides (e.g. TORCH_NCCL_BLOCKING_WAIT=1 for
+    # debugging); only provide defaults when unset (CC-23).
+    os.environ.setdefault("TORCH_NCCL_BLOCKING_WAIT", "0")
+    os.environ.setdefault("TORCH_NCCL_ASYNC_ERROR_HANDLING", "1")
     if dist.is_available():
         if torch.cuda.is_available():
             torch.cuda.set_device(local_cuda_device)
@@ -148,13 +150,42 @@ def is_rank0() -> bool:
 
 
 def is_local_rank0() -> bool:
+    """Return whether this process is the first rank on its node.
+
+    ``LOCAL_RANK`` (set by torchrun and most launchers) is authoritative:
+    schedulers that isolate each process with ``CUDA_VISIBLE_DEVICES=<one
+    GPU>`` make ``torch.cuda.current_device()`` report 0 in every process,
+    which would wrongly mark all ranks as local rank 0 (CC-16).
+    """
+
+    local_rank = os.getenv("LOCAL_RANK")
+    if local_rank is not None:
+        try:
+            return int(local_rank) == 0
+        except ValueError:
+            logger.warning("Ignoring invalid LOCAL_RANK=%r.", local_rank)
     if torch.cuda.is_available():
         return torch.cuda.current_device() == 0
-    return int(os.getenv("LOCAL_RANK", 0)) == 0
+    return True
 
 
 def device_with_rank(device: str) -> str:
+    """Qualify a bare ``cuda`` device string with this process's local device.
+
+    Uses ``LOCAL_RANK`` (falling back to the current CUDA device) rather than
+    the global rank: on multi-node jobs the global rank exceeds the per-node
+    GPU count and would produce nonexistent devices such as ``cuda:8`` (CC-15).
+    """
+
     if device == "cuda":
+        local_rank = os.getenv("LOCAL_RANK")
+        if local_rank is not None:
+            try:
+                return f"cuda:{int(local_rank)}"
+            except ValueError:
+                logger.warning("Ignoring invalid LOCAL_RANK=%r.", local_rank)
+        if torch.cuda.is_available():
+            return f"cuda:{torch.cuda.current_device()}"
         return f"cuda:{get_rank()}"
     return device
 
@@ -177,14 +208,39 @@ def barrier() -> None:
 
 
 def rank0_first(func: Callable) -> Callable:
-    """Run ``func`` on rank 0 before all other ranks."""
+    """Run ``func`` on rank 0 before all other ranks.
+
+    Rank 0 failures are propagated to every rank: the barrier is reached even
+    when ``func`` raises (otherwise the surviving ranks would block on the
+    barrier until the NCCL timeout, CC-14), and a success flag is broadcast so
+    non-zero ranks raise instead of running ``func`` against half-initialized
+    state. Note ``func``'s rank-0 runtime is still bounded by the process
+    group timeout of the barrier/broadcast collectives.
+    """
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):  # noqa: ANN202
+        distributed = dist.is_available() and dist.is_initialized() and get_world_size() > 1
         result = None
+        rank0_error: BaseException | None = None
         if is_rank0():
-            result = func(*args, **kwargs)
-        barrier()
+            try:
+                result = func(*args, **kwargs)
+            except BaseException as exc:  # re-raised below, after the barrier
+                rank0_error = exc
+        if distributed:
+            barrier()
+            success = [rank0_error is None]
+            dist.broadcast_object_list(success, src=0)
+            if rank0_error is not None:
+                raise rank0_error
+            if not success[0]:
+                raise RuntimeError(
+                    f"rank0_first({getattr(func, '__name__', func)!r}) failed on rank 0; "
+                    "see the rank 0 log for the original exception."
+                )
+        elif rank0_error is not None:
+            raise rank0_error
         if not is_rank0():
             result = func(*args, **kwargs)
         return result

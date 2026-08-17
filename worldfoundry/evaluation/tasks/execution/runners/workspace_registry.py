@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
 from worldfoundry.core.io.paths import project_root
+from worldfoundry.core.process import read_text_tail, run_logged_subprocess
 from worldfoundry.evaluation.tasks.execution.framework.benchmark_assets import bundled_benchmark_asset
 
 REPO_ROOT = project_root(__file__)
@@ -1049,6 +1050,28 @@ def build_workspace_benchmark_command(payload: Any, output_dir: str | Path) -> l
     return command
 
 
+def _workspace_subprocess_timeout(config: Mapping[str, Any], *, grace_seconds: float = 60.0) -> float | None:
+    """Parent-side backstop for delegated runner subprocesses.
+
+    The delegated CLI usually enforces its own ``--timeout`` (defaulting to
+    ``WORLDFOUNDRY_BENCHMARK_TIMEOUT``); the parent bound adds ``grace_seconds``
+    on top so the child can finish writing its failed scorecard first. Returns
+    None (unbounded, the historical behavior) when neither the workspace config
+    nor the environment declares a timeout.
+    """
+
+    configured = config.get("timeout")
+    if configured not in (None, ""):
+        return float(_int_config_value(configured, default=7200)) + grace_seconds
+    env_default = os.environ.get("WORLDFOUNDRY_BENCHMARK_TIMEOUT")
+    if env_default:
+        try:
+            return float(env_default) + grace_seconds
+        except ValueError:
+            return None
+    return None
+
+
 def _run_cli_benchmark(
     payload: Any, output_dir: str | Path, log_callback: Callable[[str, str], None] | None
 ) -> dict[str, Any]:
@@ -1071,6 +1094,7 @@ def _run_cli_benchmark(
             "run_fixture": run_fixture,
         },
         log_callback=log_callback,
+        timeout=_workspace_subprocess_timeout(config),
     )
 
 
@@ -1082,6 +1106,7 @@ def _run_cli_command(
     delegate_runner: str,
     request: Mapping[str, Any],
     log_callback: Callable[[str, str], None] | None,
+    timeout: float | None = None,
 ) -> dict[str, Any]:
     output_dir_path = Path(output_dir)
     output_dir_path.mkdir(parents=True, exist_ok=True)
@@ -1089,19 +1114,25 @@ def _run_cli_command(
     env["PYTHONPATH"] = f"{REPO_ROOT}{os.pathsep}{env.get('PYTHONPATH', '')}".rstrip(os.pathsep)
     if log_callback is not None:
         log_callback("system", f"{benchmark_id} runner={' '.join(command)}\n")
-    completed = subprocess.run(
-        command,
-        cwd=REPO_ROOT,
-        env=env,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    (output_dir_path / "workspace_runner_stdout.log").write_text(completed.stdout, encoding="utf-8")
-    (output_dir_path / "workspace_runner_stderr.log").write_text(completed.stderr, encoding="utf-8")
+    stdout_log = output_dir_path / "workspace_runner_stdout.log"
+    stderr_log = output_dir_path / "workspace_runner_stderr.log"
+    try:
+        completed = run_logged_subprocess(
+            command,
+            stdout_path=stdout_log,
+            stderr_path=stderr_log,
+            cwd=REPO_ROOT,
+            env=env,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        tail = read_text_tail(stderr_log, max_lines=40) or read_text_tail(stdout_log, max_lines=40)
+        raise RuntimeError(
+            f"{benchmark_id} runner timed out after {timeout}s and was terminated; tail={tail}"
+        ) from None
     scorecard_path = output_dir_path / "scorecard.json"
     if not scorecard_path.is_file():
-        tail = "\n".join((completed.stderr or completed.stdout).splitlines()[-40:])
+        tail = read_text_tail(stderr_log, max_lines=40) or read_text_tail(stdout_log, max_lines=40)
         raise RuntimeError(
             f"{benchmark_id} runner did not write scorecard.json; exit={completed.returncode}; tail={tail}"
         )
@@ -1165,4 +1196,25 @@ def validate_workspace_registry() -> list[str]:
         module_path = REPO_ROOT / (spec.module.replace(".", "/") + ".py")
         if not module_path.is_file():
             issues.append(f"{benchmark_id}: runner module not found: {spec.module}")
+
+    # The integration registry is the public benchmark_integration_spec() surface;
+    # every framework-registered runner must appear there so the public API never
+    # silently returns None for a wired benchmark (review finding ET-01).
+    try:
+        from worldfoundry.evaluation.tasks.execution.framework.integration import BENCHMARK_INTEGRATION_REGISTRY
+    except Exception as exc:  # pragma: no cover - defensive catalog validation
+        issues.append(f"benchmark integration registry unavailable: {type(exc).__name__}: {exc}")
+    else:
+        for benchmark_id, video_spec in sorted(VIDEO_RUNNER_REGISTRY.items()):
+            integration = BENCHMARK_INTEGRATION_REGISTRY.get(benchmark_id)
+            if integration is None:
+                issues.append(f"{benchmark_id}: missing benchmark integration registry entry")
+            elif integration.runner_script != video_spec.script:
+                issues.append(
+                    f"{benchmark_id}: integration runner script {integration.runner_script} "
+                    f"does not match framework runner {video_spec.script}"
+                )
+        for benchmark_id in sorted(BENCHMARK_INTEGRATION_REGISTRY):
+            if benchmark_id not in VIDEO_RUNNER_REGISTRY:
+                issues.append(f"{benchmark_id}: integration entry has no framework runner registry entry")
     return issues

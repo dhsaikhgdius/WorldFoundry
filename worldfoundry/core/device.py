@@ -1,10 +1,13 @@
 """Device detection and torch backend helpers for CPU, CUDA, and NPU."""
 
 import importlib
+import logging
 import os
 from typing import Any
 
 import torch
+
+logger = logging.getLogger(__name__)
 
 
 def is_torch_npu_available() -> bool:
@@ -38,7 +41,7 @@ def get_torch_device() -> Any:
     try:
         return getattr(torch, device_name)
     except AttributeError:
-        print(f"Device namespace '{device_name}' not found in torch, try to load 'torch.cuda'.")
+        logger.warning("Device namespace %r not found in torch, falling back to 'torch.cuda'.", device_name)
         return torch.cuda
 
 

@@ -19,13 +19,12 @@ import io
 import json
 import os
 from collections.abc import Callable, Mapping
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 from typing import Literal, overload
 from urllib.parse import unquote, urlparse
+from uuid import uuid4
 
 import torch
-from huggingface_hub import hf_hub_download, try_to_load_from_cache
-from loguru import logger
 from safetensors.torch import load as load_safetensors
 from safetensors.torch import load_file as load_safetensors_file
 from safetensors.torch import save_file as save_safetensors
@@ -33,6 +32,7 @@ from torch.distributed.checkpoint import FileSystemReader
 from torch.distributed.checkpoint import load as dcp_load
 from torch.distributed.checkpoint.default_planner import DefaultLoadPlanner
 
+from worldfoundry.core.checkpoint.safe_loading import tensor_state_dict
 from worldfoundry.core.io.disk import (
     CACHE_MIN_FREE_ENV,
     cache_min_free_bytes,
@@ -40,9 +40,17 @@ from worldfoundry.core.io.disk import (
     disk_space_error_from_exception,
     ensure_free_disk,
 )
-from worldfoundry.core.io.s3_filesystem import S3FileSystem, S3StorageReader
+from worldfoundry.core.io.integrity import sync_directory
+from worldfoundry.core.logging_setup import get_logger
 
-_OMNIDREAMS_CHECKPOINT_CREDENTIAL_PATH = "credentials/s3_checkpoint.secret"
+# huggingface_hub, loguru, and boto3 (via io.s3_filesystem) are imported
+# lazily inside the functions that need them so that loading a plain local
+# checkpoint works in minimal runtime environments.
+logger = get_logger(__name__)
+
+_OMNIDREAMS_CHECKPOINT_CREDENTIAL_PATH = os.getenv(
+    "WORLDFOUNDRY_S3_CREDENTIALS", "credentials/s3_checkpoint.secret"
+)
 _OMNIDREAMS_CHECKPOINT_LOCAL_CACHE_DIR = os.path.expanduser(
     os.getenv("WORLDFOUNDRY_CACHE_DIR", "~/.cache/worldfoundry")
 )
@@ -75,6 +83,8 @@ def _is_hf_file_cached(
     subfolder: str | None,
     revision: str,
 ) -> bool:
+    from huggingface_hub import try_to_load_from_cache
+
     try:
         cached = try_to_load_from_cache(
             repo_id=repo_id,
@@ -233,7 +243,9 @@ def _safetensors_device(map_location: str | torch.device) -> str:
 def _hf_hub_download_shard_task(
     args: tuple[str, str, str | None, str],
 ) -> tuple[str, str]:
-    """Picklable worker: download one shard; used by ProcessPoolExecutor."""
+    """Download one shard; used by ThreadPoolExecutor."""
+    from huggingface_hub import hf_hub_download
+
     repo_id, shard_file, subfolder, revision = args
     settings: dict[str, object] = {
         "repo": repo_id,
@@ -269,7 +281,12 @@ def _parallel_hf_hub_download_shards(
     subfolder: str | None,
     revision: str,
 ) -> dict[str, str]:
-    """Download unique shard files in parallel processes; returns shard -> local path."""
+    """Download unique shard files in parallel threads; returns shard -> local path.
+
+    Threads (not processes) on purpose: the download is network-bound, and
+    forking a process that may already hold CUDA contexts or HF/requests
+    background threads is unsupported and can deadlock the children.
+    """
     if not shard_files:
         return {}
     if len(shard_files) == 1:
@@ -290,10 +307,10 @@ def _parallel_hf_hub_download_shards(
 
     work = [(repo_id, s, subfolder, revision) for s in shard_files]
     logger.info(
-        f"Downloading {len(shard_files)} Hugging Face safetensors shards with up to {max_workers} parallel processes"
+        f"Downloading {len(shard_files)} Hugging Face safetensors shards with up to {max_workers} parallel threads"
     )
     shard_to_path: dict[str, str] = {}
-    with ProcessPoolExecutor(max_workers=max_workers) as pool:
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
         for shard_file, path in pool.map(_hf_hub_download_shard_task, work):
             shard_to_path[shard_file] = path
     return shard_to_path
@@ -334,11 +351,20 @@ def _load_sharded_safetensors_index_checkpoint(
     cache_path = _sharded_safetensors_merge_cache_path(checkpoint_path, local_cache_dir)
     if os.path.exists(cache_path):
         logger.info(f"Loading merged sharded checkpoint from cache: {cache_path}")
-        return _load_checkpoint_from_local(cache_path, ".safetensors", map_location)
+        try:
+            return _load_checkpoint_from_local(cache_path, ".safetensors", map_location)
+        except Exception as exc:
+            logger.warning(
+                f"Discarding unreadable merged checkpoint cache {cache_path} ({exc}); "
+                f"rebuilding from {checkpoint_path}"
+            )
+            _discard_corrupt_cache(cache_path)
 
     is_hf_url = _is_huggingface_checkpoint_url(checkpoint_path)
 
     if is_hf_url:
+        from huggingface_hub import hf_hub_download
+
         repo_id, index_filename, subfolder, revision = _parse_huggingface_checkpoint_url(checkpoint_path)
         logger.info(f"Merging sharded safetensors from Hugging Face: {checkpoint_path}")
         settings: dict[str, object] = {
@@ -413,13 +439,14 @@ def _load_sharded_safetensors_index_checkpoint(
             map_location=map_location,
         )
 
-    _save_to_local_cache(
-        merged,
-        cache_path,
-        ".safetensors",
-        label="merged sharded checkpoint cache",
-    )
-    logger.info(f"Saved merged sharded checkpoint to: {cache_path}")
+    if _should_write_shared_cache():
+        _save_to_local_cache(
+            merged,
+            cache_path,
+            ".safetensors",
+            label="merged sharded checkpoint cache",
+        )
+        logger.info(f"Saved merged sharded checkpoint to: {cache_path}")
     return merged
 
 
@@ -466,6 +493,8 @@ def _download_checkpoint_from_huggingface_url(
     checkpoint_min_free_gb: float | None = None,
 ) -> str:
     """Download a checkpoint from Hugging Face and return local cached path."""
+    from huggingface_hub import hf_hub_download
+
     repo_id, filename, subfolder, revision = _parse_huggingface_checkpoint_url(url)
     logger.info(f"Downloading checkpoint from Hugging Face: {url}")
     settings: dict[str, object] = {
@@ -525,6 +554,8 @@ def get_storage_reader(
         ``S3StorageReader`` for ``s3://`` paths, ``FileSystemReader`` otherwise.
     """
     if checkpoint_path.startswith("s3://"):
+        from worldfoundry.core.io.s3_filesystem import S3StorageReader
+
         return S3StorageReader(credential_path=credential_path, path=checkpoint_path)
     else:
         return FileSystemReader(checkpoint_path)
@@ -537,21 +568,11 @@ def _validated_tensor_state_dict(payload: object, *, source: str) -> dict[str, t
     conventional container key.  Unwrapping those containers is safe after a
     weights-only load, but arbitrary metadata or non-tensor values are not a
     model state dict and must not flow into model loading or local caches.
+    Delegates to :func:`worldfoundry.core.checkpoint.safe_loading.tensor_state_dict`
+    so the wrapper-key list and validation live in exactly one place.
     """
 
-    candidates: list[object] = [payload]
-    if isinstance(payload, Mapping):
-        candidates.extend(
-            payload.get(key)
-            for key in ("state_dict", "model_state_dict", "model", "module")
-            if key in payload
-        )
-    for candidate in candidates:
-        if not isinstance(candidate, Mapping) or not candidate:
-            continue
-        if all(isinstance(key, str) and isinstance(value, torch.Tensor) for key, value in candidate.items()):
-            return dict(candidate)
-    raise TypeError(f"Checkpoint {source!r} does not contain a non-empty tensor-only state dict")
+    return tensor_state_dict(payload, source=source)
 
 
 def load_distributed_checkpoint(
@@ -587,14 +608,25 @@ def load_distributed_checkpoint(
 
     # Local cache hit: deserialize in weights-only mode and validate its shape.
     # The ``check_success`` comparison below only applies to a fresh DCP load.
+    # An unreadable cache (e.g. truncated by a pre-atomic-write crash) is
+    # discarded so the load falls back to the source instead of failing
+    # forever on the poisoned file.
     if local_cache_checkpoint_path is not None and os.path.exists(local_cache_checkpoint_path):
-        state_dict = _validated_tensor_state_dict(
-            torch.load(local_cache_checkpoint_path, map_location="cpu", weights_only=True),
-            source=local_cache_checkpoint_path,
-        )
-        model.load_state_dict(state_dict)
-        logger.info(f"Loaded successfully from the local cache: {local_cache_checkpoint_path}")
-        return model
+        try:
+            state_dict = _validated_tensor_state_dict(
+                torch.load(local_cache_checkpoint_path, map_location="cpu", weights_only=True),
+                source=local_cache_checkpoint_path,
+            )
+        except Exception as exc:
+            logger.warning(
+                f"Discarding unreadable local checkpoint cache {local_cache_checkpoint_path} "
+                f"({exc}); reloading from {checkpoint_path}"
+            )
+            _discard_corrupt_cache(local_cache_checkpoint_path)
+        else:
+            model.load_state_dict(state_dict)
+            logger.info(f"Loaded successfully from the local cache: {local_cache_checkpoint_path}")
+            return model
 
     # If check_success is True, we check if the checkpoint is loaded successfully, by
     # comparing the state dict of the model before and after loading the checkpoint.
@@ -626,8 +658,10 @@ def load_distributed_checkpoint(
                 f"{', '.join(unchanged_keys[:20])}" + (" ..." if len(unchanged_keys) > 20 else "")
             )
 
-    # Cache the state dict locally if needed..
-    if local_cache_checkpoint_path is not None:
+    # Cache the state dict locally if needed. DCP load runs on every rank,
+    # so only one rank persists the shared cache file; the write itself is
+    # atomic so a concurrent reader never sees partial bytes.
+    if local_cache_checkpoint_path is not None and _should_write_shared_cache():
         _save_to_local_cache(
             model.state_dict(),
             local_cache_checkpoint_path,
@@ -701,19 +735,27 @@ def load_single_checkpoint(
         )
         return _load_checkpoint_from_local(local_path, ext, map_location)
 
-    # For S3 paths, check local cache first
+    # For S3 paths, check local cache first. Unreadable cache files are
+    # discarded so the load falls back to S3 instead of failing forever.
     local_cache_path = None
     if is_s3_path and local_cache_dir is not None:
         local_cache_path = os.path.join(local_cache_dir, checkpoint_path.removeprefix("s3://"))
         if os.path.exists(local_cache_path):
             logger.info(f"Loading from local cache: {local_cache_path}")
-            return _load_checkpoint_from_local(local_cache_path, ext, map_location)
+            try:
+                return _load_checkpoint_from_local(local_cache_path, ext, map_location)
+            except Exception as exc:
+                logger.warning(
+                    f"Discarding unreadable local checkpoint cache {local_cache_path} "
+                    f"({exc}); reloading from {checkpoint_path}"
+                )
+                _discard_corrupt_cache(local_cache_path)
 
     # Load from S3 or local
     if is_s3_path:
         state_dict = _load_checkpoint_from_s3(checkpoint_path, ext, credential_path, map_location)
-        # Cache to local
-        if local_cache_path is not None:
+        # Cache to local (one writer when a process group is active).
+        if local_cache_path is not None and _should_write_shared_cache():
             _save_to_local_cache(
                 state_dict,
                 local_cache_path,
@@ -734,8 +776,9 @@ def _load_checkpoint_from_local(
 ) -> dict[str, torch.Tensor]:
     """Load checkpoint from local filesystem."""
     if ext == ".safetensors":
-        with open(path, "rb") as f:
-            payload = load_safetensors(f.read())
+        # mmap-based zero-copy load; also honors ``map_location`` the same
+        # way the sharded-safetensors path does.
+        payload = load_safetensors_file(path, device=_safetensors_device(map_location))
     else:
         payload = torch.load(path, map_location=map_location, weights_only=True)
     return _validated_tensor_state_dict(payload, source=path)
@@ -748,6 +791,8 @@ def _load_checkpoint_from_s3(
     map_location: str | torch.device = "cpu",
 ) -> dict[str, torch.Tensor]:
     """Load checkpoint from S3."""
+    from worldfoundry.core.io.s3_filesystem import S3FileSystem
+
     logger.info(f"Downloading checkpoint from S3: {s3_path}")
     s3_fs = S3FileSystem(credential_path=credential_path)
     with s3_fs.create_stream(s3_path, "rb") as stream:
@@ -760,6 +805,31 @@ def _load_checkpoint_from_s3(
     return _validated_tensor_state_dict(payload, source=s3_path)
 
 
+def _discard_corrupt_cache(path: str) -> None:
+    """Best-effort removal of an unreadable cache file so future loads re-fetch."""
+    try:
+        os.remove(path)
+    except FileNotFoundError:
+        pass  # another rank already removed it
+    except OSError as exc:
+        logger.warning(f"Could not remove unreadable checkpoint cache {path}: {exc}")
+
+
+def _should_write_shared_cache() -> bool:
+    """Gate shared-cache writes to rank 0 when a process group is active.
+
+    Checkpoint loading runs on every rank and the cache paths are shared, so
+    without gating N ranks would serialize the same bytes to the same file.
+    The write itself is atomic either way (unique temp name + ``os.replace``),
+    so this is a duplicated-work guard, not a correctness requirement.
+    """
+    import torch.distributed as dist
+
+    if dist.is_available() and dist.is_initialized():
+        return dist.get_rank() == 0
+    return True
+
+
 def _save_to_local_cache(
     state_dict: Mapping[str, torch.Tensor],
     path: str,
@@ -767,18 +837,40 @@ def _save_to_local_cache(
     *,
     label: str = "checkpoint cache",
 ) -> None:
-    """Save state dict to local cache."""
+    """Atomically publish ``state_dict`` to the local cache file ``path``.
+
+    The bytes land in a same-directory temp file first and are fsynced, then
+    ``os.replace`` publishes them. A crash mid-write leaves only a stale
+    ``.tmp`` file behind -- never a truncated cache that the ``os.path.exists``
+    hit checks would keep preferring over the source. Unique temp names keep
+    concurrent writers from clobbering each other; the last rename wins with
+    identical content.
+    """
     min_bytes = _preflight_local_cache_path(
         path,
         label=label,
         settings={"path": path},
     )
+    directory = os.path.dirname(path) or "."
+    tmp_path = os.path.join(directory, f".{os.path.basename(path)}.{uuid4().hex}.tmp")
     try:
         if ext == ".safetensors":
-            save_safetensors(dict(state_dict), path)
+            # safetensors serializes directly to a path; fsync afterwards.
+            save_safetensors(dict(state_dict), tmp_path)
+            with open(tmp_path, "rb+") as handle:
+                os.fsync(handle.fileno())
         else:
-            torch.save(state_dict, path)
+            with open(tmp_path, "wb") as handle:
+                torch.save(state_dict, handle)
+                handle.flush()
+                os.fsync(handle.fileno())
+        os.replace(tmp_path, path)
+        sync_directory(directory)
     except Exception as exc:
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
         _raise_local_cache_disk_error(
             exc,
             path=path,

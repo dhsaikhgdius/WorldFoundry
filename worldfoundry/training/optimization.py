@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Iterable
 from typing import Literal
 
@@ -9,6 +10,7 @@ import torch
 from torch import nn
 
 from worldfoundry.training.optimizers import CAME
+from worldfoundry.training.recipes.spec import LRSchedulerSpec
 
 
 def trainable_parameters(module: nn.Module) -> tuple[nn.Parameter, ...]:
@@ -100,6 +102,41 @@ def build_came(
     )
 
 
+def warmup_cosine_multiplier(step: int, spec: LRSchedulerSpec) -> float:
+    """Return the recipe-defined warmup and cosine LR multiplier."""
+
+    current = int(step)
+    assert spec.peak_factor is not None
+    if current < spec.warmup_steps:
+        progress = current / spec.warmup_steps
+        return spec.start_factor + (spec.peak_factor - spec.start_factor) * progress
+    progress = min((current - spec.warmup_steps) / (spec.total_steps - spec.warmup_steps), 1.0)
+    return spec.end_factor + 0.5 * (spec.peak_factor - spec.end_factor) * (
+        1.0 + math.cos(math.pi * progress)
+    )
+
+
+def build_lr_scheduler(
+    optimizer: torch.optim.Optimizer,
+    spec: LRSchedulerSpec | None,
+) -> torch.optim.lr_scheduler.LRScheduler | None:
+    """Build the optional scheduler declared by a native training recipe."""
+
+    if spec is None:
+        return None
+    if spec.type == "linear":
+        return torch.optim.lr_scheduler.LinearLR(
+            optimizer,
+            start_factor=spec.start_factor,
+            end_factor=spec.end_factor,
+            total_iters=spec.total_steps,
+        )
+    return torch.optim.lr_scheduler.LambdaLR(
+        optimizer,
+        lambda step: warmup_cosine_multiplier(step, spec),
+    )
+
+
 def _optimizer_parameter_ids(optimizer: torch.optim.Optimizer) -> set[int]:
     """Return the unique parameter-object identities owned by an optimizer."""
 
@@ -134,4 +171,11 @@ def audit_optimizer_parameters(
     return values
 
 
-__all__ = ["audit_optimizer_parameters", "build_adamw", "build_came", "trainable_parameters"]
+__all__ = [
+    "audit_optimizer_parameters",
+    "build_adamw",
+    "build_came",
+    "build_lr_scheduler",
+    "trainable_parameters",
+    "warmup_cosine_multiplier",
+]

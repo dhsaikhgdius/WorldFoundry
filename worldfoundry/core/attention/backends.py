@@ -12,20 +12,25 @@ Core Architectural Design:
 2. Two-Stage Validation: Separates physical availability (`available`) from runtime hardware
    compatibility (`usable`). For example, even if `flash_attn` is successfully installed, it
    will be marked unusable if the active GPU Compute Capability is < 8.0 (e.g., V100, T4).
-3. Fallback Priority Chain: Defines structured fallback paths for standard/default backends
-   as well as experimental/sparse attention kernels (e.g., video sparse attention, V-MoBA),
-   ensuring the system is highly robust across diverse hardware.
+3. Explicit Opt-In Providers: ``auto`` deliberately resolves to the in-tree PyTorch SDPA
+   provider only (the "no-external-repo contract"); external packages such as flash-attn,
+   SageAttention, and xFormers are used only when explicitly requested. When an explicitly
+   requested provider is unusable, resolution degrades to PyTorch SDPA with a warning log
+   stating the requested backend, the effective backend, and the reason.
 """
 
 from __future__ import annotations
 
 import importlib.util
+import logging
 import os
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import Mapping
 
 import torch
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -254,31 +259,83 @@ def _probe_attention_backends_cached(
 setattr(probe_attention_backends, "cache_clear", _probe_attention_backends_cached.cache_clear)
 
 
+_EXPLICIT_FALLBACK_WARNED: set[tuple[str, str, str]] = set()
+_AUTO_FASTER_BACKENDS_LOGGED: set[tuple[str, ...]] = set()
+
+
+def _warn_explicit_backend_fallback(requested: str, resolved: str, reason: str) -> None:
+    """Log once per (requested, resolved, reason) when an explicit request degrades."""
+
+    key = (requested, resolved, reason)
+    if key in _EXPLICIT_FALLBACK_WARNED:
+        return
+    _EXPLICIT_FALLBACK_WARNED.add(key)
+    logger.warning(
+        "Attention backend %r was explicitly requested but is not usable; using %r instead. Reason: %s",
+        requested,
+        resolved,
+        reason or "unknown",
+    )
+
+
+def _log_faster_backends_available(capabilities: Mapping[str, AttentionKernelCapability]) -> None:
+    """Log once when auto mode keeps PyTorch SDPA while faster providers are usable."""
+
+    usable_external = tuple(
+        name for name in _REPORT_PRIORITY if name != _TORCH and name in capabilities and capabilities[name].usable
+    )
+    if not usable_external or usable_external in _AUTO_FASTER_BACKENDS_LOGGED:
+        return
+    _AUTO_FASTER_BACKENDS_LOGGED.add(usable_external)
+    logger.info(
+        "Attention backend 'auto' resolves to the in-tree PyTorch SDPA provider by design "
+        "(no-external-repo contract). Usable external backends detected but not enabled: %s. "
+        "Set WORLDFOUNDRY_ATTENTION_BACKEND=<name> to opt in explicitly.",
+        ", ".join(usable_external),
+    )
+
+
 def resolve_attention_backend(
     preferred: str | None = None,
     device: torch.device | str | int | None = None,
 ) -> str:
-    """Resolve the highest priority usable backend, falling back gracefully to PyTorch SDPA.
+    """Resolve the requested backend, falling back to PyTorch SDPA when unusable.
 
-    If `"auto"` is preferred, traverses priority list to select the first runnable package.
-    If the requested package is not usable on the active hardware, automatically degrades to
-    `"torch"` SDPA to ensure robust execution.
+    ``"auto"`` deliberately resolves to the in-tree PyTorch SDPA provider only:
+    external FlashAttention/SageAttention/xFormers packages are explicit
+    opt-ins (the no-external-repo contract). When usable external providers
+    exist under ``auto``, an informational log points them out once.
+    If an explicitly requested package is not usable on the active hardware,
+    resolution degrades to ``"torch"`` SDPA and logs a warning with the
+    requested backend, the effective backend, and the capability reason.
     """
     requested = attention_backend_from_env() if preferred is None else normalize_attention_backend(preferred)
     capabilities = probe_attention_backends(device)
     if requested == _AUTO:
         for name in _DEFAULT_PRIORITY:
             if capabilities[name].usable:
-                return name
-        return _TORCH
+                resolved = name
+                break
+        else:
+            resolved = _TORCH
+        if resolved == _TORCH:
+            _log_faster_backends_available(capabilities)
+        return resolved
     if requested == _FLASH_AUTO:
         for name in ("flash_attention_3", "flash_attention_2"):
             if capabilities[name].usable:
                 return name
+        reasons = "; ".join(
+            f"{name}: {capabilities[name].reason or 'not usable'}"
+            for name in ("flash_attention_3", "flash_attention_2")
+        )
+        _warn_explicit_backend_fallback(_FLASH_AUTO, _TORCH, reasons)
         return _TORCH
     capability = capabilities.get(requested)
     if capability is not None and capability.usable:
         return requested
+    reason = capability.reason if capability is not None else "backend is not registered in the capability table"
+    _warn_explicit_backend_fallback(requested, _TORCH, reason)
     return _TORCH
 
 
@@ -315,7 +372,14 @@ def attention_backend_capability(
 
 
 def attention_backend_report() -> tuple[AttentionKernelCapability, ...]:
-    """Retrieve capability status of all registered backends, ordered by dispatch priority."""
+    """Retrieve capability status of all registered backends for display purposes.
+
+    The ordering is a fixed display order (fastest candidates first), *not*
+    the automatic dispatch chain: automatic mode uses the in-tree PyTorch
+    SDPA provider only, and every other backend listed here requires an
+    explicit opt-in via ``WORLDFOUNDRY_ATTENTION_BACKEND``/
+    ``WORLDFOUNDRY_ATTENTION_IMPLEMENTATION``.
+    """
     capabilities = probe_attention_backends()
     return tuple(
         capabilities[name]

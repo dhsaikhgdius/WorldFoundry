@@ -1,3 +1,9 @@
+
+import pytest
+
+# This test module imports worldfoundry code that requires the optional
+# "diffusers" dependency at import time; skip when it is unavailable.
+pytest.importorskip("diffusers")
 from unittest.mock import patch
 
 from worldfoundry.base_models.three_dimensions.general_3d.stable_virtual_camera.stable_virtual_camera_runtime.seva.modules.autoencoder import (

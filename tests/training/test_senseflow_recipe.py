@@ -97,7 +97,7 @@ def test_post_training_recipe_round_trip_registers_all_senseflow_roles() -> None
     assert recipe.discriminator_optimizer is not None
     assert recipe.guidance_optimizer is None
     assert recipe.to_dict()["algorithm"] == plain_data(spec)
-    assert PostTrainingRecipe.from_mapping(recipe.to_dict()).digest == recipe.digest
+    assert PostTrainingRecipe.from_mapping(recipe.to_dict()) == recipe
 
     missing = _post_training_payload(spec)
     missing.pop("discriminator_optimizer")

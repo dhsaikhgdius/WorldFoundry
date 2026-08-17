@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from ..pipeline_utils import PipelineABC
+import logging
 import os
 from pathlib import Path
 from typing import Any, List, Dict, Optional, Union
@@ -19,6 +20,8 @@ from ...representations.depth_generation.depth_anything.depth_anything_v2_repres
     DepthAnything2Representation,
 )
 from .pipeline_depth_anything_v1 import DepthResult
+
+logger = logging.getLogger(__name__)
 
 
 class DepthAnything2Pipeline(PipelineABC):
@@ -148,8 +151,8 @@ class DepthAnything2Pipeline(PipelineABC):
                 basename = os.path.basename(filename)
                 stem = basename[: basename.rfind(".")] if "." in basename else basename
                 results.append({"image": depth_vis, "filename": filename, "stem": stem})
-            except Exception as exc:
-                print(f"Error processing {filename}: {exc}")
+            except Exception:
+                logger.warning("Skipping image %s after processing failure", filename, exc_info=True)
                 continue
 
         return DepthResult(results, data_type="image")
@@ -167,6 +170,8 @@ class DepthAnything2Pipeline(PipelineABC):
             try:
                 raw_frames, metadata = read_video(filename)
             except Exception:
+                # Skipped samples silently distort benchmark counts, so record them.
+                logger.warning("Skipping unreadable video %s", filename, exc_info=True)
                 continue
 
             frame_height, frame_width = raw_frames.shape[1:3]

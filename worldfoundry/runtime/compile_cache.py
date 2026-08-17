@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import importlib
 import importlib.metadata
+import logging
 import os
 import re
 import sys
@@ -21,6 +22,34 @@ from pathlib import Path
 from typing import Any, MutableMapping
 
 from worldfoundry.runtime.env import resolve_cache_dir
+
+logger = logging.getLogger(__name__)
+
+# One warning per (target, exception type): silent eager fallback makes
+# performance regressions impossible to attribute, but the fallback path can
+# re-run on every call for the same target.
+_FALLBACK_WARNED: set[tuple[str, str]] = set()
+_FALLBACK_WARNED_LOCK = threading.Lock()
+
+
+def _warn_compile_fallback(kind: str, target: Any, exc: Exception) -> None:
+    """Log once that *target* silently fell back to eager execution."""
+    if kind == "module":
+        name = type(target).__name__
+    else:
+        name = getattr(target, "__qualname__", None) or getattr(target, "__name__", None) or repr(target)
+    key = (f"{kind}:{name}", type(exc).__name__)
+    with _FALLBACK_WARNED_LOCK:
+        if key in _FALLBACK_WARNED:
+            return
+        _FALLBACK_WARNED.add(key)
+    logger.warning(
+        "torch.compile unavailable for %s %r; falling back to eager execution (%s: %s)",
+        kind,
+        name,
+        type(exc).__name__,
+        exc,
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -320,9 +349,10 @@ def compile_module_cached(
     try:
         configure_persistent_compile_cache(namespace=namespace)
         torch = importlib.import_module("torch")
-    except Exception:
+    except Exception as exc:
         if strict:
             raise
+        _warn_compile_fallback("module", module, exc)
         return module
     compile_fn = getattr(torch, "compile", None)
     if not callable(compile_fn):
@@ -347,9 +377,10 @@ def compile_module_cached(
                 policy=selected,
                 options=options,
             )
-        except Exception:
+        except Exception as exc:
             if strict:
                 raise
+            _warn_compile_fallback("module", module, exc)
             return module
         variants[key] = compiled
         return compiled
@@ -371,9 +402,10 @@ def compile_callable_cached(
     try:
         configure_persistent_compile_cache(namespace=namespace)
         torch = importlib.import_module("torch")
-    except Exception:
+    except Exception as exc:
         if strict:
             raise
+        _warn_compile_fallback("callable", function, exc)
         return function
     compile_fn = getattr(torch, "compile", None)
     if not callable(compile_fn):
@@ -402,9 +434,10 @@ def compile_callable_cached(
                 policy=selected,
                 options=options,
             )
-        except Exception:
+        except Exception as exc:
             if strict:
                 raise
+            _warn_compile_fallback("callable", function, exc)
             return function
         variants[key] = compiled
         return compiled

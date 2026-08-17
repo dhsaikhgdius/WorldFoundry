@@ -1,0 +1,103 @@
+schema: worldfoundry-post-training
+execution_owner: worldfoundry-native
+run:
+  id: wan22-t2v-a14b-ray-flow-grpo
+  output_dir: runs/wan22-t2v-a14b-ray-flow-grpo
+model:
+  recipe: wan2.2-t2v-a14b
+  checkpoint: Wan-AI/Wan2.2-T2V-A14B
+  options:
+    boundary_ratio: 0.875
+tuning:
+  mode: lora
+  preset: wan22-dual-attention
+  rank: 64
+  alpha: 128
+data:
+  manifest: data/post_training/wan-rl-prompts.jsonl
+  cache: cache/post_training/wan22-a14b-conditioning
+  split: train
+  shuffle: true
+  shuffle_seed: 42
+  tail_policy: pad
+  options:
+    global_prompt_batch_size: 48
+    rollout_forward_batch_size: 1
+    replay_microbatch_size: 1
+    generation:
+      height: 480
+      width: 640
+      num_frames: 1
+algorithm:
+  type: flow-grpo
+  num_train_timesteps: 1000
+  sigmas:
+    - 1.0
+    - 0.9895833134651184
+    - 0.97826087474823
+    - 0.9659090638160706
+    - 0.9523810148239136
+    - 0.9375
+    - 0.9210526347160339
+    - 0.9027777910232544
+    - 0.882352888584137
+    - 0.859375
+    - 0.8333333134651184
+    - 0.8035714030265808
+    - 0.7692307829856873
+    - 0.7291666269302368
+    - 0.6818181872367859
+    - 0.625
+    - 0.5555555820465088
+    - 0.46875
+    - 0.3571428656578064
+    - 0.2083333283662796
+    - 0.0
+  sde_step_indices: [0, 1, 2, 3]
+  guidance_scale: 1.0
+  init_same_noise: false
+  eta: 0.7
+  clip_range: 0.0001
+  updates_per_trajectory: 2
+  group_size: 16
+  old_log_prob_source: rollout
+  reference_kl_weight: 0.0
+  advantage_epsilon: 0.00000001
+  advantage_normalization: group-mean-global-population-std
+  trajectory_dtype: float16
+  reward_weights:
+    videopickscore: 1.0
+  reward_model:
+    type: remote
+    reward_ids: [videopickscore]
+optimizer:
+  type: adamw
+  learning_rate: 0.0003
+  weight_decay: 0.0
+  max_grad_norm: 1.0
+runtime:
+  param_dtype: bfloat16
+  reduce_dtype: float32
+  activation_checkpoint: none
+  compile: false
+distributed:
+  backend: single
+rollout:
+  backend: ray
+  pool:
+    num_devices: 2
+    devices_per_node: 2
+    workers_per_device: 1
+    cpus_per_worker: 1.0
+    accelerator_resource: GPU
+  rollout_devices: 2
+  trainer_binding: external
+  placement: separate
+  weight_kind: lora
+  weight_bucket_bytes: 268435456
+checkpoint:
+  save_every_steps: 50
+  async: true
+  export_every_steps: 50
+export:
+  format: peft

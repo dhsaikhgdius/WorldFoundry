@@ -8,6 +8,7 @@ import os
 import pickle
 import time
 from collections import defaultdict, deque
+from contextlib import contextmanager
 from logging import getLogger
 
 import torch
@@ -27,11 +28,29 @@ from .generic_collectives import (
 
 logger = getLogger()
 
+# Original builtins.print, captured the first time setup_for_distributed patches it.
+_ORIGINAL_BUILTINS_PRINT = None
+
 
 def setup_for_distributed(is_master) -> None:
-    """Disable plain print on non-master ranks unless forced."""
+    """Disable plain print on non-master ranks unless forced.
+
+    This monkey-patches ``builtins.print`` process-wide (including third-party
+    libraries). Use :func:`restore_builtins_print` or
+    :func:`builtins_print_unpatched` to undo it. Note the historical quirk
+    inherited from the MAE codebase: with ``world_size > 8`` every rank prints
+    (``force`` is implied); this behavior is preserved as-is.
+    """
+
+    global _ORIGINAL_BUILTINS_PRINT
 
     builtin_print = builtins.print
+    if getattr(builtin_print, "_worldfoundry_rank_filtered_print", False):
+        # Re-entrant setup: wrap the original once instead of chaining wrappers
+        # (chaining would duplicate timestamps and capture stale master flags).
+        builtin_print = _ORIGINAL_BUILTINS_PRINT
+    if _ORIGINAL_BUILTINS_PRINT is None:
+        _ORIGINAL_BUILTINS_PRINT = builtin_print
 
     def print(*args, **kwargs):  # noqa: A001
         force = kwargs.pop("force", False)
@@ -41,11 +60,41 @@ def setup_for_distributed(is_master) -> None:
             builtin_print(f"[{now}] ", end="")
             builtin_print(*args, **kwargs)
 
+    setattr(print, "_worldfoundry_rank_filtered_print", True)
     builtins.print = print
+    logger.info(
+        "Patched builtins.print process-wide with a rank-filtered wrapper (is_master=%s); "
+        "call worldfoundry.core.distributed.metric_sync.restore_builtins_print() to undo.",
+        bool(is_master),
+    )
+
+
+def restore_builtins_print() -> bool:
+    """Restore the original ``builtins.print``; returns True if a patch was removed."""
+
+    if _ORIGINAL_BUILTINS_PRINT is None or not getattr(builtins.print, "_worldfoundry_rank_filtered_print", False):
+        return False
+    builtins.print = _ORIGINAL_BUILTINS_PRINT
+    logger.info("Restored the original builtins.print.")
+    return True
+
+
+@contextmanager
+def builtins_print_unpatched():
+    """Temporarily restore the original ``builtins.print`` within a scope."""
+
+    patched_print = builtins.print if getattr(builtins.print, "_worldfoundry_rank_filtered_print", False) else None
+    restore_builtins_print()
+    try:
+        yield
+    finally:
+        if patched_print is not None:
+            builtins.print = patched_print
 
 
 def init_distributed(port=37124, rank_and_world_size=(None, None)):
     rank, world_size = rank_and_world_size
+    gpu = None
     dist_url = "env://"
     os.environ["MASTER_PORT"] = os.environ.get("MASTER_PORT", str(port))
     print("Using port", os.environ["MASTER_PORT"])
@@ -55,23 +104,37 @@ def init_distributed(port=37124, rank_and_world_size=(None, None)):
             rank = int(os.environ["RANK"])
             world_size = int(os.environ["WORLD_SIZE"])
             gpu = int(os.environ["LOCAL_RANK"])
-        except Exception:
-            logger.info("torchrun env vars not set")
+        except Exception as exc:
+            raise RuntimeError(
+                "RANK/WORLD_SIZE are set but the torchrun environment is incomplete or invalid "
+                f"(RANK={os.environ.get('RANK')!r}, WORLD_SIZE={os.environ.get('WORLD_SIZE')!r}, "
+                f"LOCAL_RANK={os.environ.get('LOCAL_RANK')!r}): {exc}"
+            ) from exc
     elif "SLURM_PROCID" in os.environ:
         try:
             world_size = int(os.environ["SLURM_NTASKS"])
             rank = int(os.environ["SLURM_PROCID"])
-            gpu = rank % torch.cuda.device_count()
+            gpu = rank % max(torch.cuda.device_count(), 1)
             os.environ["MASTER_ADDR"] = os.environ.get("HOSTNAME", "127.0.0.1")
-        except Exception:
-            logger.info("SLURM vars not set")
+        except Exception as exc:
+            raise RuntimeError(
+                "SLURM_PROCID is set but the SLURM environment is incomplete or invalid "
+                f"(SLURM_NTASKS={os.environ.get('SLURM_NTASKS')!r}, "
+                f"SLURM_PROCID={os.environ.get('SLURM_PROCID')!r}): {exc}"
+            ) from exc
     else:
         rank = 0
         world_size = 1
         gpu = 0
         os.environ["MASTER_ADDR"] = "127.0.0.1"
 
-    torch.cuda.set_device(gpu)
+    if rank is None or world_size is None or gpu is None:
+        raise RuntimeError(
+            "init_distributed could not determine rank/world_size/local device; "
+            "pass rank_and_world_size explicitly or launch via torchrun/SLURM."
+        )
+    if torch.cuda.is_available():
+        torch.cuda.set_device(gpu)
     torch.distributed.init_process_group(
         backend="nccl",
         world_size=world_size,

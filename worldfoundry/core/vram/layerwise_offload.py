@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager, nullcontext
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Iterator
 
 import torch
@@ -12,13 +12,50 @@ from torch import nn
 _compiler_disable = getattr(getattr(torch, "compiler", None), "disable", lambda fn: fn)
 
 
-@dataclass(frozen=True)
+@dataclass
 class LayerwiseOffloadHandle:
-    """Handle returned by ``enable_layerwise_cpu_offload``."""
+    """Handle returned by ``enable_layerwise_cpu_offload``.
+
+    Holds the registered hook handles so the offload can be undone with
+    :meth:`disable` (CC-27); previously the ``RemovableHandle`` objects were
+    dropped and a model could never leave offload mode without a rebuild.
+    """
 
     enabled: bool
     layer_count: int
     reason: str = ""
+    _model: nn.Module | None = field(default=None, repr=False, compare=False)
+    _layer_hooks: list = field(default_factory=list, repr=False, compare=False)
+
+    def disable(self) -> bool:
+        """Remove offload hooks and restore real parameters onto each layer.
+
+        Parameters are restored from the CPU master copies (on CPU); move the
+        model to the desired device afterwards. Returns True when hooks were
+        removed. Handles created for an already-enabled model
+        (``reason="already enabled"``) do not own hooks and return False.
+        """
+
+        if not self.enabled or self._model is None or not self._layer_hooks:
+            self.enabled = False
+            return False
+        for layer, state, hook_handles in self._layer_hooks:
+            for hook_handle in hook_handles:
+                hook_handle.remove()
+            for name, param in layer.named_parameters(recurse=True):
+                cpu_tensor = state.cpu_named_parameters.get(name)
+                if cpu_tensor is not None:
+                    param.data = cpu_tensor
+            state.gpu_named_parameters.clear()
+            state.cpu_named_parameters.clear()
+            state.next_state = None
+            for attribute in ("_worldfoundry_layerwise_cpu_offload", "_worldfoundry_layerwise_cpu_offload_state"):
+                layer.__dict__.pop(attribute, None)
+        self._model.__dict__.pop("_worldfoundry_layerwise_cpu_offload", None)
+        self._layer_hooks.clear()
+        self._model = None
+        self.enabled = False
+        return True
 
 
 def enable_layerwise_cpu_offload(
@@ -33,7 +70,8 @@ def enable_layerwise_cpu_offload(
     The helper keeps parameters on CPU and moves one layer at a time to CUDA.
     The next layer is prefetched on a separate CUDA stream while the current
     layer runs. It is intentionally opt-in and returns a disabled handle on
-    non-CUDA systems.
+    non-CUDA systems. Keep the returned handle if you need to switch the
+    model back to full-device residency later via ``handle.disable()``.
     """
 
     if not torch.cuda.is_available():
@@ -51,18 +89,25 @@ def enable_layerwise_cpu_offload(
 
     stream = torch.cuda.Stream(device=target_device)
     states = [_LayerwiseOffloadState(layer, target_device, stream, pin_memory=pin_memory) for layer in layers]
+    layer_hooks: list[tuple[nn.Module, _LayerwiseOffloadState, list]] = []
     for index, state in enumerate(states):
         state.next_state = states[(index + 1) % len(states)]
         state.offload_to_cpu()
         layer = layers[index]
         if getattr(layer, "_worldfoundry_layerwise_cpu_offload", False):
             continue
-        layer.register_forward_pre_hook(_make_pre_hook(state), with_kwargs=True)
-        layer.register_forward_hook(_make_post_hook(state), with_kwargs=True)
+        pre_handle = layer.register_forward_pre_hook(_make_pre_hook(state), with_kwargs=True)
+        post_handle = layer.register_forward_hook(_make_post_hook(state), with_kwargs=True)
+        layer_hooks.append((layer, state, [pre_handle, post_handle]))
         setattr(layer, "_worldfoundry_layerwise_cpu_offload", True)
         setattr(layer, "_worldfoundry_layerwise_cpu_offload_state", state)
     setattr(model, "_worldfoundry_layerwise_cpu_offload", True)
-    return LayerwiseOffloadHandle(enabled=True, layer_count=len(states))
+    return LayerwiseOffloadHandle(
+        enabled=True,
+        layer_count=len(states),
+        _model=model,
+        _layer_hooks=layer_hooks,
+    )
 
 
 def layerwise_offload_mutation_scope(module: nn.Module) -> Iterator[None]:

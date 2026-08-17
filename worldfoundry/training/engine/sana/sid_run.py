@@ -74,18 +74,16 @@ class SanaSIDTrainingRun:
                 "schema": SANA_SID_RUN_SCHEMA,
                 "status": status,
                 "run_id": self.recipe.run.id,
-                "recipe_digest": self.recipe.digest,
                 "rank_count": self.world_size,
                 "max_steps": int(max_steps),
-                "role_asset_sha256": dict(self.roles.asset_digests),
+                "role_assets": dict(self.roles.asset_identity),
                 "data_identity": self.data_identity,
                 "resumed_from": (
                     None
                     if self.resume_artifact is None
                     else {
                         "path": str(self.resume_artifact.path),
-                        "manifest_sha256": self.resume_artifact.manifest_sha256,
-                        "identity_digest": self.resume_artifact.identity_digest,
+                        "identity": dict(self.resume_artifact.identity),
                     }
                 ),
                 "progress": self.session.progress.state_dict(),
@@ -117,16 +115,6 @@ class SanaSIDTrainingRun:
         self._write_status("complete", max_steps=max_steps)
         return self._summary
 
-    def _export_metadata(self) -> dict[str, object]:
-        return {
-            "run_id": self.recipe.run.id,
-            "recipe_digest": self.recipe.digest,
-            "global_step": self.session.engine.global_step,
-            "role": "student",
-            "role_asset_sha256": dict(self.roles.asset_digests),
-            "data_identity": self.data_identity,
-        }
-
     def _export_student_artifact(
         self,
         output_dir: str | Path | None = None,
@@ -157,16 +145,12 @@ class SanaSIDTrainingRun:
         destination = Path(
             output_dir or self.output_dir / "exports" / f"step-{step:08d}" / "student"
         ).expanduser().resolve()
-        metadata = self._export_metadata()
         if destination.exists():
             artifact = inspect_full_model(destination)
-            if dict(artifact.metadata) != metadata:
-                raise ValueError("existing SANA SiD student artifact differs")
             return artifact
         return export_full_model(
             self.roles.student.module,
             destination,
-            metadata=metadata,
             distributed_context=self.distributed_context,
             role="SANA SiD student",
             max_shard_size_bytes=int(

@@ -15,9 +15,10 @@ from omegaconf import OmegaConf
 from torchvision.transforms import ToPILImage, ToTensor
 from tqdm import tqdm
 from diffusers import StableDiffusionInpaintPipeline, AutoencoderKL, DPMSolverMultistepScheduler
-import sys
-sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "base_models" / "three_dimensions" / "depth"))
-from midas.model_loader import load_model
+# Modified by WorldFoundry: import midas via the package-absolute path instead of a
+# sys.path insert that hard-coded the on-disk layout between the synthesis and
+# base_models trees.
+from worldfoundry.base_models.three_dimensions.depth.midas.model_loader import load_model
 import torch.nn.functional as F
 
 from models.models import KeyframeGen, KeyframeInterp, save_point_cloud_as_ply

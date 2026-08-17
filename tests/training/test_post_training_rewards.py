@@ -36,7 +36,7 @@ def test_reward_contract_preserves_vector_components() -> None:
         rollout_id="rollout-a",
         prompt="a rolling red cube",
         conditions={"camera": "orbit"},
-        artifacts={"video": {"sha256": "a" * 64}},
+        artifacts={"video": {"path": "rollout-a.mp4"}},
         reward_ids=("alignment", "motion"),
     )
     result = RewardResult(
@@ -60,7 +60,7 @@ def test_reward_contract_preserves_vector_components() -> None:
         )
 
 
-def test_reward_scalarizer_uses_frozen_calibration_and_content_digest() -> None:
+def test_reward_scalarizer_uses_frozen_calibration() -> None:
     scalarizer = WeightedRewardScalarizer(
         {"alignment": 2.0, "motion": -0.5},
         calibration_mean={"alignment": 0.5, "motion": 1.0},
@@ -77,16 +77,6 @@ def test_reward_scalarizer_uses_frozen_calibration_and_content_digest() -> None:
     torch.testing.assert_close(result.normalized_components["alignment"], torch.tensor([0.0, 1.0]))
     torch.testing.assert_close(result.normalized_components["motion"], torch.tensor([0.0, 1.0]))
     torch.testing.assert_close(result.scalar_rewards, torch.tensor([0.0, 1.5]))
-    assert result.scalarizer_digest == scalarizer.digest
-    assert (
-        scalarizer.digest
-        == WeightedRewardScalarizer(
-            {"alignment": 2.0, "motion": -0.5},
-            calibration_mean={"alignment": 0.5, "motion": 1.0},
-            calibration_std={"alignment": 0.25, "motion": 2.0},
-            normalization_epsilon=1.0e-8,
-        ).digest
-    )
 
 
 def test_reward_scalarizer_normalization_epsilon_is_explicit_and_checkpointed() -> None:
@@ -153,7 +143,6 @@ def _flow_trajectory() -> FlowTrajectory:
         sample_ids=("sample-a", "sample-b"),
         group_ids=("group", "group"),
         policy_revision="policy",
-        schedule_digest="a" * 64,
         latents=torch.zeros(2, 2, 1),
         sigmas=torch.tensor([1.0, 0.0]),
         step_indices=(0,),
@@ -182,7 +171,7 @@ def _diffusion_nft_terminal(
 @pytest.mark.parametrize(
     ("terminal_state", "identity_key", "identity_value"),
     [
-        (_flow_trajectory(), "schedule_digest", "a" * 64),
+        (_flow_trajectory(), "step_indices", [0]),
         (_diffusion_nft_terminal(), "collection_id", "collection"),
     ],
 )
@@ -217,15 +206,6 @@ def test_decoded_terminal_reward_adapter_scores_both_native_terminal_types(
         "reward_ids": ["quality", "alignment"],
         "evaluator": {"model": "native-test"},
     }
-    assert (
-        adapter.digest
-        != DecodedTerminalRewardAdapter(
-            _Decoder(),
-            _Evaluator(),
-            reward_ids=("quality", "alignment"),
-            evaluator_identity={"model": "different-test"},
-        ).digest
-    )
     assert isinstance(adapter, DiffusionNFTRewardAdapter)
 
 

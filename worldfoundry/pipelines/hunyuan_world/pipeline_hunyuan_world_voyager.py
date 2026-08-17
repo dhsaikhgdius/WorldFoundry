@@ -2,6 +2,7 @@
 input image and interaction signal output rendering video
 load operators, representations, and rendering model
 """
+import logging
 import torch
 import numpy as np
 import os
@@ -12,6 +13,8 @@ from ..pipeline_utils import PipelineABC
 from worldfoundry.runtime.env import resolve_ckpt_dir
 
 DEFAULT_HUNYUAN_WORLD_VOYAGER_MOGE1_REPO = "Ruicheng/moge-vitl"
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from ...operators.hunyuan_world_voyager_operator import HunyuanWorldVoyagerOperator
@@ -89,7 +92,7 @@ class HunyuanWorldVoyagerPipeline(PipelineABC):
 
         represent_model = None
         if not skip_representation_model:
-            print(f"Loading representation model from {represent_model_path}")
+            logger.info("Loading representation model from %s", represent_model_path)
             from ...representations.point_clouds_generation.hunyuan_world.hunyuan_world_voyager_representation import (
                 HunyuanWorldVoyagerRepresentation,
             )
@@ -104,7 +107,7 @@ class HunyuanWorldVoyagerPipeline(PipelineABC):
                 **representation_kwargs
             )
 
-        print(f"Loading rendering model from {model_path}")
+        logger.info("Loading rendering model from %s", model_path)
         from worldfoundry.synthesis.visual_generation.hunyuan_world.hunyuan_world_voyager.config import parse_args
 
         rendering_args = parse_args(argv=[])
@@ -329,8 +332,10 @@ class HunyuanWorldVoyagerPipeline(PipelineABC):
         video_length = num_frames if num_frames is not None else self.rendering_args.video_length
         if (video_length - 1) % 4 != 0:
             adjusted = ((video_length - 1) // 4) * 4 + 1
-            print(f"Warning: video_length must be a multiple of 4 plus 1 (i.e., (n*4)+1). "
-                f"Got {video_length}, automatically adjusted to {adjusted}.")
+            logger.warning(
+                "video_length must be a multiple of 4 plus 1 (i.e., (n*4)+1). "
+                "Got %s, automatically adjusted to %s.", video_length, adjusted
+            )
             video_length = adjusted
 
         kwargs.pop("interaction_signal", None)

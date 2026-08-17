@@ -102,14 +102,23 @@ class XFormersAttention(AttentionCallable):
         q, k, v = (t.view(b, -1, heads, dim_head) for t in (q, k, v))
 
         if mask is not None:
+            if mask.dtype == torch.bool:
+                # CC-09: xformers' ``attn_bias`` is additive. Assigning a bool
+                # mask into a float tensor would silently cast it to 1.0/0.0,
+                # which barely biases the softmax instead of masking. Convert
+                # to SDPA bool-mask semantics explicitly: True = attend (0.0),
+                # False = masked out (-inf).
+                additive = torch.zeros(mask.shape, dtype=q.dtype, device=mask.device)
+                additive.masked_fill_(~mask, float("-inf"))
+                mask = additive
             # add a singleton batch dimension
             if mask.ndim == 2:
                 mask = mask.unsqueeze(0)
             # add a singleton heads dimension
             if mask.ndim == 3:
                 mask = mask.unsqueeze(1)
-            # pad to a multiple of 8
-            pad = 8 - mask.shape[-1] % 8
+            # pad the key dimension up to a multiple of 8 (0 if already aligned)
+            pad = (-mask.shape[-1]) % 8
             # the xformers docs says that it's allowed to have a mask of shape (1, Nq, Nk)
             # but when using separated heads, the shape has to be (B, H, Nq, Nk)
             # in flux, this matrix ends up being over 1GB
@@ -119,7 +128,10 @@ class XFormersAttention(AttentionCallable):
             )
 
             mask_out[..., : mask.shape[-1]] = mask
-            # doesn't this remove the padding again??
+            # xformers requires the last dimension's *storage* to be 8-aligned.
+            # Slicing back to the logical key width keeps the values identical
+            # while the underlying buffer (allocated with the padded width)
+            # satisfies the alignment; the padding columns are never read.
             mask = mask_out[..., : mask.shape[-1]]
             mask = mask.expand(b, heads, -1, -1)
 
@@ -402,9 +414,13 @@ class AttentionFunction(Enum):
                     )
                 return FlashAttention3()
             case AttentionFunction.FLASH_ATTENTION_4:
-                if not _module_available("flash_attn"):
+                # CC-10: probe the FA4-specific submodule; ``flash_attn`` alone
+                # is satisfied by a FlashAttention 2 install whose first
+                # forward would then fail late inside FlashAttention4.
+                if not _module_available("flash_attn") or not _module_available("flash_attn.cute"):
                     raise RuntimeError(
-                        "AttentionFunction.FLASH_ATTENTION_4 selected but `flash-attn-4` is not installed."
+                        "AttentionFunction.FLASH_ATTENTION_4 selected but the FlashAttention 4 build "
+                        "(`flash_attn.cute`) is not installed."
                     )
                 return FlashAttention4()
             case AttentionFunction.SDPA_MATH:

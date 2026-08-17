@@ -68,7 +68,6 @@ class SanaSCMLADDTrainingRun:
                 "schema": SANA_SCM_LADD_RUN_SCHEMA,
                 "status": status,
                 "run_id": self.recipe.run.id,
-                "recipe_digest": self.recipe.digest,
                 "rank_count": self.world_size,
                 "max_steps": int(max_steps),
                 "progress": self.session.progress.state_dict(),
@@ -100,14 +99,6 @@ class SanaSCMLADDTrainingRun:
         self._write_status("complete", max_steps=max_steps)
         return self._summary
 
-    def _export_metadata(self) -> dict[str, object]:
-        return {
-            "run_id": self.recipe.run.id,
-            "recipe_digest": self.recipe.digest,
-            "global_step": self.session.engine.global_step,
-            "role": "student",
-        }
-
     def _export_student_artifact(
         self,
         output_dir: str | Path | None = None,
@@ -121,6 +112,10 @@ class SanaSCMLADDTrainingRun:
         if export_format == "distributed-checkpoint":
             if output_dir is not None:
                 raise ValueError("distributed-checkpoint export path is owned by the run")
+            # A checkpoint cadence may already be staging this exact step.
+            # Join it before inspecting/saving so scheduled export cannot race
+            # a second writer for the same immutable DCP destination.
+            self.session.wait_for_checkpoints()
             destination = self.checkpointer.root / f"step-{step:08d}"
             artifact = (
                 self.checkpointer.inspect(destination)
@@ -134,20 +129,16 @@ class SanaSCMLADDTrainingRun:
         destination = Path(
             output_dir or self.output_dir / "exports" / f"step-{step:08d}" / "student"
         ).expanduser().resolve()
-        metadata = self._export_metadata()
         if export_format == "peft":
             application = self.roles.student_peft
             if application is None:
                 raise RuntimeError("PEFT export requires a LoRA SCM student")
             if destination.exists():
                 artifact = inspect_peft_adapter(destination)
-                if dict(artifact.metadata) != metadata:
-                    raise ValueError("existing SCM student PEFT artifact differs")
                 return artifact
             return export_peft_application(
                 application,
                 destination,
-                metadata=metadata,
                 distributed_context=self.distributed_context,
                 role="SANA SCM-LADD student",
             )
@@ -157,13 +148,10 @@ class SanaSCMLADDTrainingRun:
             raise RuntimeError("full export cannot serialize an unmerged LoRA SCM student")
         if destination.exists():
             artifact = inspect_full_model(destination)
-            if dict(artifact.metadata) != metadata:
-                raise ValueError("existing SCM student full-model artifact differs")
             return artifact
         return export_full_model(
             self.roles.student.module,
             destination,
-            metadata=metadata,
             distributed_context=self.distributed_context,
             role="SANA SCM-LADD student",
             max_shard_size_bytes=int(

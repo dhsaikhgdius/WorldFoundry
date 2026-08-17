@@ -1,6 +1,7 @@
 """Wan 2P7 visual generation pipeline module."""
 
 from ..pipeline_utils import PipelineABC
+import logging
 import time
 from typing import Optional, Dict, Any
 
@@ -10,6 +11,8 @@ from ..api_runtime import resolve_api_key
 
 
 _API_KEY_ENV = ("DASHSCOPE_API_KEY", "WAN_API_KEY", "ALIYUN_API_KEY")
+
+logger = logging.getLogger(__name__)
 
 
 class Wan2p7Pipeline(PipelineABC):
@@ -120,7 +123,7 @@ class Wan2p7Pipeline(PipelineABC):
             task_status = self._extract_task_status(task_info).upper()
 
             if task_status and task_status != last_status:
-                print(f"Wan2.7 task {task_id}: {task_status}")
+                logger.info("Wan2.7 task %s: %s", task_id, task_status)
                 last_status = task_status
 
             if task_status in completed_statuses:

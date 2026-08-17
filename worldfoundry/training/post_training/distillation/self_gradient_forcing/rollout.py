@@ -97,7 +97,6 @@ class SelfGradientForcingSampler:
         self._rng_device = str(parameter.device)
         self.last_exit_index = -1
         self.rollout_count = 0
-        self.execution_digest = config.digest
 
     @property
     def generator(self) -> torch.Generator:
@@ -344,7 +343,7 @@ class SelfGradientForcingSampler:
     ) -> FewStepPrediction:
         """DMD sampler seam backed exclusively by the checkpointed RNG."""
 
-        if schedule.digest != self.config.schedule.digest:
+        if schedule != self.config.schedule:
             raise ValueError("DMD and Self-Gradient-Forcing schedules differ")
         if generator is not None and generator is not self._rng:
             raise ValueError("Self-Gradient-Forcing randomness must use its checkpointed generator")
@@ -369,7 +368,6 @@ class SelfGradientForcingSampler:
     def state_dict(self) -> dict[str, object]:
         return {
             "schema": SELF_GRADIENT_FORCING_RNG_STATE_SCHEMA,
-            "config_digest": self.config.digest,
             "data_parallel_size": self.parallel_context.world_size,
             "rng_device": self._rng_device,
             "rng_state": self._rng.get_state().clone(),
@@ -382,7 +380,6 @@ class SelfGradientForcingSampler:
             raise TypeError("Self-Gradient-Forcing RNG state must be a mapping")
         expected = {
             "schema",
-            "config_digest",
             "data_parallel_size",
             "rng_device",
             "rng_state",
@@ -394,7 +391,6 @@ class SelfGradientForcingSampler:
         if state_dict["schema"] != SELF_GRADIENT_FORCING_RNG_STATE_SCHEMA:
             raise ValueError(f"unsupported Self-Gradient-Forcing RNG schema: {state_dict['schema']!r}")
         active = {
-            "config_digest": self.config.digest,
             "data_parallel_size": self.parallel_context.world_size,
             "rng_device": self._rng_device,
         }

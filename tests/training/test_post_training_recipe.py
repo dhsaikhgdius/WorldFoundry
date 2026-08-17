@@ -36,14 +36,13 @@ def _dmd_mapping() -> dict:
     }
 
 
-def test_native_post_training_recipe_is_strict_content_addressed_and_has_no_provider() -> None:
+def test_native_post_training_recipe_is_strict_and_has_no_provider() -> None:
     recipe = PostTrainingRecipe.from_mapping(_dmd_mapping())
     restored = PostTrainingRecipe.from_mapping(recipe.to_dict())
 
     assert isinstance(recipe.algorithm, DMDAlgorithmSpec)
     assert recipe.algorithm.student_sigmas == (1.0, 0.757, 0.522)
     assert restored == recipe
-    assert restored.digest == recipe.digest
     assert "provider" not in recipe.to_dict()
     assert recipe.execution_owner == "worldfoundry-native"
 

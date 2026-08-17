@@ -97,8 +97,6 @@ class RCMLossResult:
 class RCMLossAdapter(Protocol):
     """Objective seam consumed by the exact rCM phase state machine."""
 
-    config_digest: str
-
     def loss_denominator(
         self,
         batch: RCMTrainingBatch,

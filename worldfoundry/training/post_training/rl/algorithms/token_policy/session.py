@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from math import isfinite
 
@@ -22,8 +22,10 @@ from .contracts import (
     TokenPolicyRolloutAdapter,
     TokenRolloutRequest,
     TokenTrajectoryRewardAdapter,
+    TokenTrajectoryRewards,
 )
 from .engine import NativeTokenPolicyEngine, TokenPolicyStepResult
+from .packing import select_packed_token_trajectory
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,6 +93,12 @@ class NativeTokenPolicyTrainingSession:
         self.save_every_steps = int(save_every_steps)
         self.asynchronous_checkpoints = bool(asynchronous_checkpoints)
         self.step_sink = step_sink
+        self._pending: list[PendingTrainingCheckpoint] = []
+
+    def wait_for_checkpoints(self) -> None:
+        for pending in self._pending:
+            pending.wait()
+        self._pending.clear()
 
     @staticmethod
     def _validate_rollout(
@@ -99,14 +107,71 @@ class NativeTokenPolicyTrainingSession:
     ) -> None:
         if not isinstance(trajectory, PackedTokenTrajectory):
             raise TypeError("token rollout must return PackedTokenTrajectory")
-        if trajectory.sample_ids != request.sample_ids:
-            raise ValueError("token rollout changed sample_ids or their order")
-        if trajectory.group_ids != request.group_ids:
-            raise ValueError("token rollout changed group_ids or their order")
+        excluded = set(trajectory.excluded_sample_ids)
+        expected_samples = tuple(
+            sample_id for sample_id in request.sample_ids if sample_id not in excluded
+        )
+        expected_groups = tuple(
+            group_id
+            for sample_id, group_id in zip(
+                request.sample_ids,
+                request.group_ids,
+                strict=True,
+            )
+            if sample_id not in excluded
+        )
+        if set(request.sample_ids) != set(expected_samples) | excluded:
+            raise ValueError("token rollout reported unknown excluded samples")
+        if trajectory.sample_ids != expected_samples or trajectory.group_ids != expected_groups:
+            raise ValueError("token rollout changed the order of trainable samples")
         if trajectory.policy_revision != request.policy_revision:
             raise ValueError("token rollout changed the requested policy revision")
         if trajectory.sampling_temperature != request.sampling_temperature:
             raise ValueError("token rollout changed the requested sampling temperature")
+
+    @staticmethod
+    def _select_valid_rewards(
+        trajectory: PackedTokenTrajectory,
+        scored: TokenTrajectoryRewards,
+    ) -> tuple[PackedTokenTrajectory, Mapping[str, torch.Tensor]]:
+        values = dict(scored.values)
+        valid = dict(scored.valid)
+        reference = next(iter(values.values()))
+        if any(tuple(value.shape) != (trajectory.batch_size,) for value in values.values()):
+            raise ValueError("token reward values must match trajectory batch size")
+        joint = torch.ones(
+            trajectory.batch_size,
+            device=reference.device,
+            dtype=torch.bool,
+        )
+        for reward_id, value in values.items():
+            joint &= valid[reward_id].to(device=joint.device)
+            joint &= torch.isfinite(value.to(device=joint.device))
+        keep_rows = joint.tolist()
+        group_counts = Counter(
+            group_id
+            for group_id, keep in zip(trajectory.group_ids, keep_rows, strict=True)
+            if keep
+        )
+        selected = tuple(
+            index
+            for index, (group_id, keep) in enumerate(
+                zip(trajectory.group_ids, keep_rows, strict=True)
+            )
+            if keep and group_counts[group_id] >= 2
+        )
+        if not selected:
+            raise ValueError("token rewards left no group with at least two valid trajectories")
+        if len(selected) == trajectory.batch_size:
+            return trajectory, values
+        filtered = select_packed_token_trajectory(trajectory, selected)
+        return filtered, {
+            reward_id: value.index_select(
+                0,
+                torch.tensor(selected, device=value.device, dtype=torch.long),
+            )
+            for reward_id, value in values.items()
+        }
 
     def train_iteration(
         self,
@@ -131,7 +196,12 @@ class NativeTokenPolicyTrainingSession:
         initial_optimizer_step = self.engine.global_step
         trajectory = self.rollout_adapter.rollout(request, generator=generator)
         self._validate_rollout(request, trajectory)
-        rewards = self.scalarizer.scalarize(self.reward_adapter.score(trajectory))
+        scored = self.reward_adapter.score(trajectory)
+        if isinstance(scored, TokenTrajectoryRewards):
+            trajectory, reward_values = self._select_valid_rewards(trajectory, scored)
+        else:
+            reward_values = scored
+        rewards = self.scalarizer.scalarize(reward_values)
         anchor_id = self.engine.prepare_trajectory(
             trajectory,
             rewards.scalar_rewards,
@@ -168,7 +238,7 @@ class NativeTokenPolicyTrainingSession:
                 asynchronous=self.asynchronous_checkpoints,
             )
             if isinstance(artifact, PendingTrainingCheckpoint):
-                artifact.wait()
+                self._pending.append(artifact)
         return TokenPolicyIterationResult(
             trajectory=trajectory,
             rewards=rewards,

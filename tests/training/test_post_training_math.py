@@ -260,15 +260,13 @@ def _dmd_batch(batch_size: int = 2) -> DMDTrainingBatch:
     )
 
 
-def test_few_step_schedule_is_explicit_strict_and_content_addressed() -> None:
+def test_few_step_schedule_is_explicit_and_strict() -> None:
     schedule = FewStepSchedule.from_effective_timesteps(
         (1000, 757, 522),
         num_train_timesteps=1000,
     )
 
     assert schedule.sigmas == (1.0, 0.757, 0.522)
-    assert len(schedule.digest) == 64
-    assert schedule.digest == FewStepSchedule((1000, 757, 522), (1.0, 0.757, 0.522)).digest
     with pytest.raises(ValueError, match="strictly descending"):
         FewStepSchedule((1000, 757, 757), (1.0, 0.757, 0.5))
     with pytest.raises(ValueError, match=r"in \(0,1\]"):

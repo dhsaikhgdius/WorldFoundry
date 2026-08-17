@@ -8,15 +8,30 @@ import attrs
 
 from worldfoundry.core.configuration.lazy_config import LazyDict
 
-try:
-    from megatron.core import ModelParallelConfig as _ModelParallelConfig
-except ImportError:
 
-    @attrs.define(slots=False)
-    class _ModelParallelConfig:
-        """Fallback for configuration discovery without Megatron installed."""
+@attrs.define(slots=False)
+class _FallbackModelParallelConfig:
+    """Fallback for configuration discovery without Megatron installed."""
 
-        context_parallel_size: int = 1
+    context_parallel_size: int = 1
+
+
+def _default_model_parallel() -> Any:
+    """Build the default ``model_parallel`` field value.
+
+    Megatron is imported lazily here (not at module import) so that importing
+    ``worldfoundry.core.configuration`` never pulls the megatron/torch stack;
+    environments with megatron installed still get the real
+    ``ModelParallelConfig`` the first time a ``Config`` is constructed.
+    Without megatron the attrs fallback above only carries the single field
+    the inference runtimes consume (``context_parallel_size``).
+    """
+
+    try:
+        from megatron.core import ModelParallelConfig
+    except ImportError:
+        return _FallbackModelParallelConfig()
+    return ModelParallelConfig()
 
 
 T = TypeVar("T")
@@ -27,10 +42,18 @@ def _is_attrs_instance(value: object) -> bool:
 
 
 def make_freezable(cls: T) -> T:
-    """Add a recursive runtime ``freeze`` operation to an attrs class."""
+    """Add a recursive runtime ``freeze`` operation to an attrs class.
+
+    Freezing is *shallow* with respect to containers: it blocks attribute
+    assignment on the instance (and recursively freezes nested attrs values
+    that expose ``freeze``), but the contents of list/dict fields remain
+    mutable. Decorating the same class twice is a no-op.
+    """
 
     if not hasattr(cls, "__dict__"):
         raise TypeError("make_freezable requires attrs classes declared with slots=False")
+    if cls.__dict__.get("_worldfoundry_freezable", False):
+        return cls
     original_setattr = cls.__setattr__
 
     def setattr_override(self, key, value) -> None:  # noqa: ANN001
@@ -46,6 +69,7 @@ def make_freezable(cls: T) -> T:
 
     cls.__setattr__ = setattr_override
     cls.freeze = freeze
+    cls._worldfoundry_freezable = True
     return cls
 
 
@@ -92,6 +116,7 @@ class CheckpointConfig:
     load_ema_to_reg: bool = False
 
 
+@make_freezable
 @attrs.define(slots=False)
 class EMAConfig:
     """Exponential moving-average settings used while loading inference models."""
@@ -109,7 +134,9 @@ class Config:
     model: LazyDict | None
     job: JobConfig = attrs.field(factory=JobConfig)
     trainer: InferenceRuntimeConfig = attrs.field(factory=InferenceRuntimeConfig)
-    model_parallel: _ModelParallelConfig = attrs.field(factory=_ModelParallelConfig)
+    # megatron's ModelParallelConfig when available, attrs fallback otherwise
+    # (resolved lazily; see _default_model_parallel).
+    model_parallel: Any = attrs.field(factory=_default_model_parallel)
     checkpoint: CheckpointConfig = attrs.field(factory=CheckpointConfig)
 
     def to_dict(self) -> dict[str, Any]:

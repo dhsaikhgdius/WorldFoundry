@@ -34,8 +34,11 @@ class WanTextEncoder(nn.Module):
             dtype=dtype,
             device=torch.device("cpu"),
         ).eval().requires_grad_(False)
+        # The UMT5 encoder checkpoint is a pure tensor state dict, so the safe
+        # weights-only deserialization path is sufficient
+        # (plan/code_review/11_vendored_integration.md [VI-23]).
         self.text_encoder.load_state_dict(
-            torch.load(text_encoder_path, map_location="cpu", weights_only=False)
+            torch.load(text_encoder_path, map_location="cpu", weights_only=True)
         )
         self.tokenizer = HuggingfaceTokenizer(
             name=str(tokenizer_path),

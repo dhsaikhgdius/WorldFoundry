@@ -6,8 +6,9 @@
 from __future__ import annotations
 
 import functools
+import threading
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import torch
 import torch.distributed.checkpoint as dcp
@@ -17,7 +18,14 @@ from torch.distributed.checkpoint.state_dict import StateDictOptions, get_model_
 from torch.distributed.checkpoint.stateful import Stateful
 
 from worldfoundry.core.distributed.logging import log
-from worldfoundry.core.io.s3_filesystem import S3StorageReader
+
+if TYPE_CHECKING:
+    from worldfoundry.core.io.s3_filesystem import S3StorageReader
+
+# _version._derived_version (used by the old-key-layout compatibility path
+# below) is a process-wide global inside torch; serialize writers so two
+# threads loading checkpoints concurrently cannot corrupt each other.
+_DERIVED_VERSION_LOCK = threading.Lock()
 
 try:
     from torch.distributed.checkpoint.default_planner import DefaultLoadPlanner as _DefaultLoadPlanner
@@ -75,13 +83,14 @@ try:
                 current_keys = set(self.state_dict)
                 missing_keys = set(self.metadata.state_dict_metadata) - current_keys
                 if missing_keys:
-                    _version._derived_version = "2_3"
-                    try:
-                        old_state_dict, old_mappings = flatten_state_dict(self.original_state_dict)
-                        if set(old_state_dict) & missing_keys:
-                            self.state_dict, self.mappings = old_state_dict, old_mappings
-                    finally:
-                        _version._derived_version = None
+                    with _DERIVED_VERSION_LOCK:
+                        _version._derived_version = "2_3"
+                        try:
+                            old_state_dict, old_mappings = flatten_state_dict(self.original_state_dict)
+                            if set(old_state_dict) & missing_keys:
+                                self.state_dict, self.mappings = old_state_dict, old_mappings
+                        finally:
+                            _version._derived_version = None
             return _create_local_load_plan(
                 self.state_dict,
                 self.metadata,
@@ -91,6 +100,15 @@ try:
 
 except ImportError:
     from torch.distributed.checkpoint.default_planner import DefaultLoadPlanner
+
+    # Loud downgrade marker: with torch's private planner internals gone, the
+    # stock planner silently loses dcp_allow_mismatched_size and the old-key
+    # -layout compatibility path. Callers must be able to see this in logs.
+    log.warning(
+        "torch.distributed.checkpoint private planner APIs are unavailable in this torch build; "
+        "falling back to the stock DefaultLoadPlanner. dcp_allow_mismatched_size and old DCP key-layout "
+        "compatibility are disabled."
+    )
 
 
 def dcp_load_state_dict(state_dict: dict[str, Any], storage_reader, load_planner) -> None:
@@ -170,6 +188,9 @@ class DistributedCheckpointer:
     def get_storage_reader(self, checkpoint_path: str) -> S3StorageReader | FileSystemReader:
         object_store = getattr(self.config_checkpoint, "load_from_object_store", None)
         if object_store is not None and object_store.enabled:
+            # Lazy: pulls boto3, which local-checkpoint deployments don't have.
+            from worldfoundry.core.io.s3_filesystem import S3StorageReader
+
             return S3StorageReader(credential_path=object_store.credentials, path=checkpoint_path)
         return FileSystemReader(checkpoint_path)
 

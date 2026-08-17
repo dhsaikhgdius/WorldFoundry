@@ -1,0 +1,79 @@
+
+=== FamilyA  (claimed valid r >= 7) ===
+  parsed chain of 8 bands, 9 inequality entries (expect bands+1): OK
+  [OK] start: loB(1,0) <= 0
+        rederived-P match: True; nonneg on [7,inf): True (lc>0, P(7)=9>=0, odd roots beyond 7: none (roots in [7,oo): 0));
+        shift match: True; shifted coeffs>=0: True (claimed True); random sampling violations: 0; dens>0: True
+  [OK] link: loB(7,1) <= hiB(1,0)
+        rederived-P match: True; nonneg on [7,inf): True (lc>0, P(7)=767>=0, odd roots beyond 7: none (roots in [7,oo): 0));
+        shift match: True; shifted coeffs>=0: True (claimed True); random sampling violations: 0; dens>0: True
+  [OK] link: loB(w, 1r+2) <= hiB(7,1)
+        rederived-P match: True; nonneg on [7,inf): True (lc>0, P(7)=1062>=0, odd roots beyond 7: none (roots in [7,oo): 0));
+        shift match: True; shifted coeffs>=0: True (claimed True); random sampling violations: 0; dens>0: True
+  [OK] link: loB(5,1) <= hiB(w, 1r+2)
+        rederived-P match: True; nonneg on [7,inf): True (identically 0);
+        shift match: True; shifted coeffs>=0: True (claimed True); random sampling violations: 0; dens>0: True
+  [OK] link: loB(4,1) <= hiB(5,1)
+        rederived-P match: True; nonneg on [7,inf): True (lc>0, P(7)=1298>=0, odd roots beyond 7: none (roots in [7,oo): 0));
+        shift match: True; shifted coeffs>=0: True (claimed True); random sampling violations: 0; dens>0: True
+  [OK] link: loB(3,1) <= hiB(4,1)
+        rederived-P match: True; nonneg on [7,inf): True (lc>0, P(7)=236>=0, odd roots beyond 7: none (roots in [7,oo): 0));
+        shift match: True; shifted coeffs>=0: True (claimed True); random sampling violations: 0; dens>0: True
+  [OK] link: loB(5,2) <= hiB(3,1)
+        rederived-P match: True; nonneg on [7,inf): True (lc>0, P(7)=767>=0, odd roots beyond 7: none (roots in [7,oo): 0));
+        shift match: True; shifted coeffs>=0: True (claimed True); random sampling violations: 0; dens>0: True
+  [OK] link: loB(2,1) <= hiB(5,2)
+        rederived-P match: True; nonneg on [7,inf): True (lc>0, P(7)=236>=0, odd roots beyond 7: none (roots in [7,oo): 0));
+        shift match: True; shifted coeffs>=0: True (claimed True); random sampling violations: 0; dens>0: True
+  [OK] end: hiB(2,1) >= 1/2
+        rederived-P match: True; nonneg on [7,inf): True (lc>0, P(7)=18>=0, odd roots beyond 7: none (roots in [7,oo): 0));
+        shift match: True; shifted coeffs>=0: True (claimed True); random sampling violations: 0; dens>0: True
+  tangent link (P == 0): link: loB(5,1) <= hiB(w, 1r+2)
+        lo_next == hi_prev identically: True; shared point == witness t*(r): True
+        bands are CLOSED intervals; [a,b] u [b,c] = [a,c] -> covering still valid.
+  direct interval sweep r in [7,100] u {150,200,500,1000}: all cover [0,1/2] exactly
+
+=== FamilyB  (claimed valid r >= 7) ===
+  parsed chain of 11 bands, 12 inequality entries (expect bands+1): OK
+  [OK] start: loB(1,0) <= 0
+        rederived-P match: True; nonneg on [7,inf): True (lc>0, P(7)=11>=0, odd roots beyond 7: none (roots in [7,oo): 0));
+        shift match: True; shifted coeffs>=0: True (claimed True); random sampling violations: 0; dens>0: True
+  [OK] link: loB(7,1) <= hiB(1,0)
+        rederived-P match: True; nonneg on [7,inf): True (lc>0, P(7)=1095>=0, odd roots beyond 7: none (roots in [7,oo): 0));
+        shift match: True; shifted coeffs>=0: True (claimed True); random sampling violations: 0; dens>0: True
+  [OK] link: loB(w, 1r+4) <= hiB(7,1)
+        rederived-P match: True; nonneg on [7,inf): True (identically 0);
+        shift match: True; shifted coeffs>=0: True (claimed True); random sampling violations: 0; dens>0: True
+  [OK] link: loB(11,2) <= hiB(w, 1r+4)
+        rederived-P match: True; nonneg on [7,inf): True (lc>0, P(7)=3212>=0, odd roots beyond 7: none (roots in [7,oo): 0));
+        shift match: True; shifted coeffs>=0: True (claimed True); random sampling violations: 0; dens>0: True
+  [OK] link: loB(5,1) <= hiB(11,2)
+        rederived-P match: True; nonneg on [7,inf): True (lc>0, P(7)=7519>=0, odd roots beyond 7: none (roots in [7,oo): 0));
+        shift match: True; shifted coeffs>=0: True (claimed True); random sampling violations: 0; dens>0: True
+  [OK] link: loB(4,1) <= hiB(5,1)
+        rederived-P match: True; nonneg on [7,inf): True (lc>0, P(7)=1898>=0, odd roots beyond 7: none (roots in [7,oo): 0));
+        shift match: True; shifted coeffs>=0: True (claimed True); random sampling violations: 0; dens>0: True
+  [OK] link: loB(3,1) <= hiB(4,1)
+        rederived-P match: True; nonneg on [7,inf): True (lc>0, P(7)=292>=0, odd roots beyond 7: none (roots in [7,oo): 0));
+        shift match: True; shifted coeffs>=0: True (claimed True); random sampling violations: 0; dens>0: True
+  [OK] link: loB(5,2) <= hiB(3,1)
+        rederived-P match: True; nonneg on [7,inf): True (lc>0, P(7)=1095>=0, odd roots beyond 7: none (roots in [7,oo): 0));
+        shift match: True; shifted coeffs>=0: True (claimed True); random sampling violations: 0; dens>0: True
+  [OK] link: loB(7,3) <= hiB(5,2)
+        rederived-P match: True; nonneg on [7,inf): True (lc>0, P(7)=4307>=0, odd roots beyond 7: none (roots in [7,oo): 0));
+        shift match: True; shifted coeffs>=0: True (claimed True); random sampling violations: 0; dens>0: True
+  [OK] link: loB(11,5) <= hiB(7,3)
+        rederived-P match: True; nonneg on [7,inf): True (lc>0, P(7)=3796>=0, odd roots beyond 7: none (roots in [7,oo): 0));
+        shift match: True; shifted coeffs>=0: True (claimed True); random sampling violations: 0; dens>0: True
+  [OK] link: loB(4,2) <= hiB(11,5)
+        rederived-P match: True; nonneg on [7,inf): True (lc>0, P(7)=1387>=0, odd roots beyond 7: none (roots in [7,oo): 0));
+        shift match: True; shifted coeffs>=0: True (claimed True); random sampling violations: 0; dens>0: True
+  [OK] end: hiB(4,2) >= 1/2
+        rederived-P match: True; nonneg on [7,inf): True (lc>0, P(7)=22>=0, odd roots beyond 7: none (roots in [7,oo): 0));
+        shift match: True; shifted coeffs>=0: True (claimed True); random sampling violations: 0; dens>0: True
+  tangent link (P == 0): link: loB(w, 1r+4) <= hiB(7,1)
+        lo_next == hi_prev identically: True; shared point == witness t*(r): True
+        bands are CLOSED intervals; [a,b] u [b,c] = [a,c] -> covering still valid.
+  direct interval sweep r in [7,100] u {150,200,500,1000}: all cover [0,1/2] exactly
+
+V3 CERTIFICATE AUDIT RESULT: ALL CHECKS PASSED

@@ -5,7 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from math import isfinite
 
-from worldfoundry.core.io.integrity import canonical_sha256
 from worldfoundry.training.recipes.post_training.algorithms.adaptive_video import (
     AdaptiveVideoAlgorithmSpec,
 )
@@ -76,21 +75,5 @@ class AdaptiveVideoConfig:
             temporal_loss_cutoff=spec.temporal_loss_cutoff,
             temporal_epsilon=spec.temporal_epsilon,
         )
-
-    @property
-    def digest(self) -> str:
-        return canonical_sha256(
-            {
-                "schema": "worldfoundry-adaptive-video-config",
-                "dmd_digest": self.dmd.digest,
-                "regression_ema_decay": self.regression_ema_decay,
-                "regression_sensitivity": self.regression_sensitivity,
-                "regression_loss_weight": self.regression_loss_weight,
-                "temporal_regularization_weight": self.temporal_regularization_weight,
-                "temporal_loss_cutoff": self.temporal_loss_cutoff,
-                "temporal_epsilon": self.temporal_epsilon,
-            }
-        )
-
 
 __all__ = ["AdaptiveVideoConfig"]

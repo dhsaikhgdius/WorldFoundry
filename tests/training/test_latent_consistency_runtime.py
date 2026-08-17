@@ -602,10 +602,7 @@ def _checkpointable_stack():
         dataloader=loader,
         objective_generator=torch.Generator().manual_seed(303),
         progress=progress,
-        identity={
-            "algorithm": "latent-consistency",
-            "execution": stack.objective.config_digest,
-        },
+        identity={"algorithm": "latent-consistency"},
         **stack.checkpoint_state_kwargs(),
     )
     return stack, loader, progress, state

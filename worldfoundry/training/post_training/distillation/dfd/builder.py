@@ -150,8 +150,7 @@ def build_native_dfd_training_stack(
         str(adapter.noise_process_kind).strip().lower().replace("_", "-")
         for adapter in adapters
     }
-    digests = {str(adapter.noise_process_digest).strip() for adapter in adapters}
-    if kinds != {"flow-matching"} or "" in digests or len(digests) != 1:
+    if kinds != {"flow-matching"}:
         raise ValueError("DFD prediction roles must expose one matching flow process")
     if any(parameter.requires_grad for parameter in teacher_module.parameters()):
         raise ValueError("DFD teacher parameters must be frozen before stack construction")

@@ -1,3 +1,9 @@
+
+import pytest
+
+# This test module imports worldfoundry code that requires the optional
+# "loguru" dependency at import time; skip when it is unavailable.
+pytest.importorskip("loguru")
 from types import SimpleNamespace
 
 import torch

@@ -1,4 +1,4 @@
-.PHONY: help install-core install-dev docs-check lint ruff-check format-check shell-check data-check runtime-registry-check compile-eval cli-check precommit precommit-install preflight
+.PHONY: help install-core install-dev docs-check lint ruff-check format-check shell-check data-check runtime-registry-check compile-eval cli-check precommit precommit-install preflight test-eval-core test-training
 
 PYTHON ?= python
 PIP ?= $(PYTHON) -m pip
@@ -36,7 +36,9 @@ help:
 		'  make install-dev       Install lightweight development dependencies.' \
 		'  make docs-check        Validate documented CLI entrypoints.' \
 		'  make lint              Run lightweight source and catalog checks.' \
-		'  make preflight         Run the public runtime preflight.'
+		'  make preflight         Run the public runtime preflight.' \
+		'  make test-eval-core    Run the eval_core release-gate pytest suite (CPU).' \
+		'  make test-training     Run the tests/training pytest suite (CPU subset).'
 
 install-core:
 	$(PIP) install -e .
@@ -96,3 +98,9 @@ preflight:
 		--profile $(PREFLIGHT_PROFILE) \
 		--output-dir $(PREFLIGHT_OUTPUT) \
 		--json
+
+test-eval-core:
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest test/eval_core -q -p no:cacheprovider
+
+test-training:
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest tests/training -q -p no:cacheprovider

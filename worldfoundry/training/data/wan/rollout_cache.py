@@ -16,7 +16,7 @@ from ..rollout_cache import (
 )
 from ..rollout_manifest import RolloutPromptDataset
 from .artifacts import write_wan_unconditional_conditioning
-from .contracts import wan_cache_contract_digest, wan_checkpoint_asset_digest
+from .contracts import wan_checkpoint_asset_identity
 from .encoding import WanTextFeatureEncoder
 
 
@@ -103,8 +103,8 @@ def materialize_wan_rollout_conditioning_cache(
             first_record,
             generation_defaults,
         )
-        conditioner_digest = wan_checkpoint_asset_digest(resolved_checkpoints["text-encoder"])
-        tokenizer_digest = wan_checkpoint_asset_digest(resolved_checkpoints["tokenizer"])
+        conditioner = wan_checkpoint_asset_identity(resolved_checkpoints["text-encoder"])
+        tokenizer = wan_checkpoint_asset_identity(resolved_checkpoints["tokenizer"])
         unconditional = write_wan_unconditional_conditioning(
             store=store,
             context=encoder.encode(
@@ -115,17 +115,16 @@ def materialize_wan_rollout_conditioning_cache(
                 width=width,
             ),
             model_recipe=recipe.model.recipe,
-            conditioner_digest=conditioner_digest,
-            tokenizer_digest=tokenizer_digest,
+            conditioner=conditioner,
+            tokenizer=tokenizer,
         )
         prepared = prepare_rollout_conditioning_cache(
             prompts,
             cache_root=cache_dir,
             encoder=encoder,
             model_recipe=recipe.model.recipe,
-            model_recipe_digest=wan_cache_contract_digest(recipe.model.recipe),
-            conditioner_digest=conditioner_digest,
-            tokenizer_digest=tokenizer_digest,
+            conditioner=conditioner,
+            tokenizer=tokenizer,
             generation_defaults=generation_defaults,
         )
         return RolloutConditioningPreparationResult(

@@ -15,7 +15,10 @@ CROCO_MODELS_PATH = path.join(CROCO_REPO_PATH, 'models')
 # check the presence of models directory in repo to be sure its cloned
 if path.isdir(CROCO_MODELS_PATH):
     # workaround for sibling import
-    sys.path.insert(0, CROCO_REPO_PATH)
+    # Modified by WorldFoundry: idempotent insert (avoid duplicate sys.path
+    # entries when the wrapper __init__ already registered this path).
+    if CROCO_REPO_PATH not in sys.path:
+        sys.path.insert(0, CROCO_REPO_PATH)
 else:
     raise ImportError(f"croco is not initialized, could not find: {CROCO_MODELS_PATH}.\n "
                       "Did you forget to run 'git submodule update --init --recursive' ?")

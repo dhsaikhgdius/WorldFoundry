@@ -530,7 +530,9 @@ class AutoWrappedLinear(torch.nn.Linear, AutoTorchModule):
         if self.computation_dtype == getattr(torch, "float8_e4m3fnuz", None):
             fp8_max = fp8_max / 2.0
         scale_a = torch.clamp(x_max / fp8_max, min=1.0).float().to(device=device)
-        scale_b = torch.ones((weight.shape[0], 1)).to(device=device)
+        # Allocate directly on the compute device: creating on CPU first added
+        # one H2D copy (and a potential sync) per layer per forward (CC-28).
+        scale_b = torch.ones((weight.shape[0], 1), device=device)
         input = input / (scale_a + 1e-8)
         input = input.to(self.computation_dtype)
         weight = weight.to(self.computation_dtype)

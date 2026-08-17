@@ -296,21 +296,6 @@ def test_adaptive_video_engine_restores_counters_and_regression_ema() -> None:
     )
 
 
-def test_adaptive_video_engine_rejects_objective_config_drift_atomically() -> None:
-    engine, _ = _engine()
-    engine.train_step(_batch("save"), generator=torch.Generator().manual_seed(5))
-    saved = engine.state_dict()
-    restored, restored_losses = _engine(config=_config(temporal_cutoff=0.6))
-    before = restored_losses.regression_ema.state_dict()
-
-    with pytest.raises(ValueError, match="configuration differs"):
-        restored.load_state_dict(saved)
-
-    after = restored_losses.regression_ema.state_dict()
-    assert torch.equal(after["values"], before["values"])
-    assert torch.equal(after["update_counts"], before["update_counts"])
-
-
 def test_adaptive_video_batch_requires_fresh_real_video_geometry() -> None:
     with pytest.raises(ValueError, match="must match"):
         AdaptiveVideoTrainingBatch(
@@ -330,7 +315,6 @@ def test_adaptive_video_state_has_only_behavioral_fields() -> None:
     assert set(state) == {
         "schema",
         "global_step",
-        "config_digest",
         "dmd_engine",
         "objective",
     }
@@ -471,10 +455,7 @@ def _checkpointable_adaptive_video_stack():
         dataloader=loader,
         objective_generator=objective_generator,
         progress=progress,
-        identity={
-            "algorithm": "adaptive-video-distillation",
-            "configuration": losses.config_digest,
-        },
+        identity={"algorithm": "adaptive-video-distillation"},
     )
     return engine, losses, loader, progress, objective_generator, model, state
 

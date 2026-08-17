@@ -9,7 +9,6 @@ import torch
 from torch import Tensor, nn
 
 from worldfoundry.core.checkpoint import validate_state_dict_compatibility
-from worldfoundry.core.io.integrity import canonical_sha256
 from worldfoundry.training.objectives.flow_matching import flow_interpolate
 
 from ...shared.contracts import FlowPredictionAdapter
@@ -69,7 +68,7 @@ class DiagonalDMDLossAdapter:
             raise TypeError("student_sampler must be DiagonalRolloutSampler")
         if not isinstance(initialize_motion_teacher, bool):
             raise TypeError("initialize_motion_teacher must be bool")
-        if student_sampler.config.base_schedule.digest != config.dmd.schedule.digest:
+        if student_sampler.config.base_schedule != config.dmd.schedule:
             raise ValueError("diagonal rollout and DMD base schedules differ")
         if student_sampler.config.frame_dim != config.frame_dim:
             raise ValueError("diagonal rollout and objective frame dimensions differ")
@@ -134,17 +133,6 @@ class DiagonalDMDLossAdapter:
         self.motion_head_teacher = motion_head_teacher
         self.motion_ema = motion_ema
         self.motion_ema_updates = 0
-        self.config_digest = canonical_sha256(
-            {
-                "schema": "worldfoundry-diagonal-execution",
-                "objective_digest": config.digest,
-                "student_rollout_digest": student_sampler.execution_digest,
-                "fixed_teacher_digest": (
-                    None if fixed_teacher_sampler is None else fixed_teacher_sampler.execution_digest
-                ),
-            }
-        )
-        self.schedule_digest = self.config_digest
 
     def loss_denominator(self, batch: DMDTrainingBatch, *, role: str) -> object:
         return self.base.loss_denominator(batch, role=role)
@@ -308,7 +296,6 @@ class DiagonalDMDLossAdapter:
             }
         return {
             "schema": DIAGONAL_OBJECTIVE_STATE_SCHEMA,
-            "config_digest": self.config_digest,
             "motion_ema_updates": self.motion_ema_updates,
             "motion_head_teacher": teacher_state,
         }
@@ -318,7 +305,6 @@ class DiagonalDMDLossAdapter:
             raise TypeError("diagonal objective state must be a mapping")
         expected = {
             "schema",
-            "config_digest",
             "motion_ema_updates",
             "motion_head_teacher",
         }
@@ -326,8 +312,6 @@ class DiagonalDMDLossAdapter:
             raise ValueError("diagonal objective state fields differ from the active schema")
         if state_dict["schema"] != DIAGONAL_OBJECTIVE_STATE_SCHEMA:
             raise ValueError(f"unsupported diagonal objective schema: {state_dict['schema']!r}")
-        if state_dict["config_digest"] != self.config_digest:
-            raise ValueError("saved diagonal objective configuration differs")
         updates = state_dict["motion_ema_updates"]
         if isinstance(updates, bool) or not isinstance(updates, int) or updates < 0:
             raise ValueError("saved diagonal motion EMA update count is invalid")

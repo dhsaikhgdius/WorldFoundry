@@ -6,6 +6,11 @@ from dataclasses import dataclass
 from math import isfinite
 
 from ..common import strict_mapping
+from .auxiliary_optimizers import (
+    AuxiliaryOptimizerRule,
+    forbids_auxiliary,
+    requires_auxiliary,
+)
 
 REWARD_FORCING_ALGORITHM_FIELDS = {
     "type",
@@ -278,6 +283,16 @@ class RewardForcingAlgorithmSpec:
             _non_negative_float(
                 self.motion_reward_normalization_epsilon,
                 field_name="algorithm.motion_reward_normalization_epsilon",
+            ),
+        )
+
+    def auxiliary_optimizer_rules(self) -> tuple[AuxiliaryOptimizerRule, ...]:
+        return (
+            requires_auxiliary("fake_score_optimizer", "Reward-Forcing requires fake_score_optimizer"),
+            forbids_auxiliary(
+                "guidance_optimizer",
+                "discriminator_optimizer",
+                message="Reward-Forcing only accepts fake_score_optimizer",
             ),
         )
 

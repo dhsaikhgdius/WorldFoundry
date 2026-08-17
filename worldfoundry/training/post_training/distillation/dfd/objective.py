@@ -263,15 +263,11 @@ class NativeDFDLossAdapter:
         }
         if kinds != {"flow-matching"}:
             raise ValueError("DFD requires flow-matching prediction adapters")
-        digests = {str(adapter.noise_process_digest).strip() for adapter in adapters}
-        if "" in digests or len(digests) != 1:
-            raise ValueError("DFD prediction roles must expose one matching noise process digest")
         self.student = student
         self.teacher = teacher
         self.fake_score = fake_score
         self.discriminator = discriminator
         self.config = config
-        self.config_digest = config.digest
         self.data_forcing_probability = config.data_forcing_probability
         self.student_update_frequency = config.student_update_frequency
 

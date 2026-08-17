@@ -32,7 +32,7 @@ def tree_value_at_path(obj, paths: Tuple):
             obj = obj[p]
         return obj
     except Exception as e:
-        raise ValueError(f"{e}\n\n-- Incorrect nested path {paths} for object: {obj}.")
+        raise ValueError(f"{e}\n\n-- Incorrect nested path {paths} for object: {obj}.") from e
 
 
 def tree_assign_at_path(obj, paths: Tuple, value):
@@ -42,7 +42,7 @@ def tree_assign_at_path(obj, paths: Tuple, value):
         if len(paths) > 0:
             obj[paths[-1]] = value
     except Exception as e:
-        raise ValueError(f"{e}\n\n-- Incorrect nested path {paths} for object: {obj}.")
+        raise ValueError(f"{e}\n\n-- Incorrect nested path {paths} for object: {obj}.") from e
 
 
 def copy_non_leaf(obj):

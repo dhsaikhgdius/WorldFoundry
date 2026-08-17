@@ -131,19 +131,19 @@ def materialize_wan_self_forcing_training_run(
             role="student",
             reference=recipe.model.checkpoint,
             native_default=SELF_FORCING_ODE_CHECKPOINT,
-            audited_local_override=overrides.get("student"),  # type: ignore[arg-type]
+            local_override=overrides.get("student"),  # type: ignore[arg-type]
         )
         real_checkpoint = resolve_role_checkpoint(
             role="real-score",
             reference=algorithm.real_score_checkpoint,
             native_default=real_native_recipe.checkpoints["dit"],
-            audited_local_override=overrides.get("real-score"),  # type: ignore[arg-type]
+            local_override=overrides.get("real-score"),  # type: ignore[arg-type]
         )
         fake_checkpoint = resolve_role_checkpoint(
             role="fake-score",
             reference=algorithm.fake_score_checkpoint,
             native_default=fake_native_recipe.checkpoints["dit"],
-            audited_local_override=overrides.get("fake-score"),  # type: ignore[arg-type]
+            local_override=overrides.get("fake-score"),  # type: ignore[arg-type]
         )
 
         dtype = assets.dtype
@@ -269,13 +269,11 @@ def materialize_wan_self_forcing_training_run(
         )
         height, width, frames = assets.generation_geometry
         data_identity = {
-            "prompt_manifest_sha256": assets.prompts.manifest_sha256,
-            "prompt_dataset_digest": assets.prompts.dataset_digest,
-            "conditioned_dataset_digest": assets.conditioning.dataset_digest,
-            "conditioning_index_sha256": assets.conditioning.index.digest,
-            "model_recipe_digest": assets.model_contract_digest,
-            "conditioner_digest": assets.conditioner_digest,
-            "tokenizer_digest": assets.tokenizer_digest,
+            "prompt_records": [record.to_dict() for record in assets.prompts],
+            "conditioning_index": assets.conditioning.index.to_dict(),
+            "model_contract": dict(assets.model_contract),
+            "conditioner": dict(assets.conditioner),
+            "tokenizer": dict(assets.tokenizer),
             "sample_count": len(assets.conditioning),
             "generation": {
                 "height": height,
@@ -291,7 +289,7 @@ def materialize_wan_self_forcing_training_run(
         progress = TrainingProgress(optimizer_steps=stack.engine.global_step)
         identity = {
             "schema": "worldfoundry-wan-self-forcing-resume-identity",
-            "recipe_digest": recipe.digest,
+            "recipe": recipe.to_dict(),
             "roles": roles.runtime_identity(),
             "data": data_identity,
             "runtime": recipe.to_dict()["runtime"],
@@ -327,7 +325,6 @@ def materialize_wan_self_forcing_training_run(
                 {
                     **dict(event),
                     "run_id": recipe.run.id,
-                    "recipe_digest": recipe.digest,
                     "recorded_at": utc_now_iso(),
                 },
                 root=assets.output_dir,

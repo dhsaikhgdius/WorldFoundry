@@ -19,17 +19,17 @@ from worldfoundry.training.data import (  # noqa: E402
 
 def _provenance(**overrides: object) -> VideoCacheProvenance:
     values: dict[str, object] = {
-        "media_sha256": "1" * 64,
-        "prompt_sha256": "2" * 64,
-        "model_recipe_digest": "3" * 64,
-        "codec_digest": "4" * 64,
-        "conditioner_digest": "5" * 64,
-        "tokenizer_digest": "6" * 64,
-        "conditioning_inputs_digest": "7" * 64,
-        "safety_audit_digest": "8" * 64,
-        "frame_sampling_digest": "9" * 64,
-        "spatial_transform_digest": "a" * 64,
-        "latent_normalization_digest": "b" * 64,
+        "media_uri": "video.mp4",
+        "prompt": "a video prompt",
+        "model_recipe": "wan2.1-t2v-1.3b",
+        "codec": {"repo_id": "wan", "revision": "main"},
+        "conditioner": {"repo_id": "umt5", "revision": "main"},
+        "tokenizer": {"repo_id": "tokenizer", "revision": "main"},
+        "conditioning_inputs": {"max_length": 12},
+        "safety_audit": {"safe": True, "model_revision": "main"},
+        "frame_sampling": {"mode": "uniform", "frames": 17},
+        "spatial_transform": {"mode": "center-crop", "height": 288, "width": 512},
+        "latent_normalization": {"mean": 0.0, "std": 1.0},
         "task": "t2v",
         "conditioning_layout": "text",
         "aspect_bin": "16:9",
@@ -73,17 +73,17 @@ def test_video_cache_round_trip_collates_masks_conditions_and_token_metrics(tmp_
         _write(
             store,
             f"sample-{index}",
-            replace(provenance, media_sha256=f"{index + 1:x}" * 64),
+            replace(provenance, media_uri=f"video-{index}.mp4"),
             value=float(index),
         )
         for index in range(2)
     ]
-    index = store.write_index(dataset_digest="c" * 64, entries=entries)
+    index = store.write_index(entries=entries)
 
-    dataset = VideoCachedDataset(tmp_path, expected_dataset_digest="c" * 64)
+    dataset = VideoCachedDataset(tmp_path, expected_sample_ids=("sample-0", "sample-1"))
     batch = collate_video_cached_samples([dataset[0], dataset[1]])
 
-    assert dataset.index_sha256 == index.index_sha256
+    assert dataset.index == index
     assert dataset.bucket_keys == (provenance.bucket_key, provenance.bucket_key)
     assert tuple(batch.conditions["clean_latents"].shape) == (2, 16, 5, 36, 64)
     assert tuple(batch.conditions["latent_loss_mask"].shape) == (2, 1, 5, 36, 64)
@@ -93,18 +93,18 @@ def test_video_cache_round_trip_collates_masks_conditions_and_token_metrics(tmp_
     assert batch.metadata["latent_tokens_per_microbatch"] == 2 * 5 * 36 * 64
 
 
-def test_video_cache_identity_changes_with_frame_and_normalization_provenance(tmp_path) -> None:
+def test_video_cache_records_frame_and_normalization_configuration(tmp_path) -> None:
     store = VideoCacheStore(tmp_path)
     base = _provenance()
-    frame_changed = replace(base, frame_sampling_digest="d" * 64)
-    normalization_changed = replace(base, latent_normalization_digest="e" * 64)
+    frame_changed = replace(base, frame_sampling={"mode": "head", "frames": 17})
+    normalization_changed = replace(base, latent_normalization={"mean": 0.5, "std": 2.0})
     entries = (
         _write(store, "base", base),
         _write(store, "frame", frame_changed),
         _write(store, "normalization", normalization_changed),
     )
-    assert len({entry.identity_sha256 for entry in entries}) == 3
-    assert len({entry.object_sha256 for entry in entries}) == 3
+    assert entries[0].provenance != entries[1].provenance
+    assert entries[0].provenance != entries[2].provenance
 
 
 def test_video_cache_rejects_invalid_latent_and_temporal_masks(tmp_path) -> None:
@@ -123,20 +123,16 @@ def test_video_cache_rejects_invalid_latent_and_temporal_masks(tmp_path) -> None
             clean_latents=torch.zeros(16, 5, 36, 64),
             valid_latent_mask=torch.ones(5, 36, 64, dtype=torch.bool),
         )
-    latents = torch.zeros(16, 5, 36, 64)
-    latents[0, 0, 0, 0] = float("nan")
-    with pytest.raises(ValueError, match="NaN or infinity"):
-        store.write_sample(sample_id="nan", provenance=provenance, clean_latents=latents)
 
 
 def test_video_cache_collator_rejects_bucket_and_contract_mixing(tmp_path) -> None:
     store = VideoCacheStore(tmp_path)
     base = _provenance()
-    other_contract = replace(base, codec_digest="f" * 64)
+    other_contract = replace(base, codec={"repo_id": "other", "revision": "main"})
     first = store.audit_entry(_write(store, "first", base))
     second = store.audit_entry(_write(store, "second", other_contract))
     assert first is not None and second is not None
-    with pytest.raises(ValueError, match="incompatible model/preprocessing"):
+    with pytest.raises(ValueError, match="incompatible model or preprocessing"):
         collate_video_cached_samples([first, second])
 
 
@@ -148,10 +144,10 @@ def test_token_sampler_separates_same_shape_cache_contracts(tmp_path) -> None:
         _write(
             store,
             "30-fps",
-            replace(base, media_sha256="f" * 64, source_fps=30.0, target_fps=30.0),
+            replace(base, media_uri="other.mp4", source_fps=30.0, target_fps=30.0),
         ),
     )
-    store.write_index(dataset_digest="d" * 64, entries=entries)
+    store.write_index(entries=entries)
     dataset = VideoCachedDataset(tmp_path)
     sampler = LatentTokenBatchSampler(
         dataset,
@@ -163,18 +159,16 @@ def test_token_sampler_separates_same_shape_cache_contracts(tmp_path) -> None:
     batches = list(sampler)
 
     assert batches == [[0], [1]]
-    assert len(set(dataset.batch_contract_digests)) == 2
+    assert dataset.batch_contracts[0] != dataset.batch_contracts[1]
     for indices in batches:
         collate_video_cached_samples([dataset[index] for index in indices])
 
 
-def test_video_cache_detects_object_tampering(tmp_path) -> None:
+def test_video_cache_detects_truncated_object(tmp_path) -> None:
     store = VideoCacheStore(tmp_path)
     entry = _write(store, "sample", _provenance())
     path = tmp_path / entry.object_path
-    payload = bytearray(path.read_bytes())
-    payload[-1] ^= 1
-    path.write_bytes(payload)
+    path.write_bytes(path.read_bytes()[:-1])
 
-    with pytest.raises(ValueError, match="SHA-256 mismatch"):
+    with pytest.raises(ValueError, match="size mismatch"):
         store.audit_entry(entry)

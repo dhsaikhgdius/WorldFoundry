@@ -21,7 +21,11 @@ from worldfoundry.evaluation.api import (
 )
 from worldfoundry.evaluation.tasks.execution.framework.in_tree_evaluator import BenchmarkZooInTreeEvaluator
 from worldfoundry.evaluation.tasks.execution.framework.in_tree_registry import target_benchmark_metrics
-from worldfoundry.evaluation.tasks.metrics.registry import BuiltinExistingResultsMetric, create_existing_results_metric
+from worldfoundry.evaluation.tasks.metrics.registry import (
+    BuiltinExistingResultsMetric,
+    MetricRegistryError,
+    create_existing_results_metric,
+)
 from worldfoundry.evaluation.utils import build_version_context, jsonable, model_runner_fingerprint, read_json_or_jsonl
 
 from .cache import cache_paths_from_stats, run_generation_with_cache
@@ -933,7 +937,17 @@ def _metric_callable(
                 required_artifacts=required_artifacts or None,
             )
     # Default to generic existing results metric if no specific benchmark match or explicit objects.
-    return create_existing_results_metric(metrics=metric_ids, required_artifacts=required_artifacts)
+    try:
+        return create_existing_results_metric(metrics=metric_ids, required_artifacts=required_artifacts)
+    except MetricRegistryError as exc:
+        # Fail fast with the metrics this benchmark actually supports instead of
+        # silently emitting a scorecard without the requested metric.
+        supported = target_benchmark_metrics().get(benchmark_id or "")
+        if supported:
+            raise MetricRegistryError(
+                f"{exc} Benchmark {benchmark_id!r} supports these in-tree metrics: {', '.join(supported)}"
+            ) from exc
+        raise
 
 
 def _contract_metric_objects(metrics: Sequence[Any], required_artifacts: Sequence[str]) -> tuple[Metric, ...]:

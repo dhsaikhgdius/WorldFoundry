@@ -10,7 +10,6 @@ from typing import Literal
 import torch
 from torch import nn
 
-from worldfoundry.core.io.integrity import canonical_sha256
 from worldfoundry.training.checkpoint.state import TrainingProgress
 from worldfoundry.training.checkpoint.stateful import NamedStatefulCollection
 from worldfoundry.training.optimization import build_adamw, trainable_parameters
@@ -352,14 +351,6 @@ def build_native_senseflow_training_stack(
         discriminator,
         config,
     )
-    execution_config_digest = canonical_sha256(
-        {
-            "schema": "worldfoundry-senseflow-training-config",
-            "objective_digest": loss_adapter.config_digest,
-            "optimizer_digest": optimizer_config.digest,
-            "recipe_digest": recipe.digest,
-        }
-    )
     engine = NativeSenseFlowTrainEngine(
         student_module=student_module,
         teacher_module=teacher_module,
@@ -378,7 +369,6 @@ def build_native_senseflow_training_stack(
         fake_score_scheduler=fake_score_scheduler,
         discriminator_scheduler=discriminator_scheduler,
         student_scheduler_cadence=config.student_scheduler_cadence,
-        execution_config_digest=execution_config_digest,
         discriminator_frozen_modules=discriminator_frozen_modules,
         parallel_context=parallel_context,
     )

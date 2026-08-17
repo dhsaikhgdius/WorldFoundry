@@ -236,6 +236,29 @@ _DMD2_EXPORTS = {
     "NativeDMD2TrainingSession": ".dmd2.session",
 }
 
+_DIFFUSION_OPD_EXPORTS = {
+    "BranchClassifierFreeGuidance": ".diffusion_opd.adapters",
+    "DIFFUSION_OPD_DATA_LOADER_STATE_SCHEMA": ".diffusion_opd.batching",
+    "NativeDiffusionOPDDataLoader": ".diffusion_opd.batching",
+    "NativeDiffusionOPDTrainingStack": ".diffusion_opd.builder",
+    "build_native_diffusion_opd_training_stack": ".diffusion_opd.builder",
+    "DiffusionOPDReplayResult": ".diffusion_opd.contracts",
+    "DiffusionOPDRolloutBatch": ".diffusion_opd.contracts",
+    "DiffusionOPDTrajectory": ".diffusion_opd.contracts",
+    "DIFFUSION_OPD_ENGINE_STATE_SCHEMA": ".diffusion_opd.engine",
+    "DiffusionOPDTrainResult": ".diffusion_opd.engine",
+    "NativeDiffusionOPDEngine": ".diffusion_opd.engine",
+    "DiffusionOPDLoss": ".diffusion_opd.objective",
+    "diffusion_opd_loss": ".diffusion_opd.objective",
+    "DiffusionOPDRunSummary": ".diffusion_opd.run",
+    "NativeDiffusionOPDTrainingRun": ".diffusion_opd.run",
+    "build_native_diffusion_opd_training_run": ".diffusion_opd.run",
+    "DiffusionOPDIterationResult": ".diffusion_opd.session",
+    "NativeDiffusionOPDTrainingSession": ".diffusion_opd.session",
+    "DiffusionOPDTrajectorySampler": ".diffusion_opd.trajectory",
+    "NativeDiffusionOPDTrajectoryReplay": ".diffusion_opd.trajectory",
+}
+
 _RCM_EXPORTS = {
     "NativeRFRCMPredictionAdapter": ".rcm.adapters",
     "NativeRCMTrainingStack": ".rcm.builder",
@@ -425,6 +448,21 @@ _SENSEFLOW_EXPORTS = {
     "SenseFlowRunSummary": ".senseflow.session",
 }
 
+_T2V_TURBO_EXPORTS = {
+    "DifferentiableImageReward": ".t2v_turbo.objective",
+    "DifferentiableVideoReward": ".t2v_turbo.objective",
+    "LVDMEpsilonPredictor": ".t2v_turbo.objective",
+    "T2VTurboConfig": ".t2v_turbo.objective",
+    "T2VTurboObjective": ".t2v_turbo.objective",
+    "T2VTurboTrainAdapter": ".t2v_turbo.objective",
+    "T2VTurboLoraApplication": ".t2v_turbo.lora",
+    "T2VTurboLoraArtifact": ".t2v_turbo.lora",
+    "T2VTurboLoraAudit": ".t2v_turbo.lora",
+    "apply_t2v_turbo_lora": ".t2v_turbo.lora",
+    "audit_t2v_turbo_lora_targets": ".t2v_turbo.lora",
+    "save_t2v_turbo_lora": ".t2v_turbo.lora",
+}
+
 _EXPORTS = {
     **_ANYFLOW_EXPORTS,
     **_ADAPTIVE_VIDEO_EXPORTS,
@@ -437,6 +475,7 @@ _EXPORTS = {
     **_DIAGONAL_EXPORTS,
     **_DMD_EXPORTS,
     **_DMD2_EXPORTS,
+    **_DIFFUSION_OPD_EXPORTS,
     **_RCM_EXPORTS,
     **_REWARD_FORCING_EXPORTS,
     **_SID_EXPORTS,
@@ -446,6 +485,7 @@ _EXPORTS = {
     **_SGMD_EXPORTS,
     **_SCALE_WISE_EXPORTS,
     **_SENSEFLOW_EXPORTS,
+    **_T2V_TURBO_EXPORTS,
 }
 
 __all__ = list(_EXPORTS)

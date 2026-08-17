@@ -10,9 +10,9 @@ from worldfoundry.base_models.diffusion_model.contracts import (
     DiffusionRequest,
     SamplingConfig,
 )
-from worldfoundry.training.models.wan import wan_pixel_mask_to_latent
 
 from ..video_dataset import DecodedVideoSample
+from ..video_masks import project_causal_video_mask_to_latent
 from .contracts import (
     WAN_LATENT_MEAN,
     WAN_LATENT_STD,
@@ -173,7 +173,7 @@ class WanVideoFeatureEncoder:
                 "Wan codec latent shape differs from the assigned bucket: "
                 f"got {tuple(latents.shape)}, expected {expected_shape}"
             )
-        loss_mask = wan_pixel_mask_to_latent(
+        loss_mask = project_causal_video_mask_to_latent(
             decoded.valid_mask.unsqueeze(0).to(device=latents.device),
             pixel_shape=tuple(int(value) for value in pixels.shape),
             latent_shape=(expected.frames, expected.height, expected.width),

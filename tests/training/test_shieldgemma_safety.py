@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json
 from types import SimpleNamespace
 
@@ -51,7 +50,7 @@ class _FakeShieldModel(torch.nn.Module):
         return SimpleNamespace(logits=logits)
 
 
-def test_shieldgemma_safe_audit_is_content_addressed_and_freezes_model() -> None:
+def test_shieldgemma_safe_audit_records_prompt_and_freezes_model() -> None:
     model = _FakeShieldModel(unsafe=False)
     prompt_filter = ShieldGemmaPromptFilter(model, _FakeTokenizer())
 
@@ -60,22 +59,20 @@ def test_shieldgemma_safe_audit_is_content_addressed_and_freezes_model() -> None
     assert audit.schema == SHIELDGEMMA_PROMPT_AUDIT_SCHEMA
     assert audit.safe is True
     assert audit.blocked_categories == ()
-    assert len(audit.prompt_sha256) == 64
-    assert len(audit.digest) == 64
-    assert "blue cup" not in str(audit.to_dict())
+    assert audit.prompt == "a blue cup on a table"
     assert model.training is False
     assert not any(parameter.requires_grad for parameter in model.parameters())
     assert prompt_filter.tokenizer.padding_side == "left"
 
 
-def test_shieldgemma_rejects_unsafe_prompts_without_echoing_text() -> None:
+def test_shieldgemma_rejects_unsafe_prompts() -> None:
     prompt = "private unsafe fixture"
     prompt_filter = ShieldGemmaPromptFilter(_FakeShieldModel(unsafe=True), _FakeTokenizer())
 
     with pytest.raises(UnsafeTrainingPromptError) as captured:
         prompt_filter.require_safe((prompt,))
 
-    assert prompt not in str(captured.value)
+    assert prompt in str(captured.value)
     assert captured.value.audits[0].blocked_categories
 
 
@@ -90,11 +87,10 @@ def test_shieldgemma_refuses_to_truncate_unscored_content() -> None:
         prompt_filter.audit(("content",))
 
 
-def test_shieldgemma_checkpoint_is_fully_content_audited() -> None:
+def test_shieldgemma_checkpoint_is_pinned() -> None:
     checkpoint = shieldgemma_checkpoint_spec()
 
     assert checkpoint.revision == "d1dffc9c8c9237a90aab09c61383791e718ef9e8"
-    assert set(checkpoint.files) == set(checkpoint.file_sha256)
     assert set(checkpoint.files) == set(checkpoint.file_size_bytes)
 
 
@@ -109,7 +105,6 @@ def test_prompt_audit_sidecar_builds_and_binds_a_new_manifest(tmp_path) -> None:
         "prompt": "a blue cup on a table",
         "media": {
             "uri": media.name,
-            "sha256": hashlib.sha256(media.read_bytes()).hexdigest(),
             "size_bytes": media.stat().st_size,
         },
         "width": 8,
@@ -132,15 +127,16 @@ def test_prompt_audit_sidecar_builds_and_binds_a_new_manifest(tmp_path) -> None:
             _FakeShieldModel(unsafe=False),
             _FakeTokenizer(),
         ),
-        verify_media_hashes=True,
+        verify_media_files=True,
     )
-    manifest = TrainingManifestDataset.from_file(output, split="train", verify_hashes=True)
+    manifest = TrainingManifestDataset.from_file(output, split="train", verify_files=True)
     loaded = PromptAuditSet.from_file(sidecar)
     (audit,) = loaded.select_for_manifest(manifest)
 
     assert result.audit_set == loaded
     assert audit == PromptSafetyAudit.from_mapping(audit.to_dict())
-    assert manifest[0].safety["prompt_audit_digest"] == audit.digest
+    assert manifest[0].safety["prompt_safe"] is True
+    assert manifest[0].safety["model_revision"] == audit.model_revision
     assert manifest[0].media.uri == str(media.resolve())
 
     tampered = loaded.to_dict()

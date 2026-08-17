@@ -58,7 +58,6 @@ def _expand(levels: torch.Tensor, reference: torch.Tensor) -> torch.Tensor:
 
 class _PredictionAdapter:
     noise_process_kind = "flow-matching"
-    noise_process_digest = "linear-flow"
 
     def __init__(self, module: torch.nn.Module, identity: str) -> None:
         self.module = module
@@ -303,7 +302,6 @@ def test_rollout_supports_batch_shared_forward_and_backward_anchor_simulation() 
 
 
 class _DeterministicLosses:
-    config_digest = "d" * 64
 
     def __init__(
         self,
@@ -895,7 +893,6 @@ def _checkpointable_native_stack(seed: int):
         progress=progress,
         identity={
             "algorithm": "senseflow",
-            "execution_config_digest": stack.engine.config_digest,
             "gradient_accumulation_steps": stack.engine.gradient_accumulation_steps,
         },
         lr_scheduler=stack.scheduler_state,

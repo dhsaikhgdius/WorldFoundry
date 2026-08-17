@@ -33,7 +33,6 @@ def test_fsdp_parallel_plan_resolves_dynamic_world_size_and_named_dimensions() -
         "cp",
         "tp",
     ]
-    assert len(plan.digest) == 64
 
 
 def test_parallel_plan_rejects_geometry_that_does_not_match_the_launch() -> None:

@@ -161,8 +161,8 @@ class NativeAnyFlowPretrainEngine:
         self._poisoned = False
 
     @property
-    def config_digest(self) -> str:
-        return str(self.loss_adapter.config_digest)
+    def config_state(self) -> dict[str, object]:
+        return dict(self.loss_adapter.config_state)
 
     def train_step(
         self,
@@ -259,7 +259,7 @@ class NativeAnyFlowPretrainEngine:
             "global_step": self.global_step,
             "optimizer_steps": self.optimizer_steps,
             "gradient_accumulation_steps": self.gradient_accumulation_steps,
-            "config_digest": self.config_digest,
+            "configuration": self.config_state,
             "data_parallel_size": self.parallel_context.world_size,
             "decisions": self.decisions.state_dict(),
         }
@@ -270,7 +270,7 @@ class NativeAnyFlowPretrainEngine:
             "global_step",
             "optimizer_steps",
             "gradient_accumulation_steps",
-            "config_digest",
+            "configuration",
             "data_parallel_size",
             "decisions",
         }
@@ -278,7 +278,7 @@ class NativeAnyFlowPretrainEngine:
             raise ValueError("AnyFlow pretrain engine state fields differ from the schema")
         if state_dict["schema"] != ANYFLOW_PRETRAIN_ENGINE_STATE_SCHEMA:
             raise ValueError("unsupported AnyFlow pretrain engine schema")
-        if str(state_dict["config_digest"]) != self.config_digest:
+        if state_dict["configuration"] != self.config_state:
             raise ValueError("saved AnyFlow pretrain configuration differs")
         for name, active in (
             ("gradient_accumulation_steps", self.gradient_accumulation_steps),
@@ -436,8 +436,8 @@ class NativeAnyFlowOnPolicyEngine:
         self.real_score_module.eval()
 
     @property
-    def config_digest(self) -> str:
-        return str(self.loss_adapter.config_digest)
+    def config_state(self) -> dict[str, object]:
+        return dict(self.loss_adapter.config_state)
 
     def _role_backward(
         self,
@@ -632,7 +632,7 @@ class NativeAnyFlowOnPolicyEngine:
             "fake_score_optimizer_steps": self.fake_score_optimizer_steps,
             "discriminator_update_ratio": self.discriminator_update_ratio,
             "gradient_accumulation_steps": self.gradient_accumulation_steps,
-            "config_digest": self.config_digest,
+            "configuration": self.config_state,
             "data_parallel_size": self.parallel_context.world_size,
             "decisions": self.decisions.state_dict(),
         }
@@ -645,7 +645,7 @@ class NativeAnyFlowOnPolicyEngine:
             "fake_score_optimizer_steps",
             "discriminator_update_ratio",
             "gradient_accumulation_steps",
-            "config_digest",
+            "configuration",
             "data_parallel_size",
             "decisions",
         }
@@ -653,7 +653,7 @@ class NativeAnyFlowOnPolicyEngine:
             raise ValueError("AnyFlow on-policy engine state fields differ from schema")
         if state_dict["schema"] != ANYFLOW_ON_POLICY_ENGINE_STATE_SCHEMA:
             raise ValueError("unsupported AnyFlow on-policy engine schema")
-        if str(state_dict["config_digest"]) != self.config_digest:
+        if state_dict["configuration"] != self.config_state:
             raise ValueError("saved AnyFlow on-policy configuration differs")
         for name, active in (
             ("discriminator_update_ratio", self.discriminator_update_ratio),

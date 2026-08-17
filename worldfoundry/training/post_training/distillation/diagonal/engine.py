@@ -67,9 +67,8 @@ class NativeDiagonalTrainEngine:
     def generator_update_interval(self) -> int:
         return self.dmd_engine.generator_update_interval
 
-    @property
-    def schedule_digest(self) -> str:
-        return self.dmd_engine.schedule_digest
+    def generator_update_due(self) -> bool:
+        return self.dmd_engine.generator_update_due()
 
     def train_step(
         self,

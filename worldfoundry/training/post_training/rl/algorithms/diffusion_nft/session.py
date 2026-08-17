@@ -4,11 +4,9 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
-from math import prod
 
 import torch
 
-from worldfoundry.core.io.integrity import canonical_sha256
 from worldfoundry.training.checkpoint.checkpointer import TrainingCheckpointer
 from worldfoundry.training.checkpoint.staging import PendingTrainingCheckpoint
 from worldfoundry.training.checkpoint.state import TrainingProgress
@@ -17,16 +15,11 @@ from ....rewards.scalarization import (
     RewardScalarizationResult,
     WeightedRewardScalarizer,
 )
+from ....shared.batching import latent_token_count as _latent_tokens
 from ...contracts import FlowRolloutBatch
 from .collection import NativeDiffusionNFTTerminalCollector
 from .contracts import DiffusionNFTRewardAdapter, DiffusionNFTRollout
 from .engine import DiffusionNFTStepResult, NativeDiffusionNFTEngine
-
-
-def _latent_tokens(tensor: torch.Tensor) -> int:
-    if tensor.ndim < 2:
-        raise ValueError("clean latent tensor must include batch and channel/feature dimensions")
-    return int(tensor.shape[0]) * prod(int(size) for size in tensor.shape[2:])
 
 
 @dataclass(frozen=True, slots=True)
@@ -143,14 +136,7 @@ class NativeDiffusionNFTTrainingSession:
             raise ValueError("DiffusionNFT collection batch was created by a stale behavior policy")
         if self.collector is None or self.reward_adapter is None or self.scalarizer is None:
             raise TypeError("FlowRolloutBatch requires the DiffusionNFT collection and reward pipeline")
-        collection_id = canonical_sha256(
-            {
-                "schema": "worldfoundry-diffusion-nft-collection",
-                "optimizer_step": self.engine.global_step,
-                "policy_revision": batch.policy_revision,
-                "sample_ids": batch.sample_ids,
-            }
-        )
+        collection_id = f"collection-{self.engine.global_step}-{batch.sample_ids[0]}"
         terminal = self.collector.collect(batch, collection_id=collection_id)
         components = self.reward_adapter.score(terminal)
         scalarized = self.scalarizer.scalarize(components)

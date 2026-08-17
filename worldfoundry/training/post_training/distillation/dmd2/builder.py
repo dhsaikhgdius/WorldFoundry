@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 from typing import Literal
 
@@ -37,9 +38,7 @@ def _module(adapter: object, protocol: type, *, role: str) -> torch.nn.Module:
 def _require_checkpoint(adapter: object, expected: str, *, role: str) -> None:
     actual = str(adapter.checkpoint_identity).strip()
     if actual != str(expected).strip():
-        raise ValueError(
-            f"{role} loaded checkpoint identity {actual!r} differs from recipe {expected!r}"
-        )
+        raise ValueError(f"{role} loaded checkpoint identity {actual!r} differs from recipe {expected!r}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,6 +68,8 @@ def build_native_dmd2_training_stack(
     guidance: DMD2GuidanceAdapter,
     student_scheduler: object | None = None,
     guidance_scheduler: object | None = None,
+    student_scheduler_factory: Callable[[torch.optim.Optimizer], object] | None = None,
+    guidance_scheduler_factory: Callable[[torch.optim.Optimizer], object] | None = None,
     student_ema: object | None = None,
     parallel_context: PostTrainingParallelContext | None = None,
     fused_adamw: bool | Literal["auto"] = "auto",
@@ -101,12 +102,13 @@ def build_native_dmd2_training_stack(
         raise ValueError("DMD2 teacher parameters must be frozen before stack construction")
     teacher_module.eval()
     config = DMD2Config.from_recipe(recipe.algorithm)
+    resolved_parallel_context = parallel_context or PostTrainingParallelContext.current()
     loss_adapter = NativeDMD2LossAdapter(
         student,
         real_score,
         guidance,
         config,
-        config_digest=recipe.digest,
+        parallel_context=resolved_parallel_context,
     )
     student_optimizer = build_post_training_optimizer(
         replace(recipe.optimizer, gradient_accumulation_steps=1),
@@ -120,6 +122,14 @@ def build_native_dmd2_training_stack(
         fused=fused_adamw,
         role="DMD2 guidance",
     )
+    if student_scheduler is not None and student_scheduler_factory is not None:
+        raise ValueError("configure a DMD2 student scheduler or scheduler factory, not both")
+    if guidance_scheduler is not None and guidance_scheduler_factory is not None:
+        raise ValueError("configure a DMD2 guidance scheduler or scheduler factory, not both")
+    if student_scheduler_factory is not None:
+        student_scheduler = student_scheduler_factory(student_optimizer)
+    if guidance_scheduler_factory is not None:
+        guidance_scheduler = guidance_scheduler_factory(guidance_optimizer)
     engine = NativeDMD2TrainEngine(
         student_module=student_module,
         teacher_module=teacher_module,
@@ -134,8 +144,9 @@ def build_native_dmd2_training_stack(
         student_scheduler=student_scheduler,
         guidance_scheduler=guidance_scheduler,
         student_scheduler_cadence=recipe.algorithm.student_scheduler_cadence,
+        update_mode=recipe.algorithm.update_mode,
         student_ema=student_ema,
-        parallel_context=parallel_context,
+        parallel_context=resolved_parallel_context,
     )
     return NativeDMD2TrainingStack(
         recipe=recipe,

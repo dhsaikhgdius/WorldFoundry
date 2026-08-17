@@ -16,7 +16,6 @@ _EXPORTS = {
     "ADDConfig": ".config",
     "ADDDistillationWeighting": ".config",
     "ADDNoiseSchedule": ".config",
-    "add_execution_digest": ".config",
     "ADDDecoderAdapter": ".contracts",
     "ADDDiscriminatorAdapter": ".contracts",
     "ADDDiscriminatorHeadOutput": ".contracts",

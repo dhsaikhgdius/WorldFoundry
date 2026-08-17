@@ -51,6 +51,7 @@ class SanaSCMVelocityAdapter:
         *,
         role: str,
         checkpoint_identity: str,
+        fp32_attention: bool,
         expected_latent_channels: int = 32,
         autocast_dtype: torch.dtype | None = None,
     ) -> None:
@@ -68,6 +69,13 @@ class SanaSCMVelocityAdapter:
         self.trainable_module = self.module
         self.role = role
         self.checkpoint_identity = identity
+        if not isinstance(fp32_attention, bool):
+            raise TypeError("fp32_attention must be bool")
+        set_fp32_attention = getattr(self.module, "set_fp32_attention", None)
+        if not callable(set_fp32_attention):
+            raise TypeError("SANA SCM graph must expose set_fp32_attention(enabled)")
+        set_fp32_attention(fp32_attention)
+        self.fp32_attention = fp32_attention
         self.expected_latent_channels = int(expected_latent_channels)
         self.autocast_dtype = autocast_dtype
 

@@ -7,6 +7,7 @@ and de-duplicating entries across multiple YAML sources.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, replace
 from functools import lru_cache
 from pathlib import Path
@@ -17,6 +18,8 @@ from ...api.registry import AliasRegistryStore, lookup_key
 from ...utils import MODEL_ZOO_DIR, load_manifest, manifest_paths
 from .manifest import model_zoo_entries_to_world_model_manifests
 from .schema import ModelVariantSpec, ModelZooEntry, iter_model_zoo_payloads
+
+LOGGER = logging.getLogger(__name__)
 
 # ── Custom exceptions ────────────────────────────────────────
 
@@ -106,12 +109,20 @@ def _entry_mapping_priority(data: Mapping[str, Any]) -> int:
 
 
 def _load_entries_with_priority(path: str | Path) -> tuple[tuple[int, ModelZooEntry], ...]:
-    """Load model entries along with their schema priorities from a file."""
-    payload = load_manifest(Path(path))
-    return tuple(
-        (_entry_mapping_priority(item), ModelZooEntry.from_dict(item))
-        for item in iter_model_zoo_payloads(payload)
-    )
+    """Load model entries along with their schema priorities from a file.
+
+    Schema validation errors are re-raised with the manifest path prepended so
+    a broken file inside a large zoo directory is directly locatable.
+    """
+    resolved = Path(path)
+    payload = load_manifest(resolved)
+    entries: list[tuple[int, ModelZooEntry]] = []
+    for item in iter_model_zoo_payloads(payload):
+        try:
+            entries.append((_entry_mapping_priority(item), ModelZooEntry.from_dict(item)))
+        except (TypeError, ValueError) as exc:
+            raise type(exc)(f"{resolved}: {exc}") from exc
+    return tuple(entries)
 
 
 # ── Pipeline route hydration ─────────────────────────────────
@@ -206,18 +217,30 @@ def _dedupe_entries_by_target_priority(paths: Iterable[str | Path]) -> tuple[Mod
 
     Hydrates pipeline routes before de-duplication, then keeps the entry with
     the highest priority for each ``model_id``, preserving first-seen order.
+    A higher schema-version priority silently supersedes (that is the
+    documented v2-wins mechanism); a duplicate at the *same* priority keeps the
+    first-seen entry and logs a warning with both file paths so accidental
+    copies stay visible.
     """
-    selected: dict[str, tuple[int, int, ModelZooEntry]] = {}
+    selected: dict[str, tuple[int, int, ModelZooEntry, str]] = {}
     sequence = 0
     for path in paths:
+        path_text = str(path)
         for priority, entry in _load_entries_with_priority(path):
             entry = _hydrate_pipeline_routes(entry)
             existing = selected.get(entry.model_id)
             if existing is None:
-                selected[entry.model_id] = (priority, sequence, entry)
+                selected[entry.model_id] = (priority, sequence, entry, path_text)
                 sequence += 1
             elif priority > existing[0]:
-                selected[entry.model_id] = (priority, existing[1], entry)
+                selected[entry.model_id] = (priority, existing[1], entry, path_text)
+            elif priority == existing[0]:
+                LOGGER.warning(
+                    "Duplicate model_id %r at equal schema priority: keeping entry from %s, ignoring duplicate in %s.",
+                    entry.model_id,
+                    existing[3],
+                    path_text,
+                )
     return tuple(item[2] for item in sorted(selected.values(), key=lambda value: value[1]))
 
 

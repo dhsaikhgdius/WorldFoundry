@@ -4,7 +4,7 @@ import io
 import logging
 import os
 import pprint
-import shlex
+import re
 import string
 import sys
 import textwrap
@@ -59,10 +59,19 @@ def print_str(*args, **kwargs):
 
 def fstring(fmt_str, **kwargs):
     """
-    Simulate python f-string but without `f`
+    Simulate python f-string but without `f`.
+
+    Each ``{...}`` placeholder is evaluated against exactly the provided
+    keyword arguments. The previous ``locals().update`` + ``eval`` trick
+    relied on a CPython <= 3.12 implementation detail that PEP 667
+    (Python 3.13) removes, and its ``shlex.quote`` wrapping broke on
+    templates containing single quotes.
     """
-    locals().update(kwargs)
-    return eval("f" + shlex.quote(fmt_str))
+
+    def substitute(match):
+        return str(eval(match.group(1), {"__builtins__": {}}, dict(kwargs)))  # noqa: S307 - caller-authored template
+
+    return re.sub(r"\{([^{}]+)\}", substitute, fmt_str)
 
 
 def get_format_keys(fmt_str):

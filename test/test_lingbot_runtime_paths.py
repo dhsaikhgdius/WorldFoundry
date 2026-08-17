@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from worldfoundry.synthesis.visual_generation.lingbot.lingbot_world_synthesis import LingBotSynthesis
+from worldfoundry.synthesis.visual_generation.lingbot_world.lingbot_world_synthesis import LingBotSynthesis
 
 
 def test_fast_model_ref_resolves_base_sibling_even_with_fast_load_kwarg(tmp_path) -> None:

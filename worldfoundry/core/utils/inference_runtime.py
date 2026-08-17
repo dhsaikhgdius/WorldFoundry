@@ -1,4 +1,11 @@
-"""Tensor-tree and deterministic random helpers used during inference."""
+"""Tensor-tree and deterministic random helpers used during inference.
+
+Layering debt: :func:`_compile_eval_forward` lazily imports
+``worldfoundry.runtime.compile_cache`` (an upper layer) at call time, so the
+compile path still requires the runtime package even though this module
+imports cleanly without it. The proper fix is to sink the compile-cache
+primitives below core; see review finding CF-2.
+"""
 
 from __future__ import annotations
 

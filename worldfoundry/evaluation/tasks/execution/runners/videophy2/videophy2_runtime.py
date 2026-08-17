@@ -13,6 +13,7 @@ from typing import Any, Mapping
 
 from worldfoundry.base_models.capabilities import get_base_model_capability
 from worldfoundry.base_models.llm_mllm_core.mllm.videophy2_autoeval import runtime_root as autoeval_runtime_root
+from worldfoundry.evaluation.tasks.execution.framework.official_runner import default_benchmark_timeout
 from worldfoundry.evaluation.tasks.execution.runners.videophy2.videophy2_prompts import (
     load_prompt_records,
     official_video_filename_for_record,
@@ -241,6 +242,7 @@ def _run_autoeval_task(
             stdout=log_handle,
             stderr=subprocess.STDOUT,
             check=False,
+            timeout=default_benchmark_timeout(),
         )
     if process.returncode != 0:
         raise RuntimeError(f"VideoPhy2 AutoEval task {task!r} failed with code {process.returncode}; log: {log_path}")

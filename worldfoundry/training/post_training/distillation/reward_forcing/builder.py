@@ -10,14 +10,12 @@ from typing import Literal
 import torch
 from torch import nn
 
-from worldfoundry.core.io.integrity import canonical_sha256
 from worldfoundry.training.checkpoint.checkpointer import TrainingCheckpointer
 from worldfoundry.training.checkpoint.state import TrainingProgress
 from worldfoundry.training.checkpoint.stateful import NamedStatefulCollection
 from worldfoundry.training.recipes.post_training.algorithms.reward_forcing import (
     RewardForcingAlgorithmSpec,
 )
-from worldfoundry.training.recipes.post_training.common import plain_data
 from worldfoundry.training.recipes.post_training.recipe import PostTrainingRecipe
 
 from ...shared.building import (
@@ -57,7 +55,6 @@ class NativeRewardForcingTrainingStack:
     engine: NativeRewardForcingTrainEngine
     scheduler_state: NamedStatefulCollection | None
     ema_state: NamedStatefulCollection
-    execution_digest: str
 
     @property
     def optimizers(self) -> tuple[torch.optim.Optimizer, ...]:
@@ -267,17 +264,7 @@ def build_native_reward_forcing_training_stack(
         student_module,
         decay=config.ema_decay,
     )
-    execution_digest = canonical_sha256(
-        {
-            "schema": "worldfoundry-reward-forcing-execution",
-            "algorithm": plain_data(algorithm),
-            "primary_optimizer": plain_data(recipe.optimizer),
-            "fake_score_optimizer": plain_data(recipe.fake_score_optimizer),
-            "student_execution_digest": sampler.execution_digest,
-        }
-    )
     engine = NativeRewardForcingTrainEngine(
-        execution_digest=execution_digest,
         student_module=student_module,
         real_score_module=real_score_module,
         fake_score_module=fake_score_module,
@@ -309,7 +296,6 @@ def build_native_reward_forcing_training_stack(
             fake_score=fake_score_scheduler,
         ),
         ema_state=ema_state,
-        execution_digest=execution_digest,
     )
 
 

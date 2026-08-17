@@ -1,0 +1,91 @@
+schema: worldfoundry-training
+execution_owner: worldfoundry-native
+run:
+  id: cosmos-predict2p5-2b-video-lora
+  output_dir: runs/cosmos-predict2p5-2b-video-lora
+model:
+  recipe: cosmos-predict2.5-2b
+  checkpoint: default
+  options:
+    checkpoint_variant: pretrained
+tuning:
+  mode: lora
+  preset: cosmos-predict-attention-mlp
+  rank: 32
+  alpha: 32
+  dropout: 0.0
+data:
+  manifest: data/cosmos_train.jsonl
+  cache: cache/cosmos-predict2p5-2b
+  max_latent_tokens_per_microbatch: 337920
+  split: train
+  shuffle: true
+  shuffle_seed: 42
+  tail_policy: drop
+  options:
+    video_buckets:
+      - num_frames: 93
+        height: 704
+        width: 1280
+        conditioning_layout: reason1-sequence
+        tasks: [t2v, i2v, v2v]
+    bucket_policy:
+      allow_spatial_upscale: false
+      allow_temporal_padding: false
+    decode:
+      frame_sampling: seeded-random-contiguous
+      frame_sampling_seed: 42
+      spatial_transform: direct-resize
+      interpolation: bilinear
+      value_range: minus-one-one
+      decoder_thread_type: auto
+      verify_manifest_frame_count: true
+      verify_manifest_geometry: true
+      fps_tolerance: 0.05
+    num_workers: 4
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 2
+    snapshot_every_n_steps: 1
+objective:
+  type: flow_matching
+  prediction_type: flow_velocity
+  timestep_sampler: logit_normal
+  conditioning_dropout: 0.2
+  options:
+    flow_shift: 5.0
+    logit_mean: 0.0
+    logit_std: 1.0
+    conditional_frame_probabilities:
+      0: 0.333
+      1: 0.333
+      2: 0.334
+optimizer:
+  type: adamw
+  learning_rate: 4.315837287515549e-5
+  weight_decay: 0.001
+  betas: [0.9, 0.99]
+  epsilon: 1.0e-8
+  max_grad_norm: 1.0
+  gradient_accumulation_steps: 1
+scheduler:
+  type: warmup-cosine
+  total_steps: 100000
+  warmup_steps: 2000
+  start_factor: 0.0
+  peak_factor: 0.5
+  end_factor: 0.2
+runtime:
+  param_dtype: bfloat16
+  reduce_dtype: float32
+  activation_checkpoint: none
+  compile: false
+distributed:
+  backend: fsdp2
+  dp_replicate: 1
+  dp_shard: auto
+  cp: 1
+  tp: 1
+checkpoint:
+  save_every_steps: 200
+  async: true

@@ -391,10 +391,7 @@ def _checkpointable_stack():
         dataloader=loader,
         objective_generator=torch.Generator().manual_seed(303),
         progress=progress,
-        identity={
-            "algorithm": "progressive-distillation",
-            "recipe": stack.recipe.digest,
-        },
+        identity={"algorithm": "progressive-distillation"},
         **stack.checkpoint_state_kwargs(),
     )
     return stack, loader, progress, state

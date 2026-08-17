@@ -1,4 +1,4 @@
-"""Atomic generator-then-guidance optimizer engine for native DMD2."""
+"""Atomic role-aware optimizer engine for native DMD2."""
 
 from __future__ import annotations
 
@@ -42,11 +42,12 @@ class DMD2TrainResult:
     generator_loss: torch.Tensor
     guidance_loss: torch.Tensor
     generator_updated: bool
+    guidance_updated: bool
     metrics: Mapping[str, object]
 
 
 class NativeDMD2TrainEngine:
-    """Commit G first, then train the shared fake-score/discriminator role."""
+    """Commit the configured generator and guidance update phases atomically."""
 
     def __init__(
         self,
@@ -64,6 +65,7 @@ class NativeDMD2TrainEngine:
         student_scheduler: object | None = None,
         guidance_scheduler: object | None = None,
         student_scheduler_cadence: str = "iteration",
+        update_mode: str = "generator-then-guidance",
         student_ema: object | None = None,
         parallel_context: PostTrainingParallelContext | None = None,
     ) -> None:
@@ -86,15 +88,16 @@ class NativeDMD2TrainEngine:
         cadence = str(student_scheduler_cadence).strip().lower().replace("_", "-")
         if cadence not in {"iteration", "generator-update"}:
             raise ValueError("student_scheduler_cadence must be 'iteration' or 'generator-update'")
+        resolved_update_mode = str(update_mode).strip().lower().replace("_", "-")
+        if resolved_update_mode not in {"generator-then-guidance", "alternating"}:
+            raise ValueError("update_mode must be 'generator-then-guidance' or 'alternating'")
         validate_stateful_or_none(student_scheduler, field_name="student_scheduler")
         validate_stateful_or_none(guidance_scheduler, field_name="guidance_scheduler")
         validate_stateful_or_none(student_ema, field_name="student_ema")
 
         student_parameters = trainable_parameters(student_module)
         guidance_parameters = trainable_parameters(guidance_module)
-        if {id(parameter) for parameter in student_parameters} & {
-            id(parameter) for parameter in guidance_parameters
-        }:
+        if {id(parameter) for parameter in student_parameters} & {id(parameter) for parameter in guidance_parameters}:
             raise ValueError("DMD2 student and guidance cannot share trainable parameters")
         audit_optimizer_parameters(student_optimizer, student_parameters, role="DMD2 student")
         audit_optimizer_parameters(guidance_optimizer, guidance_parameters, role="DMD2 guidance")
@@ -120,6 +123,7 @@ class NativeDMD2TrainEngine:
         self.student_scheduler = student_scheduler
         self.guidance_scheduler = guidance_scheduler
         self.student_scheduler_cadence = cadence
+        self.update_mode = resolved_update_mode
         self.student_ema = student_ema
         self.parallel_context = parallel_context or PostTrainingParallelContext.current()
         self.parallel_context.audit_synchronized_module(student_module, role="DMD2 student")
@@ -130,10 +134,6 @@ class NativeDMD2TrainEngine:
         self._phase = "idle"
         self._poisoned = False
         self.teacher_module.eval()
-
-    @property
-    def config_digest(self) -> str:
-        return str(self.loss_adapter.config_digest)
 
     def _batches(
         self,
@@ -164,11 +164,13 @@ class NativeDMD2TrainEngine:
             raise RuntimeError("DMD2 engine has a partially committed iteration; restore the last checkpoint")
         batches = self._batches(batch)
         generator_due = self.global_step % self.generator_update_interval == 0
+        guidance_due = self.update_mode == "generator-then-guidance" or not generator_due
         generator_results: list[DMD2LossResult] = []
         generator_weights: list[torch.Tensor] = []
         guidance_results: list[DMD2LossResult] = []
         guidance_weights: list[torch.Tensor] = []
         student_grad_norm = torch.zeros((), device=self.student_parameters[0].device)
+        guidance_grad_norm = torch.zeros((), device=self.guidance_parameters[0].device)
         self.student_optimizer.zero_grad(set_to_none=True)
         self.guidance_optimizer.zero_grad(set_to_none=True)
         optimizer_mutated = False
@@ -191,9 +193,7 @@ class NativeDMD2TrainEngine:
                     generator_weights,
                     self.parallel_context,
                 )
-                for index, (microbatch, weight) in enumerate(
-                    zip(batches, generator_weights, strict=True)
-                ):
+                for index, (microbatch, weight) in enumerate(zip(batches, generator_weights, strict=True)):
                     with accumulation_context(
                         self.student_module,
                         final_microbatch=index + 1 == len(batches),
@@ -203,9 +203,7 @@ class NativeDMD2TrainEngine:
                             role="DMD2 generator",
                         )
                         check_reported_weight(result, weight, role="DMD2 generator")
-                        gradient_weight = (
-                            weight / total_generator_weight * float(self.parallel_context.world_size)
-                        )
+                        gradient_weight = weight / total_generator_weight * float(self.parallel_context.world_size)
                         (result.loss * gradient_weight).backward()
                     generator_results.append(result)
                 if any(parameter.grad is not None for parameter in self.guidance_parameters):
@@ -222,55 +220,52 @@ class NativeDMD2TrainEngine:
                 if self.student_ema is not None:
                     self.student_ema.update(self.student_module)
 
-            # This phase intentionally runs after the student commit and uses a
-            # fresh student rollout, so the guidance role sees post-G weights.
-            self._phase = "guidance-backward"
-            self.student_module.eval()
-            self.guidance_module.train()
-            self.teacher_module.eval()
-            self.student_optimizer.zero_grad(set_to_none=True)
-            self.guidance_optimizer.zero_grad(set_to_none=True)
-            guidance_weights = [
-                declared_loss_weight(
-                    self.loss_adapter,
-                    microbatch,
-                    role="guidance",
-                    device=self.guidance_parameters[0].device,
-                )
-                for microbatch in batches
-            ]
-            total_guidance_weight = global_denominator(guidance_weights, self.parallel_context)
-            for index, (microbatch, weight) in enumerate(
-                zip(batches, guidance_weights, strict=True)
-            ):
-                with accumulation_context(
-                    self.guidance_module,
-                    final_microbatch=index + 1 == len(batches),
-                ):
-                    result = _finite_loss(
-                        self.loss_adapter.guidance_loss(microbatch, generator=generator),
-                        role="DMD2 guidance",
+            if guidance_due:
+                # The default mode lets the guidance role see post-G weights.
+                # Author trainers that alternate roles skip this phase on G steps.
+                self._phase = "guidance-backward"
+                self.student_module.eval()
+                self.guidance_module.train()
+                self.teacher_module.eval()
+                self.student_optimizer.zero_grad(set_to_none=True)
+                self.guidance_optimizer.zero_grad(set_to_none=True)
+                guidance_weights = [
+                    declared_loss_weight(
+                        self.loss_adapter,
+                        microbatch,
+                        role="guidance",
+                        device=self.guidance_parameters[0].device,
                     )
-                    check_reported_weight(result, weight, role="DMD2 guidance")
-                    gradient_weight = weight / total_guidance_weight * float(self.parallel_context.world_size)
-                    (result.loss * gradient_weight).backward()
-                guidance_results.append(result)
-            if any(parameter.grad is not None for parameter in self.student_parameters):
-                raise RuntimeError("DMD2 guidance phase produced student parameter gradients")
-            guidance_grad_norm = clip_grad_norm_(
-                self.guidance_parameters,
-                self.guidance_max_grad_norm,
-                error_if_nonfinite=True,
-            )
-            optimizer_mutated = True
-            self.guidance_optimizer.step()
-            self.guidance_optimizer_steps += 1
-            self._phase = "guidance-committed"
-            if self.guidance_scheduler is not None:
-                self.guidance_scheduler.step()
-            if self.student_scheduler is not None and (
-                self.student_scheduler_cadence == "iteration" or generator_due
-            ):
+                    for microbatch in batches
+                ]
+                total_guidance_weight = global_denominator(guidance_weights, self.parallel_context)
+                for index, (microbatch, weight) in enumerate(zip(batches, guidance_weights, strict=True)):
+                    with accumulation_context(
+                        self.guidance_module,
+                        final_microbatch=index + 1 == len(batches),
+                    ):
+                        result = _finite_loss(
+                            self.loss_adapter.guidance_loss(microbatch, generator=generator),
+                            role="DMD2 guidance",
+                        )
+                        check_reported_weight(result, weight, role="DMD2 guidance")
+                        gradient_weight = weight / total_guidance_weight * float(self.parallel_context.world_size)
+                        (result.loss * gradient_weight).backward()
+                    guidance_results.append(result)
+                if any(parameter.grad is not None for parameter in self.student_parameters):
+                    raise RuntimeError("DMD2 guidance phase produced student parameter gradients")
+                guidance_grad_norm = clip_grad_norm_(
+                    self.guidance_parameters,
+                    self.guidance_max_grad_norm,
+                    error_if_nonfinite=True,
+                )
+                optimizer_mutated = True
+                self.guidance_optimizer.step()
+                self.guidance_optimizer_steps += 1
+                self._phase = "guidance-committed"
+                if self.guidance_scheduler is not None:
+                    self.guidance_scheduler.step()
+            if self.student_scheduler is not None and (self.student_scheduler_cadence == "iteration" or generator_due):
                 self.student_scheduler.step()
             self.global_step += 1
             self._phase = "idle"
@@ -283,16 +278,20 @@ class NativeDMD2TrainEngine:
                 self._phase = "idle"
             raise
 
-        guidance_numerator, guidance_denominator, guidance_loss = global_loss_statistics(
-            guidance_results,
-            guidance_weights,
-            self.parallel_context,
-        )
-        guidance_metrics = role_metrics(
-            guidance_results,
-            global_numerator=guidance_numerator,
-            global_denominator=guidance_denominator,
-        )
+        if guidance_results:
+            guidance_numerator, guidance_denominator, guidance_loss = global_loss_statistics(
+                guidance_results,
+                guidance_weights,
+                self.parallel_context,
+            )
+            guidance_metrics: Mapping[str, object] = role_metrics(
+                guidance_results,
+                global_numerator=guidance_numerator,
+                global_denominator=guidance_denominator,
+            )
+        else:
+            guidance_loss = torch.zeros((), device=self.guidance_parameters[0].device, dtype=torch.float32)
+            guidance_metrics = {}
         if generator_results:
             generator_numerator, generator_denominator, generator_loss = global_loss_statistics(
                 generator_results,
@@ -329,6 +328,7 @@ class NativeDMD2TrainEngine:
             generator_loss=generator_loss.detach().float(),
             guidance_loss=guidance_loss.detach().float(),
             generator_updated=generator_due,
+            guidance_updated=guidance_due,
             metrics=metrics,
         )
 
@@ -343,7 +343,7 @@ class NativeDMD2TrainEngine:
             "generator_update_interval": self.generator_update_interval,
             "gradient_accumulation_steps": self.gradient_accumulation_steps,
             "student_scheduler_cadence": self.student_scheduler_cadence,
-            "config_digest": self.config_digest,
+            "update_mode": self.update_mode,
             "data_parallel_size": self.parallel_context.world_size,
         }
 
@@ -358,15 +358,13 @@ class NativeDMD2TrainEngine:
             "generator_update_interval",
             "gradient_accumulation_steps",
             "student_scheduler_cadence",
-            "config_digest",
+            "update_mode",
             "data_parallel_size",
         }
         if set(state_dict) != expected:
             raise ValueError("DMD2 engine state fields differ from the active schema")
         if state_dict["schema"] != DMD2_ENGINE_STATE_SCHEMA:
             raise ValueError(f"unsupported DMD2 engine schema: {state_dict['schema']!r}")
-        if str(state_dict["config_digest"]) != self.config_digest:
-            raise ValueError("saved DMD2 recipe differs from the active engine")
         for name, active in (
             ("generator_update_interval", self.generator_update_interval),
             ("gradient_accumulation_steps", self.gradient_accumulation_steps),
@@ -376,6 +374,8 @@ class NativeDMD2TrainEngine:
                 raise ValueError(f"saved DMD2 {name} differs from the active engine")
         if str(state_dict["student_scheduler_cadence"]) != self.student_scheduler_cadence:
             raise ValueError("saved DMD2 scheduler cadence differs from the active engine")
+        if str(state_dict["update_mode"]) != self.update_mode:
+            raise ValueError("saved DMD2 update mode differs from the active engine")
         global_step = non_negative_int(state_dict["global_step"], field_name="global_step")
         student_steps = non_negative_int(
             state_dict["student_optimizer_steps"],
@@ -386,7 +386,10 @@ class NativeDMD2TrainEngine:
             field_name="guidance_optimizer_steps",
         )
         expected_student_steps = 0 if global_step == 0 else (global_step - 1) // self.generator_update_interval + 1
-        if student_steps != expected_student_steps or guidance_steps != global_step:
+        expected_guidance_steps = (
+            global_step if self.update_mode == "generator-then-guidance" else global_step - expected_student_steps
+        )
+        if student_steps != expected_student_steps or guidance_steps != expected_guidance_steps:
             raise ValueError("saved DMD2 optimizer counters violate the update cadence")
         self.global_step = global_step
         self.student_optimizer_steps = student_steps

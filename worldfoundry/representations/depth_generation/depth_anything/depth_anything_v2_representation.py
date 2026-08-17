@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import warnings
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
@@ -8,6 +7,8 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from huggingface_hub import hf_hub_download
+
+from worldfoundry.core.model_loading import load_torch_checkpoint
 
 from ...base_representation import BaseRepresentation
 from ....base_models.three_dimensions.depth.depth_anything.depth_anything_v2 import (
@@ -178,9 +179,15 @@ class DepthAnything2Representation(BaseRepresentation):
         target_device = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
         checkpoint_path, requested_encoder = cls._resolve_checkpoint_path(pretrained_model_path, encoder)
 
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=FutureWarning, message=".*weights_only.*")
-            checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+        # The checkpoint is consumed purely as a state_dict; load weights-only by
+        # default and only fall back to unrestricted pickle on legacy wrapped
+        # checkpoints that fail the safe path.
+        checkpoint = load_torch_checkpoint(
+            checkpoint_path,
+            map_location="cpu",
+            weights_only=True,
+            allow_unsafe_pickle_fallback=True,
+        )
 
         state_dict = _unwrap_state_dict(checkpoint)
         resolved_encoder = _infer_encoder_from_state_dict(state_dict) or requested_encoder

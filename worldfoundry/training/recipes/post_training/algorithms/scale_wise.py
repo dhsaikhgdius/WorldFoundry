@@ -8,6 +8,11 @@ from math import isfinite
 from worldfoundry.training.objectives.flow_matching import flow_match_solver_sigmas
 
 from ..common import positive_int, strict_mapping
+from .auxiliary_optimizers import (
+    AuxiliaryOptimizerRule,
+    forbids_auxiliary,
+    requires_auxiliary,
+)
 
 
 def _finite(value: object, *, field_name: str, minimum: float = 0.0) -> float:
@@ -173,6 +178,24 @@ class ScaleWiseAlgorithmSpec:
         object.__setattr__(self, "huber_c", huber_c)
         for name, value in positives.items():
             object.__setattr__(self, name, value)
+
+    def auxiliary_optimizer_rules(self) -> tuple[AuxiliaryOptimizerRule, ...]:
+        fake_score_rule = (
+            requires_auxiliary("fake_score_optimizer", "scale-wise DMD requires fake_score_optimizer")
+            if self.dmd_enabled
+            else forbids_auxiliary(
+                "fake_score_optimizer",
+                message="MMD-only scale-wise training cannot configure fake_score_optimizer",
+            )
+        )
+        return (
+            fake_score_rule,
+            forbids_auxiliary(
+                "guidance_optimizer",
+                "discriminator_optimizer",
+                message="scale-wise distillation only accepts fake_score_optimizer",
+            ),
+        )
 
 
 SCALE_WISE_ALGORITHM_FIELDS = frozenset(ScaleWiseAlgorithmSpec.__dataclass_fields__)

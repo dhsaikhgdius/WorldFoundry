@@ -56,7 +56,6 @@ class DFDPredictionAdapter(Protocol):
     module: object
     checkpoint_identity: str
     noise_process_kind: str
-    noise_process_digest: str
 
     def add_noise(
         self,
@@ -114,7 +113,6 @@ class DFDDiscriminatorAdapter(Protocol):
 
 @runtime_checkable
 class DFDLossAdapter(Protocol):
-    config_digest: str
     data_forcing_probability: float
     student_update_frequency: int
 

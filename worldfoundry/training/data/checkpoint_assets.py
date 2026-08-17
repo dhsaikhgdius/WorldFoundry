@@ -1,49 +1,34 @@
-"""Content identity for model components used during feature precomputation."""
+"""Explicit checkpoint asset identities used by training caches."""
 
 from __future__ import annotations
 
-import re
-from collections.abc import Mapping
-
-from worldfoundry.core.io.integrity import canonical_sha256
-
-_SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
+from collections.abc import Mapping, Sequence
 
 
-def checkpoint_asset_digest(
+def checkpoint_asset_identity(
     *,
-    repository: str,
-    revision: str,
-    file_sha256: Mapping[str, str],
-) -> str:
-    """Combine a pinned repository revision and all relevant file hashes."""
-
-    resolved_repository = str(repository).strip()
+    repo_id: object,
+    revision: object,
+    files: Sequence[str],
+    file_size_bytes: Mapping[str, int] | None = None,
+    sources: Sequence[str] = (),
+) -> dict[str, object]:
+    repository = str(repo_id).strip()
     resolved_revision = str(revision).strip()
-    if not resolved_repository:
-        raise ValueError("checkpoint repository cannot be empty")
-    if not resolved_revision:
-        raise ValueError("checkpoint revision cannot be empty")
-    if not file_sha256:
-        raise ValueError("checkpoint asset digest requires at least one file")
-    files: dict[str, str] = {}
-    for raw_name, raw_digest in file_sha256.items():
-        name = str(raw_name).strip()
-        if not name:
-            raise ValueError("checkpoint file names cannot be empty")
-        if name in files:
-            raise ValueError(f"checkpoint file name is duplicated after normalization: {name!r}")
-        digest = str(raw_digest).strip().lower()
-        if _SHA256_PATTERN.fullmatch(digest) is None:
-            raise ValueError(f"checkpoint file {name!r} must have a SHA-256 digest")
-        files[name] = digest
-    return canonical_sha256(
-        {
-            "repository": resolved_repository,
-            "revision": resolved_revision,
-            "file_sha256": {name: files[name] for name in sorted(files)},
-        }
-    )
+    resolved_files = tuple(str(name).strip() for name in files)
+    if not repository or not resolved_revision or not resolved_files or any(not name for name in resolved_files):
+        raise ValueError("checkpoint identity requires repository, revision, and files")
+    sizes = {str(name): int(size) for name, size in dict(file_size_bytes or {}).items()}
+    identity: dict[str, object] = {
+        "repo_id": repository,
+        "revision": resolved_revision,
+        "files": list(resolved_files),
+        "file_size_bytes": sizes,
+    }
+    resolved_sources = [str(source) for source in sources]
+    if resolved_sources:
+        identity["sources"] = resolved_sources
+    return identity
 
 
-__all__ = ["checkpoint_asset_digest"]
+__all__ = ["checkpoint_asset_identity"]

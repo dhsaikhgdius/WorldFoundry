@@ -48,8 +48,6 @@ class FlowScaleWiseLossAdapter:
         teacher: ScaleWisePredictionAdapter,
         fake_score: ScaleWiseCriticAdapter,
         config: ScaleWiseConfig,
-        *,
-        config_digest: str | None = None,
     ) -> None:
         if not isinstance(student, ScaleWisePredictionAdapter):
             raise TypeError("student must implement ScaleWisePredictionAdapter")
@@ -59,14 +57,10 @@ class FlowScaleWiseLossAdapter:
             raise TypeError("fake_score must implement ScaleWiseCriticAdapter")
         if not isinstance(config, ScaleWiseConfig):
             raise TypeError("config must be ScaleWiseConfig")
-        digest = str(config_digest or config.digest).strip()
-        if not digest:
-            raise ValueError("config_digest must be non-empty")
         self.student = student
         self.teacher = teacher
         self.fake_score = fake_score
         self.config = config
-        self.config_digest = digest
         self.num_intervals = config.schedule.num_intervals
         self.fake_updates_per_iteration = config.fake_updates_per_iteration
         self.batch_mmd = config.batch_mmd

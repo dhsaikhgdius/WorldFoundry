@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""Run a real-weight WorldFoundry-native Wan DMD implementation gate."""
+"""Run a real-weight Wan DMD update, exact resume, and export-reload check."""
 
 from __future__ import annotations
 
 import argparse
 import copy
 import gc
-import hashlib
 import json
 import math
 import shutil
@@ -40,7 +39,7 @@ def _release() -> None:
 
 def _fixture_audit(prompt: str) -> PromptSafetyAudit:
     return PromptSafetyAudit(
-        prompt_sha256=hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
+        prompt=prompt,
         unsafe_probabilities={name: 0.0 for name in SHIELDGEMMA_PROMPT_POLICIES},
         threshold=0.5,
     )
@@ -62,20 +61,33 @@ def _prepare_fixture(source_root: Path, work_dir: Path) -> tuple[Path, PromptSaf
     source_video = source_root / str(media["uri"])
     video_path = work_dir / source_video.name
     shutil.copy2(source_video, video_path)
-    payload = video_path.read_bytes()
-    row["media"] = {
-        **media,
-        "uri": video_path.name,
-        "sha256": hashlib.sha256(payload).hexdigest(),
-        "size_bytes": len(payload),
+    kept = {
+        key: row[key]
+        for key in (
+            "schema",
+            "sample_id",
+            "task",
+            "prompt",
+            "width",
+            "height",
+            "num_frames",
+            "fps",
+            "conditions",
+            "split",
+        )
     }
-    row["safety"] = {
-        "filter": "pre-audited-fixed-fixture",
-        "prompt_audit_digest": audit.digest,
+    kept["media"] = {
+        "uri": video_path.name,
+        "size_bytes": video_path.stat().st_size,
+        "mime_type": media.get("mime_type", "video/x-matroska"),
+    }
+    kept["safety"] = {
+        "prompt_safe": audit.safe,
+        "model_revision": audit.model_revision,
     }
     manifest_path = work_dir / "manifest.jsonl"
     manifest_path.write_text(
-        json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n",
+        json.dumps(kept, ensure_ascii=False, sort_keys=True) + "\n",
         encoding="utf-8",
     )
     return manifest_path, audit
@@ -86,7 +98,6 @@ def _recipe(
     work_dir: Path,
     manifest_path: Path,
     cache_dir: Path,
-    steps: int,
 ) -> PostTrainingRecipe:
     return PostTrainingRecipe.from_mapping(
         {
@@ -135,7 +146,6 @@ def _recipe(
                         "interpolation": "bicubic",
                         "value_range": "minus-one-one",
                         "decoder_thread_type": "auto",
-                        "verify_media_sha256": True,
                         "verify_manifest_frame_count": True,
                         "verify_manifest_geometry": True,
                         "fps_tolerance": 0.01,
@@ -169,6 +179,7 @@ def _recipe(
                 "betas": [0.9, 0.999],
                 "epsilon": 1.0e-8,
                 "max_grad_norm": 1.0,
+                "gradient_accumulation_steps": 8,
             },
             "fake_score_optimizer": {
                 "type": "adamw",
@@ -177,6 +188,7 @@ def _recipe(
                 "betas": [0.9, 0.999],
                 "epsilon": 1.0e-8,
                 "max_grad_norm": 1.0,
+                "gradient_accumulation_steps": 8,
             },
             "runtime": {
                 "param_dtype": "bfloat16",
@@ -196,13 +208,7 @@ def _recipe(
                 "async": False,
                 "export_every_steps": 0,
             },
-            "validation": {"every_steps": 0, "fixed_seed": 42},
-            "export": {"format": "peft", "merge_adapter": False},
-            "metadata": {
-                "gate": "real-weight-native-dmd",
-                "requested_steps": steps,
-                "fixed_gpu_count_required": False,
-            },
+            "export": {"format": "peft"},
         }
     )
 
@@ -374,14 +380,14 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--model-root", type=Path, required=True)
     parser.add_argument("--fixture-root", type=Path, required=True)
     parser.add_argument("--work-dir", type=Path, required=True)
-    parser.add_argument("--steps", type=int, default=1)
+    parser.add_argument("--steps", type=int, default=5)
     return parser.parse_args()
 
 
 def main() -> int:
     args = _parse_args()
-    if args.steps <= 0:
-        raise ValueError("--steps must be positive")
+    if args.steps < 5:
+        raise ValueError("--steps must be at least five to exercise the student update cadence")
     if not torch.cuda.is_available():
         raise RuntimeError("the real Wan DMD gate requires CUDA")
     model_root = args.model_root.expanduser().resolve()
@@ -401,7 +407,6 @@ def main() -> int:
         work_dir=work_dir,
         manifest_path=manifest_path,
         cache_dir=cache_dir,
-        steps=args.steps,
     )
     component_overrides = {name: str(model_root) for name in ("dit", "text-encoder", "tokenizer", "vae")}
     cache = materialize_wan_training_cache(
@@ -411,7 +416,7 @@ def main() -> int:
         device="cuda",
         checkpoint_overrides=component_overrides,
         safety_audits=(audit,),
-        verify_media_hashes=True,
+        verify_media_files=True,
     )
     _release()
 
@@ -426,7 +431,7 @@ def main() -> int:
         device="cuda",
         output_dir=work_dir / "run",
         audited_role_overrides=role_overrides,
-        verify_media_hashes=True,
+        verify_media_files=True,
         audit_cache_on_open=True,
         verify_cache_on_read=True,
         force_torch_attention=True,
@@ -461,37 +466,18 @@ def main() -> int:
         student_role_checkpoint = run.roles.student_checkpoint
         checkpoint_state = _snapshot(run.checkpoint_state.state_dict())
 
+        # Fork the continuation from the exact live state that produced the
+        # checkpoint.  Re-training an independent prefix is not a resume
+        # oracle: ordinary CUDA kernels can differ by a few low-order bits
+        # between separately materialized runs before checkpointing occurs.
+        continuous_summary = run.run(max_steps=1)
+        continuous_student = _trainable_state(run.roles.student_peft)
+        continuous_fake = _trainable_state(run.roles.fake_score_peft)
+        continuous_state = _snapshot(run.checkpoint_state.state_dict())
+
     finally:
         run.close()
     del run
-    _release()
-
-    # The continuation oracle must be one uninterrupted iterator lifetime.
-    # Splitting it across two run() calls would intentionally reset a finished
-    # StatefulDataLoader iterator and would not represent uninterrupted
-    # training semantics.
-    continuous = materialize_wan_dmd_training_run(
-        recipe,
-        device="cuda",
-        output_dir=work_dir / "continuous-run",
-        audited_role_overrides=role_overrides,
-        verify_media_hashes=True,
-        audit_cache_on_open=True,
-        verify_cache_on_read=True,
-        force_torch_attention=True,
-        fused_adamw=False,
-        initialization_seed=107,
-    )
-    try:
-        assert continuous.roles.student_peft is not None
-        assert continuous.roles.fake_score_peft is not None
-        continuous_summary = continuous.run(max_steps=args.steps + 1)
-        continuous_student = _trainable_state(continuous.roles.student_peft)
-        continuous_fake = _trainable_state(continuous.roles.fake_score_peft)
-        continuous_state = _snapshot(continuous.checkpoint_state.state_dict())
-    finally:
-        continuous.close()
-    del continuous
     _release()
 
     resumed = materialize_wan_dmd_training_run(
@@ -500,7 +486,7 @@ def main() -> int:
         output_dir=work_dir / "resumed-run",
         resume_checkpoint=checkpoint.path,
         audited_role_overrides=role_overrides,
-        verify_media_hashes=True,
+        verify_media_files=True,
         audit_cache_on_open=True,
         verify_cache_on_read=True,
         force_torch_attention=True,
@@ -510,8 +496,8 @@ def main() -> int:
     try:
         if resumed.resume_artifact is None:
             raise AssertionError("real Wan DMD resume did not bind a checkpoint artifact")
-        if resumed.resume_artifact.manifest_sha256 != checkpoint.manifest_sha256:
-            raise AssertionError("real Wan DMD resumed a different checkpoint manifest")
+        if resumed.resume_artifact != checkpoint:
+            raise AssertionError("real Wan DMD resumed a different checkpoint")
         assert resumed.roles.student_peft is not None
         assert resumed.roles.fake_score_peft is not None
         immediate_student_tensors = _assert_exact(
@@ -577,23 +563,21 @@ def main() -> int:
         "model": {
             "recipe": native_recipe.model_id,
             "asset_revision": native_recipe.checkpoints["dit"].revision,
-            "source_revision": native_recipe.metadata["upstream_source_revision"],
             "root": str(model_root),
         },
         "algorithm": recipe.to_dict()["algorithm"],
         "cache": {
-            "dataset_digest": cache.index.dataset_digest,
-            "index_sha256": cache.index.index_sha256,
-            "object_sha256": cache.entries[0].object_sha256,
-            "unconditional_object_sha256": (cache.unconditional_conditioning.object_sha256),
+            "index": cache.index.to_dict(),
+            "entry": cache.entries[0].to_dict(),
+            "unconditional_conditioning": cache.unconditional_conditioning.to_dict(),
         },
         "summary": _summary_dict(checkpoint_summary),
         "student_update": student_delta,
         "fake_score_update": fake_delta,
         "checkpoint": {
             "path": str(checkpoint.path),
-            "manifest_sha256": checkpoint.manifest_sha256,
-            "identity_digest": checkpoint.identity_digest,
+            "identity": dict(checkpoint.identity),
+            "file_size_bytes": dict(checkpoint.file_size_bytes),
             "immediate_resume": {
                 "exact": True,
                 "student_tensors": immediate_student_tensors,
@@ -602,6 +586,7 @@ def main() -> int:
             },
             "continuous_resume": {
                 "exact": True,
+                "oracle": "same-live-run-from-saved-boundary",
                 "summary": _summary_dict(resumed_summary),
                 "student_tensors": resumed_student_tensors,
                 "fake_score_tensors": resumed_fake_tensors,
@@ -615,8 +600,7 @@ def main() -> int:
         },
         "artifact": {
             "path": str(artifact.path),
-            "manifest_sha256": artifact.manifest_sha256,
-            "file_sha256": dict(artifact.file_digests),
+            "file_size_bytes": dict(artifact.file_size_bytes),
             "reload": {
                 "exact": True,
                 "student_tensors": artifact_tensors,

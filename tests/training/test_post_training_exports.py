@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+import pytest
+
+# This test module imports worldfoundry code that requires the optional
+# "transformers" dependency at import time; skip when it is unavailable.
+pytest.importorskip("transformers")
+
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -47,9 +53,8 @@ class _Checkpointer:
                 "grad_scaler": False,
                 "algorithm_state": False,
             },
-            manifest_sha256="a" * 64,
-            identity_digest="b" * 64,
-            file_sha256={"payload": "c" * 64},
+            identity={"algorithm": "flow-policy"},
+            file_size_bytes={"payload": 1},
         )
 
 
@@ -113,7 +118,7 @@ def test_dmd_full_export_dispatches_to_idempotent_safetensors(tmp_path) -> None:
         checkpointer=SimpleNamespace(),
         roles=_RoleBundle(model, role="student"),
         output_dir=output,
-        data_identity={"digest": "data"},
+        data_identity={"samples": ["data"]},
         resume_artifact=None,
         distributed_context=None,
     )
@@ -124,7 +129,8 @@ def test_dmd_full_export_dispatches_to_idempotent_safetensors(tmp_path) -> None:
 
     assert isinstance(first, FullModelArtifact)
     assert second == first
-    assert first.metadata["global_step"] == 3
+    assert first.tensor_count == len(model.state_dict())
+    assert first.file_size_bytes
     events = [json.loads(line) for line in run.metrics_path.read_text().splitlines()]
     assert len(events) == 1
     assert events[0]["format"] == "safetensors"
@@ -148,8 +154,8 @@ def test_flow_full_export_dispatches_to_configured_dcp(tmp_path) -> None:
         roles=_RoleBundle(nn.Linear(2, 2), role="policy"),
         reward_adapter=SimpleNamespace(),
         output_dir=output,
-        data_identity={"digest": "data"},
-        reward_identity={"digest": "reward"},
+        data_identity={"samples": ["data"]},
+        reward_identity={"model": "reward"},
         resume_artifact=None,
         distributed_context=None,
     )

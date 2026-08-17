@@ -17,7 +17,7 @@ from worldfoundry.mcp.tools import (
     list_tasks_payload,
     preview_run_payload,
 )
-from worldfoundry.runtime import AsyncCommandJobStore, python_module_command
+from worldfoundry.runtime.jobs import AsyncCommandJobStore, python_module_command
 
 
 def _tui_server():
@@ -63,8 +63,8 @@ def test_mcp_discovery_and_preview_are_available_without_mcp_dependency(tmp_path
     )
 
     assert benchmarks["total"] >= 1
-    assert preview["command"][:2] == ["worldfoundry-eval", "run"]
-    assert preview["run_command"][:3] == [sys.executable, "-m", "worldfoundry.evaluation"]
+    assert preview["command"][:4] == [sys.executable, "-m", "worldfoundry.cli", "run"]
+    assert preview["run_command"][:4] == [sys.executable, "-m", "worldfoundry.cli", "run"]
     assert "--json" in preview["command"]
     assert "--prepare" in preview["command"]
     assert preview["command"][preview["command"].index("--data-root") + 1] == str(tmp_path / "datasets")

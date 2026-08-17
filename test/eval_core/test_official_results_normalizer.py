@@ -7,7 +7,7 @@ import yaml
 
 from worldfoundry.evaluation.tasks.catalog.benchmark_catalog import load_benchmark_catalog_shard_entries
 from worldfoundry.evaluation.tasks.catalog.schema import BenchmarkMetricSpec, BenchmarkZooEntry
-from worldfoundry.evaluation.tasks.official.result_normalizer import (
+from worldfoundry.evaluation.tasks.execution.framework.result_normalizer import (
     OfficialMetricMapping,
     OfficialResultsNormalizer,
     build_official_metric_mappings,
@@ -28,8 +28,8 @@ NEW_VIDEO_WORLD_CONTRACT_IDS = (
     "ipv-bench",
     "videoscience-bench",
     "phyeduvideo",
+    # t2vphysbench was removed from the external benchmark catalog.
     "physvidbench",
-    "t2vphysbench",
     "t2vworldbench",
     "worldarena",
     "world-in-world",

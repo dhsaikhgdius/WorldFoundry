@@ -1,6 +1,7 @@
 """Luma Ray2 visual generation pipeline module."""
 
 from ..pipeline_utils import PipelineABC
+import logging
 import time
 from typing import Optional, Dict, Any
 
@@ -10,6 +11,8 @@ from ..api_runtime import resolve_api_key
 
 
 _API_KEY_ENV = ("LUMA_API_KEY", "LUMALABS_API_KEY")
+
+logger = logging.getLogger(__name__)
 
 
 class LumaRay2Pipeline(PipelineABC):
@@ -120,7 +123,7 @@ class LumaRay2Pipeline(PipelineABC):
             state = self._extract_state(generation_info).lower()
 
             if state and state != last_state:
-                print(f"Luma generation {generation_id}: {state}")
+                logger.info("Luma generation %s: %s", generation_id, state)
                 last_state = state
 
             if state in completed_statuses:

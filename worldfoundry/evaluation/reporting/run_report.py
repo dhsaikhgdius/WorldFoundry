@@ -56,7 +56,7 @@ def _int_or_zero(*values: Any) -> int:
     return 0
 
 
-def _run_summary_path(path: str | Path) -> Path:
+def resolve_run_summary_path(path: str | Path) -> Path:
     """Resolve *path* to an actual summary/scorecard file, checking directories for ``summary.json``."""
     source = Path(path)
     if source.is_dir():
@@ -69,7 +69,7 @@ def _run_summary_path(path: str | Path) -> Path:
     return source
 
 
-def _run_summary_candidate(run_dir: Path) -> Path | None:
+def find_run_summary_candidate(run_dir: Path) -> Path | None:
     """Return the first existing summary/scorecard file in *run_dir*, or ``None``."""
     for candidate in (run_dir / "summary.json", run_dir / "scorecard.json"):
         if candidate.is_file():
@@ -77,14 +77,14 @@ def _run_summary_candidate(run_dir: Path) -> Path | None:
     return None
 
 
-def _normalise_roots(roots: str | Path | Sequence[str | Path]) -> list[Path]:
+def normalise_roots(roots: str | Path | Sequence[str | Path]) -> list[Path]:
     """Convert a single root or a sequence into a list of ``Path`` objects."""
     if isinstance(roots, (str, Path)):
         return [Path(roots)]
     return [Path(root) for root in roots]
 
 
-def _number_or_none(value: Any) -> float | int | None:
+def number_or_none(value: Any) -> float | int | None:
     """Return *value* as a number if it is numeric and not a bool; otherwise ``None``."""
     if isinstance(value, bool):
         return None
@@ -107,7 +107,7 @@ def _label_for_summary(summary: Mapping[str, Any], source_path: Path, explicit_l
     return source_path.stem
 
 
-def _dedupe_labels(rows: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
+def dedupe_labels(rows: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
     """Ensure every row has a unique label, appending ``#N`` suffixes for duplicates."""
     seen: dict[str, int] = {}
     deduped = []
@@ -121,7 +121,7 @@ def _dedupe_labels(rows: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
     return deduped
 
 
-def _row_from_summary(
+def row_from_summary(
     *,
     index: int,
     summary: Mapping[str, Any],
@@ -282,7 +282,7 @@ def build_run_summary(scorecard: Mapping[str, Any]) -> dict[str, Any]:
 def load_run_summary(path: str | Path) -> dict[str, Any]:
     """Load a compact run summary from a run directory, summary.json, or scorecard.json."""
 
-    source_path = _run_summary_path(path)
+    source_path = resolve_run_summary_path(path)
     payload = read_json_object(source_path)
     schema_version = payload.get("schema_version")
     if schema_version == RUN_SUMMARY_SCHEMA_VERSION:
@@ -391,9 +391,25 @@ def write_run_report_artifacts(
     }
 
 
+# Deprecated underscore aliases kept for pre-promotion importers; new code
+# should import the public names above (shared with run_index/run_comparison).
+_run_summary_path = resolve_run_summary_path
+_run_summary_candidate = find_run_summary_candidate
+_normalise_roots = normalise_roots
+_number_or_none = number_or_none
+_dedupe_labels = dedupe_labels
+_row_from_summary = row_from_summary
+
 __all__ = [
     "RUN_SUMMARY_SCHEMA_VERSION",
     "build_markdown_report",
     "build_run_summary",
+    "dedupe_labels",
+    "find_run_summary_candidate",
+    "load_run_summary",
+    "normalise_roots",
+    "number_or_none",
+    "resolve_run_summary_path",
+    "row_from_summary",
     "write_run_report_artifacts",
 ]

@@ -514,15 +514,16 @@ def test_native_bidirectional_adapter_rejects_wrong_flowmap_parameterization(
         NativeAnyFlowBidirectionalAdapter(module)
 
 
-def test_delayed_ema_snapshots_at_warmup_then_decays() -> None:
+def test_anyflow_ema_snapshots_during_warmup_then_decays() -> None:
     module = _ScalarModule(1.0)
     ema = AnyFlowEMA(module, decay=0.5, warmup_steps=2)
     module.weight.data.fill_(2.0)
     ema.update(module)
-    assert not bool(ema.started.item())
+    module.weight.data.zero_()
+    ema.copy_to(module)
+    assert module.weight.item() == pytest.approx(2.0)
     module.weight.data.fill_(3.0)
     ema.update(module)
-    assert bool(ema.started.item())
     module.weight.data.fill_(5.0)
     ema.update(module)
     module.weight.data.zero_()

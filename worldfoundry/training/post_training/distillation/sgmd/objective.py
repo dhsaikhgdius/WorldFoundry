@@ -308,8 +308,6 @@ class NativeSGMDLossAdapter:
         teacher: SGMDPredictionAdapter,
         fake_score: SGMDPredictionAdapter,
         config: SGMDConfig,
-        *,
-        config_digest: str | None = None,
     ) -> None:
         if not all(
             isinstance(adapter, SGMDPredictionAdapter)
@@ -322,9 +320,6 @@ class NativeSGMDLossAdapter:
         self.teacher = teacher
         self.fake_score = fake_score
         self.config = config
-        self.config_digest = str(config_digest or config.digest).strip()
-        if not self.config_digest:
-            raise ValueError("config_digest must be non-empty")
         self.num_student_steps = len(config.student_sigmas)
         self.minimum_student_target_index = config.minimum_student_target_index
 

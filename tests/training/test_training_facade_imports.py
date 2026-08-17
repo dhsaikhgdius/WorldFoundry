@@ -55,6 +55,24 @@ def test_data_facade_import_does_not_load_implementation_modules() -> None:
     }
 
 
+@pytest.mark.parametrize(
+    "module_name",
+    [
+        "worldfoundry.training.data.ltx",
+        "worldfoundry.training.data.cosmos",
+    ],
+)
+def test_video_family_data_facades_do_not_load_implementations_or_torch(
+    module_name: str,
+) -> None:
+    loaded = _modules_after_fresh_import(module_name)
+
+    assert module_name in loaded
+    assert not {
+        name for name in loaded if name.startswith(f"{module_name}.") or name == "torch" or name.startswith("torch.")
+    }
+
+
 def test_models_facade_import_does_not_load_model_families_or_torch() -> None:
     loaded = _modules_after_fresh_import("worldfoundry.training.models")
 
@@ -107,6 +125,48 @@ def test_data_facade_preserves_every_public_object_identity() -> None:
     _assert_public_exports_have_leaf_identity(facade)
 
 
+@pytest.mark.parametrize(
+    "module_name",
+    [
+        "worldfoundry.training.data.ltx",
+        "worldfoundry.training.data.cosmos",
+    ],
+)
+def test_video_family_data_facades_preserve_public_object_identity(
+    module_name: str,
+) -> None:
+    facade = importlib.import_module(module_name)
+    _assert_public_exports_have_leaf_identity(facade)
+
+
+@pytest.mark.parametrize(
+    ("name", "module_name"),
+    [
+        ("VideoCachePreparationResult", "worldfoundry.training.data.video_precompute"),
+        ("project_causal_video_mask_to_latent", "worldfoundry.training.data.video_masks"),
+        ("LTXTextFeatureEncoder", "worldfoundry.training.data.ltx.encoding"),
+        ("LTXVideoFeatureEncoder", "worldfoundry.training.data.ltx.encoding"),
+        ("build_ltx_video_decoding_dataset", "worldfoundry.training.data.ltx.training_cache"),
+        ("materialize_ltx_training_cache", "worldfoundry.training.data.ltx.training_cache"),
+        ("prepare_ltx_training_cache_from_audits", "worldfoundry.training.data.ltx.training_cache"),
+        ("CosmosTextFeatureEncoder", "worldfoundry.training.data.cosmos.encoding"),
+        ("CosmosVideoFeatureEncoder", "worldfoundry.training.data.cosmos.encoding"),
+        ("build_cosmos_video_decoding_dataset", "worldfoundry.training.data.cosmos.training_cache"),
+        ("materialize_cosmos_training_cache", "worldfoundry.training.data.cosmos.training_cache"),
+        ("prepare_cosmos_training_cache_from_audits", "worldfoundry.training.data.cosmos.training_cache"),
+    ],
+)
+def test_video_family_cache_api_is_available_from_data_facade(
+    name: str,
+    module_name: str,
+) -> None:
+    facade = importlib.import_module("worldfoundry.training.data")
+    leaf = importlib.import_module(module_name)
+
+    assert name in facade.__all__  # type: ignore[attr-defined]
+    assert getattr(facade, name) is getattr(leaf, name)
+
+
 def test_models_facade_preserves_every_public_object_identity() -> None:
     facade = importlib.import_module("worldfoundry.training.models")
     _assert_public_exports_have_leaf_identity(facade)
@@ -120,6 +180,23 @@ def test_checkpoint_facade_preserves_every_public_object_identity() -> None:
 def test_flow_policy_facade_preserves_public_object_identity() -> None:
     facade = importlib.import_module("worldfoundry.training.post_training.rl.algorithms.flow_policy")
     _assert_public_exports_have_leaf_identity(facade)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "NativeAgenticTrainingRun",
+        "NativeAgenticTrainingSession",
+        "materialize_agentic_training_run",
+        "setup_ray_agentic_rollout",
+    ],
+)
+def test_root_training_facade_exposes_agentic_entrypoints(name: str) -> None:
+    facade = importlib.import_module("worldfoundry.training")
+    post_training = importlib.import_module("worldfoundry.training.post_training")
+
+    assert name in facade.__all__  # type: ignore[attr-defined]
+    assert getattr(facade, name) is getattr(post_training, name)
 
 
 @pytest.mark.parametrize(

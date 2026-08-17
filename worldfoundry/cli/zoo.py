@@ -22,7 +22,13 @@ from worldfoundry.evaluation.utils import (
     worldfoundry_hfd_dataset_root,
 )
 
-from .utils import canonical_benchmark_zoo_id, canonical_model_zoo_id, json_dump, parse_key_value_mapping
+from .utils import (
+    append_optional_arg,
+    canonical_benchmark_zoo_id,
+    canonical_model_zoo_id,
+    json_dump,
+    parse_key_value_mapping,
+)
 
 DEFAULT_MODEL_ZOO_DIR = MODEL_ZOO_DIR
 DEFAULT_BENCHMARK_ZOO_DIR = BENCHMARK_ZOO_DIR
@@ -532,16 +538,10 @@ def _load_repo_script(relative_path: str) -> ModuleType:
     return cli_module._load_repo_script(relative_path)
 
 
-def _add_path_arg(argv: list[str], flag: str, value: Path | None) -> None:
-    """Append a flag+value pair to *argv* when *value* is not ``None``."""
-    if value is not None:
-        argv.extend([flag, str(value)])
-
-
-def _add_value_arg(argv: list[str], flag: str, value) -> None:
-    """Append a flag+value pair to *argv* when *value* is not ``None``."""
-    if value is not None:
-        argv.extend([flag, str(value)])
+# Both legacy names bind to the shared helper; call sites keep reading
+# naturally (path-valued vs scalar-valued flags).
+_add_path_arg = append_optional_arg
+_add_value_arg = append_optional_arg
 
 
 def _add_repeated_args(argv: list[str], flag: str, values: list[str] | None) -> None:
@@ -964,18 +964,6 @@ def _handle_zoo_benchmark_run(args: argparse.Namespace) -> int:
 # ── Parser registration ─────────────────────────────────────────
 
 
-def _dispatch_zoo_handler(name: str):
-    """Build a lazy bridge to the zoo handler kept on the public CLI module.
-
-    Args:
-        name: Handler function name in this module.
-    """
-    def _dispatch(args: argparse.Namespace) -> int:
-        return globals()[name](args)
-
-    return _dispatch
-
-
 def register_zoo_subparser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     """Register model-zoo and benchmark-zoo CLI commands.
 
@@ -990,7 +978,7 @@ def register_zoo_subparser(subparsers: argparse._SubParsersAction[argparse.Argum
     zoo_models_parser.add_argument("--integration-status", choices=["integrated", "planned", "blocked"])
     zoo_models_parser.add_argument("--source-status", choices=["open_source", "api", "closed", "unknown"])
     zoo_models_parser.add_argument("--json", action="store_true")
-    zoo_models_parser.set_defaults(func=_dispatch_zoo_handler("_handle_zoo_models_list"))
+    zoo_models_parser.set_defaults(func=_handle_zoo_models_list)
 
     zoo_model_specs_parser = zoo_subparsers.add_parser(
         "model-specs",
@@ -1002,7 +990,7 @@ def register_zoo_subparser(subparsers: argparse._SubParsersAction[argparse.Argum
     zoo_model_specs_parser.add_argument("--source-status", choices=["open_source", "api", "closed", "unknown"])
     zoo_model_specs_parser.add_argument("--output-json", type=Path)
     zoo_model_specs_parser.add_argument("--json", action="store_true")
-    zoo_model_specs_parser.set_defaults(func=_dispatch_zoo_handler("_handle_zoo_model_specs"))
+    zoo_model_specs_parser.set_defaults(func=_handle_zoo_model_specs)
 
     zoo_model_show_parser = zoo_subparsers.add_parser(
         "model-show",
@@ -1012,7 +1000,7 @@ def register_zoo_subparser(subparsers: argparse._SubParsersAction[argparse.Argum
     zoo_model_show_parser.add_argument("--model-id", required=True)
     zoo_model_show_parser.add_argument("--include-manifest", action="store_true")
     zoo_model_show_parser.add_argument("--json", action="store_true")
-    zoo_model_show_parser.set_defaults(func=_dispatch_zoo_handler("_handle_zoo_model_show"))
+    zoo_model_show_parser.set_defaults(func=_handle_zoo_model_show)
 
     zoo_model_download_parser = zoo_subparsers.add_parser(
         "model-download",
@@ -1032,7 +1020,7 @@ def register_zoo_subparser(subparsers: argparse._SubParsersAction[argparse.Argum
     zoo_model_download_parser.add_argument("--allow-all-execute", action="store_true")
     zoo_model_download_parser.add_argument("--report-path", type=Path)
     zoo_model_download_parser.add_argument("--json", action="store_true")
-    zoo_model_download_parser.set_defaults(func=_dispatch_zoo_handler("_handle_zoo_model_download"))
+    zoo_model_download_parser.set_defaults(func=_handle_zoo_model_download)
 
     zoo_embodied_assets_parser = zoo_subparsers.add_parser(
         "embodied-assets",
@@ -1052,7 +1040,7 @@ def register_zoo_subparser(subparsers: argparse._SubParsersAction[argparse.Argum
     zoo_embodied_assets_parser.add_argument("--skip-existing", action=argparse.BooleanOptionalAction, default=True)
     zoo_embodied_assets_parser.add_argument("--plan-only", action="store_true")
     zoo_embodied_assets_parser.add_argument("--list", action="store_true")
-    zoo_embodied_assets_parser.set_defaults(func=_dispatch_zoo_handler("_handle_zoo_embodied_assets"))
+    zoo_embodied_assets_parser.set_defaults(func=_handle_zoo_embodied_assets)
 
     zoo_benchmarks_parser = zoo_subparsers.add_parser("benchmarks", help="List benchmark-zoo entries")
     zoo_benchmarks_parser.add_argument("--manifest-dir", type=Path, default=DEFAULT_BENCHMARK_ZOO_DIR)
@@ -1079,7 +1067,7 @@ def register_zoo_subparser(subparsers: argparse._SubParsersAction[argparse.Argum
         help="Include manifest file paths in the human table.",
     )
     zoo_benchmarks_parser.add_argument("--json", action="store_true")
-    zoo_benchmarks_parser.set_defaults(func=_dispatch_zoo_handler("_handle_zoo_benchmarks_list"))
+    zoo_benchmarks_parser.set_defaults(func=_handle_zoo_benchmarks_list)
 
     zoo_benchmark_specs_parser = zoo_subparsers.add_parser(
         "benchmark-specs",
@@ -1091,7 +1079,7 @@ def register_zoo_subparser(subparsers: argparse._SubParsersAction[argparse.Argum
     zoo_benchmark_specs_parser.add_argument("--source-status", choices=["open_source", "api", "closed", "unknown"])
     zoo_benchmark_specs_parser.add_argument("--output-json", type=Path)
     zoo_benchmark_specs_parser.add_argument("--json", action="store_true")
-    zoo_benchmark_specs_parser.set_defaults(func=_dispatch_zoo_handler("_handle_zoo_benchmark_specs"))
+    zoo_benchmark_specs_parser.set_defaults(func=_handle_zoo_benchmark_specs)
 
     zoo_benchmark_show_parser = zoo_subparsers.add_parser(
         "benchmark-show",
@@ -1101,7 +1089,7 @@ def register_zoo_subparser(subparsers: argparse._SubParsersAction[argparse.Argum
     zoo_benchmark_show_parser.add_argument("--benchmark-id", required=True)
     zoo_benchmark_show_parser.add_argument("--include-spec", action="store_true")
     zoo_benchmark_show_parser.add_argument("--json", action="store_true")
-    zoo_benchmark_show_parser.set_defaults(func=_dispatch_zoo_handler("_handle_zoo_benchmark_show"))
+    zoo_benchmark_show_parser.set_defaults(func=_handle_zoo_benchmark_show)
 
     zoo_benchmark_run_parser = zoo_subparsers.add_parser(
         "benchmark-run",
@@ -1161,4 +1149,4 @@ def register_zoo_subparser(subparsers: argparse._SubParsersAction[argparse.Argum
         help="Environment override for official runtime modes. Repeatable.",
     )
     zoo_benchmark_run_parser.add_argument("--json", action="store_true")
-    zoo_benchmark_run_parser.set_defaults(func=_dispatch_zoo_handler("_handle_zoo_benchmark_run"))
+    zoo_benchmark_run_parser.set_defaults(func=_handle_zoo_benchmark_run)

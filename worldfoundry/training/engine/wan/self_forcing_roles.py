@@ -67,7 +67,7 @@ class WanSelfForcingRoleBundle:
 
     def checkpoint_identity(self) -> dict[str, object]:
         return {
-            name: {**checkpoint.to_dict(), "digest": checkpoint.digest}
+            name: checkpoint.to_dict()
             for name, checkpoint in (
                 ("student", self.student_checkpoint),
                 ("real_score", self.real_score_checkpoint),

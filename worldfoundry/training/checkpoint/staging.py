@@ -25,7 +25,6 @@ class StagedCheckpointFinalizer(Protocol):
         final_path: Path,
         global_step: int,
         identity: Mapping[str, object],
-        identity_digest: str,
         gradient_accumulation_phase: int,
         world_size: int,
         staging_strategy: str,
@@ -83,7 +82,6 @@ class PendingTrainingCheckpoint:
         final_path: Path,
         global_step: int,
         identity: Mapping[str, object],
-        identity_digest: str,
         gradient_accumulation_phase: int,
         world_size: int,
         staging_strategy: str,
@@ -95,7 +93,6 @@ class PendingTrainingCheckpoint:
         self._final_path = final_path
         self._global_step = global_step
         self._identity = copy.deepcopy(dict(identity))
-        self._identity_digest = identity_digest
         self._gradient_accumulation_phase = gradient_accumulation_phase
         self._world_size = world_size
         self._staging_strategy = staging_strategy
@@ -113,7 +110,6 @@ class PendingTrainingCheckpoint:
                 final_path=self._final_path,
                 global_step=self._global_step,
                 identity=self._identity,
-                identity_digest=self._identity_digest,
                 gradient_accumulation_phase=self._gradient_accumulation_phase,
                 world_size=self._world_size,
                 staging_strategy=self._staging_strategy,

@@ -14,9 +14,10 @@ DUSt3R_REPO_PATH = path.normpath(path.join(HERE_PATH, '../../../dust3r'))
 DUSt3R_LIB_PATH = path.join(DUSt3R_REPO_PATH, 'dust3r')
 # check the presence of models directory in repo to be sure its cloned
 if path.isdir(DUSt3R_LIB_PATH):
-    if DUSt3R_REPO_PATH in sys.path:
-        sys.path.remove(DUSt3R_REPO_PATH)
-    sys.path.insert(0, DUSt3R_REPO_PATH)
+    # Modified by WorldFoundry: idempotent insert instead of remove+insert(0),
+    # so repeated imports cannot reshuffle sys.path precedence.
+    if DUSt3R_REPO_PATH not in sys.path:
+        sys.path.insert(0, DUSt3R_REPO_PATH)
 else:
     raise ImportError(f"dust3r is not initialized, could not find: {DUSt3R_LIB_PATH}.\n "
                       "Expected the canonical worldfoundry DUSt3R integration next to MASt3R.")

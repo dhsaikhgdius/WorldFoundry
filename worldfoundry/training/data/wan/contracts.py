@@ -1,13 +1,11 @@
-"""Stable Wan cache constants and identity digests."""
+"""Stable Wan cache constants and explicit identities."""
 
 from __future__ import annotations
 
 import math
 from collections.abc import Sequence
 
-from worldfoundry.core.io.integrity import canonical_sha256
-
-from ..checkpoint_assets import checkpoint_asset_digest
+from ..checkpoint_assets import checkpoint_asset_identity
 
 WAN_CONDITIONING_LAYOUT = "umt5-sequence"
 WAN_LATENT_MEAN = (
@@ -59,7 +57,7 @@ def require_positive_int(value: object, *, field_name: str) -> int:
     return resolved
 
 
-def wan_cache_contract_digest(
+def wan_cache_contract(
     model_recipe: str,
     *,
     latent_channels: int = 16,
@@ -68,8 +66,8 @@ def wan_cache_contract_digest(
     text_length: int = 512,
     context_features: int = 4096,
     latent_patch_size: tuple[int, int, int] = (1, 2, 2),
-) -> str:
-    """Digest every denoiser-facing Wan cache shape convention."""
+) -> dict[str, object]:
+    """Return every denoiser-facing Wan cache shape convention."""
 
     recipe = str(model_recipe).strip().lower().replace("_", "-")
     if not recipe:
@@ -77,9 +75,7 @@ def wan_cache_contract_digest(
     patch = tuple(require_positive_int(value, field_name="latent_patch_size") for value in latent_patch_size)
     if len(patch) != 3:
         raise ValueError("latent_patch_size must contain temporal, height, and width")
-    return canonical_sha256(
-        {
-            "schema": "worldfoundry-wan-training-cache-contract",
+    return {
             "model_recipe": recipe,
             "latent_channels": require_positive_int(
                 latent_channels,
@@ -101,15 +97,14 @@ def wan_cache_contract_digest(
             ),
             "latent_patch_size": list(patch),
             "conditioning": WAN_CONDITIONING_LAYOUT,
-        }
-    )
+    }
 
 
-def wan_latent_normalization_digest(
+def wan_latent_normalization(
     mean: Sequence[float] = WAN_LATENT_MEAN,
     std: Sequence[float] = WAN_LATENT_STD,
-) -> str:
-    """Bind the official deterministic VAE mean and per-channel affine."""
+) -> dict[str, object]:
+    """Return the official deterministic VAE mean and per-channel affine."""
 
     resolved_mean = tuple(float(value) for value in mean)
     resolved_std = tuple(float(value) for value in std)
@@ -119,32 +114,29 @@ def wan_latent_normalization_digest(
         raise ValueError("Wan latent normalization must be finite")
     if any(value <= 0 for value in resolved_std):
         raise ValueError("Wan latent standard deviations must be positive")
-    return canonical_sha256(
-        {
-            "schema": "worldfoundry-wan-latent-normalization",
+    return {
             "posterior": "deterministic-mean",
             "operation": "(mean-latent-channel-mean)/channel-std",
             "channel_mean": list(resolved_mean),
             "channel_std": list(resolved_std),
-        }
-    )
+    }
 
 
-def wan_checkpoint_asset_digest(spec: object) -> str:
-    """Bind one Wan component to its repository, revision, and byte audits."""
+def wan_checkpoint_asset_identity(spec: object) -> dict[str, object]:
+    """Describe one Wan component by repository, revision, files, and sizes."""
 
-    repository = getattr(spec, "repo_id", None) or str(getattr(spec, "source", "local-explicit"))
+    repository = getattr(spec, "repo_id", None) or "local-explicit"
     revision = getattr(spec, "revision", None) or "local-explicit"
-    files = {f"file:{name}": digest for name, digest in dict(getattr(spec, "file_sha256", {})).items()}
-    files.update({f"resource:{name}": digest for name, digest in dict(getattr(spec, "resource_sha256", {})).items()})
+    sources = tuple(str(source) for source in getattr(spec, "sources", ()))
+    files = tuple(str(name) for name in getattr(spec, "files", ()))
     if not files:
-        raise ValueError(
-            "Wan cache assets must carry SHA-256 integrity metadata; use an audited CheckpointSpec for local overrides"
-        )
-    return checkpoint_asset_digest(
-        repository=str(repository),
+        files = tuple(str(name) for name in getattr(spec, "allow_patterns", ()))
+    return checkpoint_asset_identity(
+        repo_id=str(repository),
         revision=str(revision),
-        file_sha256=files,
+        files=files,
+        file_size_bytes=dict(getattr(spec, "file_size_bytes", {})),
+        sources=sources,
     )
 
 
@@ -152,7 +144,7 @@ __all__ = [
     "WAN_CONDITIONING_LAYOUT",
     "WAN_LATENT_MEAN",
     "WAN_LATENT_STD",
-    "wan_cache_contract_digest",
-    "wan_checkpoint_asset_digest",
-    "wan_latent_normalization_digest",
+    "wan_cache_contract",
+    "wan_checkpoint_asset_identity",
+    "wan_latent_normalization",
 ]

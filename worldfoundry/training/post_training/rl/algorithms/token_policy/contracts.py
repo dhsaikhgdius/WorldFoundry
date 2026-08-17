@@ -83,6 +83,7 @@ class PackedTokenTrajectory:
     old_log_probs: torch.Tensor
     sampling_temperature: float = 1.0
     conditioning: Mapping[str, object] = field(default_factory=dict)
+    excluded_sample_ids: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         samples, groups = _validated_ids(self.sample_ids, self.group_ids)
@@ -117,9 +118,17 @@ class PackedTokenTrajectory:
             raise TypeError("old_log_probs must be a floating tensor with shape [sum(lengths)]")
         if not bool(torch.isfinite(self.old_log_probs).all()):
             raise ValueError("old_log_probs must be finite")
+        excluded = tuple(str(value) for value in self.excluded_sample_ids)
+        if (
+            len(set(excluded)) != len(excluded)
+            or any(not value.strip() for value in excluded)
+            or set(excluded) & set(samples)
+        ):
+            raise ValueError("excluded_sample_ids must be unique, non-empty, and disjoint")
         object.__setattr__(self, "sample_ids", samples)
         object.__setattr__(self, "group_ids", groups)
         object.__setattr__(self, "sampling_temperature", temperature)
+        object.__setattr__(self, "excluded_sample_ids", excluded)
         object.__setattr__(
             self,
             "conditioning",
@@ -203,6 +212,10 @@ class PackedTokenReplayBatch:
         return self.source.sampling_temperature
 
     @property
+    def excluded_sample_ids(self) -> tuple[str, ...]:
+        return self.source.excluded_sample_ids
+
+    @property
     def conditioning(self) -> Mapping[str, object]:
         return _slice_conditioning(
             self.source.conditioning,
@@ -268,6 +281,41 @@ class TokenReplayResult:
         object.__setattr__(self, "sampling_temperature", temperature)
 
 
+@dataclass(frozen=True, slots=True)
+class TokenTrajectoryRewards:
+    """Per-sequence reward values with component-level validity."""
+
+    values: Mapping[str, torch.Tensor]
+    valid: Mapping[str, torch.Tensor]
+
+    def __post_init__(self) -> None:
+        values = {str(name): tensor for name, tensor in self.values.items()}
+        valid = {str(name): tensor for name, tensor in self.valid.items()}
+        if not values or set(values) != set(valid):
+            raise ValueError("token reward values and validity keys must match")
+        if not all(isinstance(tensor, torch.Tensor) for tensor in values.values()):
+            raise TypeError("token reward values must be tensors")
+        shapes = {tuple(tensor.shape) for tensor in values.values()}
+        if (
+            len(shapes) != 1
+            or not all(
+                isinstance(tensor, torch.Tensor)
+                and tensor.ndim == 1
+                and tensor.is_floating_point()
+                for tensor in values.values()
+            )
+            or not all(
+                isinstance(tensor, torch.Tensor)
+                and tensor.dtype is torch.bool
+                and tuple(tensor.shape) in shapes
+                for tensor in valid.values()
+            )
+        ):
+            raise TypeError("token reward values/validity must be aligned one-dimensional tensors")
+        object.__setattr__(self, "values", freeze_mapping(values, field_name="reward values"))
+        object.__setattr__(self, "valid", freeze_mapping(valid, field_name="reward validity"))
+
+
 @runtime_checkable
 class TokenPolicyReplayAdapter(Protocol):
     """Model-owned teacher-forced replay used by the shared learner.
@@ -310,7 +358,7 @@ class TokenTrajectoryRewardAdapter(Protocol):
     def score(
         self,
         trajectory: PackedTokenTrajectory,
-    ) -> Mapping[str, torch.Tensor]: ...
+    ) -> Mapping[str, torch.Tensor] | TokenTrajectoryRewards: ...
 
 
 __all__ = [
@@ -320,5 +368,6 @@ __all__ = [
     "TokenPolicyRolloutAdapter",
     "TokenReplayResult",
     "TokenRolloutRequest",
+    "TokenTrajectoryRewards",
     "TokenTrajectoryRewardAdapter",
 ]

@@ -164,6 +164,18 @@ class NativeDMDTrainEngine:
         if self.student_ema is not None and self.student_ema_start_step == 0:
             self._start_student_ema()
 
+    def generator_update_due(self) -> bool:
+        """Return whether the next logical DMD iteration updates the student."""
+
+        return (self.global_step + 1) % self.generator_update_interval == 0
+
+    @property
+    def generator_update_phase(self) -> str:
+        return "end-of-interval"
+
+    def _expected_student_optimizer_steps(self, completed_iterations: int) -> int:
+        return completed_iterations // self.generator_update_interval
+
     def _start_student_ema(self) -> None:
         assert self.student_ema is not None
         start = getattr(self.student_ema, "start", None)
@@ -171,10 +183,6 @@ class NativeDMDTrainEngine:
             if not callable(start):
                 raise TypeError("student_ema.start must be callable")
             start(self.student_module)
-
-    @property
-    def schedule_digest(self) -> str:
-        return str(self.loss_adapter.schedule_digest)
 
     def train_step(
         self,
@@ -199,7 +207,7 @@ class NativeDMDTrainEngine:
                 role="fake-score",
             )
         )
-        generator_due = self.global_step % self.generator_update_interval == 0
+        generator_due = self.generator_update_due()
         student_results: list[DMDLossResult] = []
         student_weights: list[torch.Tensor] = []
         fake_results: list[DMDLossResult] = []
@@ -244,6 +252,11 @@ class NativeDMDTrainEngine:
                         )
                         (student_result.loss * gradient_weight).backward()
                     student_results.append(student_result)
+                # A generator-phase leak into fake-score parameters would be
+                # silently committed by the fake-score step below; fail closed
+                # like the sibling two-optimizer engines.
+                if any(parameter.grad is not None for parameter in self.fake_score_parameters):
+                    raise RuntimeError("DMD generator phase produced fake-score parameter gradients")
                 student_grad_norm = clip_grad_norm_(
                     self.student_parameters,
                     self.student_max_grad_norm,
@@ -385,10 +398,10 @@ class NativeDMDTrainEngine:
             "student_optimizer_steps": self.student_optimizer_steps,
             "fake_score_optimizer_steps": self.fake_score_optimizer_steps,
             "generator_update_interval": self.generator_update_interval,
+            "generator_update_phase": self.generator_update_phase,
             "gradient_accumulation_steps": self.gradient_accumulation_steps,
             "student_scheduler_cadence": self.student_scheduler_cadence,
             "student_ema_start_step": self.student_ema_start_step,
-            "schedule_digest": self.schedule_digest,
             "data_parallel_size": self.parallel_context.world_size,
         }
 
@@ -401,10 +414,10 @@ class NativeDMDTrainEngine:
             "student_optimizer_steps",
             "fake_score_optimizer_steps",
             "generator_update_interval",
+            "generator_update_phase",
             "gradient_accumulation_steps",
             "student_scheduler_cadence",
             "student_ema_start_step",
-            "schedule_digest",
             "data_parallel_size",
         }
         if set(state_dict) != expected:
@@ -413,14 +426,14 @@ class NativeDMDTrainEngine:
             raise ValueError(f"unsupported DMD engine schema: {state_dict['schema']!r}")
         if int(state_dict["generator_update_interval"]) != self.generator_update_interval:
             raise ValueError("saved DMD generator cadence differs from the active engine")
+        if state_dict["generator_update_phase"] != self.generator_update_phase:
+            raise ValueError("saved DMD generator cadence phase differs from the active engine")
         if int(state_dict["gradient_accumulation_steps"]) != self.gradient_accumulation_steps:
             raise ValueError("saved DMD accumulation cadence differs from the active engine")
         if state_dict["student_scheduler_cadence"] != self.student_scheduler_cadence:
             raise ValueError("saved DMD scheduler cadence differs from the active engine")
         if int(state_dict["student_ema_start_step"]) != self.student_ema_start_step:
             raise ValueError("saved DMD EMA start differs from the active engine")
-        if state_dict["schedule_digest"] != self.schedule_digest:
-            raise ValueError("saved DMD few-step schedule differs from the active engine")
         if int(state_dict["data_parallel_size"]) != self.parallel_context.world_size:
             raise ValueError("saved DMD data-parallel size differs from the active engine")
         global_step = non_negative_int(state_dict["global_step"], field_name="global_step")
@@ -432,7 +445,7 @@ class NativeDMDTrainEngine:
             state_dict["fake_score_optimizer_steps"],
             field_name="fake_score_optimizer_steps",
         )
-        expected_student_steps = 0 if global_step == 0 else (global_step - 1) // self.generator_update_interval + 1
+        expected_student_steps = self._expected_student_optimizer_steps(global_step)
         if student_steps != expected_student_steps or fake_steps != global_step:
             raise ValueError("saved DMD optimizer counters violate the configured cadence")
         self.global_step = global_step

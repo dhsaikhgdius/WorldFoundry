@@ -26,7 +26,7 @@ class _TinyModel(nn.Module):
         return self.output(torch.tanh(self.input(value))) * self.scale
 
 
-def test_full_model_export_is_sharded_content_addressed_and_strictly_loadable(tmp_path) -> None:
+def test_full_model_export_is_sharded_and_strictly_loadable(tmp_path) -> None:
     torch.manual_seed(7)
     source = _TinyModel()
     destination = tmp_path / "full-model"
@@ -34,7 +34,6 @@ def test_full_model_export_is_sharded_content_addressed_and_strictly_loadable(tm
     artifact = save_full_model(
         source,
         destination,
-        metadata={"run_id": "native-test", "step": 11},
         max_shard_size_bytes=80,
     )
 
@@ -42,7 +41,7 @@ def test_full_model_export_is_sharded_content_addressed_and_strictly_loadable(tm
     assert artifact.tensor_count == len(source.state_dict())
     assert artifact.parameter_count == sum(value.numel() for value in source.parameters())
     assert artifact.trainable_parameter_count == artifact.parameter_count
-    assert FULL_MODEL_INDEX_NAME in artifact.file_digests
+    assert FULL_MODEL_INDEX_NAME in artifact.file_size_bytes
     manifest = json.loads((destination / FULL_MODEL_MANIFEST_NAME).read_text(encoding="utf-8"))
     assert manifest["schema"] == "worldfoundry-full-model"
     assert manifest["format"] == "safetensors"
@@ -60,7 +59,7 @@ def test_full_model_export_is_sharded_content_addressed_and_strictly_loadable(tm
 def test_full_model_export_detects_payload_mutation(tmp_path) -> None:
     destination = tmp_path / "full-model"
     artifact = save_full_model(_TinyModel(), destination, max_shard_size_bytes=80)
-    shard = next(destination / name for name in artifact.file_digests if name.endswith(".safetensors"))
+    shard = next(destination / name for name in artifact.file_size_bytes if name.endswith(".safetensors"))
 
     with shard.open("ab") as handle:
         handle.write(b"changed")
@@ -69,15 +68,9 @@ def test_full_model_export_detects_payload_mutation(tmp_path) -> None:
         inspect_full_model(destination)
 
 
-def test_full_model_export_is_exclusive_and_metadata_is_strict(tmp_path) -> None:
+def test_full_model_export_is_exclusive(tmp_path) -> None:
     destination = tmp_path / "full-model"
     save_full_model(_TinyModel(), destination)
 
     with pytest.raises(FileExistsError, match="already exists"):
         save_full_model(_TinyModel(), destination)
-    with pytest.raises(TypeError, match="strict JSON"):
-        save_full_model(
-            _TinyModel(),
-            tmp_path / "bad-metadata",
-            metadata={"loss": float("nan")},
-        )

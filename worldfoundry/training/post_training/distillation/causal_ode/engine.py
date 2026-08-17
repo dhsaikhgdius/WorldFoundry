@@ -101,10 +101,6 @@ class NativeCausalODETrainEngine:
         self._phase = "idle"
         self._poisoned = False
 
-    @property
-    def config_digest(self) -> str:
-        return self.objective.config_digest
-
     def train_step(
         self,
         batch: CausalODETrainingBatch | Sequence[CausalODETrainingBatch],
@@ -201,7 +197,6 @@ class NativeCausalODETrainEngine:
             "global_step": self.global_step,
             "optimizer_steps": self.optimizer_steps,
             "gradient_accumulation_steps": self.gradient_accumulation_steps,
-            "config_digest": self.config_digest,
             "data_parallel_size": self.parallel_context.world_size,
             "rng_device": self._rng_device,
             "rng_state": self._rng.get_state().clone(),
@@ -215,7 +210,6 @@ class NativeCausalODETrainEngine:
             "global_step",
             "optimizer_steps",
             "gradient_accumulation_steps",
-            "config_digest",
             "data_parallel_size",
             "rng_device",
             "rng_state",
@@ -226,7 +220,6 @@ class NativeCausalODETrainEngine:
             raise ValueError(f"unsupported Causal ODE engine schema: {state_dict['schema']!r}")
         active = {
             "gradient_accumulation_steps": self.gradient_accumulation_steps,
-            "config_digest": self.config_digest,
             "data_parallel_size": self.parallel_context.world_size,
             "rng_device": self._rng_device,
         }

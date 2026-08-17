@@ -16,6 +16,7 @@ from worldfoundry.cli.training_commands.common import (
     checkpoint_overrides,
     load_cache_recipe,
     training_base_dir,
+    training_checkpoint_key,
     training_family,
 )
 
@@ -177,6 +178,7 @@ def test_training_cli_exposes_wan_cache_and_attention_gate() -> None:
     )
 
     assert train.allow_unverified_attention_backend is True
+    assert train.export_artifact is True
     assert train._requires_exclusive_output_dir is True
     assert cache.safety_batch_size == 2
     assert cache.prompt_audits == Path("prompt-audits.json")
@@ -190,12 +192,82 @@ def test_training_cli_exposes_wan_cache_and_attention_gate() -> None:
     assert post_train.steps == 3
     assert post_train.export_artifact is False
     assert post_train.checkpoint_override is None
+    assert post_train.reward_url is None
     assert post_train.reward_attention == "sdpa"
     assert post_train._requires_exclusive_output_dir is True
     assert training_family("wan2.1-t2v-1.3b") == "wan"
     assert training_family("sana-600m-512px") == "sana"
+    assert training_family("ltx-2.3-i2v") == "ltx"
+    assert training_family("cosmos-predict2.5-2b") == "cosmos"
+    assert training_family("cosmos3-nano") == "cosmos"
+    assert training_checkpoint_key("sana-600m-512px") == "dit"
+    assert training_checkpoint_key("ltx-2-i2v") == "model"
+    assert training_checkpoint_key("cosmos3-super") == "transformer"
     with pytest.raises(ValueError, match="does not support"):
         training_family("unsupported-model")
+
+
+def test_train_exports_a_full_model_for_full_parameter_tuning(
+    monkeypatch,
+    tmp_path,
+    capsys,
+) -> None:
+    root = Path(__file__).resolve().parents[2]
+    parser = argparse.ArgumentParser()
+    register_training_subparser(parser.add_subparsers(dest="command", required=True))
+    args = parser.parse_args(
+        [
+            "train",
+            "--recipe",
+            str(root / "configs/training/lvdm_short_unconditional.yaml"),
+            "--base-dir",
+            str(root),
+            "--output-dir",
+            str(tmp_path / "run"),
+            "--steps",
+            "1",
+        ]
+    )
+    called: dict[str, object] = {}
+
+    class Session:
+        world_size = 1
+        is_coordinator = True
+        peft_application = None
+
+        def __init__(self) -> None:
+            self.output_dir = tmp_path / "run"
+
+        def run(self, **kwargs):
+            called["run"] = kwargs
+            return SimpleNamespace(to_dict=lambda: {"optimizer_steps": 1})
+
+        def export_full_model(self):
+            called["exported"] = True
+            return SimpleNamespace(
+                path=self.output_dir / "model",
+                file_size_bytes={"model.safetensors": 32},
+            )
+
+        def close(self):
+            called["closed"] = True
+
+    def materialize(recipe, **kwargs):
+        called["recipe"] = recipe
+        called["materialize"] = kwargs
+        return Session()
+
+    monkeypatch.setitem(
+        sys.modules,
+        "worldfoundry.training.engine.lvdm.sft",
+        SimpleNamespace(materialize_lvdm_short_training_session=materialize),
+    )
+
+    assert args.func(args) == 0
+    assert called["exported"] is True
+    assert called["closed"] is True
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["full_model"]["status"] == "exported"
 
 
 def test_train_cache_loads_the_native_post_training_recipe() -> None:
@@ -212,9 +284,7 @@ def test_sana_cache_accepts_the_native_sid_post_training_recipe() -> None:
     from worldfoundry.training.data.sana_precompute import _validate_sana_cache_recipe
 
     root = Path(__file__).resolve().parents[2]
-    recipe = load_cache_recipe(
-        root / "configs/post_training/sana_sprint_600m_sid.yaml"
-    )
+    recipe = load_cache_recipe(root / "configs/post_training/sana_sprint_600m_sid.yaml")
 
     assert _validate_sana_cache_recipe(recipe) is recipe
     assert recipe.algorithm.type == "sid"
@@ -300,8 +370,7 @@ def test_post_train_materializes_sana_sid_and_exports_student(
             called["exported"] = True
             return SimpleNamespace(
                 path=output_dir / "exports/student",
-                manifest_sha256="a" * 64,
-                file_digests={"model.safetensors": "b" * 64},
+                file_size_bytes={"model.safetensors": 1024},
             )
 
         def close(self):
@@ -334,7 +403,7 @@ def test_post_train_materializes_sana_sid_and_exports_student(
     assert payload["trained_artifact"]["role"] == "student"
 
 
-def test_post_train_rejects_sid_role_overrides_for_other_algorithms(tmp_path) -> None:
+def test_post_train_rejects_role_overrides_for_unsupported_algorithms(tmp_path) -> None:
     root = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser()
     register_training_subparser(parser.add_subparsers(dest="command", required=True))
@@ -353,6 +422,212 @@ def test_post_train_rejects_sid_role_overrides_for_other_algorithms(tmp_path) ->
     )
 
     with pytest.raises(ValueError, match="require SANA SiD"):
+        args.func(args)
+
+
+@pytest.mark.parametrize(
+    ("config_name", "model_recipe", "override", "override_key"),
+    (
+        ("ltx_2_video_flow_grpo.yaml", "ltx-2-i2v", "model=models/ltx", "model"),
+        (
+            "ltx_2p3_av_ray_flow_grpo.yaml",
+            "ltx-2.3-i2v",
+            "model=models/ltx",
+            "model",
+        ),
+        (
+            "wan22_t2v_a14b_flow_grpo.yaml",
+            "wan2.2-t2v-a14b",
+            "high-noise=models/wan-high",
+            "high-noise",
+        ),
+        (
+            "wan22_t2v_a14b_ray_flow_grpo.yaml",
+            "wan2.2-t2v-a14b",
+            "high-noise=models/wan-high",
+            "high-noise",
+        ),
+        (
+            "hunyuan_video_flow_grpo.yaml",
+            "hunyuanvideo-t2v",
+            "policy=models/hunyuan",
+            "policy",
+        ),
+    ),
+)
+def test_post_train_routes_integrated_video_flow_policy_runs(
+    monkeypatch,
+    tmp_path,
+    capsys,
+    config_name,
+    model_recipe,
+    override,
+    override_key,
+) -> None:
+    root = Path(__file__).resolve().parents[2]
+    parser = argparse.ArgumentParser()
+    register_training_subparser(parser.add_subparsers(dest="command", required=True))
+    output_dir = tmp_path / "run"
+    args = parser.parse_args(
+        [
+            "post-train",
+            "--recipe",
+            str(root / "configs/post_training" / config_name),
+            "--base-dir",
+            str(tmp_path),
+            "--output-dir",
+            str(output_dir),
+            "--device",
+            "cpu",
+            "--reward-device",
+            "cpu",
+            "--reward-url",
+            "http://reward.internal:9000",
+            "--reward-attention",
+            "flash_attention_2",
+            "--resume-checkpoint",
+            "checkpoints/step-00000010",
+            "--checkpoint-override",
+            override,
+            "--seed",
+            "73",
+            "--steps",
+            "2",
+        ]
+    )
+    called: dict[str, object] = {}
+
+    class Run:
+        world_size = 3
+        is_coordinator = True
+
+        def __init__(self) -> None:
+            self.output_dir = output_dir
+
+        def run(self, *, max_iterations):
+            called["max_iterations"] = max_iterations
+            return SimpleNamespace(
+                to_dict=lambda: {
+                    "final_optimizer_step": 2,
+                    "rollout_iterations": max_iterations,
+                }
+            )
+
+        def export_policy(self):
+            called["exported"] = True
+            return SimpleNamespace(
+                path=output_dir / "exports/policy",
+                file_size_bytes={"adapter_model.safetensors": 64},
+            )
+
+        def close(self):
+            called["closed"] = True
+
+    def materialize(recipe, **kwargs):
+        called["recipe"] = recipe
+        called.update(kwargs)
+        return Run()
+
+    monkeypatch.setitem(
+        sys.modules,
+        "worldfoundry.training.engine.video_policy",
+        SimpleNamespace(materialize_video_flow_policy_training_run=materialize),
+    )
+
+    assert args.func(args) == 0
+    assert called["recipe"].model.recipe == model_recipe
+    assert called["base_dir"] == tmp_path.resolve()
+    assert called["output_dir"] == output_dir
+    assert called["device"] == "cpu"
+    assert called["reward_device"] == "cpu"
+    assert called["reward_url"] == "http://reward.internal:9000"
+    assert called["reward_attention_implementation"] == "flash_attention_2"
+    assert called["resume_checkpoint"] == (tmp_path / "checkpoints/step-00000010").resolve()
+    assert called["checkpoint_overrides"] == {override_key: str((tmp_path / override.partition("=")[2]).resolve())}
+    assert called["initialization_seed"] == 73
+    assert called["max_iterations"] == 2
+    assert called["exported"] is True
+    assert called["closed"] is True
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["algorithm"] == "flow-grpo"
+    assert payload["rank_count"] == 3
+    assert payload["trained_artifact"]["role"] == "policy"
+
+
+def test_post_train_keeps_wan21_flow_policy_on_its_native_materializer(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    root = Path(__file__).resolve().parents[2]
+    parser = argparse.ArgumentParser()
+    register_training_subparser(parser.add_subparsers(dest="command", required=True))
+    args = parser.parse_args(
+        [
+            "post-train",
+            "--recipe",
+            str(root / "configs/post_training/wan_1p3b_flow_grpo.yaml"),
+            "--base-dir",
+            str(tmp_path),
+            "--output-dir",
+            str(tmp_path / "run"),
+            "--device",
+            "cpu",
+            "--steps",
+            "1",
+            "--no-export-trained-artifact",
+        ]
+    )
+    called: dict[str, object] = {}
+
+    class Run:
+        world_size = 1
+        is_coordinator = False
+        output_dir = tmp_path / "run"
+
+        def run(self, *, max_iterations):
+            called["max_iterations"] = max_iterations
+            return SimpleNamespace(to_dict=lambda: {"rollout_iterations": max_iterations})
+
+        def close(self):
+            called["closed"] = True
+
+    def materialize(recipe, **kwargs):
+        called["recipe"] = recipe
+        called.update(kwargs)
+        return Run()
+
+    monkeypatch.setitem(
+        sys.modules,
+        "worldfoundry.training.engine.wan.flow_policy",
+        SimpleNamespace(materialize_wan_flow_policy_training_run=materialize),
+    )
+
+    assert args.func(args) == 0
+    assert called["recipe"].model.recipe == "wan2.1-t2v-1.3b"
+    assert called["max_iterations"] == 1
+    assert called["force_torch_attention"] is True
+    assert called["closed"] is True
+
+
+def test_post_train_rejects_http_reward_for_wan21_flow_policy(tmp_path) -> None:
+    root = Path(__file__).resolve().parents[2]
+    parser = argparse.ArgumentParser()
+    register_training_subparser(parser.add_subparsers(dest="command", required=True))
+    args = parser.parse_args(
+        [
+            "post-train",
+            "--recipe",
+            str(root / "configs/post_training/wan_1p3b_flow_grpo.yaml"),
+            "--base-dir",
+            str(tmp_path),
+            "--steps",
+            "1",
+            "--reward-url",
+            "http://reward.internal:9000",
+        ]
+    )
+
+    with pytest.raises(ValueError, match="LTX, Wan2.2, or HunyuanVideo"):
         args.func(args)
 
 
@@ -387,7 +662,7 @@ def test_train_cache_routes_diffusion_nft_to_rollout_conditioning(
         called["algorithm"] = recipe.algorithm.type
         called.update(kwargs)
         return SimpleNamespace(
-            index=SimpleNamespace(dataset_digest="dataset", digest="index"),
+            index=SimpleNamespace(to_dict=lambda: {"entries": []}),
             entries=(),
             unconditional_conditioning=None,
         )

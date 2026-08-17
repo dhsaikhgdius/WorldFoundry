@@ -7,7 +7,9 @@ from pathlib import Path
 
 from worldfoundry.training.api.contracts import TrainingBatch
 from worldfoundry.training.distributed.parallel import DistributedTrainingContext
+from worldfoundry.training.recipes.post_training.recipe import PostTrainingRecipe
 from worldfoundry.training.recipes.spec import TrainingRecipe
+from worldfoundry.training.tuning.application import AdapterApplication
 from worldfoundry.training.tuning.peft import PeftLoraApplication
 
 from ..fsdp import FSDP2TrainEngine
@@ -20,13 +22,17 @@ class FSDP2TrainingSession(SingleDeviceTrainingSession):
     def __init__(
         self,
         *,
-        recipe: TrainingRecipe,
+        recipe: TrainingRecipe | PostTrainingRecipe,
         engine: FSDP2TrainEngine,
         dataloader: Iterable[TrainingBatch],
         distributed_context: DistributedTrainingContext,
         output_dir: str | Path | None = None,
         peft_application: PeftLoraApplication | None = None,
+        adapter_application: AdapterApplication | None = None,
         data_identity: Mapping[str, object] | None = None,
+        lr_scheduler: object | None = None,
+        ema: object | None = None,
+        export_ema: bool = False,
     ) -> None:
         if not isinstance(engine, FSDP2TrainEngine):
             raise TypeError("engine must be FSDP2TrainEngine")
@@ -36,8 +42,12 @@ class FSDP2TrainingSession(SingleDeviceTrainingSession):
             dataloader=dataloader,
             output_dir=output_dir,
             peft_application=peft_application,
+            adapter_application=adapter_application,
             data_identity=data_identity,
             distributed_context=distributed_context,
+            lr_scheduler=lr_scheduler,
+            ema=ema,
+            export_ema=export_ema,
         )
 
 

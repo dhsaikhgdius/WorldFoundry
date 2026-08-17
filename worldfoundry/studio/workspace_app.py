@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 import argparse
+import atexit
 import contextlib
 import json
+import logging
 import os
 import select
 import signal
 import socket
 import subprocess
 import sys
+import threading
 import time
 import urllib.parse
 import urllib.request
@@ -54,11 +57,19 @@ from .conda_dispatch import (
 )
 from .execution import RunRecord, StudioManager, _is_gaussian_splat_ply
 from .jobs import StudioJob, StudioJobStore, format_elapsed
+from .serving import (
+    bind_security_warning,
+    path_allowed,
+    request_token_valid,
+    require_auth_token_for_host,
+)
 from .studio_catalog import _studio_catalog, _template_id_hint
 from .visualization.backends.frontends import STUDIO_VISUALIZATIONS
 from .visualization.backends.viser import npz_has_supported_geometry, viser_orientation_defaults
 from .visualization.providers.run_record import first_geometry_point_candidate, first_splat_asset
 
+
+logger = logging.getLogger(__name__)
 
 REPO_ROOT = project_root(__file__)
 MANAGER = StudioManager()
@@ -103,6 +114,9 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "cpu_offload": False,
 }
 SETTINGS: dict[str, Any] = dict(DEFAULT_SETTINGS)
+# FastAPI runs sync endpoints on a thread pool, so process-global mutable state
+# must serialize its write paths (see also _VISUALIZER_LOCK below).
+_SETTINGS_LOCK = threading.Lock()
 RUNTIME_OPTION_LABELS = {
     "torch_compile": "Torch Compile",
     "cpu_offload": "CPU Offload",
@@ -258,6 +272,8 @@ POINTS_VISUALIZER_DEFAULT_PARAMS = {
 VISUALIZER_ASSET_REQUIRED = {"media", "points"}
 VISUALIZER_URL_REQUIRED = {"embodied"}
 VISUALIZER_MANAGED: dict[str, ManagedVisualizer] = {}
+# Reentrant: _launch_visualizer stops/cleans existing viewers while holding it.
+_VISUALIZER_LOCK = threading.RLock()
 
 
 def _rerun_renderer() -> str:
@@ -304,12 +320,18 @@ def _load_settings_from_disk() -> None:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
+        logger.warning(
+            "Ignoring unreadable Studio settings file %s; keeping default settings.",
+            path,
+            exc_info=True,
+        )
         return
     if not isinstance(payload, dict):
         return
-    for key, value in payload.items():
-        if key in SETTINGS:
-            SETTINGS[key] = _coerce_setting_value(key, value)
+    with _SETTINGS_LOCK:
+        for key, value in payload.items():
+            if key in SETTINGS:
+                SETTINGS[key] = _coerce_setting_value(key, value)
 
 
 def _save_settings_to_disk() -> None:
@@ -363,35 +385,55 @@ def _visualizer_status(record: ManagedVisualizer) -> dict[str, Any]:
 
 
 def _cleanup_finished_visualizer(mode: str) -> None:
-    record = VISUALIZER_MANAGED.get(mode)
-    if record is None or record.external or _visualizer_process_alive(record.process):
-        return
-    VISUALIZER_MANAGED.pop(mode, None)
+    with _VISUALIZER_LOCK:
+        record = VISUALIZER_MANAGED.get(mode)
+        if record is None or record.external or _visualizer_process_alive(record.process):
+            return
+        VISUALIZER_MANAGED.pop(mode, None)
 
 
 def _stop_visualizer(mode: str) -> bool:
-    record = VISUALIZER_MANAGED.pop(mode, None)
-    if record is None or record.external or record.process is None:
-        return record is not None
-    process = record.process
-    if process.poll() is not None:
-        return True
-    try:
-        os.killpg(os.getpgid(process.pid), signal.SIGINT)
-    except (OSError, ProcessLookupError):
-        process.terminate()
-    try:
-        process.wait(timeout=6)
-    except subprocess.TimeoutExpired:
-        with contextlib.suppress(OSError, ProcessLookupError):
-            os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+    # Idempotent: the pop makes concurrent or repeated calls (stop endpoint,
+    # shutdown event, atexit) observe no record and return without side effects.
+    with _VISUALIZER_LOCK:
+        record = VISUALIZER_MANAGED.pop(mode, None)
+        if record is None or record.external or record.process is None:
+            return record is not None
+        process = record.process
+        if process.poll() is not None:
+            return True
         try:
-            process.wait(timeout=4)
+            os.killpg(os.getpgid(process.pid), signal.SIGINT)
+        except (OSError, ProcessLookupError):
+            process.terminate()
+        try:
+            process.wait(timeout=6)
         except subprocess.TimeoutExpired:
             with contextlib.suppress(OSError, ProcessLookupError):
-                os.killpg(os.getpgid(process.pid), signal.SIGKILL)
-            process.wait(timeout=4)
-    return True
+                os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+            try:
+                process.wait(timeout=4)
+            except subprocess.TimeoutExpired:
+                with contextlib.suppress(OSError, ProcessLookupError):
+                    os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                process.wait(timeout=4)
+        return True
+
+
+def _stop_all_visualizers() -> None:
+    """Best-effort teardown of managed viewer subprocesses (shutdown + atexit)."""
+
+    for mode in list(VISUALIZER_MANAGED):
+        try:
+            _stop_visualizer(mode)
+        except Exception:
+            logger.warning("Failed to stop %s visualizer during shutdown.", mode, exc_info=True)
+
+
+# uvicorn's normal exit path fires the FastAPI shutdown event, but abnormal
+# exits (unhandled exceptions before serving, SystemExit) can skip it; atexit
+# is the fallback so setsid-detached viewer children never outlive Studio.
+atexit.register(_stop_all_visualizers)
 
 
 def _tcp_port_available(host: str, port: int) -> bool:
@@ -613,6 +655,13 @@ def _artifact_visualization_action(
 
 
 def _launch_visualizer(mode: str, payload: VisualizerLaunchRequest) -> dict[str, Any]:
+    # Serialize launches: concurrent requests for one mode would otherwise both
+    # pass the reuse check and race subprocess start/stop on VISUALIZER_MANAGED.
+    with _VISUALIZER_LOCK:
+        return _launch_visualizer_locked(mode, payload)
+
+
+def _launch_visualizer_locked(mode: str, payload: VisualizerLaunchRequest) -> dict[str, Any]:
     if mode not in STUDIO_VISUALIZATIONS.modes:
         raise HTTPException(status_code=404, detail=f"unknown visualizer: {mode}")
     if mode in WORKSPACE_HIDDEN_VISUALIZER_MODES:
@@ -2529,12 +2578,12 @@ def _safe_file_response(path_text: str | None, request: Request | None = None) -
     if not path.exists() or not path.is_file():
         raise HTTPException(status_code=404, detail="file not found")
     workspace_root = Path(MANAGER.workspace_root).resolve()
+    # Registered artifacts may legitimately live outside the workspace root
+    # (session-scoped exact-path allowlist); everything else must resolve under
+    # the workspace via the shared serving.path_allowed check.
     registered = path in _registered_artifact_paths()
-    if not registered:
-        try:
-            path.relative_to(workspace_root)
-        except ValueError as exc:
-            raise HTTPException(status_code=403, detail="file is outside Studio workspace") from exc
+    if not registered and not path_allowed(path, (workspace_root,)):
+        raise HTTPException(status_code=403, detail="file is outside Studio workspace")
     media_type = _file_media_type(path)
     headers = {
         "Accept-Ranges": "bytes",
@@ -2547,9 +2596,39 @@ def _safe_file_response(path_text: str | None, request: Request | None = None) -
     return FileResponse(path, media_type=media_type, headers=headers)
 
 
-def create_app() -> FastAPI:
+def create_app(auth_token: str = "") -> FastAPI:
+    """Build the Workspace FastAPI app.
+
+    This app is a single-user local tool: SETTINGS, VISUALIZER_MANAGED, JOBS,
+    and MANAGER are process-global, so every connected client shares one
+    configuration and one managed viewer per mode. Multi-user isolation is out
+    of scope. ``auth_token``, when non-empty, is required on every non-static
+    request (``Authorization: Bearer <token>`` or ``?token=<token>``); it is
+    enforced by ``main()`` for non-loopback binds.
+    """
+
     _load_settings_from_disk()
     app = FastAPI(title="OpenEnvision Workspace")
+    app.add_event_handler("shutdown", _stop_all_visualizers)
+
+    if auth_token:
+        static_paths = {"/", "/favicon.ico", "/assets/openenvision-logo.png"}
+
+        @app.middleware("http")
+        async def require_studio_token(request: Request, call_next):
+            if request.url.path in static_paths:
+                return await call_next(request)
+            if not request_token_valid(
+                auth_token,
+                authorization_header=request.headers.get("authorization"),
+                query_token=request.query_params.get("token"),
+            ):
+                return Response(
+                    status_code=401,
+                    content="Missing or invalid Studio auth token.",
+                    media_type="text/plain",
+                )
+            return await call_next(request)
 
     @app.get("/", response_class=HTMLResponse)
     def index() -> str:
@@ -2569,9 +2648,11 @@ def create_app() -> FastAPI:
 
     @app.post("/api/settings")
     def update_settings(payload: SettingsUpdateRequest) -> dict[str, Any]:
-        SETTINGS.update({key: _coerce_setting_value(key, value) for key, value in payload.values.items()})
-        _save_settings_to_disk()
-        return dict(SETTINGS)
+        coerced = {key: _coerce_setting_value(key, value) for key, value in payload.values.items()}
+        with _SETTINGS_LOCK:
+            SETTINGS.update(coerced)
+            _save_settings_to_disk()
+            return dict(SETTINGS)
 
     @app.get("/api/models")
     def list_models(workload_type: str | None = None) -> list[dict[str, Any]]:
@@ -5416,9 +5497,14 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument("--port", type=int, default=int(os.getenv("WORLDFOUNDRY_WORKSPACE_PORT", "7870") or "7870"))
     args = parser.parse_args(list(argv) if argv is not None else None)
 
+    auth_token = require_auth_token_for_host(args.host, server_name="OpenEnvision Workspace")
+    warning = bind_security_warning(args.host)
+    if warning:
+        print(warning, flush=True)
+
     import uvicorn
 
-    uvicorn.run(create_app(), host=args.host, port=args.port)
+    uvicorn.run(create_app(auth_token=auth_token), host=args.host, port=args.port)
 
 
 if __name__ == "__main__":

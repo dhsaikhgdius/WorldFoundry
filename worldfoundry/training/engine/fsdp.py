@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 
 import torch
 import torch.distributed as dist
@@ -51,8 +51,10 @@ class FSDP2TrainEngine(SingleDeviceTrainEngine):
         optimizer: torch.optim.Optimizer,
         *,
         application: FSDP2Application,
-        max_grad_norm: float = 1.0,
+        max_grad_norm: float | None = 1.0,
         autocast_dtype: torch.dtype | None = None,
+        train_batch_end: Callable[[], None] | None = None,
+        optimizer_step_end: Callable[[], None] | None = None,
     ) -> None:
         if not isinstance(application, FSDP2Application):
             raise TypeError("application must be an FSDP2Application")
@@ -73,6 +75,8 @@ class FSDP2TrainEngine(SingleDeviceTrainEngine):
             optimizer,
             max_grad_norm=max_grad_norm,
             autocast_dtype=autocast_dtype,
+            train_batch_end=train_batch_end,
+            optimizer_step_end=optimizer_step_end,
         )
         self.application = application
         self.data_parallel_size = application.parallel_plan.data_parallel_size
@@ -145,8 +149,14 @@ class FSDP2TrainEngine(SingleDeviceTrainEngine):
                         raise RuntimeError("FSDP2 accumulation cannot include a skipped result")
                     if not isinstance(result.loss, torch.Tensor) or result.loss.numel() != 1:
                         raise TypeError("training objective must return one scalar tensor loss")
-                    if not bool(torch.isfinite(result.loss.detach()).all()):
-                        raise FloatingPointError("non-finite FSDP2 training loss")
+                    # Loss finiteness is data dependent, so ranks can disagree.
+                    # A rank-local raise would abandon the FSDP2 backward
+                    # collectives and strand the surviving ranks in
+                    # reduce-scatter until the NCCL watchdog fires; every rank
+                    # must reach the same verdict before any of them raises.
+                    loss_is_finite = torch.isfinite(result.loss.detach()).all()
+                    if not bool(_reduced(loss_is_finite.to(torch.float32), dist.ReduceOp.MIN)):
+                        raise FloatingPointError("non-finite FSDP2 training loss on at least one rank")
                     reported_denominator = result.metrics.get("loss_denominator")
                     if not isinstance(reported_denominator, torch.Tensor):
                         raise TypeError("FSDP2 objective must report tensor loss_denominator")
@@ -154,7 +164,9 @@ class FSDP2TrainEngine(SingleDeviceTrainEngine):
                         raise RuntimeError("objective denominator changed between preparation and loss reduction")
 
                     gradient_weight = denominator / global_denominator * self.data_parallel_size
-                    (result.loss * gradient_weight).backward()
+                    self._backward(result.loss * gradient_weight)
+                    if not final_microbatch and self.train_batch_end is not None:
+                        self.train_batch_end()
                     numerator = result.metrics.get("loss_numerator")
                     if not isinstance(numerator, torch.Tensor):
                         raise TypeError("FSDP2 objective must report tensor loss_numerator")
@@ -188,14 +200,23 @@ class FSDP2TrainEngine(SingleDeviceTrainEngine):
                     if first_diagnostics is None:
                         first_diagnostics = result.diagnostics
 
+                self._unscale_gradients()
                 grad_norm = clip_grad_norm_(
                     self.parameters,
-                    self.max_grad_norm,
-                    error_if_nonfinite=True,
+                    float("inf") if self.max_grad_norm is None else self.max_grad_norm,
+                    # With an active AMP scaler the globally reduced found_inf
+                    # flag (DTensor grads reduce it across the mesh) makes
+                    # every rank skip step() and lower the scale together, so
+                    # clipping cannot raise on the non-finite norm first.
+                    error_if_nonfinite=self._active_amp_grad_scaler() is None,
                 )
                 self._mark_optimizer_step_started()
-                self.optimizer.step()
+                stepped = self._step_optimizer()
                 self.global_step += 1
+                if self.optimizer_step_end is not None:
+                    self.optimizer_step_end()
+                if self.train_batch_end is not None:
+                    self.train_batch_end()
             finally:
                 if accumulating_without_sync:
                     try:
@@ -225,7 +246,6 @@ class FSDP2TrainEngine(SingleDeviceTrainEngine):
             metrics: dict[str, object] = {
                 "loss_numerator": global_numerator,
                 "loss_denominator": global_denominator,
-                "grad_norm": _local_scalar(grad_norm),
                 "global_step": torch.tensor(self.global_step, device=loss.device, dtype=torch.int64),
                 "microbatch_count_per_rank": torch.tensor(
                     len(microbatches),
@@ -238,6 +258,12 @@ class FSDP2TrainEngine(SingleDeviceTrainEngine):
                     dtype=torch.int64,
                 ),
             }
+            if stepped:
+                metrics["grad_norm"] = _local_scalar(grad_norm)
+            else:
+                # Durable metrics use canonical JSON, which rejects the
+                # non-finite norm; the explicit flag records the skip.
+                metrics["optimizer_step_skipped"] = True
             if local_sample_count and local_sigma_min is not None and local_sigma_max is not None:
                 global_sigma_sum = _reduced(local_sigma_sum)
                 global_sigma_min = _reduced(local_sigma_min, dist.ReduceOp.MIN)
@@ -255,10 +281,11 @@ class FSDP2TrainEngine(SingleDeviceTrainEngine):
                     "engine": "fsdp2",
                     "device": str(self.device),
                     "autocast_dtype": None if self.autocast_dtype is None else str(self.autocast_dtype),
+                    "grad_scaling": self.grad_scaler is not None,
                     "max_grad_norm": self.max_grad_norm,
                     "gradient_accumulation": "globally-token-weighted",
                     "parallel_plan": self.application.parallel_plan.to_dict(),
-                    "fsdp2_application_digest": self.application.digest,
+                    "fsdp2_application": self.application.to_dict(),
                 }
             )
             completed = TrainStepResult(
@@ -267,6 +294,7 @@ class FSDP2TrainEngine(SingleDeviceTrainEngine):
                 metrics=metrics,
                 sample_count=sample_count,
                 latent_token_count=latent_token_count,
+                skipped=not stepped,
                 diagnostics=diagnostics,
             )
             self._complete_training_step()
@@ -280,20 +308,20 @@ class FSDP2TrainEngine(SingleDeviceTrainEngine):
         return {
             "schema": FSDP2_ENGINE_STATE_SCHEMA,
             "global_step": self.global_step,
-            "fsdp2_application_digest": self.application.digest,
+            "fsdp2_application": self.application.to_dict(),
         }
 
     def load_state_dict(self, state_dict: Mapping[str, object]) -> None:
         self._ensure_ready()
         if not isinstance(state_dict, Mapping):
             raise TypeError("engine state_dict must be a mapping")
-        expected = {"schema", "global_step", "fsdp2_application_digest"}
+        expected = {"schema", "global_step", "fsdp2_application"}
         if set(state_dict) != expected:
             raise ValueError(f"FSDP2 engine state fields must be {sorted(expected)}; got {sorted(state_dict)}")
         if state_dict["schema"] != FSDP2_ENGINE_STATE_SCHEMA:
             raise ValueError(f"unsupported FSDP2 engine state schema: {state_dict['schema']!r}")
-        if state_dict["fsdp2_application_digest"] != self.application.digest:
-            raise ValueError("FSDP2 engine state application digest differs from the active model")
+        if state_dict["fsdp2_application"] != self.application.to_dict():
+            raise ValueError("FSDP2 engine state application differs from the active model")
         step = state_dict["global_step"]
         if isinstance(step, bool) or not isinstance(step, int):
             raise TypeError("FSDP2 engine global_step must be an integer, not bool")

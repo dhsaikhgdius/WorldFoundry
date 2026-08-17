@@ -6,6 +6,11 @@ from dataclasses import dataclass
 from math import isfinite
 
 from ..common import strict_mapping
+from .auxiliary_optimizers import (
+    AuxiliaryOptimizerRule,
+    forbids_auxiliary,
+    requires_auxiliary,
+)
 
 DFD_ALGORITHM_FIELDS = {
     "type",
@@ -144,6 +149,21 @@ class DFDAlgorithmSpec:
     @property
     def adversarial_enabled(self) -> bool:
         return self.discriminator_checkpoint is not None
+
+    def auxiliary_optimizer_rules(self) -> tuple[AuxiliaryOptimizerRule, ...]:
+        discriminator_rule = (
+            requires_auxiliary("discriminator_optimizer", "DFD GAN loss requires discriminator_optimizer")
+            if self.adversarial_enabled
+            else forbids_auxiliary(
+                "discriminator_optimizer",
+                message="DFD without GAN loss cannot configure discriminator_optimizer",
+            )
+        )
+        return (
+            requires_auxiliary("fake_score_optimizer", "DFD requires fake_score_optimizer"),
+            discriminator_rule,
+            forbids_auxiliary("guidance_optimizer", message="DFD does not accept guidance_optimizer"),
+        )
 
 
 def parse_dfd_algorithm(value: object) -> DFDAlgorithmSpec:

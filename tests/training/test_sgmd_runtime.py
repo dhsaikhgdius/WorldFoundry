@@ -42,7 +42,6 @@ class _Scale(torch.nn.Module):
 
 class _Adapter:
     noise_process_kind = "flow-matching"
-    noise_process_digest = "linear-flow-shift-five"
 
     def __init__(self, value: float, identity: str, *, frozen: bool = False) -> None:
         self.module = _Scale(value)
@@ -309,7 +308,6 @@ class _EMA:
 
 
 class _EngineLosses:
-    config_digest = "sgmd-engine-test"
     num_student_steps = 4
     minimum_student_target_index = 1
 
@@ -483,11 +481,10 @@ def _checkpointable_stack(seed: int):
         dataloader=loader,
         objective_generator=generator,
         progress=progress,
-        identity={
-            "algorithm": "sgmd",
-            "config_digest": engine.config_digest,
-            "gradient_accumulation_steps": engine.gradient_accumulation_steps,
-        },
+            identity={
+                "algorithm": "sgmd",
+                "gradient_accumulation_steps": engine.gradient_accumulation_steps,
+            },
         lr_scheduler=NamedStatefulCollection(
             {"student": student_scheduler, "fake_score": fake_scheduler}
         ),

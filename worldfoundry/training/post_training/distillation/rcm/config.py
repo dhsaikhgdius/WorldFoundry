@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from math import isfinite, pi
 from typing import Literal
-
-from worldfoundry.core.io.integrity import canonical_sha256
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,10 +82,6 @@ class RCMConfig:
     @property
     def dmd_enabled(self) -> bool:
         return self.dmd_loss_scale > 0
-
-    @property
-    def digest(self) -> str:
-        return canonical_sha256({"schema": "worldfoundry-rcm-config", **asdict(self)})
 
 
 __all__ = ["RCMConfig"]

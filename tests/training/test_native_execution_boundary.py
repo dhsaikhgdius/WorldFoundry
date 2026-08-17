@@ -6,13 +6,20 @@ from pathlib import Path
 
 _BANNED_UPSTREAM_MODULES = frozenset(
     {
+        "cosmos_framework",
+        "cosmos_predict2",
         "cosmos_rl",
         "dancegrpo",
         "diffusion_nft",
         "diffusiondpo",
+        "dynamicrafter",
         "fastvideo",
         "flow_grpo",
+        "ltx_trainer",
+        "ltxv_trainer",
+        "lvdm",
         "mixgrpo",
+        "t2v_turbo",
         "unirl",
         "verl",
         "verl_omni",

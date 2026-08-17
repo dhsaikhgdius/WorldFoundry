@@ -175,7 +175,14 @@ def save_frames(frames, save_path):
 
 
 def merge_video_audio(video_path: str, audio_path: str) -> None:
-    """Merge video and audio with ffmpeg; overwrite ``video_path`` on success."""
+    """Merge video and audio with ffmpeg; overwrite ``video_path`` on success.
+
+    Raises on failure (missing inputs, ffmpeg errors). The temporary mux
+    output is always removed, so a failed merge leaves the original video
+    untouched. Historically this function swallowed its own errors and
+    returned normally, which made callers treat missing audio tracks as
+    success.
+    """
     if not os.path.exists(video_path):
         raise FileNotFoundError(f"video file {video_path} does not exist")
     if not os.path.exists(audio_path):
@@ -207,16 +214,12 @@ def merge_video_audio(video_path: str, audio_path: str) -> None:
         ]
         result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         if result.returncode != 0:
-            error_msg = f"FFmpeg execute failed: {result.stderr}"
-            print(error_msg)
-            raise RuntimeError(error_msg)
-
+            raise RuntimeError(f"FFmpeg execute failed: {result.stderr}")
         shutil.move(temp_output, video_path)
         print(f"Merge completed, saved to {video_path}")
-    except Exception as e:
+    finally:
         if os.path.exists(temp_output):
             os.remove(temp_output)
-        print(f"merge_video_audio failed with error: {e}")
 
 
 def save_video_with_audio(frames, save_path, audio_path, fps=16, quality=9, ffmpeg_params=None):
@@ -231,9 +234,9 @@ def save_video_with_audio(frames, save_path, audio_path, fps=16, quality=9, ffmp
         ffmpeg_params: Optional ImageIO ffmpeg arguments.
 
     Notes:
-        ``merge_video_audio`` reports ffmpeg failures and removes its temporary
-        file. Use lower-level helpers when the caller needs structured process
-        error handling.
+        ``merge_video_audio`` raises on ffmpeg failures after removing its
+        temporary file, so an exception here means ``save_path`` still holds
+        the silent video.
     """
     save_video(frames, save_path, fps, quality, ffmpeg_params)
     merge_video_audio(save_path, audio_path)

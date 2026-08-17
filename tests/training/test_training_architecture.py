@@ -79,7 +79,9 @@ def test_generic_rewards_do_not_depend_on_rl_trajectory_types() -> None:
         f"{path.relative_to(_ROOT)}:{line}: {module_name}"
         for path in sorted(rewards.rglob("*.py"))
         for line, module_name in _imports(path)
-        if module_name.startswith("worldfoundry.training.post_training.rl") or module_name in {"rl", "..rl"}
+        if module_name.startswith("worldfoundry.training.post_training.rl")
+        or module_name == "rl"
+        or module_name.startswith("rl.")
     ]
     assert violations == []
 
@@ -93,13 +95,6 @@ def test_shared_post_training_layer_does_not_depend_on_algorithms() -> None:
         if ".algorithms" in module_name
     ]
     assert violations == []
-
-
-def test_training_data_does_not_reexport_core_integrity_helpers() -> None:
-    data_facade = (_TRAINING / "data" / "__init__.py").read_text(encoding="utf-8")
-    sana_cache = (_TRAINING / "data" / "sana_cache.py").read_text(encoding="utf-8")
-    assert '"canonical_sha256"' not in data_facade
-    assert '    "canonical_sha256",' not in sana_cache
 
 
 def test_training_code_does_not_use_numbered_version_names() -> None:
@@ -121,4 +116,15 @@ def test_training_code_does_not_use_numbered_version_names() -> None:
             ):
                 if pattern.search(line):
                     violations.append(f"{path.relative_to(_ROOT)}:{line_number}")
+    assert violations == []
+
+
+def test_training_runtime_does_not_add_content_hashing() -> None:
+    violations: list[str] = []
+    roots = (_TRAINING, _ROOT / "worldfoundry" / "cli" / "training_commands")
+    for root in roots:
+        for path in sorted(root.rglob("*.py")):
+            source = path.read_text(encoding="utf-8").lower()
+            if any(fragment in source for fragment in ("hashlib", "sha256", "sha-256")):
+                violations.append(str(path.relative_to(_ROOT)))
     assert violations == []

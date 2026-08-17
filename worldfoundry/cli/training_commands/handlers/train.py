@@ -6,7 +6,12 @@ import argparse
 import json
 from pathlib import Path
 
-from ..common import checkpoint_overrides, training_base_dir, training_family
+from ..common import (
+    checkpoint_overrides,
+    training_base_dir,
+    training_checkpoint_key,
+    training_family,
+)
 
 
 def _handle_train(args: argparse.Namespace) -> int:
@@ -20,21 +25,22 @@ def _handle_train(args: argparse.Namespace) -> int:
         base_dir=base_dir,
     )
     if args.checkpoint is not None:
-        if "dit" in resolved_overrides:
-            raise ValueError("--checkpoint and --checkpoint-override dit=... cannot both be set")
+        checkpoint_key = training_checkpoint_key(recipe.model.recipe)
+        if checkpoint_key in resolved_overrides:
+            raise ValueError(f"--checkpoint and --checkpoint-override {checkpoint_key}=... cannot both be set")
         checkpoint_path = args.checkpoint.expanduser()
         if not checkpoint_path.is_absolute():
             checkpoint_path = base_dir / checkpoint_path
-        resolved_overrides["dit"] = str(checkpoint_path.resolve())
+        resolved_overrides[checkpoint_key] = str(checkpoint_path.resolve())
 
     common = {
         "base_dir": base_dir,
         "device": args.device,
         "output_dir": args.output_dir,
         "checkpoint_overrides": resolved_overrides,
-        "verify_media_hashes": not args.skip_media_hash_verification,
+        "verify_media_files": not args.skip_media_file_verification,
         "audit_cache_on_open": True,
-        "verify_cache_on_read": not args.trust_audited_read_only_cache,
+        "verify_cache_on_read": not args.trust_read_only_cache,
         "initialization_seed": args.seed,
     }
     family = training_family(recipe.model.recipe)
@@ -48,7 +54,7 @@ def _handle_train(args: argparse.Namespace) -> int:
             disable_xformers=not args.allow_unverified_attention_backend,
             **common,
         )
-    else:
+    elif family == "wan":
         from worldfoundry.training.engine.wan.sft import (
             materialize_wan_cached_training_session,
         )
@@ -58,6 +64,30 @@ def _handle_train(args: argparse.Namespace) -> int:
             force_torch_attention=not args.allow_unverified_attention_backend,
             **common,
         )
+    elif family == "ltx":
+        from worldfoundry.training.engine.ltx.sft import (
+            materialize_ltx_cached_training_session,
+        )
+
+        session = materialize_ltx_cached_training_session(recipe, **common)
+    elif family == "lvdm":
+        from worldfoundry.training.engine.lvdm.sft import (
+            materialize_lvdm_short_training_session,
+        )
+
+        session = materialize_lvdm_short_training_session(recipe, **common)
+    elif family == "dynamicrafter":
+        from worldfoundry.training.engine.dynamicrafter.sft import (
+            materialize_dynamicrafter_training_session,
+        )
+
+        session = materialize_dynamicrafter_training_session(recipe, **common)
+    else:
+        from worldfoundry.training.engine.cosmos.sft import (
+            materialize_cosmos_cached_training_session,
+        )
+
+        session = materialize_cosmos_cached_training_session(recipe, **common)
     try:
         fixed_batch = args.fixed_batch or args.one_batch_overfit
         fixed_corruption = args.fixed_corruption or args.one_batch_overfit
@@ -71,21 +101,29 @@ def _handle_train(args: argparse.Namespace) -> int:
             resume_checkpoint=args.resume_checkpoint,
         )
         artifact = None
-        if args.export_adapter and session.peft_application:
-            artifact = session.export_peft()
+        artifact_kind = None
+        if args.export_artifact:
+            if getattr(session, "peft_application", None):
+                artifact = session.export_peft()
+                artifact_kind = "adapter"
+            elif getattr(session, "adapter_application", None):
+                artifact = session.export_adapter()
+                artifact_kind = "adapter"
+            elif recipe.tuning.mode in {"full", "partial"}:
+                artifact = session.export_full_model()
+                artifact_kind = "full_model"
         payload: dict[str, object] = {
             "run_dir": str(session.output_dir),
-            "recipe_digest": recipe.digest,
             "backend": recipe.distributed.backend,
             "rank_count": session.world_size,
             "summary": summary.to_dict(),
         }
         if artifact is not None:
-            payload["adapter"] = {
+            assert artifact_kind is not None
+            payload[artifact_kind] = {
                 "status": "exported",
                 "path": str(artifact.path),
-                "manifest_sha256": artifact.manifest_sha256,
-                "file_sha256": dict(artifact.file_digests),
+                "file_size_bytes": dict(artifact.file_size_bytes),
             }
         if session.is_coordinator:
             print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
@@ -100,10 +138,7 @@ def register_train_subparser(
     parser = subparsers.add_parser(
         "train",
         help="Run WorldFoundry-native training from a strict recipe",
-        description=(
-            "Execute one canonical recipe with WorldFoundry-owned SANA/Wan engines. "
-            "Inputs and environment identity are verified before launch."
-        ),
+        description=("Execute one canonical recipe with a WorldFoundry-owned image or video training engine."),
     )
     parser.add_argument("--recipe", type=Path, required=True, help="Training YAML or JSON recipe.")
     parser.add_argument(
@@ -153,20 +188,23 @@ def register_train_subparser(
         help="Overfit gate: final loss must be at most this fraction of initial loss.",
     )
     parser.add_argument(
+        "--export-trained-artifact",
         "--export-adapter",
+        "--export-full-model",
+        dest="export_artifact",
         action=argparse.BooleanOptionalAction,
         default=True,
-        help="Export a digest-audited PEFT adapter after a successful LoRA run.",
+        help="Export the final PEFT adapter or fully tuned Safetensors model.",
     )
     parser.add_argument(
-        "--trust-audited-read-only-cache",
+        "--trust-read-only-cache",
         action="store_true",
-        help="Hash every object at startup, then skip repeat hashes while reading an immutable cache mount.",
+        help="Validate the cache at startup, then skip repeated object checks while reading it.",
     )
     parser.add_argument(
-        "--skip-media-hash-verification",
+        "--skip-media-file-verification",
         action="store_true",
-        help="Skip source media byte hashing; manifest/cache identities are still cross-checked.",
+        help="Skip source media existence and declared-size checks.",
     )
     parser.add_argument(
         "--allow-unverified-attention-backend",

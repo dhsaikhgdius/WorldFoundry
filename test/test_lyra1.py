@@ -1,3 +1,9 @@
+
+import pytest
+
+# This test module imports worldfoundry code that requires the optional
+# "imageio" dependency at import time; skip when it is unavailable.
+pytest.importorskip("imageio")
 import os
 from pathlib import Path
 

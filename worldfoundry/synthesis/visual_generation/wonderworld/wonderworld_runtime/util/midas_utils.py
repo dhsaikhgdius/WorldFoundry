@@ -1,11 +1,11 @@
 import numpy as np
 import torch.nn.functional as F
 from torchvision.transforms import Compose, Normalize
-from pathlib import Path
-import sys
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[5] / "base_models" / "three_dimensions" / "depth"))
-from midas.transforms import NormalizeImage
+# Modified by WorldFoundry: import midas via the package-absolute path instead of a
+# sys.path insert that hard-coded the on-disk layout between the synthesis and
+# base_models trees.
+from worldfoundry.base_models.three_dimensions.depth.midas.transforms import NormalizeImage
 import cv2
 
 

@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Mapping
+from typing import TYPE_CHECKING, Any, Mapping
 
-from worldfoundry.evaluation.models.pipelines.invocation import PipelineInvocation
+from worldfoundry.core.io import artifact_root_path
 from worldfoundry.operators.runtime_video_operator import RuntimeVideoOperator
 from worldfoundry.pipelines.lyra.lyra_utils import load_pil_image, materialize_image_input
 from worldfoundry.pipelines.pipeline_utils import PipelineABC
 from worldfoundry.synthesis.visual_generation.memory.video import VideoArtifactMemory
 from worldfoundry.synthesis.visual_generation.official_video_runtime import OfficialVideoRuntime
+
+if TYPE_CHECKING:
+    from worldfoundry.evaluation.models.pipelines.invocation import PipelineInvocation
 
 
 class OfficialVideoPipeline(PipelineABC):
@@ -94,7 +97,7 @@ class OfficialVideoPipeline(PipelineABC):
         **kwargs: Any,
     ) -> Any:
         """Execute the complete pipeline generation flow."""
-        target = Path(output_path or f"tmp/pipeline_eval/{self.model_id}.mp4")
+        target = Path(output_path) if output_path else artifact_root_path() / "pipeline_eval" / f"{self.model_id}.mp4"
         processed = self.process(prompt=prompt, images=images, video=video)
         runtime_kwargs = dict(kwargs)
         if num_frames is not None:

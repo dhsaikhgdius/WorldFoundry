@@ -6,7 +6,6 @@ import pytest
 
 torch = pytest.importorskip("torch")
 
-from worldfoundry.core.io.integrity import text_sha256  # noqa: E402
 from worldfoundry.training.api import PreparedBatch, TrainingBatch  # noqa: E402
 from worldfoundry.training.data import (  # noqa: E402
     CacheTensorDescriptor,
@@ -221,9 +220,8 @@ def _conditioned(
     *,
     generation: Mapping[str, object] | None = None,
 ) -> RolloutConditionedPrompt:
-    prompt_sha = text_sha256(prompt)
     audit = PromptSafetyAudit(
-        prompt_sha256=prompt_sha,
+        prompt=prompt,
         unsafe_probabilities={key: 0.01 for key in SHIELDGEMMA_PROMPT_POLICIES},
         threshold=0.5,
     )
@@ -234,11 +232,11 @@ def _conditioned(
         generation=({"height": 32, "width": 32, "num_frames": 5} if generation is None else generation),
     )
     identity = SharedConditioningIdentity(
-        branch=f"rollout-{prompt_sha}",
-        prompt_sha256=prompt_sha,
-        model_recipe_digest="a" * 64,
-        conditioner_digest="b" * 64,
-        tokenizer_digest="c" * 64,
+        branch=f"rollout-{prompt_id}",
+        prompt=prompt,
+        model_recipe="wan2.1-t2v-1.3b",
+        conditioner={"repository": "test/conditioner", "revision": "test"},
+        tokenizer={"repository": "test/tokenizer", "revision": "test"},
         tensors={
             "context": CacheTensorDescriptor(
                 dtype="float32",
@@ -247,13 +245,10 @@ def _conditioned(
             )
         },
     )
-    object_sha = ("d" if prompt_id == "first" else "e") * 64
     artifact = SharedConditioningArtifact(
         identity=identity,
-        identity_sha256=identity.digest,
-        object_sha256=object_sha,
         object_size_bytes=100,
-        object_path=f"shared-objects/{object_sha[:2]}/{object_sha}.safetensors",
+        object_path=f"shared-objects/{identity.branch}.safetensors",
     )
     return RolloutConditionedPrompt(
         record=record,

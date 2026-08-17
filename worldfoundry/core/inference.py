@@ -17,13 +17,17 @@ shared by Studio, CLI, manifests, and evaluation harnesses.
 
 from __future__ import annotations
 
+import logging
 import os
 import sys
+import warnings
 from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass, field
 from functools import wraps
 from pathlib import Path
 from typing import Any, Callable, Iterator, Mapping, Sequence
+
+logger = logging.getLogger(__name__)
 
 from worldfoundry.core.io.paths import (
     checkpoint_root_path,
@@ -39,6 +43,7 @@ from worldfoundry.pipelines.gen3c.constants import (
 _FALSE_VALUES = {"0", "false", "no", "off", "disable", "disabled"}
 _TRUE_VALUES = {"1", "true", "yes", "on", "enable", "enabled"}
 _ORIGINAL_SDPA: Callable[..., Any] | None = None
+_PRE_INSTALL_TORCH_STATE: dict[str, Any] | None = None
 
 LINGBOT_WORLD_MODEL_ID = "lingbot-world"
 LINGBOT_VARIANT_FAST = "fast"
@@ -4654,11 +4659,18 @@ def install_worldfoundry_inference_infra(
     Environment controls:
     - ``WORLDFOUNDRY_USE_CORE_INFRA=0`` disables installation.
     - ``WORLDFOUNDRY_ATTENTION_BACKEND=auto|flash|cudnn|efficient|math`` selects
-      the SDPA backend policy.
+      the SDPA backend policy. Attention dispatch backend names (for example
+      ``flash_attention_2``, ``sage_attention``, ``xformers``) are also
+      accepted; they resolve the SDPA policy to ``auto`` and are honoured by
+      ``worldfoundry.core.attention`` instead.
     - ``WORLDFOUNDRY_MATMUL_PRECISION=highest|high|medium`` selects PyTorch
       float32 matmul precision.
     - ``WORLDFOUNDRY_ENABLE_TF32=0`` disables TF32 backend flags.
     - ``WORLDFOUNDRY_PATCH_SDPA=0`` avoids monkey-patching PyTorch SDPA calls.
+
+    Use :func:`uninstall_worldfoundry_inference_infra` (or the
+    :func:`worldfoundry_inference_infra_disabled` context manager) to restore
+    the original SDPA function and pre-install torch backend flags.
     """
 
     if _env_flag("WORLDFOUNDRY_USE_CORE_INFRA", default=True) is False:
@@ -4671,6 +4683,7 @@ def install_worldfoundry_inference_infra(
     use_tf32 = _env_flag("WORLDFOUNDRY_ENABLE_TF32", default=True) if enable_tf32 is None else bool(enable_tf32)
     should_patch_sdpa = _env_flag("WORLDFOUNDRY_PATCH_SDPA", default=True) if patch_sdpa is None else bool(patch_sdpa)
 
+    _capture_pre_install_torch_state()
     _configure_torch_backends(matmul_precision=precision, enable_tf32=use_tf32)
     if should_patch_sdpa:
         _patch_torch_sdpa()
@@ -4815,6 +4828,34 @@ def _device_type(device: Any) -> str:
     return str(device).split(":", maxsplit=1)[0]
 
 
+def _capture_pre_install_torch_state() -> None:
+    """Snapshot restorable torch backend state before the first install."""
+
+    global _PRE_INSTALL_TORCH_STATE
+
+    if _PRE_INSTALL_TORCH_STATE is not None:
+        return
+    try:
+        import torch
+    except Exception:
+        return
+
+    snapshot: dict[str, Any] = {}
+    try:
+        snapshot["matmul_precision"] = torch.get_float32_matmul_precision()
+    except Exception:
+        snapshot["matmul_precision"] = None
+    matmul_backend = getattr(getattr(torch.backends, "cuda", None), "matmul", None)
+    snapshot["matmul_allow_tf32"] = (
+        bool(matmul_backend.allow_tf32) if matmul_backend is not None and hasattr(matmul_backend, "allow_tf32") else None
+    )
+    cudnn_backend = getattr(torch.backends, "cudnn", None)
+    snapshot["cudnn_allow_tf32"] = (
+        bool(cudnn_backend.allow_tf32) if cudnn_backend is not None and hasattr(cudnn_backend, "allow_tf32") else None
+    )
+    _PRE_INSTALL_TORCH_STATE = snapshot
+
+
 def _configure_torch_backends(*, matmul_precision: str, enable_tf32: bool) -> None:
     try:
         import torch
@@ -4824,16 +4865,40 @@ def _configure_torch_backends(*, matmul_precision: str, enable_tf32: bool) -> No
     if hasattr(torch, "set_float32_matmul_precision") and matmul_precision:
         try:
             torch.set_float32_matmul_precision(matmul_precision)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Failed to set float32 matmul precision to %r: %s", matmul_precision, exc)
 
-    for backend in (getattr(torch.backends, "cuda", None), getattr(torch.backends, "cudnn", None)):
-        if backend is None:
-            continue
+    # CC-33: the matmul TF32 switch lives at ``torch.backends.cuda.matmul.allow_tf32``
+    # (verified on torch 2.7). ``setattr(torch.backends.cuda, "allow_tf32", ...)``
+    # only created a dead attribute, so matmul TF32 was previously controlled
+    # solely by ``set_float32_matmul_precision`` and could not be disabled.
+    # Numerical-behavior impact: with ``enable_tf32=False`` matmul TF32 is now
+    # actually disabled (previously it silently stayed on under the default
+    # ``matmul_precision="high"``).
+    matmul_backend = getattr(getattr(torch.backends, "cuda", None), "matmul", None)
+    if matmul_backend is not None and hasattr(matmul_backend, "allow_tf32"):
+        if enable_tf32 and matmul_precision == "highest":
+            # An explicit full-precision request wins over the TF32 default;
+            # forcing allow_tf32=True would silently demote "highest" to "high".
+            logger.info(
+                "matmul_precision='highest' requested; leaving matmul TF32 disabled "
+                "despite enable_tf32=True."
+            )
+        else:
+            previous = bool(matmul_backend.allow_tf32)
+            matmul_backend.allow_tf32 = bool(enable_tf32)
+            if previous != bool(enable_tf32):
+                logger.info(
+                    "Numerical-behavior impact: torch.backends.cuda.matmul.allow_tf32 changed %s -> %s.",
+                    previous,
+                    bool(enable_tf32),
+                )
+    cudnn_backend = getattr(torch.backends, "cudnn", None)
+    if cudnn_backend is not None and hasattr(cudnn_backend, "allow_tf32"):
         try:
-            setattr(backend, "allow_tf32", bool(enable_tf32))
-        except Exception:
-            pass
+            cudnn_backend.allow_tf32 = bool(enable_tf32)
+        except Exception as exc:
+            logger.warning("Failed to set torch.backends.cudnn.allow_tf32=%s: %s", bool(enable_tf32), exc)
 
 
 def _patch_torch_sdpa() -> None:
@@ -4860,6 +4925,87 @@ def _patch_torch_sdpa() -> None:
     setattr(worldfoundry_core_sdpa, "_worldfoundry_core_sdpa", True)
     F.scaled_dot_product_attention = worldfoundry_core_sdpa
     _STATE.sdpa_patched = True
+    logger.info(
+        "Patched torch.nn.functional.scaled_dot_product_attention process-wide with the "
+        "WorldFoundry SDPA policy wrapper (adds fully-masked-row normalization). Set "
+        "WORLDFOUNDRY_PATCH_SDPA=0 to disable, or call "
+        "worldfoundry.core.inference.uninstall_worldfoundry_inference_infra() to restore the original."
+    )
+
+
+def _unpatch_torch_sdpa() -> bool:
+    """Restore the original ``F.scaled_dot_product_attention`` if we patched it."""
+
+    try:
+        import torch.nn.functional as F
+    except Exception:
+        return False
+
+    current = getattr(F, "scaled_dot_product_attention", None)
+    if _ORIGINAL_SDPA is None or not getattr(current, "_worldfoundry_core_sdpa", False):
+        _STATE.sdpa_patched = False
+        return False
+    F.scaled_dot_product_attention = _ORIGINAL_SDPA
+    _STATE.sdpa_patched = False
+    logger.info("Restored the original torch.nn.functional.scaled_dot_product_attention.")
+    return True
+
+
+def uninstall_worldfoundry_inference_infra() -> WorldFoundryInferenceInfraState:
+    """Undo :func:`install_worldfoundry_inference_infra` process-wide changes.
+
+    Restores the original ``F.scaled_dot_product_attention`` and, when a
+    pre-install snapshot exists, the float32 matmul precision and TF32 flags
+    captured before the first install.
+    """
+
+    global _PRE_INSTALL_TORCH_STATE
+
+    _unpatch_torch_sdpa()
+    snapshot = _PRE_INSTALL_TORCH_STATE
+    if snapshot is not None:
+        try:
+            import torch
+
+            if snapshot.get("matmul_precision") is not None:
+                torch.set_float32_matmul_precision(snapshot["matmul_precision"])
+            matmul_backend = getattr(getattr(torch.backends, "cuda", None), "matmul", None)
+            if matmul_backend is not None and snapshot.get("matmul_allow_tf32") is not None:
+                matmul_backend.allow_tf32 = snapshot["matmul_allow_tf32"]
+            cudnn_backend = getattr(torch.backends, "cudnn", None)
+            if cudnn_backend is not None and snapshot.get("cudnn_allow_tf32") is not None:
+                cudnn_backend.allow_tf32 = snapshot["cudnn_allow_tf32"]
+        except Exception as exc:
+            logger.warning("Failed to fully restore pre-install torch backend state: %s", exc)
+        _PRE_INSTALL_TORCH_STATE = None
+    _STATE.installed = False
+    return _STATE
+
+
+@contextmanager
+def worldfoundry_inference_infra_disabled() -> Iterator[None]:
+    """Temporarily restore vanilla torch behavior inside the scope.
+
+    Useful for A/B numerical comparisons against the unpatched SDPA. On exit
+    the previous configuration is reinstalled if it was installed before.
+    """
+
+    was_installed = _STATE.installed
+    previous_backend = _STATE.attention_backend
+    previous_precision = _STATE.matmul_precision
+    previous_tf32 = _STATE.tf32_enabled
+    previous_sdpa_patched = _STATE.sdpa_patched
+    uninstall_worldfoundry_inference_infra()
+    try:
+        yield
+    finally:
+        if was_installed:
+            install_worldfoundry_inference_infra(
+                attention_backend=previous_backend,
+                matmul_precision=previous_precision,
+                enable_tf32=previous_tf32,
+                patch_sdpa=previous_sdpa_patched,
+            )
 
 
 def _call_sdpa_with_backend(query: Any, key: Any, value: Any, *args: Any, **kwargs: Any) -> Any:
@@ -4932,23 +5078,62 @@ def _resolve_sdpa_backends(policy: str, query: Any) -> list[Any]:
     return [backend for name in names if (backend := backend_map.get(name)) is not None]
 
 
+_SDPA_POLICY_ALIASES = {
+    "": "auto",
+    "default": "auto",
+    "sdpa": "auto",
+    "mem_efficient": "efficient",
+    "memory_efficient": "efficient",
+    "flash_attention": "flash",
+}
+_SDPA_POLICIES = frozenset({"auto", "flash", "cudnn", "efficient", "math"})
+_DISPATCH_BACKEND_POLICY_WARNED: set[str] = set()
+
+
 def _normalize_attention_backend(value: str) -> str:
-    normalized = str(value).strip().lower().replace("_", "-")
-    aliases = {
-        "": "auto",
-        "default": "auto",
-        "sdpa": "auto",
-        "mem-efficient": "efficient",
-        "memory-efficient": "efficient",
-        "flash-attention": "flash",
-        "flash_attention": "flash",
-    }
-    normalized = aliases.get(normalized, normalized)
-    if normalized not in {"auto", "flash", "cudnn", "efficient", "math"}:
+    """Resolve ``WORLDFOUNDRY_ATTENTION_BACKEND`` into an SDPA kernel policy.
+
+    The same environment variable is also read by the attention dispatch layer
+    (``worldfoundry.core.attention.backends``) with a wider vocabulary
+    (``flash_attention_2``, ``sage_attention``, ``xformers``...). Values from
+    that vocabulary are accepted here instead of crashing (CC-31): the SDPA
+    kernel policy resolves to ``auto`` and the dispatch layer stays
+    responsible for honouring the requested provider.
+    """
+
+    normalized = str(value).strip().lower().replace("-", "_")
+    normalized = _SDPA_POLICY_ALIASES.get(normalized, normalized)
+    if normalized in _SDPA_POLICIES:
+        return normalized
+
+    canonical: str | None
+    try:
+        from worldfoundry.core.attention.backends import normalize_attention_backend
+
+        canonical = normalize_attention_backend(normalized)
+    except ValueError:
         raise ValueError(
-            f"WORLDFOUNDRY_ATTENTION_BACKEND must be one of auto, flash, cudnn, efficient, or math (got {value!r})."
+            "WORLDFOUNDRY_ATTENTION_BACKEND must be an SDPA kernel policy (auto, flash, cudnn, "
+            "efficient, math) or an attention dispatch backend name accepted by "
+            f"worldfoundry.core.attention.backends.normalize_attention_backend (got {value!r})."
+        ) from None
+    except ImportError:
+        # torch (and therefore the dispatch layer) is unavailable; accept the
+        # value so torch-less tooling can still parse configuration.
+        canonical = normalized
+
+    if normalized not in _DISPATCH_BACKEND_POLICY_WARNED:
+        _DISPATCH_BACKEND_POLICY_WARNED.add(normalized)
+        warnings.warn(
+            f"WORLDFOUNDRY_ATTENTION_BACKEND={value!r} names an attention dispatch backend "
+            f"(canonical: {canonical!r}), not an SDPA kernel policy. The SDPA kernel policy for "
+            "the core inference infra resolves to 'auto'; the attention dispatch layer "
+            f"(worldfoundry.core.attention) is responsible for honouring {canonical!r}. Use one of "
+            "auto/flash/cudnn/efficient/math to pin the SDPA kernel policy explicitly.",
+            DeprecationWarning,
+            stacklevel=3,
         )
-    return normalized
+    return "auto"
 
 
 def _env_flag(name: str, *, default: bool) -> bool:
@@ -5013,6 +5198,8 @@ __all__ = [
     "install_worldfoundry_inference_infra",
     "list_model_inference_specs",
     "model_inference_spec",
+    "uninstall_worldfoundry_inference_infra",
     "worldfoundry_inference_context",
+    "worldfoundry_inference_infra_disabled",
     "wrap_runner_for_worldfoundry_core",
 ]

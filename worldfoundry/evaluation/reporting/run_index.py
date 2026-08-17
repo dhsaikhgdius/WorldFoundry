@@ -19,18 +19,18 @@ from worldfoundry.evaluation.utils import (
     format_value as _format_value,
 )
 from worldfoundry.evaluation.utils import (
+    mapping_or_empty as _mapping,
     read_json_object,
     write_json,
     write_jsonl,
 )
 
 from .run_report import (
-    _dedupe_labels,
-    _mapping,
-    _normalise_roots,
-    _row_from_summary,
-    _run_summary_candidate,
+    dedupe_labels as _dedupe_labels,
+    find_run_summary_candidate as _run_summary_candidate,
     load_run_summary,
+    normalise_roots as _normalise_roots,
+    row_from_summary as _row_from_summary,
 )
 
 RUN_INDEX_SCHEMA_VERSION = "worldfoundry-run-index"

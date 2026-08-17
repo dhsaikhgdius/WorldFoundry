@@ -6,8 +6,6 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
 
-from worldfoundry.core.io.integrity import canonical_sha256
-
 from ..rewards.contracts import RewardEvaluator, RewardRequest, RewardResult
 from ..shared.contracts import TensorLike, freeze_mapping
 
@@ -43,7 +41,8 @@ def terminal_latent_view(value: object) -> TerminalLatentView:
     if isinstance(value, FlowTrajectory):
         terminal_latents = value.latents[:, -1].detach()
         request_metadata: Mapping[str, object] = {
-            "schedule_digest": value.schedule_digest,
+            "step_indices": list(value.step_indices),
+            "transition": dict(value.transition_identity),
         }
     elif isinstance(value, DiffusionNFTTerminalLatents):
         terminal_latents = value.clean_latents.detach()
@@ -112,7 +111,6 @@ class DecodedTerminalRewardAdapter:
         self.evaluator_identity = MappingProxyType(
             dict(freeze_mapping(evaluator_identity, field_name="evaluator_identity"))
         )
-        canonical_sha256(dict(self.evaluator_identity))
         self.last_results: tuple[RewardResult, ...] = ()
 
     @property
@@ -122,10 +120,6 @@ class DecodedTerminalRewardAdapter:
             "reward_ids": list(self.reward_ids),
             "evaluator": dict(self.evaluator_identity),
         }
-
-    @property
-    def digest(self) -> str:
-        return canonical_sha256(self.identity)
 
     def score(self, terminal_state: object) -> Mapping[str, object]:
         try:

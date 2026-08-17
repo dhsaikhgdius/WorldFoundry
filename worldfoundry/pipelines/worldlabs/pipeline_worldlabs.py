@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import time
 from pathlib import Path
@@ -17,6 +18,8 @@ from ...synthesis.visual_generation.worldlabs.worldlabs_synthesis import WorldLa
 _DEFAULT_ENDPOINT = "https://api.worldlabs.ai"
 _API_KEY_ENV = ("WORLDLABS_API_KEY", "WLT_API_KEY")
 _PLACEHOLDER_KEYS = {"your_api_key", "your api key"}
+
+logger = logging.getLogger(__name__)
 
 
 def _resolve_api_key(api_key: Optional[str]) -> str:
@@ -250,7 +253,7 @@ class WorldLabsPipeline(PipelineABC):
 
         for _ in range(max_retries):
             operation = self.synthesis_model.get_operation(operation_id)
-            print(f"World Labs operation {operation_id}: done={operation.get('done', False)}")
+            logger.info("World Labs operation %s: done=%s", operation_id, operation.get("done", False))
             if self._extract_done(operation):
                 return operation
             time.sleep(poll_interval)

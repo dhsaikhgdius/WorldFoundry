@@ -271,7 +271,7 @@ class FlowMatchingConfig:
 
     def __post_init__(self) -> None:
         sampler = str(self.timestep_sampler).strip().lower().replace("_", "-")
-        if sampler not in {"uniform", "logit-normal"}:
+        if sampler not in {"uniform", "logit-normal", "waver"}:
             raise ValueError(f"unsupported flow timestep sampler: {sampler!r}")
         if float(self.logit_std) <= 0:
             raise ValueError("logit_std must be positive")
@@ -318,9 +318,17 @@ class FlowMatchingObjective:
             raise ValueError("batch_size must be a positive integer")
         if self.config.timestep_sampler == "uniform":
             unit = torch.rand(batch_size, device=device, dtype=torch.float32, generator=generator)
-        else:
+        elif self.config.timestep_sampler == "logit-normal":
             logits = torch.randn(batch_size, device=device, dtype=torch.float32, generator=generator)
             unit = torch.sigmoid(logits * self.config.logit_std + self.config.logit_mean)
+        else:
+            # Cosmos3's released video sampler.  It first bends a uniform
+            # variate toward its interior mode, then applies the ordinary
+            # rectified-flow shift below.
+            uniform = torch.rand(batch_size, device=device, dtype=torch.float32, generator=generator)
+            unit = 1.0 - uniform - 1.29 * (
+                torch.cos(torch.pi * 0.5 * uniform).square() - 1.0 + uniform
+            )
 
         if self.config.num_train_timesteps is None:
             base_sigmas = self.config.min_sigma + unit * (self.config.max_sigma - self.config.min_sigma)

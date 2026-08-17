@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 from typing import Literal
 
@@ -60,6 +61,7 @@ def build_native_scm_ladd_training_stack(
     teacher: TrigFlowPredictionAdapter,
     discriminator: SCMLADDDiscriminatorAdapter,
     student_scheduler: object | None = None,
+    student_scheduler_factory: Callable[[torch.optim.Optimizer], object] | None = None,
     discriminator_scheduler: object | None = None,
     student_ema: object | None = None,
     parallel_context: PostTrainingParallelContext | None = None,
@@ -123,7 +125,6 @@ def build_native_scm_ladd_training_stack(
         teacher,
         discriminator,
         recipe.algorithm,
-        config_digest=recipe.digest,
     )
     student_optimizer = build_post_training_optimizer(
         replace(recipe.optimizer, gradient_accumulation_steps=1),
@@ -131,6 +132,10 @@ def build_native_scm_ladd_training_stack(
         fused=fused_adamw,
         role="SCM-LADD student",
     )
+    if student_scheduler_factory is not None:
+        if student_scheduler is not None:
+            raise ValueError("provide either student_scheduler or student_scheduler_factory")
+        student_scheduler = student_scheduler_factory(student_optimizer)
     discriminator_optimizer = build_post_training_optimizer(
         replace(recipe.discriminator_optimizer, gradient_accumulation_steps=1),
         discriminator_module,

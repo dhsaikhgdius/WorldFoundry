@@ -4,22 +4,16 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
-from math import prod
 
 import torch
 
 from worldfoundry.training.checkpoint.checkpointer import TrainingCheckpointer
 from worldfoundry.training.checkpoint.staging import PendingTrainingCheckpoint
 from worldfoundry.training.checkpoint.state import TrainingProgress
+from worldfoundry.training.post_training.shared.batching import latent_token_count as _latent_tokens
 
 from .contracts import SGMDTrainingBatch
 from .engine import NativeSGMDTrainEngine, SGMDTrainResult
-
-
-def _latent_tokens(tensor: torch.Tensor) -> int:
-    if tensor.ndim < 2:
-        raise ValueError("latent tensor must include batch and feature dimensions")
-    return int(tensor.shape[0]) * prod(int(size) for size in tensor.shape[2:])
 
 
 @dataclass(frozen=True, slots=True)

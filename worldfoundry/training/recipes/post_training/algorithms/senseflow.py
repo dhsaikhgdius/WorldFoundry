@@ -6,6 +6,11 @@ from dataclasses import dataclass
 from math import isfinite
 
 from ..common import strict_mapping
+from .auxiliary_optimizers import (
+    AuxiliaryOptimizerRule,
+    forbids_auxiliary,
+    requires_auxiliary,
+)
 
 
 def _finite(value: object, *, field_name: str) -> float:
@@ -354,6 +359,16 @@ class SenseFlowAlgorithmSpec:
                 raise ValueError(
                     f"SenseFlow {preset} fields differ from the released preset: {mismatches}"
                 )
+
+    def auxiliary_optimizer_rules(self) -> tuple[AuxiliaryOptimizerRule, ...]:
+        return (
+            requires_auxiliary("fake_score_optimizer", "SenseFlow requires fake_score_optimizer"),
+            requires_auxiliary("discriminator_optimizer", "SenseFlow requires discriminator_optimizer"),
+            forbids_auxiliary(
+                "guidance_optimizer",
+                message="SenseFlow does not accept guidance_optimizer",
+            ),
+        )
 
     @classmethod
     def sd35_large_released(

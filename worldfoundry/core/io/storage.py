@@ -210,6 +210,9 @@ def list_uri(
     return sorted(value for value in values if value.endswith(suffixes))
 
 
+_COPY_CHUNK_BYTES = 16 * 1024 * 1024
+
+
 @contextmanager
 def local_path_for_uri(uri: str | os.PathLike[str], **storage_options) -> Generator[Path, None, None]:
     """Yield a local path, downloading remote bytes to a temporary file when needed."""
@@ -219,20 +222,28 @@ def local_path_for_uri(uri: str | os.PathLike[str], **storage_options) -> Genera
         return
     suffix = Path(urlparse(str(uri)).path).suffix
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=True) as handle:
-        handle.write(read_binary_uri(uri, **storage_options))
+        with open_uri(uri, "rb", **storage_options) as source_handle:
+            shutil.copyfileobj(source_handle, handle, length=_COPY_CHUNK_BYTES)
         handle.flush()
         yield Path(handle.name)
 
 
 def copy_uri(src: str | os.PathLike[str], dst: str | os.PathLike[str], **storage_options) -> str:
-    """Copy one URI to another using storage-aware byte streams."""
+    """Copy one URI to another using storage-aware byte streams.
+
+    Remote transfers stream in bounded chunks instead of buffering the whole
+    object in memory; this is the byte mover underneath the download caches,
+    where objects are multi-GB checkpoints.
+    """
 
     if parse_uri_scheme(src) == "file" and parse_uri_scheme(dst) == "file":
         source = uri_to_local_path(src)
         target = uri_to_local_path(dst)
         target.parent.mkdir(parents=True, exist_ok=True)
         return str(shutil.copy(source, target))
-    write_binary_uri(dst, read_binary_uri(src, **storage_options), **storage_options)
+    with open_uri(src, "rb", **storage_options) as source_handle:
+        with open_uri(dst, "wb", **storage_options) as target_handle:
+            shutil.copyfileobj(source_handle, target_handle, length=_COPY_CHUNK_BYTES)
     return str(dst)
 
 

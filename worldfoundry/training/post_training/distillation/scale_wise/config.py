@@ -5,7 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from math import isfinite
 
-from worldfoundry.core.io.integrity import canonical_sha256
 from worldfoundry.training.objectives.flow_matching import flow_match_solver_sigmas
 from worldfoundry.training.recipes.post_training.algorithms.scale_wise import (
     ScaleWiseAlgorithmSpec,
@@ -76,17 +75,6 @@ class ScaleWiseSchedule:
         if not 0 <= index < self.num_intervals:
             raise ValueError("interval_index is outside the scale-wise schedule")
         return index
-
-    @property
-    def digest(self) -> str:
-        return canonical_sha256(
-            {
-                "schema": "worldfoundry-scale-wise-schedule",
-                "scales": list(self.scales),
-                "boundary_indices": list(self.boundary_indices),
-                "solver_sigmas": list(self.solver_sigmas),
-            }
-        )
 
 
 def _positive(value: object, *, field_name: str) -> float:
@@ -272,41 +260,6 @@ class ScaleWiseConfig:
             batch_mmd=spec.batch_mmd,
             huber_c=spec.huber_c,
         )
-
-    @property
-    def digest(self) -> str:
-        return canonical_sha256(
-            {
-                "schema": "worldfoundry-scale-wise-config",
-                "schedule_digest": self.schedule.digest,
-                "dmd_enabled": self.dmd_enabled,
-                "gan_enabled": self.gan_enabled,
-                "mmd_enabled": self.mmd_enabled,
-                "fake_updates_per_iteration": self.fake_updates_per_iteration,
-                "dmd_noise_range": [
-                    self.dmd_noise_start_index,
-                    self.dmd_noise_end_index,
-                ],
-                "mmd_noise_range": [
-                    self.mmd_noise_start_index,
-                    self.mmd_noise_end_index,
-                ],
-                "teacher_guidance_scale": self.teacher_guidance_scale,
-                "fake_guidance_scale": self.fake_guidance_scale,
-                "dmd_loss_weight": self.dmd_loss_weight,
-                "generator_gan_weight": self.generator_gan_weight,
-                "critic_gan_weight": self.critic_gan_weight,
-                "mmd_loss_weight": self.mmd_loss_weight,
-                "classifier_blocks": list(self.classifier_blocks),
-                "mmd_blocks": list(self.mmd_blocks),
-                "discriminator_layers": self.discriminator_layers,
-                "mmd_kernel": self.mmd_kernel,
-                "mmd_rbf_sigma": self.mmd_rbf_sigma,
-                "batch_mmd": self.batch_mmd,
-                "huber_c": self.huber_c,
-            }
-        )
-
 
 __all__ = [
     "ScaleWiseConfig",

@@ -112,7 +112,6 @@ class NativeRCMLossAdapter:
         self.fake_score = fake_score
         self.config = config
         self.tensor_synchronizer = tensor_synchronizer
-        self.config_digest = config.digest
 
     def _synchronize(self, value: torch.Tensor) -> torch.Tensor:
         return synchronize_rcm_tensor(value, self.tensor_synchronizer)

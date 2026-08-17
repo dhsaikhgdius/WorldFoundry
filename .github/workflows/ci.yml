@@ -53,3 +53,28 @@ jobs:
 
       - name: Run documented CLI checks
         run: make docs-check
+
+  eval-core-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Miniconda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          auto-update-conda: true
+          activate-environment: worldfoundry-ci
+          auto-activate-base: false
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e . pytest numpy
+
+      - name: Run eval_core release-gate tests
+        run: make test-eval-core

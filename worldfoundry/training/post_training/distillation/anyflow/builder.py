@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from contextlib import AbstractContextManager
 from dataclasses import dataclass, replace
 from typing import Literal
 
 import torch
 from torch import nn
+from transformers import get_constant_schedule_with_warmup
 
 from worldfoundry.training.checkpoint.stateful import NamedStatefulCollection
 from worldfoundry.training.recipes.post_training.algorithms.anyflow import (
@@ -22,7 +23,6 @@ from worldfoundry.training.recipes.post_training.recipe import PostTrainingRecip
 
 from ...shared.building import (
     build_post_training_optimizer,
-    named_stateful_collection,
     require_checkpoint_identity,
     require_independent_modules,
     validate_post_training_recipe,
@@ -95,20 +95,15 @@ def _parallel_and_decisions(
     return context, AnyFlowDecisionRNG(int(seed), synchronizer=synchronizer)
 
 
-def _scheduler(
-    factory: Callable[[torch.optim.Optimizer], object] | None,
+def _constant_with_warmup_scheduler(
     optimizer: torch.optim.Optimizer,
     *,
-    role: str,
-) -> object | None:
-    if factory is None:
-        return None
-    if not callable(factory):
-        raise TypeError(f"{role} scheduler_factory must be callable or None")
-    value = factory(optimizer)
-    if not callable(getattr(value, "state_dict", None)) or not callable(getattr(value, "load_state_dict", None)):
-        raise TypeError(f"{role} scheduler must expose state_dict/load_state_dict")
-    return value
+    warmup_steps: int,
+) -> object:
+    return get_constant_schedule_with_warmup(
+        optimizer,
+        num_warmup_steps=warmup_steps,
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -118,17 +113,21 @@ class NativeAnyFlowPretrainingStack:
     loss_adapter: AnyFlowPretrainLossAdapter
     decisions: AnyFlowDecisionRNG
     optimizer: torch.optim.Optimizer
-    scheduler: object | None
+    scheduler: object
+    ema: AnyFlowEMA
     engine: NativeAnyFlowPretrainEngine
     model: nn.ModuleDict
-    scheduler_state: NamedStatefulCollection | None
+    scheduler_state: NamedStatefulCollection
 
     def checkpoint_state_kwargs(self) -> dict[str, object | None]:
         return {
             "lr_scheduler": self.scheduler_state,
-            "ema": None,
+            "ema": self.ema,
             "algorithm_state": None,
         }
+
+    def use_ema_weights(self) -> AbstractContextManager[nn.Module]:
+        return self.ema.apply_to(self.model["student"])
 
 
 @dataclass(frozen=True, slots=True)
@@ -139,12 +138,12 @@ class NativeAnyFlowOnPolicyTrainingStack:
     decisions: AnyFlowDecisionRNG
     student_optimizer: torch.optim.Optimizer
     fake_score_optimizer: torch.optim.Optimizer
-    student_scheduler: object | None
-    fake_score_scheduler: object | None
+    student_scheduler: object
+    fake_score_scheduler: object
     ema: AnyFlowEMA
     engine: NativeAnyFlowOnPolicyEngine
     model: nn.ModuleDict
-    scheduler_state: NamedStatefulCollection | None
+    scheduler_state: NamedStatefulCollection
 
     def checkpoint_state_kwargs(self) -> dict[str, object | None]:
         return {
@@ -153,12 +152,14 @@ class NativeAnyFlowOnPolicyTrainingStack:
             "algorithm_state": None,
         }
 
+    def use_ema_weights(self) -> AbstractContextManager[nn.Module]:
+        return self.ema.apply_to(self.model["student"])
+
 
 def build_native_anyflow_pretraining_stack(
     recipe: PostTrainingRecipe,
     *,
     student: AnyFlowFARAdapter | AnyFlowBidirectionalAdapter,
-    scheduler_factory: Callable[[torch.optim.Optimizer], object] | None = None,
     parallel_context: PostTrainingParallelContext | None = None,
     fused_adamw: bool | Literal["auto"] = "auto",
 ) -> NativeAnyFlowPretrainingStack:
@@ -187,6 +188,10 @@ def build_native_anyflow_pretraining_stack(
             far=_far_config(algorithm.far),
             bidirectional_modeling_probability=(algorithm.bidirectional_modeling_probability),
             conditioning_dropout_probability=(algorithm.conditioning_dropout_probability),
+            lr_scheduler=algorithm.lr_scheduler,
+            lr_warmup_steps=algorithm.lr_warmup_steps,
+            ema_decay=algorithm.ema_decay,
+            ema_warmup_steps=algorithm.ema_warmup_steps,
         )
     else:
         if not isinstance(student, AnyFlowBidirectionalAdapter):
@@ -195,6 +200,10 @@ def build_native_anyflow_pretraining_stack(
             flow_map=_map_config(algorithm.flow_map),
             image_conditioning_probability=(algorithm.image_conditioning_probability),
             conditioning_dropout_probability=(algorithm.conditioning_dropout_probability),
+            lr_scheduler=algorithm.lr_scheduler,
+            lr_warmup_steps=algorithm.lr_warmup_steps,
+            ema_decay=algorithm.ema_decay,
+            ema_warmup_steps=algorithm.ema_warmup_steps,
         )
     context, decisions = _parallel_and_decisions(
         parallel_context,
@@ -221,10 +230,14 @@ def build_native_anyflow_pretraining_stack(
         fused=fused_adamw,
         role="AnyFlow student",
     )
-    scheduler = _scheduler(
-        scheduler_factory,
+    scheduler = _constant_with_warmup_scheduler(
         optimizer,
-        role="AnyFlow student",
+        warmup_steps=config.lr_warmup_steps,
+    )
+    ema = AnyFlowEMA(
+        module,
+        decay=config.ema_decay,
+        warmup_steps=config.ema_warmup_steps,
     )
     engine = NativeAnyFlowPretrainEngine(
         student_module=module,
@@ -234,6 +247,7 @@ def build_native_anyflow_pretraining_stack(
         max_grad_norm=recipe.optimizer.max_grad_norm,
         gradient_accumulation_steps=(recipe.optimizer.gradient_accumulation_steps),
         scheduler=scheduler,
+        student_ema=ema,
         parallel_context=context,
     )
     return NativeAnyFlowPretrainingStack(
@@ -243,9 +257,10 @@ def build_native_anyflow_pretraining_stack(
         decisions=decisions,
         optimizer=optimizer,
         scheduler=scheduler,
+        ema=ema,
         engine=engine,
         model=nn.ModuleDict({"student": module}),
-        scheduler_state=named_stateful_collection(student=scheduler),
+        scheduler_state=NamedStatefulCollection({"student": scheduler}),
     )
 
 
@@ -255,8 +270,6 @@ def build_native_anyflow_on_policy_training_stack(
     student: AnyFlowFARAdapter | AnyFlowBidirectionalAdapter,
     real_score: AnyFlowScoreAdapter,
     fake_score: AnyFlowScoreAdapter,
-    student_scheduler_factory: Callable[[torch.optim.Optimizer], object] | None = None,
-    fake_score_scheduler_factory: Callable[[torch.optim.Optimizer], object] | None = None,
     parallel_context: PostTrainingParallelContext | None = None,
     fused_adamw: bool | Literal["auto"] = "auto",
 ) -> NativeAnyFlowOnPolicyTrainingStack:
@@ -315,6 +328,8 @@ def build_native_anyflow_on_policy_training_stack(
         "discriminator_update_ratio": algorithm.discriminator_update_ratio,
         "ema_decay": algorithm.ema_decay,
         "ema_warmup_steps": algorithm.ema_warmup_steps,
+        "lr_scheduler": algorithm.lr_scheduler,
+        "lr_warmup_steps": algorithm.lr_warmup_steps,
         "synchronized_seed": algorithm.synchronized_seed,
     }
     if isinstance(algorithm, AnyFlowFAROnPolicyAlgorithmSpec):
@@ -369,15 +384,13 @@ def build_native_anyflow_on_policy_training_stack(
     )
     if recipe.optimizer.gradient_accumulation_steps != recipe.fake_score_optimizer.gradient_accumulation_steps:
         raise ValueError("AnyFlow student and fake-score gradient accumulation steps must match")
-    student_scheduler = _scheduler(
-        student_scheduler_factory,
+    student_scheduler = _constant_with_warmup_scheduler(
         student_optimizer,
-        role="AnyFlow student",
+        warmup_steps=config.lr_warmup_steps,
     )
-    fake_scheduler = _scheduler(
-        fake_score_scheduler_factory,
+    fake_scheduler = _constant_with_warmup_scheduler(
         fake_optimizer,
-        role="AnyFlow fake score",
+        warmup_steps=config.lr_warmup_steps,
     )
     ema = AnyFlowEMA(
         modules["student"],
@@ -413,9 +426,11 @@ def build_native_anyflow_on_policy_training_stack(
         ema=ema,
         engine=engine,
         model=nn.ModuleDict(modules),
-        scheduler_state=named_stateful_collection(
-            student=student_scheduler,
-            fake_score=fake_scheduler,
+        scheduler_state=NamedStatefulCollection(
+            {
+                "student": student_scheduler,
+                "fake_score": fake_scheduler,
+            }
         ),
     )
 

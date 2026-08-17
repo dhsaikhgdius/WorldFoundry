@@ -268,7 +268,7 @@ def _checkpointable_stack():
         dataloader=loader,
         objective_generator=stack.sampler.generator,
         progress=progress,
-        identity={"algorithm": "diagonal-distillation", "recipe": recipe.digest},
+        identity={"algorithm": "diagonal-distillation"},
         **stack.checkpoint_state_kwargs(),
     )
     return stack, loader, progress, model, state
@@ -281,7 +281,7 @@ def test_diagonal_recipe_selects_released_stage_and_consumes_all_fields() -> Non
     assert isinstance(first.algorithm, DiagonalAlgorithmSpec)
     assert first.algorithm.stage == "stage-one"
     assert second.algorithm.stage == "stage-two"
-    assert first.digest != second.digest
+    assert first.algorithm != second.algorithm
     with pytest.raises(ValueError, match="fake_score_optimizer"):
         payload = _recipe_mapping()
         payload.pop("fake_score_optimizer")

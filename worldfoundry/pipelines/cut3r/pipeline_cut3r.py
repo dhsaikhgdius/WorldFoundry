@@ -1,6 +1,7 @@
 """Cut3R visual generation pipeline module."""
 
 from ..pipeline_utils import PipelineABC
+import logging
 import os
 from typing import Optional, List, Union, Dict, Any, Generator
 import numpy as np
@@ -22,9 +23,8 @@ from ...representations.point_clouds_generation.cut3r.cut3r_representation impor
 from ...base_models.three_dimensions.point_clouds.gaussian_splatting.scene.dataset_readers import (
     storePly,
 )
-from ...base_models.three_dimensions.point_clouds.flash_world.render import (
-    gaussian_render,
-)
+
+logger = logging.getLogger(__name__)
 
 
 class CUT3RResult:
@@ -92,7 +92,7 @@ class CUT3RResult:
             for i, depth in enumerate(self.depth_maps):
                 depth_2d = squeeze_depth_to_2d(depth)
                 if depth_2d is None:
-                    print(f"Warning: Skipping depth map {i} with unexpected shape: {depth.shape}")
+                    logger.warning("Skipping depth map %d with unexpected shape: %s", i, depth.shape)
                     continue
                 output_path = os.path.join(depth_dir, f"depth_{i:06d}.png")
                 if save_depth_colormap(depth_2d, output_path) is not None:

@@ -20,7 +20,9 @@ class VideoRunnerSpec:
     """In-tree official runner script and results-path CLI flag."""
 
     script: str
-    results_flag: str
+    # Every registered runner currently uses the shared flag; the default means
+    # new entries no longer repeat it (existing explicit values stay valid).
+    results_flag: str = "--official-results-path"
     extra_args: tuple[str, ...] = ()
     pass_benchmark_id: bool = True
 

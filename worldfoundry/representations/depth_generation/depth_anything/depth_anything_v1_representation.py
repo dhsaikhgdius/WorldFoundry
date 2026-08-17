@@ -1,5 +1,4 @@
 import os
-import warnings
 from pathlib import Path
 from typing import Optional, Dict, Any, Union
 
@@ -7,6 +6,8 @@ import torch
 import numpy as np
 import cv2
 from torchvision.transforms import Compose
+
+from worldfoundry.core.model_loading import load_torch_checkpoint
 
 from ...base_representation import BaseRepresentation
 from ....base_models.three_dimensions.depth.depth_anything.depth_anything_v1.dpt import DepthAnything
@@ -101,9 +102,15 @@ class DepthAnything1Representation(BaseRepresentation):
         if model_path.is_dir():
             return DepthAnything.from_pretrained(str(model_path))
 
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=FutureWarning, message=".*weights_only.*")
-            checkpoint = torch.load(model_path, map_location='cpu', weights_only=False)
+        # The checkpoint is consumed purely as a state_dict; load weights-only by
+        # default and only fall back to unrestricted pickle on legacy wrapped
+        # checkpoints that fail the safe path.
+        checkpoint = load_torch_checkpoint(
+            model_path,
+            map_location="cpu",
+            weights_only=True,
+            allow_unsafe_pickle_fallback=True,
+        )
 
         if 'model' in checkpoint:
             state_dict = checkpoint['model']

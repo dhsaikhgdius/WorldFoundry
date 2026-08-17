@@ -6,6 +6,11 @@ from dataclasses import dataclass
 from math import isfinite
 
 from ..common import positive_int, strict_mapping
+from .auxiliary_optimizers import (
+    AuxiliaryOptimizerRule,
+    forbids_auxiliary,
+    requires_auxiliary,
+)
 
 DMD_ALGORITHM_FIELDS = {
     "type",
@@ -109,6 +114,16 @@ class DMDAlgorithmSpec:
             positive_int(
                 self.generator_update_interval,
                 field_name="algorithm.generator_update_interval",
+            ),
+        )
+
+    def auxiliary_optimizer_rules(self) -> tuple[AuxiliaryOptimizerRule, ...]:
+        return (
+            requires_auxiliary("fake_score_optimizer", "DMD requires fake_score_optimizer"),
+            forbids_auxiliary(
+                "guidance_optimizer",
+                "discriminator_optimizer",
+                message=f"{self.type} only accepts fake_score_optimizer",
             ),
         )
 

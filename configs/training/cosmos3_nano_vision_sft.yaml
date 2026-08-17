@@ -1,0 +1,85 @@
+schema: worldfoundry-training
+execution_owner: worldfoundry-native
+run:
+  id: cosmos3-nano-vision-sft
+  output_dir: runs/cosmos3-nano-vision-sft
+model:
+  recipe: cosmos3-nano
+  checkpoint: default
+  options:
+    use_system_prompt: false
+tuning:
+  mode: partial
+  preset: cosmos3-nano-vision-sft
+data:
+  manifest: data/cosmos3_train.jsonl
+  cache: cache/cosmos3-nano
+  # One 49x256x256 sample after the official 4x16x16 VAE compression.
+  max_latent_tokens_per_microbatch: 3328
+  split: train
+  shuffle: true
+  shuffle_seed: 42
+  tail_policy: pad
+  options:
+    video_buckets:
+      - num_frames: 49
+        height: 256
+        width: 256
+        conditioning_layout: cosmos3-token-sequence
+        tasks: [t2v, i2v, v2v]
+    bucket_policy:
+      allow_spatial_upscale: false
+      allow_temporal_padding: false
+    decode:
+      frame_sampling: uniform-full
+      interpolation: bicubic
+      value_range: minus-one-one
+      decoder_thread_type: auto
+      verify_manifest_frame_count: true
+      verify_manifest_geometry: true
+      fps_tolerance: 0.05
+    num_workers: 4
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 4
+    snapshot_every_n_steps: 1
+objective:
+  type: flow_matching
+  prediction_type: flow_velocity
+  timestep_sampler: waver
+  conditioning_dropout: 0.1
+  options:
+    flow_shift: 3.0
+    conditioning_config:
+      0: 0.7
+      1: 0.2
+      2: 0.1
+optimizer:
+  type: adamw
+  learning_rate: 1.0e-4
+  weight_decay: 0.0
+  betas: [0.9, 0.95]
+  epsilon: 1.0e-6
+  max_grad_norm: 0.1
+  gradient_accumulation_steps: 2
+scheduler:
+  type: warmup-cosine
+  total_steps: 1000
+  warmup_steps: 50
+  start_factor: 0.0
+  peak_factor: 1.0
+  end_factor: 0.0
+runtime:
+  param_dtype: bfloat16
+  reduce_dtype: float32
+  activation_checkpoint: full
+  compile: false
+distributed:
+  backend: fsdp2
+  dp_replicate: 1
+  dp_shard: auto
+  cp: 1
+  tp: 1
+checkpoint:
+  save_every_steps: 100
+  async: false

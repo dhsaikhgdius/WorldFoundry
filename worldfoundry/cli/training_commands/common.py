@@ -12,11 +12,51 @@ if TYPE_CHECKING:
 
 def training_family(model_recipe: str) -> str:
     model_id = str(model_recipe).strip().lower().replace("_", "-")
+    if model_id.startswith("qwen3-"):
+        return "qwen3"
     if model_id.startswith("sana-"):
         return "sana"
     if model_id == "wan2.1-t2v-1.3b":
         return "wan"
+    if model_id == "wan2.2-t2v-a14b":
+        return "wan22"
+    if model_id in {"ltx-video-i2v", "ltx-2-i2v", "ltx-2.3-i2v"}:
+        return "ltx"
+    if model_id in {"hunyuanvideo-t2v", "hunyuanvideo-1.5-t2v"}:
+        return "hunyuan-video"
+    if model_id == "lvdm-short-unconditional":
+        return "lvdm"
+    if model_id in {"dynamicrafter-512-i2v", "dynamicrafter-1024-i2v"}:
+        return "dynamicrafter"
+    if model_id == "t2v-turbo":
+        return "t2v-turbo"
+    if model_id in {
+        "cosmos-predict2-2b-video2world",
+        "cosmos-predict2-14b-video2world",
+        "cosmos-predict2.5-2b",
+        "cosmos-predict2.5-14b",
+        "cosmos3-nano",
+        "cosmos3-super",
+    }:
+        return "cosmos"
     raise ValueError(f"native training does not support model recipe {model_recipe!r}")
+
+
+def training_checkpoint_key(model_recipe: str) -> str:
+    """Return the denoiser asset key owned by one native model recipe."""
+
+    family = training_family(model_recipe)
+    if family in {"sana", "wan"}:
+        return "dit"
+    if family == "ltx":
+        return "model"
+    if family == "lvdm":
+        return "denoiser"
+    if family == "dynamicrafter":
+        return "model"
+    if family == "t2v-turbo":
+        return "student"
+    return "transformer"
 
 
 def training_base_dir(value: Path | None) -> Path:
@@ -81,5 +121,6 @@ __all__ = [
     "checkpoint_overrides",
     "load_cache_recipe",
     "training_base_dir",
+    "training_checkpoint_key",
     "training_family",
 ]

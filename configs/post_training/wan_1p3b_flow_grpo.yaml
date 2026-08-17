@@ -21,24 +21,41 @@ data:
   options:
     prompt_batch_size: 1
     generation:
-      height: 256
-      width: 416
-      num_frames: 17
+      height: 720
+      width: 1280
+      num_frames: 5
 algorithm:
   type: flow-grpo
   num_train_timesteps: 1000
-  sigmas: [1.0, 0.8, 0.6, 0.4, 0.2, 0.0]
-  sde_step_indices: [1, 2, 3]
+  sigmas:
+    - 1.0
+    - 0.9848484396934509
+    - 0.967741847038269
+    - 0.9482758045196533
+    - 0.9259259700775146
+    - 0.8999999761581421
+    - 0.8695651888847351
+    - 0.8333333134651184
+    - 0.7894737124443054
+    - 0.7352941632270813
+    - 0.6666666865348816
+    - 0.5769230723381042
+    - 0.4545454680919647
+    - 0.2777777910232544
+    - 0.0
+  sde_timestep_fraction: [0.0, 0.5]
+  num_sde_steps: 7
+  guidance_scale: 1.0
+  init_same_noise: false
   eta: 0.7
-  sigma_max: 0.8
   clip_range: 0.0001
-  updates_per_trajectory: 1
-  group_size: 4
-  old_log_prob_source: rollout
+  updates_per_trajectory: 2
+  group_size: 16
+  old_log_prob_source: replay
   reference_kl_weight: 0.0
   advantage_epsilon: 0.00000001
-  advantage_normalization: group-population-variance
-  trajectory_dtype: bfloat16
+  advantage_normalization: group-mean-global-population-std
+  trajectory_dtype: float16
   reward_weights:
     video_quality: 1.0
     motion_quality: 1.0
@@ -50,7 +67,6 @@ algorithm:
     checkpoint_repository: KlingTeam/VideoReward
     checkpoint_revision: b8e421fe21aec3dde5f61fdd1dc44e1d603b9727
     checkpoint_file: checkpoint-11352/model.pth
-    checkpoint_sha256: 48375908e6112de9f0248402db156a23b480709a6960b091c598c6f4c88d21b9
     checkpoint_size_bytes: 5031072529
     source_fps: 24.0
     target_fps: 2.0

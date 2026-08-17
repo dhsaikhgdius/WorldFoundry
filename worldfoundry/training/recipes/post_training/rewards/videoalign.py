@@ -21,7 +21,6 @@ VIDEOALIGN_BASE_MODEL_REVISION = "895c3a49bc3fa70a340399125c650a463535e71c"
 VIDEOALIGN_CHECKPOINT_REPOSITORY = "KlingTeam/VideoReward"
 VIDEOALIGN_CHECKPOINT_REVISION = "b8e421fe21aec3dde5f61fdd1dc44e1d603b9727"
 VIDEOALIGN_CHECKPOINT_FILE = "checkpoint-11352/model.pth"
-VIDEOALIGN_CHECKPOINT_SHA256 = "48375908e6112de9f0248402db156a23b480709a6960b091c598c6f4c88d21b9"
 VIDEOALIGN_CHECKPOINT_SIZE_BYTES = 5_031_072_529
 VIDEOALIGN_CALIBRATION_MEAN = MappingProxyType(
     {
@@ -39,7 +38,6 @@ VIDEOALIGN_CALIBRATION_STD = MappingProxyType(
 )
 
 _COMMIT_PATTERN = re.compile(r"[0-9a-f]{40}")
-_SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,7 +49,6 @@ class VideoAlignRewardSpec:
     checkpoint_repository: str = VIDEOALIGN_CHECKPOINT_REPOSITORY
     checkpoint_revision: str = VIDEOALIGN_CHECKPOINT_REVISION
     checkpoint_file: str = VIDEOALIGN_CHECKPOINT_FILE
-    checkpoint_sha256: str = VIDEOALIGN_CHECKPOINT_SHA256
     checkpoint_size_bytes: int = VIDEOALIGN_CHECKPOINT_SIZE_BYTES
     source_fps: float = 24.0
     target_fps: float = 2.0
@@ -92,10 +89,6 @@ class VideoAlignRewardSpec:
         if not checkpoint_file or path.is_absolute() or ".." in path.parts:
             raise ValueError("checkpoint_file must be a safe relative path")
         object.__setattr__(self, "checkpoint_file", path.as_posix())
-        checkpoint_sha256 = str(self.checkpoint_sha256).strip().lower()
-        if _SHA256_PATTERN.fullmatch(checkpoint_sha256) is None:
-            raise ValueError("checkpoint_sha256 must be a 64-hex digest")
-        object.__setattr__(self, "checkpoint_sha256", checkpoint_sha256)
         object.__setattr__(
             self,
             "checkpoint_size_bytes",
@@ -170,7 +163,6 @@ VIDEOALIGN_REWARD_FIELDS = {
     "checkpoint_repository",
     "checkpoint_revision",
     "checkpoint_file",
-    "checkpoint_sha256",
     "checkpoint_size_bytes",
     "source_fps",
     "target_fps",
@@ -196,7 +188,6 @@ __all__ = [
     "VIDEOALIGN_CHECKPOINT_FILE",
     "VIDEOALIGN_CHECKPOINT_REPOSITORY",
     "VIDEOALIGN_CHECKPOINT_REVISION",
-    "VIDEOALIGN_CHECKPOINT_SHA256",
     "VIDEOALIGN_CHECKPOINT_SIZE_BYTES",
     "VIDEOALIGN_REWARD_IDS",
     "VideoAlignRewardSpec",

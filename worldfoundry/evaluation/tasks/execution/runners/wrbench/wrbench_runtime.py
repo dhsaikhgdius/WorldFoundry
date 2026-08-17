@@ -8,6 +8,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from worldfoundry.evaluation.tasks.execution.framework.official_runner import default_benchmark_timeout
+
 from .wrbench_paths import resolve_wrbench_root
 
 
@@ -71,7 +73,15 @@ def run_wrbench_evaluator(
     ]
     env = os.environ.copy()
     env["PYTHONPATH"] = os.pathsep.join(part for part in (str(root), env.get("PYTHONPATH")) if part)
-    completed = subprocess.run(command, cwd=str(root), env=env, text=True, capture_output=True, check=False)
+    completed = subprocess.run(
+        command,
+        cwd=str(root),
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=default_benchmark_timeout(),
+    )
     stdout_path = output_dir / "wrbench_runtime_stdout.log"
     stderr_path = output_dir / "wrbench_runtime_stderr.log"
     stdout_path.write_text(completed.stdout, encoding="utf-8")

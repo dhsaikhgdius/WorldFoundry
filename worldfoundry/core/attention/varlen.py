@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import warnings
 from typing import Any
 
 import torch
+
+logger = logging.getLogger(__name__)
 
 from worldfoundry.core.attention.backends import probe_attention_backends
 from worldfoundry.core.attention.native import native_sdpa_priority, scaled_dot_product_attention
@@ -123,13 +126,13 @@ def flash_attention(
     if version == 3:
         try:
             import flash_attn_interface
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("flash_attn_interface import failed: %s", exc)
     elif version == 2:
         try:
             import flash_attn as flash_attn_module
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("flash_attn import failed: %s", exc)
     capabilities = probe_attention_backends(q.device) if version in {2, 3} else {}
     use_fa3 = (
         version == 3
@@ -145,6 +148,10 @@ def flash_attention(
     if version == 3 and not use_fa3:
         warnings.warn(
             "FlashAttention 3 is unavailable on this GPU/runtime; falling back to PyTorch SDPA."
+        )
+    if version == 2 and not use_fa2:
+        warnings.warn(
+            "FlashAttention 2 is unavailable on this GPU/runtime; falling back to PyTorch SDPA."
         )
 
     if use_fa3:
@@ -365,14 +372,20 @@ def varlen_scaled_dot_product_attention(
     if version == 2:
         try:
             from flash_attn import flash_attn_varlen_func
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("flash_attn import failed: %s", exc)
     elif version == 3:
         try:
             from flash_attn_interface import flash_attn_varlen_func as flash_attn_varlen_func_v3
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("flash_attn_interface import failed: %s", exc)
     capabilities = probe_attention_backends(query.device) if version in {2, 3} else {}
+    if version == 3 and (
+        flash_attn_varlen_func_v3 is None or not capabilities["flash_attention_3"].usable or dropout_p != 0.0
+    ):
+        warnings.warn("FlashAttention 3 is unavailable on this GPU/runtime; falling back to PyTorch SDPA.")
+    if version == 2 and (flash_attn_varlen_func is None or not capabilities["flash_attention_2"].usable):
+        warnings.warn("FlashAttention 2 is unavailable on this GPU/runtime; falling back to PyTorch SDPA.")
     if (
         flash_attn_varlen_func_v3 is not None
         and capabilities["flash_attention_3"].usable

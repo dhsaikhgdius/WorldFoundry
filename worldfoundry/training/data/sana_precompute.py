@@ -20,7 +20,7 @@ from worldfoundry.training.safety.shieldgemma import (
     ShieldGemmaPromptFilter,
 )
 
-from .checkpoint_assets import checkpoint_asset_digest
+from .checkpoint_assets import checkpoint_asset_identity
 from .dataset import TrainingManifestDataset
 from .manifest import TrainingSample, resolve_local_media_path
 from .sana_cache import (
@@ -28,9 +28,6 @@ from .sana_cache import (
     SanaCacheIndex,
     SanaCacheProvenance,
     SanaCacheStore,
-    canonical_sha256,
-    sana_cache_contract_digest,
-    text_sha256,
 )
 from .shared_conditioning import SharedConditioningArtifact, SharedConditioningStore
 
@@ -48,26 +45,23 @@ def _validate_sana_cache_recipe(recipe: object) -> object:
     return recipe
 
 
-def prompt_enhancement_digest(
+def prompt_enhancement_config(
     *,
     enabled: bool,
     max_text_length: int,
     prefix: str,
-) -> str:
-    """Bind prompt enhancement behavior without copying prompts into metadata."""
+) -> dict[str, object]:
+    """Return the prompt enhancement behavior used by the conditioner."""
 
     if not isinstance(enabled, bool):
         raise TypeError("prompt enhancement enabled must be a bool")
     if isinstance(max_text_length, bool) or int(max_text_length) < 2:
         raise ValueError("max_text_length must be at least two")
-    return canonical_sha256(
-        {
-            "schema": "worldfoundry-sana-prompt-enhancement",
-            "enabled": enabled,
-            "max_text_length": int(max_text_length),
-            "prefix_sha256": text_sha256(str(prefix)) if enabled else None,
-        }
-    )
+    return {
+        "enabled": enabled,
+        "max_text_length": int(max_text_length),
+        "prefix": str(prefix) if enabled else "",
+    }
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,18 +77,15 @@ class ExactSanaImageTransform:
         if not isinstance(self.apply_exif_orientation, bool):
             raise TypeError("apply_exif_orientation must be a bool")
 
-    @property
-    def digest(self) -> str:
-        return canonical_sha256(
-            {
-                "schema": self.schema,
-                "apply_exif_orientation": self.apply_exif_orientation,
-                "color_mode": "RGB",
-                "geometry": "require-exact-manifest-dimensions",
-                "layout": "channels-single-frame-height-width",
-                "value_transform": "uint8-div-127.5-minus-1",
-            }
-        )
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "schema": self.schema,
+            "apply_exif_orientation": self.apply_exif_orientation,
+            "color_mode": "RGB",
+            "geometry": "require-exact-manifest-dimensions",
+            "layout": "channels-single-frame-height-width",
+            "value_transform": "uint8-div-127.5-minus-1",
+        }
 
     def decode(self, sample: TrainingSample, *, manifest_path: str | Path) -> torch.Tensor:
         if sample.num_frames != 1:
@@ -262,10 +253,10 @@ def prepare_sana_training_cache(
     feature_encoder: SanaFeatureEncoder,
     prompt_filter: ShieldGemmaPromptFilter,
     model_recipe: str,
-    codec_digest: str,
-    conditioner_digest: str,
-    tokenizer_digest: str,
-    prompt_enhancement_digest_value: str,
+    codec: Mapping[str, object],
+    conditioner: Mapping[str, object],
+    tokenizer: Mapping[str, object],
+    prompt_enhancement: Mapping[str, object],
     spatial_compression: int = 32,
     image_transform: ExactSanaImageTransform | None = None,
     safety_batch_size: int = 4,
@@ -290,10 +281,10 @@ def prepare_sana_training_cache(
         feature_encoder=feature_encoder,
         safety_audits=audits,
         model_recipe=model_recipe,
-        codec_digest=codec_digest,
-        conditioner_digest=conditioner_digest,
-        tokenizer_digest=tokenizer_digest,
-        prompt_enhancement_digest_value=prompt_enhancement_digest_value,
+        codec=codec,
+        conditioner=conditioner,
+        tokenizer=tokenizer,
+        prompt_enhancement=prompt_enhancement,
         spatial_compression=spatial_compression,
         image_transform=transform,
     )
@@ -306,10 +297,10 @@ def prepare_sana_training_cache_from_audits(
     feature_encoder: SanaFeatureEncoder,
     safety_audits: Sequence[PromptSafetyAudit],
     model_recipe: str,
-    codec_digest: str,
-    conditioner_digest: str,
-    tokenizer_digest: str,
-    prompt_enhancement_digest_value: str,
+    codec: Mapping[str, object],
+    conditioner: Mapping[str, object],
+    tokenizer: Mapping[str, object],
+    prompt_enhancement: Mapping[str, object],
     spatial_compression: int = 32,
     image_transform: ExactSanaImageTransform | None = None,
 ) -> SanaCachePreparationResult:
@@ -338,13 +329,12 @@ def prepare_sana_training_cache_from_audits(
     )
     entries: list[SanaCacheEntry] = []
     for sample, audit in zip(manifest, audits):
-        if audit.prompt_sha256 != text_sha256(sample.prompt):
-            raise RuntimeError("ShieldGemma audit prompt digest differs from the manifest prompt")
-        recorded_audit = sample.safety.get("prompt_audit_digest")
-        if recorded_audit is None:
-            raise ValueError(f"manifest sample {sample.sample_id!r} lacks safety.prompt_audit_digest")
-        if str(recorded_audit).lower() != audit.digest:
-            raise ValueError(f"manifest safety.prompt_audit_digest differs for sample {sample.sample_id!r}")
+        if audit.prompt != sample.prompt:
+            raise ValueError("ShieldGemma audit prompt differs from the manifest prompt")
+        if sample.safety.get("prompt_safe") is not True:
+            raise ValueError(f"manifest prompt safety decision differs for sample {sample.sample_id!r}")
+        if sample.safety.get("model_revision") != audit.model_revision:
+            raise ValueError(f"manifest safety model revision differs for sample {sample.sample_id!r}")
         pixels = transform.decode(sample, manifest_path=manifest.manifest_path)
         latents, context, context_mask = feature_encoder.encode(
             sample_id=sample.sample_id,
@@ -353,23 +343,16 @@ def prepare_sana_training_cache_from_audits(
             image_height=sample.height,
             image_width=sample.width,
         )
-        contract_digest = sana_cache_contract_digest(
-            model_recipe,
-            latent_channels=int(latents.shape[0]),
-            spatial_compression=spatial_compression,
-            max_text_length=int(context.shape[1]),
-            context_features=int(context.shape[2]),
-        )
         provenance = SanaCacheProvenance(
-            media_sha256=sample.media.sha256,
-            prompt_sha256=audit.prompt_sha256,
-            model_recipe_digest=contract_digest,
-            codec_digest=codec_digest,
-            conditioner_digest=conditioner_digest,
-            tokenizer_digest=tokenizer_digest,
-            safety_audit_digest=audit.digest,
-            pixel_transform_digest=transform.digest,
-            prompt_enhancement_digest=prompt_enhancement_digest_value,
+            media_uri=sample.media.uri,
+            prompt=sample.prompt,
+            model_recipe=model_recipe,
+            codec=codec,
+            conditioner=conditioner,
+            tokenizer=tokenizer,
+            safety_audit=audit.to_dict(),
+            pixel_transform=transform.to_dict(),
+            prompt_enhancement=prompt_enhancement,
             image_height=sample.height,
             image_width=sample.width,
             spatial_compression=spatial_compression,
@@ -388,10 +371,10 @@ def prepare_sana_training_cache_from_audits(
     reference = entries[0].provenance
     unconditional = SharedConditioningStore(store.root).write(
         branch="unconditional",
-        prompt_sha256=text_sha256(""),
-        model_recipe_digest=reference.model_recipe_digest,
-        conditioner_digest=conditioner_digest,
-        tokenizer_digest=tokenizer_digest,
+        prompt="",
+        model_recipe=reference.model_recipe,
+        conditioner=conditioner,
+        tokenizer=tokenizer,
         tensors={
             "context": unconditional_context,
             "context_mask": unconditional_mask,
@@ -401,7 +384,7 @@ def prepare_sana_training_cache_from_audits(
             "context_mask": "sequence",
         },
     )
-    index = store.write_index(dataset_digest=manifest.dataset_digest, entries=entries)
+    index = store.write_index(entries=entries)
     return SanaCachePreparationResult(
         index=index,
         entries=tuple(entries),
@@ -410,15 +393,19 @@ def prepare_sana_training_cache_from_audits(
     )
 
 
-def _checkpoint_digest(spec: object) -> str:
-    repository = getattr(spec, "repo_id", None) or str(getattr(spec, "source", "local-explicit"))
+def _checkpoint_identity(spec: object) -> dict[str, object]:
+    repository = getattr(spec, "repo_id", None) or "local-explicit"
     revision = getattr(spec, "revision", None) or "local-explicit"
-    files = {f"file:{name}": digest for name, digest in dict(getattr(spec, "file_sha256", {})).items()}
-    files.update({f"resource:{name}": digest for name, digest in dict(getattr(spec, "resource_sha256", {})).items()})
-    return checkpoint_asset_digest(
-        repository=str(repository),
+    sources = tuple(str(source) for source in getattr(spec, "sources", ()))
+    files = tuple(str(name) for name in getattr(spec, "files", ())) or tuple(
+        str(name) for name in getattr(spec, "allow_patterns", ())
+    )
+    return checkpoint_asset_identity(
+        repo_id=str(repository),
         revision=str(revision),
-        file_sha256=files,
+        files=files,
+        file_size_bytes=dict(getattr(spec, "file_size_bytes", {})),
+        sources=sources,
     )
 
 
@@ -431,7 +418,7 @@ def materialize_sana_training_cache(
     checkpoint_overrides: Mapping[str, object] | None = None,
     shieldgemma_checkpoint: object | None = None,
     safety_audits: Sequence[PromptSafetyAudit] | None = None,
-    verify_media_hashes: bool = True,
+    verify_media_files: bool = True,
     safety_batch_size: int = 4,
 ) -> SanaCachePreparationResult:
     """Audit prompts, release ShieldGemma, then load only Gemma and DCAE."""
@@ -459,8 +446,7 @@ def materialize_sana_training_cache(
     manifest = TrainingManifestDataset.from_file(
         manifest_path,
         split=recipe.data.split,
-        verify_files=True,
-        verify_hashes=verify_media_hashes,
+        verify_files=verify_media_files,
     )
     if safety_audits is not None and shieldgemma_checkpoint is not None:
         raise ValueError("safety_audits and shieldgemma_checkpoint are mutually exclusive")
@@ -504,7 +490,7 @@ def materialize_sana_training_cache(
         components[conditioner_key],
     )
     conditioner = components[conditioner_key]
-    enhancement = prompt_enhancement_digest(
+    enhancement = prompt_enhancement_config(
         enabled=bool(getattr(conditioner, "enhance_prompt", True)),
         max_text_length=feature_encoder.max_text_length,
         prefix=SANA_PROMPT_PREFIX,
@@ -515,10 +501,10 @@ def materialize_sana_training_cache(
         feature_encoder=feature_encoder,
         safety_audits=audits,
         model_recipe=recipe.model.recipe,
-        codec_digest=_checkpoint_digest(resolved_checkpoints["codec"]),
-        conditioner_digest=_checkpoint_digest(resolved_checkpoints["text-encoder"]),
-        tokenizer_digest=_checkpoint_digest(resolved_checkpoints["tokenizer"]),
-        prompt_enhancement_digest_value=enhancement,
+        codec=_checkpoint_identity(resolved_checkpoints["codec"]),
+        conditioner=_checkpoint_identity(resolved_checkpoints["text-encoder"]),
+        tokenizer=_checkpoint_identity(resolved_checkpoints["tokenizer"]),
+        prompt_enhancement=enhancement,
         spatial_compression=int(native_recipe.options.get("spatial_compression", 32)),
     )
 
@@ -528,9 +514,9 @@ __all__ = [
     "SANA_PIXEL_TRANSFORM_SCHEMA",
     "SanaCachePreparationResult",
     "SanaFeatureEncoder",
-    "checkpoint_asset_digest",
+    "checkpoint_asset_identity",
     "materialize_sana_training_cache",
     "prepare_sana_training_cache",
     "prepare_sana_training_cache_from_audits",
-    "prompt_enhancement_digest",
+    "prompt_enhancement_config",
 ]

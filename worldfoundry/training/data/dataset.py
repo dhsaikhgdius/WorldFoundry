@@ -36,14 +36,12 @@ class TrainingManifestDataset(Sequence[TrainingSample]):
         *,
         split: str | None = None,
         verify_files: bool = True,
-        verify_hashes: bool = False,
     ) -> "TrainingManifestDataset":
         return cls(
             load_training_manifest(
                 path,
                 split=split,
                 verify_files=verify_files,
-                verify_hashes=verify_hashes,
             )
         )
 
@@ -54,14 +52,6 @@ class TrainingManifestDataset(Sequence[TrainingSample]):
     @property
     def manifest_path(self) -> Path:
         return self._manifest.path
-
-    @property
-    def manifest_sha256(self) -> str:
-        return self._manifest.manifest_sha256
-
-    @property
-    def dataset_digest(self) -> str:
-        return self._manifest.dataset_digest
 
     @property
     def sample_ids(self) -> tuple[str, ...]:

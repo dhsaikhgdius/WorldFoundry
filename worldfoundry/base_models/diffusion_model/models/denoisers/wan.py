@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import math
 from collections.abc import Mapping
 from dataclasses import replace
@@ -13,7 +14,7 @@ from worldfoundry.core.model_loading import hash_state_dict_keys
 
 from ...components import BuildPurpose, ComponentBuildContext
 from ...contracts import DenoiserInput, DenoiserOutput
-from ...loaders import CheckpointSpec, ModuleLoadSpec, NativeModuleLoader
+from ...loaders import ModuleLoadSpec, NativeModuleLoader
 from ..networks.wan.model import RMSNorm, WanModel
 
 WAN21_T2V_1P3B_CONFIG = {
@@ -37,6 +38,8 @@ WAN21_T2V_14B_CONFIG = {
     "num_heads": 40,
     "num_layers": 40,
 }
+
+WAN22_T2V_A14B_CONFIG = dict(WAN21_T2V_14B_CONFIG)
 
 WAN21_I2V_14B_CONFIG = {
     **WAN21_T2V_14B_CONFIG,
@@ -82,63 +85,19 @@ WAN22_TI2V_5B_CONFIG = {
 }
 
 _WAN_DENOISER_OPTION_KEYS = frozenset({"peft_adapter_path", "weight_dtype"})
-_ROLE_CHECKPOINT_FIELDS = frozenset(
-    {
-        "sources",
-        "repo_id",
-        "revision",
-        "files",
-        "allow_patterns",
-        "file_sha256",
-        "file_size_bytes",
-        "resource_sha256",
-        "resource_size_bytes",
-    }
-)
 
 
-def _checkpoint_payload(checkpoint: CheckpointSpec) -> dict[str, object]:
-    return {
-        "sources": list(checkpoint.sources),
-        "repo_id": checkpoint.repo_id,
-        "revision": checkpoint.revision,
-        "files": list(checkpoint.files),
-        "allow_patterns": list(checkpoint.allow_patterns),
-        "file_sha256": dict(checkpoint.file_sha256),
-        "file_size_bytes": dict(checkpoint.file_size_bytes),
-        "resource_sha256": dict(checkpoint.resource_sha256),
-        "resource_size_bytes": dict(checkpoint.resource_size_bytes),
-    }
-
-
-def _adapter_role_checkpoint(metadata: Mapping[str, object]) -> dict[str, object]:
-    role = metadata.get("role")
-    if role not in {"policy", "student"}:
-        raise ValueError("Wan PEFT adapter metadata.role must be 'policy' or 'student'")
-    roles = metadata.get("roles")
-    if not isinstance(roles, Mapping):
-        raise TypeError("Wan PEFT adapter metadata.roles must be an object")
-
-    identity: object | None = None
-    direct_role = roles.get(role)
-    if isinstance(direct_role, Mapping):
-        identity = direct_role.get("checkpoint")
-    if identity is None:
-        checkpoint_roles = roles.get("checkpoints")
-        if isinstance(checkpoint_roles, Mapping):
-            identity = checkpoint_roles.get(role)
-    if not isinstance(identity, Mapping):
-        raise TypeError(f"Wan PEFT adapter has no checkpoint identity for role {role!r}")
-    checkpoint = identity.get("checkpoint")
-    if not isinstance(checkpoint, Mapping):
-        raise TypeError(f"Wan PEFT adapter checkpoint identity for {role!r} is incomplete")
-    if set(checkpoint) != _ROLE_CHECKPOINT_FIELDS:
-        raise ValueError(
-            "Wan PEFT adapter checkpoint fields differ: "
-            f"missing={sorted(_ROLE_CHECKPOINT_FIELDS - set(checkpoint))}, "
-            f"unknown={sorted(set(checkpoint) - _ROLE_CHECKPOINT_FIELDS)}"
-        )
-    return dict(checkpoint)
+def _read_wan_peft_config(adapter_path: Path) -> dict[str, object]:
+    config_path = adapter_path / "adapter_config.json"
+    try:
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError(f"invalid Wan PEFT adapter config: {config_path}") from error
+    if not isinstance(config, dict):
+        raise TypeError("Wan PEFT adapter_config.json must contain one JSON object")
+    if config.get("peft_type") != "LORA":
+        raise ValueError(f"unsupported Wan PEFT adapter type: {config.get('peft_type')!r}")
+    return config
 
 
 def _validated_wan_peft_adapter(
@@ -150,22 +109,46 @@ def _validated_wan_peft_adapter(
     if not isinstance(value, (str, Path)) or not str(value).strip():
         raise TypeError("Wan peft_adapter_path must be a non-empty local filesystem path")
 
-    from worldfoundry.training.tuning import inspect_peft_adapter
-
-    artifact = inspect_peft_adapter(Path(value).expanduser())
-    exported_checkpoint = _adapter_role_checkpoint(artifact.metadata)
-    selected_checkpoint = _checkpoint_payload(context.require_checkpoint("weights"))
-    if exported_checkpoint != selected_checkpoint:
-        changed = sorted(
-            key
-            for key in _ROLE_CHECKPOINT_FIELDS
-            if exported_checkpoint.get(key) != selected_checkpoint.get(key)
-        )
+    adapter_path = Path(value).expanduser()
+    if not adapter_path.is_dir():
+        raise FileNotFoundError(f"Wan PEFT adapter directory does not exist: {adapter_path}")
+    config = _read_wan_peft_config(adapter_path)
+    base_model_id = config.get("base_model_name_or_path")
+    if base_model_id not in (None, "") and str(base_model_id) != context.model_id:
         raise ValueError(
-            "Wan PEFT adapter base checkpoint differs from the selected recipe checkpoint: "
-            f"changed={changed}"
+            "Wan PEFT adapter base model differs from the selected model: "
+            f"adapter={base_model_id!r}, selected={context.model_id!r}"
         )
-    return artifact.path
+    return adapter_path
+
+
+def _merge_wan_peft_adapter(model: torch.nn.Module, adapter_path: Path) -> None:
+    from worldfoundry.training.tuning import WAN_ATTENTION, audit_lora_targets, merge_peft_adapter
+
+    config = _read_wan_peft_config(adapter_path)
+    target_modules = config.get("target_modules")
+    if not target_modules or not isinstance(target_modules, (str, list)):
+        raise ValueError("Wan PEFT adapter must declare target_modules")
+    target_audit = audit_lora_targets(model, WAN_ATTENTION)
+    auto_mapping = config.get("auto_mapping")
+    if isinstance(auto_mapping, Mapping):
+        base_class = auto_mapping.get("base_model_class")
+        if base_class not in (None, "", type(model).__name__):
+            raise ValueError(
+                "Wan PEFT adapter base architecture differs from the loaded model: "
+                f"adapter={base_class!r}, loaded={type(model).__name__!r}"
+            )
+    try:
+        from peft import PeftModel
+    except ModuleNotFoundError as error:
+        raise RuntimeError("loading a Wan LoRA adapter requires the PEFT dependency") from error
+    loaded = PeftModel.from_pretrained(model, str(adapter_path), is_trainable=False)
+    targeted = set(getattr(loaded, "targeted_module_names", ()))
+    if targeted != set(target_audit.module_names):
+        raise ValueError("Wan PEFT adapter targets are incompatible with the loaded Wan graph")
+    merged = merge_peft_adapter(loaded)
+    if merged is not model:
+        raise RuntimeError("PEFT merge did not return the loaded Wan base model")
 
 SKYREELS_V2_DF_1P3B_CONFIG = {
     **WAN21_T2V_1P3B_CONFIG,
@@ -542,6 +525,12 @@ def build_wan21_t2v_14b_denoiser(context: ComponentBuildContext) -> WanDenoiser:
     return _build_wan_denoiser(context, config=WAN21_T2V_14B_CONFIG)
 
 
+def build_wan22_t2v_a14b_denoiser(context: ComponentBuildContext) -> WanDenoiser:
+    """Load either released Wan2.2 A14B expert on the native Wan graph."""
+
+    return _build_wan_denoiser(context, config=WAN22_T2V_A14B_CONFIG)
+
+
 def build_wan21_i2v_14b_denoiser(context: ComponentBuildContext) -> WanDenoiser:
     """Load the Wan2.1 I2V 14B checkpoint on the shared Wan graph."""
 
@@ -590,21 +579,7 @@ def _build_wan_denoiser(
     def merge_training_adapter(model: torch.nn.Module) -> None:
         if adapter_path is None:
             return
-        from worldfoundry.training.tuning import (
-            WAN_ATTENTION,
-            load_peft_adapter,
-            merge_peft_adapter,
-        )
-
-        loaded = load_peft_adapter(
-            model,
-            adapter_path,
-            expected_preset=WAN_ATTENTION,
-            expected_base_model_id=context.model_id,
-        )
-        merged = merge_peft_adapter(loaded)
-        if merged is not model:
-            raise RuntimeError("PEFT merge did not preserve the loaded Wan base model identity")
+        _merge_wan_peft_adapter(model, adapter_path)
 
     model = NativeModuleLoader().load(
         ModuleLoadSpec(
@@ -643,6 +618,7 @@ __all__ = [
     "WAN22_I2V_A14B_CONFIG",
     "WAN21_T2V_1P3B_CONFIG",
     "WAN21_T2V_14B_CONFIG",
+    "WAN22_T2V_A14B_CONFIG",
     "WAN22_TI2V_5B_CONFIG",
     "WanDenoiser",
     "WanModelStateDictConverter",
@@ -653,6 +629,7 @@ __all__ = [
     "build_wan21_i2v_14b_denoiser",
     "convert_diffusers_wan_transformer_state_dict",
     "build_wan21_t2v_14b_denoiser",
+    "build_wan22_t2v_a14b_denoiser",
     "build_wan21_t2v_1p3b_denoiser",
     "build_wan22_ti2v_5b_denoiser",
 ]

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -17,39 +16,27 @@ from worldfoundry.training.data import (  # noqa: E402
     SanaCacheStore,
     SanaFeatureEncoder,
     TrainingManifestDataset,
-    checkpoint_asset_digest,
+    checkpoint_asset_identity,
     collate_sana_cached_samples,
     prepare_sana_training_cache,
-    prompt_enhancement_digest,
+    prompt_enhancement_config,
 )
 from worldfoundry.training.safety import ShieldGemmaPromptFilter  # noqa: E402
 
 
-def test_checkpoint_asset_digest_is_order_independent_and_strict() -> None:
-    left = checkpoint_asset_digest(
-        repository="owner/model",
+def test_checkpoint_asset_identity_records_repository_revision_files_and_sizes() -> None:
+    identity = checkpoint_asset_identity(
+        repo_id="owner/model",
         revision="pinned-revision",
-        file_sha256={"weights": "1" * 64, "config": "2" * 64},
+        files=("weights", "config"),
+        file_size_bytes={"weights": 10, "config": 20},
     )
-    right = checkpoint_asset_digest(
-        repository="owner/model",
-        revision="pinned-revision",
-        file_sha256={"config": "2" * 64, "weights": "1" * 64},
-    )
-
-    assert left == right
-    with pytest.raises(ValueError, match="must have a SHA-256"):
-        checkpoint_asset_digest(
-            repository="owner/model",
-            revision="pinned-revision",
-            file_sha256={"weights": "not-a-digest"},
-        )
-    with pytest.raises(ValueError, match="duplicated after normalization"):
-        checkpoint_asset_digest(
-            repository="owner/model",
-            revision="pinned-revision",
-            file_sha256={1: "1" * 64, "1": "2" * 64},
-        )
+    assert identity == {
+        "repo_id": "owner/model",
+        "revision": "pinned-revision",
+        "files": ["weights", "config"],
+        "file_size_bytes": {"weights": 10, "config": 20},
+    }
 
 
 class _Tokenizer:
@@ -122,7 +109,6 @@ def _manifest(tmp_path: Path, prompt_filter: ShieldGemmaPromptFilter) -> Trainin
         "prompt": prompt,
         "media": {
             "uri": image_path.name,
-            "sha256": hashlib.sha256(payload).hexdigest(),
             "size_bytes": len(payload),
         },
         "width": 64,
@@ -131,7 +117,7 @@ def _manifest(tmp_path: Path, prompt_filter: ShieldGemmaPromptFilter) -> Trainin
         "fps": 1,
         "conditions": {},
         "split": "train",
-        "safety": {"prompt_audit_digest": audit.digest},
+        "safety": {"prompt_safe": True, "model_revision": audit.model_revision},
     }
     manifest_path = tmp_path / "manifest.jsonl"
     manifest_path.write_text(json.dumps(row) + "\n", encoding="utf-8")
@@ -139,7 +125,6 @@ def _manifest(tmp_path: Path, prompt_filter: ShieldGemmaPromptFilter) -> Trainin
         manifest_path,
         split="train",
         verify_files=True,
-        verify_hashes=True,
     )
 
 
@@ -157,10 +142,10 @@ def test_prepare_sana_cache_runs_safety_decode_and_frozen_feature_path(tmp_path:
         feature_encoder=encoder,
         prompt_filter=prompt_filter,
         model_recipe="sana-600m-512px",
-        codec_digest="1" * 64,
-        conditioner_digest="2" * 64,
-        tokenizer_digest="3" * 64,
-        prompt_enhancement_digest_value=prompt_enhancement_digest(
+        codec={"repo_id": "dcae", "revision": "main"},
+        conditioner={"repo_id": "gemma", "revision": "main"},
+        tokenizer={"repo_id": "tokenizer", "revision": "main"},
+        prompt_enhancement=prompt_enhancement_config(
             enabled=True,
             max_text_length=3,
             prefix="pinned prefix",
@@ -171,17 +156,17 @@ def test_prepare_sana_cache_runs_safety_decode_and_frozen_feature_path(tmp_path:
 
     dataset = SanaCachedDataset(
         store.root,
-        expected_dataset_digest=manifest.dataset_digest,
+        expected_sample_ids=manifest.sample_ids,
     )
     batch = collate_sana_cached_samples([dataset[0]])
-    assert result.index.index_sha256 == dataset.index_sha256
+    assert result.index == dataset.index
     assert result.safety_audits[0].safe is True
     assert result.unconditional_conditioning.identity.branch == "unconditional"
     assert batch.conditions["clean_latents"].shape == (1, 32, 2, 2)
     assert batch.conditions["context"].shape == (1, 1, 3, 4)
     assert not any(parameter.requires_grad for parameter in codec.model.parameters())
     assert not any(parameter.requires_grad for parameter in conditioner.encoder.parameters())
-    assert "blue ceramic cup" not in (store.root / "index.json").read_text(encoding="utf-8")
+    assert "blue ceramic cup" in (store.root / "index.json").read_text(encoding="utf-8")
 
 
 def test_prepare_sana_cache_refuses_to_overwrite_an_existing_index(tmp_path: Path) -> None:
@@ -197,8 +182,8 @@ def test_prepare_sana_cache_refuses_to_overwrite_an_existing_index(tmp_path: Pat
             feature_encoder=SanaFeatureEncoder(_Codec(), _Conditioner()),
             prompt_filter=prompt_filter,
             model_recipe="sana-600m-512px",
-            codec_digest="1" * 64,
-            conditioner_digest="2" * 64,
-            tokenizer_digest="3" * 64,
-            prompt_enhancement_digest_value="4" * 64,
+            codec={"repo_id": "dcae", "revision": "main"},
+            conditioner={"repo_id": "gemma", "revision": "main"},
+            tokenizer={"repo_id": "tokenizer", "revision": "main"},
+            prompt_enhancement={"enabled": False, "max_text_length": 3, "prefix": ""},
         )

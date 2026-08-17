@@ -1,5 +1,6 @@
 """Module for base_models -> three_dimensions -> point_clouds -> cut3r -> model.py functionality."""
 
+import ast
 from collections import OrderedDict
 import os
 import torch
@@ -67,6 +68,87 @@ def strip_module(state_dict):
     return new_state_dict
 
 
+# Modified by WorldFoundry: the helpers below replace the original
+# ``net = eval(ckpt['args'].model)`` in ``load_model`` with a whitelist-based
+# constructor dispatch so that a tampered checkpoint string cannot execute
+# arbitrary code (plan/code_review/11_vendored_integration.md [VI-22]/[VI-23]).
+# CUT3R checkpoints store a nested call such as
+# ``ARCroco3DStereo(ARCroco3DStereoConfig(...))``, hence the recursion.
+_CHECKPOINT_LITERAL_NAMES = {"inf": inf, "nan": float("nan")}
+
+
+class _CheckpointLiteralNames(ast.NodeTransformer):
+    """Rewrite bare ``inf``/``nan`` names used by CUT3R args strings into constants."""
+
+    def visit_Name(self, node):
+        if node.id in _CHECKPOINT_LITERAL_NAMES:
+            return ast.copy_location(
+                ast.Constant(_CHECKPOINT_LITERAL_NAMES[node.id]), node
+            )
+        return node
+
+
+def _instantiate_checkpoint_call(call, allowed_classes):
+    """Instantiate one whitelisted constructor call, recursing into nested calls."""
+    if not isinstance(call.func, ast.Name):
+        raise ValueError(
+            "checkpoint field 'args.model' must only contain plain constructor calls "
+            f"of the allowed classes {sorted(allowed_classes)}"
+        )
+    if call.func.id not in allowed_classes:
+        raise ValueError(
+            f"checkpoint field 'args.model' requests class {call.func.id!r} which is not in the "
+            f"allowed set {sorted(allowed_classes)}"
+        )
+    class_name = call.func.id
+
+    def evaluate(node, location):
+        """Evaluate one argument: a nested whitelisted call or a literal."""
+        if isinstance(node, ast.Call):
+            return _instantiate_checkpoint_call(node, allowed_classes)
+        node = _CheckpointLiteralNames().visit(node)
+        try:
+            return ast.literal_eval(node)
+        except (ValueError, SyntaxError) as exc:
+            raise ValueError(
+                f"checkpoint field 'args.model' has a non-literal value for "
+                f"{location} of {class_name}"
+            ) from exc
+
+    positional = [
+        evaluate(arg, f"positional argument {index}")
+        for index, arg in enumerate(call.args)
+    ]
+    keywords = {}
+    for keyword in call.keywords:
+        if keyword.arg is None:
+            raise ValueError(
+                f"checkpoint field 'args.model' uses **kwargs expansion for {class_name}; "
+                "refusing to evaluate"
+            )
+        keywords[keyword.arg] = evaluate(keyword.value, f"keyword {keyword.arg!r}")
+    return allowed_classes[class_name](*positional, **keywords)
+
+
+def _instantiate_model_from_checkpoint_args(args):
+    """Instantiate a whitelisted model class from the checkpoint ``args.model`` string."""
+    allowed_classes = {
+        "ARCroco3DStereo": ARCroco3DStereo,
+        "ARCroco3DStereoConfig": ARCroco3DStereoConfig,
+    }
+    try:
+        expression = ast.parse(args, mode="eval")
+    except SyntaxError as exc:
+        raise ValueError(
+            f"checkpoint field 'args.model' is not a valid constructor call: {args!r}"
+        ) from exc
+    if not isinstance(expression.body, ast.Call):
+        raise ValueError(
+            f"checkpoint field 'args.model' must be a plain constructor call, got: {args!r}"
+        )
+    return _instantiate_checkpoint_call(expression.body, allowed_classes)
+
+
 def load_model(model_path, device, verbose=True):
     """Load model.
 
@@ -77,7 +159,13 @@ def load_model(model_path, device, verbose=True):
     """
     if verbose:
         print("... loading model from", model_path)
-    ckpt = torch.load(model_path, map_location="cpu", weights_only=False)
+    # Modified by WorldFoundry: was a bare ``torch.load(..., weights_only=False)``.
+    # Route through the central safe loader, which tries weights_only=True first;
+    # CUT3R checkpoints store an argparse.Namespace under 'args', so the explicit
+    # unsafe-pickle fallback is still required for real checkpoints ([VI-23]).
+    from worldfoundry.core.model_loading.file import load_torch_checkpoint
+
+    ckpt = load_torch_checkpoint(model_path, map_location="cpu", allow_unsafe_pickle_fallback=True)
     args = ckpt["args"].model.replace(
         "ManyAR_PatchEmbed", "PatchEmbedDust3R"
     )  # ManyAR only for aspect ratio not consistent
@@ -90,7 +178,9 @@ def load_model(model_path, device, verbose=True):
     assert "landscape_only=False" in args
     if verbose:
         print(f"instantiating : {args}")
-    net = eval(args)
+    # Modified by WorldFoundry: was ``net = eval(args)`` (arbitrary code execution
+    # from a downloaded checkpoint); see _instantiate_model_from_checkpoint_args.
+    net = _instantiate_model_from_checkpoint_args(args)
     s = net.load_state_dict(ckpt["model"], strict=False)
     if verbose:
         print(s)

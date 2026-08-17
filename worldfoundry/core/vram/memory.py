@@ -2,16 +2,50 @@
 
 from __future__ import annotations
 
+import logging
+
 import torch
 
+logger = logging.getLogger(__name__)
+
 cpu = torch.device("cpu")
-gpu = torch.device(f"cuda:{torch.cuda.current_device()}") if torch.cuda.is_available() else cpu
+
+#: Modules loaded via :func:`load_model_as_complete`. Holds strong references
+#: on purpose so :func:`unload_complete_models` can move them back to CPU;
+#: callers that drop a model must call ``unload_complete_models`` themselves
+#: or the module stays resident until the next unload.
 gpu_complete_modules: list[torch.nn.Module] = []
+
+
+def _default_gpu_device() -> torch.device:
+    """Resolve the current CUDA device lazily.
+
+    CC-25: this used to be a module constant evaluated at import time, which
+    created a CUDA context on GPU 0 for every importer (including fork-based
+    dataloader workers) and froze the device chosen before any
+    ``torch.cuda.set_device`` call.
+    """
+
+    if torch.cuda.is_available():
+        return torch.device(f"cuda:{torch.cuda.current_device()}")
+    return cpu
+
+
+def __getattr__(name: str):
+    # Lazy, never-frozen module attribute so ``from ... import gpu`` keeps
+    # working without initializing CUDA at import time of this module.
+    if name == "gpu":
+        return _default_gpu_device()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 class DynamicSwapInstaller:
     @staticmethod
     def _install_module(module: torch.nn.Module, **kwargs) -> None:
+        if "forge_backup_original_class" in module.__dict__:
+            # Re-installing would back up the already-hacked class, making
+            # uninstall unable to ever restore the real class.
+            return
         original_class = module.__class__
         module.__dict__["forge_backup_original_class"] = original_class
 
@@ -71,7 +105,7 @@ def get_cuda_free_memory_gb(device=None) -> float:
     if not torch.cuda.is_available():
         return 0.0
     if device is None:
-        device = gpu
+        device = _default_gpu_device()
 
     memory_stats = torch.cuda.memory_stats(device)
     bytes_active = memory_stats["active_bytes.all.current"]
@@ -84,17 +118,21 @@ def get_cuda_free_memory_gb(device=None) -> float:
 
 def log_gpu_memory(stage: str, device=None, rank: int = 0) -> None:
     if not torch.cuda.is_available():
-        print(f"[rank {rank}] [GPU Memory][{stage}] CUDA unavailable")
+        logger.info("[rank %s] [GPU Memory][%s] CUDA unavailable", rank, stage)
         return
     if device is None:
-        device = gpu
+        device = _default_gpu_device()
 
     free_gb = get_cuda_free_memory_gb(device)
     total_gb = torch.cuda.get_device_properties(device).total_memory / (1024**3)
     used_gb = total_gb - free_gb
-    print(
-        f"[rank {rank}] [GPU Memory][{stage}] "
-        f"Used: {used_gb:.2f} GB | Free: {free_gb:.2f} GB | Total: {total_gb:.2f} GB"
+    logger.info(
+        "[rank %s] [GPU Memory][%s] Used: %.2f GB | Free: %.2f GB | Total: %.2f GB",
+        rank,
+        stage,
+        used_gb,
+        free_gb,
+        total_gb,
     )
 
 
@@ -103,7 +141,9 @@ def move_model_to_device_with_memory_preservation(
     target_device,
     preserved_memory_gb: float = 0,
 ) -> None:
-    print(f"Moving {model.__class__.__name__} to {target_device} with preserved memory: {preserved_memory_gb} GB")
+    logger.info(
+        "Moving %s to %s with preserved memory: %s GB", model.__class__.__name__, target_device, preserved_memory_gb
+    )
     if preserved_memory_gb < 0:
         raise ValueError("preserved_memory_gb must be non-negative")
 
@@ -127,7 +167,12 @@ def offload_model_from_device_for_memory_preservation(
     target_device,
     preserved_memory_gb: float = 0,
 ) -> None:
-    print(f"Offloading {model.__class__.__name__} from {target_device} to preserve memory: {preserved_memory_gb} GB")
+    logger.info(
+        "Offloading %s from %s to preserve memory: %s GB",
+        model.__class__.__name__,
+        target_device,
+        preserved_memory_gb,
+    )
     if preserved_memory_gb < 0:
         raise ValueError("preserved_memory_gb must be non-negative")
     if get_cuda_free_memory_gb(target_device) >= preserved_memory_gb:
@@ -211,7 +256,7 @@ def _move_model_with_rollback(
 def unload_complete_models(*models: torch.nn.Module) -> None:
     for model in gpu_complete_modules + list(models):
         model.to(device=cpu)
-        print(f"Unloaded {model.__class__.__name__} as complete.")
+        logger.info("Unloaded %s as complete.", model.__class__.__name__)
 
     gpu_complete_modules.clear()
     if torch.cuda.is_available():
@@ -223,7 +268,7 @@ def load_model_as_complete(model: torch.nn.Module, target_device, unload: bool =
         unload_complete_models()
 
     model.to(device=target_device)
-    print(f"Loaded {model.__class__.__name__} to {target_device} as complete.")
+    logger.info("Loaded %s to %s as complete.", model.__class__.__name__, target_device)
 
     gpu_complete_modules.append(model)
 

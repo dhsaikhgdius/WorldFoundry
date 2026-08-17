@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from math import isfinite
 
-from worldfoundry.core.io.integrity import canonical_sha256
 from worldfoundry.training.recipes.post_training.algorithms.sgmd import (
     SGMDAlgorithmSpec,
 )
@@ -138,10 +137,6 @@ class SGMDConfig:
     @property
     def minimum_student_target_index(self) -> int:
         return int(self.diversity_enabled)
-
-    @property
-    def digest(self) -> str:
-        return canonical_sha256({"schema": "worldfoundry-sgmd-config", **asdict(self)})
 
     @classmethod
     def from_recipe(cls, spec: SGMDAlgorithmSpec) -> SGMDConfig:

@@ -6,6 +6,7 @@
 # --------------------------------------------------------
 """Module for base_models -> three_dimensions -> general_3d -> dust3r -> dust3r -> model.py functionality."""
 
+import ast
 from copy import deepcopy
 import torch
 import os
@@ -24,6 +25,65 @@ inf = float('inf')
 hf_version_number = huggingface_hub.__version__
 assert version.parse(hf_version_number) >= version.parse("0.22.0"), "Outdated huggingface_hub version, please reinstall requirements.txt"
 
+# Modified by WorldFoundry: the helpers below replace the original
+# ``net = eval(ckpt['args'].model)`` in ``load_model`` with a whitelist-based
+# constructor dispatch so that a tampered checkpoint string cannot execute
+# arbitrary code (plan/code_review/11_vendored_integration.md [VI-22]).
+_CHECKPOINT_LITERAL_NAMES = {"inf": inf, "nan": float("nan")}
+
+
+class _CheckpointLiteralNames(ast.NodeTransformer):
+    """Rewrite bare ``inf``/``nan`` names used by DUSt3R args strings into constants."""
+
+    def visit_Name(self, node):
+        if node.id in _CHECKPOINT_LITERAL_NAMES:
+            return ast.copy_location(ast.Constant(_CHECKPOINT_LITERAL_NAMES[node.id]), node)
+        return node
+
+
+def _checkpoint_call_kwargs(call, class_name):
+    """Evaluate the keyword arguments of a checkpoint constructor call as literals only."""
+    if call.args:
+        raise ValueError(
+            f"checkpoint field 'args.model' passes positional arguments to {class_name}; "
+            "only keyword arguments with literal values are allowed"
+        )
+    kwargs = {}
+    for keyword in call.keywords:
+        if keyword.arg is None:
+            raise ValueError(
+                f"checkpoint field 'args.model' uses **kwargs expansion for {class_name}; refusing to evaluate"
+            )
+        value_node = _CheckpointLiteralNames().visit(keyword.value)
+        try:
+            kwargs[keyword.arg] = ast.literal_eval(value_node)
+        except (ValueError, SyntaxError) as exc:
+            raise ValueError(
+                f"checkpoint field 'args.model' has a non-literal value for keyword "
+                f"{keyword.arg!r} of {class_name}"
+            ) from exc
+    return kwargs
+
+
+def _instantiate_model_from_checkpoint_args(args):
+    """Instantiate a whitelisted model class from the checkpoint ``args.model`` string."""
+    allowed_classes = {"AsymmetricCroCo3DStereo": AsymmetricCroCo3DStereo}
+    try:
+        expression = ast.parse(args, mode="eval")
+    except SyntaxError as exc:
+        raise ValueError(f"checkpoint field 'args.model' is not a valid constructor call: {args!r}") from exc
+    call = expression.body
+    if not isinstance(call, ast.Call) or not isinstance(call.func, ast.Name):
+        raise ValueError(f"checkpoint field 'args.model' must be a plain constructor call, got: {args!r}")
+    model_class = allowed_classes.get(call.func.id)
+    if model_class is None:
+        raise ValueError(
+            f"checkpoint field 'args.model' requests class {call.func.id!r} which is not in the "
+            f"allowed set {sorted(allowed_classes)}"
+        )
+    return model_class(**_checkpoint_call_kwargs(call, call.func.id))
+
+
 def load_model(model_path, device, verbose=True):
     """Load model.
 
@@ -34,10 +94,13 @@ def load_model(model_path, device, verbose=True):
     """
     if verbose:
         print('... loading model from', model_path)
-    try:
-        ckpt = torch.load(model_path, map_location='cpu', weights_only=False)
-    except TypeError:
-        ckpt = torch.load(model_path, map_location='cpu')
+    # Modified by WorldFoundry: was a bare ``torch.load(..., weights_only=False)``.
+    # Route through the central safe loader, which tries weights_only=True first;
+    # DUSt3R checkpoints store an argparse.Namespace under 'args', so the explicit
+    # unsafe-pickle fallback is still required for real checkpoints ([VI-22]).
+    from worldfoundry.core.model_loading.file import load_torch_checkpoint
+
+    ckpt = load_torch_checkpoint(model_path, map_location='cpu', allow_unsafe_pickle_fallback=True)
     args = ckpt['args'].model.replace("ManyAR_PatchEmbed", "PatchEmbedDust3R")
     if 'landscape_only' not in args:
         args = args[:-1] + ', landscape_only=False)'
@@ -46,7 +109,9 @@ def load_model(model_path, device, verbose=True):
     assert "landscape_only=False" in args
     if verbose:
         print(f"instantiating : {args}")
-    net = eval(args)
+    # Modified by WorldFoundry: was ``net = eval(args)`` (arbitrary code execution
+    # from a downloaded checkpoint); see _instantiate_model_from_checkpoint_args.
+    net = _instantiate_model_from_checkpoint_args(args)
     s = net.load_state_dict(ckpt['model'], strict=False)
     if verbose:
         print(s)

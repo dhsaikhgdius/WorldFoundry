@@ -160,7 +160,7 @@ def fsdp_identity(
     if application is None:
         return None
     return {
-        "digest": application.digest,
+        "application": application.to_dict(),
         "parameter_mode": application.parameter_mode,
     }
 
@@ -196,18 +196,9 @@ class WanDMDRoleBundle:
 
     def checkpoint_identity(self) -> dict[str, object]:
         return {
-            "student": {
-                **self.student_checkpoint.to_dict(),
-                "digest": self.student_checkpoint.digest,
-            },
-            "real_score": {
-                **self.real_score_checkpoint.to_dict(),
-                "digest": self.real_score_checkpoint.digest,
-            },
-            "fake_score": {
-                **self.fake_score_checkpoint.to_dict(),
-                "digest": self.fake_score_checkpoint.digest,
-            },
+            "student": self.student_checkpoint.to_dict(),
+            "real_score": self.real_score_checkpoint.to_dict(),
+            "fake_score": self.fake_score_checkpoint.to_dict(),
         }
 
     def runtime_identity(self) -> dict[str, object]:

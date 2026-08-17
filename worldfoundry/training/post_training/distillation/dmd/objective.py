@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from math import isfinite
 from typing import Protocol, runtime_checkable
 
-from worldfoundry.core.io.integrity import canonical_sha256
 from worldfoundry.training.objectives.flow_matching import (
     flow_interpolate,
     flow_matching_denominator,
@@ -49,16 +48,6 @@ class FewStepSchedule:
             raise ValueError("few-step sigmas must be strictly descending")
         object.__setattr__(self, "timesteps", timesteps)
         object.__setattr__(self, "sigmas", sigmas)
-
-    @property
-    def digest(self) -> str:
-        return canonical_sha256(
-            {
-                "schema": "worldfoundry-few-step-schedule",
-                "timesteps": self.timesteps,
-                "sigmas": self.sigmas,
-            }
-        )
 
     @classmethod
     def from_effective_timesteps(
@@ -113,23 +102,6 @@ class DMDConfig:
         if not isinstance(self.per_sample_normalization, bool):
             raise TypeError("per_sample_normalization must be a bool")
 
-    @property
-    def digest(self) -> str:
-        return canonical_sha256(
-            {
-                "schema": "worldfoundry-dmd-config",
-                "schedule_digest": self.schedule.digest,
-                "num_train_timesteps": int(self.num_train_timesteps),
-                "score_min_sigma": float(self.score_min_sigma),
-                "score_max_sigma": float(self.score_max_sigma),
-                "score_flow_shift": float(self.score_flow_shift),
-                "teacher_guidance_scale": float(self.teacher_guidance_scale),
-                "normalization_epsilon": float(self.normalization_epsilon),
-                "shared_score_timestep": bool(self.shared_score_timestep),
-                "per_sample_normalization": self.per_sample_normalization,
-            }
-        )
-
 
 @dataclass(frozen=True, slots=True)
 class FewStepPrediction:
@@ -142,8 +114,6 @@ class FewStepPrediction:
 @runtime_checkable
 class DMDStudentSampler(Protocol):
     """Optional execution seam for architecture-specific student rollout."""
-
-    execution_digest: str
 
     def sample(
         self,
@@ -203,7 +173,12 @@ def dmd_distribution_gradient(
     )
     normalizer = denominator.clamp_min(epsilon) if epsilon > 0 else denominator
     gradient = (fake_score_clean.float() - real_score_clean.float()) / normalizer
-    gradient = torch.nan_to_num(gradient)
+    # A zero normalizer (generated == teacher output) yields NaN/inf entries.
+    # Map every non-finite entry to zero so degenerate elements contribute no
+    # update instead of a float32-max target that overflows the proxy MSE two
+    # layers away (the default ``nan_to_num`` keeps ``posinf``/``neginf`` at
+    # +/-3.4e38).
+    gradient = torch.nan_to_num(gradient, nan=0.0, posinf=0.0, neginf=0.0)
     return gradient, denominator
 
 
@@ -350,17 +325,6 @@ class FlowDMDLossAdapter:
         self.real_score = real_score
         self.fake_score = fake_score
         self.config = config
-        self.schedule_digest = (
-            config.schedule.digest
-            if student_sampler is None
-            else canonical_sha256(
-                {
-                    "schema": "worldfoundry-dmd-execution",
-                    "dmd_config_digest": config.digest,
-                    "student_execution_digest": student_sampler.execution_digest,
-                }
-            )
-        )
 
     def sample_student(
         self,

@@ -5,7 +5,10 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-import torch
+
+# torch is an optional heavy dependency; skip this module on
+# torch-less environments (e.g. the minimal CI runner).
+torch = pytest.importorskip("torch")
 
 from worldfoundry.evaluation.models.catalog import UnknownModelZooKeyError, load_model_zoo_registry
 from worldfoundry.evaluation.models.runtime.profiles import load_runtime_profile, load_runtime_profiles

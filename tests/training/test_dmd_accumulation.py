@@ -34,8 +34,6 @@ class _Counter:
 
 
 class _WeightedDMDLosses:
-    schedule_digest = "c" * 64
-
     def __init__(
         self,
         student: torch.nn.Linear,
@@ -150,6 +148,11 @@ def test_dmd_uneven_microbatch_accumulation_matches_one_combined_batch() -> None
     second = _batch([2.0, 3.0, 4.0], prefix="second")
     merged = _batch([1.0, 2.0, 3.0, 4.0], prefix="merged")
 
+    warmup_accumulated = accumulated.train_step((first, second))
+    warmup_combined = combined.train_step(merged)
+    assert warmup_accumulated.generator_updated is False
+    assert warmup_combined.generator_updated is False
+
     accumulated_result = accumulated.train_step((first, second))
     combined_result = combined.train_step(merged)
 
@@ -171,20 +174,21 @@ def test_dmd_uneven_microbatch_accumulation_matches_one_combined_batch() -> None
     assert accumulated_result.metrics["student"]["loss_denominator"].item() == 4
     assert accumulated_result.metrics["fake_score"]["loss_denominator"].item() == 4
     assert student_scheduler.steps == 1
-    assert fake_scheduler.steps == 1
+    assert fake_scheduler.steps == 2
 
     skipped = accumulated.train_step((first, second))
     assert skipped.generator_updated is False
     assert student_scheduler.steps == 1
-    assert fake_scheduler.steps == 2
+    assert fake_scheduler.steps == 3
     assert accumulated.student_optimizer_steps == 1
-    assert accumulated.fake_score_optimizer_steps == 2
+    assert accumulated.fake_score_optimizer_steps == 3
 
 
 def test_dmd_accumulation_poisoning_covers_failure_after_student_commit() -> None:
     engine, student_scheduler, fake_scheduler = _engine(
         seed=17,
         accumulation_steps=2,
+        generator_interval=1,
         fail_fake_call=2,
     )
     before = engine.student_module.weight.detach().clone()
@@ -287,7 +291,6 @@ def _checkpointable_stack(seed: int):
         progress=progress,
         identity={
             "algorithm": "dmd",
-            "schedule_digest": engine.schedule_digest,
             "gradient_accumulation_steps": engine.gradient_accumulation_steps,
         },
     )

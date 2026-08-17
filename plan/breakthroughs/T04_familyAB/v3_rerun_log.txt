@@ -1,0 +1,101 @@
+=== V3 end-to-end rerun 2026-08-13T21:09:55Z ===
+python: Python 3.12.3; host: Linux 5.10.134-16.3.al8.x86_64 x86_64
+
+--- [1/5] cover_prover.py (default r_min=7) ---
+[FamilyA (1,2,3,4,5,7,6r+12); alpha=(r+2)/(6r+17)] UPPER BOUND PROVED for all r >= 7.
+  certificate (8 bands covering [0,1/2], symmetric completion):
+    band(v=1, m=0)
+    band(v=7, m=1)
+    band(w=6r+12, m=1r+2)
+    band(v=5, m=1)
+    band(v=4, m=1)
+    band(v=3, m=1)
+    band(v=5, m=2)
+    band(v=2, m=1)
+
+[FamilyB (1,3,4,5,7,11,6r+24); alpha=(r+4)/(6r+31)] UPPER BOUND PROVED for all r >= 7.
+  certificate (11 bands covering [0,1/2], symmetric completion):
+    band(v=1, m=0)
+    band(v=7, m=1)
+    band(w=6r+24, m=1r+4)
+    band(v=11, m=2)
+    band(v=5, m=1)
+    band(v=4, m=1)
+    band(v=3, m=1)
+    band(v=5, m=2)
+    band(v=7, m=3)
+    band(v=11, m=5)
+    band(v=4, m=2)
+
+NOTE: combined with the exact equality checks for 1 <= r <= 12
+(family_j2.py, rigorous rational arithmetic), r_min=7 <= 13 yields
+the theorem for ALL r >= 1.
+exit=0
+
+--- [2/5] witness_prover.py ---
+[FamilyA (1,2,3,4,5,7,6r+12); alpha=(r+2)/(6r+17)]
+  LOWER BOUND PROVED for all r >= 1: f(t(r)) >= alpha(r), with
+    v=1: ||v t|| >= alpha  (strict)
+    v=2: ||v t|| >= alpha  (strict)
+    v=3: ||v t|| >= alpha  (strict)
+    v=4: ||v t|| >= alpha  (strict)
+    v=5: ||v t|| >= alpha  (EQUALITY)
+    v=7: ||v t|| >= alpha  (strict)
+    w=6r+12: ||v t|| >= alpha  (EQUALITY)
+
+[FamilyB (1,3,4,5,7,11,6r+24); alpha=(r+4)/(6r+31)]
+  LOWER BOUND PROVED for all r >= 1: f(t(r)) >= alpha(r), with
+    v=1: ||v t|| >= alpha  (strict)
+    v=3: ||v t|| >= alpha  (strict)
+    v=4: ||v t|| >= alpha  (strict)
+    v=5: ||v t|| >= alpha  (strict)
+    v=7: ||v t|| >= alpha  (EQUALITY)
+    v=11: ||v t|| >= alpha  (strict)
+    w=6r+24: ||v t|| >= alpha  (EQUALITY)
+exit=0
+
+--- [3/5] family_j2.py (Lemma 3, exact equality r<=12) ---
+Family A: {1,2,3,4,5,7,6r+12}
+  r= 1: f(t_r)=3/23 exact; ML == lower bound (exact)
+  r= 2: f(t_r)=4/29 exact; ML == lower bound (exact)
+  r= 3: f(t_r)=1/7 exact; ML == lower bound (exact)
+  r= 4: f(t_r)=6/41 exact; ML == lower bound (exact)
+  r= 5: f(t_r)=7/47 exact; ML == lower bound (exact)
+  r= 6: f(t_r)=8/53 exact; ML == lower bound (exact)
+  r= 7: f(t_r)=9/59 exact; ML == lower bound (exact)
+  r= 8: f(t_r)=2/13 exact; ML == lower bound (exact)
+  r= 9: f(t_r)=11/71 exact; ML == lower bound (exact)
+  r=10: f(t_r)=12/77 exact; ML == lower bound (exact)
+  r=11: f(t_r)=13/83 exact; ML == lower bound (exact)
+  r=12: f(t_r)=14/89 exact; ML == lower bound (exact)
+Family B: {1,3,4,5,7,11,6r+24}
+  r= 1: ML=5/37 = (r+4)/(6r+31) exact, witness t=6/37
+  r= 2: ML=6/43 = (r+4)/(6r+31) exact, witness t=7/43
+  r= 3: ML=1/7 = (r+4)/(6r+31) exact, witness t=8/49
+  r= 4: ML=8/55 = (r+4)/(6r+31) exact, witness t=9/55
+  r= 5: ML=9/61 = (r+4)/(6r+31) exact, witness t=10/61
+  r= 6: ML=10/67 = (r+4)/(6r+31) exact, witness t=11/67
+  r= 7: ML=11/73 = (r+4)/(6r+31) exact, witness t=12/73
+  r= 8: ML=12/79 = (r+4)/(6r+31) exact, witness t=13/79
+  r= 9: ML=13/85 = (r+4)/(6r+31) exact, witness t=14/85
+  r=10: ML=2/13 = (r+4)/(6r+31) exact, witness t=15/91
+  r=11: ML=15/97 = (r+4)/(6r+31) exact, witness t=16/97
+  r=12: ML=16/103 = (r+4)/(6r+31) exact, witness t=17/103
+OK: both families verified exactly for 1 <= r <= 12
+exit=0
+
+--- [4/5] export_certificates.py ---
+written /mnt/cpfsB/yangboxue/visual_generation/juanxi/WorldFoundry/plan/breakthroughs/T04_familyAB/rerun/results/certificates_AB.txt; all verified: True
+exit=0
+
+--- [5/5] check_denominator_pair.py (P1/P2) ---
+k=4 v=[1, 7, 8, 15] ML=5/22 (s=5, j=2) pairs=[(7, 15)] P1=True P2=True OK
+k=6 v=[1, 5, 6, 11, 16, 17] ML=5/33 (s=5, j=3) pairs=[(16, 17)] P1=True P2=True OK
+k=6 v=[5, 6, 11, 17, 23, 28] ML=8/51 (s=8, j=3) pairs=[(23, 28)] P1=True P2=True OK
+k=7 v=[1, 2, 3, 4, 5, 7, 18] ML=3/23 (s=3, j=2) pairs=[(5, 18)] P1=True P2=True OK
+k=7 v=[1, 3, 4, 5, 7, 13, 18] ML=3/23 (s=3, j=2) pairs=[(5, 18)] P1=True P2=True OK
+k=7 v=[1, 3, 4, 5, 7, 11, 30] ML=5/37 (s=5, j=2) pairs=[(7, 30)] P1=True P2=True OK
+k=7 v=[2, 7, 9, 11, 13, 20, 54] ML=9/65 (s=9, j=2) pairs=[(11, 54)] P1=True P2=True OK
+
+ALL 7 offset>=2 instances satisfy P1 (denominator pair) and P2 (j <= s).
+exit=0

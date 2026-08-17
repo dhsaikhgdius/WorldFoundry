@@ -10,6 +10,8 @@ import torch
 import torch.nn.functional as F
 from PIL import Image, ImageOps
 
+from worldfoundry.core.model_loading import load_torch_checkpoint
+
 from ...base_representation import BaseRepresentation
 
 
@@ -239,7 +241,15 @@ class LingBotMapRepresentation(BaseRepresentation):
             use_sdpa=bool(kwargs.get("use_sdpa", True)),
             camera_num_iterations=int(kwargs.get("camera_num_iterations", 4)),
         )
-        checkpoint = torch.load(checkpoint_path, map_location=device or "cpu", weights_only=False)
+        # The checkpoint is consumed purely as a state_dict; load weights-only by
+        # default and only fall back to unrestricted pickle on legacy wrapped
+        # checkpoints that fail the safe path.
+        checkpoint = load_torch_checkpoint(
+            checkpoint_path,
+            map_location=device or "cpu",
+            weights_only=True,
+            allow_unsafe_pickle_fallback=True,
+        )
         state_dict = checkpoint.get("model", checkpoint) if isinstance(checkpoint, dict) else checkpoint
         model.load_state_dict(state_dict, strict=False)
         return cls(

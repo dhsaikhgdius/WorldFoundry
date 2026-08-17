@@ -40,7 +40,7 @@ class WanDiffusionNFTRoleBundle:
 
     def runtime_identity(self) -> dict[str, object]:
         def checkpoint(role: ResolvedRoleCheckpoint) -> dict[str, object]:
-            return {**role.to_dict(), "digest": role.digest}
+            return role.to_dict()
 
         return {
             "policy": {
@@ -179,7 +179,6 @@ class WanDiffusionNFTTrainingRun(WanFlowPolicyTrainingRun):
                                 "global_step": self.session.engine.global_step,
                                 **final_metrics,
                                 "run_id": self.recipe.run.id,
-                                "recipe_digest": self.recipe.digest,
                                 "recorded_at": utc_now_iso(),
                             },
                             root=self.output_dir,

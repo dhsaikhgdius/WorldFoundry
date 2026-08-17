@@ -7,19 +7,10 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from worldfoundry.core.io.integrity import canonical_sha256 as _core_canonical_sha256
-
 from .manifest import TrainingSample
 
 VIDEO_BUCKET_ASSIGNMENT_SCHEMA = "worldfoundry-video-bucket-assignment"
 _TEMPORAL_ALIGNMENTS = frozenset({"first-frame", "uniform"})
-
-
-def _canonical_sha256(value: object) -> str:
-    try:
-        return _core_canonical_sha256(value)
-    except (TypeError, ValueError) as error:
-        raise TypeError("bucket metadata must be JSON serializable without NaN or infinity") from error
 
 
 def _nonempty(value: object, *, field_name: str) -> str:
@@ -219,10 +210,6 @@ class VideoBucketKey:
     def token_count(self) -> int:
         return self.latent_frames * self.latent_height * self.latent_width
 
-    @property
-    def digest(self) -> str:
-        return _canonical_sha256(self.to_dict())
-
     def to_dict(self) -> dict[str, object]:
         return {
             "task": self.task,
@@ -410,6 +397,19 @@ def assign_video_buckets(
         layouts = tuple(_nonempty(item, field_name="conditioning_layout") for item in layouts)
     layouts = tuple(layout.lower().replace("_", "-") for layout in layouts)
 
+    # A bucket incompatible with the latent geometry can never be selected for
+    # any sample, so treat it as a loud declaration error instead of silently
+    # skipping it and misreporting "no eligible bucket" per sample.
+    for declaration_index, bucket in enumerate(bucket_values):
+        try:
+            geometry.latent_shape(num_frames=bucket.num_frames, height=bucket.height, width=bucket.width)
+        except ValueError as error:
+            raise ValueError(
+                f"bucket {declaration_index} "
+                f"({bucket.num_frames}x{bucket.height}x{bucket.width}) is incompatible "
+                f"with the latent geometry: {error}"
+            ) from error
+
     assignments: list[VideoBucketAssignment] = []
     for sample_index, (sample, layout) in enumerate(zip(values, layouts)):
         candidates: list[tuple[float, int, VideoResolutionBucket, VideoBucketKey]] = []
@@ -425,10 +425,7 @@ def assign_video_buckets(
             cover_scale = max(bucket.width / sample.width, bucket.height / sample.height)
             if not resolved_policy.allow_spatial_upscale and cover_scale > 1.0 + 1e-12:
                 continue
-            try:
-                key = bucket.key(task=sample.task, geometry=geometry)
-            except ValueError:
-                continue
+            key = bucket.key(task=sample.task, geometry=geometry)
             target_aspect = bucket.width / bucket.height
             target_area = bucket.width * bucket.height
             score = (

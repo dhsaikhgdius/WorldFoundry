@@ -1,5 +1,11 @@
 """Regression coverage for ReCamMaster checkpoint-class bindings."""
 
+import pytest
+
+# This test module imports worldfoundry code that requires the optional
+# "ftfy" dependency at import time; skip when it is unavailable.
+pytest.importorskip("ftfy")
+
 from worldfoundry.synthesis.visual_generation.kling.recammaster_runtime import (
     recammaster_model_registry,
 )

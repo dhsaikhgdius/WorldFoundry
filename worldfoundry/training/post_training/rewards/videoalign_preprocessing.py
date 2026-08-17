@@ -12,7 +12,6 @@ from torch.nn import functional as F
 
 from worldfoundry.training.recipes.post_training.rewards.videoalign import VideoAlignRewardSpec
 
-VIDEOALIGN_CHAT_TEMPLATE_SHA256 = "4df95d05455c2a6f762616492bba63d0f9bef904ef47daabad35f5715d6d2e4e"
 VIDEOALIGN_SPECIAL_TOKENS = (
     "<|VQ_reward|>",
     "<|MQ_reward|>",
@@ -23,8 +22,7 @@ VIDEOALIGN_IMAGE_FACTOR = 28
 VIDEOALIGN_MIN_FRAME_PIXELS = 128 * VIDEOALIGN_IMAGE_FACTOR * VIDEOALIGN_IMAGE_FACTOR
 
 # Adapted from the official MIT-licensed ``detailed_special`` prompt. It is a
-# checked-in, content-addressed model input; changes intentionally alter the
-# evaluator identity.
+# checked-in model input.
 VIDEOALIGN_DETAILED_PROMPT = """
 You are tasked with evaluating a generated video based on three distinct criteria: Visual Quality, Motion Quality, and Text Alignment. Please provide a rating from 0 to 10 for each of the three categories, with 0 being the worst and 10 being the best. Each evaluation should be independent of the others.
 
@@ -255,7 +253,6 @@ def pool_videoalign_special_tokens(
 
 __all__ = [
     "PreparedVideoAlignVideo",
-    "VIDEOALIGN_CHAT_TEMPLATE_SHA256",
     "VIDEOALIGN_DETAILED_PROMPT",
     "VIDEOALIGN_IMAGE_FACTOR",
     "VIDEOALIGN_MIN_FRAME_PIXELS",

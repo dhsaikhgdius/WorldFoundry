@@ -278,7 +278,7 @@ def _checkpointable_consistency_stack():
         dataloader=loader,
         objective_generator=torch.Generator().manual_seed(91),
         progress=progress,
-        identity={"algorithm": "causal-consistency", "recipe": stack.recipe.digest},
+        identity={"algorithm": "causal-consistency"},
         **stack.checkpoint_state_kwargs(),
     )
     return stack, loader, progress, model, state

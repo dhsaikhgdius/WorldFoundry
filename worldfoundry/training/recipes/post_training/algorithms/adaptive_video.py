@@ -6,6 +6,11 @@ from dataclasses import dataclass
 from math import isfinite
 
 from ..common import positive_int, strict_mapping
+from .auxiliary_optimizers import (
+    AuxiliaryOptimizerRule,
+    forbids_auxiliary,
+    requires_auxiliary,
+)
 from .dmd import _normalize_few_step_schedule
 
 
@@ -114,6 +119,19 @@ class AdaptiveVideoAlgorithmSpec:
         object.__setattr__(self, "score_max_sigma", maximum)
         for name, value in normalized.items():
             object.__setattr__(self, name, value)
+
+    def auxiliary_optimizer_rules(self) -> tuple[AuxiliaryOptimizerRule, ...]:
+        return (
+            requires_auxiliary(
+                "fake_score_optimizer",
+                "adaptive video distillation requires fake_score_optimizer",
+            ),
+            forbids_auxiliary(
+                "guidance_optimizer",
+                "discriminator_optimizer",
+                message=f"{self.type} only accepts fake_score_optimizer",
+            ),
+        )
 
 
 ADAPTIVE_VIDEO_ALGORITHM_FIELDS = frozenset(

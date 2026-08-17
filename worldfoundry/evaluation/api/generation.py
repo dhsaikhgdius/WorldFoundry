@@ -18,16 +18,22 @@ from .artifacts import ArtifactRef, coerce_artifact_refs, restore_artifact_refs
 GENERATION_REQUEST_SCHEMA_VERSION = "worldfoundry-generation-request"
 GENERATION_RESULT_SCHEMA_VERSION = "worldfoundry-generation-result"
 GENERATION_SUCCESS_STATUSES = frozenset({"succeeded", "success", "ok", "completed", "done"})
+GENERATION_UNKNOWN_STATUS = "unknown"
 
 
 def normalize_generation_status(status: Any) -> str:
     """Return the canonical lowercase generation status text.
 
+    Missing/blank statuses normalize to ``"unknown"`` (fail-closed): an
+    incomplete result row written by an external runner must not be treated
+    as a scoreable success. Callers that own an in-process success signal
+    (e.g. a pipeline returning normally) should set the status explicitly.
+
     Args:
         status: Raw status value from a generation runner or result row.
     """
     text = str(status or "").strip().lower()
-    return text or "succeeded"
+    return text or GENERATION_UNKNOWN_STATUS
 
 
 def is_generation_status_successful(status: Any) -> bool:
@@ -141,12 +147,14 @@ class GenerationResult(JsonContract):
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any]) -> "GenerationResult":
+        # Rows serialized by to_dict always carry a status; a row without one
+        # is incomplete external data and must not default to success.
         return cls(
             sample_id=str(data["sample_id"]),
             request_id=data.get("request_id"),
             model_id=data.get("model_id", ""),
             artifacts=data.get("artifacts"),
-            status=data.get("status", "succeeded"),
+            status=data.get("status") or GENERATION_UNKNOWN_STATUS,
             error=data.get("error"),
             timings=data.get("timings"),
             metadata=data.get("metadata"),

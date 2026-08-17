@@ -19,7 +19,7 @@ import sys
 import time
 from functools import partial
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from worldfoundry.core.process import run_logged_subprocess
 from worldfoundry.evaluation.tasks.execution.framework.benchmark_data import (
@@ -798,30 +798,41 @@ def load_official_videoscore_module(videoscore_root: Path) -> Any:
     eval_path = benchmark_dir / "eval_videoscore.py"
     if not eval_path.is_file():
         raise FileNotFoundError(f"VideoScore eval_videoscore.py not found under: {videoscore_root}")
-    # Temporarily add benchmark_dir and videoscore_root to sys.path for import.
-    inserted = [str(benchmark_dir), str(videoscore_root)]
+    # Prepend benchmark_dir and videoscore_root only for the duration of the
+    # import so the vendored top-level module names cannot shadow imports made
+    # later in this process (workspace/in-tree callers share the interpreter).
+    inserted = [item for item in (str(benchmark_dir), str(videoscore_root)) if item not in sys.path]
     for item in reversed(inserted):
-        if item not in sys.path:
-            sys.path.insert(0, item)
-    # Import the module.
-    return importlib.import_module("eval_videoscore")
+        sys.path.insert(0, item)
+    try:
+        return importlib.import_module("eval_videoscore")
+    finally:
+        for item in inserted:
+            try:
+                sys.path.remove(item)
+            except ValueError:
+                pass
 
 
-def patch_transformers_dynamic_cache_api() -> None:
+def patch_transformers_dynamic_cache_api() -> Callable[[], None] | None:
     """
     Patches `transformers.cache_utils.DynamicCache` for compatibility.
 
     This addresses a potential API change in the Hugging Face Transformers library
     where `get_usable_length` might be missing but `get_seq_length` exists.
+
+    Returns an undo callable when a patch was applied (so in-process callers can
+    restore the class after the bounded run instead of leaking the monkeypatch
+    to unrelated runners sharing the interpreter), or None when nothing changed.
     """
     try:
         from transformers.cache_utils import DynamicCache
     except ImportError:  # pragma: no cover - runtime dependency
-        return
+        return None
 
     # Check if the patch is needed (if get_usable_length is missing but get_seq_length exists).
     if hasattr(DynamicCache, "get_usable_length") or not hasattr(DynamicCache, "get_seq_length"):
-        return
+        return None
 
     # Define the compatibility method.
     def get_usable_length(self: Any, _new_seq_length: int | None = None, layer_idx: int = 0) -> int:
@@ -829,6 +840,12 @@ def patch_transformers_dynamic_cache_api() -> None:
 
     # Apply the patch.
     DynamicCache.get_usable_length = get_usable_length  # type: ignore[attr-defined]
+
+    def undo_patch() -> None:
+        if getattr(DynamicCache, "get_usable_length", None) is get_usable_length:
+            del DynamicCache.get_usable_length  # type: ignore[attr-defined]
+
+    return undo_patch
 
 
 def run_bounded_videoscore(args: argparse.Namespace, result_file: Path) -> tuple[list[dict[str, Any]], Path]:
@@ -859,42 +876,48 @@ def run_bounded_videoscore(args: argparse.Namespace, result_file: Path) -> tuple
     # Load bounded data rows and prepare frames root.
     split_root, rows = load_bounded_rows(args.bench_data_root, args.bench_name, args.bounded_sample_count)
     frames_root = args.output_dir / "bounded_frames"
-    patch_transformers_dynamic_cache_api() # Apply compatibility patch for transformers library.
-    official = load_official_videoscore_module(args.videoscore_root)
+    # Apply compatibility patch for transformers library; undone after the run
+    # so the class-level monkeypatch does not leak to other in-process runners.
+    undo_transformers_patch = patch_transformers_dynamic_cache_api()
+    try:
+        official = load_official_videoscore_module(args.videoscore_root)
 
-    # Initialize model and processor.
-    processor = official.AutoProcessor.from_pretrained(args.model_repo_name, torch_dtype=official.torch.bfloat16)
-    model = official.Idefics2ForSequenceClassification.from_pretrained(
-        args.model_repo_name,
-        torch_dtype=official.torch.bfloat16,
-    ).eval()
-    device = official.torch.device("cuda" if official.torch.cuda.is_available() else "cpu")
-    model.to(device)
+        # Initialize model and processor.
+        processor = official.AutoProcessor.from_pretrained(args.model_repo_name, torch_dtype=official.torch.bfloat16)
+        model = official.Idefics2ForSequenceClassification.from_pretrained(
+            args.model_repo_name,
+            torch_dtype=official.torch.bfloat16,
+        ).eval()
+        device = official.torch.device("cuda" if official.torch.cuda.is_available() else "cpu")
+        model.to(device)
 
-    result_rows: list[dict[str, Any]] = []
-    # Process each row, materialize frames, run model inference, and store results.
-    for row in rows:
-        sample_id = str(row["id"])
-        frame_paths = materialize_bounded_frames(
-            split_root=split_root,
-            bench_name=args.bench_name,
-            row=row,
-            frames_root=frames_root,
-        )
-        prompt = video_prompt_from_row(row)
-        # Call the official model output function directly.
-        scores = official._model_output(model, processor, prompt, frame_paths)
-        result_rows.append(
-            {
-                "id": sample_id,
-                "text": prompt,
-                "ref": str(reference_scores_from_row(row, args.bench_name)),
-                "ans": str(scores),
-            }
-        )
+        result_rows: list[dict[str, Any]] = []
+        # Process each row, materialize frames, run model inference, and store results.
+        for row in rows:
+            sample_id = str(row["id"])
+            frame_paths = materialize_bounded_frames(
+                split_root=split_root,
+                bench_name=args.bench_name,
+                row=row,
+                frames_root=frames_root,
+            )
+            prompt = video_prompt_from_row(row)
+            # Call the official model output function directly.
+            scores = official._model_output(model, processor, prompt, frame_paths)
+            result_rows.append(
+                {
+                    "id": sample_id,
+                    "text": prompt,
+                    "ref": str(reference_scores_from_row(row, args.bench_name)),
+                    "ans": str(scores),
+                }
+            )
 
-    write_json(result_file, result_rows)
-    return result_rows, frames_root / f"frames_{args.bench_name}"
+        write_json(result_file, result_rows)
+        return result_rows, frames_root / f"frames_{args.bench_name}"
+    finally:
+        if undo_transformers_patch is not None:
+            undo_transformers_patch()
 
 
 def run_official_videoscore(args: argparse.Namespace) -> dict[str, Any]:

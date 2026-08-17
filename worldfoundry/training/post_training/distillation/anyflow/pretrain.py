@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import asdict
 
 import torch
 from torch import Tensor
@@ -90,7 +91,7 @@ class NativeAnyFlowPretrainLossAdapter:
         self.config = config
         self.decisions = decisions
         self.parallel_context = parallel_context or PostTrainingParallelContext.current()
-        self.config_digest = config.digest
+        self.config_state = asdict(config)
 
     def loss_denominator(self, batch: AnyFlowTrainingBatch, *, role: str) -> Tensor:
         if role != "student":

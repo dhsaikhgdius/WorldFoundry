@@ -236,12 +236,40 @@ def _is_failed(result: GenerationResult) -> bool:
     return not is_generation_result_successful(result)
 
 
+#: Canonical metric ids `BuiltinExistingResultsMetric.__call__` actually implements.
+OFFLINE_COMPUTABLE_METRIC_IDS: frozenset[str] = frozenset(
+    {"artifact_count", "required_artifacts_present", "numeric"}
+)
+#: Parameterized prefixes `BuiltinExistingResultsMetric.__call__` actually implements.
+OFFLINE_COMPUTABLE_METRIC_PREFIXES: tuple[str, ...] = ("has_artifact:", "numeric:")
+
+
+def is_offline_computable_metric_id(canonical_metric_id: str) -> bool:
+    """Return True when the offline existing-results evaluator can compute this id."""
+    return canonical_metric_id in OFFLINE_COMPUTABLE_METRIC_IDS or canonical_metric_id.startswith(
+        OFFLINE_COMPUTABLE_METRIC_PREFIXES
+    )
+
+
 class BuiltinExistingResultsMetric:
     """Metric callable for scoring materialized generation outputs."""
 
     def __init__(self, metrics: Sequence[str] = (), required_artifacts: Sequence[str] = ()) -> None:
         validation = validate_metric_ids(tuple(str(item) for item in (metrics or ())), raise_on_error=True)
         self.metrics = tuple(item["canonical_metric_id"] for item in validation["metrics"])
+        # Fail fast on registered-but-not-offline-computable ids (e.g. fid, cmmd,
+        # vqa_score).  Accepting them here would silently drop the metric from
+        # the scorecard, which is worse than refusing the run request.
+        unsupported = tuple(metric for metric in self.metrics if not is_offline_computable_metric_id(metric))
+        if unsupported:
+            raise MetricRegistryError(
+                "metrics not computable by the offline existing-results evaluator: "
+                f"{', '.join(sorted(unsupported))}. This evaluator only computes "
+                "artifact_count, required_artifacts_present, numeric, "
+                "has_artifact:<name>, and numeric:<name>; other registered metric "
+                "ids need the benchmark in-tree evaluator or their metric package "
+                "compute() API."
+            )
         self.required_artifacts = tuple(str(item) for item in (required_artifacts or ()))
 
     def __call__(self, request: GenerationRequest, result: GenerationResult) -> dict[str, Any]:
@@ -423,6 +451,13 @@ class MetricRegistryEntry:
     @property
     def spec(self) -> MetricSpec:
         """Export public :class:`MetricSpec` for this entry."""
+        # Only the offline-computable builtin ids are implemented by
+        # BuiltinExistingResultsMetric; claiming it for every registered entry
+        # (fid, cmmd, vqa_score, ...) would misdescribe ~55 metric packages.
+        offline = is_offline_computable_metric_id(self.id) or (
+            self.parameterized_prefix is not None
+            and self.parameterized_prefix in OFFLINE_COMPUTABLE_METRIC_PREFIXES
+        )
         return MetricSpec(
             id=self.id,
             aliases=self.aliases,
@@ -430,7 +465,9 @@ class MetricRegistryEntry:
             family=self.family,
             required_artifacts=self.required_artifacts,
             higher_is_better=self.higher_is_better,
-            implementation="worldfoundry.evaluation.tasks.metrics.registry:BuiltinExistingResultsMetric",
+            implementation=(
+                "worldfoundry.evaluation.tasks.metrics.registry:BuiltinExistingResultsMetric" if offline else None
+            ),
             tags=self.tags,
             metadata={
                 "parameterized_prefix": self.parameterized_prefix,
@@ -872,7 +909,10 @@ __all__ = [
     "MetricRegistry",
     "MetricRegistryEntry",
     "MetricRegistryError",
+    "OFFLINE_COMPUTABLE_METRIC_IDS",
+    "OFFLINE_COMPUTABLE_METRIC_PREFIXES",
     "UnknownMetricRegistryKeyError",
+    "is_offline_computable_metric_id",
     "create_existing_results_metric",
     "default_metric_registry",
     "discover_metric_registry_entries",

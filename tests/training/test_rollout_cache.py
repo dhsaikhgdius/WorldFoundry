@@ -5,7 +5,7 @@ import json
 import pytest
 import torch
 
-from worldfoundry.core.io.integrity import canonical_json, text_sha256
+from worldfoundry.core.io.integrity import canonical_json
 from worldfoundry.training.data import (
     RolloutConditioningDataset,
     RolloutPromptDataset,
@@ -36,7 +36,7 @@ class _Encoder:
 
 def _record(prompt_id: str, prompt: str) -> RolloutPromptRecord:
     audit = PromptSafetyAudit(
-        prompt_sha256=text_sha256(prompt),
+        prompt=prompt,
         unsafe_probabilities={key: 0.01 for key in SHIELDGEMMA_PROMPT_POLICIES},
         threshold=0.5,
     )
@@ -62,22 +62,19 @@ def test_rollout_conditioning_cache_round_trips_and_binds_every_identity(tmp_pat
     prompts = _manifest(tmp_path)
     encoder = _Encoder()
     cache = tmp_path / "cache"
-    digest = "a" * 64
-
     prepared = prepare_rollout_conditioning_cache(
         prompts,
         cache_root=cache,
         encoder=encoder,
         model_recipe="wan2.1-t2v-1.3b",
-        model_recipe_digest=digest,
-        conditioner_digest="b" * 64,
-        tokenizer_digest="c" * 64,
+        conditioner={"repo_id": "encoder", "revision": "main"},
+        tokenizer={"repo_id": "tokenizer", "revision": "main"},
     )
     dataset = RolloutConditioningDataset(prompts, cache)
 
     assert len(prepared.entries) == len(dataset) == 2
     assert encoder.calls[0] == ("first", "first prompt", 17, 256, 416)
-    assert dataset.index.digest == prepared.index.digest
+    assert dataset.index == prepared.index
     assert dataset[0].record.prompt_id == "first"
     torch.testing.assert_close(
         dataset[0].conditioning["context"],
@@ -93,14 +90,13 @@ def test_rollout_conditioning_cache_rejects_index_tampering(tmp_path) -> None:
         cache_root=cache,
         encoder=_Encoder(),
         model_recipe="wan2.1-t2v-1.3b",
-        model_recipe_digest="a" * 64,
-        conditioner_digest="b" * 64,
-        tokenizer_digest="c" * 64,
+        conditioner={"repo_id": "encoder", "revision": "main"},
+        tokenizer={"repo_id": "tokenizer", "revision": "main"},
     )
     path = cache / "rollout-conditioning-index.json"
     payload = json.loads(path.read_text(encoding="utf-8"))
-    payload["index"]["entries"][0]["prompt_id"] = "tampered"
+    payload["index"]["entries"][0]["record"]["prompt_id"] = "tampered"
     path.write_text(json.dumps(payload), encoding="utf-8")
 
-    with pytest.raises(ValueError, match="digest mismatch"):
+    with pytest.raises(ValueError, match="another prompt dataset"):
         RolloutConditioningDataset(prompts, cache)

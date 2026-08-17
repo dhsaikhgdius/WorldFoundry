@@ -12,7 +12,6 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import Iterable
 
-from ...utils import REPO_ROOT  # noqa: F401 - ensures repo root is importable
 from ...api.registry import lookup_key
 from ..pipelines.bindings import resolve_pipeline_route
 from .schema import ModelZooEntry

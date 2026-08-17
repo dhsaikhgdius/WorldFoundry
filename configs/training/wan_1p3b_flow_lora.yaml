@@ -47,7 +47,6 @@ data:
       interpolation: bicubic
       value_range: minus-one-one
       decoder_thread_type: auto
-      verify_media_sha256: true
       verify_manifest_frame_count: true
       verify_manifest_geometry: true
       fps_tolerance: 0.05

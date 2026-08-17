@@ -2,6 +2,10 @@ from pathlib import Path
 
 import pytest
 
+# worldfoundry.synthesis.visual_generation.worldfm requires the optional
+# imageio dependency at import time; skip in environments without it.
+pytest.importorskip("imageio")
+
 from worldfoundry.representations.point_clouds_generation.worldfm.panogen import ensure_hy3dworld
 from worldfoundry.representations.point_clouds_generation.worldfm.worldfm_representation import (
     WorldFMRepresentation,

@@ -125,11 +125,6 @@ def test_released_small_checkpoint_defaults_are_immutable_and_component_only() -
             "transformer/diffusion_pytorch_model.safetensors",
         )
         assert all(pattern.startswith("transformer/") for pattern in checkpoint.allow_patterns)
-        weight = "transformer/diffusion_pytorch_model.safetensors"
-        assert set(checkpoint.file_sha256) == {weight}
-        assert set(checkpoint.file_size_bytes) == {weight}
-        assert set(checkpoint.resource_sha256) == {"transformer/config.json"}
-        assert set(checkpoint.resource_size_bytes) == {"transformer/config.json"}
 
 
 def test_model_boundary_import_is_lazy_and_dependency_error_is_actionable(
@@ -322,7 +317,7 @@ def test_materializer_binds_resolved_checkpoint_identity(tmp_path: Path) -> None
         role="student",
         requested_reference="default",
         checkpoint=checkpoint,
-        source_kind="audited-local",
+        source_kind="local",
     )
     adapter = NativeAnyFlowModelMaterializer().bidirectional_student(
         resolved,

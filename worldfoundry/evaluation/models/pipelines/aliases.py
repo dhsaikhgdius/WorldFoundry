@@ -275,12 +275,18 @@ def load_pipeline_alias_groups(root: str | Path | None = None) -> tuple[Pipeline
     """
     groups: list[PipelineAliasGroup] = []
     for path in _alias_paths(root):
-        payload = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        try:
+            payload = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        except yaml.YAMLError as exc:
+            raise yaml.YAMLError(f"failed to parse pipeline alias file {path}: {exc}") from exc
         if not isinstance(payload, Mapping):
             raise TypeError(f"pipeline alias file must contain a mapping: {path}")
         _validate_schema_version(payload, path=path)
-        # NOTE: domain is inferred from the parent directory name.
-        groups.extend(_groups_from_payload(payload, domain=path.parent.name))
+        try:
+            # NOTE: domain is inferred from the parent directory name.
+            groups.extend(_groups_from_payload(payload, domain=path.parent.name))
+        except (TypeError, ValueError) as exc:
+            raise type(exc)(f"{path}: {exc}") from exc
     return tuple(groups)
 
 
@@ -299,10 +305,17 @@ def load_pipeline_alias_registry(root: str | Path | None = None) -> PipelineAlia
     """Retrieve the cached global :class:`PipelineAliasRegistry`.
 
     Uses :func:`_cached_pipeline_alias_registry` so repeated calls with the
-    same ``root`` return the same registry object.
+    same ``root`` return the same registry object.  Call
+    :func:`clear_pipeline_alias_registry_cache` after editing alias YAML
+    inside a long-lived process.
     """
     root_text = "" if root is None else str(Path(root))
     return _cached_pipeline_alias_registry(root_text)
+
+
+def clear_pipeline_alias_registry_cache() -> None:
+    """Clear the cached PipelineAliasRegistry instances."""
+    _cached_pipeline_alias_registry.cache_clear()
 
 
 __all__ = [

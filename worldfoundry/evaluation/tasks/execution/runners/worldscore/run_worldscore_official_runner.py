@@ -925,12 +925,18 @@ def worldscore_pythonpath_roots(worldscore_root: Path) -> list[Path]:
 def run_command_with_timeout(command: list[str], cwd: Path, env: dict[str, str], timeout: int) -> dict[str, Any]:
     """Run an official command while preserving timeout stdout and stderr.
 
+    The child runs in its own process group so a timeout terminates the whole
+    official runtime tree (judge/dataloader descendants included) instead of
+    only the direct child.
+
     Args:
         command: Command line to execute.
         cwd: Working directory for the official process.
         env: Environment passed to the official process.
         timeout: Maximum runtime in seconds.
     """
+
+    from worldfoundry.core.process import terminate_process_group
 
     process = subprocess.Popen(
         command,
@@ -939,18 +945,19 @@ def run_command_with_timeout(command: list[str], cwd: Path, env: dict[str, str],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
+        start_new_session=os.name == "posix",
     )
-    deadline = time.monotonic() + timeout
-    while process.poll() is None and time.monotonic() < deadline:
-        time.sleep(0.5)
-    timed_out = process.poll() is None
-    if timed_out:
-        process.kill()
-    stdout, stderr = process.communicate()
+    try:
+        stdout, stderr = process.communicate(timeout=timeout)
+        timed_out = False
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        terminate_process_group(process)
+        stdout, stderr = process.communicate()
     return {
         "returncode": 124 if timed_out else process.returncode,
-        "stdout": stdout,
-        "stderr": f"Command timed out after {timeout} seconds\n{stderr}" if timed_out else stderr,
+        "stdout": stdout or "",
+        "stderr": f"Command timed out after {timeout} seconds\n{stderr or ''}" if timed_out else (stderr or ""),
     }
 
 
@@ -1188,7 +1195,19 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         scorecard = run_official_worldscore(args)
-    except (OSError, ValueError, subprocess.TimeoutExpired, json.JSONDecodeError) as exc:
+    except Exception as exc:  # noqa: BLE001 - failure contract: any failure still writes a failed scorecard.
+        try:
+            from worldfoundry.evaluation.tasks.execution.framework.official_runner import write_failed_scorecard
+
+            write_failed_scorecard(
+                benchmark_id=args.benchmark_id,
+                display_name="WorldScore",
+                runner_name="benchmark_zoo_worldscore_official_runner",
+                output_dir=args.output_dir,
+                reason=f"{type(exc).__name__}: {exc}",
+            )
+        except Exception:  # noqa: BLE001 - never mask the original failure with a scorecard write error.
+            pass
         print(f"error: {exc}", file=sys.stderr)
         return 1
 

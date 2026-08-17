@@ -215,7 +215,14 @@ class PreparedBatch:
 
 @dataclass(frozen=True, slots=True)
 class ObjectiveBatch:
-    """Corrupted latents, targets, and sampled noise levels for one objective."""
+    """Corrupted latents, targets, and sampled noise levels for one objective.
+
+    ``timesteps`` semantics are objective-defined: continuous flow matching
+    (``num_train_timesteps=None``) stores unshifted base sigmas, discrete flow
+    matching stores integer schedule indices, and classic diffusion stores
+    DDPM indices.  Adapters that need the effective noise level must consume
+    ``sigmas`` (always the post-shift value) rather than ``timesteps``.
+    """
 
     sample_ids: tuple[str, ...]
     model_input: TensorTree

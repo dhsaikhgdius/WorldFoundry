@@ -23,14 +23,16 @@ import os
 import numpy as np
 import torch
 import torch.nn as nn
-from worldfoundry.core.nn.layers import DropPath
 
 from worldfoundry.base_models.diffusion_model.models.networks.sana.basic_modules import (
     DWMlp,
     GLUMBConv,
-    MBConvPreGLU,
     Mlp,
 )
+from worldfoundry.base_models.diffusion_model.models.networks.sana.capabilities import (
+    is_triton_module_available,
+)
+from worldfoundry.base_models.diffusion_model.models.networks.sana.normalization import RMSNorm
 from worldfoundry.base_models.diffusion_model.models.networks.sana.sana_blocks import (
     Attention,
     CaptionEmbedder,
@@ -44,17 +46,15 @@ from worldfoundry.base_models.diffusion_model.models.networks.sana.sana_blocks i
     TimestepEmbedder,
     t2i_modulate,
 )
-from worldfoundry.base_models.diffusion_model.models.networks.sana.normalization import RMSNorm
-from worldfoundry.core.nn import to_2tuple
-from worldfoundry.base_models.diffusion_model.models.networks.sana.capabilities import is_triton_module_available
 from worldfoundry.core.checkpoint import load_weights_only, require_mapping, require_tensor
 from worldfoundry.core.distributed.generic_collectives import get_rank
+from worldfoundry.core.nn import to_2tuple
+from worldfoundry.core.nn.layers import DropPath
 
 _triton_modules_available = False
 if is_triton_module_available():
     from worldfoundry.base_models.diffusion_model.models.networks.sana.fastlinear.modules import (
         TritonLiteMLA,
-        TritonMBConvPreGLU,
     )
 
     _triton_modules_available = True
@@ -135,7 +135,9 @@ class SanaBlock(nn.Module):
         self.norm2 = nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
         # to be compatible with lower version pytorch
         if ffn_type == "dwmlp":
-            approx_gelu = lambda: nn.GELU(approximate="tanh")
+            def approx_gelu():
+                return nn.GELU(approximate="tanh")
+
             self.mlp = DWMlp(
                 in_features=hidden_size, hidden_features=int(hidden_size * mlp_ratio), act_layer=approx_gelu, drop=0
             )
@@ -157,7 +159,9 @@ class SanaBlock(nn.Module):
                 dilation=2,
             )
         elif ffn_type == "mlp":
-            approx_gelu = lambda: nn.GELU(approximate="tanh")
+            def approx_gelu():
+                return nn.GELU(approximate="tanh")
+
             self.mlp = Mlp(
                 in_features=hidden_size, hidden_features=int(hidden_size * mlp_ratio), act_layer=approx_gelu, drop=0
             )
@@ -295,7 +299,9 @@ class Sana(nn.Module):
         # Will use fixed sin-cos embedding:
         self.register_buffer("pos_embed", torch.zeros(1, num_patches, hidden_size))
 
-        approx_gelu = lambda: nn.GELU(approximate="tanh")
+        def approx_gelu():
+            return nn.GELU(approximate="tanh")
+
         self.t_block = nn.Sequential(nn.SiLU(), nn.Linear(hidden_size, 6 * hidden_size, bias=True))
         self.y_embedder = CaptionEmbedder(
             in_channels=caption_channels,
@@ -360,6 +366,14 @@ class Sana(nn.Module):
                 f"cross-attn type: {cross_attn_type};  cross-attn qk norm: {cross_norm}; "
                 f"autocast linear attn: {os.environ.get('AUTOCAST_LINEAR_ATTN', False)}"
             )
+
+    def set_fp32_attention(self, enabled: bool) -> None:
+        """Select FP32 attention math for this graph and all attention children."""
+
+        if not isinstance(enabled, bool):
+            raise TypeError("enabled must be bool")
+        for module in self.modules():
+            module.fp32_attention = enabled
 
     def forward(self, x, timestep, y, mask=None, data_info=None, **kwargs):
         """

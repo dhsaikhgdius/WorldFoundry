@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from math import isfinite
 from numbers import Real
 from typing import Literal
 
-from worldfoundry.core.io.integrity import canonical_sha256
 from worldfoundry.training.recipes.post_training.algorithms.adversarial_diffusion import (
     AdversarialDiffusionAlgorithmSpec,
 )
@@ -67,16 +66,6 @@ class ADDNoiseSchedule:
     @property
     def num_timesteps(self) -> int:
         return len(self.alpha_cumprods)
-
-    @property
-    def digest(self) -> str:
-        return canonical_sha256(
-            {
-                "kind": "add-noise-schedule",
-                "alpha_cumprods": self.alpha_cumprods,
-                "training_loss_weights": self.training_loss_weights,
-            }
-        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -192,36 +181,8 @@ class ADDConfig:
     def feature_keys(self) -> tuple[tuple[int, str], ...]:
         return tuple((resolution, layer) for resolution in self.feature_resolutions for layer in self.feature_layers)
 
-    @property
-    def digest(self) -> str:
-        return canonical_sha256({"kind": "adversarial-diffusion-distillation", **asdict(self)})
-
-
-def add_execution_digest(
-    config: ADDConfig,
-    student_schedule: ADDNoiseSchedule,
-    teacher_schedule: ADDNoiseSchedule,
-) -> str:
-    """Bind every behavior-bearing objective schedule into resume identity."""
-
-    if not isinstance(config, ADDConfig):
-        raise TypeError("config must be ADDConfig")
-    if not isinstance(student_schedule, ADDNoiseSchedule):
-        raise TypeError("student_schedule must be ADDNoiseSchedule")
-    if not isinstance(teacher_schedule, ADDNoiseSchedule):
-        raise TypeError("teacher_schedule must be ADDNoiseSchedule")
-    return canonical_sha256(
-        {
-            "config": config.digest,
-            "student_schedule": student_schedule.digest,
-            "teacher_schedule": teacher_schedule.digest,
-        }
-    )
-
-
 __all__ = [
     "ADDConfig",
     "ADDDistillationWeighting",
     "ADDNoiseSchedule",
-    "add_execution_digest",
 ]

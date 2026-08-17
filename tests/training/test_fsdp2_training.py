@@ -94,6 +94,49 @@ class _Adapter:
         return self.trainable_module(batch.model_input)
 
 
+def test_fsdp2_master_storage_dtype_is_not_classified_as_a_forward_precision_island() -> None:
+    from worldfoundry.training.distributed.fsdp import _precision_island_modules
+
+    model = _Model().float().requires_grad_(False)
+    for block in model.blocks:
+        block.adapter_down.requires_grad_(True)
+        block.adapter_up.requires_grad_(True)
+
+    assert _precision_island_modules(
+        model,
+        param_dtype=torch.bfloat16,
+        master_parameter_dtype=None,
+    )
+    assert not _precision_island_modules(
+        model,
+        param_dtype=torch.bfloat16,
+        master_parameter_dtype=torch.float32,
+    )
+
+
+class _FP32Adapter:
+    prediction_type = "flow_velocity"
+    lora_target_preset = None
+    fsdp_block_classes = (_Block,)
+
+    def __init__(self, device: torch.device) -> None:
+        self.trainable_module = _Model().to(device=device, dtype=torch.float32)
+
+    def prepare_batch(self, batch: TrainingBatch) -> PreparedBatch:
+        assert isinstance(batch.pixel_values, torch.Tensor)
+        return PreparedBatch(
+            sample_ids=batch.sample_ids,
+            clean_latents=batch.pixel_values[:, :, 0].to(
+                device=next(self.trainable_module.parameters()).device,
+                dtype=torch.float32,
+            ),
+        )
+
+    def forward_train(self, batch: ObjectiveBatch) -> torch.Tensor:
+        assert isinstance(batch.model_input, torch.Tensor)
+        return self.trainable_module(batch.model_input)
+
+
 class _StatefulCursor:
     def __init__(self) -> None:
         self.cursor = 0
@@ -184,6 +227,8 @@ def _synthetic_fsdp_engine(
     *,
     fail_on_forward: int | None = None,
     fail_after_optimizer_mutation: bool = False,
+    max_grad_norm: float | None = 1.0,
+    train_batch_end=None,
 ) -> tuple[FSDP2TrainEngine, _SyntheticFSDPAdapter]:
     engine_module = importlib.import_module("worldfoundry.training.engine.fsdp")
     monkeypatch.setattr(engine_module, "FSDPModule", _SyntheticFSDPRoot)
@@ -202,13 +247,53 @@ def _synthetic_fsdp_engine(
         adapter,
         FlowMatchingObjective(FlowMatchingConfig(timestep_sampler="uniform")),
         optimizer,
+        max_grad_norm=max_grad_norm,
+        train_batch_end=train_batch_end,
     )
     engine.application = SimpleNamespace(
-        digest="a" * 64,
+        to_dict=lambda: {"kind": "synthetic-fsdp2"},
         parallel_plan=SimpleNamespace(to_dict=lambda: {"backend": "fsdp2", "world_size": 1}),
     )
     engine.data_parallel_size = 1
     return engine, adapter
+
+
+def test_fsdp2_engine_can_observe_gradient_norm_without_clipping(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    engine, _ = _synthetic_fsdp_engine(monkeypatch, max_grad_norm=None)
+
+    result = engine.train_accumulation(
+        (_batch("first", 0.0), _batch("second", 0.1)),
+        generator=torch.Generator().manual_seed(59),
+    )
+
+    assert bool(torch.isfinite(result.metrics["grad_norm"]))
+    assert result.diagnostics["max_grad_norm"] is None
+
+
+def test_fsdp2_train_batch_end_preserves_accumulation_timing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    observed: list[torch.Tensor] = []
+    adapter_holder: list[_SyntheticFSDPAdapter] = []
+
+    def observe() -> None:
+        observed.append(adapter_holder[0].trainable_module.projection.weight.detach().clone())
+
+    engine, adapter = _synthetic_fsdp_engine(monkeypatch, train_batch_end=observe)
+    adapter_holder.append(adapter)
+    before = adapter.trainable_module.projection.weight.detach().clone()
+
+    engine.train_accumulation(
+        (_batch("first", 0.0), _batch("second", 0.1)),
+        generator=torch.Generator().manual_seed(60),
+    )
+
+    assert len(observed) == 2
+    torch.testing.assert_close(observed[0], before, rtol=0, atol=0)
+    torch.testing.assert_close(observed[1], adapter.trainable_module.projection.weight, rtol=0, atol=0)
+    assert not torch.equal(observed[0], observed[1])
 
 
 def test_fsdp2_partial_optimizer_commit_poisons_and_restores_sync_flags(
@@ -271,12 +356,12 @@ def test_fsdp2_state_load_validates_every_field_before_mutation(
     engine, _ = _synthetic_fsdp_engine(monkeypatch)
     engine.global_step = 9
 
-    with pytest.raises(ValueError, match="application digest"):
+    with pytest.raises(ValueError, match="application differs"):
         engine.load_state_dict(
             {
                 "schema": "worldfoundry-training-engine-fsdp2",
                 "global_step": 3,
-                "fsdp2_application_digest": "b" * 64,
+                "fsdp2_application": {"kind": "another-application"},
             }
         )
     assert engine.global_step == 9
@@ -285,7 +370,7 @@ def test_fsdp2_state_load_validates_every_field_before_mutation(
             {
                 "schema": "worldfoundry-training-engine-fsdp2",
                 "global_step": 3.5,
-                "fsdp2_application_digest": "a" * 64,
+                "fsdp2_application": {"kind": "synthetic-fsdp2"},
             }
         )
     assert engine.global_step == 9
@@ -294,7 +379,7 @@ def test_fsdp2_state_load_validates_every_field_before_mutation(
         {
             "schema": "worldfoundry-training-engine-fsdp2",
             "global_step": 3,
-            "fsdp2_application_digest": "a" * 64,
+            "fsdp2_application": {"kind": "synthetic-fsdp2"},
         }
     )
     assert engine.global_step == 3
@@ -320,7 +405,7 @@ def test_fsdp2_application_distinguishes_trainable_and_frozen_roles() -> None:
     )
 
     assert frozen.to_dict()["parameter_mode"] == "frozen-reference"
-    assert len(frozen.digest) == 64
+    assert frozen.to_dict()["parameter_mode"] == "frozen-reference"
     with pytest.raises(ValueError, match="cannot contain trainable"):
         FSDP2Application(
             parallel_plan=plan,
@@ -375,7 +460,6 @@ def test_fsdp2_full_model_export_gathers_dtensors_and_strictly_reloads(
         artifact = export_full_model(
             adapter.trainable_module,
             tmp_path / "full-model",
-            metadata={"run_id": "fsdp2-export"},
             distributed_context=context,
             role="test model",
             max_shard_size_bytes=128,
@@ -438,8 +522,8 @@ def test_fsdp2_application_engine_and_dcp_exact_next_step(
             "blocks.1.adapter_up:float32",
         )
         assert application.parameter_names == parameter_names_before
-        assert application.parallel_plan.digest == plan.digest
-        assert len(application.digest) == 64
+        assert application.parallel_plan == plan
+        assert application.to_dict()["parallel_plan"] == plan.to_dict()
         assert all(
             isinstance(parameter, torch.distributed.tensor.DTensor)
             for parameter in adapter.trainable_module.parameters()
@@ -472,7 +556,7 @@ def test_fsdp2_application_engine_and_dcp_exact_next_step(
             identity={
                 "model": "tiny-fsdp2",
                 "parallel_plan": plan.to_dict(),
-                "fsdp2_application_digest": application.digest,
+                "fsdp2_application": application.to_dict(),
             },
             ignore_frozen_parameters=True,
         )
@@ -509,5 +593,95 @@ def test_fsdp2_application_engine_and_dcp_exact_next_step(
         assert engine.global_step == 2
         assert progress.optimizer_steps == 1
         torch.testing.assert_close(actual.loss, expected_loss, rtol=0, atol=0)
+        for name, value in _local_parameter_state(adapter.trainable_module).items():
+            torch.testing.assert_close(value, expected_parameters[name], rtol=0, atol=0)
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
+def test_fsdp2_fp16_compute_keeps_fp32_shards_and_resumes_grad_scaler(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("RANK", "0")
+    monkeypatch.setenv("WORLD_SIZE", "1")
+    monkeypatch.setenv("LOCAL_RANK", "0")
+    monkeypatch.setenv("MASTER_ADDR", "127.0.0.1")
+    monkeypatch.setenv("MASTER_PORT", str(_free_local_port()))
+    monkeypatch.setenv("NCCL_DEBUG", "WARN")
+    torch.manual_seed(83)
+    torch.cuda.manual_seed_all(89)
+
+    with DistributedTrainingContext(device_type="cuda") as context:
+        adapter = _FP32Adapter(context.device)
+        plan = ParallelPlan.resolve(
+            DistributedSpec(backend="fsdp2", dp_shard="auto"),
+            world_size=context.world_size,
+        )
+        application = apply_fsdp2(
+            adapter,
+            plan=plan,
+            mesh=plan.build_device_mesh(context.device.type),
+            param_dtype=torch.float16,
+            reduce_dtype=torch.float32,
+            master_parameter_dtype=torch.float32,
+        )
+        optimizer = build_adamw(
+            trainable_parameters(adapter.trainable_module),
+            learning_rate=0.01,
+            fused=True,
+        )
+        engine = FSDP2TrainEngine(
+            adapter,
+            FlowMatchingObjective(FlowMatchingConfig(timestep_sampler="uniform")),
+            optimizer,
+            application=application,
+            autocast_dtype=torch.float16,
+        )
+        engine.grad_scaler = torch.amp.GradScaler(
+            "cuda",
+            init_scale=128.0,
+            growth_interval=1,
+        )
+        assert application.original_parameter_dtypes == ("float32",)
+        assert application.precision_island_module_names == ()
+        assert all(parameter.to_local().dtype is torch.float32 for parameter in engine.parameters)
+
+        generator = torch.Generator(device=context.device).manual_seed(97)
+        progress = TrainingProgress()
+        state = TrainingState(
+            model=adapter.trainable_module,
+            optimizer=optimizer,
+            engine=engine,
+            dataloader=_StatefulCursor(),
+            objective_generator=generator,
+            progress=progress,
+            identity={"model": "fp16-compute-fp32-master", "parallel_plan": plan.to_dict()},
+            grad_scaler=engine.grad_scaler,
+        )
+
+        first = engine.train_step(_batch("first", 0.0), generator=generator)
+        progress.record_step(
+            microbatches=1,
+            samples=first.sample_count,
+            latent_tokens=first.latent_token_count,
+        )
+        manager = TrainingCheckpointer(tmp_path / "fp16-checkpoints")
+        checkpoint = manager.save(state, asynchronous=False)
+
+        expected = engine.train_step(_batch("next", 0.1), generator=generator)
+        progress.record_step(
+            microbatches=1,
+            samples=expected.sample_count,
+            latent_tokens=expected.latent_token_count,
+        )
+        expected_parameters = _local_parameter_state(adapter.trainable_module)
+        expected_scaler = dict(engine.grad_scaler.state_dict())
+
+        manager.load(state, checkpoint.path)
+        actual = engine.train_step(_batch("next", 0.1), generator=generator)
+
+        torch.testing.assert_close(actual.loss, expected.loss, rtol=0, atol=0)
+        assert engine.grad_scaler.state_dict() == expected_scaler
+        assert actual.diagnostics["grad_scaling"] is True
         for name, value in _local_parameter_state(adapter.trainable_module).items():
             torch.testing.assert_close(value, expected_parameters[name], rtol=0, atol=0)

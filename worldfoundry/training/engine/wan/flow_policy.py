@@ -8,14 +8,10 @@ from typing import Literal
 
 import torch
 
-from worldfoundry.core.io.integrity import (
-    append_jsonl_durable,
-    canonical_sha256,
-)
+from worldfoundry.core.io.integrity import append_jsonl_durable
 from worldfoundry.core.time import utc_now_iso
 from worldfoundry.training.checkpoint.checkpointer import TrainingCheckpointer
 from worldfoundry.training.checkpoint.state import TrainingProgress, TrainingState
-from worldfoundry.training.data.wan.contracts import wan_checkpoint_asset_digest
 from worldfoundry.training.distributed.fsdp import (
     FSDP2Application,
     apply_fsdp2,
@@ -111,7 +107,7 @@ def materialize_wan_flow_policy_training_run(
             role="policy",
             reference=recipe.model.checkpoint,
             native_default=default_dit,
-            audited_local_override=raw_role_overrides.get("policy"),
+            local_override=raw_role_overrides.get("policy"),
         )
         reference_checkpoint = None
         if algorithm.requires_reference_policy:
@@ -120,7 +116,7 @@ def materialize_wan_flow_policy_training_run(
                 role="reference",
                 reference=algorithm.reference_checkpoint,
                 native_default=default_dit,
-                audited_local_override=raw_role_overrides.get("reference"),
+                local_override=raw_role_overrides.get("reference"),
             )
 
         dtype = assets.dtype
@@ -213,13 +209,8 @@ def materialize_wan_flow_policy_training_run(
                     "reference-policy": reference_prediction.module,
                 }
             )
-        initial_policy_revision = canonical_sha256(
-            {
-                "schema": "worldfoundry-initial-policy-revision",
-                "checkpoint_digest": policy_checkpoint.digest,
-                "tuning": recipe.to_dict()["tuning"],
-                "initialization_seed": assets.base_seed,
-            }
+        initial_policy_revision = (
+            f"{policy_checkpoint.requested_reference}:seed-{assets.base_seed}"
         )
         parallel_context = PostTrainingParallelContext.current()
         stack = build_native_flow_policy_training_stack(
@@ -268,13 +259,11 @@ def materialize_wan_flow_policy_training_run(
             reference_fsdp=reference_fsdp,
         )
         data_identity = {
-            "prompt_manifest_sha256": assets.prompts.manifest_sha256,
-            "prompt_dataset_digest": assets.prompts.dataset_digest,
-            "conditioned_dataset_digest": assets.conditioning.dataset_digest,
-            "conditioning_index_sha256": assets.conditioning.index.digest,
-            "model_recipe_digest": assets.model_contract_digest,
-            "conditioner_digest": assets.conditioner_digest,
-            "tokenizer_digest": assets.tokenizer_digest,
+            "prompt_records": [record.to_dict() for record in assets.prompts],
+            "conditioning_index": assets.conditioning.index.to_dict(),
+            "model_contract": dict(assets.model_contract),
+            "conditioner": dict(assets.conditioner),
+            "tokenizer": dict(assets.tokenizer),
             "sample_count": len(assets.conditioning),
             "generation": {
                 "height": height,
@@ -299,9 +288,8 @@ def materialize_wan_flow_policy_training_run(
         }
         reward_identity = {
             "adapter": reward_adapter.identity,
-            "adapter_digest": reward_adapter.digest,
             "codec": {
-                "checkpoint_digest": wan_checkpoint_asset_digest(assets.resolved_component_checkpoints["vae"]),
+                "checkpoint": assets.resolved_component_checkpoints["vae"].to_dict(),
                 "options": dict(data_plan.codec_options),
                 "device_type": assets.reward_device.type,
             },
@@ -309,7 +297,7 @@ def materialize_wan_flow_policy_training_run(
         progress = TrainingProgress(optimizer_steps=stack.engine.global_step)
         identity = {
             "schema": "worldfoundry-wan-flow-policy-resume-identity",
-            "recipe_digest": recipe.digest,
+            "recipe": recipe.to_dict(),
             "roles": roles.runtime_identity(),
             "data": data_identity,
             "reward": reward_identity,
@@ -344,7 +332,6 @@ def materialize_wan_flow_policy_training_run(
                     **dict(event),
                     "metric_scope": "rank-zero-local",
                     "run_id": recipe.run.id,
-                    "recipe_digest": recipe.digest,
                     "recorded_at": utc_now_iso(),
                 },
                 root=assets.output_dir,

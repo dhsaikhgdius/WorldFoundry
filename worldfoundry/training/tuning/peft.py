@@ -1,4 +1,4 @@
-"""Audited PEFT LoRA injection for custom WorldFoundry model graphs."""
+"""PEFT LoRA injection for custom WorldFoundry model graphs."""
 
 from __future__ import annotations
 
@@ -11,18 +11,12 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from math import isfinite
 from pathlib import Path
-from types import MappingProxyType
+from types import MappingProxyType, SimpleNamespace
 
 from torch import nn
 
-from worldfoundry.core.io.file_utils import file_sha256 as _file_sha256
-from worldfoundry.core.io.integrity import canonical_json as _core_canonical_json
-from worldfoundry.core.io.integrity import write_exclusive_text
-
 SANA_ATTENTION = "sana-attention"
 WAN_ATTENTION = "wan-attention"
-PEFT_ADAPTER_ARTIFACT_SCHEMA = "worldfoundry-peft-adapter"
-_SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
 _SANA_ATTENTION_PATTERN = re.compile(
     r"^blocks\.(?P<block>\d+)\."
     r"(?P<role>attn\.(?:qkv|proj)|cross_attn\.(?:q_linear|kv_linear|proj))$"
@@ -97,44 +91,20 @@ class PeftLoraApplication:
 @dataclass(frozen=True, slots=True)
 class PeftAdapterArtifact:
     path: Path
-    manifest_sha256: str
-    file_digests: Mapping[str, str]
-    metadata: Mapping[str, object]
+    file_size_bytes: Mapping[str, int]
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "path", Path(self.path))
-        object.__setattr__(self, "file_digests", MappingProxyType(dict(self.file_digests)))
-        object.__setattr__(self, "metadata", MappingProxyType(dict(self.metadata)))
+        sizes = {str(name): int(size) for name, size in self.file_size_bytes.items()}
+        object.__setattr__(self, "file_size_bytes", MappingProxyType(sizes))
 
 
-def _canonical_json(value: object) -> str:
-    try:
-        return _core_canonical_json(value)
-    except (TypeError, ValueError) as error:
-        raise TypeError("PEFT adapter metadata must be JSON serializable without NaN or infinity") from error
-
-
-def _json_metadata(value: Mapping[str, object] | None) -> dict[str, object]:
-    if value is None:
-        return {}
-    if not isinstance(value, Mapping):
-        raise TypeError("PEFT adapter metadata must be a mapping")
-    normalized = json.loads(_canonical_json(dict(value)))
-    if not isinstance(normalized, dict):
-        raise TypeError("PEFT adapter metadata must resolve to a JSON object")
-    return normalized
-
-
-def _artifact_files(path: Path) -> dict[str, str]:
-    files: dict[str, str] = {}
+def _artifact_files(path: Path) -> dict[str, int]:
+    files: dict[str, int] = {}
     for candidate in sorted(path.rglob("*")):
-        if candidate.name == "worldfoundry_adapter.json":
-            continue
-        if candidate.is_symlink():
-            raise ValueError(f"PEFT adapter artifacts cannot contain symlinks: {candidate}")
         if candidate.is_file():
             relative = candidate.relative_to(path).as_posix()
-            files[relative] = _file_sha256(candidate)
+            files[relative] = candidate.stat().st_size
     if "adapter_config.json" not in files:
         raise ValueError("PEFT adapter artifact is missing adapter_config.json")
     if "adapter_model.safetensors" not in files:
@@ -217,7 +187,33 @@ def apply_peft_lora(
     to the optimizer and checkpoint/export code.
     """
 
-    audit = audit_lora_targets(model, preset)
+    return apply_peft_lora_with_audit(
+        model,
+        audit=audit_lora_targets(model, preset),
+        rank=rank,
+        alpha=alpha,
+        dropout=dropout,
+        modules_to_save=modules_to_save,
+    )
+
+
+def apply_peft_lora_with_audit(
+    model: nn.Module,
+    *,
+    audit: LoraTargetAudit,
+    rank: int,
+    alpha: int,
+    dropout: float = 0.0,
+    modules_to_save: Sequence[str] = (),
+) -> PeftLoraApplication:
+    """Inject LoRA from a model-family audit of its actual module graph."""
+
+    if not isinstance(model, nn.Module):
+        raise TypeError("LoRA target model must be an nn.Module")
+    if not isinstance(audit, LoraTargetAudit):
+        raise TypeError("audit must be a LoraTargetAudit")
+    if audit.base_parameter_count != sum(parameter.numel() for parameter in model.parameters()):
+        raise ValueError("LoRA target audit was created for a different model graph")
     if isinstance(rank, bool) or int(rank) <= 0:
         raise ValueError("LoRA rank must be a positive integer")
     if isinstance(alpha, bool) or int(alpha) <= 0:
@@ -309,10 +305,9 @@ def save_peft_adapter(
     application: PeftLoraApplication,
     output_dir: str | Path,
     *,
-    metadata: Mapping[str, object] | None = None,
     model_state_dict: Mapping[str, object] | None = None,
 ) -> PeftAdapterArtifact:
-    """Atomically save one audited PEFT adapter and content digest manifest."""
+    """Atomically save one standard PEFT adapter."""
 
     if not isinstance(application, PeftLoraApplication):
         raise TypeError("save_peft_adapter requires a PeftLoraApplication")
@@ -329,114 +324,41 @@ def save_peft_adapter(
             dir=destination.parent,
         )
     )
+    base_model = application.model.get_base_model()
+    native_config = getattr(base_model, "config", None)
+    replace_native_config = isinstance(native_config, SimpleNamespace)
     try:
+        if replace_native_config:
+            base_model.config = vars(native_config)
         save_pretrained(
             str(temporary),
             safe_serialization=True,
             state_dict=model_state_dict,
         )
-        file_digests = _artifact_files(temporary)
-        manifest = {
-            "schema": PEFT_ADAPTER_ARTIFACT_SCHEMA,
-            "format": "peft",
-            "target_audit": application.target_audit.to_dict(),
-            "trainable_parameter_names": list(application.trainable_parameter_names),
-            "trainable_parameter_count": application.trainable_parameter_count,
-            "files": file_digests,
-            "metadata": _json_metadata(metadata),
-        }
-        manifest_payload = _canonical_json(manifest) + "\n"
-        write_exclusive_text(
-            temporary / "worldfoundry_adapter.json",
-            manifest_payload,
-            root=temporary,
-        )
+        _artifact_files(temporary)
         os.replace(temporary, destination)
     except Exception:
         shutil.rmtree(temporary, ignore_errors=True)
         raise
+    finally:
+        if replace_native_config:
+            base_model.config = native_config
     return inspect_peft_adapter(destination)
 
 
 def inspect_peft_adapter(input_dir: str | Path) -> PeftAdapterArtifact:
-    """Validate the WorldFoundry manifest and every file digest in an adapter."""
+    """Inspect a standard local PEFT adapter."""
 
     source = Path(input_dir)
     if not source.is_dir():
         raise FileNotFoundError(f"PEFT adapter directory does not exist: {source}")
-    manifest_path = source / "worldfoundry_adapter.json"
-    if not manifest_path.is_file() or manifest_path.is_symlink():
-        raise FileNotFoundError(f"PEFT adapter manifest does not exist: {manifest_path}")
-    try:
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as error:
-        raise ValueError(f"invalid PEFT adapter manifest: {manifest_path}") from error
-    if not isinstance(manifest, dict):
-        raise TypeError("PEFT adapter manifest must contain one JSON object")
-    expected_fields = {
-        "schema",
-        "format",
-        "target_audit",
-        "trainable_parameter_names",
-        "trainable_parameter_count",
-        "files",
-        "metadata",
-    }
-    if set(manifest) != expected_fields:
-        raise ValueError(
-            "PEFT adapter manifest fields differ: "
-            f"missing={sorted(expected_fields - set(manifest))}, "
-            f"unknown={sorted(set(manifest) - expected_fields)}"
-        )
-    if manifest["schema"] != PEFT_ADAPTER_ARTIFACT_SCHEMA or manifest["format"] != "peft":
-        raise ValueError(
-            f"unsupported PEFT adapter artifact: schema={manifest['schema']!r}, format={manifest['format']!r}"
-        )
-    if not isinstance(manifest["target_audit"], dict):
-        raise TypeError("PEFT adapter target_audit must be an object")
-    trainable_names = manifest["trainable_parameter_names"]
-    if (
-        not isinstance(trainable_names, list)
-        or not trainable_names
-        or any(not isinstance(name, str) or not name for name in trainable_names)
-        or len(trainable_names) != len(set(trainable_names))
-    ):
-        raise ValueError("PEFT adapter trainable_parameter_names must be unique non-empty strings")
-    trainable_count = manifest["trainable_parameter_count"]
-    if isinstance(trainable_count, bool) or not isinstance(trainable_count, int) or trainable_count <= 0:
-        raise ValueError("PEFT adapter trainable_parameter_count must be a positive integer")
-    expected_digests = manifest["files"]
-    if not isinstance(expected_digests, dict) or not expected_digests:
-        raise TypeError("PEFT adapter manifest files must be a non-empty object")
-    normalized_digests: dict[str, str] = {}
-    for name, digest in expected_digests.items():
-        relative = Path(str(name))
-        if relative.is_absolute() or ".." in relative.parts or relative.as_posix() != str(name):
-            raise ValueError(f"unsafe PEFT adapter artifact path: {name!r}")
-        normalized_digest = str(digest).lower()
-        if _SHA256_PATTERN.fullmatch(normalized_digest) is None:
-            raise ValueError(f"invalid PEFT adapter SHA-256 for {name!r}")
-        normalized_digests[str(name)] = normalized_digest
-    actual_digests = _artifact_files(source)
-    if actual_digests != normalized_digests:
-        missing = sorted(set(normalized_digests) - set(actual_digests))
-        unexpected = sorted(set(actual_digests) - set(normalized_digests))
-        changed = sorted(
-            name
-            for name in set(actual_digests) & set(normalized_digests)
-            if actual_digests[name] != normalized_digests[name]
-        )
-        raise ValueError(
-            f"PEFT adapter digest audit failed: missing={missing}, unexpected={unexpected}, changed={changed}"
-        )
-    metadata = manifest["metadata"]
-    if not isinstance(metadata, dict):
-        raise TypeError("PEFT adapter manifest metadata must be an object")
+    config = _read_adapter_json(source / "adapter_config.json", name="config")
+    if config.get("peft_type") != "LORA":
+        raise ValueError(f"unsupported PEFT adapter type: {config.get('peft_type')!r}")
+    file_sizes = _artifact_files(source)
     return PeftAdapterArtifact(
         path=source,
-        manifest_sha256=_file_sha256(manifest_path),
-        file_digests=normalized_digests,
-        metadata=metadata,
+        file_size_bytes=file_sizes,
     )
 
 
@@ -450,48 +372,40 @@ def _read_adapter_json(path: Path, *, name: str) -> dict[str, object]:
     return payload
 
 
-def _audit_peft_base_compatibility(
+def _adapter_target_names(source: Path) -> set[str]:
+    try:
+        from safetensors import safe_open
+    except ModuleNotFoundError as error:
+        raise RuntimeError("loading a PEFT adapter requires Safetensors") from error
+    targets: set[str] = set()
+    with safe_open(str(source / "adapter_model.safetensors"), framework="pt", device="cpu") as handle:
+        for key in handle.keys():
+            name = key.removeprefix("base_model.model.")
+            for suffix in (".lora_A.weight", ".lora_B.weight"):
+                if name.endswith(suffix):
+                    targets.add(name.removesuffix(suffix))
+    return targets
+
+
+def _validate_peft_base_config(
     base_model: nn.Module,
     source: Path,
     *,
     expected_preset: str,
     expected_base_model_id: str | None,
-) -> None:
+) -> LoraTargetAudit:
     normalized_preset = str(expected_preset).strip().lower().replace("_", "-")
     if not normalized_preset:
         raise ValueError("expected_preset must be a non-empty string")
-    manifest = _read_adapter_json(
-        source / "worldfoundry_adapter.json",
-        name="manifest",
-    )
-    target_audit = manifest.get("target_audit")
-    if not isinstance(target_audit, Mapping):
-        raise TypeError("PEFT adapter target_audit must be an object")
-    manifest_preset = target_audit.get("preset")
-    if manifest_preset != normalized_preset:
-        raise ValueError(
-            "PEFT adapter target preset differs from the requested base model: "
-            f"adapter={manifest_preset!r}, expected={normalized_preset!r}"
-        )
-
     base_audit = audit_lora_targets(base_model, normalized_preset)
-    expected_target_audit = base_audit.to_dict()
-    if dict(target_audit) != expected_target_audit:
-        changed = sorted(
-            key
-            for key in set(target_audit) | set(expected_target_audit)
-            if target_audit.get(key) != expected_target_audit.get(key)
-        )
-        raise ValueError(
-            "PEFT adapter target audit is incompatible with the loaded base model: "
-            f"changed={changed}"
-        )
-
+    if _adapter_target_names(source) != set(base_audit.module_names):
+        raise ValueError("PEFT adapter targets are incompatible with the loaded base model")
     config = _read_adapter_json(source / "adapter_config.json", name="config")
     if config.get("peft_type") != "LORA":
         raise ValueError(f"unsupported PEFT adapter type: {config.get('peft_type')!r}")
-    if config.get("target_modules") != base_audit.target_pattern:
-        raise ValueError("PEFT adapter config target_modules differs from the audited base graph")
+    target_modules = config.get("target_modules")
+    if not target_modules or not isinstance(target_modules, (str, list)):
+        raise ValueError("PEFT adapter config must declare target_modules")
     rank = config.get("r")
     if isinstance(rank, bool) or not isinstance(rank, int) or rank <= 0:
         raise ValueError("PEFT adapter config r must be a positive integer")
@@ -500,23 +414,6 @@ def _audit_peft_base_compatibility(
         raise ValueError("PEFT adapter config lora_alpha must be finite and positive")
     if config.get("bias") != "none":
         raise ValueError("WorldFoundry PEFT adapters require bias='none'")
-
-    modules_to_save = config.get("modules_to_save")
-    if modules_to_save is not None and (
-        not isinstance(modules_to_save, list)
-        or not modules_to_save
-        or any(not isinstance(name, str) or not name for name in modules_to_save)
-        or len(modules_to_save) != len(set(modules_to_save))
-    ):
-        raise ValueError("PEFT adapter config modules_to_save must be null or unique non-empty strings")
-    if modules_to_save is None:
-        trainable_count = manifest.get("trainable_parameter_count")
-        expected_count = base_audit.expected_trainable_parameters(rank)
-        if trainable_count != expected_count:
-            raise ValueError(
-                "PEFT adapter trainable parameter count differs from its rank and audited base graph: "
-                f"adapter={trainable_count!r}, expected={expected_count}"
-            )
 
     auto_mapping = config.get("auto_mapping")
     if auto_mapping is not None:
@@ -535,6 +432,7 @@ def _audit_peft_base_compatibility(
                 "PEFT adapter base_model_name_or_path differs from the selected model: "
                 f"adapter={configured_base_id!r}, selected={expected_base_model_id!r}"
             )
+    return base_audit
 
 
 def load_peft_adapter(
@@ -545,7 +443,7 @@ def load_peft_adapter(
     expected_preset: str | None = None,
     expected_base_model_id: str | None = None,
 ) -> nn.Module:
-    """Load a digest-verified local adapter onto a caller-supplied base model."""
+    """Load a local adapter onto a caller-supplied base model."""
 
     if not isinstance(base_model, nn.Module):
         raise TypeError("PEFT base model must be an nn.Module")
@@ -558,8 +456,9 @@ def load_peft_adapter(
             raise ValueError("expected_base_model_id must be a non-empty string")
         if expected_preset is None:
             raise ValueError("expected_base_model_id requires expected_preset")
+    target_audit = None
     if expected_preset is not None:
-        _audit_peft_base_compatibility(
+        target_audit = _validate_peft_base_config(
             base_model,
             artifact.path,
             expected_preset=expected_preset,
@@ -576,6 +475,10 @@ def load_peft_adapter(
     )
     if not isinstance(model, nn.Module):
         raise TypeError(f"PEFT returned {type(model).__name__}, expected nn.Module")
+    if target_audit is not None:
+        targeted = set(getattr(model, "targeted_module_names", ()))
+        if targeted != set(target_audit.module_names):
+            raise ValueError("PEFT adapter targets are incompatible with the loaded model")
     return model
 
 
@@ -621,12 +524,12 @@ def merge_peft_adapter(model: nn.Module) -> nn.Module:
 
 __all__ = [
     "LoraTargetAudit",
-    "PEFT_ADAPTER_ARTIFACT_SCHEMA",
     "PeftAdapterArtifact",
     "PeftLoraApplication",
     "SANA_ATTENTION",
     "WAN_ATTENTION",
     "apply_peft_lora",
+    "apply_peft_lora_with_audit",
     "apply_peft_lora_to_adapter",
     "audit_lora_targets",
     "inspect_peft_adapter",

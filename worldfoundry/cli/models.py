@@ -12,8 +12,6 @@ from worldfoundry.evaluation.utils import write_json
 
 from .utils import json_dump
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
-SRC_ROOT = REPO_ROOT
 
 # ── Models list and runtime runners ─────────────────────────────
 

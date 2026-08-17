@@ -7,12 +7,41 @@ responses.
 
 from __future__ import annotations
 
+import threading
+import time
 from fnmatch import fnmatchcase
 from typing import Any
 
 from worldfoundry.cli.tui_discovery import load_tui_catalog
 
 from .context import DEFAULT_CONTEXT, MCPToolContext
+
+# Discovery tools are the hottest calls in an agent session; reloading every
+# manifest plus conda probing on each list/get is wasteful for a long-lived
+# server (CM-30). Entries expire quickly so on-disk manifest edits are still
+# picked up without a restart.
+_CATALOG_CACHE_TTL_S = 30.0
+_catalog_cache: dict[tuple[str, str], tuple[float, Any]] = {}
+_catalog_cache_lock = threading.Lock()
+
+
+def _load_catalog(ctx: MCPToolContext) -> Any:
+    """Load the unified catalog for *ctx* with a short-TTL process cache."""
+
+    key = (str(ctx.model_manifest_dir), str(ctx.benchmark_manifest_dir))
+    now = time.monotonic()
+    with _catalog_cache_lock:
+        cached = _catalog_cache.get(key)
+        if cached is not None and now - cached[0] < _CATALOG_CACHE_TTL_S:
+            return cached[1]
+    catalog = load_tui_catalog(
+        model_manifest_dir=ctx.model_manifest_dir,
+        benchmark_manifest_dir=ctx.benchmark_manifest_dir,
+    )
+    with _catalog_cache_lock:
+        _catalog_cache[key] = (time.monotonic(), catalog)
+    return catalog
+
 
 # ── Model discovery ─────────────────────────────────────────────────────
 
@@ -37,10 +66,7 @@ def list_models_payload(
     """
 
     ctx = context or DEFAULT_CONTEXT
-    catalog = load_tui_catalog(
-        model_manifest_dir=ctx.model_manifest_dir,
-        benchmark_manifest_dir=ctx.benchmark_manifest_dir,
-    )
+    catalog = _load_catalog(ctx)
     rows = []
     for row in catalog.models:
         if runnable_only and row.runner_kind != "runnable_runner":
@@ -72,10 +98,7 @@ def get_model_info_payload(model_id: str, *, context: MCPToolContext | None = No
     """
 
     ctx = context or DEFAULT_CONTEXT
-    catalog = load_tui_catalog(
-        model_manifest_dir=ctx.model_manifest_dir,
-        benchmark_manifest_dir=ctx.benchmark_manifest_dir,
-    )
+    catalog = _load_catalog(ctx)
     for row in catalog.models:
         if row.model_id == model_id:
             return row.to_dict()
@@ -105,10 +128,7 @@ def list_benchmarks_payload(
     """
 
     ctx = context or DEFAULT_CONTEXT
-    catalog = load_tui_catalog(
-        model_manifest_dir=ctx.model_manifest_dir,
-        benchmark_manifest_dir=ctx.benchmark_manifest_dir,
-    )
+    catalog = _load_catalog(ctx)
     rows = []
     for row in catalog.benchmarks:
         if integrated_only and row.integration_status != "integrated":
@@ -137,10 +157,7 @@ def get_benchmark_info_payload(benchmark_id: str, *, context: MCPToolContext | N
     """
 
     ctx = context or DEFAULT_CONTEXT
-    catalog = load_tui_catalog(
-        model_manifest_dir=ctx.model_manifest_dir,
-        benchmark_manifest_dir=ctx.benchmark_manifest_dir,
-    )
+    catalog = _load_catalog(ctx)
     for row in catalog.benchmarks:
         if row.benchmark_id == benchmark_id:
             return row.to_dict()

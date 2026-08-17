@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from contextlib import nullcontext
 from dataclasses import replace
 
@@ -39,8 +39,10 @@ class SingleDeviceTrainEngine:
         objective: TrainingObjective,
         optimizer: torch.optim.Optimizer,
         *,
-        max_grad_norm: float = 1.0,
+        max_grad_norm: float | None = 1.0,
         autocast_dtype: torch.dtype | None = None,
+        train_batch_end: Callable[[], None] | None = None,
+        optimizer_step_end: Callable[[], None] | None = None,
     ) -> None:
         module = getattr(adapter, "trainable_module", None)
         if not isinstance(module, nn.Module):
@@ -53,11 +55,17 @@ class SingleDeviceTrainEngine:
             )
         if not isinstance(optimizer, torch.optim.Optimizer):
             raise TypeError("optimizer must be a torch.optim.Optimizer")
-        resolved_max_grad_norm = float(max_grad_norm)
-        if not torch.isfinite(torch.tensor(resolved_max_grad_norm)) or resolved_max_grad_norm <= 0:
+        resolved_max_grad_norm = None if max_grad_norm is None else float(max_grad_norm)
+        if resolved_max_grad_norm is not None and (
+            not torch.isfinite(torch.tensor(resolved_max_grad_norm)) or resolved_max_grad_norm <= 0
+        ):
             raise ValueError("max_grad_norm must be finite and positive")
         if autocast_dtype not in {None, torch.float16, torch.bfloat16}:
             raise ValueError("autocast_dtype must be float16, bfloat16, or None")
+        if train_batch_end is not None and not callable(train_batch_end):
+            raise TypeError("train_batch_end must be callable or None")
+        if optimizer_step_end is not None and not callable(optimizer_step_end):
+            raise TypeError("optimizer_step_end must be callable or None")
 
         parameters = audit_optimizer_parameters(
             optimizer,
@@ -78,6 +86,13 @@ class SingleDeviceTrainEngine:
         self.device = device
         self.max_grad_norm = resolved_max_grad_norm
         self.autocast_dtype = autocast_dtype
+        self.grad_scaler = (
+            torch.amp.GradScaler("cuda")
+            if device.type == "cuda" and autocast_dtype is torch.float16
+            else None
+        )
+        self.train_batch_end = train_batch_end
+        self.optimizer_step_end = optimizer_step_end
         self.global_step = 0
         self._phase = "idle"
         self._poisoned = False
@@ -128,6 +143,49 @@ class SingleDeviceTrainEngine:
             return nullcontext()
         return torch.autocast(device_type=self.device.type, dtype=self.autocast_dtype)
 
+    def _backward(self, loss: torch.Tensor) -> None:
+        if self.grad_scaler is None:
+            loss.backward()
+            return
+        self.grad_scaler.scale(loss).backward()
+
+    def _unscale_gradients(self) -> None:
+        if self.grad_scaler is not None:
+            self.grad_scaler.unscale_(self.optimizer)
+
+    def _active_amp_grad_scaler(self) -> torch.amp.GradScaler | None:
+        """Return the scaler only when torch-AMP overflow skipping applies.
+
+        A real, enabled ``torch.amp.GradScaler`` owns non-finite gradients:
+        ``step()`` skips the update and ``update()`` lowers the scale.
+        Duck-typed test scalers and disabled scalers keep the legacy
+        fail-stop clip semantics instead.
+        """
+
+        scaler = self.grad_scaler
+        if isinstance(scaler, torch.amp.GradScaler) and scaler.is_enabled():
+            return scaler
+        return None
+
+    def _step_optimizer(self) -> bool:
+        """Run one optimizer step; report whether parameters were updated."""
+
+        if self.grad_scaler is None:
+            self.optimizer.step()
+            return True
+        scaler = self._active_amp_grad_scaler()
+        if scaler is None:
+            self.grad_scaler.step(self.optimizer)
+            self.grad_scaler.update()
+            return True
+        scale_before = scaler.get_scale()
+        scaler.step(self.optimizer)
+        scaler.update()
+        # GradScaler enforces backoff_factor < 1 and only applies it when
+        # unscale_ recorded non-finite gradients, so the scale strictly
+        # decreases if and only if this optimizer step was skipped.
+        return not scaler.get_scale() < scale_before
+
     def train_step(
         self,
         batch: TrainingBatch,
@@ -151,18 +209,31 @@ class SingleDeviceTrainEngine:
             if not bool(torch.isfinite(result.loss.detach()).all()):
                 raise FloatingPointError("non-finite training loss; optimizer step was not applied")
 
-            result.loss.backward()
+            self._backward(result.loss)
+            self._unscale_gradients()
             grad_norm = clip_grad_norm_(
                 self.parameters,
-                self.max_grad_norm,
-                error_if_nonfinite=True,
+                float("inf") if self.max_grad_norm is None else self.max_grad_norm,
+                # AMP fp16 overflow is a recoverable event: the scaler must
+                # reach step()/update() to skip this step and lower the
+                # scale, so clipping cannot raise on the non-finite norm.
+                error_if_nonfinite=self._active_amp_grad_scaler() is None,
             )
             self._mark_optimizer_step_started()
-            self.optimizer.step()
+            stepped = self._step_optimizer()
             self.global_step += 1
+            if self.optimizer_step_end is not None:
+                self.optimizer_step_end()
+            if self.train_batch_end is not None:
+                self.train_batch_end()
 
             metrics: dict[str, object] = dict(result.metrics)
-            metrics["grad_norm"] = grad_norm.detach()
+            if stepped:
+                metrics["grad_norm"] = grad_norm.detach()
+            else:
+                # Durable metrics use canonical JSON, which rejects the
+                # non-finite norm; the explicit flag records the skip.
+                metrics["optimizer_step_skipped"] = True
             metrics["global_step"] = torch.tensor(self.global_step, device=result.loss.device, dtype=torch.int64)
             diagnostics: dict[str, object] = dict(result.diagnostics)
             diagnostics.update(
@@ -170,10 +241,11 @@ class SingleDeviceTrainEngine:
                     "engine": "single-device",
                     "device": str(self.device),
                     "autocast_dtype": None if self.autocast_dtype is None else str(self.autocast_dtype),
+                    "grad_scaling": self.grad_scaler is not None,
                     "max_grad_norm": self.max_grad_norm,
                 }
             )
-            completed = replace(result, metrics=metrics, diagnostics=diagnostics)
+            completed = replace(result, metrics=metrics, diagnostics=diagnostics, skipped=not stepped)
             self._complete_training_step()
             return completed
         except BaseException:
@@ -221,7 +293,7 @@ class SingleDeviceTrainEngine:
             latent_token_count = 0
             first_diagnostics: Mapping[str, object] | None = None
 
-            for prepared, denominator in zip(prepared_batches, denominators):
+            for index, (prepared, denominator) in enumerate(zip(prepared_batches, denominators)):
                 objective_batch = self.objective.corrupt(prepared, generator=generator)
                 with self._autocast():
                     prediction = self.adapter.forward_train(objective_batch)
@@ -238,7 +310,9 @@ class SingleDeviceTrainEngine:
                 if not torch.equal(reported_denominator.detach().float(), denominator):
                     raise RuntimeError("objective denominator changed between preparation and loss reduction")
 
-                (result.loss * (denominator / total_denominator)).backward()
+                self._backward(result.loss * (denominator / total_denominator))
+                if index + 1 < len(prepared_batches) and self.train_batch_end is not None:
+                    self.train_batch_end()
                 numerator = result.metrics.get("loss_numerator")
                 if not isinstance(numerator, torch.Tensor):
                     raise TypeError("accumulated objective must report tensor loss_numerator")
@@ -278,24 +352,33 @@ class SingleDeviceTrainEngine:
                 if first_diagnostics is None:
                     first_diagnostics = result.diagnostics
 
+            self._unscale_gradients()
             grad_norm = clip_grad_norm_(
                 self.parameters,
-                self.max_grad_norm,
-                error_if_nonfinite=True,
+                float("inf") if self.max_grad_norm is None else self.max_grad_norm,
+                # See train_step: the AMP scaler owns non-finite gradients.
+                error_if_nonfinite=self._active_amp_grad_scaler() is None,
             )
             self._mark_optimizer_step_started()
-            self.optimizer.step()
+            stepped = self._step_optimizer()
             self.global_step += 1
+            if self.optimizer_step_end is not None:
+                self.optimizer_step_end()
+            if self.train_batch_end is not None:
+                self.train_batch_end()
 
             loss = total_numerator / total_denominator
             losses = {name: numerator / total_denominator for name, numerator in component_numerators.items()}
             metrics: dict[str, object] = {
                 "loss_numerator": total_numerator,
                 "loss_denominator": total_denominator,
-                "grad_norm": grad_norm.detach(),
                 "global_step": torch.tensor(self.global_step, device=loss.device, dtype=torch.int64),
                 "microbatch_count": torch.tensor(len(microbatches), device=loss.device, dtype=torch.int64),
             }
+            if stepped:
+                metrics["grad_norm"] = grad_norm.detach()
+            else:
+                metrics["optimizer_step_skipped"] = True
             if sample_count and sigma_min is not None and sigma_max is not None:
                 metrics.update(
                     {
@@ -310,6 +393,7 @@ class SingleDeviceTrainEngine:
                     "engine": "single-device",
                     "device": str(self.device),
                     "autocast_dtype": None if self.autocast_dtype is None else str(self.autocast_dtype),
+                    "grad_scaling": self.grad_scaler is not None,
                     "max_grad_norm": self.max_grad_norm,
                     "gradient_accumulation": "token-weighted",
                 }
@@ -320,6 +404,7 @@ class SingleDeviceTrainEngine:
                 metrics=metrics,
                 sample_count=sample_count,
                 latent_token_count=latent_token_count,
+                skipped=not stepped,
                 diagnostics=diagnostics,
             )
             self._complete_training_step()

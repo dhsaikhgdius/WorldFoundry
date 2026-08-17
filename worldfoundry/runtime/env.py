@@ -487,13 +487,18 @@ def _run_command(argv: Sequence[str]) -> str | None:
 
     if shutil.which(argv[0]) is None:
         return None
-    completed = subprocess.run(
-        list(argv),
-        check=False,
-        capture_output=True,
-        text=True,
-        timeout=5,
-    )
+    try:
+        completed = subprocess.run(
+            list(argv),
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        # Diagnostics must degrade gracefully: a hung nvidia-smi (dead driver)
+        # or unexecutable binary should not crash the preflight report.
+        return None
     output = completed.stdout.strip() or completed.stderr.strip()
     return output or None
 

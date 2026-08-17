@@ -91,17 +91,18 @@ def _validate_unconditional_cache(
     dataset: VideoCachedDataset,
     adapter: WanTrainAdapter,
     *,
-    expected_contract: str,
+    expected_contract: Mapping[str, object],
 ) -> None:
     identity = sample.artifact.identity
     if identity.branch != "unconditional":
         raise ValueError("Wan DMD shared conditioning must use the unconditional branch")
-    if identity.model_recipe_digest != expected_contract:
+    if identity.model_recipe != expected_contract["model_recipe"]:
         raise ValueError("Wan DMD unconditional context belongs to another model contract")
-    asset_identities = {
-        (entry.provenance.conditioner_digest, entry.provenance.tokenizer_digest) for entry in dataset.index.entries
-    }
-    if asset_identities != {(identity.conditioner_digest, identity.tokenizer_digest)}:
+    if any(
+        entry.provenance.conditioner != identity.conditioner
+        or entry.provenance.tokenizer != identity.tokenizer
+        for entry in dataset.index.entries
+    ):
         raise ValueError("Wan DMD unconditional context encoder identity differs from sample contexts")
     if set(sample.tensors) != {"context"}:
         raise ValueError("Wan DMD unconditional conditioning must contain only context")
@@ -122,7 +123,7 @@ def materialize_wan_dmd_training_run(
     output_dir: str | Path | None = None,
     resume_checkpoint: str | Path | None = None,
     audited_role_overrides: Mapping[str, object] | None = None,
-    verify_media_hashes: bool = True,
+    verify_media_files: bool = True,
     audit_cache_on_open: bool = True,
     verify_cache_on_read: bool = True,
     force_torch_attention: bool = True,
@@ -171,12 +172,11 @@ def materialize_wan_dmd_training_run(
         manifest = TrainingManifestDataset.from_file(
             manifest_path,
             split=recipe.data.split,
-            verify_files=True,
-            verify_hashes=verify_media_hashes,
+            verify_files=verify_media_files,
         )
         cache = VideoCachedDataset(
             cache_path,
-            expected_dataset_digest=manifest.dataset_digest,
+            expected_sample_ids=manifest.sample_ids,
             audit_on_open=audit_cache_on_open,
             verify_on_read=verify_cache_on_read,
         )
@@ -204,19 +204,19 @@ def materialize_wan_dmd_training_run(
             role="student",
             reference=recipe.model.checkpoint,
             native_default=default_dit,
-            audited_local_override=raw_overrides.get("student"),
+            local_override=raw_overrides.get("student"),
         )
         real_checkpoint = resolve_role_checkpoint(
             role="real-score",
             reference=algorithm.real_score_checkpoint,
             native_default=default_dit,
-            audited_local_override=raw_overrides.get("real-score"),
+            local_override=raw_overrides.get("real-score"),
         )
         fake_checkpoint = resolve_role_checkpoint(
             role="fake-score",
             reference=algorithm.fake_score_checkpoint,
             native_default=default_dit,
-            audited_local_override=raw_overrides.get("fake-score"),
+            local_override=raw_overrides.get("fake-score"),
         )
         assembler = NativeDiffusionAssembler()
         dtype = torch_dtype(recipe.runtime.param_dtype)
@@ -342,19 +342,27 @@ def materialize_wan_dmd_training_run(
         generator.manual_seed((int(initialization_seed or recipe.data.shuffle_seed) + rank) % (2**63 - 1))
         data_identity = {
             "cache_schema": cache.index.schema,
-            "cache_index_sha256": cache.index_sha256,
-            "cache_contract_sha256": expected_contract,
-            "dataset_digest": cache.dataset_digest,
+            "cache_index": cache.index.to_dict(),
+            "cache_contract": dict(expected_contract),
+            "sample_ids": list(cache.sample_ids),
             "sample_count": len(cache),
-            "unconditional_identity_sha256": unconditional.artifact.identity_sha256,
-            "unconditional_object_sha256": unconditional.artifact.object_sha256,
+            "unconditional_conditioning": unconditional.artifact.to_dict(),
             "latent_token_budget": token_sampler.max_latent_tokens,
-            "token_sampler_config_sha256": token_sampler.config_digest,
+            "token_sampler": {
+                "sample_ids": list(token_sampler.sample_ids),
+                "bucket_keys": [key.to_dict() for key in token_sampler.bucket_keys],
+                "batch_contracts": [dict(value) for value in token_sampler.batch_contracts],
+                "seed": token_sampler.seed,
+                "shuffle": token_sampler.shuffle,
+                "tail_policy": token_sampler.tail_policy,
+                "rank": token_sampler.rank,
+                "world_size": token_sampler.world_size,
+            },
             "parallel_plan": plan.to_dict(),
         }
         identity = {
             "schema": "worldfoundry-wan-dmd-resume-identity",
-            "recipe_digest": recipe.digest,
+            "recipe": recipe.to_dict(),
             "roles": roles.runtime_identity(),
             "data": data_identity,
             "runtime": recipe.to_dict()["runtime"],
@@ -391,7 +399,6 @@ def materialize_wan_dmd_training_run(
                 {
                     **dict(event),
                     "run_id": recipe.run.id,
-                    "recipe_digest": recipe.digest,
                     "recorded_at": utc_now_iso(),
                 },
                 root=destination,

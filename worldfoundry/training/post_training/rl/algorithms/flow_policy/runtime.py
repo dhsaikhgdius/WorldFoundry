@@ -100,8 +100,12 @@ def resolve_flow_policy_algorithm_runtime(
 
     if not isinstance(algorithm, FlowPolicyAlgorithmSpec):
         raise TypeError("algorithm must implement FlowPolicyAlgorithmSpec")
+    # Exact type matching keeps subclass specs (e.g. DanceGRPO/MixGRPO derive
+    # from FlowGRPO) bound to their own runtime regardless of registry order,
+    # and refuses unregistered subclasses instead of silently running the
+    # parent engine.
     for runtime in _FLOW_POLICY_RUNTIMES:
-        if isinstance(algorithm, runtime.algorithm_type):
+        if type(algorithm) is runtime.algorithm_type:
             return runtime
     raise TypeError(f"unsupported native flow-policy algorithm: {type(algorithm).__name__}")
 

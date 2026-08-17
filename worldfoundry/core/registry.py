@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import threading
 from dataclasses import dataclass, field
+from difflib import get_close_matches
 from typing import Generic, Iterable, Iterator, Mapping, TypeVar
 
 ItemT = TypeVar("ItemT")
@@ -62,6 +64,10 @@ class TypedRegistry(Generic[ItemT]):
     def __init__(self, items: Iterable[RegistryItem[ItemT]] = ()) -> None:
         self._items: dict[str, RegistryItem[ItemT]] = {}
         self._aliases: dict[str, str] = {}
+        # Registration usually happens at import time (already serialized by
+        # the import lock), but runtime registration from worker threads must
+        # not race the duplicate check against the write.
+        self._register_lock = threading.Lock()
         for item in items:
             self.register(item.key, item.value, aliases=item.aliases, metadata=item.metadata)
 
@@ -76,41 +82,41 @@ class TypedRegistry(Generic[ItemT]):
         """Register an item and return the normalized registry record."""
 
         normalized = normalize_registry_key(key)
-        if normalized in self._items:
-            raise DuplicateRegistryKeyError(f"duplicate registry key: {key!r}")
-        if normalized in self._aliases:
-            owner = self._aliases[normalized]
-            raise DuplicateRegistryKeyError(f"registry key {key!r} conflicts with alias for {owner!r}")
+        with self._register_lock:
+            if normalized in self._items:
+                raise DuplicateRegistryKeyError(f"duplicate registry key: {key!r}")
+            if normalized in self._aliases:
+                owner = self._aliases[normalized]
+                raise DuplicateRegistryKeyError(f"registry key {key!r} conflicts with alias for {owner!r}")
 
-        alias_tuple = tuple(str(alias) for alias in aliases)
-        item = RegistryItem(key=str(key), value=value, aliases=alias_tuple, metadata=dict(metadata or {}))
-        alias_lookup: dict[str, str] = {}
-        for alias in item.aliases:
-            alias_key = normalize_registry_key(alias, field_name="registry alias")
-            if alias_key == normalized:
-                continue
-            if alias_key in self._items:
-                raise DuplicateRegistryKeyError(f"registry alias {alias!r} conflicts with an existing key")
-            if alias_key in self._aliases:
-                owner = self._aliases[alias_key]
-                raise DuplicateRegistryKeyError(f"duplicate registry alias {alias!r}; already owned by {owner!r}")
-            alias_lookup[alias_key] = normalized
+            alias_tuple = tuple(str(alias) for alias in aliases)
+            item = RegistryItem(key=str(key), value=value, aliases=alias_tuple, metadata=dict(metadata or {}))
+            alias_lookup: dict[str, str] = {}
+            for alias in item.aliases:
+                alias_key = normalize_registry_key(alias, field_name="registry alias")
+                if alias_key == normalized:
+                    continue
+                if alias_key in self._items:
+                    raise DuplicateRegistryKeyError(f"registry alias {alias!r} conflicts with an existing key")
+                if alias_key in self._aliases:
+                    owner = self._aliases[alias_key]
+                    raise DuplicateRegistryKeyError(f"duplicate registry alias {alias!r}; already owned by {owner!r}")
+                alias_lookup[alias_key] = normalized
 
-        self._items[normalized] = item
-        self._aliases.update(alias_lookup)
+            self._items[normalized] = item
+            self._aliases.update(alias_lookup)
         return item
+
+    def _unknown_key_error(self, key: str, normalized: str) -> UnknownRegistryKeyError:
+        candidates = list(self._items) + list(self._aliases)
+        close = get_close_matches(normalized, candidates, n=1)
+        hint = f" (did you mean {close[0]!r}?)" if close else ""
+        return UnknownRegistryKeyError(f"unknown registry key: {key!r}{hint}")
 
     def get(self, key: str) -> ItemT:
         """Resolve a key or alias to the registered value."""
 
-        normalized = normalize_registry_key(key)
-        item = self._items.get(normalized)
-        if item is None:
-            owner = self._aliases.get(normalized)
-            item = self._items.get(owner or "")
-        if item is None:
-            raise UnknownRegistryKeyError(f"unknown registry key: {key!r}")
-        return item.value
+        return self.get_item(key).value
 
     def get_item(self, key: str) -> RegistryItem[ItemT]:
         """Resolve a key or alias to the full registry item."""
@@ -121,7 +127,7 @@ class TypedRegistry(Generic[ItemT]):
             owner = self._aliases.get(normalized)
             item = self._items.get(owner or "")
         if item is None:
-            raise UnknownRegistryKeyError(f"unknown registry key: {key!r}")
+            raise self._unknown_key_error(key, normalized)
         return item
 
     def keys(self) -> tuple[str, ...]:

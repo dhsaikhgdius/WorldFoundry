@@ -1,16 +1,10 @@
 #!/usr/bin/env python3
-"""Run the real SANA cache, overfit, PEFT reload/merge, and inference gates.
-
-Training semantics follow NVlabs/Sana revision
-6298508fcb511762a11c42cff45b2fc9fd930325.  The generated pilot image is
-created locally by this script and declared CC0-1.0 in its manifest.
-"""
+"""Run real SANA cache, overfit, PEFT reload/merge, and inference checks."""
 
 from __future__ import annotations
 
 import argparse
 import gc
-import hashlib
 import json
 import os
 import time
@@ -38,15 +32,16 @@ from worldfoundry.training.data import (
     SanaCacheStore,
     SanaFeatureEncoder,
     TrainingManifestDataset,
-    checkpoint_asset_digest,
+    checkpoint_asset_identity,
     collate_sana_cached_samples,
     prepare_sana_training_cache_from_audits,
-    prompt_enhancement_digest,
+    prompt_enhancement_config,
 )
 from worldfoundry.training.engine import materialize_sana_cached_training_session
 from worldfoundry.training.models import SanaTrainAdapter
 from worldfoundry.training.recipes import TrainingRecipe
 from worldfoundry.training.safety import (
+    PromptSafetyAudit,
     build_shieldgemma_prompt_filter,
     shieldgemma_checkpoint_spec,
 )
@@ -77,23 +72,18 @@ def _local_checkpoint(spec: CheckpointSpec, root: Path) -> CheckpointSpec:
         revision=spec.revision,
         files=spec.files,
         allow_patterns=spec.allow_patterns,
-        metadata=spec.metadata,
-        file_sha256=spec.file_sha256,
         file_size_bytes=spec.file_size_bytes,
-        resource_sha256=spec.resource_sha256,
         resource_size_bytes=spec.resource_size_bytes,
     )
 
 
-def _asset_digest(spec: CheckpointSpec) -> str:
-    files = {f"file:{name}": digest for name, digest in spec.file_sha256.items()}
-    files.update(
-        {f"resource:{name}": digest for name, digest in spec.resource_sha256.items()}
-    )
-    return checkpoint_asset_digest(
-        repository=spec.repo_id or "local-explicit",
+def _asset_identity(spec: CheckpointSpec) -> dict[str, object]:
+    return checkpoint_asset_identity(
+        repo_id=spec.repo_id or "local-explicit",
         revision=spec.revision or "local-explicit",
-        file_sha256=files,
+        files=spec.files or spec.allow_patterns,
+        file_size_bytes=spec.file_size_bytes,
+        sources=spec.sources,
     )
 
 
@@ -115,9 +105,8 @@ def _write_manifest(
     *,
     image_path: Path,
     prompt: str,
-    safety_audit_digest: str,
+    safety_audit: PromptSafetyAudit,
 ) -> None:
-    payload = image_path.read_bytes()
     row = {
         "schema": TRAINING_SAMPLE_SCHEMA,
         "sample_id": "synthetic-blue-cup",
@@ -125,8 +114,7 @@ def _write_manifest(
         "prompt": prompt,
         "media": {
             "uri": image_path.name,
-            "sha256": hashlib.sha256(payload).hexdigest(),
-            "size_bytes": len(payload),
+            "size_bytes": image_path.stat().st_size,
             "mime_type": "image/png",
         },
         "width": 128,
@@ -135,12 +123,9 @@ def _write_manifest(
         "fps": 1,
         "conditions": {},
         "split": "train",
-        "license": "CC0-1.0",
-        "provenance": {"source": "locally-generated-training-gate"},
-        "quality": {"accepted": True, "purpose": "implementation-gate"},
         "safety": {
-            "filter": "ShieldGemma-2B",
-            "prompt_audit_digest": safety_audit_digest,
+            "prompt_safe": safety_audit.safe,
+            "model_revision": safety_audit.model_revision,
         },
     }
     path.write_text(json.dumps(row, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -160,7 +145,6 @@ def _recipe(
                 "id": "sana-600m-real-training-gate",
                 "output_dir": str(work_dir / "run"),
             },
-            "provider": {"name": "native"},
             "model": {
                 "recipe": "sana-600m-512px",
                 "checkpoint": str(sana_checkpoint),
@@ -208,11 +192,6 @@ def _recipe(
                 "compile": False,
             },
             "distributed": {"backend": "single"},
-            "export": {"format": "peft", "merge_adapter": False},
-            "metadata": {
-                "gate": "real-cache-overfit-export-native-inference",
-                "generated_sample_license": "CC0-1.0",
-            },
         }
     )
 
@@ -288,13 +267,12 @@ def main() -> int:
         manifest_path,
         image_path=image_path,
         prompt=prompt,
-        safety_audit_digest=safety_audit.digest,
+        safety_audit=safety_audit,
     )
     manifest = TrainingManifestDataset.from_file(
         manifest_path,
         split="train",
         verify_files=True,
-        verify_hashes=True,
     )
     del prompt_filter
     gc.collect()
@@ -336,10 +314,10 @@ def main() -> int:
         feature_encoder=feature_encoder,
         safety_audits=(safety_audit,),
         model_recipe=native_recipe.model_id,
-        codec_digest=_asset_digest(native_recipe.checkpoints["codec"]),
-        conditioner_digest=_asset_digest(native_recipe.checkpoints["text-encoder"]),
-        tokenizer_digest=_asset_digest(native_recipe.checkpoints["tokenizer"]),
-        prompt_enhancement_digest_value=prompt_enhancement_digest(
+        codec=_asset_identity(native_recipe.checkpoints["codec"]),
+        conditioner=_asset_identity(native_recipe.checkpoints["text-encoder"]),
+        tokenizer=_asset_identity(native_recipe.checkpoints["tokenizer"]),
+        prompt_enhancement=prompt_enhancement_config(
             enabled=bool(getattr(encoding_components[conditioner_key], "enhance_prompt", True)),
             max_text_length=feature_encoder.max_text_length,
             prefix=SANA_PROMPT_PREFIX,
@@ -361,7 +339,7 @@ def main() -> int:
         recipe,
         device="cuda",
         checkpoint_overrides=None,
-        verify_media_hashes=True,
+        verify_media_files=True,
         audit_cache_on_open=True,
         verify_cache_on_read=True,
         disable_xformers=True,
@@ -495,16 +473,14 @@ def main() -> int:
     report = {
         "schema": "worldfoundry-sana-training-roundtrip-gate",
         "cache": {
-            "dataset_digest": result.index.dataset_digest,
-            "index_sha256": result.index.index_sha256,
-            "object_sha256": result.entries[0].object_sha256,
-            "safety_audit_digest": safety_audit.digest,
+            "index": result.index.to_dict(),
+            "entry": result.entries[0].to_dict(),
+            "safety_audit": safety_audit.to_dict(),
             "unsafe_probabilities": dict(safety_audit.unsafe_probabilities),
         },
         "training": training_summary.to_dict(),
         "adapter": {
-            "manifest_sha256": artifact.manifest_sha256,
-            "file_sha256": dict(artifact.file_digests),
+            "file_size_bytes": dict(artifact.file_size_bytes),
             "reload_max_abs": reload_max_abs,
             "merge_max_abs": merge_max_abs,
             "merge_rmse": merge_rmse,

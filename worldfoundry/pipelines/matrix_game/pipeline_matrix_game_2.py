@@ -2,8 +2,6 @@
 
 from ..pipeline_utils import PipelineABC
 import torch
-import numpy as np
-import cv2
 import os
 import inspect
 from PIL import Image
@@ -18,12 +16,7 @@ from worldfoundry.runtime.env import resolve_ckpt_dir
 if TYPE_CHECKING:
     from ...synthesis.visual_generation.matrix_game.matrix_game_2_synthesis import MatrixGame2Synthesis
 
-
-def tensor_to_pil(tensor: torch.Tensor) -> Image.Image:
-    """Tensor to pil helper function."""
-    last_frame = (tensor * 255).astype(np.uint8)
-    pil_image = Image.fromarray(last_frame)
-    return pil_image
+logger = logging.getLogger(__name__)
 
 
 class MatrixGame2Pipeline(PipelineABC):
@@ -62,7 +55,7 @@ class MatrixGame2Pipeline(PipelineABC):
         else:
             synthesis_model_path = str(resolve_ckpt_dir() / "Matrix-Game-2.0")
         
-        print(f"Loading MatrixGame2 synthesis model from {synthesis_model_path}...")
+        logger.info("Loading MatrixGame2 synthesis model from %s...", synthesis_model_path)
         from ...synthesis.visual_generation.matrix_game.matrix_game_2_synthesis import MatrixGame2Synthesis
 
         synthesis_model = MatrixGame2Synthesis.from_pretrained(
@@ -234,7 +227,7 @@ class MatrixGame2Pipeline(PipelineABC):
         if not visualize_warning:
             logging.getLogger("torch._dynamo").setLevel(logging.ERROR)
         if images is not None:
-            print("--- Stream Started ---")
+            logger.info("--- Stream Started ---")
             self.memory_module.record(images)
         
         current_image = self.memory_module.select()

@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 import os
-import re
-from collections.abc import Iterator, Mapping, Sized
+from collections.abc import Iterator, Mapping, Sequence, Sized
 from typing import Any
 
 SAMPLER_STATE_SCHEMA = "worldfoundry-training-sampler"
-_SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
 _MASK_64 = (1 << 64) - 1
 _GOLDEN_GAMMA = 0x9E3779B97F4A7C15
 
@@ -80,7 +78,7 @@ def stable_permutation(size: int, *, seed: int, epoch: int) -> tuple[int, ...]:
 class DeterministicDistributedSampler:
     """A dependency-free map-style sampler with JSON-serializable state.
 
-    State is rank-local and exact only for the same dataset digest, seed,
+    State is rank-local and exact only for the same sample IDs, seed,
     topology, and tail policy.  This is intentional: model/optimizer tensors
     may be elastically resharded later, while data order must not silently make
     the same claim.
@@ -96,12 +94,13 @@ class DeterministicDistributedSampler:
         self,
         data_source: Sized,
         *,
-        dataset_digest: str | None = None,
+        sample_ids: Sequence[str] | None = None,
         seed: int = 42,
         shuffle: bool = True,
         rank: int | None = None,
         world_size: int | None = None,
         tail_policy: str = "drop",
+        local_batch_size: int = 1,
         epoch: int = 0,
     ) -> None:
         if not isinstance(data_source, Sized):
@@ -118,34 +117,39 @@ class DeterministicDistributedSampler:
         if not 0 <= resolved_rank < resolved_world_size:
             raise ValueError(f"rank must satisfy 0 <= rank < world_size; got {resolved_rank}/{resolved_world_size}")
 
-        digest = dataset_digest
-        if digest is None:
-            digest = getattr(data_source, "dataset_digest", None)
-        digest = str(digest or "").lower()
-        if _SHA256_PATTERN.fullmatch(digest) is None:
-            raise ValueError("dataset_digest must be a 64-character lowercase hexadecimal digest")
+        source_sample_ids = getattr(data_source, "sample_ids", None) if sample_ids is None else sample_ids
+        if source_sample_ids is None:
+            resolved_sample_ids = tuple(str(index) for index in range(dataset_size))
+        else:
+            resolved_sample_ids = tuple(str(sample_id) for sample_id in source_sample_ids)
+        if len(resolved_sample_ids) != dataset_size:
+            raise ValueError("sample_ids must contain one value per dataset item")
+        if len(set(resolved_sample_ids)) != dataset_size:
+            raise ValueError("sample_ids must be unique")
         if isinstance(seed, bool):
             raise TypeError("seed must be an integer, not bool")
         if not isinstance(shuffle, bool):
             raise TypeError("shuffle must be a bool")
+        if isinstance(local_batch_size, bool) or int(local_batch_size) <= 0:
+            raise ValueError("local_batch_size must be a positive integer")
+        resolved_local_batch_size = int(local_batch_size)
         if isinstance(epoch, bool) or int(epoch) < 0:
             raise ValueError("epoch must be a non-negative integer")
         policy = str(tail_policy).strip().lower().replace("_", "-")
         if policy not in {"drop", "pad", "uneven"}:
             raise ValueError("tail_policy must be 'drop', 'pad', or 'uneven'")
-        if policy == "drop" and dataset_size < resolved_world_size:
-            raise ValueError(
-                "tail_policy='drop' would leave every rank empty because dataset size is smaller than world_size"
-            )
+        if policy == "drop" and dataset_size < resolved_world_size * resolved_local_batch_size:
+            raise ValueError("tail_policy='drop' would leave every rank without a complete local batch")
 
         self.data_source = data_source
         self.dataset_size = dataset_size
-        self.dataset_digest = digest
+        self.sample_ids = resolved_sample_ids
         self.seed = int(seed)
         self.shuffle = shuffle
         self.rank = resolved_rank
         self.world_size = resolved_world_size
         self.tail_policy = policy
+        self.local_batch_size = resolved_local_batch_size
         self._epoch = int(epoch)
         self._position = 0
         self._cached_epoch: int | None = None
@@ -160,16 +164,13 @@ class DeterministicDistributedSampler:
         return self._position
 
     @property
-    def remaining(self) -> int:
-        return len(self) - self._position
-
-    @property
     def global_effective_size(self) -> int:
-        remainder = self.dataset_size % self.world_size
+        alignment = self.world_size * self.local_batch_size
+        remainder = self.dataset_size % alignment
         if self.tail_policy == "drop":
             return self.dataset_size - remainder
         if self.tail_policy == "pad" and remainder:
-            return self.dataset_size + self.world_size - remainder
+            return self.dataset_size + alignment - remainder
         return self.dataset_size
 
     def _indices_for_epoch(self) -> tuple[int, ...]:
@@ -190,12 +191,6 @@ class DeterministicDistributedSampler:
         self._cached_epoch = self._epoch
         self._cached_indices = local_indices
         return local_indices
-
-    @property
-    def epoch_indices(self) -> tuple[int, ...]:
-        """Return this rank's immutable index order for diagnostics/tests."""
-
-        return self._indices_for_epoch()
 
     def __len__(self) -> int:
         if self.tail_policy in {"drop", "pad"}:
@@ -230,30 +225,23 @@ class DeterministicDistributedSampler:
         if resolved != self._epoch:
             self._move_to_epoch(resolved)
 
-    def advance_epoch(self, *, force: bool = False) -> None:
-        if not force and self._position < len(self):
-            raise RuntimeError("cannot advance an unfinished sampler epoch without force=True")
-        self._move_to_epoch(self._epoch + 1)
-
     def _next_identity(self) -> tuple[int | None, str | None]:
         indices = self._indices_for_epoch()
         if self._position >= len(indices):
             return None, None
         next_index = indices[self._position]
-        sample_ids = getattr(self.data_source, "sample_ids", None)
-        if sample_ids is None:
-            return next_index, None
-        return next_index, str(sample_ids[next_index])
+        return next_index, self.sample_ids[next_index]
 
     def state_dict(self) -> dict[str, object]:
         next_index, next_sample_id = self._next_identity()
         return {
             "schema": SAMPLER_STATE_SCHEMA,
-            "dataset_digest": self.dataset_digest,
+            "sample_ids": list(self.sample_ids),
             "dataset_size": self.dataset_size,
             "seed": self.seed,
             "shuffle": self.shuffle,
             "tail_policy": self.tail_policy,
+            "local_batch_size": self.local_batch_size,
             "rank": self.rank,
             "world_size": self.world_size,
             "epoch": self._epoch,
@@ -271,7 +259,7 @@ class DeterministicDistributedSampler:
             raise TypeError("sampler state_dict must be a mapping")
         required = {
             "schema",
-            "dataset_digest",
+            "sample_ids",
             "dataset_size",
             "seed",
             "shuffle",
@@ -285,7 +273,8 @@ class DeterministicDistributedSampler:
             "next_index",
             "next_sample_id",
         }
-        unknown = sorted(set(state_dict) - required)
+        optional = {"local_batch_size"}
+        unknown = sorted(set(state_dict) - required - optional)
         missing = sorted(required - set(state_dict))
         if unknown or missing:
             raise SamplerStateMismatchError(f"sampler state fields mismatch; missing={missing}, unknown={unknown}")
@@ -293,16 +282,19 @@ class DeterministicDistributedSampler:
             raise SamplerStateMismatchError(f"unsupported sampler state schema: {state_dict['schema']!r}")
 
         invariants = {
-            "dataset_digest": self.dataset_digest,
+            "sample_ids": list(self.sample_ids),
             "dataset_size": self.dataset_size,
             "seed": self.seed,
             "shuffle": self.shuffle,
             "tail_policy": self.tail_policy,
+            "local_batch_size": self.local_batch_size,
             "rank": self.rank,
             "world_size": self.world_size,
         }
         mismatches = {
-            key: (state_dict[key], expected) for key, expected in invariants.items() if state_dict[key] != expected
+            key: (state_dict.get(key, 1), expected)
+            for key, expected in invariants.items()
+            if state_dict.get(key, 1) != expected
         }
         if mismatches:
             detail = ", ".join(

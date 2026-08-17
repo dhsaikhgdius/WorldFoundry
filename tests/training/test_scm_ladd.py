@@ -159,8 +159,6 @@ class _Counter:
 
 
 class _WeightedSCMLADDLosses:
-    config_digest = "a" * 64
-
     def __init__(self, student: nn.Linear, discriminator: nn.Linear) -> None:
         self.student = student
         self.discriminator = discriminator
@@ -205,7 +203,14 @@ def _recipe_mapping(
     accumulation_steps: int = 1,
     **algorithm_overrides: object,
 ) -> dict[str, object]:
-    algorithm = {"type": "scm-ladd", **algorithm_overrides}
+    algorithm = {
+        "type": "scm-ladd",
+        "lr_scheduler": "constant-with-warmup",
+        "lr_warmup_steps": 5000,
+        "student_fp32_attention": True,
+        "teacher_fp32_attention": False,
+        **algorithm_overrides,
+    }
     optimizer = {
         "type": "adamw",
         "learning_rate": 1.0e-3,
@@ -281,20 +286,31 @@ def _weighted_engine(*, seed: int, accumulation_steps: int):
     return engine, student_scheduler, discriminator_scheduler
 
 
-def test_scm_ladd_recipe_is_strict_and_every_behavior_changes_digest() -> None:
+def test_scm_ladd_recipe_is_strict_and_consumes_behavior_fields() -> None:
     recipe = PostTrainingRecipe.from_mapping(_recipe_mapping())
     assert recipe.algorithm.discriminator_head_block_ids == (2, 8, 14, 19)
+    assert recipe.algorithm.lr_scheduler == "constant-with-warmup"
+    assert recipe.algorithm.lr_warmup_steps == 5000
+    assert recipe.algorithm.student_fp32_attention is True
+    assert recipe.algorithm.teacher_fp32_attention is False
+    serialized = recipe.to_dict()["algorithm"]
+    assert isinstance(serialized, dict)
+    assert serialized["lr_warmup_steps"] == 5000
+    assert serialized["student_fp32_attention"] is True
+    assert serialized["teacher_fp32_attention"] is False
     assert recipe.optimizer.learning_rate == 1.0e-3
     assert recipe.discriminator_optimizer is not None
     assert recipe.discriminator_optimizer.learning_rate == 2.0e-3
     changed = PostTrainingRecipe.from_mapping(_recipe_mapping(guidance_embedding_scale=0.2))
-    assert changed.digest != recipe.digest
+    assert changed.algorithm != recipe.algorithm
     unknown = _recipe_mapping()
     unknown["algorithm"]["unused_label"] = "dead"
     with pytest.raises(ValueError, match="unknown fields"):
         PostTrainingRecipe.from_mapping(unknown)
     with pytest.raises(ValueError, match="adversarial_loss"):
         PostTrainingRecipe.from_mapping(_recipe_mapping(adversarial_loss="cross-entropy"))
+    with pytest.raises(ValueError, match="lr_scheduler"):
+        PostTrainingRecipe.from_mapping(_recipe_mapping(lr_scheduler="cosine"))
 
 
 def test_scm_ladd_discoverable_stack_recipe_uses_public_parser() -> None:
@@ -329,6 +345,10 @@ def test_official_sana_sprint_profiles_parse_with_came(name: str, model_id: str)
     assert recipe.optimizer.update_clip_threshold == 1.0
     assert recipe.discriminator_optimizer is not None
     assert recipe.discriminator_optimizer.type == "came"
+    assert recipe.algorithm.lr_scheduler == "constant-with-warmup"
+    assert recipe.algorithm.lr_warmup_steps == 5000
+    assert recipe.algorithm.student_fp32_attention is True
+    assert recipe.algorithm.teacher_fp32_attention is False
 
 
 def test_discriminator_execution_uses_independent_times_and_misaligned_pairs(monkeypatch) -> None:
@@ -360,7 +380,6 @@ def test_discriminator_execution_uses_independent_times_and_misaligned_pairs(mon
         teacher,
         discriminator,
         config,
-        config_digest="test-digest",
     )
     result = adapter.discriminator_loss(_batch())
     assert torch.isfinite(result.loss)

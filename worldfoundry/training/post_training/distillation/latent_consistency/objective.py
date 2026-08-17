@@ -8,8 +8,6 @@ from dataclasses import dataclass
 import torch
 from torch import Tensor, nn
 
-from worldfoundry.core.io.integrity import canonical_sha256
-
 from .config import (
     LatentConsistencyConfig,
     LatentConsistencyNoiseSchedule,
@@ -131,19 +129,7 @@ class LatentConsistencyObjective:
             noise_schedule,
             config,
         )
-        self._execution_digest = canonical_sha256(
-            {
-                "config": config.digest,
-                "noise_schedule": noise_schedule.digest,
-            }
-        )
         self._schedule_cache: dict[str, tuple[Tensor, Tensor, Tensor, Tensor, Tensor]] = {}
-
-    @property
-    def config_digest(self) -> str:
-        """Digest every value that changes objective execution or sampling."""
-
-        return self._execution_digest
 
     @property
     def pair_count(self) -> int:

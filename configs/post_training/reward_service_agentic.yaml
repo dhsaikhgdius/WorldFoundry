@@ -1,0 +1,10 @@
+server:
+  host: 0.0.0.0
+  port: 8080
+  fail_fast: true
+
+scorers:
+  correctness:
+    expected_answer_condition: answer
+  tool-success:
+    required_tool: calculator

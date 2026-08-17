@@ -28,7 +28,6 @@ def _expand(levels: torch.Tensor, reference: torch.Tensor) -> torch.Tensor:
 
 class _Prediction:
     noise_process_kind = "flow-matching"
-    noise_process_digest = "linear-flow"
 
     def __init__(self, value: float, identity: str, *, frozen: bool = False) -> None:
         self.module = _Scale(value)

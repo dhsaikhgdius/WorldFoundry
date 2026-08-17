@@ -69,7 +69,6 @@ algorithm:
     checkpoint_repository: KlingTeam/VideoReward
     checkpoint_revision: b8e421fe21aec3dde5f61fdd1dc44e1d603b9727
     checkpoint_file: checkpoint-11352/model.pth
-    checkpoint_sha256: 48375908e6112de9f0248402db156a23b480709a6960b091c598c6f4c88d21b9
     checkpoint_size_bytes: 5031072529
     source_fps: 24.0
     target_fps: 2.0

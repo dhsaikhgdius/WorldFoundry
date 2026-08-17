@@ -22,6 +22,7 @@ from worldfoundry.training.objectives.flow_matching import (
     FlowMatchingConfig,
     FlowMatchingObjective,
 )
+from worldfoundry.training.optimization import build_lr_scheduler
 from worldfoundry.training.recipes.spec import TrainingRecipe
 from worldfoundry.training.tuning.peft import (
     PeftLoraApplication,
@@ -167,6 +168,7 @@ def build_wan_single_device_session(
         epsilon=recipe.optimizer.epsilon,
         fused=fused_adamw,
     )
+    lr_scheduler = build_lr_scheduler(optimizer, recipe.scheduler)
     objective = _flow_objective(recipe, adapter)
     engine = SingleDeviceTrainEngine(
         adapter,
@@ -174,6 +176,7 @@ def build_wan_single_device_session(
         optimizer,
         max_grad_norm=recipe.optimizer.max_grad_norm,
         autocast_dtype=None if expected_dtype is torch.float32 else expected_dtype,
+        optimizer_step_end=None if lr_scheduler is None else lr_scheduler.step,
     )
     dataloader, sampler = build_wan_cache_loader(
         recipe=recipe,
@@ -188,14 +191,24 @@ def build_wan_single_device_session(
         dataloader=dataloader,
         output_dir=output_dir,
         peft_application=application,
+        lr_scheduler=lr_scheduler,
         data_identity={
             "cache_schema": dataset.index.schema,
-            "cache_index_sha256": dataset.index_sha256,
-            "cache_contract_sha256": expected_contract,
-            "dataset_digest": dataset.dataset_digest,
+            "cache_index": dataset.index.to_dict(),
+            "cache_contract": dict(expected_contract),
+            "sample_ids": list(dataset.sample_ids),
             "sample_count": len(dataset),
             "latent_token_budget": sampler.max_latent_tokens,
-            "token_sampler_config_sha256": sampler.config_digest,
+            "token_sampler": {
+                "sample_ids": list(sampler.sample_ids),
+                "bucket_keys": [key.to_dict() for key in sampler.bucket_keys],
+                "batch_contracts": [dict(value) for value in sampler.batch_contracts],
+                "seed": sampler.seed,
+                "shuffle": sampler.shuffle,
+                "tail_policy": sampler.tail_policy,
+                "rank": sampler.rank,
+                "world_size": sampler.world_size,
+            },
         },
     )
 
@@ -252,6 +265,7 @@ def build_wan_fsdp2_session(
         epsilon=recipe.optimizer.epsilon,
         fused=fused_adamw,
     )
+    lr_scheduler = build_lr_scheduler(optimizer, recipe.scheduler)
     objective = _flow_objective(recipe, adapter)
     engine = FSDP2TrainEngine(
         adapter,
@@ -260,6 +274,7 @@ def build_wan_fsdp2_session(
         application=fsdp_application,
         max_grad_norm=recipe.optimizer.max_grad_norm,
         autocast_dtype=None if expected_dtype is torch.float32 else expected_dtype,
+        optimizer_step_end=None if lr_scheduler is None else lr_scheduler.step,
     )
     dataloader, sampler = build_wan_cache_loader(
         recipe=recipe,
@@ -275,16 +290,26 @@ def build_wan_fsdp2_session(
         distributed_context=distributed_context,
         output_dir=output_dir,
         peft_application=peft_application,
+        lr_scheduler=lr_scheduler,
         data_identity={
             "cache_schema": dataset.index.schema,
-            "cache_index_sha256": dataset.index_sha256,
-            "cache_contract_sha256": expected_contract,
-            "dataset_digest": dataset.dataset_digest,
+            "cache_index": dataset.index.to_dict(),
+            "cache_contract": dict(expected_contract),
+            "sample_ids": list(dataset.sample_ids),
             "sample_count": len(dataset),
             "latent_token_budget": sampler.max_latent_tokens,
-            "token_sampler_config_sha256": sampler.config_digest,
+            "token_sampler": {
+                "sample_ids": list(sampler.sample_ids),
+                "bucket_keys": [key.to_dict() for key in sampler.bucket_keys],
+                "batch_contracts": [dict(value) for value in sampler.batch_contracts],
+                "seed": sampler.seed,
+                "shuffle": sampler.shuffle,
+                "tail_policy": sampler.tail_policy,
+                "rank": sampler.rank,
+                "world_size": sampler.world_size,
+            },
             "parallel_plan": plan.to_dict(),
-            "fsdp2_application_digest": fsdp_application.digest,
+            "fsdp2_application": fsdp_application.to_dict(),
         },
     )
 
@@ -296,7 +321,7 @@ def materialize_wan_cached_training_session(
     device: str | torch.device = "cuda",
     output_dir: str | Path | None = None,
     checkpoint_overrides: Mapping[str, object] | None = None,
-    verify_media_hashes: bool = True,
+    verify_media_files: bool = True,
     audit_cache_on_open: bool = True,
     verify_cache_on_read: bool = True,
     force_torch_attention: bool = True,
@@ -323,12 +348,11 @@ def materialize_wan_cached_training_session(
     manifest = TrainingManifestDataset.from_file(
         manifest_path,
         split=recipe.data.split,
-        verify_files=True,
-        verify_hashes=verify_media_hashes,
+        verify_files=verify_media_files,
     )
     cache = VideoCachedDataset(
         cache_path,
-        expected_dataset_digest=manifest.dataset_digest,
+        expected_sample_ids=manifest.sample_ids,
         audit_on_open=audit_cache_on_open,
         verify_on_read=verify_cache_on_read,
     )

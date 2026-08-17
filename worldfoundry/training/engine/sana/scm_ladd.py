@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import random
 from collections.abc import Mapping
+from functools import partial
 from pathlib import Path
 from typing import Literal
 
 import torch
+from transformers import get_constant_schedule_with_warmup
 
 from worldfoundry.training.checkpoint.checkpointer import TrainingCheckpointer
 from worldfoundry.training.checkpoint.state import TrainingProgress, TrainingState
@@ -165,7 +167,7 @@ def materialize_sana_scm_ladd_training_run(
     output_dir: str | Path | None = None,
     resume_checkpoint: str | Path | None = None,
     audited_role_overrides: Mapping[str, object] | None = None,
-    verify_media_hashes: bool = True,
+    verify_media_files: bool = True,
     audit_cache_on_open: bool = True,
     verify_cache_on_read: bool = True,
     fused_adamw: bool | Literal["auto"] = "auto",
@@ -203,12 +205,11 @@ def materialize_sana_scm_ladd_training_run(
         manifest = TrainingManifestDataset.from_file(
             manifest_path,
             split=recipe.data.split,
-            verify_files=True,
-            verify_hashes=verify_media_hashes,
+            verify_files=verify_media_files,
         )
         cache = SanaCachedDataset(
             cache_path,
-            expected_dataset_digest=manifest.dataset_digest,
+            expected_sample_ids=manifest.sample_ids,
             audit_on_open=audit_cache_on_open,
             verify_on_read=verify_cache_on_read,
         )
@@ -249,13 +250,13 @@ def materialize_sana_scm_ladd_training_run(
             role="student",
             reference=recipe.model.checkpoint,
             native_default=native_recipe.checkpoints["dit"],
-            audited_local_override=raw_overrides.get("student"),
+            local_override=raw_overrides.get("student"),
         )
         teacher_checkpoint = resolve_role_checkpoint(
             role="teacher",
             reference=algorithm.teacher_checkpoint,
             native_default=native_recipe.checkpoints["teacher"],
-            audited_local_override=raw_overrides.get("teacher"),
+            local_override=raw_overrides.get("teacher"),
         )
 
         dtype = _dtype(recipe.runtime.param_dtype)
@@ -287,6 +288,7 @@ def materialize_sana_scm_ladd_training_run(
             student_preparation.denoiser,
             role="student",
             checkpoint_identity=recipe.model.checkpoint,
+            fp32_attention=algorithm.student_fp32_attention,
             expected_latent_channels=student_preparation.expected_latent_channels,
             autocast_dtype=autocast_dtype,
         )
@@ -306,6 +308,7 @@ def materialize_sana_scm_ladd_training_run(
             teacher_denoiser,
             role="teacher",
             checkpoint_identity=algorithm.teacher_checkpoint,
+            fp32_attention=algorithm.teacher_fp32_attention,
             expected_latent_channels=student_preparation.expected_latent_channels,
             autocast_dtype=autocast_dtype,
         )
@@ -369,7 +372,6 @@ def materialize_sana_scm_ladd_training_run(
         )
         sampler = DeterministicDistributedSampler(
             cache,
-            dataset_digest=cache.dataset_digest,
             seed=recipe.data.shuffle_seed,
             shuffle=recipe.data.shuffle,
             rank=rank,
@@ -415,6 +417,10 @@ def materialize_sana_scm_ladd_training_run(
             student=student,
             teacher=teacher,
             discriminator=discriminator,
+            student_scheduler_factory=partial(
+                get_constant_schedule_with_warmup,
+                num_warmup_steps=algorithm.lr_warmup_steps,
+            ),
             parallel_context=parallel_context,
             fused_adamw=fused_adamw,
         )
@@ -434,15 +440,15 @@ def materialize_sana_scm_ladd_training_run(
         generator = torch.Generator(device=resolved_device)
         generator.manual_seed((int(initialization_seed or recipe.data.shuffle_seed) + rank) % (2**63 - 1))
         data_identity = {
-            "cache_index_sha256": cache.index_sha256,
-            "cache_contract_sha256": expected_contract,
-            "dataset_digest": cache.dataset_digest,
-            "unconditional_identity_sha256": unconditional.artifact.identity_sha256,
-            "parallel_plan_digest": plan.digest,
+            "cache_index": cache.index.to_dict(),
+            "cache_contract": dict(expected_contract),
+            "sample_ids": list(cache.sample_ids),
+            "unconditional_conditioning": unconditional.artifact.to_dict(),
+            "parallel_plan": plan.to_dict(),
         }
         identity = {
             "schema": "worldfoundry-sana-scm-ladd-resume-identity",
-            "recipe_digest": recipe.digest,
+            "recipe": recipe.to_dict(),
             "roles": roles.runtime_identity(),
             "data": data_identity,
             "initialization_seed": initialization_seed,

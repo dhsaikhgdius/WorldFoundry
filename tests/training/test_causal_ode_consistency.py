@@ -343,43 +343,20 @@ class _FakeParallelContext:
     world_size = 2
     process_group = object()
 
+    def __init__(self) -> None:
+        self.broadcasts: list[object] = []
+
     def audit_synchronized_module(self, module, *, role: str) -> None:
         del module, role
 
-
-def test_causal_consistency_pair_is_broadcast_from_rank_zero(monkeypatch) -> None:
-    calls: list[tuple[int, object]] = []
-
-    def broadcast(value, *, src, group):
-        calls.append((src, group))
+    def broadcast_from_coordinator(self, value):
+        self.broadcasts.append(self.process_group)
         value.fill_(2)
+        return value
 
-    from worldfoundry.training.post_training.distillation.causal_consistency import engine as engine_module
 
-    monkeypatch.setattr(engine_module.dist, "broadcast", broadcast)
-    _, _, _, _, engine = _consistency_stack(parallel_context=_FakeParallelContext())
+def test_causal_consistency_pair_is_broadcast_from_rank_zero() -> None:
+    context = _FakeParallelContext()
+    _, _, _, _, engine = _consistency_stack(parallel_context=context)
     assert engine.sample_pair_index() == 2
-    assert calls == [(0, _FakeParallelContext.process_group)]
-
-
-def test_causal_consistency_state_rejects_config_drift() -> None:
-    _, _, _, _, engine = _consistency_stack()
-    state = engine.state_dict()
-    student = _CleanAdapter(0.5)
-    teacher = _VelocityAdapter(0.25)
-    ema = _CleanAdapter(0.5)
-    objective = CausalConsistencyObjective(
-        student=student,
-        teacher=teacher,
-        ema_student=ema,
-        config=CausalConsistencyConfig(num_levels=5),
-    )
-    drifted = NativeCausalConsistencyTrainEngine(
-        student_module=student.module,
-        teacher_module=teacher.module,
-        ema_student_module=ema.module,
-        objective=objective,
-        optimizer=torch.optim.SGD(student.module.parameters(), lr=0.1),
-    )
-    with pytest.raises(ValueError, match="config_digest"):
-        drifted.load_state_dict(state)
+    assert context.broadcasts == [_FakeParallelContext.process_group]

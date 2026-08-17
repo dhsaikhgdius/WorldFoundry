@@ -118,7 +118,6 @@ def build_native_adaptive_video_training_stack(
         fake_score,
         config,
         student_sampler=student_sampler,
-        config_digest=recipe.digest,
     )
     student_optimizer = build_post_training_optimizer(
         replace(recipe.optimizer, gradient_accumulation_steps=1),

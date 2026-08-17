@@ -6,7 +6,6 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 import torch
-import torch.distributed as dist
 from torch import nn
 
 from worldfoundry.core.gradient import clip_grad_norm_
@@ -127,10 +126,6 @@ class NativeSIDTrainEngine:
         self._poisoned = False
         self.teacher_module.eval()
 
-    @property
-    def config_digest(self) -> str:
-        return str(self.loss_adapter.config_digest)
-
     def _batches(
         self,
         batch: SIDTrainingBatch | Sequence[SIDTrainingBatch],
@@ -164,7 +159,9 @@ class NativeSIDTrainEngine:
         if self.parallel_context.world_size > 1:
             if self.parallel_context.rank != 0:
                 value.zero_()
-            dist.broadcast(value, src=0, group=self.parallel_context.process_group)
+            # broadcast_from_coordinator translates group-local rank zero to
+            # its global rank; a raw src=0 is wrong for non-world subgroups.
+            self.parallel_context.broadcast_from_coordinator(value)
         return int(value.item())
 
     def train_step(
@@ -339,7 +336,6 @@ class NativeSIDTrainEngine:
             "student_optimizer_steps": self.student_optimizer_steps,
             "fake_score_optimizer_steps": self.fake_score_optimizer_steps,
             "gradient_accumulation_steps": self.gradient_accumulation_steps,
-            "config_digest": self.config_digest,
             "data_parallel_size": self.parallel_context.world_size,
         }
 
@@ -352,15 +348,12 @@ class NativeSIDTrainEngine:
             "student_optimizer_steps",
             "fake_score_optimizer_steps",
             "gradient_accumulation_steps",
-            "config_digest",
             "data_parallel_size",
         }
         if set(state_dict) != expected:
             raise ValueError("SiD engine state fields differ from the active schema")
         if state_dict["schema"] != SID_ENGINE_STATE_SCHEMA:
             raise ValueError(f"unsupported SiD engine schema: {state_dict['schema']!r}")
-        if str(state_dict["config_digest"]) != self.config_digest:
-            raise ValueError("saved SiD recipe differs from the active engine")
         for name, active in (
             ("gradient_accumulation_steps", self.gradient_accumulation_steps),
             ("data_parallel_size", self.parallel_context.world_size),

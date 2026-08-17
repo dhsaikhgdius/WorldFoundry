@@ -6,7 +6,6 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 import torch
-import torch.distributed as dist
 from torch import Tensor, nn
 
 from worldfoundry.core.gradient import clip_grad_norm_
@@ -143,10 +142,6 @@ class NativeCausalConsistencyTrainEngine:
         self._phase = "idle"
         self._poisoned = False
 
-    @property
-    def config_digest(self) -> str:
-        return self.objective.config_digest
-
     def sample_pair_index(self) -> int:
         """Sample on rank zero and broadcast one pair for the whole iteration."""
 
@@ -161,7 +156,9 @@ class NativeCausalConsistencyTrainEngine:
         if self.parallel_context.world_size > 1:
             if self.parallel_context.rank != 0:
                 value.fill_(-1)
-            dist.broadcast(value, src=0, group=self.parallel_context.process_group)
+            # broadcast_from_coordinator translates group-local rank zero to
+            # its global rank; a raw src=0 is wrong for non-world subgroups.
+            self.parallel_context.broadcast_from_coordinator(value)
         pair_index = int(value.item())
         if not 0 <= pair_index < self.objective.pair_count:
             raise RuntimeError("rank-synchronized causal consistency pair index is invalid")
@@ -288,7 +285,6 @@ class NativeCausalConsistencyTrainEngine:
             "optimizer_steps": self.optimizer_steps,
             "last_pair_index": self.last_pair_index,
             "gradient_accumulation_steps": self.gradient_accumulation_steps,
-            "config_digest": self.config_digest,
             "data_parallel_size": self.parallel_context.world_size,
             "noise_rng_device": self._noise_rng_device,
             "pair_rng_state": self._pair_rng.get_state().clone(),
@@ -304,7 +300,6 @@ class NativeCausalConsistencyTrainEngine:
             "optimizer_steps",
             "last_pair_index",
             "gradient_accumulation_steps",
-            "config_digest",
             "data_parallel_size",
             "noise_rng_device",
             "pair_rng_state",
@@ -318,7 +313,6 @@ class NativeCausalConsistencyTrainEngine:
             )
         active = {
             "gradient_accumulation_steps": self.gradient_accumulation_steps,
-            "config_digest": self.config_digest,
             "data_parallel_size": self.parallel_context.world_size,
             "noise_rng_device": self._noise_rng_device,
         }

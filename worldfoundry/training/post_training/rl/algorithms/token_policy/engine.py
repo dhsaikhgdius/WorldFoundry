@@ -12,7 +12,6 @@ import torch.distributed as dist
 from torch import nn
 
 from worldfoundry.core.gradient import clip_grad_norm_
-from worldfoundry.core.io.integrity import canonical_sha256
 from worldfoundry.training.optimization import (
     audit_optimizer_parameters,
     trainable_parameters,
@@ -137,13 +136,7 @@ class NativeTokenPolicyEngine:
     def _policy_revision_for_step(self, optimizer_steps: int) -> str:
         if optimizer_steps == 0:
             return self.initial_policy_revision
-        return canonical_sha256(
-            {
-                "schema": "worldfoundry-logical-token-policy-revision",
-                "initial_policy_revision": self.initial_policy_revision,
-                "optimizer_steps": optimizer_steps,
-            }
-        )
+        return f"{self.initial_policy_revision}:step-{optimizer_steps}"
 
     def _ensure_healthy(self) -> None:
         if self._poisoned:

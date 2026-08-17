@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+import pytest
+
+# This test module imports worldfoundry code that requires the optional
+# "diffusers" dependency at import time; skip when it is unavailable.
+pytest.importorskip("diffusers")
+
 from pathlib import Path
 from types import SimpleNamespace
 

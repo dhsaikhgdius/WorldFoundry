@@ -6,8 +6,6 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from math import isfinite
 
-from worldfoundry.core.io.integrity import canonical_sha256
-
 from ....recipes.post_training.algorithms.sid import SID_WEIGHTING_SCHEMES, SIDAlgorithmSpec
 from ..dmd.objective import FewStepSchedule
 from .contracts import (
@@ -127,28 +125,6 @@ class SIDConfig:
     def diffusion_gan_enabled(self) -> bool:
         return self.generator_adversarial_weight > 0
 
-    @property
-    def digest(self) -> str:
-        return canonical_sha256(
-            {
-                "schema": "worldfoundry-sid-config",
-                "schedule_digest": self.schedule.digest,
-                "alpha": self.alpha,
-                "noise_policy": self.noise_policy,
-                "score_weighting": self.score_weighting,
-                "num_train_timesteps": self.num_train_timesteps,
-                "score_logit_mean": self.score_logit_mean,
-                "score_logit_std": self.score_logit_std,
-                "weighting_epsilon": self.weighting_epsilon,
-                "teacher_guidance_scale": self.teacher_guidance_scale,
-                "fake_score_guidance_scale": self.fake_score_guidance_scale,
-                "score_identity_weight": self.score_identity_weight,
-                "fake_score_flow_weight": self.fake_score_flow_weight,
-                "generator_adversarial_weight": self.generator_adversarial_weight,
-                "fake_score_adversarial_weight": self.fake_score_adversarial_weight,
-            }
-        )
-
 
 @dataclass(frozen=True, slots=True)
 class SIDFewStepPrediction:
@@ -182,10 +158,6 @@ def _levels(reference: object, sigma: float) -> object:
         device=reference.device,
         dtype=torch.float32,
     )
-
-
-def _expanded(levels: object, reference: object) -> object:
-    return levels.reshape((levels.shape[0],) + (1,) * (reference.ndim - 1))
 
 
 def simulate_sid_student(
@@ -367,8 +339,6 @@ class NativeSIDLossAdapter:
         teacher: SIDPredictionAdapter,
         fake_score: SIDPredictionAdapter,
         config: SIDConfig,
-        *,
-        config_digest: str | None = None,
     ) -> None:
         torch = _require_torch()
         if not all(isinstance(value, SIDPredictionAdapter) for value in (student, teacher, fake_score)):
@@ -384,12 +354,6 @@ class NativeSIDLossAdapter:
         )
         if set(kinds) != {"flow-matching"}:
             raise ValueError("native SiD adapters must use the flow-matching noise process")
-        digests = tuple(
-            str(adapter.noise_process_digest).strip()
-            for adapter in (student, teacher, fake_score)
-        )
-        if not all(digests) or len(set(digests)) != 1:
-            raise ValueError("SiD roles must declare the same non-empty noise_process_digest")
         if not isinstance(config, SIDConfig):
             raise TypeError("config must be SIDConfig")
         if config.diffusion_gan_enabled and not isinstance(fake_score, SIDDiscriminatorAdapter):
@@ -398,9 +362,6 @@ class NativeSIDLossAdapter:
         self.teacher = teacher
         self.fake_score = fake_score
         self.config = config
-        self.config_digest = config.digest if config_digest is None else str(config_digest)
-        if not self.config_digest.strip():
-            raise ValueError("config_digest must be non-empty")
 
     @property
     def num_student_steps(self) -> int:

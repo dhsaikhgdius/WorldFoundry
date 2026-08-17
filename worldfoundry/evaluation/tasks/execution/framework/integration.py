@@ -112,6 +112,12 @@ BENCHMARK_INTEGRATION_REGISTRY: dict[str, BenchmarkIntegrationSpec] = {
     "fetv": BenchmarkIntegrationSpec(
         "fetv", IntegrationTier.IN_TREE, _runner_path("fetv"),
     ),
+    "4dworldbench": BenchmarkIntegrationSpec(
+        "4dworldbench",
+        IntegrationTier.MODEL_BACKED,
+        _runner_path("4dworldbench"),
+        judge_model_id="Kwai-Keye/Keye-VL-1_5-8B",
+    ),
     "genai-bench": BenchmarkIntegrationSpec(
         "genai-bench",
         IntegrationTier.IN_TREE,
@@ -122,6 +128,12 @@ BENCHMARK_INTEGRATION_REGISTRY: dict[str, BenchmarkIntegrationSpec] = {
     ),
     "iworld-bench": BenchmarkIntegrationSpec(
         "iworld-bench", IntegrationTier.IN_TREE, _runner_path("iworld-bench"),
+    ),
+    "larybench": BenchmarkIntegrationSpec(
+        "larybench",
+        IntegrationTier.IN_TREE,
+        _runner_path("larybench"),
+        hf_dataset_id="meituan-longcat/LARYBench",
     ),
     "likephys": BenchmarkIntegrationSpec(
         "likephys",
@@ -200,6 +212,12 @@ BENCHMARK_INTEGRATION_REGISTRY: dict[str, BenchmarkIntegrationSpec] = {
         _runner_path("rbench"),
         hf_dataset_id="DAGroup-PKU/RBench",
         judge_model_id="gpt-4o+Qwen3-VL",
+    ),
+    "sana-wm-bench": BenchmarkIntegrationSpec(
+        "sana-wm-bench",
+        IntegrationTier.IN_TREE,
+        _runner_path("sana-wm-bench"),
+        hf_dataset_id="Efficient-Large-Model/SANA-WM-Bench",
     ),
     "t2v-compbench": BenchmarkIntegrationSpec(
         "t2v-compbench", IntegrationTier.IN_TREE, _runner_path("t2v-compbench"),
@@ -287,6 +305,19 @@ BENCHMARK_INTEGRATION_REGISTRY: dict[str, BenchmarkIntegrationSpec] = {
     ),
     "worldmodelbench": BenchmarkIntegrationSpec(
         "worldmodelbench", IntegrationTier.MODEL_BACKED, _runner_path("worldmodelbench"),
+    ),
+    "worldolympiad": BenchmarkIntegrationSpec(
+        "worldolympiad",
+        IntegrationTier.MODEL_BACKED,
+        _runner_path("worldolympiad"),
+        hf_dataset_id="ziplab/WorldOlympiad",
+        judge_model_id="Qwen/Qwen3-VL-8B-Instruct+facebook/sam3+depth-anything/DA3NESTED-GIANT-LARGE-1.1",
+    ),
+    "worldreasonbench": BenchmarkIntegrationSpec(
+        "worldreasonbench",
+        IntegrationTier.MODEL_BACKED,
+        _runner_path("worldreasonbench"),
+        judge_model_id="qwen3.5-27b",
     ),
     "worldscore": BenchmarkIntegrationSpec(
         "worldscore",

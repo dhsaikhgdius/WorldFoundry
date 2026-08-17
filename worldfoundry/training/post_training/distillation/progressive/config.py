@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from math import isfinite
 from typing import Literal
-
-from worldfoundry.core.io.integrity import canonical_sha256
 
 ProgressivePredictionType = Literal["sample", "epsilon", "v_prediction"]
 ProgressiveLossWeight = Literal["constant", "snr", "snr_trunc", "v_mse"]
@@ -89,12 +87,6 @@ class ProgressiveDistillationConfig:
     @property
     def stage_count(self) -> int:
         return len(self.student_steps)
-
-    @property
-    def digest(self) -> str:
-        return canonical_sha256(
-            {"kind": "progressive-distillation-config", **asdict(self)}
-        )
 
 
 __all__ = [

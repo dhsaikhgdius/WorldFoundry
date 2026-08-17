@@ -194,10 +194,6 @@ class NativeScaleWiseTrainEngine:
         self.teacher_module.eval()
 
     @property
-    def config_digest(self) -> str:
-        return str(self.loss_adapter.config_digest)
-
-    @property
     def interval_index(self) -> int:
         return self.global_step % int(self.loss_adapter.num_intervals)
 
@@ -470,7 +466,6 @@ class NativeScaleWiseTrainEngine:
             "fake_score_optimizer_steps": self.fake_score_optimizer_steps,
             "gradient_accumulation_steps": self.gradient_accumulation_steps,
             "fake_updates_per_iteration": self.fake_updates_per_iteration,
-            "config_digest": self.config_digest,
             "data_parallel_size": self.parallel_context.world_size,
         }
 
@@ -484,15 +479,12 @@ class NativeScaleWiseTrainEngine:
             "fake_score_optimizer_steps",
             "gradient_accumulation_steps",
             "fake_updates_per_iteration",
-            "config_digest",
             "data_parallel_size",
         }
         if set(state_dict) != expected:
             raise ValueError("scale-wise engine state fields differ from active schema")
         if state_dict["schema"] != SCALE_WISE_ENGINE_STATE_SCHEMA:
             raise ValueError("unsupported scale-wise engine schema")
-        if str(state_dict["config_digest"]) != self.config_digest:
-            raise ValueError("saved scale-wise configuration differs")
         if int(state_dict["gradient_accumulation_steps"]) != self.gradient_accumulation_steps:
             raise ValueError("saved scale-wise accumulation differs")
         if int(state_dict["fake_updates_per_iteration"]) != self.fake_updates_per_iteration:

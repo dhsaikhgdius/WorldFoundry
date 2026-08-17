@@ -23,7 +23,7 @@ def check_benchmark_datasets_payload(
     ctx = context or DEFAULT_CONTEXT
     registry = load_benchmark_zoo_registry(ctx.benchmark_manifest_dir)
     entry = registry.get(benchmark_id)
-    cache_dir = Path(data_root or "datasets")
+    cache_dir = Path(data_root).expanduser() if data_root else _default_dataset_root()
     refs = [entry.dataset, *entry.dataset_refs]
     seen: set[tuple[str | None, str | None, str | None, str | None]] = set()
     results: list[dict[str, Any]] = []
@@ -69,6 +69,19 @@ def check_benchmark_datasets_payload(
             "by_status": by_status,
         },
     }
+
+
+def _default_dataset_root() -> Path:
+    """Anchor the dataset default to the framework data root, not the CWD.
+
+    The MCP server's working directory is client-controlled, so the previous
+    ``datasets`` relative default pointed at an unpredictable location and
+    reported every benchmark as not-ready (CM-29).
+    """
+
+    from worldfoundry.core.io.paths import local_data_root_path
+
+    return local_data_root_path()
 
 
 def _public_dataset_status(local: Any) -> str:

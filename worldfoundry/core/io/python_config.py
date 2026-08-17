@@ -94,19 +94,95 @@ def _module_public_values(path: Path) -> dict[str, Any]:
         sys.modules.pop(module_name, None)
 
 
+def _restricted_eval(expression: str, root: EasyDict) -> Any:
+    """Evaluate a config expression with ``d`` bound to the config root.
+
+    ``__builtins__`` is explicitly emptied: with a bare ``{}`` globals dict
+    CPython injects the full builtins module, which would let a *config
+    value* reach ``__import__`` and execute arbitrary code. Config
+    expressions only need ``d``-rooted lookups, literals, and operators.
+    """
+    return eval(expression, {"__builtins__": {}}, {"d": root})  # noqa: S307 - restricted namespace
+
+
+def _is_single_whole_interpolation(value: str) -> bool:
+    """Return whether the entire string is one ``${...}`` placeholder.
+
+    Nested placeholders such as ``${TextEncoders[${text_enc}]}`` count as a
+    single whole-string interpolation; ``${a}...${b}`` does not.
+    """
+    if not (value.startswith("${") and value.endswith("}")):
+        return False
+    depth = 0
+    index = 0
+    while index < len(value):
+        if value.startswith("${", index):
+            depth += 1
+            index += 2
+            continue
+        if value[index] == "}":
+            depth -= 1
+            if depth == 0:
+                return index == len(value) - 1
+        index += 1
+    return False
+
+
+def _interpolate_mixed(value: str, root: EasyDict) -> str:
+    """Substitute every ``${...}`` placeholder inside literal text.
+
+    The pre-fix greedy rewrite turned such strings into invalid Python and
+    crashed with ``SyntaxError``, so no existing config can depend on the
+    old behavior; string-join interpolation is the obvious intent.
+    """
+    result: list[str] = []
+    index = 0
+    while index < len(value):
+        start = value.find("${", index)
+        if start == -1:
+            result.append(value[index:])
+            break
+        result.append(value[index:start])
+        depth = 0
+        end = None
+        position = start
+        while position < len(value):
+            if value.startswith("${", position):
+                depth += 1
+                position += 2
+                continue
+            if value[position] == "}":
+                depth -= 1
+                if depth == 0:
+                    end = position
+                    break
+            position += 1
+        if end is None:  # unterminated placeholder: keep the tail literal
+            result.append(value[start:])
+            break
+        result.append(str(_eval_string(value[start : end + 1], root)))
+        index = end + 1
+    return "".join(result)
+
+
 def _eval_string(value: Any, root: EasyDict) -> Any:
     if not isinstance(value, str):
         return value
     if value.startswith("eval(") and value.endswith(")"):
-        return eval(value[5:-1], {}, {"d": root})
+        return _restricted_eval(value[5:-1], root)
 
-    original = value
-    resolved = re.sub(r"\${(.*)}", r"d.\1", original)
-    while resolved != original:
-        original = resolved
+    if _is_single_whole_interpolation(value):
+        # Iterative greedy rewrite handles nested lookups like
+        # ``${TextEncoders[${text_enc}]}`` and preserves the resolved
+        # object's type (the placeholder may name a dict or int).
+        original = value
         resolved = re.sub(r"\${(.*)}", r"d.\1", original)
-    if resolved != value:
-        return eval(resolved, {}, {"d": root})
+        while resolved != original:
+            original = resolved
+            resolved = re.sub(r"\${(.*)}", r"d.\1", original)
+        return _restricted_eval(resolved, root)
+    if "${" in value:
+        return _interpolate_mixed(value, root)
 
     try:
         return ast.literal_eval(value)

@@ -303,7 +303,7 @@ def _checkpointable_stack():
         dataloader=loader,
         objective_generator=generator,
         progress=progress,
-        identity={"algorithm": "scale-wise-distillation", "recipe": recipe.digest},
+        identity={"algorithm": "scale-wise-distillation"},
         **stack.checkpoint_state_kwargs(),
     )
     return stack, loader, progress, generator, model, state

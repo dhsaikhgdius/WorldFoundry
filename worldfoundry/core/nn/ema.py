@@ -3,6 +3,8 @@
 import torch
 from torch import nn
 
+from worldfoundry.core.distributed.device_mesh_collectives import get_local_tensor_if_dtensor
+
 
 class LitEma(nn.Module):
     """Lit ema implementation."""
@@ -19,7 +21,9 @@ class LitEma(nn.Module):
             raise ValueError('Decay must be between 0 and 1')
 
         self.m_name2s_name = {}
-        self.register_buffer('decay', torch.tensor(decay, dtype=torch.bfloat16))
+        # Keep the coefficient in FP32, matching the released LVDM EMA. In
+        # BF16, 0.9999 rounds to 1.0 and the long-run average stops updating.
+        self.register_buffer('decay', torch.tensor(decay, dtype=torch.float32))
         self.register_buffer('num_updates', torch.tensor(0,dtype=torch.int) if use_num_upates
                              else torch.tensor(-1,dtype=torch.int))
 
@@ -53,10 +57,13 @@ class LitEma(nn.Module):
             for key in m_param:
                 if m_param[key].requires_grad:
                     sname = self.m_name2s_name[key]
-                    shadow_params[sname] = shadow_params[sname].type_as(m_param[key])
-                    shadow_params[sname].sub_(one_minus_decay * (shadow_params[sname] - m_param[key]))
+                    shadow = get_local_tensor_if_dtensor(shadow_params[sname])
+                    parameter = get_local_tensor_if_dtensor(m_param[key]).detach()
+                    if parameter.dtype != shadow.dtype:
+                        parameter = parameter.to(dtype=shadow.dtype)
+                    shadow.sub_(shadow - parameter, alpha=float(one_minus_decay.item()))
                 else:
-                    assert not key in self.m_name2s_name
+                    assert key not in self.m_name2s_name
 
     def copy_to(self, model):
         """Copy to.
@@ -70,7 +77,7 @@ class LitEma(nn.Module):
             if m_param[key].requires_grad:
                 m_param[key].data.copy_(shadow_params[self.m_name2s_name[key]].data)
             else:
-                assert not key in self.m_name2s_name
+                assert key not in self.m_name2s_name
 
     def store(self, parameters):
         """

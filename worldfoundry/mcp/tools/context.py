@@ -6,14 +6,31 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from worldfoundry.evaluation.utils import BENCHMARK_ZOO_DIR, MODEL_ZOO_DIR
+from worldfoundry.evaluation.utils import BENCHMARK_ZOO_DIR, MODEL_ZOO_DIR, REPO_ROOT
 from worldfoundry.runtime.jobs import AsyncCommandJobStore
 
 # ── Defaults ───────────────────────────────────────────────────
 
+
+def _default_mcp_output_root() -> Path:
+    """Resolve the MCP run root to a stable absolute path.
+
+    MCP stdio servers are spawned by clients with an arbitrary working
+    directory (often ``/``), so a CWD-relative default would scatter run
+    outputs in unpredictable places (CM-29). ``WORLDFOUNDRY_MCP_RUN_ROOT``
+    still overrides; a relative override is resolved against the CWD once,
+    at import time, so it stays stable for the server's lifetime.
+    """
+
+    override = os.environ.get("WORLDFOUNDRY_MCP_RUN_ROOT")
+    if override:
+        return Path(override).expanduser().resolve()
+    return REPO_ROOT / "runs" / "mcp"
+
+
 # NOTE: ``DEFAULT_MCP_OUTPUT_ROOT`` can be overridden via the
 # ``WORLDFOUNDRY_MCP_RUN_ROOT`` environment variable.
-DEFAULT_MCP_OUTPUT_ROOT = Path(os.environ.get("WORLDFOUNDRY_MCP_RUN_ROOT", "runs/mcp"))
+DEFAULT_MCP_OUTPUT_ROOT = _default_mcp_output_root()
 
 
 @dataclass

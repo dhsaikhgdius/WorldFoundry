@@ -76,7 +76,6 @@ def test_released_sd35_and_flux_controls_match_author_configs() -> None:
     assert flux.score_sampling == "logit-normal-scheduler-index"
     assert flux.score_flow_shift == pytest.approx(1.0)
     assert flux.generator_adversarial_weight == pytest.approx(2.0)
-    assert len(flux.digest) == 64
 
     sd35_optimizer = SenseFlowOptimizerConfig.sd35_released()
     assert sd35_optimizer.student_learning_rate == pytest.approx(1.0e-6)

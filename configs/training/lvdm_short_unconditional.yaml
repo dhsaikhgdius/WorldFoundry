@@ -1,0 +1,63 @@
+schema: worldfoundry-training
+execution_owner: worldfoundry-native
+run:
+  id: lvdm-short-unconditional
+  output_dir: runs/lvdm-short-unconditional
+model:
+  recipe: lvdm-short-unconditional
+  checkpoint: checkpoints/lvdm-short-ucf.ckpt
+tuning:
+  mode: full
+data:
+  manifest: data/lvdm-short-ucf.jsonl
+  cache: cache/lvdm-short-ucf
+  max_latent_tokens_per_microbatch: 8192
+  split: train
+  shuffle: true
+  shuffle_seed: 42
+  tail_policy: pad
+  options:
+    precomputed_tensors: precomputed/lvdm-short-ucf
+    video_buckets:
+      - num_frames: 16
+        height: 256
+        width: 256
+        conditioning_layout: none
+        tasks: [t2v]
+    num_workers: 2
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 2
+    snapshot_every_n_steps: 1
+objective:
+  type: classic-diffusion
+  prediction_type: epsilon
+  timestep_sampler: uniform
+  conditioning_dropout: 0.0
+  options:
+    num_train_timesteps: 1000
+    beta_start: 0.0015
+    beta_end: 0.0155
+    loss_type: l1
+optimizer:
+  type: adamw
+  learning_rate: 0.00006
+  weight_decay: 0.01
+  betas: [0.9, 0.999]
+  epsilon: 0.00000001
+  max_grad_norm: null
+  gradient_accumulation_steps: 2
+runtime:
+  param_dtype: float32
+  reduce_dtype: float32
+  activation_checkpoint: full
+  compile: false
+distributed:
+  backend: fsdp2
+  dp_replicate: 1
+  dp_shard: auto
+  cp: 1
+  tp: 1
+checkpoint:
+  save_every_steps: 1000
+  async: true

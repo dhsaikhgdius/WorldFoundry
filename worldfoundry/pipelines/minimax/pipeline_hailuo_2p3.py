@@ -1,6 +1,7 @@
 """Hailuo 2P3 visual generation pipeline module."""
 
 from ..pipeline_utils import PipelineABC
+import logging
 import time
 from typing import Optional, Dict, Any, Union
 
@@ -12,6 +13,8 @@ from ..api_runtime import resolve_api_key
 
 
 _API_KEY_ENV = ("MINIMAX_API_KEY", "HAILUO_API_KEY")
+
+logger = logging.getLogger(__name__)
 
 
 class Hailuo2p3Pipeline(PipelineABC):
@@ -117,7 +120,7 @@ class Hailuo2p3Pipeline(PipelineABC):
             task_status = self._extract_status(task_info).upper()
 
             if task_status and task_status != last_status:
-                print(f"Hailuo task {task_id}: {task_status}")
+                logger.info("Hailuo task %s: %s", task_id, task_status)
                 last_status = task_status
 
             if task_status in completed_statuses:

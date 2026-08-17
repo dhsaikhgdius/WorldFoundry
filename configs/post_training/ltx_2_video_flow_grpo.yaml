@@ -1,0 +1,87 @@
+schema: worldfoundry-post-training
+execution_owner: worldfoundry-native
+run:
+  id: ltx-2-video-flow-grpo
+  output_dir: runs/ltx-2-video-flow-grpo
+model:
+  recipe: ltx-2-i2v
+  checkpoint: default
+tuning:
+  mode: lora
+  preset: ltx-policy
+  rank: 32
+  alpha: 256
+data:
+  manifest: data/post_training/ltx-rl-prompts.jsonl
+  cache: cache/post_training/ltx-rl-conditioning
+  split: train
+  shuffle: true
+  shuffle_seed: 42
+  tail_policy: pad
+  options:
+    global_prompt_batch_size: 8
+    generation:
+      height: 512
+      width: 768
+      num_frames: 9
+    target_fps: 24.0
+    # LTX-2 keeps audio co-denoised by ODE while the video transition is the policy SDE.
+    audio_joint_sde: false
+    rollout_forward_batch_size: 1
+    replay_microbatch_size: 1
+algorithm:
+  type: flow-grpo
+  num_train_timesteps: 1000
+  sigmas:
+    - 1.0
+    - 0.976353645324707
+    - 0.9477174282073975
+    - 0.9123252034187317
+    - 0.8674668073654175
+    - 0.8087581396102905
+    - 0.7286133766174316
+    - 0.6126700639724731
+    - 0.4300462603569031
+    - 0.10000002384185791
+    - 0.0
+  sde_step_indices: [0, 1, 2, 3, 4]
+  guidance_scale: 1.0
+  init_same_noise: false
+  eta: 0.7
+  clip_range: 0.005
+  updates_per_trajectory: 1
+  group_size: 16
+  old_log_prob_source: rollout
+  reference_kl_weight: 0.0
+  advantage_epsilon: 0.00000001
+  advantage_normalization: group-population-std
+  trajectory_dtype: float32
+  reward_weights:
+    videopickscore: 1.0
+  reward_model:
+    type: remote
+    reward_ids: [videopickscore]
+optimizer:
+  type: adamw
+  learning_rate: 0.0001
+  weight_decay: 0.0
+  betas: [0.9, 0.999]
+  epsilon: 0.00000001
+  max_grad_norm: 1.0
+runtime:
+  param_dtype: bfloat16
+  reduce_dtype: float32
+  activation_checkpoint: full
+  compile: false
+distributed:
+  backend: fsdp2
+  dp_replicate: 1
+  dp_shard: auto
+  cp: 1
+  tp: 1
+checkpoint:
+  save_every_steps: 20
+  async: true
+  export_every_steps: 20
+export:
+  format: peft

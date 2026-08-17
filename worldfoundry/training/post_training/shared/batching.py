@@ -3,8 +3,17 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from math import prod
 
 import torch
+
+
+def latent_token_count(tensor: torch.Tensor) -> int:
+    """Count per-batch latent tokens for a ``[B, C, ...]`` latent tensor."""
+
+    if tensor.ndim < 2:
+        raise ValueError("latent tensor must include batch and channel/feature dimensions")
+    return int(tensor.shape[0]) * prod(int(size) for size in tensor.shape[2:])
 
 
 def batch_shared_conditioning(
@@ -54,4 +63,4 @@ def batch_shared_conditioning(
     return result
 
 
-__all__ = ["batch_shared_conditioning"]
+__all__ = ["batch_shared_conditioning", "latent_token_count"]

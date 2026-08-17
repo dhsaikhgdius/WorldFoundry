@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from worldfoundry.core.io.file_utils import materialize_file
+from worldfoundry.evaluation.tasks.execution.framework.official_runner import default_benchmark_timeout
 from worldfoundry.evaluation.tasks.execution.runners.phygenbench.phygenbench_prompts import (
     load_prompt_records,
     official_video_filename_for_record,
@@ -208,6 +209,7 @@ def _run_upstream_overall(*, repo_root: Path, model_name: str) -> Path:
         capture_output=True,
         check=False,
         env=env,
+        timeout=default_benchmark_timeout(),
     )
     if completed.returncode != 0:
         raise RuntimeError(

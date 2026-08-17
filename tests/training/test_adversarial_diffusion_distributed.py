@@ -14,8 +14,6 @@ from worldfoundry.training.post_training.distillation.adversarial_diffusion impo
 
 
 class _DistributedLossAdapter:
-    config_digest = "distributed-add-test"
-
     def __init__(self, student, discriminator) -> None:
         self.student = student
         self.discriminator = discriminator

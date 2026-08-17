@@ -44,7 +44,7 @@ def _handle_train_audit_prompts(args: argparse.Namespace) -> int:
             output_audit_path=args.output_audits,
             prompt_filter=prompt_filter,
             batch_size=args.batch_size,
-            verify_media_hashes=not args.skip_media_hash_verification,
+            verify_media_files=not args.skip_media_file_verification,
         )
     finally:
         del prompt_filter
@@ -57,10 +57,8 @@ def _handle_train_audit_prompts(args: argparse.Namespace) -> int:
                 "status": "complete",
                 "manifest": str(result.manifest_path),
                 "prompt_audits": str(result.audit_path),
-                "manifest_sha256": result.audit_set.manifest_sha256,
-                "dataset_digest": result.audit_set.dataset_digest,
                 "sample_count": len(result.audit_set.records),
-                "safety_audit_digests": [audit.digest for _, audit in result.audit_set.records],
+                "audit_set": result.audit_set.to_dict(),
             },
             ensure_ascii=False,
             indent=2,
@@ -91,9 +89,8 @@ def _handle_train_audit_rollout_prompts(args: argparse.Namespace) -> int:
             {
                 "status": "complete",
                 "manifest": str(result.manifest_path),
-                "manifest_sha256": result.manifest_sha256,
                 "prompt_count": len(result.records),
-                "safety_audit_digests": [record.safety_audit.digest for record in result.records],
+                "records": [record.to_dict() for record in result.records],
             },
             ensure_ascii=False,
             indent=2,
@@ -110,7 +107,7 @@ def _add_shieldgemma_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--shieldgemma-checkpoint",
         type=Path,
-        help="Use a local directory while retaining the pinned file integrity contract.",
+        help="Use a local directory for the pinned ShieldGemma revision.",
     )
 
 
@@ -122,7 +119,7 @@ def register_train_audit_subparser(
         help="Create a ShieldGemma-audited training manifest",
         description=(
             "Filter every prompt with the pinned ShieldGemma checkpoint, then write a new "
-            "manifest containing content-addressed decisions and a strict audit sidecar."
+            "manifest containing the prompt decisions and an audit sidecar."
         ),
     )
     parser.add_argument("--manifest", type=Path, required=True)
@@ -130,9 +127,9 @@ def register_train_audit_subparser(
     parser.add_argument("--output-audits", type=Path, required=True)
     _add_shieldgemma_arguments(parser)
     parser.add_argument(
-        "--skip-media-hash-verification",
+        "--skip-media-file-verification",
         action="store_true",
-        help="Skip source media byte hashing while prompt decisions are created.",
+        help="Skip checking referenced source media files while prompt decisions are created.",
     )
     parser.set_defaults(func=_handle_train_audit_prompts)
 

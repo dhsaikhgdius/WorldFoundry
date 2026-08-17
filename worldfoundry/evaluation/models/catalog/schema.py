@@ -10,12 +10,15 @@ that heterogeneous YAML manifests can be coerced into a consistent typed shape.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping
 
 from ...api.json_contract import JsonContract, require_mapping, to_plain
 from ...utils import load_manifest
+
+LOGGER = logging.getLogger(__name__)
 
 
 # ── Canonical status sets ────────────────────────────────────
@@ -162,11 +165,46 @@ def _normalize_source_status(value: Any) -> str:
     return "unknown"
 
 
+_WARNED_UNKNOWN_STATUSES: set[tuple[str, str]] = set()
+
+
+def _warn_unknown_status_once(kind: str, raw_value: str, fallback: str) -> None:
+    """Surface unknown status literals without flooding the log.
+
+    The checked-in catalog currently carries dozens of freeform status strings
+    (data cleanup is owned by the catalog data track), so the first unknown
+    value logs a WARNING pointing at DEBUG for the full list; every unique
+    value is logged once at DEBUG.
+    """
+    key = (kind, raw_value)
+    if key in _WARNED_UNKNOWN_STATUSES:
+        return
+    first_unknown = not _WARNED_UNKNOWN_STATUSES
+    _WARNED_UNKNOWN_STATUSES.add(key)
+    if first_unknown:
+        LOGGER.warning(
+            "Model catalog contains unregistered status values (first: %s %r, normalized to %r). "
+            "Enable DEBUG logging for the full list; register intentional values in schema.py.",
+            kind,
+            raw_value,
+            fallback,
+        )
+    LOGGER.debug(
+        "Unknown %s %r in model catalog; normalizing to %r.",
+        kind,
+        raw_value,
+        fallback,
+    )
+
+
 def _normalize_integration_status(value: Any) -> str:
     """Normalize and map varying integration status strings/aliases to canonical states.
 
     Accepts raw strings, nested mappings, and aliases like ``"runtime_ported"``
-    → ``"integrated"``, ``"pending"`` → ``"planned"``.
+    → ``"integrated"``, ``"pending"`` → ``"planned"``.  Unregistered values
+    fall back to ``"planned"`` and are logged (see
+    :func:`_warn_unknown_status_once`) so a typo cannot make a model silently
+    disappear from runnable listings.
     """
     if isinstance(value, Mapping):
         value = value.get("status", "planned")
@@ -179,6 +217,7 @@ def _normalize_integration_status(value: Any) -> str:
         return "blocked"
     if normalized in _PENDING_INTEGRATION_ALIASES or normalized.startswith("pending"):
         return "planned"
+    _warn_unknown_status_once("integration_status", normalized, "planned")
     return "planned"
 
 
@@ -186,7 +225,8 @@ def _normalize_demo_status(value: Any) -> str:
     """Normalize and map varying demo parity status strings/aliases to canonical states.
 
     Accepts raw strings, nested mappings, and aliases like
-    ``"pending_demo"`` → ``"pending"``.
+    ``"pending_demo"`` → ``"pending"``.  Unregistered values fall back to
+    ``"pending"`` and are logged (see :func:`_warn_unknown_status_once`).
     """
     if isinstance(value, Mapping):
         value = value.get("status", "not_applicable")
@@ -195,6 +235,7 @@ def _normalize_demo_status(value: Any) -> str:
         return normalized
     if normalized in _PENDING_DEMO_ALIASES or normalized.startswith("pending"):
         return "pending"
+    _warn_unknown_status_once("demo_status", normalized, "pending")
     return "pending"
 
 
@@ -334,25 +375,13 @@ def _hf_repo_ids_from_entry(entry: Mapping[str, Any]) -> list[str]:
         else:
             add(checkpoint_item)
 
-    official_sources = entry.get("official_sources")
-    if isinstance(official_sources, Mapping):
-        huggingface = official_sources.get("huggingface")
-        if isinstance(huggingface, (list, tuple)):
-            for item in huggingface:
-                if isinstance(item, Mapping):
-                    if _hf_source_status_allows_checkpoint(item):
-                        add(item.get("repo_id") or item.get("url"))
-                else:
-                    add(item)
-        elif isinstance(huggingface, Mapping):
-            if _hf_source_status_allows_checkpoint(huggingface):
-                add(huggingface.get("repo_id") or huggingface.get("url"))
-        else:
-            add(huggingface)
-
-    sources = entry.get("sources")
-    if isinstance(sources, Mapping):
-        huggingface = sources.get("huggingface")
+    # official_sources and sources share the same HF payload shape; keep the
+    # precedence order (official first) while parsing both with one code path.
+    for source_key in ("official_sources", "sources"):
+        container = entry.get(source_key)
+        if not isinstance(container, Mapping):
+            continue
+        huggingface = container.get("huggingface")
         if isinstance(huggingface, (list, tuple)):
             for item in huggingface:
                 if isinstance(item, Mapping):
@@ -587,10 +616,17 @@ def _checkpoint_refs_from_entry(entry: Mapping[str, Any], checkpoint_data: Mappi
         else:
             refs.append(CheckpointRef(hf_repo_id=str(item)))
 
-    official_sources = entry.get("official_sources")
-    if isinstance(official_sources, Mapping):
-        for key in ("huggingface", "huggingface_models", "hf_models", "models"):
-            values = official_sources.get(key)
+    # official_sources historically accepts more HF key spellings than sources;
+    # both share one parsing path with their accepted keys parameterized.
+    for source_key, hf_keys in (
+        ("official_sources", ("huggingface", "huggingface_models", "hf_models", "models")),
+        ("sources", ("huggingface",)),
+    ):
+        container = entry.get(source_key)
+        if not isinstance(container, Mapping):
+            continue
+        for key in hf_keys:
+            values = container.get(key)
             items = values if isinstance(values, (list, tuple)) else (values,)
             for item in items:
                 if isinstance(item, Mapping):
@@ -598,17 +634,6 @@ def _checkpoint_refs_from_entry(entry: Mapping[str, Any], checkpoint_data: Mappi
                         refs.append(_checkpoint_ref_from_repo_mapping(item))
                 elif item is not None:
                     refs.append(CheckpointRef(hf_repo_id=_repo_id_from_hf_url(item) or str(item)))
-
-    sources = entry.get("sources")
-    if isinstance(sources, Mapping):
-        values = sources.get("huggingface")
-        items = values if isinstance(values, (list, tuple)) else (values,)
-        for item in items:
-            if isinstance(item, Mapping):
-                if _hf_source_status_allows_checkpoint(item):
-                    refs.append(_checkpoint_ref_from_repo_mapping(item))
-            elif item is not None:
-                refs.append(CheckpointRef(hf_repo_id=_repo_id_from_hf_url(item) or str(item)))
 
     if entry.get("hf_repo_id"):
         refs.append(CheckpointRef(hf_repo_id=str(entry["hf_repo_id"])))
@@ -1094,9 +1119,19 @@ def iter_model_zoo_payloads(payload: Any) -> list[Mapping[str, Any]]:
 
 
 def load_entries(path: str | Path) -> tuple[ModelZooEntry, ...]:
-    """Load, parse, and return all ModelZooEntry definitions from a manifest file."""
-    payload = load_manifest(Path(path))
-    return tuple(ModelZooEntry.from_dict(item) for item in iter_model_zoo_payloads(payload))
+    """Load, parse, and return all ModelZooEntry definitions from a manifest file.
+
+    Schema validation errors are re-raised with the manifest path prepended.
+    """
+    resolved = Path(path)
+    payload = load_manifest(resolved)
+    entries: list[ModelZooEntry] = []
+    for item in iter_model_zoo_payloads(payload):
+        try:
+            entries.append(ModelZooEntry.from_dict(item))
+        except (TypeError, ValueError) as exc:
+            raise type(exc)(f"{resolved}: {exc}") from exc
+    return tuple(entries)
 
 
 def select_default_variant(

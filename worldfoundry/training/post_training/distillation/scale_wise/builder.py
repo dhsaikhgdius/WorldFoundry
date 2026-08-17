@@ -143,7 +143,6 @@ def build_native_scale_wise_training_stack(
         teacher,
         fake_score,
         config,
-        config_digest=recipe.digest,
     )
     student_optimizer = build_post_training_optimizer(
         replace(recipe.optimizer, gradient_accumulation_steps=1),

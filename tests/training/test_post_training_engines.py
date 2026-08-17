@@ -42,8 +42,6 @@ class _FailAfterCommitSGD(torch.optim.SGD):
 
 
 class _ToyDMDLosses:
-    schedule_digest = "d" * 64
-
     def __init__(self, student: torch.nn.Linear, fake_score: torch.nn.Linear, *, fail_fake: bool = False) -> None:
         self.student = student
         self.fake_score = fake_score
@@ -67,7 +65,7 @@ class _ToyDMDLosses:
         return DMDLossResult(loss, {"loss_denominator": self.loss_denominator(batch, role="fake-score")})
 
 
-def _dmd_engine(*, fail_fake: bool = False):
+def _dmd_engine(*, fail_fake: bool = False, generator_interval: int = 2):
     student = torch.nn.Linear(1, 1, bias=False)
     fake_score = torch.nn.Linear(1, 1, bias=False)
     teacher = torch.nn.Linear(1, 1, bias=False).requires_grad_(False)
@@ -80,7 +78,7 @@ def _dmd_engine(*, fail_fake: bool = False):
         loss_adapter=_ToyDMDLosses(student, fake_score, fail_fake=fail_fake),
         student_optimizer=torch.optim.SGD(student.parameters(), lr=0.1),
         fake_score_optimizer=torch.optim.SGD(fake_score.parameters(), lr=0.1),
-        generator_update_interval=2,
+        generator_update_interval=generator_interval,
         student_scheduler=student_scheduler,
         fake_score_scheduler=fake_scheduler,
         student_scheduler_cadence="iteration",
@@ -102,9 +100,9 @@ def test_native_dmd_engine_owns_official_two_optimizer_cadence_and_state() -> No
 
     results = [engine.train_step(_empty_dmd_batch()) for _ in range(3)]
 
-    assert [result.generator_updated for result in results] == [True, False, True]
+    assert [result.generator_updated for result in results] == [False, True, False]
     assert engine.global_step == 3
-    assert engine.student_optimizer_steps == 2
+    assert engine.student_optimizer_steps == 1
     assert engine.fake_score_optimizer_steps == 3
     assert student_scheduler.steps == 3
     assert fake_scheduler.steps == 3
@@ -112,12 +110,12 @@ def test_native_dmd_engine_owns_official_two_optimizer_cadence_and_state() -> No
     restored, _, _ = _dmd_engine()
     restored.load_state_dict(engine.state_dict())
     assert restored.global_step == 3
-    assert restored.student_optimizer_steps == 2
+    assert restored.student_optimizer_steps == 1
     assert restored.fake_score_optimizer_steps == 3
 
 
 def test_native_dmd_engine_refuses_checkpoint_after_partial_optimizer_commit() -> None:
-    engine, _, _ = _dmd_engine(fail_fake=True)
+    engine, _, _ = _dmd_engine(fail_fake=True, generator_interval=1)
 
     with pytest.raises(RuntimeError, match="intentional"):
         engine.train_step(_empty_dmd_batch())
@@ -180,7 +178,6 @@ def _checkpointable_dmd_stack(seed: int):
         progress=progress,
         identity={
             "algorithm": "dmd",
-            "schedule_digest": engine.schedule_digest,
             "parallel_plan": {"backend": "single", "world_size": 1},
         },
     )
@@ -191,7 +188,7 @@ def test_training_dcp_exactly_restores_dmd_models_both_optimizers_and_cadence(tm
     baseline_engine, baseline_model, baseline_progress, baseline_state = _checkpointable_dmd_stack(53)
     first = baseline_engine.train_step(_empty_dmd_batch())
     baseline_progress.record_step(microbatches=1, samples=1, latent_tokens=1)
-    assert first.generator_updated is True
+    assert first.generator_updated is False
     manager = TrainingCheckpointer(tmp_path / "dmd-checkpoints")
     artifact = manager.save(baseline_state)
 
@@ -203,7 +200,7 @@ def test_training_dcp_exactly_restores_dmd_models_both_optimizers_and_cadence(tm
     actual = restored_engine.train_step(_empty_dmd_batch())
 
     assert restored_progress.optimizer_steps == 1
-    assert actual.generator_updated is False
+    assert actual.generator_updated is True
     torch.testing.assert_close(actual.fake_score_loss, expected.fake_score_loss, rtol=0, atol=0)
     for name, value in restored_model.state_dict().items():
         torch.testing.assert_close(value, expected_parameters[name], rtol=0, atol=0)

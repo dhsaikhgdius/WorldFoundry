@@ -24,47 +24,15 @@ from worldfoundry.base_models.diffusion_model.contracts import (
 )
 from worldfoundry.training.api.contracts import ObjectiveBatch, PreparedBatch, TrainingBatch
 
+from ._shared import (
+    component_module as _component_module,
+    freeze_module as _freeze,
+    merge_without_overwrite,
+    module_device_dtype as _module_device_dtype,
+)
+
 SANA_DEFAULT_TRAIN_TIMESTEPS = 1000
 SANA_600M_512_TRAIN_FLOW_SHIFT = 3.0
-
-
-def _component_module(component: object, *names: str) -> nn.Module | None:
-    if isinstance(component, nn.Module):
-        return component
-    for name in names:
-        value = getattr(component, name, None)
-        if isinstance(value, nn.Module):
-            return value
-    return None
-
-
-def _module_device_dtype(module: nn.Module) -> tuple[torch.device, torch.dtype]:
-    reference = next(module.parameters(), None)
-    if reference is None:
-        reference = next(module.buffers(), None)
-    if reference is None:
-        return torch.device("cpu"), torch.float32
-    dtype = reference.dtype if reference.is_floating_point() else torch.float32
-    return reference.device, dtype
-
-
-def _freeze(module: nn.Module | None) -> None:
-    if module is None:
-        return
-    module.requires_grad_(False)
-    module.eval()
-
-
-def _merge_without_overwrite(
-    destination: dict[str, object],
-    source: Mapping[str, object],
-    *,
-    source_name: str,
-) -> None:
-    overlap = sorted(set(destination) & set(source))
-    if overlap:
-        raise ValueError(f"{source_name} collides with encoded SANA conditioning keys: {overlap}")
-    destination.update(source)
 
 
 class SanaTrainAdapter:
@@ -179,8 +147,8 @@ class SanaTrainAdapter:
             if not isinstance(encoded, Conditioning):
                 raise TypeError(f"SANA conditioner returned {type(encoded).__name__}, expected Conditioning")
             values = dict(encoded.positive)
-            _merge_without_overwrite(values, encoded.shared, source_name="conditioner.shared")
-            _merge_without_overwrite(values, raw, source_name="TrainingBatch.conditions")
+            merge_without_overwrite(values, encoded.shared, source_name="conditioner.shared", family="SANA")
+            merge_without_overwrite(values, raw, source_name="TrainingBatch.conditions", family="SANA")
 
         values.setdefault(
             "img_hw",

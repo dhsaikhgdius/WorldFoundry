@@ -52,6 +52,36 @@ class _StateGateSGD(torch.optim.SGD):
         return super().step(closure)
 
 
+class _ScaledLoss:
+    def __init__(self, loss: torch.Tensor, events: list[str]) -> None:
+        self.loss = loss
+        self.events = events
+
+    def backward(self) -> None:
+        self.events.append("backward")
+        self.loss.backward()
+
+
+class _RecordingGradScaler:
+    def __init__(self, events: list[str]) -> None:
+        self.events = events
+
+    def scale(self, loss: torch.Tensor) -> _ScaledLoss:
+        self.events.append("scale")
+        return _ScaledLoss(loss, self.events)
+
+    def unscale_(self, optimizer: torch.optim.Optimizer) -> None:
+        del optimizer
+        self.events.append("unscale")
+
+    def step(self, optimizer: torch.optim.Optimizer) -> None:
+        self.events.append("scaler-step")
+        optimizer.step()
+
+    def update(self) -> None:
+        self.events.append("scaler-update")
+
+
 class _FailingForwardAdapter(_TinyAdapter):
     def __init__(self, *, fail_on_call: int) -> None:
         super().__init__()
@@ -118,6 +148,23 @@ def test_single_device_engine_applies_a_finite_clipped_optimizer_step() -> None:
     assert optimizer.defaults["fused"] is False
 
 
+def test_single_device_engine_can_observe_gradient_norm_without_clipping() -> None:
+    adapter = _TinyAdapter()
+    objective = FlowMatchingObjective(FlowMatchingConfig(timestep_sampler="uniform"))
+    optimizer = torch.optim.SGD(adapter.trainable_module.parameters(), lr=1.0e-2)
+    engine = SingleDeviceTrainEngine(
+        adapter,
+        objective,
+        optimizer,
+        max_grad_norm=None,
+    )
+
+    result = engine.train_step(_raw_batch(), generator=torch.Generator().manual_seed(11))
+
+    assert bool(torch.isfinite(result.metrics["grad_norm"]))
+    assert result.diagnostics["max_grad_norm"] is None
+
+
 def test_single_device_engine_accumulates_microbatches_with_one_optimizer_step() -> None:
     adapter = _TinyAdapter()
     objective = FlowMatchingObjective(FlowMatchingConfig(timestep_sampler="uniform"))
@@ -141,6 +188,66 @@ def test_single_device_engine_accumulates_microbatches_with_one_optimizer_step()
     assert result.diagnostics["gradient_accumulation"] == "token-weighted"
     assert engine.global_step == 1
     assert not torch.equal(adapter.trainable_module.weight.detach(), before)
+
+
+@pytest.mark.parametrize("accumulate", [False, True], ids=["single-step", "accumulation"])
+def test_grad_scaler_unscales_before_clipping_and_steps_after_clipping(
+    monkeypatch: pytest.MonkeyPatch,
+    accumulate: bool,
+) -> None:
+    engine_module = importlib.import_module("worldfoundry.training.engine.single_device")
+    adapter = _TinyAdapter()
+    objective = FlowMatchingObjective(FlowMatchingConfig(timestep_sampler="uniform"))
+    optimizer = torch.optim.SGD(adapter.trainable_module.parameters(), lr=0.1)
+    events: list[str] = []
+    original_clip = engine_module.clip_grad_norm_
+
+    def observed_clip(*args, **kwargs):
+        events.append("clip")
+        return original_clip(*args, **kwargs)
+
+    monkeypatch.setattr(engine_module, "clip_grad_norm_", observed_clip)
+    engine = SingleDeviceTrainEngine(adapter, objective, optimizer)
+    engine.grad_scaler = _RecordingGradScaler(events)
+
+    if accumulate:
+        engine.train_accumulation(
+            _microbatches(),
+            generator=torch.Generator().manual_seed(20),
+        )
+        expected_prefix = ["scale", "backward", "scale", "backward"]
+    else:
+        engine.train_step(_raw_batch(), generator=torch.Generator().manual_seed(20))
+        expected_prefix = ["scale", "backward"]
+
+    assert events == [*expected_prefix, "unscale", "clip", "scaler-step", "scaler-update"]
+
+
+def test_train_batch_end_runs_before_and_after_the_accumulated_optimizer_step() -> None:
+    adapter = _TinyAdapter()
+    objective = FlowMatchingObjective(FlowMatchingConfig(timestep_sampler="uniform"))
+    optimizer = torch.optim.SGD(adapter.trainable_module.parameters(), lr=0.1)
+    observed: list[torch.Tensor] = []
+    optimizer_steps: list[int] = []
+    engine = SingleDeviceTrainEngine(
+        adapter,
+        objective,
+        optimizer,
+        train_batch_end=lambda: observed.append(adapter.trainable_module.weight.detach().clone()),
+        optimizer_step_end=lambda: optimizer_steps.append(engine.global_step),
+    )
+    before = adapter.trainable_module.weight.detach().clone()
+
+    engine.train_accumulation(
+        _microbatches(),
+        generator=torch.Generator().manual_seed(23),
+    )
+
+    assert len(observed) == 2
+    assert optimizer_steps == [1]
+    torch.testing.assert_close(observed[0], before, rtol=0, atol=0)
+    torch.testing.assert_close(observed[1], adapter.trainable_module.weight, rtol=0, atol=0)
+    assert not torch.equal(observed[0], observed[1])
 
 
 @pytest.mark.parametrize("accumulate", [False, True], ids=["single-step", "accumulation"])
@@ -281,7 +388,39 @@ def test_single_device_engine_runs_bfloat16_forward_with_fused_cuda_adamw() -> N
 
     assert bool(torch.isfinite(result.loss))
     assert result.diagnostics["autocast_dtype"] == "torch.bfloat16"
+    assert result.diagnostics["grad_scaling"] is False
+    assert engine.grad_scaler is None
     assert optimizer.defaults["fused"] is True
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
+def test_single_device_fp16_compute_keeps_fp32_master_parameters_and_scales_gradients() -> None:
+    adapter = _TinyAdapter()
+    adapter.trainable_module.to(device="cuda", dtype=torch.float32)
+    optimizer = torch.optim.AdamW(adapter.trainable_module.parameters(), lr=0.01)
+    engine = SingleDeviceTrainEngine(
+        adapter,
+        FlowMatchingObjective(FlowMatchingConfig(timestep_sampler="uniform")),
+        optimizer,
+        autocast_dtype=torch.float16,
+    )
+    raw = _raw_batch()
+    batch = TrainingBatch(
+        sample_ids=raw.sample_ids,
+        prompts=raw.prompts,
+        pixel_values=raw.pixel_values.to("cuda"),
+    )
+
+    result = engine.train_step(
+        batch,
+        generator=torch.Generator(device="cuda").manual_seed(24),
+    )
+
+    assert all(parameter.dtype is torch.float32 for parameter in engine.parameters)
+    assert engine.grad_scaler is not None
+    assert engine.grad_scaler.state_dict()["scale"] > 0
+    assert result.diagnostics["autocast_dtype"] == "torch.float16"
+    assert result.diagnostics["grad_scaling"] is True
 
 
 def test_single_device_engine_rejects_optimizer_parameter_drift() -> None:

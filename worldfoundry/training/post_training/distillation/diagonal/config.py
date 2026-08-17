@@ -6,8 +6,6 @@ from dataclasses import dataclass
 from math import isfinite
 from typing import Literal
 
-from worldfoundry.core.io.integrity import canonical_sha256
-
 from ..dmd.objective import DMDConfig, FewStepSchedule
 from ..self_forcing.config import shifted_few_step_schedule
 
@@ -105,25 +103,6 @@ class DiagonalScheduleConfig:
             block_index=block_index,
             use_diagonal_denoising=self.use_diagonal_denoising,
             warmup_mid_schedule=self.warmup_mid_schedule,
-        )
-
-    @property
-    def digest(self) -> str:
-        return canonical_sha256(
-            {
-                "schema": "worldfoundry-diagonal-schedule",
-                "base_schedule_digest": self.base_schedule.digest,
-                "frames_per_block": self.frames_per_block,
-                "frame_dim": self.frame_dim,
-                "use_diagonal_denoising": self.use_diagonal_denoising,
-                "warmup_mid_schedule_digest": (
-                    None if self.warmup_mid_schedule is None else self.warmup_mid_schedule.digest
-                ),
-                "context_timestep": self.context_timestep,
-                "context_sigma": self.context_sigma,
-                "exit_step_mode": self.exit_step_mode,
-                "last_step_only": self.last_step_only,
-            }
         )
 
     @classmethod
@@ -323,26 +302,6 @@ class DiagonalObjectiveConfig:
             use_teacher_regression=True,
         )
 
-    @property
-    def digest(self) -> str:
-        return canonical_sha256(
-            {
-                "schema": "worldfoundry-diagonal-objective",
-                "dmd_digest": self.dmd.digest,
-                "frame_dim": self.frame_dim,
-                "use_motion_loss": self.use_motion_loss,
-                "use_flow_reg_loss": self.use_flow_reg_loss,
-                "flow_reg_ema_decay": self.flow_reg_ema_decay,
-                "lambda_spatial_dmd": self.lambda_spatial_dmd,
-                "lambda_flow_dmd": self.lambda_flow_dmd,
-                "gamma_temporal": self.gamma_temporal,
-                "lambda_reg": self.lambda_reg,
-                "regression_loss_type": self.regression_loss_type,
-                "regression_epsilon": self.regression_epsilon,
-                "regression_cauchy_scale": self.regression_cauchy_scale,
-                "use_teacher_regression": self.use_teacher_regression,
-            }
-        )
 
 
 __all__ = [

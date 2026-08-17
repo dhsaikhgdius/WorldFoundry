@@ -6,8 +6,6 @@ from dataclasses import dataclass
 from math import isfinite
 from typing import Literal
 
-from worldfoundry.core.io.integrity import canonical_sha256
-
 from ..dmd.objective import FewStepSchedule
 from ..self_forcing.config import shifted_few_step_schedule
 
@@ -78,23 +76,6 @@ class SelfGradientForcingConfig:
         object.__setattr__(self, "context_sigma", context_sigma)
         object.__setattr__(self, "cache_target_mode", cache_mode)
         object.__setattr__(self, "exit_step_rank_mode", rank_mode)
-
-    @property
-    def digest(self) -> str:
-        return canonical_sha256(
-            {
-                "schema": "worldfoundry-self-gradient-forcing-config",
-                "schedule_digest": self.schedule.digest,
-                "frames_per_block": self.frames_per_block,
-                "frame_dim": self.frame_dim,
-                "context_timestep": self.context_timestep,
-                "context_sigma": self.context_sigma,
-                "cache_target_mode": self.cache_target_mode,
-                "exit_step_rank_mode": self.exit_step_rank_mode,
-                "match_context": self.match_context,
-                "last_step_only": self.last_step_only,
-            }
-        )
 
     @classmethod
     def from_raw_timesteps(

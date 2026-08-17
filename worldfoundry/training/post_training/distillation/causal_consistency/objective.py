@@ -64,10 +64,6 @@ class CausalConsistencyObjective:
         self.schedule = build_causal_consistency_schedule(config)
 
     @property
-    def config_digest(self) -> str:
-        return self.config.digest
-
-    @property
     def pair_count(self) -> int:
         return self.schedule.pair_count
 

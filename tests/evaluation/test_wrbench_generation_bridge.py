@@ -8,8 +8,12 @@ from worldfoundry.evaluation.tasks.execution.orchestration.benchmark_generation 
     get_benchmark_generation_adapter,
 )
 
-from .wrbench_prompts import copy_wrbench_generated_videos
-from .wrbench_runtime import discover_video_manifest
+from worldfoundry.evaluation.tasks.execution.runners.wrbench.wrbench_prompts import (
+    copy_wrbench_generated_videos,
+)
+from worldfoundry.evaluation.tasks.execution.runners.wrbench.wrbench_runtime import (
+    discover_video_manifest,
+)
 
 
 def test_wrbench_adapter_materializes_discoverable_runtime_manifest(tmp_path):

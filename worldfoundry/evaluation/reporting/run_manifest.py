@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import platform
+import re
 import sys
 from collections.abc import Sequence
 from functools import lru_cache
@@ -25,27 +26,56 @@ ENVIRONMENT_SCHEMA_VERSION = "worldfoundry-environment"
 ENV_REQUIREMENTS_SCHEMA_VERSION = "worldfoundry-env-requirements"
 
 # ── Secret redaction ─────────────────────────────────────────
-_SENSITIVE_KEY_PARTS = frozenset(
+# Single word segments that mark a key as sensitive when they appear as a
+# whole segment (word-boundary match). Deliberately excludes "tokens"
+# (max_new_tokens, num_tokens) and "tokenizer" — those are reproducibility
+# parameters the manifest must preserve.
+_SENSITIVE_KEY_SEGMENTS = frozenset(
     {
-        "access_token",
-        "api_key",
         "apikey",
-        "auth_token",
-        "bearer_token",
-        "client_secret",
+        "auth",
+        "authorization",
+        "bearer",
         "credential",
+        "credentials",
+        "passwd",
         "password",
-        "private_key",
+        "pwd",
         "secret",
+        "secrets",
         "token",
     }
 )
+# Adjacent segment pairs that are sensitive even though the individual
+# segments (e.g. "key") are too generic to match on their own.
+_SENSITIVE_KEY_SEGMENT_PAIRS = frozenset(
+    {
+        ("access", "key"),
+        ("api", "key"),
+        ("private", "key"),
+        ("secret", "key"),
+        ("session", "key"),
+        ("ssh", "key"),
+    }
+)
+_CAMEL_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
 
 
 def _is_sensitive_key(key: str) -> bool:
-    """Return whether *key* looks like a secret field that should be redacted."""
-    lowered = key.lower().replace("-", "_")
-    return any(part in lowered for part in _SENSITIVE_KEY_PARTS)
+    """Return whether *key* looks like a secret field that should be redacted.
+
+    Matches on whole word segments (split on ``_``/``-``/camelCase) instead of
+    raw substrings, so ``max_new_tokens`` and ``tokenizer`` stay visible while
+    ``api_key``, ``hf_token``, and ``authToken`` are still redacted.
+    """
+    segments = tuple(
+        segment
+        for segment in _CAMEL_BOUNDARY.sub("_", key).lower().replace("-", "_").split("_")
+        if segment
+    )
+    if any(segment in _SENSITIVE_KEY_SEGMENTS for segment in segments):
+        return True
+    return any(pair in _SENSITIVE_KEY_SEGMENT_PAIRS for pair in zip(segments, segments[1:]))
 
 
 def redact_secrets(value: Any) -> Any:

@@ -6,6 +6,11 @@ from dataclasses import dataclass
 from math import isfinite
 
 from ..common import positive_int, strict_mapping
+from .auxiliary_optimizers import (
+    AuxiliaryOptimizerRule,
+    forbids_auxiliary,
+    requires_auxiliary,
+)
 
 SELF_FORCING_ALGORITHM_FIELDS = {
     "type",
@@ -155,6 +160,19 @@ class SelfForcingAlgorithmSpec:
         object.__setattr__(self, "student_scheduler_cadence", cadence)
         object.__setattr__(self, "ema_decay", decay)
         object.__setattr__(self, "ema_start_step", ema_start_step)
+
+    def auxiliary_optimizer_rules(self) -> tuple[AuxiliaryOptimizerRule, ...]:
+        return (
+            requires_auxiliary(
+                "fake_score_optimizer",
+                f"{self.type} DMD requires fake_score_optimizer",
+            ),
+            forbids_auxiliary(
+                "guidance_optimizer",
+                "discriminator_optimizer",
+                message=f"{self.type} only accepts fake_score_optimizer",
+            ),
+        )
 
 
 def parse_self_forcing_algorithm(value: object) -> SelfForcingAlgorithmSpec:

@@ -2,26 +2,17 @@
 
 from __future__ import annotations
 
-import gc
-import shutil
-import tempfile
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
 import torch
 
-from worldfoundry.core.io.integrity import canonical_sha256, text_sha256
 from worldfoundry.training.safety.shieldgemma import PromptSafetyAudit, ShieldGemmaPromptFilter
 
 from ..dataset import TrainingManifestDataset
 from ..shared_conditioning import SharedConditioningArtifact
-from ..video_bucketing import (
-    VideoBucketSelectionPolicy,
-    VideoLatentGeometry,
-    VideoResolutionBucket,
-    assign_video_buckets,
-)
+from ..video_bucketing import VideoLatentGeometry
 from ..video_cache import (
     VideoCacheEntry,
     VideoCacheIndex,
@@ -30,16 +21,20 @@ from ..video_cache import (
 )
 from ..video_dataset import (
     DecodedVideoSample,
-    VideoDecodeConfig,
     VideoDecodingDataset,
+)
+from ..video_precompute import (
+    audit_video_prompts,
+    build_video_decoding_dataset,
+    release_accelerator_memory,
+    staged_video_conditioning,
+    validate_video_prompt_audits,
 )
 from .artifacts import write_wan_unconditional_conditioning
 from .contracts import (
     WAN_CONDITIONING_LAYOUT,
-    require_positive_int,
-    wan_cache_contract_digest,
-    wan_checkpoint_asset_digest,
-    wan_latent_normalization_digest,
+    wan_checkpoint_asset_identity,
+    wan_latent_normalization,
 )
 from .encoding import WanFeatureEncoder, WanTextFeatureEncoder, WanVideoFeatureEncoder
 
@@ -58,33 +53,14 @@ def _audit_prompts(
     *,
     batch_size: int,
 ) -> tuple[PromptSafetyAudit, ...]:
-    size = require_positive_int(batch_size, field_name="safety_batch_size")
-    audits: list[PromptSafetyAudit] = []
-    for offset in range(0, len(manifest), size):
-        prompts = tuple(sample.prompt for sample in manifest[offset : offset + size])
-        audits.extend(prompt_filter.require_safe(prompts))
-    return tuple(audits)
+    return audit_video_prompts(manifest, prompt_filter, batch_size=batch_size)
 
 
 def _validate_audits(
     dataset: VideoDecodingDataset,
     safety_audits: Sequence[PromptSafetyAudit],
 ) -> tuple[PromptSafetyAudit, ...]:
-    audits = tuple(safety_audits)
-    manifest = dataset.manifest_dataset
-    if len(audits) != len(manifest) or not all(isinstance(audit, PromptSafetyAudit) for audit in audits):
-        raise ValueError("one PromptSafetyAudit is required per Wan manifest sample")
-    if any(not audit.safe for audit in audits):
-        raise ValueError("unsafe prompt audits cannot be used to prepare a Wan cache")
-    for sample, audit in zip(manifest, audits):
-        if audit.prompt_sha256 != text_sha256(sample.prompt):
-            raise ValueError("prompt safety audit digest differs from the Wan manifest prompt")
-        recorded = sample.safety.get("prompt_audit_digest")
-        if recorded is None:
-            raise ValueError(f"manifest sample {sample.sample_id!r} lacks safety.prompt_audit_digest")
-        if str(recorded).lower() != audit.digest:
-            raise ValueError(f"manifest safety.prompt_audit_digest differs for sample {sample.sample_id!r}")
-    return audits
+    return validate_video_prompt_audits(dataset.manifest_dataset, safety_audits)
 
 
 def _write_cache_entry(
@@ -99,35 +75,26 @@ def _write_cache_entry(
     latent_loss_mask: torch.Tensor,
     valid_latent_mask: torch.Tensor,
     model_recipe: str,
-    codec_digest: str,
-    conditioner_digest: str,
-    tokenizer_digest: str,
+    codec: Mapping[str, object],
+    conditioner: Mapping[str, object],
+    tokenizer: Mapping[str, object],
     latent_geometry: VideoLatentGeometry,
 ) -> VideoCacheEntry:
     source = dataset.manifest_dataset[index]
     assignment = decoded.assignment
-    contract_digest = wan_cache_contract_digest(model_recipe)
-    normalization_digest = wan_latent_normalization_digest()
     source_payload = source.to_dict()
-    conditioning_inputs_digest = canonical_sha256(
-        {
-            "schema": "worldfoundry-wan-conditioning-inputs",
-            "task": source.task,
-            "conditions": source_payload["conditions"],
-        }
-    )
     provenance = VideoCacheProvenance(
-        media_sha256=source.media.sha256,
-        prompt_sha256=audit.prompt_sha256,
-        model_recipe_digest=contract_digest,
-        codec_digest=codec_digest,
-        conditioner_digest=conditioner_digest,
-        tokenizer_digest=tokenizer_digest,
-        conditioning_inputs_digest=conditioning_inputs_digest,
-        safety_audit_digest=audit.digest,
-        frame_sampling_digest=decoded.frame_sampling_digest,
-        spatial_transform_digest=decoded.spatial_transform_digest,
-        latent_normalization_digest=normalization_digest,
+        media_uri=source.media.uri,
+        prompt=source.prompt,
+        model_recipe=model_recipe,
+        codec=codec,
+        conditioner=conditioner,
+        tokenizer=tokenizer,
+        conditioning_inputs={"task": source.task, "conditions": source_payload["conditions"]},
+        safety_audit=audit.to_dict(),
+        frame_sampling=decoded.frame_sampling,
+        spatial_transform=decoded.spatial_transform,
+        latent_normalization=wan_latent_normalization(),
         task=source.task,
         conditioning_layout=assignment.bucket_key.conditioning_layout,
         aspect_bin=assignment.bucket_key.aspect_bin,
@@ -159,9 +126,9 @@ def prepare_wan_training_cache_from_audits(
     feature_encoder: WanFeatureEncoder,
     safety_audits: Sequence[PromptSafetyAudit],
     model_recipe: str,
-    codec_digest: str,
-    conditioner_digest: str,
-    tokenizer_digest: str,
+    codec: Mapping[str, object],
+    conditioner: Mapping[str, object],
+    tokenizer: Mapping[str, object],
 ) -> WanCachePreparationResult:
     """Decode and encode one Wan cache after caller-owned safety auditing."""
 
@@ -200,9 +167,9 @@ def prepare_wan_training_cache_from_audits(
                 latent_loss_mask=loss_mask,
                 valid_latent_mask=valid_mask,
                 model_recipe=model_recipe,
-                codec_digest=codec_digest,
-                conditioner_digest=conditioner_digest,
-                tokenizer_digest=tokenizer_digest,
+                codec=codec,
+                conditioner=conditioner,
+                tokenizer=tokenizer,
                 latent_geometry=geometry,
             )
         )
@@ -210,11 +177,10 @@ def prepare_wan_training_cache_from_audits(
         store=store,
         context=unconditional_context,
         model_recipe=model_recipe,
-        conditioner_digest=conditioner_digest,
-        tokenizer_digest=tokenizer_digest,
+        conditioner=conditioner,
+        tokenizer=tokenizer,
     )
     cache_index = store.write_index(
-        dataset_digest=dataset.dataset_digest,
         entries=entries,
     )
     return WanCachePreparationResult(
@@ -223,54 +189,6 @@ def prepare_wan_training_cache_from_audits(
         audits,
         unconditional,
     )
-
-
-def prepare_wan_training_cache(
-    *,
-    dataset: VideoDecodingDataset,
-    store: VideoCacheStore,
-    feature_encoder: WanFeatureEncoder,
-    prompt_filter: ShieldGemmaPromptFilter,
-    model_recipe: str,
-    codec_digest: str,
-    conditioner_digest: str,
-    tokenizer_digest: str,
-    safety_batch_size: int = 4,
-) -> WanCachePreparationResult:
-    """Safety-audit, decode, and encode one Wan cache in a shared lifecycle."""
-
-    if not isinstance(prompt_filter, ShieldGemmaPromptFilter):
-        raise TypeError("prompt_filter must be a ShieldGemmaPromptFilter")
-    audits = _audit_prompts(
-        dataset.manifest_dataset,
-        prompt_filter,
-        batch_size=safety_batch_size,
-    )
-    return prepare_wan_training_cache_from_audits(
-        dataset=dataset,
-        store=store,
-        feature_encoder=feature_encoder,
-        safety_audits=audits,
-        model_recipe=model_recipe,
-        codec_digest=codec_digest,
-        conditioner_digest=conditioner_digest,
-        tokenizer_digest=tokenizer_digest,
-    )
-
-
-def _strict_mapping(
-    value: object,
-    *,
-    field_name: str,
-    allowed: set[str],
-) -> dict[str, object]:
-    if not isinstance(value, Mapping):
-        raise TypeError(f"{field_name} must be a mapping")
-    payload = {str(key): item for key, item in value.items()}
-    unknown = sorted(set(payload) - allowed)
-    if unknown:
-        raise ValueError(f"{field_name} contains unknown fields: {unknown}")
-    return payload
 
 
 def build_wan_video_decoding_dataset(
@@ -286,72 +204,12 @@ def build_wan_video_decoding_dataset(
         raise TypeError("recipe must be TrainingRecipe or PostTrainingRecipe")
     if not isinstance(manifest, TrainingManifestDataset):
         raise TypeError("manifest must be TrainingManifestDataset")
-    options = dict(recipe.data.options)
-    raw_buckets = options.get("video_buckets")
-    if (
-        not isinstance(raw_buckets, Sequence)
-        or isinstance(
-            raw_buckets,
-            (str, bytes, bytearray),
-        )
-        or not raw_buckets
-    ):
-        raise ValueError("data.options.video_buckets must be a non-empty sequence")
-    buckets: list[VideoResolutionBucket] = []
-    for index, raw in enumerate(raw_buckets):
-        payload = _strict_mapping(
-            raw,
-            field_name=f"data.options.video_buckets[{index}]",
-            allowed={
-                "num_frames",
-                "height",
-                "width",
-                "conditioning_layout",
-                "tasks",
-                "aspect_bin",
-            },
-        )
-        payload.setdefault("conditioning_layout", WAN_CONDITIONING_LAYOUT)
-        buckets.append(VideoResolutionBucket(**payload))
-
-    policy_payload = _strict_mapping(
-        options.get("bucket_policy", {}),
-        field_name="data.options.bucket_policy",
-        allowed={
-            "aspect_weight",
-            "spatial_weight",
-            "temporal_weight",
-            "allow_spatial_upscale",
-            "allow_temporal_padding",
-        },
-    )
-    decode_payload = _strict_mapping(
-        options.get("decode", {}),
-        field_name="data.options.decode",
-        allowed={
-            "frame_sampling",
-            "interpolation",
-            "value_range",
-            "decoder_thread_type",
-            "verify_media_sha256",
-            "verify_manifest_frame_count",
-            "verify_manifest_geometry",
-            "fps_tolerance",
-        },
-    )
-    decode_payload.setdefault("value_range", "minus-one-one")
     geometry = VideoLatentGeometry(8, 8, 4, "first-frame")
-    assignments = assign_video_buckets(
-        tuple(manifest),
-        buckets=buckets,
+    return build_video_decoding_dataset(
+        recipe,
+        manifest,
         geometry=geometry,
         conditioning_layout=WAN_CONDITIONING_LAYOUT,
-        policy=VideoBucketSelectionPolicy(**policy_payload),
-    )
-    return VideoDecodingDataset(
-        manifest,
-        assignments,
-        config=VideoDecodeConfig(**decode_payload),
     )
 
 
@@ -364,12 +222,10 @@ def materialize_wan_training_cache(
     checkpoint_overrides: Mapping[str, object] | None = None,
     shieldgemma_checkpoint: object | None = None,
     safety_audits: Sequence[PromptSafetyAudit] | None = None,
-    verify_media_hashes: bool = True,
+    verify_media_files: bool = True,
     safety_batch_size: int = 4,
 ) -> WanCachePreparationResult:
     """Build UMT5 and VAE features in separate GPU-residency phases."""
-
-    from safetensors.torch import load_file, save_file
 
     from worldfoundry.base_models.diffusion_model.assembly import NativeDiffusionAssembler
     from worldfoundry.base_models.diffusion_model.components import (
@@ -398,8 +254,7 @@ def materialize_wan_training_cache(
     manifest = TrainingManifestDataset.from_file(
         manifest_path,
         split=recipe.data.split,
-        verify_files=True,
-        verify_hashes=verify_media_hashes,
+        verify_files=verify_media_files,
     )
     decoded_dataset = build_wan_video_decoding_dataset(recipe, manifest)
     store = VideoCacheStore(cache_dir)
@@ -416,9 +271,7 @@ def materialize_wan_training_cache(
         )
         audits = _audit_prompts(manifest, prompt_filter, batch_size=safety_batch_size)
         del prompt_filter
-        gc.collect()
-        if resolved_device.type == "cuda":
-            torch.cuda.empty_cache()
+        release_accelerator_memory(resolved_device)
     else:
         audits = tuple(safety_audits)
     audits = _validate_audits(decoded_dataset, audits)
@@ -438,9 +291,7 @@ def materialize_wan_training_cache(
     )
     conditioner_key = ComponentKey(ComponentKind.CONDITIONER)
     codec_key = ComponentKey(ComponentKind.LATENT_ENCODER, "codec")
-    text_stage = Path(tempfile.mkdtemp(prefix=".wan-text-stage-", dir=store.root))
-    staged_contexts: list[Path] = []
-    try:
+    with staged_video_conditioning(store.root, family="wan") as text_stage:
         text_components = assembler.build_components(
             native_recipe,
             purpose=BuildPurpose.TRAINING,
@@ -467,13 +318,9 @@ def materialize_wan_training_cache(
                 height=assignment.target_height,
                 width=assignment.target_width,
             )
-            stage_path = text_stage / f"{index:08d}.safetensors"
-            save_file({"context": context}, stage_path)
-            staged_contexts.append(stage_path)
+            text_stage.write(index, {"context": context})
         del text_encoder, text_components
-        gc.collect()
-        if resolved_device.type == "cuda":
-            torch.cuda.empty_cache()
+        release_accelerator_memory(resolved_device)
 
         codec_options: dict[str, object] = {}
         for source_name, destination_name in (
@@ -494,8 +341,8 @@ def materialize_wan_training_cache(
         video_encoder = WanVideoFeatureEncoder(video_components[codec_key])
         geometry = VideoLatentGeometry(8, 8, 4, "first-frame")
         entries: list[VideoCacheEntry] = []
-        for index, (decoded, audit, stage_path) in enumerate(zip(decoded_dataset, audits, staged_contexts)):
-            context = load_file(stage_path, device="cpu")["context"]
+        for index, (decoded, audit) in enumerate(zip(decoded_dataset, audits)):
+            context = text_stage.read(index)["context"]
             latents, loss_mask, valid_mask = video_encoder.encode(decoded)
             entries.append(
                 _write_cache_entry(
@@ -509,23 +356,22 @@ def materialize_wan_training_cache(
                     latent_loss_mask=loss_mask,
                     valid_latent_mask=valid_mask,
                     model_recipe=recipe.model.recipe,
-                    codec_digest=wan_checkpoint_asset_digest(resolved_checkpoints["vae"]),
-                    conditioner_digest=wan_checkpoint_asset_digest(resolved_checkpoints["text-encoder"]),
-                    tokenizer_digest=wan_checkpoint_asset_digest(resolved_checkpoints["tokenizer"]),
+                    codec=wan_checkpoint_asset_identity(resolved_checkpoints["vae"]),
+                    conditioner=wan_checkpoint_asset_identity(resolved_checkpoints["text-encoder"]),
+                    tokenizer=wan_checkpoint_asset_identity(resolved_checkpoints["tokenizer"]),
                     latent_geometry=geometry,
                 )
             )
-        conditioner_digest = wan_checkpoint_asset_digest(resolved_checkpoints["text-encoder"])
-        tokenizer_digest = wan_checkpoint_asset_digest(resolved_checkpoints["tokenizer"])
+        conditioner = wan_checkpoint_asset_identity(resolved_checkpoints["text-encoder"])
+        tokenizer = wan_checkpoint_asset_identity(resolved_checkpoints["tokenizer"])
         unconditional = write_wan_unconditional_conditioning(
             store=store,
             context=unconditional_context,
             model_recipe=recipe.model.recipe,
-            conditioner_digest=conditioner_digest,
-            tokenizer_digest=tokenizer_digest,
+            conditioner=conditioner,
+            tokenizer=tokenizer,
         )
         cache_index = store.write_index(
-            dataset_digest=decoded_dataset.dataset_digest,
             entries=entries,
         )
         return WanCachePreparationResult(
@@ -534,14 +380,11 @@ def materialize_wan_training_cache(
             audits,
             unconditional,
         )
-    finally:
-        shutil.rmtree(text_stage, ignore_errors=True)
 
 
 __all__ = [
     "WanCachePreparationResult",
     "build_wan_video_decoding_dataset",
     "materialize_wan_training_cache",
-    "prepare_wan_training_cache",
     "prepare_wan_training_cache_from_audits",
 ]

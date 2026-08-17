@@ -240,20 +240,34 @@ def segment_sky(image_or_path, onnx_session, threshold: int = 32) -> np.ndarray:
     return output_mask
 
 
-def download_file_from_url(url: str, filename: str) -> str | None:
+def download_file_from_url(url: str, filename: str, timeout: float = 60.0) -> str | None:
+    """Download ``url`` to ``filename``; return the path, or None on failure.
+
+    A failed or interrupted download never leaves a partial file behind:
+    callers gate re-downloads on ``os.path.exists``, so a truncated artifact
+    would otherwise be treated as valid forever. Prefer
+    ``worldfoundry.core.io.download.download_to_cache`` for new code (atomic
+    rename plus validation).
+    """
+    import logging
+    import os
+
     import requests
 
     try:
-        response = requests.get(url, stream=True, allow_redirects=True)
-        response.raise_for_status()
-        with open(filename, "wb") as handle:
-            for chunk in response.iter_content(chunk_size=8192):
-                if chunk:
-                    handle.write(chunk)
-        print(f"Downloaded {filename} successfully.")
+        with requests.get(url, stream=True, allow_redirects=True, timeout=timeout) as response:
+            response.raise_for_status()
+            with open(filename, "wb") as handle:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        handle.write(chunk)
         return filename
     except requests.exceptions.RequestException as exc:
-        print(f"Error downloading file: {exc}")
+        try:
+            os.remove(filename)
+        except OSError:
+            pass
+        logging.getLogger(__name__).warning("Error downloading %s to %s: %s", url, filename, exc)
         return None
 
 

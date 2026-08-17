@@ -1,0 +1,79 @@
+schema: worldfoundry-post-training
+execution_owner: worldfoundry-native
+run:
+  id: t2v-turbo-distillation
+  output_dir: runs/t2v-turbo-distillation
+model:
+  recipe: t2v-turbo
+  checkpoint: default
+tuning:
+  mode: lora
+  preset: t2v-turbo-unet
+  rank: 64
+  alpha: 1
+  dropout: 0.1
+data:
+  manifest: data/post_training/t2v-turbo.jsonl
+  cache: cache/post_training/t2v-turbo
+  max_latent_tokens_per_microbatch: 40960
+  split: train
+  shuffle: true
+  shuffle_seed: 42
+  tail_policy: pad
+  options:
+    precomputed_tensors: precomputed/t2v-turbo
+    video_buckets:
+      - num_frames: 16
+        height: 320
+        width: 512
+        conditioning_layout: videocrafter-text
+        tasks: [t2v]
+    num_workers: 2
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 2
+    snapshot_every_n_steps: 1
+algorithm:
+  type: t2v-turbo-distillation
+  teacher_checkpoint: default
+  num_train_timesteps: 1000
+  num_ddim_timesteps: 50
+  topk: 20
+  guidance_min: 5.0
+  guidance_max: 15.0
+  guidance_embedding_dim: 256
+  sigma_data: 0.5
+  timestep_scaling: 10.0
+  loss_type: pseudo_huber
+  pseudo_huber_c: 0.001
+  distillation_weight: 1.0
+  image_reward_weight: 0.0
+  video_reward_weight: 0.0
+  image_reward_frames: 5
+  image_reward_batch_size: 1
+  video_reward_frames: 8
+  default_fps: 16
+optimizer:
+  type: adamw
+  learning_rate: 0.00001
+  weight_decay: 0.0
+  betas: [0.9, 0.999]
+  epsilon: 0.00000001
+  max_grad_norm: 1.0
+  gradient_accumulation_steps: 1
+runtime:
+  param_dtype: bfloat16
+  reduce_dtype: float32
+  activation_checkpoint: full
+  compile: false
+distributed:
+  backend: fsdp2
+  dp_replicate: 1
+  dp_shard: auto
+  cp: 1
+  tp: 1
+checkpoint:
+  save_every_steps: 2000
+  async: true
+export:
+  format: native-lora

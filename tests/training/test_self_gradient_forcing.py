@@ -471,6 +471,7 @@ def _engine_stack(*, seed: int, accumulation: int = 2):
         loss_adapter=objective,
         student_optimizer=torch.optim.SGD(student.module.parameters(), lr=0.01),
         fake_score_optimizer=torch.optim.SGD(fake_score.module.parameters(), lr=0.01),
+        generator_update_interval=1,
         gradient_accumulation_steps=accumulation,
         student_max_grad_norm=100.0,
         fake_score_max_grad_norm=100.0,
@@ -611,7 +612,6 @@ def _checkpointable_native_stack():
         progress=progress,
         identity={
             "algorithm": "self-gradient-forcing",
-            "recipe": stack.recipe.digest,
         },
         **stack.checkpoint_state_kwargs(),
     )

@@ -1,0 +1,108 @@
+schema: worldfoundry-post-training
+execution_owner: worldfoundry-native
+run:
+  id: cosmos-predict25-2b-dmd2-t2v-discriminator
+  output_dir: runs/cosmos-predict25-2b-dmd2-t2v-discriminator
+model:
+  recipe: cosmos-predict2.5-2b
+  checkpoint: default
+tuning:
+  mode: full
+data:
+  manifest: data/post_training/cosmos-predict25-dmd2.jsonl
+  cache: cache/post_training/cosmos-predict25-dmd2
+  split: train
+  shuffle: true
+  shuffle_seed: 42
+  tail_policy: pad
+  max_latent_tokens_per_microbatch: 337920
+  options:
+    video_buckets:
+      - num_frames: 93
+        height: 704
+        width: 1280
+        conditioning_layout: reason1-sequence
+        tasks: [t2v]
+    bucket_policy:
+      allow_spatial_upscale: false
+      allow_temporal_padding: false
+    decode:
+      frame_sampling: seeded-random-contiguous
+      frame_sampling_seed: 42
+      spatial_transform: direct-resize
+      interpolation: bilinear
+      value_range: minus-one-one
+      decoder_thread_type: auto
+      verify_manifest_frame_count: true
+      verify_manifest_geometry: true
+      fps_tolerance: 0.05
+    conditional_frame_probabilities: [0.6, 0.2, 0.2]
+    num_workers: 2
+    pin_memory: true
+    persistent_workers: true
+    prefetch_factor: 2
+    snapshot_every_n_steps: 1
+algorithm:
+  type: dmd2
+  student_timesteps:
+    - 1.5707963267948966
+    - 1.5042281630190728
+    - 1.373400766945016
+    - 1.0303768265243125
+  student_sigmas: [1.0, 0.9375, 0.8333333333333334, 0.625]
+  real_score_checkpoint: default
+  guidance_checkpoint: default
+  normalization_axes: [1, 2, 3, 4]
+  num_train_timesteps: 1000
+  score_min_sigma: 0.0
+  score_max_sigma: 1.0
+  score_flow_shift: 5.0
+  teacher_guidance_scale: 4.0
+  generator_update_interval: 5
+  student_scheduler_cadence: generator-update
+  normalization_epsilon: 0.00001
+  score_timestep_mode: per-sample
+  score_sampling: continuous
+  normalization_reference: generated-clean
+  rollout_noise_mode: shared-initial
+  student_step_sampling: rank-shared
+  update_mode: alternating
+  shared_adversarial_score_input: true
+  distribution_matching_dtype: float64
+  distribution_matching_weight: 2.0
+  generator_adversarial_weight: 1.0
+  guidance_denoising_weight: 1.0
+  guidance_adversarial_weight: 1.0
+optimizer:
+  type: adamw
+  learning_rate: 0.000001
+  weight_decay: 0.01
+  betas: [0.9, 0.999]
+  epsilon: 0.00000001
+  max_grad_norm: 1.0
+  gradient_accumulation_steps: 1
+guidance_optimizer:
+  type: adamw
+  learning_rate: 0.0000002
+  weight_decay: 0.01
+  betas: [0.9, 0.999]
+  epsilon: 0.00000001
+  max_grad_norm: 1.0
+  gradient_accumulation_steps: 1
+runtime:
+  param_dtype: bfloat16
+  reduce_dtype: float32
+  activation_checkpoint: none
+  compile: false
+distributed:
+  backend: fsdp2
+  dp_replicate: 1
+  dp_shard: auto
+  cp: 1
+  tp: 1
+checkpoint:
+  save_every_steps: 500
+  async: true
+  export_every_steps: 500
+export:
+  format: safetensors

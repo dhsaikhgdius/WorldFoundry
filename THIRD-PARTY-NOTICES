@@ -92,6 +92,37 @@ NVIDIA SANA
   SANA architecture, flow-matching behavior, and SANA-Sprint SCM-LADD training
   semantics were implemented with reference to this source.
 
+Lightricks LTX-Video-Trainer
+  License: Apache License 2.0
+  Source: https://github.com/Lightricks/LTX-Video-Trainer
+  Source revision: e055182fa36dba6f48eb0919aef09d277da30fbd
+
+  LTX-Video timestep sampling, conditioning dropout, latent patching, flow
+  target, and attention LoRA targets were implemented with reference to the
+  author-provided trainer.  WorldFoundry executes its own training runtime.
+
+NVIDIA Cosmos Predict 2.5
+  Copyright NVIDIA CORPORATION & AFFILIATES
+  License: Apache License 2.0
+  Source: https://github.com/nvidia-cosmos/cosmos-predict2.5
+  Source revision: a2c298b0a3df3778b973fe65e9e58877b292d8a7
+
+  Predict2/2.5 flow-matching SFT, conditional-frame behavior, LoRA sampling,
+  loss scaling, and Predict2.5 DMD2 role cadence were implemented with
+  reference to the author-provided training code.
+  ``worldfoundry/training/engine/cosmos/dmd2_roles.py`` contains a modified
+  adaptation of the released DMD2 discriminator-head structure and retains
+  NVIDIA's copyright and Apache-2.0 SPDX identifier.
+
+DynamiCrafter
+  License: Apache License 2.0
+  Source: https://github.com/Doubiiu/DynamiCrafter
+  Source revision: 859021927d8e0f8eb4d91d16f86711b8c25a2023
+
+  The native image-to-video and interpolation adapters use the released
+  v-prediction schedule, zero-terminal-SNR transform, dynamic latent scaling,
+  hybrid conditioning, and joint conditioning dropout semantics.
+
 FastVideo
   License: Apache License 2.0
   Source: https://github.com/hao-ai-lab/FastVideo
@@ -104,10 +135,14 @@ FastVideo
 Tencent Hunyuan UniRL
   License: Apache License 2.0
   Source: https://github.com/Tencent-Hunyuan/UniRL
-  Source revision: 1f595a426bd5795b6edf093a48c0983c9e1673e1
+  Source revision: f70f8c9a44772446244dd72bbc13d74c5af160fd
 
-  Flow-SDE, Flow-GRPO, Flow-DPPO, DANCE transition, rollout/replay, advantage,
-  and policy-update behavior were implemented with reference to this source.
+  Flow-SDE, Flow-GRPO/DPPO, token policy objectives, DiffusionNFT,
+  DiffusionOPD, video-family profiles, Agentic rollout, Ray placement, and
+  weight-synchronization behavior were implemented with reference to this
+  source. VideoPickScore first-frame scoring and CLAP audio preprocessing were
+  also adapted into WorldFoundry's native reward sidecar. WorldFoundry does not
+  import UniRL as a training backend.
 
 VeRL-Omni
   License: Apache License 2.0
@@ -168,6 +203,17 @@ Latent Consistency Models
   targets, and EMA training behavior were implemented with reference to the
   author-provided training scripts.
 
+LVDM
+  License: MIT
+  Source: https://github.com/YingqingHe/LVDM
+  Source revision: d251dccfbf6352826f5c5681abd86e87ed7e6371
+
+  The native short-video DDPM objective and short-UNet training path were
+  implemented with reference to the released configuration and trainer.
+  ``worldfoundry/base_models/diffusion_model/models/networks/lvdm/short_unet.py``
+  contains a modified copy of the released short-video UNet and retains the
+  MIT SPDX identifier and exact source revision in its header.
+
 Flow-GRPO
   License: MIT
   Source: https://github.com/yifan123/flow_grpo
@@ -209,6 +255,34 @@ DMD2
   independently implements the published equations and does not copy DMD2
   source code.  Acknowledgement does not waive or replace the source license.
 
+Lightricks LTX-2
+  Source: https://github.com/Lightricks/LTX-2
+  Source revision: 4f8905737aac86a554637cac86c178877a39c744
+  Source license: LTX-2 Community License
+
+  LTX-2/2.3 video SFT behavior was cross-checked against the author-provided
+  training package.  Model weights and derivative models remain subject to
+  their own applicable terms.
+
+NVIDIA Cosmos Framework
+  Copyright NVIDIA CORPORATION & AFFILIATES
+  Source: https://github.com/NVIDIA/cosmos-framework
+  Source revision: 4155d61d14b14e05a8cafe2bd796d090fcb5f145
+  Source license: NVIDIA Open Model Development and Weight License 1.1
+
+  Cosmos3 video-only SFT behavior was cross-checked against the released
+  framework.  The WorldFoundry integration does not claim sound or action
+  training support.
+
+T2V-Turbo
+  Source: https://github.com/Ji4chenLi/t2v-turbo
+  Source revision: eaae323f10d136796a33e8f5304ed50e40def570
+  Repository-wide license: not stated at the audited revision
+
+  WorldFoundry independently implements the released reward-feedback latent
+  consistency equations, DDIM grid, guidance convention, and same-student
+  stop-gradient target.  No T2V-Turbo source files are copied into this tree.
+
 Separately acquired model, reward, and data artifacts
 -----------------------------------------------------
 
@@ -249,7 +323,6 @@ KlingTeam/VideoReward
   https://huggingface.co/KlingTeam/VideoReward
   Revision: b8e421fe21aec3dde5f61fdd1dc44e1d603b9727
   Loaded file: checkpoint-11352/model.pth
-  SHA-256: 48375908e6112de9f0248402db156a23b480709a6960b091c598c6f4c88d21b9
   Byte size: 5,031,072,529
 
 These artifacts are downloaded separately and are not redistributed with the

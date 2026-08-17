@@ -24,10 +24,13 @@ import subprocess
 import sys
 import time
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
-from typing import Any, Callable
+from types import MappingProxyType
+from typing import Any, Callable, Mapping
 
 from worldfoundry.core.logging_setup import configure_logging, get_logger
+from worldfoundry.core.process import run_logged_subprocess
 from worldfoundry.evaluation.tasks.catalog.zoo_registry import load_benchmark_zoo_registry
 from worldfoundry.evaluation.tasks.execution.framework.io import (
     env_path,
@@ -37,6 +40,10 @@ from worldfoundry.evaluation.tasks.execution.framework.io import (
     utc_now_iso,
     write_json,
     write_jsonl,
+)
+from worldfoundry.evaluation.tasks.execution.framework.normalizers import (
+    NormalizerSpecError,
+    apply_normalizer,
 )
 from worldfoundry.evaluation.tasks.execution.framework.result_normalizer import OfficialResultsNormalizer
 from worldfoundry.evaluation.utils import BENCHMARK_ZOO_DIR, REPO_ROOT
@@ -99,6 +106,25 @@ def first_env_value(*names: str) -> str | None:
         if value:
             return value
     return None
+
+
+def default_benchmark_timeout() -> float | None:
+    """Environment-driven backstop timeout for benchmark runtime subprocesses.
+
+    Returns the ``WORLDFOUNDRY_BENCHMARK_TIMEOUT`` value in seconds, or None
+    when the variable is unset/invalid. None preserves the historical
+    unbounded behavior; runners that spawn long GPU/judge subprocesses pass
+    this to ``subprocess.run(timeout=...)`` so a hung child eventually raises
+    ``TimeoutExpired`` and reaches the failed-scorecard path instead of
+    blocking forever.
+    """
+    raw = os.environ.get("WORLDFOUNDRY_BENCHMARK_TIMEOUT")
+    if not raw:
+        return None
+    try:
+        return float(raw)
+    except ValueError:
+        return None
 
 
 def resolve_repo_root(config: BenchRunnerConfig, explicit: Path | None) -> Path | None:
@@ -178,16 +204,111 @@ def load_upstream_payload(path: Path) -> tuple[Any, str]:
     raise ValueError(f"unsupported upstream result format: {path}")
 
 
+_FUZZY_ALIAS_WARNED: set[tuple[str, str]] = set()
+
+
 def metric_id_from_key(key: Any, config: BenchRunnerConfig) -> str | None:
     normalized = canonical_key(key)
     if normalized in config.metric_aliases:
         return config.metric_aliases[normalized]
     if normalized in config.metric_specs:
         return normalized
-    for alias, metric_id in config.metric_aliases.items():
-        if alias in normalized or normalized in alias:
-            return metric_id
-    return None
+    # Substring matching is a last resort for upstream column-name drift.  It is
+    # only trusted when every fuzzy hit agrees on one metric id; ambiguous keys
+    # are dropped instead of being attached to whichever alias iterates first.
+    fuzzy_hits = {
+        metric_id
+        for alias, metric_id in config.metric_aliases.items()
+        if alias in normalized or normalized in alias
+    }
+    if len(fuzzy_hits) != 1:
+        if len(fuzzy_hits) > 1 and (config.benchmark_id, normalized) not in _FUZZY_ALIAS_WARNED:
+            _FUZZY_ALIAS_WARNED.add((config.benchmark_id, normalized))
+            get_logger(__name__).event(
+                "WARN",
+                "official_runner.ambiguous_metric_alias",
+                "Upstream metric key matches multiple aliases and was skipped",
+                benchmark_id=config.benchmark_id,
+                upstream_key=normalized,
+                candidate_metric_ids=sorted(fuzzy_hits),
+            )
+        return None
+    metric_id = next(iter(fuzzy_hits))
+    if (config.benchmark_id, normalized) not in _FUZZY_ALIAS_WARNED:
+        _FUZZY_ALIAS_WARNED.add((config.benchmark_id, normalized))
+        get_logger(__name__).event(
+            "WARN",
+            "official_runner.fuzzy_metric_alias",
+            "Upstream metric key resolved through substring alias matching",
+            benchmark_id=config.benchmark_id,
+            upstream_key=normalized,
+            metric_id=metric_id,
+        )
+    return metric_id
+
+
+@lru_cache(maxsize=None)
+def declared_metric_normalizers(benchmark_id: str) -> Mapping[str, str]:
+    """Return catalog-declared per-metric normalizer specs for one benchmark.
+
+    The benchmark catalog metric entries carry an explicit scale declaration
+    (``normalizer:`` such as ``percent_or_fraction_to_unit`` or ``scale_max:5``).
+    Runners use these declarations instead of guessing the score scale from the
+    numeric value.  Benchmarks without catalog metric declarations get an empty
+    mapping.
+    """
+    try:
+        entry = load_benchmark_zoo_registry(BENCHMARK_ZOO_DIR).get(benchmark_id)
+        declared = {
+            metric.metric_id: str(metric.normalizer)
+            for metric in entry.metrics
+            if getattr(metric, "normalizer", None)
+        }
+    except Exception:  # noqa: BLE001 - uncataloged benchmarks fall back to the legacy heuristic.
+        declared = {}
+    return MappingProxyType(declared)
+
+
+_HEURISTIC_SCALE_WARNED: set[tuple[str, str]] = set()
+
+
+def normalized_metric_score(config: BenchRunnerConfig, metric_id: str, raw_score: float | None) -> float | None:
+    """Normalize one metric value, preferring the catalog-declared scale.
+
+    When the benchmark catalog declares a per-metric ``normalizer`` the declared
+    conversion is applied (matching :class:`OfficialResultsNormalizer` output).
+    Without a declaration the legacy :func:`normalize_unit_score` heuristic is
+    kept for compatibility, but a warning is logged the first time the heuristic
+    actually rescales a value so silent unit distortion becomes visible.
+    """
+    if raw_score is None:
+        return None
+    declared = declared_metric_normalizers(config.benchmark_id).get(metric_id)
+    if declared:
+        try:
+            return apply_normalizer(declared, raw_score)
+        except NormalizerSpecError:
+            get_logger(__name__).event(
+                "WARN",
+                "official_runner.invalid_metric_normalizer",
+                "Declared metric normalizer is invalid; falling back to the unit heuristic",
+                benchmark_id=config.benchmark_id,
+                metric_id=metric_id,
+                normalizer=declared,
+            )
+    normalized = normalize_unit_score(raw_score)
+    if normalized != raw_score and (config.benchmark_id, metric_id) not in _HEURISTIC_SCALE_WARNED:
+        _HEURISTIC_SCALE_WARNED.add((config.benchmark_id, metric_id))
+        get_logger(__name__).event(
+            "WARN",
+            "official_runner.heuristic_unit_scale",
+            "Metric has no declared scale; value was rescaled by the percent heuristic",
+            benchmark_id=config.benchmark_id,
+            metric_id=metric_id,
+            raw_score=raw_score,
+            normalized_score=normalized,
+        )
+    return normalized
 
 
 def generic_extract_metrics(payload: Any, config: BenchRunnerConfig, source: str) -> dict[str, dict[str, Any]]:
@@ -196,7 +317,7 @@ def generic_extract_metrics(payload: Any, config: BenchRunnerConfig, source: str
     def add(metric_id: str, raw_score: float | None, *, sample_count: int | None = None) -> None:
         if raw_score is None or metric_id in extracted:
             return
-        normalized = normalize_unit_score(raw_score)
+        normalized = normalized_metric_score(config, metric_id, raw_score)
         extracted[metric_id] = {
             "metric_id": metric_id,
             "raw_score": raw_score,
@@ -251,7 +372,7 @@ def catalog_fallback(
         raw_score = scalar_number(row.get("raw_score") if row.get("raw_score") is not None else row.get("score"))
         normalized = row.get("normalized_score")
         if normalized is None:
-            normalized = normalize_unit_score(raw_score)
+            normalized = normalized_metric_score(config, metric_id, raw_score)
         if raw_score is None and normalized is None:
             continue
         extracted[metric_id] = {
@@ -292,11 +413,17 @@ def metric_row(
     *,
     source: str,
     sample_count: int | None = None,
+    config: BenchRunnerConfig | None = None,
 ) -> dict[str, Any]:
+    normalized = (
+        normalized_metric_score(config, metric_id, raw_score)
+        if config is not None
+        else normalize_unit_score(raw_score)
+    )
     return {
         "metric_id": metric_id,
         "raw_score": raw_score,
-        "normalized_score": normalize_unit_score(raw_score),
+        "normalized_score": normalized,
         "source": source,
         "sample_count": sample_count,
     }
@@ -324,6 +451,7 @@ def merge_metric_id_score_rows(
             mean_numeric(values),
             source=str(results_path),
             sample_count=len(values),
+            config=config,
         )
 
 
@@ -482,6 +610,7 @@ def build_scorecard(
     blocked_reasons: list[str] | None = None,
     repo_root: Path | None = None,
     generated_video_dir: Path | None = None,
+    run_status_override: str | None = None,
 ) -> dict[str, Any]:
     output_dir.mkdir(parents=True, exist_ok=True)
     scorecard_path = output_dir / "scorecard.json"
@@ -520,7 +649,7 @@ def build_scorecard(
     available_count = sum(1 for row in metric_rows if row["available"])
     normalizer_only = command is None and not blocked_reasons
     official_runtime_succeeded = command is not None and returncode == 0 and available_count > 0
-    run_status = (
+    run_status = run_status_override or (
         "blocked"
         if blocked_reasons
         else "official_bounded"
@@ -618,6 +747,18 @@ def discover_by_globs(search_roots: list[Path], patterns: tuple[str, ...]) -> Pa
     return max(candidates, key=lambda path: path.stat().st_mtime)
 
 
+#: Slack for filesystems with coarse mtime resolution when checking freshness.
+_RESULT_FRESHNESS_SLACK_SECONDS = 2.0
+
+
+def _is_fresh_result(path: Path, run_started_wall: float) -> bool:
+    """Return True when ``path`` was written during the current run."""
+    try:
+        return path.stat().st_mtime >= run_started_wall - _RESULT_FRESHNESS_SLACK_SECONDS
+    except OSError:
+        return False
+
+
 def default_discover_official_results(
     config: BenchRunnerConfig,
     output_dir: Path,
@@ -691,6 +832,7 @@ def run_official_pipeline(
     command: list[str] | None = None
     duration_seconds: float | None = None
     returncode: int | None = None
+    command_timed_out = False
 
     if args.run_official and not blocked and generated_video_dir is not None:
         command = hooks.build_official_command(
@@ -709,27 +851,44 @@ def run_official_pipeline(
                 for env_name in config.generated_video_envs:
                     env[env_name] = str(generated_video_dir)
             start = time.monotonic()
-            completed = subprocess.run(
-                command,
-                cwd=command_root,
-                env=env,
-                capture_output=True,
-                text=True,
-                timeout=args.timeout,
-                check=False,
-            )
+            run_started_wall = time.time()
+            try:
+                # run_logged_subprocess streams stdout/stderr to files (so
+                # partial logs survive failures) and kills the whole process
+                # group on timeout instead of orphaning judge/dataloader
+                # descendants.
+                completed = run_logged_subprocess(
+                    command,
+                    stdout_path=stdout_path,
+                    stderr_path=stderr_path,
+                    cwd=command_root,
+                    env=env,
+                    timeout=args.timeout,
+                )
+                returncode = completed.returncode
+            except subprocess.TimeoutExpired:
+                command_timed_out = True
+                blocked.append(f"official command timed out after {args.timeout} seconds")
             duration_seconds = time.monotonic() - start
-            returncode = completed.returncode
-            stdout_path.write_text(completed.stdout, encoding="utf-8")
-            stderr_path.write_text(completed.stderr, encoding="utf-8")
-            if hooks.discover_official_results is not None:
-                discovered = hooks.discover_official_results(output_dir, repo_root)
+            if command_timed_out or returncode != 0:
+                # A failed or killed official command must never be scored from
+                # whatever result files happen to exist: they are either stale
+                # leftovers from a previous run or partial writes.
+                if not command_timed_out:
+                    blocked.append(f"official command failed with exit code {returncode}")
             else:
-                discovered = default_discover_official_results(config, output_dir, repo_root)
-            if discovered is not None:
-                results_path = discovered
-            elif returncode != 0:
-                blocked.append(f"official command failed with exit code {returncode}")
+                if hooks.discover_official_results is not None:
+                    discovered = hooks.discover_official_results(output_dir, repo_root)
+                else:
+                    discovered = default_discover_official_results(config, output_dir, repo_root)
+                if discovered is not None and not _is_fresh_result(discovered, run_started_wall):
+                    blocked.append(
+                        "official command completed but the discovered results file "
+                        f"predates this run (stale leftover): {discovered}"
+                    )
+                    discovered = None
+                if discovered is not None:
+                    results_path = discovered
 
     if results_path is None:
         placeholder = output_dir / "upstream" / "blocked_results.json"
@@ -746,6 +905,10 @@ def run_official_pipeline(
             blocked_reasons=blocked or ["missing upstream results"],
             repo_root=repo_root,
             generated_video_dir=generated_video_dir,
+            # Runtime failures (the official command actually ran and timed out,
+            # crashed, or produced nothing fresh) are failures, not preflight
+            # blockers.
+            run_status_override="failed" if command is not None else None,
         )
 
     payload, _fmt = load_upstream_payload(results_path)
@@ -805,6 +968,86 @@ def build_common_parser(config: BenchRunnerConfig, hooks: RunnerHooks) -> argpar
     return parser
 
 
+def write_failed_scorecard(
+    *,
+    benchmark_id: str,
+    output_dir: Path,
+    reason: str,
+    display_name: str | None = None,
+    runner_name: str | None = None,
+    command: list[str] | None = None,
+    returncode: int | None = 1,
+) -> dict[str, Any]:
+    """Write a minimal but schema-shaped ``run.status="failed"`` scorecard.
+
+    Failure contract shared by all official runners: on any failure a valid
+    ``scorecard.json`` must still exist so downstream validation can read the
+    file instead of guessing from the exit code.
+    """
+    resolved_output_dir = Path(output_dir).expanduser().resolve()
+    resolved_output_dir.mkdir(parents=True, exist_ok=True)
+    scorecard_path = resolved_output_dir / "scorecard.json"
+    raw_metric_table_path = resolved_output_dir / "raw_metric_table.jsonl"
+    per_sample_scores_path = resolved_output_dir / "per_sample_scores.jsonl"
+    if not raw_metric_table_path.exists():
+        write_jsonl(raw_metric_table_path, [])
+    if not per_sample_scores_path.exists():
+        write_jsonl(per_sample_scores_path, [])
+    scorecard = {
+        "schema_version": SCORECARD_SCHEMA_VERSION,
+        "run": {
+            "status": "failed",
+            "started_at": utc_now_iso(),
+            "runner": runner_name or f"benchmark_zoo_{benchmark_id.replace('-', '_')}_official_runner",
+            "command": command,
+            "returncode": returncode,
+            "duration_seconds": None,
+            "error": reason,
+        },
+        "benchmark": {
+            "benchmark_id": benchmark_id,
+            "name": display_name or benchmark_id,
+            "contract_only": False,
+            "requires_upstream_runtime": True,
+        },
+        "eligibility": {
+            "leaderboard_valid": False,
+            "reasons": [reason],
+        },
+        "metrics": {
+            "leaderboard": {},
+            "per_metric": {},
+            "summary": {"metric_count": 0, "available_metrics": 0, "failed_metrics": 0},
+        },
+        "evaluation": {
+            "available": False,
+            "kind": f"official_{benchmark_id.replace('-', '_')}",
+            "leaderboard_metrics": {},
+            "skip_count": 0,
+        },
+        "validation": {
+            "normalizer_only": False,
+            "official_runtime_executed": command is not None,
+            "official_runtime_succeeded": False,
+            "full_suite_complete": False,
+            "scope": "not_executed",
+            "blocked_reasons": [reason],
+        },
+        "artifacts": {
+            "scorecard": str(scorecard_path),
+            "raw_metric_table": str(raw_metric_table_path),
+            "per_sample_scores": str(per_sample_scores_path),
+        },
+        "official_benchmark_verified": False,
+        "integration_evidence": False,
+        "normalizer_only": False,
+        "normalization_ok": False,
+        "official_results_imported": False,
+    }
+    write_json(scorecard_path, scorecard)
+    return scorecard
+
+
 def runner_result_payload(config: BenchRunnerConfig, scorecard: dict[str, Any], *, output_dir: Path) -> dict[str, Any]:
     return {
         "ok": scorecard.get("official_benchmark_verified") and scorecard.get("integration_evidence"),
@@ -860,13 +1103,27 @@ def run_main(config: BenchRunnerConfig, hooks: RunnerHooks, argv: list[str] | No
     try:
         logger.event("INFO", "official_runner.started", "Official runner started")
         scorecard = run_official_pipeline(config=config, hooks=hooks, args=args)
-    except (OSError, ValueError, json.JSONDecodeError, ImportError) as exc:
+    except Exception as exc:  # noqa: BLE001 - failure contract: any failure still writes a failed scorecard.
         logger.event(
             "ERROR",
             "official_runner.failed",
             "Official runner failed",
             exc_info=True,
         )
+        try:
+            write_failed_scorecard(
+                benchmark_id=config.benchmark_id,
+                display_name=config.display_name,
+                output_dir=args.output_dir,
+                reason=f"{type(exc).__name__}: {exc}",
+            )
+        except Exception:  # noqa: BLE001 - never mask the original failure with a scorecard write error.
+            logger.event(
+                "ERROR",
+                "official_runner.failed_scorecard_write_failed",
+                "Could not write the failed scorecard",
+                exc_info=True,
+            )
         print(f"error: {exc}", file=sys.stderr)
         return 1
     result = runner_result_payload(config, scorecard, output_dir=args.output_dir)

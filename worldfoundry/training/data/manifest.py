@@ -13,12 +13,8 @@ from types import MappingProxyType
 from typing import Any
 from urllib.parse import unquote, urlsplit
 
-from worldfoundry.core.io.file_utils import file_sha256
-from worldfoundry.core.io.integrity import canonical_sha256
-
 TRAINING_SAMPLE_SCHEMA = "worldfoundry-training-sample"
 TRAINING_MANIFEST_REPORT_SCHEMA = "worldfoundry-training-manifest-report"
-_SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
 _IDENTIFIER_PATTERN = re.compile(r"[a-z0-9][a-z0-9_.-]*")
 
 
@@ -111,30 +107,21 @@ def _strict_mapping(
     return payload
 
 
-def _canonical_sha256(value: object) -> str:
-    return canonical_sha256(_plain_json(value))
-
-
 @dataclass(frozen=True, slots=True)
 class MediaReference:
-    """Content-addressed media referenced by one training sample."""
+    """Media referenced by one training sample."""
 
     uri: str
-    sha256: str
     mime_type: str | None = None
     size_bytes: int | None = None
 
     def __post_init__(self) -> None:
         uri = _nonempty(self.uri, field_name="media.uri")
-        digest = _nonempty(self.sha256, field_name="media.sha256").lower()
-        if _SHA256_PATTERN.fullmatch(digest) is None:
-            raise ValueError("media.sha256 must be a 64-character lowercase hexadecimal digest")
         mime_type = None if self.mime_type is None else _nonempty(self.mime_type, field_name="media.mime_type")
         size_bytes = self.size_bytes
         if size_bytes is not None:
             size_bytes = _positive_int(size_bytes, field_name="media.size_bytes")
         object.__setattr__(self, "uri", uri)
-        object.__setattr__(self, "sha256", digest)
         object.__setattr__(self, "mime_type", mime_type)
         object.__setattr__(self, "size_bytes", size_bytes)
 
@@ -143,13 +130,13 @@ class MediaReference:
         payload = _strict_mapping(
             value,
             field_name="media",
-            allowed={"uri", "sha256", "mime_type", "size_bytes"},
-            required={"uri", "sha256"},
+            allowed={"uri", "mime_type", "size_bytes"},
+            required={"uri"},
         )
         return cls(**payload)
 
     def to_dict(self) -> dict[str, object]:
-        result: dict[str, object] = {"uri": self.uri, "sha256": self.sha256}
+        result: dict[str, object] = {"uri": self.uri}
         if self.mime_type is not None:
             result["mime_type"] = self.mime_type
         if self.size_bytes is not None:
@@ -275,8 +262,6 @@ class TrainingManifestReport:
     row_count: int
     valid_sample_count: int
     selected_sample_count: int
-    manifest_sha256: str | None
-    dataset_digest: str | None
     task_counts: Mapping[str, int]
     split_counts: Mapping[str, int]
     issues: tuple[ManifestIssue, ...]
@@ -308,8 +293,6 @@ class TrainingManifestReport:
             "row_count": self.row_count,
             "valid_sample_count": self.valid_sample_count,
             "selected_sample_count": self.selected_sample_count,
-            "manifest_sha256": self.manifest_sha256,
-            "dataset_digest": self.dataset_digest,
             "task_counts": dict(self.task_counts),
             "split_counts": dict(self.split_counts),
             "error_count": self.error_count,
@@ -319,7 +302,7 @@ class TrainingManifestReport:
 
 
 class TrainingManifestError(ValueError):
-    """Raised when a manifest fails closed before training starts."""
+    """Raised when a manifest is invalid."""
 
     def __init__(self, report: TrainingManifestReport) -> None:
         self.report = report
@@ -333,17 +316,6 @@ class LoadedTrainingManifest:
     path: Path
     samples: tuple[TrainingSample, ...]
     report: TrainingManifestReport
-
-    @property
-    def manifest_sha256(self) -> str:
-        assert self.report.manifest_sha256 is not None
-        return self.report.manifest_sha256
-
-    @property
-    def dataset_digest(self) -> str:
-        assert self.report.dataset_digest is not None
-        return self.report.dataset_digest
-
 
 def resolve_local_media_path(media: MediaReference, *, manifest_path: str | Path) -> Path | None:
     """Resolve local/file media; return ``None`` for remote URI schemes."""
@@ -396,22 +368,15 @@ def _inspect_training_manifest(
     *,
     split: str | None,
     verify_files: bool,
-    verify_hashes: bool,
 ) -> tuple[tuple[TrainingSample, ...], TrainingManifestReport]:
-    # Hashing a local object necessarily verifies that it exists; do not let a
-    # contradictory flag pair silently skip the requested integrity check.
-    verify_files = bool(verify_files or verify_hashes)
     source = Path(path).resolve()
     requested_split = None if split is None else _identifier(split, field_name="split")
     issues: list[ManifestIssue] = []
     samples: list[TrainingSample] = []
     row_count = 0
-    manifest_digest: str | None = None
-
     try:
         if not source.is_file():
             raise FileNotFoundError(f"training manifest not found: {source}")
-        manifest_digest = file_sha256(source)
         rows = _read_manifest_rows(source)
         row_count = len(rows)
     except Exception as error:  # noqa: BLE001 - inspector returns structured diagnostics.
@@ -422,8 +387,6 @@ def _inspect_training_manifest(
             row_count=row_count,
             valid_sample_count=0,
             selected_sample_count=0,
-            manifest_sha256=manifest_digest,
-            dataset_digest=None,
             task_counts={},
             split_counts={},
             issues=tuple(issues),
@@ -495,28 +458,6 @@ def _inspect_training_manifest(
                         sample_id=sample.sample_id,
                     )
                 )
-            if verify_hashes:
-                actual_digest = file_sha256(local_path)
-                if actual_digest != sample.media.sha256:
-                    issues.append(
-                        ManifestIssue(
-                            "error",
-                            "media-sha256-mismatch",
-                            f"expected {sample.media.sha256}, got {actual_digest}",
-                            row_number=row_number,
-                            sample_id=sample.sample_id,
-                        )
-                    )
-        elif verify_hashes and local_path is None:
-            issues.append(
-                ManifestIssue(
-                    "warning",
-                    "remote-media-not-hashed",
-                    f"cannot verify remote URI during local inspection: {sample.media.uri}",
-                    row_number=row_number,
-                    sample_id=sample.sample_id,
-                )
-            )
 
     selected = tuple(sample for sample in samples if requested_split is None or sample.split == requested_split)
     if requested_split is not None and not selected:
@@ -526,24 +467,12 @@ def _inspect_training_manifest(
 
     task_counts = Counter(sample.task for sample in samples)
     split_counts = Counter(sample.split for sample in samples)
-    dataset_digest = None
-    if manifest_digest is not None:
-        dataset_digest = _canonical_sha256(
-            {
-                "schema": TRAINING_SAMPLE_SCHEMA,
-                "manifest_sha256": manifest_digest,
-                "requested_split": requested_split,
-                "sample_ids": [sample.sample_id for sample in selected],
-            }
-        )
     report = TrainingManifestReport(
         path=str(source),
         requested_split=requested_split,
         row_count=row_count,
         valid_sample_count=len(samples),
         selected_sample_count=len(selected),
-        manifest_sha256=manifest_digest,
-        dataset_digest=dataset_digest,
         task_counts=dict(sorted(task_counts.items())),
         split_counts=dict(sorted(split_counts.items())),
         issues=tuple(issues),
@@ -556,7 +485,6 @@ def inspect_training_manifest(
     *,
     split: str | None = None,
     verify_files: bool = True,
-    verify_hashes: bool = False,
 ) -> TrainingManifestReport:
     """Return all manifest diagnostics without raising on malformed rows."""
 
@@ -564,7 +492,6 @@ def inspect_training_manifest(
         path,
         split=split,
         verify_files=verify_files,
-        verify_hashes=verify_hashes,
     )
     return report
 
@@ -574,15 +501,13 @@ def load_training_manifest(
     *,
     split: str | None = None,
     verify_files: bool = True,
-    verify_hashes: bool = False,
 ) -> LoadedTrainingManifest:
-    """Load a valid manifest or fail closed with a structured report."""
+    """Load a valid manifest or raise with a structured report."""
 
     samples, report = _inspect_training_manifest(
         path,
         split=split,
         verify_files=verify_files,
-        verify_hashes=verify_hashes,
     )
     if not report.ok:
         raise TrainingManifestError(report)
@@ -598,7 +523,6 @@ __all__ = [
     "TrainingManifestError",
     "TrainingManifestReport",
     "TrainingSample",
-    "file_sha256",
     "inspect_training_manifest",
     "load_training_manifest",
     "resolve_local_media_path",

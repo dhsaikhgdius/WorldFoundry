@@ -6,6 +6,30 @@ from dataclasses import dataclass
 from math import isfinite, pi
 
 from ..common import strict_mapping
+from .auxiliary_optimizers import (
+    AuxiliaryOptimizerRule,
+    forbids_auxiliary,
+    requires_auxiliary,
+)
+
+
+def _rcm_auxiliary_rules(*, dmd_enabled: bool) -> tuple[AuxiliaryOptimizerRule, ...]:
+    conditional = (
+        requires_auxiliary("fake_score_optimizer", "rCM DMD requires fake_score_optimizer")
+        if dmd_enabled
+        else forbids_auxiliary(
+            "fake_score_optimizer",
+            message="rCM without DMD cannot configure fake_score_optimizer",
+        )
+    )
+    return (
+        conditional,
+        forbids_auxiliary(
+            "guidance_optimizer",
+            "discriminator_optimizer",
+            message="rCM only accepts fake_score_optimizer when DMD is enabled",
+        ),
+    )
 
 
 def _integer(value: object, *, field_name: str, allow_zero: bool) -> int:
@@ -117,6 +141,9 @@ class RCMAlgorithmSpec:
         object.__setattr__(self, "fixed_rollout_timesteps", rollout)
         object.__setattr__(self, "teacher_checkpoint", teacher_checkpoint)
         object.__setattr__(self, "fake_score_checkpoint", fake_score_checkpoint)
+
+    def auxiliary_optimizer_rules(self) -> tuple[AuxiliaryOptimizerRule, ...]:
+        return _rcm_auxiliary_rules(dmd_enabled=self.dmd_loss_scale > 0)
 
 
 @dataclass(frozen=True, slots=True)
@@ -230,6 +257,9 @@ class CausalRCMAlgorithmSpec:
         object.__setattr__(self, "rollout_timesteps", rollout)
         for name, value in checkpoints.items():
             object.__setattr__(self, name, value)
+
+    def auxiliary_optimizer_rules(self) -> tuple[AuxiliaryOptimizerRule, ...]:
+        return _rcm_auxiliary_rules(dmd_enabled=self.dmd_loss_scale > 0)
 
 
 RCM_ALGORITHM_FIELDS = frozenset(RCMAlgorithmSpec.__dataclass_fields__)

@@ -1,0 +1,89 @@
+schema: worldfoundry-post-training
+execution_owner: worldfoundry-native
+run:
+  id: hunyuan-video-1p5-flow-grpo
+  output_dir: runs/hunyuan-video-1p5-flow-grpo
+model:
+  recipe: hunyuanvideo-1.5-t2v
+  checkpoint: default
+tuning:
+  mode: lora
+  preset: hunyuanvideo-1.5-attention-mlp
+  rank: 64
+  alpha: 64
+data:
+  manifest: data/post_training/hunyuan-video-1p5-rl-prompts.jsonl
+  cache: cache/post_training/hunyuan-video-1p5-rl-conditioning
+  split: train
+  shuffle: true
+  shuffle_seed: 42
+  tail_policy: pad
+  options:
+    global_prompt_batch_size: 48
+    rollout_forward_batch_size: 1
+    replay_microbatch_size: 1
+    generation:
+      height: 480
+      width: 480
+      num_frames: 5
+algorithm:
+  type: flow-grpo
+  num_train_timesteps: 1000
+  sigmas:
+    - 1.0
+    - 0.9868420958518982
+    - 0.9722222089767456
+    - 0.9558823704719543
+    - 0.9375
+    - 0.9166666865348816
+    - 0.8928571343421936
+    - 0.8653846383094788
+    - 0.8333333134651184
+    - 0.7954545617103577
+    - 0.75
+    - 0.6944444179534912
+    - 0.625
+    - 0.5357142686843872
+    - 0.4166666567325592
+    - 0.25
+    - 0.0
+  sde_timestep_fraction: [0.0, 0.6]
+  num_sde_steps: 8
+  guidance_scale: 0.0
+  init_same_noise: false
+  eta: 0.25
+  clip_range: 0.0001
+  updates_per_trajectory: 2
+  group_size: 24
+  old_log_prob_source: rollout
+  reference_kl_weight: 0.0
+  advantage_epsilon: 0.00000001
+  advantage_normalization: group-mean-global-population-std
+  trajectory_dtype: bfloat16
+  reward_weights:
+    videopickscore: 1.0
+  reward_model:
+    type: remote
+    reward_ids: [videopickscore]
+optimizer:
+  type: adamw
+  learning_rate: 0.00001
+  weight_decay: 0.0001
+  max_grad_norm: 1.0
+runtime:
+  param_dtype: bfloat16
+  reduce_dtype: float32
+  activation_checkpoint: full
+  compile: false
+distributed:
+  backend: fsdp2
+  dp_replicate: 1
+  dp_shard: auto
+  cp: 1
+  tp: 1
+checkpoint:
+  save_every_steps: 50
+  async: true
+  export_every_steps: 50
+export:
+  format: peft

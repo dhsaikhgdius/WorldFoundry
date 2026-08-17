@@ -9,7 +9,6 @@ torch = pytest.importorskip("torch")
 pytest.importorskip("transformers")
 
 from worldfoundry.training.post_training import (  # noqa: E402
-    VIDEOALIGN_CHAT_TEMPLATE_SHA256,
     VIDEOALIGN_SPECIAL_TOKEN_IDS,
     VideoAlignRewardEvaluator,
     build_videoalign_prompt,
@@ -189,7 +188,6 @@ def test_videoalign_evaluator_returns_raw_components_without_mp4_or_hidden_norma
     assert len(processor.videos) == 2
     assert all(video.shape[0] == 4 for video in processor.videos)
     assert results[0].diagnostics["frame_indices"] == [0, 5, 11, 16]
-    assert evaluator.identity["chat_template_sha256"] == VIDEOALIGN_CHAT_TEMPLATE_SHA256
 
 
 def test_videoalign_recipe_rejects_unpinned_or_component_mismatched_configuration() -> None:

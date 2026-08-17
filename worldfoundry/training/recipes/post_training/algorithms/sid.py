@@ -6,6 +6,11 @@ from dataclasses import dataclass
 from math import isfinite, log
 
 from ..common import positive_int, strict_mapping
+from .auxiliary_optimizers import (
+    AuxiliaryOptimizerRule,
+    forbids_auxiliary,
+    requires_auxiliary,
+)
 from .dmd import _normalize_few_step_schedule
 
 SID_ALGORITHM_FIELDS = {
@@ -142,6 +147,16 @@ class SIDAlgorithmSpec:
     @property
     def diffusion_gan_enabled(self) -> bool:
         return self.generator_adversarial_weight > 0
+
+    def auxiliary_optimizer_rules(self) -> tuple[AuxiliaryOptimizerRule, ...]:
+        return (
+            requires_auxiliary("fake_score_optimizer", "SiD requires fake_score_optimizer"),
+            forbids_auxiliary(
+                "guidance_optimizer",
+                "discriminator_optimizer",
+                message="SiD only accepts fake_score_optimizer",
+            ),
+        )
 
 
 def parse_sid_algorithm(value: object) -> SIDAlgorithmSpec:

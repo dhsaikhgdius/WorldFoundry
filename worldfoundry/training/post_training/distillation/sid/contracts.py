@@ -88,7 +88,6 @@ class SIDPredictionAdapter(Protocol):
     module: object
     checkpoint_identity: str
     noise_process_kind: str
-    noise_process_digest: str
 
     def add_noise(
         self,
@@ -141,7 +140,6 @@ class SIDDiscriminatorAdapter(Protocol):
 class SIDLossAdapter(Protocol):
     """Two-role loss seam consumed by the SiD optimizer engine."""
 
-    config_digest: str
     num_student_steps: int
 
     def loss_denominator(

@@ -53,6 +53,34 @@ metadata:
   data_refs:
     hf_dataset_id: meituan-longcat/LARYBench
     task_yaml: worldfoundry/data/benchmarks/tasks/external/larybench.yaml
+  contract_validation_command: worldfoundry-eval zoo benchmark-run --benchmark-id larybench --mode contract
+    --output-dir tmp/benchmark_zoo/benchmark_contract/larybench --json
+  requires:
+  - selected LARYBench dataset shards
+  - checkpoint assets for the selected representation model
+  - extracted latent actions before classification or regression
+  blockers:
+  - Full leaderboard parity requires the complete official split, exact checkpoint, probe configuration, and retained
+    run artifacts.
+  checkpoint_refs: []
+  validation_command:
+  - worldfoundry-eval
+  - zoo
+  - benchmark-run
+  - --benchmark-id
+  - larybench
+  - --mode
+  - official-validation
+  - --official-results-path
+  - <classification_summary.json_or_best_result.json>
+  - --stage
+  - <classify_or_regress>
+  - --output-dir
+  - <out>
+  - --json
+  artifact_layout:
+    output_artifact: benchmark_scorecard
+    filename_template: scorecard.json
 tasks:
   larybench_extract:
     benchmark_name: larybench

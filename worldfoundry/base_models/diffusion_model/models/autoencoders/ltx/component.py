@@ -354,6 +354,26 @@ class LTXTensorVideoCodec:
         return self.encoder.encoder.tiled_encode(images, self.tiling)
 
     @torch.no_grad()
+    def encode_posterior(
+        self,
+        images: torch.Tensor,
+        *,
+        generator: torch.Generator | None = None,
+    ) -> torch.Tensor:
+        """Sample the normalized posterior used by the LTX-Video trainer."""
+
+        if images.ndim != 5 or images.shape[1] != 3:
+            raise ValueError(f"LTX tensor codec expects BCTHW RGB video, got {tuple(images.shape)}")
+        device, dtype = self._input_target(self.encoder)
+        images = images.to(device=device, dtype=dtype)
+        return self.encoder.encoder.tiled_encode(
+            images,
+            self.tiling,
+            sample_posterior=True,
+            generator=generator,
+        )
+
+    @torch.no_grad()
     def decode(
         self,
         latents: torch.Tensor,

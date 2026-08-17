@@ -26,8 +26,6 @@ from worldfoundry.training.data.video_bucketing import (  # noqa: E402
 
 
 class _BucketDataset:
-    dataset_digest = "a" * 64
-
     def __init__(self, keys: tuple[VideoBucketKey, ...]) -> None:
         self.keys = keys
         self.sample_ids = tuple(f"sample-{index}" for index in range(len(keys)))
@@ -51,7 +49,7 @@ def _training_sample(
         sample_id=sample_id,
         task=task,
         prompt="a moving subject",
-        media=MediaReference(uri=f"{sample_id}.mp4", sha256="1" * 64),
+        media=MediaReference(uri=f"{sample_id}.mp4"),
         width=width,
         height=height,
         num_frames=frames,
@@ -189,7 +187,6 @@ def test_token_budget_sampler_state_replays_queues_and_next_batch_exactly() -> N
     restored = _sampler(dataset, rank=0, world_size=2, tail_policy="pad")
     restored.load_state_dict(state)
     assert list(restored) == expected_tail
-    assert state["bucket_queues"]
     assert state["next_batch_sample_ids"] is not None
 
     active_state = restored.state_dict()
@@ -199,12 +196,12 @@ def test_token_budget_sampler_state_replays_queues_and_next_batch_exactly() -> N
         restored.load_state_dict(tampered)
     assert restored.state_dict() == active_state
 
-    with pytest.raises(SamplerStateMismatchError, match="world_size"):
+    with pytest.raises(SamplerStateMismatchError, match="invariants"):
         _sampler(dataset, rank=0, world_size=1, tail_policy="pad").load_state_dict(state)
 
     changed_content = _BucketDataset(dataset.keys)
-    changed_content.index_sha256 = "b" * 64
-    with pytest.raises(SamplerStateMismatchError, match="data_content_digest"):
+    changed_content.sample_ids = tuple(f"other-{index}" for index in range(len(changed_content)))
+    with pytest.raises(SamplerStateMismatchError, match="invariants"):
         _sampler(changed_content, rank=0, world_size=2, tail_policy="pad").load_state_dict(state)
 
 

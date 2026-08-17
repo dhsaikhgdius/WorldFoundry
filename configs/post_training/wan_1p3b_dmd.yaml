@@ -44,7 +44,6 @@ data:
       interpolation: bicubic
       value_range: minus-one-one
       decoder_thread_type: auto
-      verify_media_sha256: true
       verify_manifest_frame_count: true
       verify_manifest_geometry: true
       fps_tolerance: 0.05
@@ -73,11 +72,13 @@ optimizer:
   learning_rate: 0.000002
   weight_decay: 0.01
   max_grad_norm: 1.0
+  gradient_accumulation_steps: 8
 fake_score_optimizer:
   type: adamw
   learning_rate: 0.000002
   weight_decay: 0.01
   max_grad_norm: 1.0
+  gradient_accumulation_steps: 8
 runtime:
   param_dtype: bfloat16
   reduce_dtype: float32

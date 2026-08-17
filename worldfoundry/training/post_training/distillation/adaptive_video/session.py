@@ -104,9 +104,7 @@ class NativeAdaptiveVideoTrainingSession:
         try:
             for _ in range(int(max_steps)):
                 previous_step = self.engine.global_step
-                generator_due = (
-                    previous_step % self.engine.generator_update_interval == 0
-                )
+                generator_due = self.engine.generator_update_due()
                 batches = []
                 generated_samples = 0
                 real_samples = 0

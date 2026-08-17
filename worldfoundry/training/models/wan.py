@@ -8,7 +8,6 @@ from typing import Any
 
 import torch
 from torch import nn
-from torch.nn import functional as F
 
 from worldfoundry.base_models.diffusion_model.components import ComponentKey, ComponentKind
 from worldfoundry.base_models.diffusion_model.contracts import (
@@ -18,49 +17,18 @@ from worldfoundry.base_models.diffusion_model.contracts import (
     SamplingConfig,
 )
 from worldfoundry.training.api.contracts import ObjectiveBatch, PreparedBatch, TrainingBatch
+from worldfoundry.training.data.video_masks import project_causal_video_mask_to_latent
+
+from ._shared import (
+    component_module as _component_module,
+    freeze_module as _freeze,
+    merge_without_overwrite,
+    module_device_dtype as _module_device_dtype,
+)
 
 WAN_DEFAULT_TRAIN_TIMESTEPS = 1000
 WAN_DEFAULT_TEXT_LENGTH = 512
 WAN_DEFAULT_CONTEXT_FEATURES = 4096
-
-
-def _component_module(component: object, *names: str) -> nn.Module | None:
-    if isinstance(component, nn.Module):
-        return component
-    for name in names:
-        value = getattr(component, name, None)
-        if isinstance(value, nn.Module):
-            return value
-    return None
-
-
-def _module_device_dtype(module: nn.Module) -> tuple[torch.device, torch.dtype]:
-    reference = next(module.parameters(), None)
-    if reference is None:
-        reference = next(module.buffers(), None)
-    if reference is None:
-        return torch.device("cpu"), torch.float32
-    dtype = reference.dtype if reference.is_floating_point() else torch.float32
-    return reference.device, dtype
-
-
-def _freeze(module: nn.Module | None) -> None:
-    if module is None:
-        return
-    module.requires_grad_(False)
-    module.eval()
-
-
-def _merge_without_overwrite(
-    destination: dict[str, object],
-    source: Mapping[str, object],
-    *,
-    source_name: str,
-) -> None:
-    overlap = sorted(set(destination) & set(source))
-    if overlap:
-        raise ValueError(f"{source_name} collides with encoded Wan conditioning keys: {overlap}")
-    destination.update(source)
 
 
 def _positive_int(value: object, *, field_name: str) -> int:
@@ -72,65 +40,7 @@ def _positive_int(value: object, *, field_name: str) -> int:
     return resolved
 
 
-def wan_pixel_mask_to_latent(
-    valid_mask: torch.Tensor,
-    *,
-    pixel_shape: tuple[int, int, int, int, int],
-    latent_shape: tuple[int, int, int],
-    temporal_compression: int = 4,
-) -> torch.Tensor:
-    """Project a pixel validity mask through Wan's causal codec geometry.
-
-    The first latent frame represents the first pixel frame.  Every later
-    latent frame represents the next ``temporal_compression`` pixel frames;
-    averaging therefore preserves partial padding weights instead of treating
-    the codec as an ordinary symmetric 3D downsampler.
-    """
-
-    if not isinstance(valid_mask, torch.Tensor):
-        raise TypeError("Wan valid_mask must be a torch.Tensor")
-    if len(pixel_shape) != 5 or len(latent_shape) != 3:
-        raise ValueError("Wan pixel_shape and latent_shape must be BCTHW and THW")
-    compression = _positive_int(
-        temporal_compression,
-        field_name="temporal_compression",
-    )
-    mask = valid_mask
-    if mask.ndim + 1 == len(pixel_shape) and int(mask.shape[0]) == pixel_shape[0]:
-        mask = mask.unsqueeze(1)
-    try:
-        mask = torch.broadcast_to(mask, pixel_shape)
-    except RuntimeError as error:
-        raise ValueError(
-            f"valid_mask shape {tuple(valid_mask.shape)} cannot broadcast to pixels {pixel_shape}"
-        ) from error
-    mask = mask.float().amin(dim=1, keepdim=True)
-    if not bool(torch.isfinite(mask).all()) or not bool(((0 <= mask) & (mask <= 1)).all()):
-        raise ValueError("valid_mask must contain finite weights in [0, 1]")
-
-    latent_frames, latent_height, latent_width = latent_shape
-    pixel_frames = int(mask.shape[2])
-    expected_latent_frames = 1 + (pixel_frames - 1) // compression
-    if (pixel_frames - 1) % compression or expected_latent_frames != latent_frames:
-        raise ValueError("pixel valid_mask temporal geometry differs from encoded Wan latents")
-    spatial = F.interpolate(
-        mask,
-        size=(pixel_frames, latent_height, latent_width),
-        mode="area",
-    )
-    first = spatial[:, :, :1]
-    if latent_frames == 1:
-        return first
-    remaining = spatial[:, :, 1:]
-    grouped = remaining.reshape(
-        pixel_shape[0],
-        1,
-        latent_frames - 1,
-        compression,
-        latent_height,
-        latent_width,
-    ).mean(dim=3)
-    return torch.cat((first, grouped), dim=2)
+wan_pixel_mask_to_latent = project_causal_video_mask_to_latent
 
 
 class WanTrainAdapter:
@@ -295,8 +205,8 @@ class WanTrainAdapter:
             if not isinstance(encoded, Conditioning):
                 raise TypeError(f"Wan conditioner returned {type(encoded).__name__}, expected Conditioning")
             values = dict(encoded.positive)
-            _merge_without_overwrite(values, encoded.shared, source_name="conditioner.shared")
-            _merge_without_overwrite(values, raw, source_name="TrainingBatch.conditions")
+            merge_without_overwrite(values, encoded.shared, source_name="conditioner.shared", family="Wan")
+            merge_without_overwrite(values, raw, source_name="TrainingBatch.conditions", family="Wan")
 
         normalized: dict[str, object] = {}
         for key, value in values.items():
@@ -330,7 +240,7 @@ class WanTrainAdapter:
             return None
         if not isinstance(valid_mask, torch.Tensor):
             raise TypeError("Wan valid_mask must be a torch.Tensor")
-        return wan_pixel_mask_to_latent(
+        return project_causal_video_mask_to_latent(
             valid_mask.to(device=device),
             pixel_shape=tuple(int(value) for value in pixels.shape),
             latent_shape=latent_shape,

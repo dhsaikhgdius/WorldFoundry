@@ -491,16 +491,14 @@ class FlashWorldOperator(BaseOperator):
             return image.convert('RGB')
         
         elif isinstance(input_signal, np.ndarray):
-            # Numpy array
-            if input_signal.max() <= 1.0:
+            # Numpy array, expected in RGB channel order. Integer dtypes are
+            # already 0-255; only float arrays in [0, 1] need rescaling.
+            if np.issubdtype(input_signal.dtype, np.integer):
+                input_signal = input_signal.astype(np.uint8)
+            elif input_signal.max() <= 1.0:
                 input_signal = (input_signal * 255).astype(np.uint8)
             else:
                 input_signal = input_signal.astype(np.uint8)
-            
-            # Convert BGR to RGB if needed
-            if len(input_signal.shape) == 3 and input_signal.shape[2] == 3:
-                if input_signal[..., 0].mean() > input_signal[..., 2].mean():
-                    input_signal = input_signal[..., ::-1]
             
             image = Image.fromarray(input_signal)
             return image.convert('RGB')
@@ -512,7 +510,9 @@ class FlashWorldOperator(BaseOperator):
             else:
                 image_array = input_signal[0].permute(1, 2, 0).cpu().numpy()
             
-            if image_array.max() <= 1.0:
+            if np.issubdtype(image_array.dtype, np.integer):
+                image_array = image_array.astype(np.uint8)
+            elif image_array.max() <= 1.0:
                 image_array = (image_array * 255).astype(np.uint8)
             else:
                 image_array = image_array.astype(np.uint8)
@@ -522,10 +522,3 @@ class FlashWorldOperator(BaseOperator):
         
         else:
             raise ValueError(f"Unsupported input type: {type(input_signal)}")
-    
-    def delete_last_interaction(self):
-        """Delete the last interaction from current_interaction list."""
-        if len(self.current_interaction) > 0:
-            self.current_interaction = self.current_interaction[:-1]
-        else:
-            raise ValueError("No interaction to delete.")

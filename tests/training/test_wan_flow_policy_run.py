@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+import pytest
+
+# This test module imports worldfoundry code that requires the optional
+# "transformers" dependency at import time; skip when it is unavailable.
+pytest.importorskip("transformers")
+
 from dataclasses import replace
 from pathlib import Path
 
@@ -23,12 +29,22 @@ def test_wan_flow_policy_recipes_resolve_dynamic_world_sizes() -> None:
     recipe = _recipe()
     algorithm, data_plan = validate_wan_flow_policy_recipe(recipe)
 
-    assert algorithm.group_size == 4
+    assert algorithm.group_size == 16
     assert algorithm.num_train_timesteps == 1000
+    assert algorithm.sigmas == flow_match_sigma_schedule(14, shift=5.0)
+    assert algorithm.sde_timestep_fraction == (0.0, 0.5)
+    assert algorithm.num_sde_steps == 7
+    assert algorithm.guidance_scale == 1.0
+    assert algorithm.init_same_noise is False
+    assert algorithm.sigma_max == algorithm.sigmas[1]
+    assert algorithm.trajectory_dtype == "float16"
+    assert algorithm.updates_per_trajectory == 2
+    assert algorithm.old_log_prob_source == "replay"
+    assert algorithm.advantage_normalization == "group-mean-global-population-std"
     assert data_plan.generation == {
-        "height": 256,
-        "width": 416,
-        "num_frames": 17,
+        "height": 720,
+        "width": 1280,
+        "num_frames": 5,
     }
     assert ParallelPlan.resolve(recipe.distributed, world_size=1).dp_shard == 1
     assert ParallelPlan.resolve(recipe.distributed, world_size=3).dp_shard == 3
@@ -37,7 +53,11 @@ def test_wan_flow_policy_recipes_resolve_dynamic_world_sizes() -> None:
     dppo, dppo_plan = validate_wan_flow_policy_recipe(_recipe("wan_1p3b_flow_dppo.yaml"))
     assert dppo.type == "flow-dppo"
     assert dppo.updates_per_trajectory == 2
-    assert dppo_plan.generation == data_plan.generation
+    assert dppo_plan.generation == {
+        "height": 256,
+        "width": 416,
+        "num_frames": 17,
+    }
 
 
 def test_distributed_rollout_rejects_rank_uneven_chunked_collectives() -> None:
@@ -141,6 +161,13 @@ def test_wan_flow_policy_recipe_rejects_ambiguous_data_and_geometry() -> None:
     )
     with pytest.raises(ValueError, match="divisible by 16"):
         validate_wan_flow_policy_recipe(invalid_geometry)
+
+
+def test_wan21_flow_policy_rejects_unconsumed_ray_rollout() -> None:
+    root = Path(__file__).resolve().parents[2]
+    ray_recipe = PostTrainingRecipe.from_file(root / "configs/post_training/wan22_t2v_a14b_ray_flow_grpo.yaml")
+    with pytest.raises(ValueError, match="requires local rollout"):
+        validate_wan_flow_policy_recipe(replace(_recipe(), rollout=ray_recipe.rollout))
 
 
 def test_wan_flow_policy_runtime_does_not_import_or_launch_reference_repositories() -> None:

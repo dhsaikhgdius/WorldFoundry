@@ -203,8 +203,11 @@ class RankGenerator(object):
         order = order.lower()
         for name in self.name_to_size.keys():
             if name not in order and self.name_to_size[name] != 1:
+                # Use the local ``order``: ``self.order`` is only assigned after
+                # this validation loop, so referencing it here raised an
+                # unrelated AttributeError instead of this message (CC-21).
                 raise RuntimeError(
-                    f"The size of ({name}) is ({self.name_to_size[name]}), but you haven't specified the order ({self.order})."
+                    f"The size of ({name}) is ({self.name_to_size[name]}), but you haven't specified the order ({order})."
                 )
             elif name not in order:
                 order = order + "-" + name

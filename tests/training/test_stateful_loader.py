@@ -26,7 +26,6 @@ class _NumberDataset:
 def _sampler(dataset: _NumberDataset) -> DeterministicDistributedSampler:
     return DeterministicDistributedSampler(
         dataset,
-        dataset_digest="a" * 64,
         seed=29,
         shuffle=True,
         rank=0,

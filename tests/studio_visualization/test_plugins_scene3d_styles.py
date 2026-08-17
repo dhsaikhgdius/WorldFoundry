@@ -21,6 +21,12 @@ Source bugs discovered:
 
 from __future__ import annotations
 
+import pytest
+
+# This test module imports worldfoundry code that requires the optional
+# "colorspacious" dependency at import time; skip when it is unavailable.
+pytest.importorskip("colorspacious")
+
 import dataclasses
 import importlib
 import sys

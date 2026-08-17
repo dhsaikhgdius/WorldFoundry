@@ -133,6 +133,9 @@ def set_seed_everywhere(
     if seed is None:
         return None
 
+    # Note: PYTHONHASHSEED cannot change str/bytes hashing for the *current*
+    # interpreter (it is read once at startup); setting it here only makes
+    # child processes inherit the seed.
     os.environ["PYTHONHASHSEED"] = str(seed)
     random.seed(seed)
     np.random.seed(seed)
@@ -150,7 +153,12 @@ def set_seed_everywhere(
 
 
 def set_random_seed(seed: int, by_rank: bool = False) -> int:
-    """Set Python, NumPy, and PyTorch seeds with optional distributed-rank offset."""
+    """Set Python, NumPy, and PyTorch seeds with optional distributed-rank offset.
+
+    Thin wrapper over :func:`set_seed_everywhere` (the canonical entry point).
+    When the process group is unavailable, ``by_rank`` silently falls back to
+    the unoffset seed.
+    """
 
     resolved_seed = int(seed)
     if by_rank:
@@ -242,7 +250,11 @@ def save_torch(D, *fpath):
     """
     if isinstance(D, str):
         assert not isinstance(fpath, str), "Either torch_save(D, fpath) or torch_save(fpath, D)"
-        fpath, D = D, fpath
+        # ``fpath`` is a varargs tuple here; unwrap the payload so the swapped
+        # call order saves the object itself instead of a 1-tuple.
+        if len(fpath) != 1:
+            raise ValueError("save_torch(fpath, D) expects exactly one object to save")
+        fpath, D = (D,), fpath[0]
     torch.save(D, str(f_join(fpath)))
 
 
@@ -402,10 +414,13 @@ def to_state_dict(objects, to_cpu: bool = False, copy: bool = False, unwrap_ddp:
 
     def _to_state_dict(m):
         if implements_state_dict(m):
+            # DDP unwrapping is just a preprocessing step; every object with a
+            # state_dict() method (Optimizer, LRScheduler, plain nn.Module)
+            # goes through the same transfer path.
             if isinstance(m, nn.Module) and unwrap_ddp:
                 m = unwrap_ddp_model(m)
-                tree = _require_tree()
-                return tree.map_structure(_transfer, m.state_dict())
+            tree = _require_tree()
+            return tree.map_structure(_transfer, m.state_dict())
         else:
             return _transfer(m)
 
@@ -596,7 +611,7 @@ def random_derangement(n, format: Literal["list", "numpy", "torch"] = "torch"):
     if format == "list":
         return D
     elif format == "numpy":
-        return np.array(D, dtype=np.long)
+        return np.array(D, dtype=np.int64)
     elif format == "torch":
         return torch.tensor(D, dtype=torch.long)
     else:
@@ -781,7 +796,11 @@ class RunningMeanStd:
 
 
 def fix_random_seeds(seed=31):
-    """Fix random seeds for reproducibility."""
+    """Fix random seeds for reproducibility (vendored DINO helper).
+
+    Narrower than :func:`set_seed_everywhere` (no determinism flags, no
+    PYTHONHASHSEED); prefer that canonical entry point in new code.
+    """
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
     np.random.seed(seed)

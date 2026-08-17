@@ -35,7 +35,22 @@ from .config import RCMConfig
 from .contracts import RCMPredictionAdapter
 from .engine import NativeRCMTrainEngine
 from .objective import NativeRCMLossAdapter
-from .synchronization import RCMTensorSynchronizer
+from .synchronization import ProcessGroupRCMTensorSynchronizer, RCMTensorSynchronizer
+
+
+def _default_tensor_synchronizer(
+    tensor_synchronizer: RCMTensorSynchronizer | None,
+    parallel_context: PostTrainingParallelContext,
+) -> RCMTensorSynchronizer | None:
+    """Default multi-rank runs to process-group broadcast synchronization.
+
+    Shared sampling decisions must be identical across the replicated group;
+    without a synchronizer each rank would silently sample its own values.
+    """
+
+    if tensor_synchronizer is not None or parallel_context.world_size == 1:
+        return tensor_synchronizer
+    return ProcessGroupRCMTensorSynchronizer(parallel_context.process_group)
 
 
 def _module(adapter: object, *, role: str) -> nn.Module:
@@ -242,12 +257,13 @@ def build_native_rcm_training_stack(
     if any(parameter.requires_grad for parameter in teacher_module.parameters()):
         raise ValueError("rCM teacher must be frozen before stack construction")
     teacher_module.eval()
+    context = parallel_context or PostTrainingParallelContext.current()
     loss_adapter = NativeRCMLossAdapter(
         student,
         teacher,
         fake_score,
         config,
-        tensor_synchronizer=tensor_synchronizer,
+        tensor_synchronizer=_default_tensor_synchronizer(tensor_synchronizer, context),
     )
     return _build_engine(
         recipe=recipe,
@@ -261,7 +277,7 @@ def build_native_rcm_training_stack(
         student_scheduler=student_scheduler,
         fake_score_scheduler=fake_score_scheduler,
         student_ema=student_ema,
-        parallel_context=parallel_context,
+        parallel_context=context,
         fused_adamw=fused_adamw,
     )
 
@@ -344,6 +360,7 @@ def build_native_causal_rcm_training_stack(
         if any(parameter.requires_grad for parameter in module.parameters()):
             raise ValueError(f"Causal-rCM {name} teacher must be frozen")
         module.eval()
+    context = parallel_context or PostTrainingParallelContext.current()
     loss_adapter = NativeCausalRCMLossAdapter(
         student,
         causal_teacher,
@@ -351,7 +368,7 @@ def build_native_causal_rcm_training_stack(
         bidirectional_teacher,
         fake_score,
         config,
-        tensor_synchronizer=tensor_synchronizer,
+        tensor_synchronizer=_default_tensor_synchronizer(tensor_synchronizer, context),
     )
     return _build_engine(
         recipe=recipe,
@@ -365,7 +382,7 @@ def build_native_causal_rcm_training_stack(
         student_scheduler=student_scheduler,
         fake_score_scheduler=fake_score_scheduler,
         student_ema=student_ema,
-        parallel_context=parallel_context,
+        parallel_context=context,
         fused_adamw=fused_adamw,
     )
 

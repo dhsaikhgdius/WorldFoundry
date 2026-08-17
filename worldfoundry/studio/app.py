@@ -38,6 +38,7 @@ from .launch_config import (
     launch_uses_lingbot_torchrun_rollout,
     parse_launch_config as _parse_launch_config_core,
 )
+from .serving import require_auth_token_for_host, token_matches
 from .visualization.backends.frontends import (
     NATIVE_FRONTENDS,
     host_for_frontend,
@@ -2811,6 +2812,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     demo = build_demo(launch_config)
     host = host_for_frontend(launch_config)
     port = port_for_frontend(launch_config, frontend_mode)
+    auth_token = require_auth_token_for_host(host, server_name="WorldFoundry Studio (Gradio)")
     share_text = env_first("WORLDFOUNDRY_STUDIO_SHARE").strip().lower()
     launch_kwargs: dict[str, Any] = {
         "server_name": host,
@@ -2822,6 +2824,14 @@ def main(argv: Sequence[str] | None = None) -> None:
             str(Path(MANAGER.workspace_root).resolve()),
         ],
     }
+    if auth_token:
+        # Gradio's auth machinery gates every page and API route; any username
+        # is accepted as long as the password equals the shared Studio token.
+        launch_kwargs["auth"] = lambda _username, password: token_matches(password, auth_token)
+        launch_kwargs["auth_message"] = (
+            "This Studio instance is bound to a non-loopback address. Enter any "
+            "username and the WORLDFOUNDRY_STUDIO_AUTH_TOKEN value as the password."
+        )
     if DEMO_IMAGE_LIBRARY_ROOT.exists():
         launch_kwargs["allowed_paths"].append(str(DEMO_IMAGE_LIBRARY_ROOT.resolve()))
     if SPARK_ROOT.exists():

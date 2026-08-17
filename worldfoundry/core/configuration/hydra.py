@@ -120,16 +120,17 @@ def override(config: Config, overrides: Optional[list[str]] = None, remove_defau
             return kwargs
         else:
             ref_fields = set(get_fields(ref_instance))
-            assert isinstance(kwargs, dict) or isinstance(kwargs, DictConfig), (
-                "kwargs must be a dictionary or a DictConfig"
-            )
+            # Input validation must survive ``python -O``, so raise instead of assert.
+            if not isinstance(kwargs, (dict, DictConfig)):
+                raise TypeError(f"kwargs must be a dictionary or a DictConfig, got {type(kwargs)}")
             keys = set(kwargs.keys())
 
             # ref_fields must equal to or include all keys
             extra_keys = keys - ref_fields
-            assert ref_fields == keys or keys.issubset(ref_fields), (
-                f"Fields mismatch: {ref_fields} != {keys}. Extra keys found: {extra_keys} \n \t when constructing {type(ref_instance)} with {keys}"
-            )
+            if not keys.issubset(ref_fields):
+                raise ValueError(
+                    f"Fields mismatch: {ref_fields} != {keys}. Extra keys found: {extra_keys} \n \t when constructing {type(ref_instance)} with {keys}"
+                )
 
             resolved_kwargs: Dict[str, Any] = {}
             for f in keys:
@@ -149,10 +150,14 @@ def override(config: Config, overrides: Optional[list[str]] = None, remove_defau
 
 def get_config_module(config_file: str) -> str:
     if not config_file.endswith(".py"):
-        log.error("Config file cannot be specified as module.")
-        log.error("Please provide a Python config path relative to the WorldFoundry import root.")
-    # Convert to importable module format.
-    config_module = config_file.replace("/", ".").replace(".py", "")
+        # Fail fast instead of logging and deriving a bogus module name.
+        raise ValueError(
+            f"Config file cannot be specified as module (got {config_file!r}). "
+            "Please provide a Python config path relative to the WorldFoundry import root."
+        )
+    # Convert to importable module format. Only strip the trailing suffix so a
+    # ".py" occurring mid-path is preserved.
+    config_module = config_file[: -len(".py")].replace("/", ".")
     if importlib.util.find_spec(config_module) is None:
         raise ValueError(f"WorldFoundry config module ({config_module}) not found.")
     return config_module

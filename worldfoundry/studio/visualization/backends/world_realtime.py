@@ -40,8 +40,14 @@ from worldfoundry.core.video_postprocess import (
     frame_list_from_chunks,
 )
 from worldfoundry.studio.catalog import CatalogEntry
-from worldfoundry.studio.execution import PreparedInputs, StudioManager
+from worldfoundry.studio.execution import IMAGE_EXTS, VIDEO_EXTS, PreparedInputs, StudioManager
 from worldfoundry.studio.launch_config import StudioLaunchConfig
+from worldfoundry.studio.serving import (
+    bind_security_warning,
+    path_allowed,
+    request_token_valid,
+    require_auth_token_for_host,
+)
 from worldfoundry.studio.serving.realtime import media as realtime_media
 from worldfoundry.studio.serving.realtime.input import (
     ControlSegment,
@@ -1187,7 +1193,10 @@ class ResidentWorldRuntime:
                     action="reset",
                 )
             except Exception:
-                pass
+                logger.warning(
+                    "Realtime runtime reset action failed; continuing session teardown.",
+                    exc_info=True,
+                )
         self._configured = False
         self._base_request = None
         self._seed_image = None
@@ -1220,6 +1229,7 @@ class _ActivePeer:
     generation_task: asyncio.Task[Any] | None = None
     liveness_task: asyncio.Task[Any] | None = None
     input_task: asyncio.Task[Any] | None = None
+    setup_task: asyncio.Task[Any] | None = None
     input_messages: asyncio.Queue[Any] = field(default_factory=asyncio.Queue)
     closed: bool = False
     first_action: asyncio.Event = field(default_factory=asyncio.Event)
@@ -1725,7 +1735,12 @@ class RealtimePeerManager:
         try:
             if active is not None and not active.closed:
                 active.closed = True
-                tasks = (active.generation_task, active.liveness_task, active.input_task)
+                tasks = (
+                    active.generation_task,
+                    active.liveness_task,
+                    active.input_task,
+                    active.setup_task,
+                )
                 for task in tasks:
                     if task is not None and task is not current_task:
                         task.cancel()
@@ -1885,6 +1900,14 @@ class RealtimePeerManager:
                 answer = await pc.createAnswer()
                 await pc.setLocalDescription(answer)
                 await _wait_for_ice_gathering(pc)
+                # A peer that completes signaling but never opens its
+                # DataChannel would otherwise hold the single session forever:
+                # the liveness watchdog only starts on channel open and the
+                # connection state can stay "connected".
+                active.setup_task = asyncio.create_task(
+                    self._peer_setup_watchdog(active),
+                    name="world-realtime-peer-setup-watchdog",
+                )
                 return {"sdp": pc.localDescription.sdp, "type": pc.localDescription.type}
             except Exception:
                 active.closed = True
@@ -2470,6 +2493,31 @@ class RealtimePeerManager:
         except asyncio.CancelledError:
             raise
 
+    async def _peer_setup_watchdog(self, active: _ActivePeer) -> None:
+        """Free the single session when a peer never opens its DataChannel.
+
+        Intentionally not cancelled on channel open: after the timeout it
+        re-checks the session state and exits quietly when the channel arrived
+        or the session already closed, so its trigger path cannot race
+        close_active the way a cancellation from ``on_datachannel`` could.
+        ``close_active`` still cancels it (with the current-task guard) so
+        teardown never leaves it sleeping on a stale session.
+        """
+
+        timeout = _env_int("WORLDFOUNDRY_REALTIME_SOCKET_SETUP_TIMEOUT_SECONDS", 15)
+        try:
+            await asyncio.sleep(timeout)
+        except asyncio.CancelledError:
+            raise
+        if active.closed or active.channel is not None:
+            return
+        logger.warning(
+            "Realtime peer completed signaling but opened no DataChannel within %ds; "
+            "closing the half-open session.",
+            timeout,
+        )
+        await self.close_active()
+
     async def _generation_worker(self, active: _ActivePeer) -> None:
         loop = asyncio.get_running_loop()
         try:
@@ -2806,8 +2854,29 @@ def serve_realtime_world_frontend(
     owned_uploads: set[Path] = set()
     upload_cleanup_lock = asyncio.Lock()
     file_roots = tuple(dict.fromkeys(root.expanduser().resolve() for root in (*allowed_roots, upload_root)))
+    upload_allowed_exts = frozenset(IMAGE_EXTS) | frozenset(VIDEO_EXTS)
+    upload_max_bytes = _env_int("WORLDFOUNDRY_UPLOAD_MAX_BYTES", 512 * 1024 * 1024)
 
-    app = web.Application(client_max_size=2 * 1024**3)
+    auth_token = require_auth_token_for_host(host, server_name="Realtime world frontend")
+    middlewares = []
+    if auth_token:
+        static_paths = {"/", "/world.css", "/world.js", "/favicon.svg"}
+
+        @web.middleware
+        async def require_studio_token(request: Any, handler: Any) -> Any:
+            if request.path in static_paths:
+                return await handler(request)
+            if not request_token_valid(
+                auth_token,
+                authorization_header=request.headers.get("Authorization"),
+                query_token=request.query.get("token"),
+            ):
+                raise web.HTTPUnauthorized(reason="Missing or invalid Studio auth token.")
+            return await handler(request)
+
+        middlewares.append(require_studio_token)
+
+    app = web.Application(client_max_size=2 * 1024**3, middlewares=middlewares)
     preload_task: asyncio.Task[Any] | None = None
 
     async def cleanup_owned_uploads() -> None:
@@ -2915,21 +2984,42 @@ def serve_realtime_world_frontend(
         if field is None or field.name != "file":
             raise web.HTTPBadRequest(reason="Expected multipart field named 'file'.")
         filename = Path(field.filename or "input.bin").name
-        suffix = Path(filename).suffix[:16]
+        suffix = Path(filename).suffix[:16].lower()
+        if suffix not in upload_allowed_exts:
+            raise web.HTTPBadRequest(
+                reason=(
+                    f"Unsupported upload type {suffix or '<no suffix>'}; expected one of "
+                    f"{', '.join(sorted(upload_allowed_exts))}."
+                )
+            )
         target = upload_root / f"{uuid.uuid4().hex}{suffix}"
+        written = 0
         handle = await asyncio.to_thread(target.open, "wb")
         try:
-            while chunk := await field.read_chunk(size=1024 * 1024):
-                await asyncio.to_thread(handle.write, chunk)
-        finally:
-            await asyncio.to_thread(handle.close)
+            try:
+                while chunk := await field.read_chunk(size=1024 * 1024):
+                    written += len(chunk)
+                    if written > upload_max_bytes:
+                        raise web.HTTPBadRequest(
+                            reason=(
+                                f"Upload exceeds the per-file limit of {upload_max_bytes} bytes "
+                                "(override with WORLDFOUNDRY_UPLOAD_MAX_BYTES)."
+                            )
+                        )
+                    await asyncio.to_thread(handle.write, chunk)
+            finally:
+                await asyncio.to_thread(handle.close)
+        except BaseException:
+            # Never leave rejected or interrupted uploads on disk.
+            await asyncio.to_thread(target.unlink, missing_ok=True)
+            raise
         owned_uploads.add(target)
         return web.json_response({"path": str(target), "url": f"/api/file?path={quote(str(target), safe='')}"})
 
     async def file_response(request: Any) -> Any:
         raw = str(request.query.get("path") or "")
         path = Path(raw).expanduser().resolve()
-        if not any(path == root or root in path.parents for root in file_roots):
+        if not path_allowed(path, file_roots):
             raise web.HTTPForbidden(reason="Path is outside allowed Studio roots.")
         if not path.is_file():
             raise web.HTTPNotFound()
@@ -3022,6 +3112,9 @@ def serve_realtime_world_frontend(
     app.on_shutdown.append(on_shutdown)
 
     print(f"WorldFoundry realtime WebRTC UI: http://{host}:{port}", flush=True)
+    warning = bind_security_warning(host)
+    if warning:
+        print(warning, flush=True)
     web.run_app(app, host=host, port=port, print=None, handle_signals=True)
 
 

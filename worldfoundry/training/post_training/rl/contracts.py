@@ -5,7 +5,6 @@ from __future__ import annotations
 from collections import Counter
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from re import fullmatch
 from typing import Protocol, runtime_checkable
 
 from ..shared.contracts import (
@@ -46,7 +45,6 @@ class FlowTrajectory:
     sample_ids: tuple[str, ...]
     group_ids: tuple[str, ...]
     policy_revision: str
-    schedule_digest: str
     latents: TensorLike
     sigmas: TensorLike
     step_indices: tuple[int, ...]
@@ -74,9 +72,6 @@ class FlowTrajectory:
             raise ValueError(f"trajectory groups must contain at least two samples: {incomplete}")
         if not isinstance(self.policy_revision, str) or not self.policy_revision.strip():
             raise ValueError("policy_revision must be a non-empty string")
-        if fullmatch(r"[0-9a-f]{64}", str(self.schedule_digest)) is None:
-            raise ValueError("schedule_digest must be a lowercase SHA-256 digest")
-
         latent_shape = tensor_shape(self.latents, field_name="latents")
         if len(latent_shape) < 3 or latent_shape[0] != len(sample_ids) or latent_shape[1] < 2:
             raise ValueError("latents must have shape [B,S+1,...]")
@@ -143,7 +138,6 @@ class FlowTrajectoryReplayBatch:
     source: FlowTrajectory
     start: int
     end: int
-    schedule_digest: str
     conditioning: Mapping[str, object]
     metadata: Mapping[str, object] = field(default_factory=dict)
 
@@ -156,8 +150,6 @@ class FlowTrajectoryReplayBatch:
             or not 0 <= int(self.start) < int(self.end) <= self.source.batch_size
         ):
             raise ValueError("replay batch must be a non-empty contiguous interval")
-        if fullmatch(r"[0-9a-f]{64}", str(self.schedule_digest)) is None:
-            raise ValueError("replay batch schedule_digest must be a lowercase SHA-256 digest")
         object.__setattr__(self, "start", int(self.start))
         object.__setattr__(self, "end", int(self.end))
         object.__setattr__(
@@ -331,6 +323,25 @@ class FlowTrajectoryReplayAdapter(Protocol):
 
 
 @runtime_checkable
+class FlowTrajectorySamplingAdapter(Protocol):
+    """Rollout seam shared by local and distributed flow samplers."""
+
+    def sample(
+        self,
+        initial_latents: TensorLike,
+        sigmas: TensorLike,
+        *,
+        sample_ids: tuple[str, ...],
+        group_ids: tuple[str, ...],
+        conditioning: Mapping[str, object],
+        policy_revision: str,
+        sde_step_indices: tuple[int, ...] | None = None,
+        generator: object | None = None,
+        metadata: Mapping[str, object] | None = None,
+    ) -> FlowTrajectory: ...
+
+
+@runtime_checkable
 class TrajectoryRewardAdapter(Protocol):
     """Score a completed native trajectory into named tensor components."""
 
@@ -343,6 +354,7 @@ __all__ = [
     "FlowTrajectory",
     "FlowTrajectoryReplayBatch",
     "FlowTrajectoryReplayAdapter",
+    "FlowTrajectorySamplingAdapter",
     "RolloutPrompt",
     "TrajectoryRewardAdapter",
     "TensorLike",

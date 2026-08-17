@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import io
 import json
 import os
 import subprocess
@@ -27,27 +26,33 @@ def _load_shard(shard_path: str, param_names: list[str], num_threads: int | None
         print_per_rank(f"Decompressing {zstd_path} with {num_threads} threads")
         cmd = ["zstd", "-d"]
         if num_threads:
-            cmd.extend(["-T", str(num_threads)])
+            # zstd only accepts the attached spelling (-T4 / --threads=4); a
+            # separated "-T", "4" pair is parsed as a file operand.
+            cmd.append(f"-T{num_threads}")
+        cmd.extend(["-c", zstd_path])
 
-        process = subprocess.Popen(cmd + ["-c", zstd_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=-1)
-        decompressed_data = process.stdout.read()
-        process.stdout.close()
-
-        retcode = process.wait()
-        if retcode != 0:
-            raise RuntimeError(f"Decompression failed: {process.stderr.read().decode()}")
+        try:
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        except FileNotFoundError as exc:
+            raise RuntimeError(
+                f"zstd binary not found while decompressing {zstd_path}; "
+                "install zstd or decompress the shard manually"
+            ) from exc
+        # communicate() drains stdout and stderr concurrently; reading stdout
+        # alone can deadlock once zstd fills the stderr pipe buffer.
+        decompressed_data, stderr_data = process.communicate()
+        if process.returncode != 0:
+            raise RuntimeError(f"Decompression failed: {stderr_data.decode(errors='replace')}")
         print_per_rank(
             f"Decompressed {zstd_path} with {num_threads} threads, duration: {(datetime.now() - start_time).total_seconds()}s"
         )
 
-        buffer = io.BytesIO(decompressed_data)
         start_time = datetime.now()
         print_per_rank(f"Loading {shard_path} from zstd file, start time: {start_time}")
-        weights = load_from_bytes(buffer.getvalue())
+        weights = load_from_bytes(decompressed_data)
         print_per_rank(
             f"Loaded {shard_path} from zstd file, duration: {(datetime.now() - start_time).total_seconds()}s"
         )
-        buffer.close()
     else:
         weights = load_file(shard_path)
 

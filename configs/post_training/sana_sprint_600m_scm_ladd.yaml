@@ -33,6 +33,10 @@ algorithm:
   teacher_guidance_scales: [4.0, 4.5, 5.0]
   guidance_embedding_scale: 0.1
   discriminator_head_block_ids: [2, 8, 14, 19]
+  lr_scheduler: constant-with-warmup
+  lr_warmup_steps: 5000
+  student_fp32_attention: true
+  teacher_fp32_attention: false
   tangent_warmup_steps: 4000
   tangent_normalization_constant: 0.1
   consistency_weight: 1.0
