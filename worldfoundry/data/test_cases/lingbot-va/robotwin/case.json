@@ -1,0 +1,15 @@
+{
+  "config_name": "robotwin",
+  "prompt": "Grab the medium-sized white mug, rotate it, place it on the table, and hook it onto the smooth dark gray rack.",
+  "request_mode": "initial_i2va",
+  "source": {
+    "repository": "https://github.com/Robbyant/lingbot-va",
+    "revision": "7c6ffa9bfc4b83582cafc860fab4c82cc7deeeeb",
+    "path": "example/robotwin"
+  },
+  "rgb_views": {
+    "observation.images.cam_high": "observation.images.cam_high.png",
+    "observation.images.cam_left_wrist": "observation.images.cam_left_wrist.png",
+    "observation.images.cam_right_wrist": "observation.images.cam_right_wrist.png"
+  }
+}

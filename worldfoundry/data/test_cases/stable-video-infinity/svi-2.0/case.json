@@ -1,0 +1,15 @@
+{
+  "schema_version": "worldfoundry.test_case.v1",
+  "model_id": "stable-video-infinity",
+  "variant": "svi-2.0-wan2.1-i2v-14b",
+  "image": "frame.jpg",
+  "prompt_stream": [
+    "The water shimmers with dancing caustics as gentle bubbles rise; the camera dolly-ins through a blue haze.",
+    "Sunbeams pierce the surface and scatter into rays; the camera tilt-downs from the glittering top to the reef below."
+  ],
+  "source": {
+    "repository": "https://github.com/vita-epfl/Stable-Video-Infinity",
+    "revision": "63af54329f38b10ed1a91dc88bc67a765d0c4a18",
+    "path": "data/toy_test/svi_2.0"
+  }
+}

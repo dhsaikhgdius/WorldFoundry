@@ -1,0 +1,14 @@
+{
+  "config_name": "libero",
+  "prompt": "put both the alphabet soup and the tomato sauce in the basket",
+  "request_mode": "initial_i2va",
+  "source": {
+    "repository": "https://github.com/Robbyant/lingbot-va",
+    "revision": "7c6ffa9bfc4b83582cafc860fab4c82cc7deeeeb",
+    "path": "example/libero"
+  },
+  "rgb_views": {
+    "observation.images.agentview_rgb": "observation.images.agentview_rgb.png",
+    "observation.images.eye_in_hand_rgb": "observation.images.eye_in_hand_rgb.png"
+  }
+}
