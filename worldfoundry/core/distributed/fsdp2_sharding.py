@@ -1,4 +1,15 @@
 # Copyright 2024-2025 The Alibaba Wan Team Authors. All rights reserved.
+"""Inference-only FSDP2 sharding for vendored Wan-style block models.
+
+Scope note (TE-13): this module (and :mod:`.block_fsdp`) serves the vendored
+inference paths only.  Training code must use
+``worldfoundry.training.distributed.apply_fsdp2`` instead — the fallback
+branch in :func:`shard_model` below silently degrades to a single unsharded
+device when the FSDP2 API is unavailable, which is acceptable for inference
+but would be a silent single-GPU run (wrong gradients/memory profile) in
+training.
+"""
+
 import gc
 import os
 
@@ -23,6 +34,13 @@ def apply_ac(model):
 
 
 def shard_model(model, param_dtype=torch.bfloat16, reduce_dtype=torch.float32):
+    """Shard a vendored block model with FSDP2 for inference.
+
+    Inference/vendored-only (TE-13): when the torch build lacks the FSDP2
+    helpers this silently falls back to an unsharded single-device module,
+    which is fine for inference but must never carry a training run — use
+    ``worldfoundry.training.distributed.apply_fsdp2`` for training.
+    """
     if fully_shard is None or MixedPrecisionPolicy is None:
         model.to(param_dtype)
         if torch.cuda.is_available():

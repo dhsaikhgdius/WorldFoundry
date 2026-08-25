@@ -1,4 +1,13 @@
 # Copyright 2024-2025 The Alibaba Wan Team Authors. All rights reserved.
+"""Inference-only FSDP1 block wrapping for vendored Wan-style models.
+
+Scope note (TE-13): this module (and :mod:`.fsdp2_sharding`) serves the
+vendored inference paths only.  Training code must use
+``worldfoundry.training.distributed.apply_fsdp2`` — these wrappers configure
+FSDP for memory-bounded inference (no optimizer/gradient state handling,
+checkpoint format ties, or trainable-parameter audits).
+"""
+
 import gc
 from functools import partial
 
@@ -20,6 +29,11 @@ def shard_model(
     sync_module_states=True,
     use_lora=False,
 ):
+    """Wrap a vendored block model with FSDP1 for inference (TE-13).
+
+    Inference/vendored-only; training runs must use
+    ``worldfoundry.training.distributed.apply_fsdp2``.
+    """
     model = FSDP(
         module=model,
         process_group=process_group,

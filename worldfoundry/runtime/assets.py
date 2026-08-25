@@ -14,13 +14,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from worldfoundry.core.io.manifests import load_manifest
 from worldfoundry.core.io.paths import (
+    package_data_root,
+    project_root,
     resolve_worldfoundry_path,
 )
 from worldfoundry.core.io.paths import (
     worldfoundry_path_tokens as core_worldfoundry_path_tokens,
 )
-from worldfoundry.evaluation.utils import BENCHMARKS_DATA_ROOT, REPO_ROOT, load_manifest
 
 from .env import (
     EnvMapping,
@@ -36,6 +38,11 @@ from .env import (
 # ── Constants ────────────────────────────────────────────────────────────────
 
 LOCAL_ASSET_MANIFEST_ENV = "WORLDFOUNDRY_LOCAL_ASSET_MANIFEST"
+
+# Same values evaluation.utils derives; resolved from core so the runtime
+# layer never imports worldfoundry.evaluation (SA-10).
+REPO_ROOT = project_root()
+BENCHMARKS_DATA_ROOT = package_data_root() / "benchmarks"
 
 
 def _path_is_ready(path: Path | None) -> bool:

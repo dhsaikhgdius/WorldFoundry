@@ -17,8 +17,14 @@ from typing import Any, Mapping, Sequence
 
 from packaging.version import InvalidVersion, Version
 
-from worldfoundry.core.io.paths import conda_envs_root_path, resolve_worldfoundry_path, worldfoundry_path_tokens
-from worldfoundry.evaluation.utils import DATA_ROOT, REPO_ROOT, load_manifest, load_manifest_collection
+from worldfoundry.core.io.manifests import load_manifest, load_manifest_collection
+from worldfoundry.core.io.paths import (
+    conda_envs_root_path,
+    package_data_root,
+    project_root,
+    resolve_worldfoundry_path,
+    worldfoundry_path_tokens,
+)
 
 from .cuda_tiers import (
     SUPPORTED_CUDA_TIERS,
@@ -33,6 +39,11 @@ from .cuda_tiers import (
 from .env import resolve_ckpt_dir, resolve_hfd_root
 
 # ── Defaults ─────────────────────────────────────────────────────────────────
+
+# Same values evaluation.utils derives; resolved from core so the runtime
+# layer never imports worldfoundry.evaluation (SA-10).
+REPO_ROOT = project_root()
+DATA_ROOT = package_data_root()
 
 DEFAULT_ENV_MANIFEST = DATA_ROOT / "models" / "runtime" / "environments"
 DEFAULT_ENV_ROOT = conda_envs_root_path()

@@ -56,7 +56,15 @@ class DeviceLease:
 
 @dataclass(frozen=True, slots=True)
 class RayDevicePoolConfig:
-    """Physical resource shape owned by one training run."""
+    """Physical resource shape owned by one training run.
+
+    Args:
+        placement_timeout_seconds: Optional bound on how long ``setup()``
+            waits for the placement groups to become ready.  ``None`` (the
+            default) preserves the historical unbounded wait; setting a value
+            turns "the cluster can never satisfy STRICT_PACK" from a silent
+            hang into a raised error with scheduler diagnostics.
+    """
 
     num_devices: int
     devices_per_node: int
@@ -64,6 +72,7 @@ class RayDevicePoolConfig:
     cpus_per_worker: float = 1.0
     accelerator_resource: str = "GPU"
     ray_address: str | None = None
+    placement_timeout_seconds: float | None = None
 
     def __post_init__(self) -> None:
         if self.num_devices <= 0 or self.devices_per_node <= 0:
@@ -72,6 +81,8 @@ class RayDevicePoolConfig:
             raise ValueError("workers_per_device must be positive")
         if self.cpus_per_worker <= 0:
             raise ValueError("cpus_per_worker must be positive")
+        if self.placement_timeout_seconds is not None and not self.placement_timeout_seconds > 0:
+            raise ValueError("placement_timeout_seconds must be positive when set")
         resource = str(self.accelerator_resource).strip()
         if not resource:
             raise ValueError("accelerator_resource must be non-empty")
@@ -397,24 +408,65 @@ class RayDevicePool:
         if self._ray is not None:
             return
         ray = import_module("ray")
+        started_ray = False
         if not ray.is_initialized():
             ray.init(address=self.config.ray_address, ignore_reinit_error=True)
-            self._started_ray = True
-        placement_group = import_module("ray.util.placement_group").placement_group
+            started_ray = True
+        placement_group_module = import_module("ray.util.placement_group")
 
+        # Everything created below is rolled back on failure.  ``self._ray``
+        # is only assigned once setup fully succeeded, so a failed setup must
+        # release its own resources here: ``shutdown()`` early-returns on
+        # ``self._ray is None`` and ``__exit__`` never runs when ``__enter__``
+        # raises (TR-12).
         groups: list[object] = []
-        remaining = self.config.num_devices
-        while remaining:
-            node_devices = min(self.config.devices_per_node, remaining)
-            bundle = {"CPU": self.config.cpus_per_worker * self.config.workers_per_device}
-            if self.config.accelerator_resource != "CPU":
-                bundle[self.config.accelerator_resource] = 1
-            group = placement_group([dict(bundle) for _ in range(node_devices)], strategy="STRICT_PACK")
-            groups.append(group)
-            remaining -= node_devices
-        ray.get([group.ready() for group in groups])
+        try:
+            remaining = self.config.num_devices
+            while remaining:
+                node_devices = min(self.config.devices_per_node, remaining)
+                bundle = {"CPU": self.config.cpus_per_worker * self.config.workers_per_device}
+                if self.config.accelerator_resource != "CPU":
+                    bundle[self.config.accelerator_resource] = 1
+                group = placement_group_module.placement_group(
+                    [dict(bundle) for _ in range(node_devices)], strategy="STRICT_PACK"
+                )
+                groups.append(group)
+                remaining -= node_devices
+            ready = [group.ready() for group in groups]
+            timeout = self.config.placement_timeout_seconds
+            try:
+                if timeout is None:
+                    ray.get(ready)
+                else:
+                    ray.get(ready, timeout=timeout)
+            except BaseException:
+                # STRICT_PACK that can never be satisfied is the common cause;
+                # surface the scheduler's own view before rolling back.
+                try:
+                    table = placement_group_module.placement_group_table()
+                except Exception:
+                    pass
+                else:
+                    logger.error("placement groups failed to become ready; scheduler state: %s", table)
+                raise
+        except BaseException:
+            for group in groups:
+                try:
+                    placement_group_module.remove_placement_group(group)
+                except Exception:
+                    logger.warning(
+                        "failed to remove placement group during setup rollback",
+                        exc_info=True,
+                    )
+            if started_ray:
+                try:
+                    ray.shutdown()
+                except Exception:
+                    logger.warning("failed to shut down Ray during setup rollback", exc_info=True)
+            raise
         self._ray = ray
         self._placement_groups = tuple(groups)
+        self._started_ray = started_ray
 
     def reserve(
         self,
