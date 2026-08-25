@@ -70,12 +70,23 @@ python worldfoundry/evaluation/tasks/execution/runners/mind/run_mind_official_ru
   --json
 ```
 
-Execute the in-tree metric runtime:
+Execute the in-tree metric runtime. The zoo CLI does not expose `--gt-root`/`--dino-path` flags; in `official-run` mode those paths flow through environment variables (`--env`), and `--generated-artifact-dir` is forwarded to the runner:
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id mind \
-  --mode official-validation \
+  --mode official-run \
+  --generated-artifact-dir <model_outputs> \
+  --env WORLDFOUNDRY_MIND_GT_ROOT=<MIND-Data> \
+  --env WORLDFOUNDRY_MIND_DINO_PATH=<dinov3_vitb16> \
+  --output-dir <out> \
+  --json
+```
+
+Or call the runner directly for the full flag surface (`--gt-root`, `--dino-path`, `--weights-dir`, `--vipe-repo`, `--num-gpus`, `--metrics`, `--video-max-time`):
+
+```bash
+python worldfoundry/evaluation/tasks/execution/runners/mind/run_mind_official_runner.py \
   --run-official \
   --gt-root <MIND-Data> \
   --generated-artifact-dir <model_outputs> \
