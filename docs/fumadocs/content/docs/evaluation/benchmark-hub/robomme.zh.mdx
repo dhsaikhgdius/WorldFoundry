@@ -1,127 +1,81 @@
 ---
 title: RoboMME
-description: RoboMME — 指标、依赖与运行命令。
+description: 记忆增强操作评测（ICML 2026 Spotlight）：Counting、Permanence、Reference、Imitation 四套件共 16 个任务。
 ---
 
 ## 简介
 
+**发表机构：** University of Michigan（密歇根大学，联合斯坦福与 Figure AI）
 
+RoboMME（ICML 2026 Spotlight）是首个面向记忆增强机器人操作的大规模标准化评测。按认知记忆分类学，其 16 个长时程任务分为四个套件：**Counting**（时间记忆——精确重复动作指定次数）、**Permanence**（空间记忆——在遮挡与交换中跟踪物体）、**Reference**（物体记忆——依据先前视觉/语言线索解析身份）与 **Imitation**（程序记忆——复现演示轨迹）。官方发布含 77 万训练时间步与基于 π0.5 骨干的 14 个记忆增强 VLA 变体。
 
-RoboMME external benchmark manifest for memory and multimodal embodied policy evaluation.
+WorldFoundry 以官方结果 runner 集成 RoboMME：上游 rollout 导出中的逐套件成功率被归一化为统一 scorecard。
 
+官方参考：
 
+- Paper: [arxiv.org/abs/2603.04639](https://arxiv.org/abs/2603.04639)
+- 官方仓库: [RoboMME/robomme_policy_learning](https://github.com/RoboMME/robomme_policy_learning)
+- License: `upstream_terms`
 
-## 指标
+## 评测协议
 
-RoboMME external benchmark manifest for memory and multimodal embodied policy evaluation.
+WorldFoundry 通过统一的结果导入路径集成该 benchmark：`worldfoundry-eval zoo benchmark-run --mode official-validation` 把调用方提供的官方结果导出（JSON/CSV rollout 汇总）归一化为 WorldFoundry scorecard，不执行模拟器。模拟器执行、策略加载与 rollout 采集仍是使用官方工具完成的显式上游步骤。
 
-### Task YAML
+主指标是 `success_rate`。
 
-`worldfoundry/data/benchmarks/tasks/external/robomme.yaml`
+| Metric | 含义 | 方向 |
+| --- | --- | --- |
+| `success_rate` | 评测 rollout 上的主成功率（逐 episode 成功比例）。 | 越高越好 |
+| `counting_success_rate` | Counting 套件（时间记忆）成功率。 | 越高越好 |
+| `permanence_success_rate` | Permanence 套件（空间记忆）成功率。 | 越高越好 |
+| `reference_success_rate` | Reference 套件（物体记忆）成功率。 | 越高越好 |
+| `imitation_success_rate` | Imitation 套件（程序记忆）成功率。 | 越高越好 |
 
-### Primary
+## 数据与产物布局
 
-- `success_rate`
+WorldFoundry 仓内路径：
 
-| Metric | 关注点 |
-| --- | --- |
-| `success_rate` | episode / task 是否成功完成的比例或成功率。 |
-| `counting_success_rate` | episode / task 是否成功完成的比例或成功率。 |
-| `permanence_success_rate` | episode / task 是否成功完成的比例或成功率。 |
-| `reference_success_rate` | episode / task 是否成功完成的比例或成功率。 |
-| `imitation_success_rate` | episode / task 是否成功完成的比例或成功率。 |
+```text
+worldfoundry/data/benchmarks/tasks/external/robomme.yaml
+```
 
-
-
-## 环境准备
-
-### 运行环境
-
-- **Conda 环境：** `worldfoundry-unified-cu128`。
-- **单独配置：** 默认复用 WorldFoundry 统一环境（`needs_new_env: false`），通常不需要额外 benchmark-only conda env。
-- WorldFoundry provides contract and official result normalization for caller-provided RoboMME outputs.
-
-### 测评数据
-
-- 待测模型输出目录：设置 `WORLDFOUNDRY_ROBOMME_RESULTS_PATH` 指向生成视频或 rollout artifact 根目录。
-- `${WORLDFOUNDRY_DATA_DIR}/datasets/robomme`
-- `${WORLDFOUNDRY_CACHE_DIR}/repos/RoboMME--robomme_policy_learning`
-
-### Checkpoint 与资产
-
-- 该 benchmark 以官方结果归一化或仿真 rollout 为主；policy / simulator checkpoint 见 catalog `requires` 与 task YAML。
-
-### 关键环境变量
-
-- `WORLDFOUNDRY_ROBOMME_ROOT`
-- `WORLDFOUNDRY_ROBOMME_RESULTS_PATH`
-
-
+```text
+<official_results.json>                 # 官方工具产出的 rollout 汇总导出
+${WORLDFOUNDRY_ROBOMME_RESULTS_PATH}   # 默认导入路径
+```
 
 ## 运行评测
 
-
-
-准备好该 benchmark 页面列出的资产和候选产物后，使用下面的公开运行入口。
-
-### 设置候选产物目录
-
-```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/generated/artifacts
-```
-
-### 导入已有官方结果
+目录 manifest 记录的 validation 命令：
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id robomme \
-  --mode normalizer \
-  --official-results-path /path/to/official/results-or-report \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/robomme/normalizer \
+  --mode official-validation \
+  --official-results-path <official_results.json> \
+  --output-dir <out> \
   --json
 ```
 
-### 从生成产物重新打分
+## 权重与环境变量
 
-```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id robomme \
-  --mode official-run \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/robomme/official-run \
-  --json
-```
+- `WORLDFOUNDRY_ROBOMME_ROOT`: 可选覆盖项，指向本地 benchmark runtime / 仓库根目录。
+- `WORLDFOUNDRY_ROBOMME_RESULTS_PATH`: 未显式传 `--official-results-path` 时，导入器默认从该路径读取官方结果导出文件。
 
-### 直接调用仓内 runner
+## 输出文件
 
-```bash
-worldfoundry-eval zoo benchmark-run --benchmark-id robomme --mode official-validation --official-results-path <official_results.json> --output-dir <out> --json
-```
+运行会在 `--output-dir` 下写出：
 
+- `scorecard.json`: WorldFoundry 统一 scorecard，记录上表中的指标值。
+- `raw_results.jsonl`: 从官方结果导出解析出的归一化行。
+- `evaluation/summary.json`: 聚合评测摘要。
 
+Scorecard 主键：`success_rate`（leaderboard key `success_rate`），写入 `scorecard.json`。
 
-## 依赖与产物
+## 边界与限制
 
-
-
-### Inputs
-
-- Official simulator runtime
-- benchmark assets
-- policy checkpoint
-- official result dump
-
-### Environment
-
-- `WORLDFOUNDRY_ROBOMME_RESULTS_PATH`
-
-### Outputs
-
-- `scorecard.json`
-- `raw_results.jsonl`
-- `evaluation/summary.json`
-
-
+- WorldFoundry 只归一化所提供的 rollout 结果；不在仓内运行官方模拟器或策略。
+- 在用就位的模拟器资产与策略权重执行官方 rollout 并导入之前，不声称完整 leaderboard 对齐。
+- 导入的 scorecard 是集成证据，不是 leaderboard 提交。
 
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

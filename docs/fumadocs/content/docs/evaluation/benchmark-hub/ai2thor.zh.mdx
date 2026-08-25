@@ -1,102 +1,79 @@
 ---
 title: AI2-THOR
-description: AI2-THOR — 指标、依赖与运行命令。
+description: Ai2 出品的交互式 3D 家居模拟器，在 WorldFoundry 中作为原生闭环具身 runtime 接入。
 ---
 
 ## 简介
 
+**发表机构：** Allen Institute for AI（Ai2，艾伦人工智能研究所）
 
+AI2-THOR 是艾伦人工智能研究所面向具身 AI 的交互式 3D 环境：接近照片级的家居场景、可操作物体与物理引擎，智能体通过离散动作导航与操作。它是 ALFRED、TEACh 等任务套件的底座。
 
-AI2-THOR external task manifest for native embodied closed-loop rollouts.
+WorldFoundry 把 AI2-THOR 作为*原生闭环模拟器*接入：`worldfoundry-eval embodied run` 启动基于 Unity 的模拟器，驱动输出离散模拟器 token（`forward`、`left`、`pickup` 等）的策略逐步执行，并写出 rollout 记录与 scorecard。默认场景任务（如 FloorPlan1）用于接线验证。
 
+官方参考：
 
+- Paper: [ai2thor.allenai.org/](https://ai2thor.allenai.org/)
+- 官方仓库: [allenai/ai2thor](https://github.com/allenai/ai2thor)
+- License: `upstream_terms`
 
-## 指标
+## 评测协议
 
-AI2-THOR external task manifest for native embodied closed-loop rollouts.
+闭环运行由 `worldfoundry/data/benchmarks/eval_configs/embodied/ai2thor/` 下的评测配置驱动；策略是把观测映射为离散模拟器 token 的权重文件或外部策略服务。也可通过 `WORLDFOUNDRY_AI2THOR_RESULTS_PATH` 导入已有 rollout 汇总进行归一化。
 
-### Task YAML
+主指标是 `success_rate`。
 
-`worldfoundry/data/benchmarks/tasks/external/ai2thor.yaml`
+| Metric | 含义 | 方向 |
+| --- | --- | --- |
+| `success_rate` | 评测 rollout 上的主成功率（逐 episode 成功比例）。 | 越高越好 |
+| `task_success` | 按任务聚合的成功率。 | 越高越好 |
+| `episode_success` | 逐 episode 成功指示的聚合值。 | 越高越好 |
+| `reward` | 平均 episode 奖励 / 回报。 | 越高越好 |
 
-### Primary
+## 数据与产物布局
 
-- `success_rate`
+WorldFoundry 仓内路径：
 
-| Metric | 关注点 |
-| --- | --- |
-| `success_rate` | episode / task 是否成功完成的比例或成功率。 |
-| `task_success` | episode / task 是否成功完成的比例或成功率。 |
-| `episode_success` | episode / task 是否成功完成的比例或成功率。 |
-| `reward` | AI2-THOR 交互式家庭导航与操作 episode 中，朝向语言目标的仿真器累计 reward。 |
+```text
+worldfoundry/data/benchmarks/tasks/external/ai2thor.yaml
+```
 
+```text
+worldfoundry/data/benchmarks/eval_configs/embodied/ai2thor/floorplan1.yaml   # 接线验证任务
+cache/vla_va_wam/repos/allenai--ai2thor                                      # 上游仓库镜像
+```
 
+需要 AI2-THOR Python 包、Unity 模拟器构建/缓存，以及 headless CloudRendering 或 X11 显示后端。
 
 ## 运行评测
 
-
-
-准备好该 benchmark 页面列出的资产和候选产物后，使用下面的公开运行入口。
-
-### 设置候选产物目录
+目录 manifest 记录的 validation 命令：
 
 ```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/generated/artifacts
+worldfoundry-eval embodied run \
+  --config worldfoundry/data/benchmarks/eval_configs/embodied/ai2thor/floorplan1.yaml
 ```
 
-### 导入已有官方结果
+## 权重与环境变量
 
-```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id ai2thor \
-  --mode normalizer \
-  --official-results-path /path/to/official/results-or-report \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/ai2thor/normalizer \
-  --json
-```
+- `WORLDFOUNDRY_AI2THOR_ROOT`: 可选覆盖项，指向本地 benchmark runtime / 仓库根目录。
+- `WORLDFOUNDRY_AI2THOR_RESULTS_PATH`: 未显式传 `--official-results-path` 时，导入器默认从该路径读取官方结果导出文件。
 
-### 从生成产物重新打分
+## 输出文件
 
-```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id ai2thor \
-  --mode official-run \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/ai2thor/official-run \
-  --json
-```
+运行会在 `--output-dir` 下写出：
 
-### 直接调用仓内 runner
+- `scorecard.json`: WorldFoundry 统一 scorecard，记录上表中的指标值。
+- `run_manifest.json`: 本次 rollout 运行的 manifest。
+- `results.jsonl`: 逐 episode 的 rollout 记录。
+- `metrics/summary.json`: 本次运行的聚合指标摘要。
 
-```bash
-worldfoundry-eval embodied run --config worldfoundry/data/benchmarks/eval_configs/embodied/ai2thor/floorplan1.yaml
-```
+Scorecard 主键：`success_rate`（leaderboard key `success_rate`），写入 `scorecard.json`。
 
+## 边界与限制
 
-
-## 依赖与产物
-
-
-
-### Inputs
-
-- AI2-THOR Python package
-- AI2-THOR Unity simulator build/cache
-- Headless CloudRendering or X11 display backend
-- Policy checkpoint or external policy server for non-zero rollouts
-
-### Environment
-
-- `WORLDFOUNDRY_AI2THOR_RESULTS_PATH`
-
-### Outputs
-
-- `scorecard.json`
-- `run_manifest.json`
-- `results.jsonl`
-- `metrics/summary.json`
-
-
+- ALFRED/TEACh 等官方任务套件尚未捆绑；默认场景任务只验证接线。
+- 非零成绩的 rollout 需要策略权重或外部策略服务。
+- 默认场景任务的闭环得分不可与已发表的 ALFRED/TEACh 数字比较。
 
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

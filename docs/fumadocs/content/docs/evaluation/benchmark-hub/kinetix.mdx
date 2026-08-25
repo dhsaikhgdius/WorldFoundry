@@ -1,126 +1,80 @@
 ---
 title: Kinetix
-description: Kinetix — metrics, requirements, and run commands.
+description: Open-ended 2D physics-based RL environment space (ICLR 2025 oral); WorldFoundry normalizes official rollout exports.
 ---
 
 ## About
 
+**Publisher:** FLAIR, University of Oxford
 
+Kinetix, from Oxford's FLAIR lab, is an open-ended space of JAX-accelerated 2D physics-based RL environments: procedurally representable levels cover robotic-style locomotion, grasping, and classic control within one unified simulator, enabling large-scale general-agent pretraining and held-out task evaluation.
 
-Kinetix external benchmark manifest for JAX physics embodied action evaluation.
+WorldFoundry integrates Kinetix as an official-results runner: rollout exports from the upstream JAX tooling are normalized into the unified scorecard.
 
+Official references:
 
+- Paper: [arxiv.org/abs/2410.23208](https://arxiv.org/abs/2410.23208)
+- Official repository: [FLAIROx/Kinetix](https://github.com/FLAIROx/Kinetix)
+- License: `upstream_terms`
 
-## Metrics
+## Evaluation protocol
 
-Kinetix external benchmark manifest for JAX physics embodied action evaluation.
+WorldFoundry integrates this benchmark through the unified result-import path: `worldfoundry-eval zoo benchmark-run --mode official-validation` normalizes a caller-provided official result export (JSON/CSV rollout summaries) into the WorldFoundry scorecard without executing the simulator. Simulator execution, policy loading, and rollout collection remain explicit upstream steps performed with the official tooling.
 
-### Task YAML
+Primary metric: `success_rate`.
 
-`worldfoundry/data/benchmarks/tasks/external/kinetix.yaml`
+| Metric | Meaning | Direction |
+| --- | --- | --- |
+| `success_rate` | Primary episode success rate over evaluated rollouts. | Higher is better |
+| `task_success` | Per-task success aggregate. | Higher is better |
+| `episode_success` | Per-episode success indicator aggregate. | Higher is better |
+| `reward` | Mean episode reward / return. | Higher is better |
 
-### Primary
+## Data and artifact layout
 
-- `success_rate`
+In-tree paths:
 
-| Metric | Focus |
-| --- | --- |
-| `success_rate` | Share of episodes or tasks that complete successfully. |
-| `task_success` | Share of episodes or tasks that complete successfully. |
-| `episode_success` | Share of episodes or tasks that complete successfully. |
-| `reward` | Cumulative RL reward on Kinetix procedurally generated 2D rigid-body control puzzles. |
-
-
-
-## Environment setup
-
-### Runtime environment
-
-- **Conda env:** `kinetix-jax`.
-- **Separate setup:** this benchmark expects a dedicated conda env rather than the unified runtime.
-- Keep Kinetix in a JAX-compatible simulator environment when the unified PyTorch runtime is insufficient.
-
-### Evaluation data
-
-- Candidate model outputs: set `WORLDFOUNDRY_KINETIX_RESULTS_PATH` to the generated-video or rollout artifact root.
-- `${WORLDFOUNDRY_DATA_DIR}/datasets/kinetix`
-- `${WORLDFOUNDRY_CACHE_DIR}/repos/FLAIROx--Kinetix`
-
-### Checkpoints & assets
-
-- This benchmark is primarily rollout- or official-result-driven; see catalog `requires` and the task YAML for policy/simulator checkpoints.
-
-### Key environment variables
-
-- `WORLDFOUNDRY_KINETIX_ROOT`
-- `WORLDFOUNDRY_KINETIX_RESULTS_PATH`
-
-
-
-## Run evaluation
-
-
-
-After preparing the assets and candidate artifacts listed on this page, use the public run entry points below.
-
-### Set candidate artifacts
-
-```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/generated/artifacts
+```text
+worldfoundry/data/benchmarks/tasks/external/kinetix.yaml
 ```
 
-### Import official results
+```text
+<official_results.json>                 # rollout summary export from the official tooling
+${WORLDFOUNDRY_KINETIX_RESULTS_PATH}   # default import path
+```
+
+## Run the benchmark
+
+Catalog-recorded validation command:
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id kinetix \
-  --mode normalizer \
-  --official-results-path /path/to/official/results-or-report \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/kinetix/normalizer \
+  --mode official-validation \
+  --official-results-path <official_results.json> \
+  --output-dir <out> \
   --json
 ```
 
-### Score generated artifacts
+## Checkpoints and environment variables
 
-```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id kinetix \
-  --mode official-run \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/kinetix/official-run \
-  --json
-```
+- `WORLDFOUNDRY_KINETIX_ROOT`: Optional override pointing at a local benchmark runtime/repository root.
+- `WORLDFOUNDRY_KINETIX_RESULTS_PATH`: Default path the importer reads official result exports from when `--official-results-path` is not passed.
 
-### Direct in-tree runner
+## Outputs
 
-```bash
-worldfoundry-eval zoo benchmark-run --benchmark-id kinetix --mode official-validation --official-results-path <official_results.json> --output-dir <out> --json
-```
+The run writes into `--output-dir`:
 
+- `scorecard.json`: WorldFoundry scorecard with the metric values recorded above.
+- `raw_results.jsonl`: Normalized rows parsed from the official result export.
+- `evaluation/summary.json`: Aggregated evaluation summary.
 
+Scorecard primary key: `success_rate` (leaderboard key `success_rate`), stored in `scorecard.json`.
 
-## Requirements
+## Limitations
 
-
-
-### Inputs
-
-- Official simulator runtime
-- benchmark assets
-- policy checkpoint
-- official result dump
-
-### Environment
-
-- `WORLDFOUNDRY_KINETIX_RESULTS_PATH`
-
-### Outputs
-
-- `scorecard.json`
-- `raw_results.jsonl`
-- `evaluation/summary.json`
-
-
+- WorldFoundry normalizes supplied rollout results; it does not run the official simulator or policies in tree.
+- Full leaderboard parity is not claimed until official rollouts are executed with staged simulator assets and policy checkpoints, then imported.
+- Imported scorecards are integration evidence, not leaderboard submissions.
 
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

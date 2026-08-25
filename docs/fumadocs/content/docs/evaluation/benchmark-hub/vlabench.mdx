@@ -1,126 +1,80 @@
 ---
 title: VLABench
-description: VLABench — metrics, requirements, and run commands.
+description: Large-scale language-conditioned manipulation benchmark requiring world knowledge and reasoning; WorldFoundry normalizes official result exports.
 ---
 
 ## About
 
+**Publisher:** Fudan University (OpenMOSS)
 
+VLABench, from Fudan University's OpenMOSS team, benchmarks language-conditioned manipulation tasks that require world knowledge and multi-step reasoning — not just instruction following: 100 task categories with 2,000+ objects in MuJoCo, probing mesh/texture understanding, spatial and semantic reasoning, physical-law understanding, and long-horizon planning for both VLA policies and VLM planners.
 
-VLABench external benchmark manifest for language-conditioned manipulation policy rollouts.
+WorldFoundry integrates VLABench as an official-results runner: rollout exports are normalized into the unified scorecard.
 
+Official references:
 
+- Paper: [arxiv.org/abs/2502.09858](https://arxiv.org/abs/2502.09858)
+- Official repository: [OpenMOSS/VLABench](https://github.com/OpenMOSS/VLABench)
+- License: `upstream_terms`
 
-## Metrics
+## Evaluation protocol
 
-VLABench external benchmark manifest for language-conditioned manipulation policy rollouts.
+WorldFoundry integrates this benchmark through the unified result-import path: `worldfoundry-eval zoo benchmark-run --mode official-validation` normalizes a caller-provided official result export (JSON/CSV rollout summaries) into the WorldFoundry scorecard without executing the simulator. Simulator execution, policy loading, and rollout collection remain explicit upstream steps performed with the official tooling.
 
-### Task YAML
+Primary metric: `success_rate`.
 
-`worldfoundry/data/benchmarks/tasks/external/vlabench.yaml`
+| Metric | Meaning | Direction |
+| --- | --- | --- |
+| `success_rate` | Primary episode success rate over evaluated rollouts. | Higher is better |
+| `task_success` | Per-task success aggregate. | Higher is better |
+| `episode_success` | Per-episode success indicator aggregate. | Higher is better |
+| `reward` | Mean episode reward / return. | Higher is better |
 
-### Primary
+## Data and artifact layout
 
-- `success_rate`
+In-tree paths:
 
-| Metric | Focus |
-| --- | --- |
-| `success_rate` | Share of episodes or tasks that complete successfully. |
-| `task_success` | Share of episodes or tasks that complete successfully. |
-| `episode_success` | Share of episodes or tasks that complete successfully. |
-| `reward` | Cumulative reward on VLABench language-conditioned tabletop manipulation rollouts. |
-
-
-
-## Environment setup
-
-### Runtime environment
-
-- **Conda env:** `vlabench-runtime`.
-- **Separate setup:** this benchmark expects a dedicated conda env rather than the unified runtime.
-- WorldFoundry provides contract and official result normalization for caller-provided VLABench outputs.
-
-### Evaluation data
-
-- Candidate model outputs: set `WORLDFOUNDRY_VLABENCH_RESULTS_PATH` to the generated-video or rollout artifact root.
-- `${WORLDFOUNDRY_DATA_DIR}/datasets/vlabench`
-- `${WORLDFOUNDRY_CACHE_DIR}/repos/OpenMOSS--VLABench`
-
-### Checkpoints & assets
-
-- This benchmark is primarily rollout- or official-result-driven; see catalog `requires` and the task YAML for policy/simulator checkpoints.
-
-### Key environment variables
-
-- `WORLDFOUNDRY_VLABENCH_ROOT`
-- `WORLDFOUNDRY_VLABENCH_RESULTS_PATH`
-
-
-
-## Run evaluation
-
-
-
-After preparing the assets and candidate artifacts listed on this page, use the public run entry points below.
-
-### Set candidate artifacts
-
-```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/generated/artifacts
+```text
+worldfoundry/data/benchmarks/tasks/external/vlabench.yaml
 ```
 
-### Import official results
+```text
+<official_results.json>                 # rollout summary export from the official tooling
+${WORLDFOUNDRY_VLABENCH_RESULTS_PATH}   # default import path
+```
+
+## Run the benchmark
+
+Catalog-recorded validation command:
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id vlabench \
-  --mode normalizer \
-  --official-results-path /path/to/official/results-or-report \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/vlabench/normalizer \
+  --mode official-validation \
+  --official-results-path <official_results.json> \
+  --output-dir <out> \
   --json
 ```
 
-### Score generated artifacts
+## Checkpoints and environment variables
 
-```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id vlabench \
-  --mode official-run \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/vlabench/official-run \
-  --json
-```
+- `WORLDFOUNDRY_VLABENCH_ROOT`: Optional override pointing at a local benchmark runtime/repository root.
+- `WORLDFOUNDRY_VLABENCH_RESULTS_PATH`: Default path the importer reads official result exports from when `--official-results-path` is not passed.
 
-### Direct in-tree runner
+## Outputs
 
-```bash
-worldfoundry-eval zoo benchmark-run --benchmark-id vlabench --mode official-validation --official-results-path <official_results.json> --output-dir <out> --json
-```
+The run writes into `--output-dir`:
 
+- `scorecard.json`: WorldFoundry scorecard with the metric values recorded above.
+- `raw_results.jsonl`: Normalized rows parsed from the official result export.
+- `evaluation/summary.json`: Aggregated evaluation summary.
 
+Scorecard primary key: `success_rate` (leaderboard key `success_rate`), stored in `scorecard.json`.
 
-## Requirements
+## Limitations
 
-
-
-### Inputs
-
-- Official simulator runtime
-- benchmark assets
-- policy checkpoint
-- official result dump
-
-### Environment
-
-- `WORLDFOUNDRY_VLABENCH_RESULTS_PATH`
-
-### Outputs
-
-- `scorecard.json`
-- `raw_results.jsonl`
-- `evaluation/summary.json`
-
-
+- WorldFoundry normalizes supplied rollout results; it does not run the official simulator or policies in tree.
+- Full leaderboard parity is not claimed until official rollouts are executed with staged simulator assets and policy checkpoints, then imported.
+- Imported scorecards are integration evidence, not leaderboard submissions.
 
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

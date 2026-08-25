@@ -1,126 +1,80 @@
 ---
 title: RoboCerebra
-description: RoboCerebra — 指标、依赖与运行命令。
+description: 考察深思式 System-2 规划的长时程机器人操作评测；WorldFoundry 归一化官方结果导出。
 ---
 
 ## 简介
 
+**发表机构：** Beihang University（北京航空航天大学 CoLa 实验室）
 
+RoboCerebra 来自北京航空航天大学 CoLa 实验室，评测需要在反应式底层控制之上进行深思式高层规划（“cerebra” System-2 推理）的长时程机器人操作：加长的家务任务序列包含动态子目标变化、观测核查与记忆要求，由分层的 VLM 规划器 + VLA 控制器栈完成评测。
 
-RoboCerebra external benchmark manifest for cognitive embodied manipulation tasks.
+WorldFoundry 以官方结果 runner 集成 RoboCerebra：rollout 导出被归一化为统一 scorecard。
 
+官方参考：
 
+- Paper: [arxiv.org/abs/2502.02853](https://arxiv.org/abs/2502.02853)
+- 官方仓库: [buaa-colalab/RoboCerebra](https://github.com/buaa-colalab/RoboCerebra)
+- License: `upstream_terms`
 
-## 指标
+## 评测协议
 
-RoboCerebra external benchmark manifest for cognitive embodied manipulation tasks.
+WorldFoundry 通过统一的结果导入路径集成该 benchmark：`worldfoundry-eval zoo benchmark-run --mode official-validation` 把调用方提供的官方结果导出（JSON/CSV rollout 汇总）归一化为 WorldFoundry scorecard，不执行模拟器。模拟器执行、策略加载与 rollout 采集仍是使用官方工具完成的显式上游步骤。
 
-### Task YAML
+主指标是 `success_rate`。
 
-`worldfoundry/data/benchmarks/tasks/external/robocerebra.yaml`
+| Metric | 含义 | 方向 |
+| --- | --- | --- |
+| `success_rate` | 评测 rollout 上的主成功率（逐 episode 成功比例）。 | 越高越好 |
+| `task_success` | 按任务聚合的成功率。 | 越高越好 |
+| `episode_success` | 逐 episode 成功指示的聚合值。 | 越高越好 |
+| `reward` | 平均 episode 奖励 / 回报。 | 越高越好 |
 
-### Primary
+## 数据与产物布局
 
-- `success_rate`
+WorldFoundry 仓内路径：
 
-| Metric | 关注点 |
-| --- | --- |
-| `success_rate` | episode / task 是否成功完成的比例或成功率。 |
-| `task_success` | episode / task 是否成功完成的比例或成功率。 |
-| `episode_success` | episode / task 是否成功完成的比例或成功率。 |
-| `reward` | RoboCerebra 长时推理与操作 rollout 的任务 reward。 |
+```text
+worldfoundry/data/benchmarks/tasks/external/robocerebra.yaml
+```
 
-
-
-## 环境准备
-
-### 运行环境
-
-- **Conda 环境：** `worldfoundry-unified-cu128`。
-- **单独配置：** 默认复用 WorldFoundry 统一环境（`needs_new_env: false`），通常不需要额外 benchmark-only conda env。
-- WorldFoundry provides contract and official result normalization for caller-provided RoboCerebra outputs.
-
-### 测评数据
-
-- 待测模型输出目录：设置 `WORLDFOUNDRY_ROBOCEREBRA_RESULTS_PATH` 指向生成视频或 rollout artifact 根目录。
-- `${WORLDFOUNDRY_DATA_DIR}/datasets/robocerebra`
-- `${WORLDFOUNDRY_CACHE_DIR}/repos/buaa-colalab--RoboCerebra`
-
-### Checkpoint 与资产
-
-- 该 benchmark 以官方结果归一化或仿真 rollout 为主；policy / simulator checkpoint 见 catalog `requires` 与 task YAML。
-
-### 关键环境变量
-
-- `WORLDFOUNDRY_ROBOCEREBRA_ROOT`
-- `WORLDFOUNDRY_ROBOCEREBRA_RESULTS_PATH`
-
-
+```text
+<official_results.json>                 # 官方工具产出的 rollout 汇总导出
+${WORLDFOUNDRY_ROBOCEREBRA_RESULTS_PATH}   # 默认导入路径
+```
 
 ## 运行评测
 
-
-
-准备好该 benchmark 页面列出的资产和候选产物后，使用下面的公开运行入口。
-
-### 设置候选产物目录
-
-```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/generated/artifacts
-```
-
-### 导入已有官方结果
+目录 manifest 记录的 validation 命令：
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id robocerebra \
-  --mode normalizer \
-  --official-results-path /path/to/official/results-or-report \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/robocerebra/normalizer \
+  --mode official-validation \
+  --official-results-path <official_results.json> \
+  --output-dir <out> \
   --json
 ```
 
-### 从生成产物重新打分
+## 权重与环境变量
 
-```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id robocerebra \
-  --mode official-run \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/robocerebra/official-run \
-  --json
-```
+- `WORLDFOUNDRY_ROBOCEREBRA_ROOT`: 可选覆盖项，指向本地 benchmark runtime / 仓库根目录。
+- `WORLDFOUNDRY_ROBOCEREBRA_RESULTS_PATH`: 未显式传 `--official-results-path` 时，导入器默认从该路径读取官方结果导出文件。
 
-### 直接调用仓内 runner
+## 输出文件
 
-```bash
-worldfoundry-eval zoo benchmark-run --benchmark-id robocerebra --mode official-validation --official-results-path <official_results.json> --output-dir <out> --json
-```
+运行会在 `--output-dir` 下写出：
 
+- `scorecard.json`: WorldFoundry 统一 scorecard，记录上表中的指标值。
+- `raw_results.jsonl`: 从官方结果导出解析出的归一化行。
+- `evaluation/summary.json`: 聚合评测摘要。
 
+Scorecard 主键：`success_rate`（leaderboard key `success_rate`），写入 `scorecard.json`。
 
-## 依赖与产物
+## 边界与限制
 
-
-
-### Inputs
-
-- Official simulator runtime
-- benchmark assets
-- policy checkpoint
-- official result dump
-
-### Environment
-
-- `WORLDFOUNDRY_ROBOCEREBRA_RESULTS_PATH`
-
-### Outputs
-
-- `scorecard.json`
-- `raw_results.jsonl`
-- `evaluation/summary.json`
-
-
+- WorldFoundry 只归一化所提供的 rollout 结果；不在仓内运行官方模拟器或策略。
+- 在用就位的模拟器资产与策略权重执行官方 rollout 并导入之前，不声称完整 leaderboard 对齐。
+- 导入的 scorecard 是集成证据，不是 leaderboard 提交。
 
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

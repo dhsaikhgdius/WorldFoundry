@@ -1,132 +1,81 @@
 ---
 title: BridgeData V2
-description: BridgeData V2 — 指标、依赖与运行命令。
+description: 伯克利 RAIL 的真实机器人操作数据集与评测协议；WorldFoundry 归一化策略评测导出。
 ---
 
 ## 简介
 
+**发表机构：** UC Berkeley（加州大学伯克利分校 RAIL 实验室）
 
+BridgeData V2 是 UC Berkeley RAIL 的大规模真实机器人操作数据集——在低成本 WidowX 机械臂上跨 24 个环境采集的 6 万余条轨迹——用于训练与评测具备语言/目标图像条件的广义机器人策略。评测按脚本化真机或离线协议报告任务成功率。
 
-BridgeData V2 external benchmark task manifest for real-robot dataset and offline policy result normalization.
+WorldFoundry 以官方结果 runner 集成 BridgeData V2：策略评测导出（任务/目标成功率、动作准确率、rollout 成功率）被归一化为统一 scorecard；数据集就位与策略 rollout 保持在上游完成。
 
+官方参考：
 
+- Paper: [arxiv.org/abs/2308.12952](https://arxiv.org/abs/2308.12952)
+- 项目主页: [rail-berkeley.github.io/bridgedata](https://rail-berkeley.github.io/bridgedata/)
+- 官方仓库: [rail-berkeley/bridge_data_v2](https://github.com/rail-berkeley/bridge_data_v2)
+- License: `mit`
 
-## 指标
+## 评测协议
 
-BridgeData V2 external benchmark task manifest for real-robot dataset and offline policy result normalization.
+WorldFoundry 通过统一的结果导入路径集成该 benchmark：`worldfoundry-eval zoo benchmark-run --mode official-validation` 把调用方提供的官方结果导出（JSON/CSV rollout 汇总）归一化为 WorldFoundry scorecard，不执行模拟器。模拟器执行、策略加载与 rollout 采集仍是使用官方工具完成的显式上游步骤。
 
-### Task YAML
+主指标是 `success_rate`。
 
-`worldfoundry/data/benchmarks/tasks/external/bridgedata-v2.yaml`
+| Metric | 含义 | 方向 |
+| --- | --- | --- |
+| `success_rate` | 评测 rollout 上的主成功率（逐 episode 成功比例）。 | 越高越好 |
+| `task_success` | 按任务聚合的成功率。 | 越高越好 |
+| `goal_success` | 目标图像条件下的任务成功率。 | 越高越好 |
+| `action_accuracy` | 相对参考动作的离线动作预测准确率。 | 越高越好 |
+| `rollout_success` | 已执行策略 rollout 的成功率。 | 越高越好 |
 
-### Primary
+## 数据与产物布局
 
-- `success_rate`
+WorldFoundry 仓内路径：
 
-| Metric | 关注点 |
-| --- | --- |
-| `success_rate` | episode / task 是否成功完成的比例或成功率。 |
-| `task_success` | episode / task 是否成功完成的比例或成功率。 |
-| `goal_success` | episode / task 是否成功完成的比例或成功率。 |
-| `action_accuracy` | 预测动作、状态或结果相对 benchmark 成功标准的正确性。 |
-| `rollout_success` | episode / task 是否成功完成的比例或成功率。 |
-
-
-
-## 环境准备
-
-### 运行环境
-
-- **Conda 环境：** `worldplay-core`。
-- **单独配置：** 默认复用 WorldFoundry 统一环境（`needs_new_env: false`），通常不需要额外 benchmark-only conda env。
-- BridgeData V2 需要已物化的评测 split 和 policy-result import；当前只配置通用 Python 环境。
-
-### 测评数据
-
-- 待测模型输出目录：设置 `WORLDFOUNDRY_BRIDGEDATA_V2_RESULTS_PATH` 指向生成视频或 rollout artifact 根目录。
-- `${WORLDFOUNDRY_DATA_DIR}/datasets/bridgedata-v2`
-- `${WORLDFOUNDRY_CACHE_DIR}/repos/rail-berkeley--bridge_data_v2`
-
-### Checkpoint 与资产
-
-- 该 benchmark 以官方结果归一化或仿真 rollout 为主；policy / simulator checkpoint 见 catalog `requires` 与 task YAML。
-
-### 关键环境变量
-
-- `WORLDFOUNDRY_BRIDGEDATA_V2_DATASET_ROOT`
-- `WORLDFOUNDRY_BRIDGEDATA_V2_RESULTS_PATH`
-
-### 环境检查
-
-```bash
-PYTHONPATH=${WORLDFOUNDRY_CACHE_DIR}/repos/rail-berkeley--bridge_data_v2:src ${WORLDFOUNDRY_CONDA_ROOT}/worldplay/bin/python -m worldfoundry.evaluation.tasks.execution.orchestration.runtime_preflight --profile bridgedata-v2 --manifest worldfoundry/data/benchmarks/runtime_profiles/official/bridgedata-v2.yaml --output-dir tmp/worldfoundry_preflight/bridgedata-v2 --json
+```text
+worldfoundry/data/benchmarks/tasks/external/bridgedata-v2.yaml
 ```
 
-
+```text
+<official_results.json>                 # 官方工具产出的 rollout 汇总导出
+${WORLDFOUNDRY_BRIDGEDATA_V2_RESULTS_PATH}   # 默认导入路径
+```
+数据集就位在 `${WORLDFOUNDRY_DATA_DIR}/datasets/bridgedata-v2`；官方下载走 HTTP/项目主页，而非单一 Hugging Face 数据表。
 
 ## 运行评测
 
-
-
-准备好该 benchmark 页面列出的资产和候选产物后，使用下面的公开运行入口。
-
-### 设置候选产物目录
-
-```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/generated/artifacts
-```
-
-### 导入已有官方结果
+目录 manifest 记录的 validation 命令：
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id bridgedata-v2 \
-  --mode normalizer \
-  --official-results-path /path/to/official/results-or-report \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/bridgedata-v2/normalizer \
+  --mode official-validation \
+  --official-results-path <official_results.json> \
+  --output-dir <out> \
   --json
 ```
 
-### 从生成产物重新打分
+## 权重与环境变量
 
-```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id bridgedata-v2 \
-  --mode official-run \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/bridgedata-v2/official-run \
-  --json
-```
+- `WORLDFOUNDRY_BRIDGEDATA_V2_RESULTS_PATH`: 未显式传 `--official-results-path` 时，导入器默认从该路径读取官方结果导出文件。
 
-### 直接调用仓内 runner
+## 输出文件
 
-```bash
-worldfoundry-eval zoo benchmark-run --benchmark-id bridgedata-v2 --mode official-validation --official-results-path <official_results.json> --output-dir <out> --json
-```
+运行会在 `--output-dir` 下写出：
 
+- `scorecard.json`: WorldFoundry 统一 scorecard，记录上表中的指标值。
+- `raw_results.jsonl`: 从官方结果导出解析出的归一化行。
 
+Scorecard 主键：`success_rate`（leaderboard key `success_rate`），写入 `scorecard.json`。
 
-## 依赖与产物
+## 边界与限制
 
-
-
-### Inputs
-
-- BridgeData V2 dataset materialization
-- Eval split definition
-- Policy checkpoint or offline prediction dump
-- Action normalization and task-goal mapping
-
-### Environment
-
-- `WORLDFOUNDRY_BRIDGEDATA_V2_RESULTS_PATH`
-
-### Outputs
-
-- `scorecard.json`
-- `raw_results.jsonl`
-
-
+- 数据集就位、评测分割定义与策略结果导入验证是达到 integrated 状态的前置条件。
+- WorldFoundry 不为 BridgeData V2 运行真机或仿真 rollout；动作归一化与任务-目标映射遵循上游协议。
+- 导入的 scorecard 是集成证据，不是 leaderboard 提交。
 
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

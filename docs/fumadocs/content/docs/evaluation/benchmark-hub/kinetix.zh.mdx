@@ -1,126 +1,80 @@
 ---
 title: Kinetix
-description: Kinetix — 指标、依赖与运行命令。
+description: 开放式 2D 物理 RL 环境空间（ICLR 2025 口头报告）；WorldFoundry 归一化官方 rollout 导出。
 ---
 
 ## 简介
 
+**发表机构：** FLAIR（牛津大学 Foerster Lab for AI Research）
 
+Kinetix 来自牛津大学 FLAIR 实验室，是一个开放式的 JAX 加速 2D 物理 RL 环境空间：可程序化表示的关卡在同一个模拟器中覆盖机器人式移动、抓取与经典控制，支持大规模通用智能体预训练与留出任务评测。
 
-Kinetix external benchmark manifest for JAX physics embodied action evaluation.
+WorldFoundry 以官方结果 runner 集成 Kinetix：上游 JAX 工具的 rollout 导出被归一化为统一 scorecard。
 
+官方参考：
 
+- Paper: [arxiv.org/abs/2410.23208](https://arxiv.org/abs/2410.23208)
+- 官方仓库: [FLAIROx/Kinetix](https://github.com/FLAIROx/Kinetix)
+- License: `upstream_terms`
 
-## 指标
+## 评测协议
 
-Kinetix external benchmark manifest for JAX physics embodied action evaluation.
+WorldFoundry 通过统一的结果导入路径集成该 benchmark：`worldfoundry-eval zoo benchmark-run --mode official-validation` 把调用方提供的官方结果导出（JSON/CSV rollout 汇总）归一化为 WorldFoundry scorecard，不执行模拟器。模拟器执行、策略加载与 rollout 采集仍是使用官方工具完成的显式上游步骤。
 
-### Task YAML
+主指标是 `success_rate`。
 
-`worldfoundry/data/benchmarks/tasks/external/kinetix.yaml`
+| Metric | 含义 | 方向 |
+| --- | --- | --- |
+| `success_rate` | 评测 rollout 上的主成功率（逐 episode 成功比例）。 | 越高越好 |
+| `task_success` | 按任务聚合的成功率。 | 越高越好 |
+| `episode_success` | 逐 episode 成功指示的聚合值。 | 越高越好 |
+| `reward` | 平均 episode 奖励 / 回报。 | 越高越好 |
 
-### Primary
+## 数据与产物布局
 
-- `success_rate`
+WorldFoundry 仓内路径：
 
-| Metric | 关注点 |
-| --- | --- |
-| `success_rate` | episode / task 是否成功完成的比例或成功率。 |
-| `task_success` | episode / task 是否成功完成的比例或成功率。 |
-| `episode_success` | episode / task 是否成功完成的比例或成功率。 |
-| `reward` | Kinetix 程序化 2D 刚体控制 puzzle 上的 RL 累计 reward。 |
+```text
+worldfoundry/data/benchmarks/tasks/external/kinetix.yaml
+```
 
-
-
-## 环境准备
-
-### 运行环境
-
-- **Conda 环境：** `kinetix-jax`。
-- **单独配置：** 需要 benchmark 专用 conda 环境，不要与统一 runtime 混用。
-- Keep Kinetix in a JAX-compatible simulator environment when the unified PyTorch runtime is insufficient.
-
-### 测评数据
-
-- 待测模型输出目录：设置 `WORLDFOUNDRY_KINETIX_RESULTS_PATH` 指向生成视频或 rollout artifact 根目录。
-- `${WORLDFOUNDRY_DATA_DIR}/datasets/kinetix`
-- `${WORLDFOUNDRY_CACHE_DIR}/repos/FLAIROx--Kinetix`
-
-### Checkpoint 与资产
-
-- 该 benchmark 以官方结果归一化或仿真 rollout 为主；policy / simulator checkpoint 见 catalog `requires` 与 task YAML。
-
-### 关键环境变量
-
-- `WORLDFOUNDRY_KINETIX_ROOT`
-- `WORLDFOUNDRY_KINETIX_RESULTS_PATH`
-
-
+```text
+<official_results.json>                 # 官方工具产出的 rollout 汇总导出
+${WORLDFOUNDRY_KINETIX_RESULTS_PATH}   # 默认导入路径
+```
 
 ## 运行评测
 
-
-
-准备好该 benchmark 页面列出的资产和候选产物后，使用下面的公开运行入口。
-
-### 设置候选产物目录
-
-```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/generated/artifacts
-```
-
-### 导入已有官方结果
+目录 manifest 记录的 validation 命令：
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id kinetix \
-  --mode normalizer \
-  --official-results-path /path/to/official/results-or-report \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/kinetix/normalizer \
+  --mode official-validation \
+  --official-results-path <official_results.json> \
+  --output-dir <out> \
   --json
 ```
 
-### 从生成产物重新打分
+## 权重与环境变量
 
-```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id kinetix \
-  --mode official-run \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/kinetix/official-run \
-  --json
-```
+- `WORLDFOUNDRY_KINETIX_ROOT`: 可选覆盖项，指向本地 benchmark runtime / 仓库根目录。
+- `WORLDFOUNDRY_KINETIX_RESULTS_PATH`: 未显式传 `--official-results-path` 时，导入器默认从该路径读取官方结果导出文件。
 
-### 直接调用仓内 runner
+## 输出文件
 
-```bash
-worldfoundry-eval zoo benchmark-run --benchmark-id kinetix --mode official-validation --official-results-path <official_results.json> --output-dir <out> --json
-```
+运行会在 `--output-dir` 下写出：
 
+- `scorecard.json`: WorldFoundry 统一 scorecard，记录上表中的指标值。
+- `raw_results.jsonl`: 从官方结果导出解析出的归一化行。
+- `evaluation/summary.json`: 聚合评测摘要。
 
+Scorecard 主键：`success_rate`（leaderboard key `success_rate`），写入 `scorecard.json`。
 
-## 依赖与产物
+## 边界与限制
 
-
-
-### Inputs
-
-- Official simulator runtime
-- benchmark assets
-- policy checkpoint
-- official result dump
-
-### Environment
-
-- `WORLDFOUNDRY_KINETIX_RESULTS_PATH`
-
-### Outputs
-
-- `scorecard.json`
-- `raw_results.jsonl`
-- `evaluation/summary.json`
-
-
+- WorldFoundry 只归一化所提供的 rollout 结果；不在仓内运行官方模拟器或策略。
+- 在用就位的模拟器资产与策略权重执行官方 rollout 并导入之前，不声称完整 leaderboard 对齐。
+- 导入的 scorecard 是集成证据，不是 leaderboard 提交。
 
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

@@ -1,132 +1,92 @@
 ---
 title: RoboTwin 2.0
-description: RoboTwin 2.0 — 指标、依赖与运行命令。
+description: 可扩展的双臂操作评测，带强域随机化；WorldFoundry 导入官方 eval_result 导出。
 ---
 
 ## 简介
 
+**发表机构：** The University of Hong Kong（香港大学）与 Shanghai AI Laboratory（上海人工智能实验室，联合松灵机器人 AgileX）
 
+RoboTwin 2.0 是可扩展的双臂机器人操作仿真评测：五种机器人形态、731 个物体上的 50 个双臂任务，配自动专家数据生成器与系统性域随机化（杂物、光照、背景、桌面高度、语言指令）以度量鲁棒性——clean 与 randomized 成功率分开跟踪。配套预采集数据集超过 10 万条轨迹。
 
-RoboTwin 2.0 是双臂操作 benchmark，含多样任务与 sim-to-real 导向评测。
+WorldFoundry 把官方 `eval_result/_result.txt` 与结构化 JSON/CSV 导出导入为 scorecard 产物，包括任务 manifest、官方命令 manifest 与模拟器验证记录。离线归一化不需要模拟器；真实对齐需要上游 SAPIEN/Curobo 栈。
 
+官方参考：
 
+- Paper: [arxiv.org/abs/2506.18088](https://arxiv.org/abs/2506.18088)
+- 项目主页: [robotwin-platform.github.io](https://robotwin-platform.github.io/)
+- 官方仓库: [RoboTwin-Platform/RoboTwin](https://github.com/RoboTwin-Platform/RoboTwin)
 
-## 指标
+## 评测协议
 
-RoboTwin 2.0 external benchmark task manifest for bimanual embodied manipulation policy rollouts.
+离线归一化通过 `--official-results-path` / `WORLDFOUNDRY_ROBOTWIN_RESULTS_PATH` 接受显式官方 `eval_result/_result.txt` 或结构化导出。真实模拟器/策略对齐需要上游 SAPIEN/Curobo 资产与策略权重，并用官方脚本执行。
 
-### Task YAML
+主指标是 `success_rate`。
 
-`worldfoundry/data/benchmarks/tasks/external/robotwin.yaml`
+| Metric | 含义 | 方向 |
+| --- | --- | --- |
+| `success_rate` | 评测 rollout 上的主成功率（逐 episode 成功比例）。 | 越高越好 |
+| `task_success` | 按任务聚合的成功率。 | 越高越好 |
+| `episode_success` | 逐 episode 成功指示的聚合值。 | 越高越好 |
+| `bimanual_task_success` | 双臂协同任务的成功率聚合。 | 越高越好 |
+| `domain_randomization_success` | 官方域随机化条件下的成功率。 | 越高越好 |
+| `clean_success` | clean（无随机化）条件下的成功率。 | 越高越好 |
+| `randomized_success` | 随机化杂物/光照/背景条件下的成功率。 | 越高越好 |
+| `reward` | 平均 episode 奖励 / 回报。 | 越高越好 |
 
-### Primary
+## 数据与产物布局
 
-- `success_rate`
+WorldFoundry 仓内路径：
 
-| Metric | 关注点 |
-| --- | --- |
-| `success_rate` | episode / task 是否成功完成的比例或成功率。 |
-| `task_success` | episode / task 是否成功完成的比例或成功率。 |
-| `episode_success` | episode / task 是否成功完成的比例或成功率。 |
-| `bimanual_task_success` | episode / task 是否成功完成的比例或成功率。 |
-| `domain_randomization_success` | episode / task 是否成功完成的比例或成功率。 |
-| `clean_success` | episode / task 是否成功完成的比例或成功率。 |
-| `randomized_success` | episode / task 是否成功完成的比例或成功率。 |
-| `reward` | RoboTwin 官方 benchmark 双臂操作 episode 的累计 reward。 |
+```text
+worldfoundry/data/benchmarks/tasks/external/robotwin.yaml
+```
 
-
-
-## 环境准备
-
-### 运行环境
-
-- **Conda 环境：** `docker:robotwin`。
-- **单独配置：** 默认复用 WorldFoundry 统一环境（`needs_new_env: false`），通常不需要额外 benchmark-only conda env。
-- Embodied simulator dependencies are isolated in the VLA evaluation harness Docker image; WorldFoundry does not ship a RoboTwin conda setup script.
-- Host-side WorldFoundry only needs Docker access, the policy/model server, and mounted assets/results.
-
-### 测评数据
-
-- 待测模型输出目录：设置 `WORLDFOUNDRY_ROBOTWIN_RESULTS_PATH` 指向生成视频或 rollout artifact 根目录。
-- `${WORLDFOUNDRY_HFD_DATASET_ROOT}/TianxingChen__RoboTwin2.0`
-- `${WORLDFOUNDRY_HFD_DATASET_ROOT}/lerobot__robotwin_unified`
-
-### Checkpoint 与资产
-
-- Base-model / metric 依赖：`robotwin_dataset_assets`。
-- Metric / evaluator checkpoint 默认路径与覆盖变量见 [local assets 指南](/zh/docs/guides/local-assets)。
-
-### 关键环境变量
-
-- `WORLDFOUNDRY_ROBOTWIN_RESULTS_PATH`
-
-
+```text
+cache/worldfoundry/data/hfd_datasets/TianxingChen__RoboTwin2.0        # 官方 10 万+ 轨迹数据集
+cache/worldfoundry/data/hfd_datasets/lerobot__robotwin_unified        # LeRobot 统一转换版
+cache/vla_va_wam/repos/RoboTwin-Platform--RoboTwin                    # 上游仓库镜像
+<official eval_result/_result.txt>                                    # 导入源
+```
 
 ## 运行评测
 
-
-
-准备好该 benchmark 页面列出的资产和候选产物后，使用下面的公开运行入口。
-
-### 设置候选产物目录
-
-```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/generated/artifacts
-```
-
-### 导入已有官方结果
+目录 manifest 记录的 validation 命令：
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id robotwin \
-  --mode normalizer \
-  --official-results-path /path/to/official/results-or-report \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/robotwin/normalizer \
+  --mode official-validation \
+  --official-results-path <official_results.json> \
+  --output-dir <out> \
   --json
 ```
 
-### 从生成产物重新打分
+## 权重与环境变量
 
-```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id robotwin \
-  --mode official-run \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/robotwin/official-run \
-  --json
-```
+- `WORLDFOUNDRY_ROBOTWIN_ROOT`: 可选覆盖项，指向本地 benchmark runtime / 仓库根目录。
+- `WORLDFOUNDRY_ROBOTWIN_RESULTS_PATH`: 未显式传 `--official-results-path` 时，导入器默认从该路径读取官方结果导出文件。
 
-### 直接调用仓内 runner
+该 benchmark 复用共享 base-model 依赖栈：`robotwin_dataset_assets`。
 
-```bash
-worldfoundry-eval embodied run --config worldfoundry/data/benchmarks/eval_configs/embodied/robotwin/eval.yaml
-```
+## 输出文件
 
+运行会在 `--output-dir` 下写出：
 
-
-## 依赖与产物
-
-
-
-### Inputs
-
-- Official benchmark runtime or preflight validation
-
-### Environment
-
-- `WORLDFOUNDRY_ROBOTWIN_RESULTS_PATH`
-
-### Outputs
-
-- `scorecard.json`
-- `benchmark_contract.json`
+- `scorecard.json`: WorldFoundry 统一 scorecard，记录上表中的指标值。
+- `benchmark_contract.json`: 本次运行的 benchmark contract 记录（输入、模式、来源信息）。
 - `task_manifest.json`
 - `official_command_manifest.json`
 - `simulator_validation.json`
-- `raw_metric_table.jsonl`
+- `raw_metric_table.jsonl`: 支撑 scorecard 的原始 metric 行。
 - `evaluation/per_sample_metrics.jsonl`
 
+Scorecard 主键：`success_rate`（leaderboard key `success_rate`），写入 `scorecard.json`。
 
+## 边界与限制
+
+- 结果导入仅为归一化；完整 leaderboard 对齐需用就位资产与权重执行上游 SAPIEN/Curobo 模拟器与策略脚本。
+- 2026-05-25 的有界模拟器验证在本地达到 CUDA 驱动分配，但上游 `script/test_render.py` 超过硬超时；本环境中 SAPIEN/Vulkan 渲染仍被阻塞。
+- RoboTwin 2.0 是具身双臂操作评测，不是视频生成评测。
 
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)
