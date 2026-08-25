@@ -129,3 +129,12 @@ The output directory contains:
 - `raw_metric_table.jsonl`: one row per declared metric.
 - `per_sample_scores.jsonl`: question-level rows copied from the QA result.
 - `specialized_normalizer_stdout.log` and `specialized_normalizer_stderr.log` when invoked through `worldfoundry-eval zoo benchmark-run`.
+
+## What this page does not claim
+
+- Catalog verification status is `bounded_caption_qa_ready` with `leaderboard_valid: false` and `official_benchmark_verified: false`.
+- Candidate-video AuroraCap caption generation and its provenance are not implemented in tree (catalog blocker); captions must be supplied by the caller.
+- Gemini QA over supplied captions, and all mock runs, are not official benchmark or leaderboard evidence (catalog blocker). The Gemini judge (default `models/gemini-2.0-flash`) requires an API key via `WORLDFOUNDRY_PHYSVIDBENCH_GEMINI_API_KEY`, `GEMINI_API_KEY`, or `GOOGLE_API_KEY`; without one the non-mock judge raises an error instead of silently skipping.
+- Scorecard primary key: `physvidbench_average`.
+
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

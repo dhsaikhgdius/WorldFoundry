@@ -116,3 +116,11 @@ The output directory contains:
 - `per_sample_scores.jsonl`: concept/teaching-point rows when the input result file contains sample-level fields.
 - `phyeduvideo_results.csv` or `phyeduvideo_results.json`: copied result file when the in-tree wrapper imports one.
 - `specialized_normalizer_stdout.log` and `specialized_normalizer_stderr.log` when invoked through `worldfoundry-eval zoo benchmark-run`.
+
+## What this page does not claim
+
+- Catalog verification status is `result_importer_ready` with `leaderboard_valid: false` and `official_benchmark_verified: false`. Imported numbers are normalized copies of caller-provided results, not officially reproduced leaderboard values.
+- Raw-video scoring requires the upstream InternVL/CLIP/VQA judge assets and protocol, which are not run in tree (catalog blocker). WorldFoundry does not bundle those judge weights or credentials.
+- Scorecard primary key: `phyeduvideo_average`.
+
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

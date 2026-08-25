@@ -197,4 +197,10 @@ worldfoundry-eval zoo benchmark-run \
 - `per_sample_scores.jsonl`: 如果官方结果包含 sample detail，会写出逐样本结果。
 - `upstream/4dworldbench_results.json`: 使用 `--run-official` 时的官方 runtime 原始输出。
 
+## 不能声称的边界
+
+- catalog 标志为 `leaderboard_valid: false`、`official_benchmark_verified: false`（release status 为 `experimental`）；本集成不声称已完成完整套件的验证运行。
+- 依赖外部 checkpoint 或 hosted judge 的指标维度，只有按上文准备好对应资产才会产出数值；导入的结果只是对调用方数字的归一化拷贝，不是新的执行。
+- scorecard 主键：`four_d_worldbench_average`。
+
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

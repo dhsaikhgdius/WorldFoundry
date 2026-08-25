@@ -203,4 +203,11 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
 
 优先查看 `scorecard.json`。只有 requested split 视频覆盖完整，并且该 metric family 需要的资产都可用时，结果才适合和 public leaderboard 对比。
 
+## 不能声称的边界
+
+- catalog 校验状态为 `official_runtime_ready_real_data_validation_pending`，`leaderboard_valid: false`、`official_benchmark_verified: false`（release status 为 `experimental`）。
+- 除有界 memory 指标之外的完整官方 GPU 执行需要 VBench 资产和 CUDA/Torch 兼容的 VIPe 扩展编译；vendored VIPe 树不包含 native 扩展源码（catalog blocker）。
+- 导入的结果只是对调用方数字的归一化拷贝，不是新的 benchmark 执行。
+- scorecard 主键：`iworldbench_average`。
+
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

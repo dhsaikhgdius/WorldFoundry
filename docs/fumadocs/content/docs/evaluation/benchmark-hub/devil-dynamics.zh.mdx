@@ -142,4 +142,11 @@ worldfoundry-eval zoo benchmark-run \
 
 要得到可对齐 leaderboard 的数值，需要完整 DEVIL prompt suite、保留动态等级前缀的文件名、一致的 checkpoint 资产，以及用相同 judge 设置得到的 Gemini naturalness 输出。部分导入结果可以用于回归测试，但不应当声称是完整 DEVIL leaderboard 结果。
 
+## 不能声称的边界
+
+- catalog 校验状态为 `pending`，`leaderboard_valid: false`、`official_benchmark_verified: false`（release status 为 `experimental`）。
+- 完整校验需要官方 prompt suite 的生成视频以及官方 judge/checkpoint/API 资产（catalog blockers）；本集成不声称已完成完整 GPU 全套运行。
+- naturalness 分量是 hosted Gemini judge：official runtime 要求提供 `--gemini-api-key`/`GEMINI_API_KEY` 或预计算的 `--naturalness-path` xlsx，两者都缺时会抛出 `ValueError`——不会静默跳过。
+- scorecard 主键：`devil_dynamics_average`。
+
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

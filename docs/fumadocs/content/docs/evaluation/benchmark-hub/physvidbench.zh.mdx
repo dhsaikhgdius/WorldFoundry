@@ -129,3 +129,12 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
 - `raw_metric_table.jsonl`：每个声明指标一行。
 - `per_sample_scores.jsonl`：从 QA 结果复制出的 question-level 行。
 - 通过 `worldfoundry-eval zoo benchmark-run` 调用时，还会写出 `specialized_normalizer_stdout.log` 与 `specialized_normalizer_stderr.log`。
+
+## 不能声称的边界
+
+- catalog 校验状态为 `bounded_caption_qa_ready`，`leaderboard_valid: false`、`official_benchmark_verified: false`。
+- 候选视频的 AuroraCap caption 生成及其溯源未在仓内实现（catalog blocker）；caption 必须由调用方提供。
+- 基于给定 caption 的 Gemini QA 以及所有 mock 运行都不构成官方基准或 leaderboard 证据（catalog blocker）。Gemini judge（默认 `models/gemini-2.0-flash`）需要通过 `WORLDFOUNDRY_PHYSVIDBENCH_GEMINI_API_KEY`、`GEMINI_API_KEY` 或 `GOOGLE_API_KEY` 提供 API key；非 mock 后端缺 key 时会直接报错，不会静默跳过。
+- scorecard 主键：`physvidbench_average`。
+
+[← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

@@ -165,4 +165,11 @@ WorldFoundry 会写出：
 
 官方 leaderboard submission 仍需要按 WorldArena archive structure 保留生成视频和 model documentation。WorldFoundry scorecard 是本地证据；是否进入 leaderboard 仍以 WorldArena 官方提交流程为准。
 
+## 不能声称的边界
+
+- catalog 校验状态为 `in_tree_video_quality_runtime`，`leaderboard_valid: false`、`official_benchmark_verified: false`（release status 为 `experimental`）。
+- 完整校验仍需要官方 prompt/task suite 的生成视频或 rollout；leaderboard 对齐还需要官方 judge/checkpoint/API 资产及具身任务效用证据（catalog blockers）。
+- 通过 `--official-results-path` 导入结果只是对调用方数字做归一化，不是新的 benchmark 执行。
+- scorecard 主键：`ewm_score`。
+
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

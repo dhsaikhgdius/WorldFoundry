@@ -136,4 +136,10 @@ ${WORLDFOUNDRY_UNIFIED_PYTHON:-python} worldfoundry/evaluation/tasks/execution/r
 - [Project page](https://jinplu.github.io/WRBench/)
 - [Hugging Face dataset](https://huggingface.co/datasets/WRBench/wrbench-natural25)
 
+## 不能声称的边界
+
+- catalog 校验状态为 `pending`，`leaderboard_valid: false`、`official_benchmark_verified: false`；导入的数字是调用方结果的归一化副本。
+- 与 leaderboard 对齐需要完整的 Natural-25 生成结果，以及 VGGT-Omega、DINOv2、Qwen3.5、Qwen3-VL checkpoint（catalog blocker）；这些权重均未随仓库分发。
+- scorecard 主键：`wrbench_average`。
+
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

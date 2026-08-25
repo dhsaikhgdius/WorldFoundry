@@ -203,3 +203,11 @@ worker command 默认使用当前 Python 解释器和仓内相对脚本。使用
 `WORLDFOUNDRY_WORLD_IN_WORLD_SAM2_WORKER_CFG_PATH`、
 `WORLDFOUNDRY_WORLD_IN_WORLD_FTWAN21_WORKER_LORA_PATH` 和
 `WORLDFOUNDRY_WORLD_IN_WORLD_NWM_WORKER_CKPT_PATH`。
+
+## 不能声称的边界
+
+- catalog 校验状态为 `result_importer_ready`，`leaderboard_valid: false`、`official_benchmark_verified: false`。导入的数字是调用方结果的归一化副本，不是官方复现的 leaderboard 值。
+- 闭环 rollout 生成、环境执行与官方任务打分均在仓内 importer 范围之外（catalog blocker）；worker checkpoint（SAM2、FTWan2.1 LoRA、NWM）须由调用方自行部署。
+- scorecard 主键：`world_in_world_average`。
+
+[← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

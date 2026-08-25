@@ -165,4 +165,11 @@ WorldFoundry writes:
 
 For official leaderboard submission, keep the generated videos and model documentation in the official WorldArena archive structure. WorldFoundry scorecards are local evidence; leaderboard inclusion still follows the WorldArena submission process.
 
+## What this page does not claim
+
+- Catalog verification status is `in_tree_video_quality_runtime` with `leaderboard_valid: false` and `official_benchmark_verified: false` (release status `experimental`).
+- Full validation still requires generated videos or rollouts for the official prompt/task suite; leaderboard parity requires official judge/checkpoint/API assets plus embodied task utility evidence (catalog blockers).
+- Result import via `--official-results-path` normalizes caller-provided numbers; it is not fresh benchmark execution.
+- Scorecard primary key: `ewm_score`.
+
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

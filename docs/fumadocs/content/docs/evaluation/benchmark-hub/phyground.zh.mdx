@@ -172,4 +172,10 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
 | `optics_score` | 适用反射与阴影规律的聚合分数。 |
 | `phyground_overall` | 可用通用分数和物理分域分数的均值。 |
 
+## 不能声称的边界
+
+- catalog 校验状态为 `result_importer_ready`，`leaderboard_valid: false`、`official_benchmark_verified: false`；导入的数字只是对调用方提供的 judge 输出的归一化拷贝。
+- in-tree 路径不会对候选视频执行 PhyJudge 或任何云端 judge（catalog blocker）；judge 分数必须在外部产生，再通过 `--official-results-path` 或 `--benchmark-data-root` 下的 `annotations/` 提供。
+- scorecard 主键：`phyground_overall`。
+
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

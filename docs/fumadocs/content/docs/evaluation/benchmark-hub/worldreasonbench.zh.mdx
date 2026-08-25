@@ -133,4 +133,10 @@ worldfoundry-eval zoo benchmark-run --benchmark-id worldreasonbench --mode offic
 - [Project page](https://unix-ai-lab.github.io/WorldReasonBench/)
 - [Hugging Face dataset](https://huggingface.co/datasets/WorldReasonBench)
 
+## 不能声称的边界
+
+- catalog 校验状态为 `normalizer_only`，`leaderboard_valid: false`、`official_benchmark_verified: false`；导入的数字是调用方结果的归一化副本。
+- 完整的官方 QA、pointwise 与 pairwise judge 运行尚未通过该集成执行（catalog blocker）；协议 runtime 依赖外部资产。
+- scorecard 主键：`score_pr`。
+
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

@@ -203,4 +203,11 @@ Each run writes:
 
 Open `scorecard.json` first. A run is only comparable to the public leaderboard when the requested split has complete video coverage and all metric assets used by the reported metric family were available.
 
+## What this page does not claim
+
+- Catalog verification status is `official_runtime_ready_real_data_validation_pending` with `leaderboard_valid: false` and `official_benchmark_verified: false` (release status `experimental`).
+- Full official GPU execution beyond the bounded memory metric requires VBench assets and a CUDA/Torch-compatible VIPe extension build; the vendored VIPe tree does not include the native extension sources (catalog blocker).
+- Imported results are normalized copies of caller-provided numbers, not fresh benchmark execution.
+- Scorecard primary key: `iworldbench_average`.
+
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

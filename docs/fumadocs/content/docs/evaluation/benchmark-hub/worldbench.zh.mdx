@@ -63,20 +63,20 @@ hf download worldbenchmark/WorldBench \
 
 artifact-score directory：
   <artifact_score_dir>/
-    一个或多个可聚合为 video_based_accuracy、text_based_accuracy、
-    multiple_choice_accuracy、binary_accuracy 或 worldbench_average
-    的 WorldFoundry metric artifacts
+    一个或多个 WorldFoundry metric artifacts；共享 artifact-score runtime
+    先把它们物化成中间结果文件，再由 normalizer 映射到下方的
+    WorldBench metric ID
 ```
 
-最简单的支持结果表：
+最简单的支持结果表（输入键会经过 runner 的别名表匹配，例如 `video_based_accuracy` 会映射到 `foreground_miou`）：
 
 ```csv
 metric_id,score
-video_based_accuracy,0.75
+foreground_miou,0.75
+background_rmse,0.05
 text_based_accuracy,0.75
 multiple_choice_accuracy,0.75
 binary_accuracy,0.75
-worldbench_average,0.75
 ```
 
 如果 per-sample row 中包含 `sample_id`、`component`、`question_type`、`prediction`、`answer`、`correct` 或 `score` 等可识别字段，runner 也会读取。
@@ -134,13 +134,18 @@ tmp/worldbench/direct-artifact-scores/upstream/worldbench_results.json
 
 ## 指标
 
-| Metric ID | 含义 |
-| --- | --- |
-| `video_based_accuracy` | video-based physical prediction tasks 的 accuracy。fraction 和 percent 会规范到 unit score。 |
-| `text_based_accuracy` | text-question tasks 的 accuracy。 |
-| `multiple_choice_accuracy` | 当 row 暴露该 question type 时，multiple-choice text questions 的 accuracy。 |
-| `binary_accuracy` | 当 row 暴露该 question type 时，binary 或 yes/no questions 的 accuracy。 |
-| `worldbench_average` | 主聚合分数；如果输入中没有直接给出，会按可用 normalized WorldBench components 求平均。 |
+runner 只写这些 metric ID（见 runner 中的 `METRIC_ORDER`），主指标是 `foreground_miou`。
+
+| Metric ID | 分组 | 含义 |
+| --- | --- | --- |
+| `foreground_miou` | video_based | 常规逐物体 foreground IoU。`video_based_accuracy`、`mean_iou`、`v2v_accuracy` 等输入键会被别名映射到它。**主指标。** |
+| `foreground_dice` | diagnostic | 官方 release 以 mIoU 名义计算、数学上实为 Dice 的兼容值。 |
+| `background_rmse` | video_based | ground-truth 背景像素上的归一化像素 RMSE。越低越好。 |
+| `text_based_accuracy` | text_based | text-question tasks 的 accuracy。若输入未直接给出，会由 multiple-choice 与 binary 分数计算。 |
+| `multiple_choice_accuracy` | text_based | 当 row 暴露该 question type 时，multiple-choice text questions 的 accuracy。 |
+| `binary_accuracy` | text_based | 当 row 暴露该 question type 时，binary 或 yes/no questions 的 accuracy。 |
+
+scorecard 中不存在 `worldbench_average` 指标；runner 只报告以上六个 ID，不产生合成聚合分。
 
 ## 输出
 
@@ -150,3 +155,11 @@ WorldFoundry 会在 `--output-dir` 下写入：
 - `per_sample_scores.jsonl`：输入中存在 per-sample rows 时的规范化样例分数。
 - `raw_metric_table.jsonl`：包含 raw 和 normalized scores 的指标表。
 - `upstream/worldbench_results.json`：仅在 `--run-official` 聚合 artifact scores 时写入。
+
+## 不能声称的边界
+
+- 两条路径都是 normalizer-only：scorecard 会记录 `normalizer_only: true`、`official_runtime_executed: false`，且 eligibility 硬编码为 `leaderboard_valid: false`，直到完整官方任务覆盖与提交协议被审计。
+- WorldFoundry 未收录经来源确认的 upstream WorldBench evaluator；导入数字由调用方提供，artifact-score 物化是 WorldFoundry 侧的近似，不是官方 scorer。
+- scorecard 主键：`foreground_miou`。
+
+[← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)
