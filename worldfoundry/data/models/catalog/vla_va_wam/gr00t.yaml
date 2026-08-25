@@ -69,3 +69,23 @@ catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint
   metadata, and runtime-profile planning records. Runner or pipeline targets are present
   only after a complete in-tree WorldFoundry model runtime is registered and validated.
+docs:
+  publisher: NVIDIA
+  publisher_kind: company
+  publisher_zh: 英伟达（NVIDIA）
+  overview: NVIDIA GR00T is the Isaac GR00T humanoid/manipulation foundation policy line (N1 through N1.7). WorldFoundry executes the model, processor, transforms, and policy runtime from a flattened in-tree package with checkpoint-hosted Python disabled; checkpoint-backed predict is verified with local Cosmos-Reason2-2B and GR00T-N1.7-LIBERO/libero_10 assets on CUDA 11.8.
+  overview_zh: 英伟达 GR00T 是 Isaac GR00T 人形/操作基础策略线（N1 至 N1.7）。WorldFoundry 从扁平化树内包执行模型、processor、变换与策略运行时，禁用 checkpoint 携带的 Python；checkpoint 驱动的 predict 已在 CUDA 11.8 上用本地 Cosmos-Reason2-2B 与 GR00T-N1.7-LIBERO/libero_10 资产验证。
+  architecture: GR00T couples a reasoner VLM (Cosmos-Reason2-2B in the verified N1.7 path) with an action policy head; recorded checkpoints span GR00T-N1-2B and GR00T-N1.7-LIBERO. Weights are under the NVIDIA Open Model License and several repos require Hugging Face auth.
+  architecture_zh: GR00T 将推理 VLM（已验证 N1.7 路径使用 Cosmos-Reason2-2B）与动作策略头耦合；记录的 checkpoint 覆盖 GR00T-N1-2B 与 GR00T-N1.7-LIBERO。权重采用 NVIDIA Open Model License，多个仓库需 Hugging Face 认证。
+  usage_notes: Authenticate for the gated NVIDIA repos, stage the pinned revisions locally, and start from the verified N1.7 LIBERO path. Simulator rollout validation remains separate from the verified predict path.
+  usage_notes_zh: 先为门控 NVIDIA 仓库认证，就位锁定 revision，再从已验证的 N1.7 LIBERO 路径起步。模拟器 rollout 验证与已验证的 predict 路径分开跟踪。
+  limitations:
+  - Gated checkpoints require Hugging Face authentication.
+  - NVIDIA Open Model License — review terms before commercial use.
+  limitations_zh:
+  - 门控 checkpoint 需要 Hugging Face 认证。
+  - NVIDIA Open Model License——商用前请审查条款。
+  recommended_benchmarks:
+  - id: libero
+    reason: Verified predict path uses GR00T-N1.7-LIBERO/libero_10.
+    reason_zh: 已验证 predict 路径使用 GR00T-N1.7-LIBERO/libero_10。
