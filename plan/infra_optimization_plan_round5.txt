@@ -40,22 +40,26 @@ model_benchmark 执行完全脱节；复现 profile 有代码无数据；model-b
 P0
   1) [RP-01] official-run 禁止静默短路 benchmark_data_root / annotations 探测
   2) [RP-02] model_benchmark 启动官方子进程前自动 runtime preflight + 报告落盘
+  3) [DE-02] kairos_fla / SageAttention 许可证与溯源补全（sdist 合规）
 
 P1
-  3) [IO-01/RP-08] orchestration 终态 JSON 改 atomic=True
-  4) [RP-03] reproduction_profiles 落库种子 profile（延续 round2 [O-09]）
-  5) [RP-04/05] model-benchmark summary/manifest 补时间戳、指纹、torch/CUDA 包快照
-  6) [DE-01] Makefile docs-check 接入 fumadocs api:check
-  7) [OR-01] official runner 公共注册 / phyfps 迁移
+  4) [IO-01/RP-08] orchestration 终态 JSON 改 atomic=True
+  5) [RP-03] reproduction_profiles 落库种子 profile（延续 round2 [O-09]）
+  6) [RP-04/05] model-benchmark summary/manifest 补时间戳、指纹、torch/CUDA 包快照
+  7) [DE-03] 已提交 docs JSON（model-recipes/catalog-coverage）加 --check 漂移门禁
+  8) [DE-01] 删除 .gitmodules 死 flash-attention 声明
+  9) [DE-04] make docs-check 名实相符（api:check + 目录数据 check）
+  10) [OR-01] official runner 公共注册 / phyfps 迁移
 
 P2
-  8) [RP-06/07] reporting schema 版本演进；standalone official runner 补 run_manifest
-  9) [RP-02 延伸] preflight 进 CI 可选 gate
-  10) JsonlWriter 统一；freshness marker；predev hash skip；torchrun 观测；dev bind 对齐
+  11) [RP-06/07] reporting schema 版本演进；standalone official runner 补 run_manifest
+  12) [DE-05~08] 演示视频 blob 治理；MANIFEST.in sdist prune；kairos_fla 路径；environment.json 代码化
+  13) JsonlWriter 统一；freshness marker；predev hash skip；torchrun 观测
 
 P3
-  11) [RP-09/10] reproducibility_hash；_demo.py 移出 wheel；REPO_ROOT 解析
-  12) download 迁移；artifacts 重命名；SYMBOLS drift；per_sample 语义
+  14) [DE-09~12] docs 构建去重；debug png 出 index；Node engines；shell-check 扩围
+  15) [RP-09/10] reproducibility_hash；_demo.py 移出 wheel
+  16) dev bind 0.0.0.0 与 AGENTS 对齐；SYMBOLS  drift 测试；download/artifacts 命名
 
 
 3. Core I/O / process / serialization
@@ -212,62 +216,101 @@ phyfps 有 visual_chronometer 与 phyfps_bench_gen 两套自定义 main。
 
 6. Docs / AGENTS / thirdparty
 -----------------------------
-已核对：``scripts/docs/build.sh`` 跑 ``npm ci``、``types:check``、``build``；
-``Makefile docs-check`` 仅 ``cli --help`` + ``zoo benchmarks --json``。
-``docs/fumadocs/package.json`` predev/prebuild 均 ``api:generate``。
+来源：[docs/env/thirdparty 云端子代理](bc-3d049994-ee98-5465-8177-d18b149c896f) + 主会话补充。
 
-[DE-01] P1 docs 门禁分裂
-  问题：文档站真实 breakage（API symbol 漂移、TS 类型）不进 PR 必跑 gate。
-  文件：Makefile docs-check；scripts/docs/build.sh
-  改法：``docs-check`` 增加 ``cd docs/fumadocs && npm run api:check && npm run types:check``；
-        完整 build 留 nightly 或 ``docs-check-full``。
-  验收：故意删 SYMBOLS 一项后 ``make docs-check`` 失败。
+不建议改（本子域）：AST 静态 API 生成不入库；Inria fork 的 MANIFEST prune + wheel 白名单机制；
+docs 静态 export + media.githubusercontent.com 外链；dev-local-ssd.sh 勿通用化重写；
+不为 repo 体积重写 git 历史（防增量即可）。
 
-[DE-02] P2 predev 冷启动慢
-  问题：每次 ``npm run dev`` 全量 ``api:generate`` + mdx:generate。
-  文件：docs/fumadocs/package.json；scripts/generate-python-api.py
-  改法：generator 写 content hash；输入未变则 skip；``--check`` 模式已有，dev 复用。
-  验收：无 Python API 变更时 predev <5s（除 next 本身）。
+[DE-01] P1 .gitmodules 死子模块声明
+  问题：``.gitmodules`` 声明 flash-attention，index 无 gitlink；
+        ``git submodule update --init`` 必失败；README 仍教此命令。实际走 install_flash_attn.sh。
+  文件：.gitmodules、thirdparty/README.md
+  改法：删死条目；README 改指向 ``scripts/setup/install_flash_attn.sh``。
 
-[DE-03] P2 dev bind 地址与 AGENTS 不一致
-  问题：package.json ``dev`` 用 ``--hostname 0.0.0.0``；AGENTS.md 示例 ``127.0.0.1:8014``。
-  文件：docs/fumadocs/package.json；AGENTS.md
-  改法：默认 127.0.0.1；``dev:lan`` 脚本绑定 0.0.0.0；cloud 文档写 port-forward。
-  验收：本地默认不监听 all interfaces。
+[DE-02] P0 kairos_fla / SageAttention 无 LICENSE、无溯源，且可能进 sdist
+  问题：两 vendored 树无 LICENSE；THIRD_PARTY_LICENSES / UPSTREAM_PROVENANCE / 根 NOTICES 均无条目；
+        README 表格漏 gsplat 与 diff-gaussian fork；MANIFEST.in 未 prune 全 thirdparty。
+  文件：thirdparty/kairos_fla/、SageAttention/、THIRD_PARTY_LICENSES.md、UPSTREAM_PROVENANCE.md、MANIFEST.in
+  改法：补上游 LICENSE 与溯源条目；README 表格补全 6 项；MANIFEST.in prune thirdparty（见 DE-06）。
 
-[DE-04] P2 thirdparty flash-attention 孤儿 submodule
-  问题：``.gitmodules`` 声明 ``thirdparty/flash-attention``，工作区未 init；与 round2 LFS 交叉。
-  文件：.gitmodules；scripts/setup/*
-  改法：要么 CI/submodule init 文档化，要么从 .gitmodules 移除并改 optional extra 说明。
-  验收：fresh clone 行为与 README 一致，无「半存在」路径。
+[DE-03] P1 已提交 docs 目录 JSON 无防漂移门禁
+  问题：model-recipes-data.json、catalog-coverage-data.json 等已入库；
+        prebuild/predev 不重生成；生成器无 ``--check``；catalog 变更后文档静默过期。
+  文件：generate-model-recipes.py、generate-catalog-coverage.py、package.json、ci.yml
+  改法：加 ``--check``；package.json 增 models:check / coverage:check；挂 CI。
 
-[DE-05] P3 API 文档 SYMBOLS 手工表
-  问题：``generate-python-api.py`` SYMBOLS tuple 手工维护；新 public API 易漏。
-  文件：docs/fumadocs/scripts/generate-python-api.py
-  改法：从 ``evaluation.api.__all__`` 或 registry 自动生成候选 + CURATED 过滤；api:check 失败列 diff。
-  验收：新增 evaluation.api 导出未手工登记时 api:check  WARN 或 FAIL。
+[DE-04] P2 make docs-check 名实不符
+  问题：Makefile docs-check 只跑 cli --help + zoo benchmarks；与 data-check 重复；
+        真文档校验（api:check、DE-03 check）无 make 入口。
+  文件：Makefile、ci.yml、AGENTS.md
+  改法：现 docs-check 改名 cli-entrypoint-check 或并入 data-check；新建真 docs-check 委托 fumadocs checks。
+
+[DE-05] P2 43MB 演示视频以普通 git blob 入库
+  问题：readme-demos/*.mp4、cover_hero 显式关 LFS；deploy 工件仍携带；生产经外链基址。
+  文件：.gitattributes、deploy-docs.yml、lib/site-path.ts
+  改法：Preserve 步骤删 out/readme-demos 等；删 stale home-demos 规则；CI 大文件守卫。
+
+[DE-06] P2 sdist prune 只覆盖一半
+  问题：setuptools_scm 追踪文件全进 sdist；仅 3 个 Inria fork 被 prune；
+        gsplat/kairos_fla/SageAttention/docs/plan/test* 仍在。
+  文件：MANIFEST.in
+  改法：prune thirdparty、docs、plan、test*；``python -m build --sdist`` 验证体积。
+
+[DE-07] P2 kairos_fla 靠目录向上遍历，wheel 安装即断
+  问题：manage_libs._find_thirdparty_root() parents 遍历；wheel 无 thirdparty 必失败且无声明。
+  文件：kairos/manage_libs.py、thirdparty/README.md
+  改法：``WORLDFOUNDRY_THIRDPARTY_ROOT`` 覆盖；找不到时可操作报错；README 标 checkout-only。
+
+[DE-08] P2 云端环境未代码化
+  问题：无 .cursor/environment.json；AGENTS 依赖 VM 快照（python symlink、CPU torch、ruff/gradio pin）。
+  文件：.cursor/environment.json（新建）、AGENTS.md
+  改法：install 脚本固化 editable + CPU torch + pin + docs npm ci；AGENTS 改述为 install 保证。
+
+[DE-09] P3 docs 构建重复跑 mdx/api 生成两遍
+  问题：build.sh 先 types:check（pre 跑 api:generate），再 build（pre 再跑）。
+  文件：package.json、scripts/docs/build.sh
+  改法：build.sh 显式 generate 一次后 skip pre-hook，或 types:check 去掉 pretypes:check。
+
+[DE-10] P3 9 张调试 png 被 gitignore 但仍追踪
+  文件：docs/fumadocs/*.png、docs/fumadocs/.*.png
+  改法：git rm --cached。
+
+[DE-11] P3 Node 版本约束仅 deploy CI 有
+  改法：package.json engines.node >=24；新增 .nvmrc 写 24；ci public-surface 对齐。
+
+[DE-12] P3 shell-check 未覆盖 scripts/docs、workspace、dev-local-ssd
+  改法：Makefile shell-check 扩围（延续 round1 D-08 清单）。
+
+[DE-13] P3 dev bind 与 AGENTS 不一致（主会话补充）
+  问题：package.json dev 用 0.0.0.0；AGENTS 写 127.0.0.1:8014。
+  改法：默认回环；dev:lan 绑 0.0.0.0。
+
+[DE-14] P3 generate-python-api SYMBOLS 手工 curated（主会话补充）
+  改法：api:check 失败列 diff；可选从 evaluation.api 自动生成候选。
 
 
 7. 文件级改动总表
 ----------------
 P0
-  benchmark_runner.py          RP-01 短路来源限制
-  model_benchmark.py           RP-02 自动 preflight；RP-04/05/08 元数据+原子写
-  runtime_preflight.py         RP-02/10
+  benchmark_runner.py          RP-01
+  thirdparty/* LICENSE         DE-02
 
 P1
-  reproduction_profiles/       RP-03 种子 profile
-  run_manifest.py              RP-05 REPRODUCIBILITY_PACKAGES
-  existing_results.py          RP-05 package_names
-  orchestration/* atomic       IO-01/RP-08
-  Makefile docs-check          DE-01
-  official_runner 注册         OR-01
+  model_benchmark.py           RP-02/04/05/08
+  reproduction_profiles/       RP-03
+  generate-model-recipes.py    DE-03 --check
+  .gitmodules                  DE-01
+  Makefile docs-check          DE-04
+  run_manifest.py              RP-05
 
 P2/P3
-  reporting/* schema           RP-06/07/09
-  official_runner.py           RP-07 run_manifest
-  reporting/_demo.py           RP-10 移出 wheel
-  test/eval_core/              RP-01/02/03 回归
+  MANIFEST.in                  DE-06
+  .cursor/environment.json     DE-08
+  deploy-docs.yml              DE-05
+  kairos/manage_libs.py        DE-07
+  reporting/*                  RP-06~10
+  official_runner.py           OR-01~07 / RP-07
 
 
 8. 验收（汇总）
@@ -278,7 +321,10 @@ P2/P3
 - RP-04/05：summary 时间戳/指纹非空；environment 含 torch（若已装）与 cuda 段。
 - RP-08：截断 summary 不拖垮 build_run_index；终态 JSON 无半截 parse 错误。
 - RP-07：CLI 直跑 official runner 输出含 run_manifest + environment。
-- make docs-check 在 API symbol 漂移时失败。
+- DE-02：thirdparty 6 树均有 LICENSE + 溯源条目；sdist 不含 thirdparty/docs/plan。
+- DE-03：改 catalog 不重生成 model-recipes JSON 时 CI 红。
+- DE-04/08：make docs-check 真校验文档；新 VM 仅 environment.json install 可复现 AGENTS 面。
+- DE-01：git submodule update 在干净 clone 零报错。
 
 
 9. 与前轮衔接
@@ -293,6 +339,6 @@ MCP / metrics / pipelines：round4。
 10. 子代理索引
 --------------
   [reporting/preflight](bc-c951617b-ca8f-5aff-9a31-3dec073b1cd1)  RP-01~10 已并入 §4
-  official_runner（bc-e8d9e476-2c63-520e-adf5-5cdf601de7aa）  §5 待并入或 round6
-  docs/env/thirdparty（bc-3d049994-ee98-5465-8177-d18b149c896f）  §6 待并入或 round6
+  [docs/env/thirdparty](bc-3d049994-ee98-5465-8177-d18b149c896f)  DE-01~14 已并入 §6
+  official_runner（bc-e8d9e476-2c63-520e-adf5-5cdf601de7aa）  §5 主会话草稿，待并入
   core I/O（主会话）  §3
