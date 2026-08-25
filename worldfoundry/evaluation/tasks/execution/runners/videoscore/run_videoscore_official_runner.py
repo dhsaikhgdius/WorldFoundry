@@ -9,6 +9,10 @@ an overall average, along with detailed metadata about the run and artifacts.
 """
 from __future__ import annotations
 
+
+
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
+
 import argparse
 import ast
 import importlib
@@ -54,7 +58,6 @@ IN_TREE_VIDEOSCORE_ROOT = (
 )
 DEFAULT_VIDEOSCORE_ROOT = env_path("WORLDFOUNDRY_VIDEOSCORE_ROOT", IN_TREE_VIDEOSCORE_ROOT)
 LOCAL_VIDEOSCORE_BENCH_ROOT = worldfoundry_hfd_dataset_root() / "TIGER-Lab__VideoScore-Bench"
-SCORECARD_SCHEMA_VERSION = "worldfoundry-scorecard"
 HF_DATASET_ID = "TIGER-Lab/VideoFeedback"
 HF_DATASET_CONFIG = "real"
 HF_DATASET_SPLIT = "train"

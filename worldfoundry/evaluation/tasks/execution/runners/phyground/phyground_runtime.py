@@ -15,7 +15,6 @@ from worldfoundry.evaluation.tasks.execution.runners.phyground.phyground_prompts
     unique_generation_records,
 )
 
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 
 
 @dataclass(frozen=True)
@@ -129,3 +128,7 @@ def run_phyground_judge(
         "prompt_count": len(prompt_records),
         "prompts_json_path": str(prompts_path.resolve()),
     }
+
+
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
+

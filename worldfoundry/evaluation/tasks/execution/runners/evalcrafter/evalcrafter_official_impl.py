@@ -34,7 +34,6 @@ from worldfoundry.evaluation.tasks.execution.runners.evalcrafter.evalcrafter_run
 )
 from worldfoundry.evaluation.utils import benchmark_task_sample_path
 
-SCORECARD_SCHEMA_VERSION = "worldfoundry-scorecard"
 BENCHMARK_ID = "evalcrafter"
 DISPLAY_NAME = "EvalCrafter"
 INPUT_KEYS = ("generated_video_dir", "prompt700_txt", "official_results_path")
@@ -601,3 +600,7 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
+

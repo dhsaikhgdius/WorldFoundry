@@ -21,7 +21,6 @@ METADATA_REL = Path("metadata.json")
 CANONICAL_PROMPT_COUNT = 700
 EXPECTED_VIDEO_COUNT = 700
 
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 
 
 def _env_path(name: str) -> Path | None:

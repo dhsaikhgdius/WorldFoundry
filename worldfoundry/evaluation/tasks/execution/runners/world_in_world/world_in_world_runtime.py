@@ -36,7 +36,6 @@ def discover_metrics_json(search_roots: list[Path]) -> Path | None:
             return matches[-1]
     return None
 
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 
 
 @dataclass(frozen=True)
@@ -189,3 +188,7 @@ def run_world_in_world_evaluator(
         f"{config.backend!r}. Use 'artifact' to import metrics produced by the "
         "WorldFoundry evaluation pipeline."
     )
+
+
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
+

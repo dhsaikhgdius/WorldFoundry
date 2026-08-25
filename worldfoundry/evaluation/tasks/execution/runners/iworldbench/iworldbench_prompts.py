@@ -25,7 +25,6 @@ SPLIT_TASK_NAMES = {
     "camera_following": "CameraFollowing",
 }
 
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 
 
 def _env_path(name: str) -> Path | None:

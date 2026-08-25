@@ -16,7 +16,6 @@ from worldfoundry.evaluation.tasks.execution.framework.benchmark_assets import b
 from worldfoundry.evaluation.tasks.execution.framework.io import utc_now_iso, write_json, write_jsonl
 from worldfoundry.runtime.jobs import run_bounded_command
 
-SCORECARD_SCHEMA_VERSION = "worldfoundry-scorecard"
 RUNNER_ROOT = Path(__file__).resolve().parent
 RUNTIME_ROOT = RUNNER_ROOT
 REPO_ROOT = project_root(__file__)
@@ -539,3 +538,7 @@ if __name__ == "__main__":
     except (FileNotFoundError, RuntimeError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         raise SystemExit(1)
+
+
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
+

@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+
+
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
+
 import argparse
 import json
 import os
@@ -15,10 +19,8 @@ from worldfoundry.evaluation.tasks.execution.runners._benchmark_metrics.formulas
     videoverse_subquestion_metrics,
 )
 
-SCORECARD_SCHEMA_VERSION = "worldfoundry-scorecard"
 PROMPT_MANIFEST_REL = Path("prompt/prompts_of_VideoVerse.json")
 DECOMPOSED_PROMPT_MANIFEST_REL = Path("prompt/prompts_of_VideoVerse_decomposed.json")
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi", ".m4v"})
 CANONICAL_PROMPT_COUNT = 300
 CANONICAL_EVENT_COUNT = 815
 CANONICAL_CHECK_COUNT = 793

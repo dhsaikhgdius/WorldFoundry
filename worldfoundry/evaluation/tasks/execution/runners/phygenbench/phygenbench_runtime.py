@@ -60,7 +60,6 @@ def resolve_phyvideos_dir(
     resolved_model = model_name or os.environ.get("WORLDFOUNDRY_PHYGENBENCH_MODEL_NAME") or "worldfoundry"
     return (root / "PhyVideos" / resolved_model).resolve()
 
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 
 
 @dataclass(frozen=True)
@@ -279,3 +278,7 @@ def run_phygenbench_judge(
         "model_name": config.model_name,
         "prompts_json_path": str(prompts_path.resolve()),
     }
+
+
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
+

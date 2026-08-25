@@ -23,7 +23,6 @@ OPENQA_QUESTIONS_REL = Path("openqa_question.json")
 OPENQA_ANSWERS_REL = Path("openqa_answer.json")
 CANONICAL_PROMPT_COUNT = 260
 
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 
 
 def _env_path(name: str) -> Path | None:

@@ -16,6 +16,10 @@ upstream summary CSVs, so a partial judge run cannot silently look complete.
 
 from __future__ import annotations
 
+
+
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
+
 import argparse
 import json
 import os
@@ -52,7 +56,6 @@ from worldfoundry.evaluation.tasks.execution.runners.rbench.rbench_runtime impor
 )
 from worldfoundry.evaluation.utils import benchmark_task_sample_path
 
-SCORECARD_SCHEMA_VERSION = "worldfoundry-scorecard"
 RUNNER_NAME = "benchmark_zoo_rbench_official_runner"
 EVALUATION_KIND = "rbench_official_aggregation"
 EVIDENCE_SCOPE = "official_result_aggregation_only"

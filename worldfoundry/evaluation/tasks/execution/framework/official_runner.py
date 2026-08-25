@@ -31,6 +31,7 @@ from typing import Any, Callable, Mapping
 
 from worldfoundry.core.logging_setup import configure_logging, get_logger
 from worldfoundry.core.process import run_logged_subprocess
+from worldfoundry.evaluation.reporting.scorecard import SCORECARD_SCHEMA_VERSION
 from worldfoundry.evaluation.tasks.catalog.zoo_registry import load_benchmark_zoo_registry
 from worldfoundry.evaluation.tasks.execution.framework.io import (
     env_path,
@@ -48,7 +49,6 @@ from worldfoundry.evaluation.tasks.execution.framework.normalizers import (
 from worldfoundry.evaluation.tasks.execution.framework.result_normalizer import OfficialResultsNormalizer
 from worldfoundry.evaluation.utils import BENCHMARK_ZOO_DIR, REPO_ROOT
 
-SCORECARD_SCHEMA_VERSION = "worldfoundry-scorecard"
 
 ExtractMetricsFn = Callable[[Any, Path], dict[str, dict[str, Any]]]
 DiscoverResultsFn = Callable[[Path, Path | None], Path | None]

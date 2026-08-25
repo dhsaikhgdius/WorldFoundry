@@ -63,7 +63,6 @@ def resolve_ckpt_path(*, repo_root: Path | None = None) -> Path:
         return Path("data/ckpt")
     return (root / "data" / "ckpt").resolve()
 
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 
 
 @dataclass(frozen=True)
@@ -278,3 +277,7 @@ def run_mirabench_scorer(
         "prompt_count": len(prompt_records),
         "meta_csv_path": str(meta_path.resolve()),
     }
+
+
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
+

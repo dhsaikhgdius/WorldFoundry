@@ -10,7 +10,6 @@ setup_paths()
 import argparse
 import json
 import os
-import pickle
 import signal
 import sys
 import threading
@@ -86,39 +85,15 @@ class Reward3DHandler(BaseHTTPRequestHandler):
             self.send_error(404, "Not Found")
             return
 
-        content_length = int(self.headers.get("Content-Length", "0"))
-        payload = self.rfile.read(content_length)
-
-        try:
-            data = pickle.loads(payload)
-            batch_videos = data["videos"]
-            batch_prompts = data["prompts"]
-            batch_camera_trajectories = data.get("camera_trajectories")
-
-            if reward_3d_manager is None:
-                raise RuntimeError("3D reward backend is not initialized")
-
-            with self.server.inference_lock:
-                outputs = reward_3d_manager.compute_batch_scores(
-                    batch_videos,
-                    batch_prompts,
-                    camera_trajectories=batch_camera_trajectories,
-                )
-            details = getattr(reward_3d_manager, "last_results", {}).get("per_video_results")
-            response = pickle.dumps({"outputs": outputs, "details": details})
-
-            self.send_response(200)
-            self.send_header("Content-Type", "application/octet-stream")
-            self.send_header("Content-Length", str(len(response)))
-            self.end_headers()
-            self.wfile.write(response)
-        except Exception:
-            response = traceback.format_exc().encode("utf-8")
-            self.send_response(500)
-            self.send_header("Content-Type", "text/plain; charset=utf-8")
-            self.send_header("Content-Length", str(len(response)))
-            self.end_headers()
-            self.wfile.write(response)
+        self._write_json(
+            410,
+            {
+                "error": (
+                    "The legacy pickle POST / endpoint is disabled for security. "
+                    "Use /score_file or /extract_trajectory with JSON bodies instead."
+                ),
+            },
+        )
 
     def _read_json_body(self) -> dict:
         content_length = int(self.headers.get("Content-Length", "0"))
@@ -319,6 +294,12 @@ def main():
 
     signal.signal(signal.SIGINT, shutdown_server)
     signal.signal(signal.SIGTERM, shutdown_server)
+
+    if args.host not in {"127.0.0.1", "localhost", "::1"}:
+        print(
+            f"[serve_reward_3d] WARNING: binding to {args.host!r} exposes a local-only "
+            "reward service; keep this on loopback unless you trust every client on the network."
+        )
 
     server = ThreadingHTTPServer((args.host, args.port), Reward3DHandler)
     server.model_name = args.model_name

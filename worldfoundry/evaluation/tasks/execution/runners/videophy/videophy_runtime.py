@@ -26,7 +26,6 @@ from worldfoundry.evaluation.tasks.execution.runners.videophy.videophy_prompts i
     unique_generation_records,
 )
 
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 
 
 @dataclass(frozen=True)
@@ -364,3 +363,7 @@ def run_videophy_judge(
         "sa_threshold": config.sa_threshold,
         "pc_threshold": config.pc_threshold,
     }
+
+
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
+

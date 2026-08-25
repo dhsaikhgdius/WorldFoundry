@@ -22,7 +22,6 @@ from worldfoundry.evaluation.tasks.execution.runners.videophy2.videophy2_prompts
     unique_generation_records,
 )
 
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 JOINT_SA_MIN = 4
 JOINT_PC_MIN = 4
 
@@ -400,3 +399,7 @@ def run_videophy2_judge(
         "batch_size": config.batch_size,
         "num_frames": config.num_frames,
     }
+
+
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
+

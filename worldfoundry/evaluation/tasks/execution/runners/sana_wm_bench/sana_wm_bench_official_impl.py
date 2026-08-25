@@ -8,6 +8,10 @@ executing an NVlabs/Sana checkout at evaluation time.
 
 from __future__ import annotations
 
+
+
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
+
 import argparse
 import contextlib
 import csv
@@ -31,7 +35,6 @@ from .sana_wm_bench_prompts import (
 )
 
 BENCHMARK_ID = "sana-wm-bench"
-SCORECARD_SCHEMA_VERSION = "worldfoundry-scorecard"
 VBENCH_DIMS = (
     "subject_consistency", "background_consistency", "temporal_flickering", "motion_smoothness",
     "dynamic_degree", "aesthetic_quality", "imaging_quality", "overall_consistency", "temporal_style",

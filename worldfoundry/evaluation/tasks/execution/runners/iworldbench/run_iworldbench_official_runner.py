@@ -32,8 +32,6 @@ from worldfoundry.evaluation.tasks.execution.runners.iworldbench.iworldbench_run
 )
 from worldfoundry.evaluation.utils import benchmark_task_sample_path
 
-SCORECARD_SCHEMA_VERSION = "worldfoundry-scorecard"
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 SPLIT_DEFAULT_METRICS = {
     "diff": "action_control",
     "mem": "memory_ability",
@@ -434,3 +432,7 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
+

@@ -1,10 +1,8 @@
-"""Miscellaneous helpers: env vars, pattern matching, hashing, and pickling."""
+"""Miscellaneous helpers: env vars, pattern matching, and hashing."""
 
-import codecs
 import fnmatch
 import hashlib
 import os
-import pickle
 from collections import Counter
 from typing import Any, Callable, Dict, List, Optional, Union
 
@@ -252,14 +250,6 @@ class Every:
 
     def __bool__(self):
         raise RuntimeError("`Every` objects should be used by calling ()")
-
-
-def encode_base64(obj) -> str:
-    return codecs.encode(pickle.dumps(obj), "base64").decode()
-
-
-def decode_base64(s: str):
-    return pickle.loads(codecs.decode(s.encode(), "base64"))
 
 
 def safe_hash(input_tuple):

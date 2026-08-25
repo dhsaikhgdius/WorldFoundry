@@ -23,7 +23,6 @@ FIRST_IMAGES_REL = Path("data/first_images")
 FIRST_IMAGES_ALT_REL = Path("first_images")
 CANONICAL_PROMPT_COUNT = 250
 
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 
 
 def _env_path(name: str) -> Path | None:

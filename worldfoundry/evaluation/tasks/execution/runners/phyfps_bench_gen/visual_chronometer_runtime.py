@@ -15,7 +15,6 @@ DEFAULT_CKPT_REL = Path("inference/ckpts/vc_common_10_60fps.ckpt")
 HF_REPO_ID = "xiangbog/Visual_Chronometer"
 HF_CKPT_FILENAME = "vc_common_10_60fps.ckpt"
 
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 IN_TREE_VISUAL_CHRONOMETER_ROOT = Path(__file__).resolve().parent / "runtime" / "visual_chronometer"
 
 
@@ -191,3 +190,7 @@ def predict_video_directory(
             )
         )
     return records
+
+
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
+

@@ -21,7 +21,6 @@ from worldfoundry.evaluation.utils import REPO_ROOT
 EVAL_SCRIPT_REL = Path("run_iworldbench_evaluation.py")
 REPORTS_DIR_NAME = "reports"
 
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 
 
 def resolve_evaluation_script(*, repo_root: Path | None = None) -> Path | None:
@@ -262,3 +261,7 @@ def run_iworldbench_evaluator(
         "metric": config.metric,
         "upstream_command": command,
     }
+
+
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
+

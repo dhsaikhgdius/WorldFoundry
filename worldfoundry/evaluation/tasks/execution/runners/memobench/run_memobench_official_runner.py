@@ -15,6 +15,10 @@ require SAM-3 and Gemini credentials.
 
 from __future__ import annotations
 
+
+
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
+
 import argparse
 import json
 import os
@@ -32,7 +36,6 @@ from worldfoundry.evaluation.tasks.execution.runners.memobench.memobench_metrics
 )
 from worldfoundry.evaluation.utils import benchmark_task_sample_path
 
-SCORECARD_SCHEMA_VERSION = "worldfoundry-scorecard"
 BENCHMARK_ID = "memobench"
 
 

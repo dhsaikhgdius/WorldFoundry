@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+
+
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
+
 import argparse
 import json
 import os
@@ -26,7 +30,6 @@ from worldfoundry.runtime.env import (  # type: ignore[reportMissingImports]  # 
 )
 
 DEFAULT_VIDEOBENCH_ROOT = Path(__file__).resolve().parent / "runtime"
-SCORECARD_SCHEMA_VERSION = "worldfoundry-scorecard"
 VIDEO_ARTIFACT_EXTENSIONS = frozenset({".mp4", ".mov", ".mkv", ".avi", ".webm", ".m4v", ".gif"})
 HUMAN_ANNOTATION_REPO_ID = "Video-Bench/Video-Bench_human_annotation"
 OFFICIAL_VIDEOS_REPO_ID = "Video-Bench/Video-Bench_videos"

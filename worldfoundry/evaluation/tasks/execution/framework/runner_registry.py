@@ -4,6 +4,13 @@ Maps ``benchmark_id`` to in-tree runner CLI scripts and result-path flags.
 Consumed by :mod:`integration` and :class:`ManifestBenchmarkRunner` specialized
 normalizer dispatch.
 
+Runner implementation tiers:
+
+* **Hook runners** — thin scripts using ``framework.official_runner.run_main()`` plus
+  ``framework.runner_common`` helpers (preferred for new benchmarks).
+* **Legacy custom runners** — large per-bench scorecard assembly still being migrated
+  to the shared framework (see ``run_*_official_runner.py`` under each bench folder).
+
 Sections:
 
 * **VideoRunnerSpec** — per-benchmark script path and CLI flag metadata.

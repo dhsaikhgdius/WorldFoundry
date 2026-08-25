@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+
+
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
+
 import argparse
 import json
 import os
@@ -24,7 +28,6 @@ from worldfoundry.runtime.env import resolve_hf_cache_dir  # type: ignore[report
 DEFAULT_WORLDMODELBENCH_ROOT = Path(__file__).resolve().parent / "runtime"
 WORLDMODELBENCH_HF_CACHE_DIR = "datasets--Efficient-Large-Model--worldmodelbench"
 WORLDMODELBENCH_MANIFEST_ASSET = bundled_benchmark_asset("worldmodelbench", "worldmodelbench.json")
-SCORECARD_SCHEMA_VERSION = "worldfoundry-scorecard"
 VIDEO_EXTENSIONS = frozenset({".mp4", ".mov", ".mkv", ".avi", ".webm", ".m4v"})
 
 METRIC_ALIASES = {

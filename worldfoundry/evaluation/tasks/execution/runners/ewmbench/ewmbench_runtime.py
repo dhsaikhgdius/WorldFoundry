@@ -83,7 +83,6 @@ def discover_official_results(search_roots: list[Path]) -> Path | None:
                 return matches[-1]
     return None
 
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 
 
 @dataclass(frozen=True)
@@ -280,3 +279,7 @@ def run_ewmbench_scorer(
         "video_count": len(matched_videos),
         "prompt_count": len(prompt_records),
     }
+
+
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
+

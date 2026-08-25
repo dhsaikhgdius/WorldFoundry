@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+
+
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
+
 import argparse
 import json
 import os
@@ -41,7 +45,6 @@ DEFAULT_WORLDSCORE_CONFIG_ROOT = bundled_benchmark_asset("worldscore", "config")
 WORLDSCORE_HF_CACHE_DIR = "datasets--Howieeeee--WorldScore"
 WORLDSCORE_HFD_DIR_NAME = "Howieeeee__WorldScore"
 WORLDSCORE_DATASET_DIR_NAME = "WorldScore-Dataset"
-SCORECARD_SCHEMA_VERSION = "worldfoundry-scorecard"
 
 CONTROLLABILITY_ASPECTS = ("camera_control", "object_control")
 QUALITY_ASPECTS = (

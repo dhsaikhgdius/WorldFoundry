@@ -19,7 +19,6 @@ BENCHMARK_ID = "videophy2"
 PROMPTS_JSON_REL = Path("prompts.json")
 CANONICAL_PROMPT_COUNT = 200
 
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 
 
 def _env_path(name: str) -> Path | None:

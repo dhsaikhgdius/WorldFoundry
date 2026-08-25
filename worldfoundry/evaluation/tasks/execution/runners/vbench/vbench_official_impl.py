@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+
+
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
+
 import argparse
 import json
 import math
@@ -23,7 +27,6 @@ DEFAULT_VBENCH_ROOT = IN_TREE_VBENCH_ROOT
 VBENCH_FULL_INFO_ASSET = bundled_benchmark_asset("vbench", "VBench_full_info.json")
 VBENCH_PROMPTS_ASSET_ROOT = bundled_benchmark_asset("vbench", "prompts")
 DEFAULT_BERT_BASE_UNCASED = REPO_ROOT.parent / "ckpt" / "WorldScore" / "bert-base-uncased"
-SCORECARD_SCHEMA_VERSION = "worldfoundry-scorecard"
 VBENCH_DIMENSIONS = (
     "subject_consistency",
     "background_consistency",

@@ -18,7 +18,6 @@ from worldfoundry.evaluation.utils import write_jsonl
 BENCHMARK_ID = "physvidbench"
 PROMPT_MANIFEST_REL = Path("prompts_questions.csv")
 
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 
 
 def _env_path(name: str) -> Path | None:
@@ -222,3 +221,7 @@ def attach_generation_results(
             )
         )
     return tuple(results)
+
+
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
+

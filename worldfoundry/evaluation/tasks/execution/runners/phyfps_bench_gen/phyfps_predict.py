@@ -14,7 +14,6 @@ from worldfoundry.evaluation.tasks.execution.runners.phyfps_bench_gen.visual_chr
     predict_video_directory,
 )
 
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 
 
 @dataclass(frozen=True)
@@ -238,3 +237,7 @@ def load_meta_fps_map(
             mapping.setdefault(video_name, float(default_meta_fps))
             mapping.setdefault(Path(video_name).stem, float(default_meta_fps))
     return mapping
+
+
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
+

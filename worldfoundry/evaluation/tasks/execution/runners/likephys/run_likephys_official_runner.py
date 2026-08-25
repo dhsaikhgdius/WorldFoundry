@@ -19,6 +19,10 @@ every metric this runner reports.
 
 from __future__ import annotations
 
+
+
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
+
 import argparse
 import json
 import os
@@ -52,7 +56,6 @@ from worldfoundry.evaluation.tasks.execution.runners.likephys.likephys_scenarios
 )
 from worldfoundry.evaluation.utils import REPO_ROOT, benchmark_task_sample_path
 
-SCORECARD_SCHEMA_VERSION = "worldfoundry-scorecard"
 RUNNER_NAME = "benchmark_zoo_likephys_official_runner"
 EVALUATION_KIND = "likephys_misrank_normalizer"
 OFFICIAL_EVALUATION_KIND = "likephys_official_probe"

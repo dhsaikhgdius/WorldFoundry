@@ -23,6 +23,8 @@ from worldfoundry.evaluation.tasks.execution.framework.benchmark_assets import (
     bundled_benchmark_assets_root,
 )
 
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import VIDEO_SUFFIXES
+
 BENCHMARK_ID = "t2v-compbench"
 PROMPTS_PER_CATEGORY = 200
 CANONICAL_PROMPT_COUNT = 1400
@@ -69,7 +71,6 @@ CATEGORY_PROTOCOL: dict[str, dict[str, str]] = {
         "video_subdir": "generative_numeracy",
     },
 }
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi", ".m4v"})
 
 
 def resolve_t2v_compbench_assets(explicit: Path | None = None) -> Path:
