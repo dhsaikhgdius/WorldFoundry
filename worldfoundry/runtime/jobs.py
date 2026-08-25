@@ -24,6 +24,47 @@ TERMINAL_JOB_STATUSES = frozenset({"completed", "failed", "cancelled"})
 # job failed, and orphan the child process group.
 _STREAM_BUFFER_LIMIT = 2**20
 
+# Version tag for the persisted job-index file written by
+# ``AsyncCommandJobStore(state_path=...)``.
+JOB_STORE_STATE_SCHEMA_VERSION = 1
+
+# Metadata fields persisted per job in the on-disk index. In-memory log tails
+# are intentionally excluded: raw stdout/stderr/events already live in the
+# per-job artifact files referenced by the ``*_log_path`` fields.
+_PERSISTED_JOB_FIELDS = (
+    "job_id",
+    "run_id",
+    "pid",
+    "status",
+    "created_at",
+    "started_at",
+    "completed_at",
+    "returncode",
+    "error",
+    "cwd",
+    "output_dir",
+    "log_dir",
+    "event_log_path",
+    "stdout_log_path",
+    "stderr_log_path",
+)
+
+
+def pid_alive(pid: int | None) -> bool:
+    """Best-effort liveness probe for a process id (POSIX signal 0)."""
+    if pid is None or pid <= 0:
+        return False
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        # The process exists but belongs to another user.
+        return True
+    except OSError:
+        return False
+    return True
+
 
 def _iso_to_epoch(value: str | None) -> float | None:
     """Convert an ISO-8601 timestamp (with optional ``Z`` suffix) to epoch seconds."""
@@ -159,6 +200,7 @@ class CommandJob:
     command: tuple[str, ...]
     display_command: tuple[str, ...]
     run_id: str = ""
+    pid: int | None = None
     cwd: str | None = None
     output_dir: str | None = None
     log_dir: str | None = None
@@ -174,6 +216,9 @@ class CommandJob:
     error: str | None = None
     result: Any | None = None
     logs: list[dict[str, Any]] = field(default_factory=list)
+    # True when the job was rebuilt from a persisted index after a store
+    # restart; such jobs carry no live process/task handles.
+    restored: bool = False
     _task: asyncio.Task[None] | None = field(default=None, repr=False)
     _process: asyncio.subprocess.Process | None = field(default=None, repr=False)
 
@@ -199,6 +244,7 @@ class CommandJob:
         return {
             "job_id": self.job_id,
             "run_id": self.run_id,
+            "pid": self.pid,
             "status": self.status,
             "created_at": self.created_at,
             "started_at": self.started_at,
@@ -213,6 +259,7 @@ class CommandJob:
             "cwd": self.cwd,
             "metadata": dict(self.metadata),
             "error": self.error,
+            "restored": self.restored,
             "logs": self.logs[-log_tail:] if log_tail else [],
         }
 
@@ -229,12 +276,99 @@ class CommandJob:
 class AsyncCommandJobStore:
     """Small in-process command runner used by local UI and MCP surfaces."""
 
-    def __init__(self, *, max_log_lines: int = 4000, max_jobs: int | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        max_log_lines: int = 4000,
+        max_jobs: int | None = None,
+        state_path: str | Path | None = None,
+    ) -> None:
         self.max_log_lines = max_log_lines
         # Optional retention bound for terminal jobs; ``None`` keeps every job
         # (legacy behaviour). Long-lived UI/MCP processes should set a bound.
         self.max_jobs = max_jobs
+        # Optional on-disk JSON index (CM-28). When set, job metadata
+        # (run_id/pid/output_dir/status/log paths) survives store restarts:
+        # jobs are restored on construction and reconciled against live pids,
+        # so an MCP stdio server killed by its client can still report — and
+        # cancel — the evaluation subprocesses it left running.
+        self.state_path = None if state_path is None else Path(state_path)
         self._jobs: dict[str, CommandJob] = {}
+        if self.state_path is not None:
+            self._restore_persisted_jobs()
+
+    # ── Persistence (CM-28) ─────────────────────────────────────────
+
+    def _restore_persisted_jobs(self) -> None:
+        """Load the persisted job index and reconcile statuses against live pids.
+
+        Non-terminal jobs whose recorded pid is gone are marked failed; jobs
+        whose pid is still alive stay ``running`` as *restored* jobs (metadata
+        and on-disk log paths available, no live process handle).  A missing
+        or unreadable index starts the store empty.
+        """
+        assert self.state_path is not None
+        try:
+            payload = json.loads(self.state_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError, ValueError):
+            return
+        rows = payload.get("jobs") if isinstance(payload, Mapping) else None
+        if not isinstance(rows, list):
+            return
+        reconciled = False
+        for row in rows:
+            if not isinstance(row, Mapping) or not row.get("job_id"):
+                continue
+            command = tuple(str(item) for item in (row.get("command") or ()))
+            job = CommandJob(
+                job_id=str(row["job_id"]),
+                command=command,
+                display_command=command,
+                restored=True,
+            )
+            for field_name in _PERSISTED_JOB_FIELDS:
+                if field_name in ("job_id",) or row.get(field_name) is None:
+                    continue
+                setattr(job, field_name, row[field_name])
+            metadata = row.get("metadata")
+            if isinstance(metadata, Mapping):
+                job.metadata = dict(metadata)
+            if not job.terminal:
+                if pid_alive(job.pid):
+                    job.status = "running"
+                else:
+                    job.status = "failed"
+                    job.error = (
+                        f"process not found after job-store restart (pid {job.pid})"
+                        if job.pid is not None
+                        else "job lost during job-store restart (no pid recorded)"
+                    )
+                    job.completed_at = job.completed_at or _utc_now_iso()
+                    reconciled = True
+            self._jobs[job.job_id] = job
+        if reconciled:
+            self._persist()
+
+    def _persist(self) -> None:
+        """Atomically write the metadata index for every tracked job."""
+        if self.state_path is None:
+            return
+        rows = []
+        for job in sorted(self._jobs.values(), key=lambda item: item.created_at):
+            row: dict[str, Any] = {name: getattr(job, name) for name in _PERSISTED_JOB_FIELDS}
+            row["command"] = list(job.display_command)
+            row["metadata"] = dict(job.metadata)
+            rows.append(row)
+        payload = {"schema_version": JOB_STORE_STATE_SCHEMA_VERSION, "jobs": rows}
+        try:
+            self.state_path.parent.mkdir(parents=True, exist_ok=True)
+            tmp_path = self.state_path.with_name(self.state_path.name + f".tmp-{os.getpid()}")
+            tmp_path.write_text(json.dumps(payload, ensure_ascii=False, default=str), encoding="utf-8")
+            os.replace(tmp_path, self.state_path)
+        except OSError:
+            # Persistence is best-effort: an unwritable index must never take
+            # down job submission or status transitions.
+            pass
 
     def submit(
         self,
@@ -298,6 +432,7 @@ class AsyncCommandJobStore:
         )
         self._jobs[job.job_id] = job
         self._write_lifecycle_event(job, "INFO", "job.queued", "WorldFoundry job queued")
+        self._persist()
         job._task = asyncio.create_task(self._run(job, dict(env or {}), timeout=timeout))
         return job
 
@@ -340,6 +475,8 @@ class AsyncCommandJobStore:
                 del self._jobs[job.job_id]
                 removed += 1
                 excess -= 1
+        if removed:
+            self._persist()
         return removed
 
     async def cancel(self, job_id: str) -> tuple[bool, str]:
@@ -364,6 +501,7 @@ class AsyncCommandJobStore:
         if job._task is not None and not job._task.done():
             job._task.cancel()
         job.completed_at = job.completed_at or _utc_now_iso()
+        self._persist()
         return True, "cancelled"
 
     async def _run(self, job: CommandJob, env: Mapping[str, str], *, timeout: float | None = None) -> None:
@@ -396,6 +534,8 @@ class AsyncCommandJobStore:
                 start_new_session=True,
                 limit=_STREAM_BUFFER_LIMIT,
             )
+            job.pid = job._process.pid
+            self._persist()
 
             async def _pump_and_wait() -> None:
                 await asyncio.gather(
@@ -448,6 +588,7 @@ class AsyncCommandJobStore:
         finally:
             if job.completed_at is None:
                 job.completed_at = _utc_now_iso()
+            self._persist()
 
     async def _read_stream(
         self,
@@ -528,7 +669,26 @@ class AsyncCommandJobStore:
         # Graceful shutdown first, then hard stop, so benchmark runners can flush
         # partial state before the process exits.
         process = job._process
-        if process is None or process.returncode is not None:
+        if process is None:
+            # Restored jobs (CM-28) carry only the detached child's pid: signal
+            # its process group directly (children start with their own
+            # session, so pid == pgid) with the same TERM → wait → KILL ladder.
+            if sys.platform == "win32" or not pid_alive(job.pid):
+                return
+            try:
+                os.killpg(job.pid, signal.SIGTERM)  # type: ignore[arg-type]
+            except (ProcessLookupError, PermissionError):
+                return
+            for _ in range(10):
+                await asyncio.sleep(0.5)
+                if not pid_alive(job.pid):
+                    return
+            try:
+                os.killpg(job.pid, signal.SIGKILL)  # type: ignore[arg-type]
+            except (ProcessLookupError, PermissionError):
+                pass
+            return
+        if process.returncode is not None:
             return
         try:
             if sys.platform == "win32":
@@ -577,7 +737,9 @@ def _json_candidates(text: str) -> list[str]:
 __all__ = [
     "AsyncCommandJobStore",
     "CommandJob",
+    "JOB_STORE_STATE_SCHEMA_VERSION",
     "TERMINAL_JOB_STATUSES",
+    "pid_alive",
     "python_module_command",
     "run_bounded_command",
 ]
