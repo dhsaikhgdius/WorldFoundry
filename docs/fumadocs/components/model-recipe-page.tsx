@@ -454,7 +454,9 @@ export function ModelRecipePage({ recipe, locale }: { recipe: ModelRecipe; local
     ['what-is', t.whatIs],
     ['sources', t.sourcesSection],
     ['launch', t.launch],
-    ['install', t.install],
+    // The install section is fully omitted for reference-only entries, so its
+    // anchor must not appear in the sidebar either.
+    ...(isReferenceOnly ? [] : ([['install', t.install]] as Array<[string, string]>)),
     ['assets', t.assets],
     ['variants', t.variantsSection],
     ...(docs.benchmarks.length > 0 ? ([['benchmarks', t.benchmarksSection]] as Array<[string, string]>) : []),
