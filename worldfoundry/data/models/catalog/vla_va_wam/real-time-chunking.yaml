@@ -27,3 +27,23 @@ catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint
   metadata, and runtime-profile planning records. Runner or pipeline targets are present
   only after a complete in-tree WorldFoundry model runtime is registered and validated.
+docs:
+  publisher: Physical Intelligence
+  publisher_kind: company
+  publisher_zh: Physical Intelligence（PI）
+  overview: 'Real-Time Chunking (RTC) is not a model but an inference-time algorithm from Physical Intelligence: it lets flow-based VLA policies re-plan action chunks asynchronously so control stays smooth under real-time constraints. WorldFoundry routes RTC through an in-tree action runtime adapter — no checkpoint is required for chunk-context processing.'
+  overview_zh: Real-Time Chunking（RTC）不是模型，而是 Physical Intelligence 的推理期算法：让基于 flow 的 VLA 策略异步重规划动作块，使控制在实时约束下保持平滑。WorldFoundry 通过树内动作运行时适配器路由 RTC——块上下文处理无需 checkpoint。
+  architecture: 'RTC treats chunk switching as an inpainting problem: the start of the next chunk is constrained to agree with actions already executing, removing pauses and discontinuities at chunk boundaries. The reference implementation targets the Kinetix environment suite.'
+  architecture_zh: RTC 将块切换视为 inpainting 问题：约束下一块的开头与正在执行的动作一致，消除块边界的停顿与不连续。参考实现面向 Kinetix 环境套件。
+  usage_notes: Apply RTC as runtime behavior on top of a flow VLA policy (e.g. the pi0 family) rather than loading it as a standalone policy.
+  usage_notes_zh: 将 RTC 作为运行时行为叠加在 flow VLA 策略（如 pi0 家族）之上，而非作为独立策略加载。
+  limitations:
+  - 'Algorithm-only entry: it needs a host policy to act on.'
+  - No license is recorded in this repository.
+  limitations_zh:
+  - 纯算法条目：需要宿主策略配合使用。
+  - 仓库未记录许可证。
+  recommended_benchmarks:
+  - id: kinetix
+    reason: The official reference implementation targets Kinetix.
+    reason_zh: 官方参考实现面向 Kinetix。

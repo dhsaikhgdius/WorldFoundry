@@ -29,3 +29,19 @@ catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint
   metadata, and runtime-profile planning records. Runner or pipeline targets are present
   only after a complete in-tree WorldFoundry model runtime is registered and validated.
+docs:
+  publisher: Open-source research release (institution not recorded)
+  publisher_kind: lab
+  publisher_zh: 开源研究发布（仓库未记录正式机构）
+  overview: VQ-BeT (Vector-Quantized Behavior Transformer) generates behavior by tokenizing continuous actions with a hierarchical VQ-VAE and predicting those tokens with a transformer — capturing multimodal demonstrations without diffusion sampling costs. The catalog sources the official repository and routes it through an in-tree action runtime adapter.
+  overview_zh: VQ-BeT（向量量化行为 Transformer）用分层 VQ-VAE 将连续动作 token 化，再以 transformer 预测这些 token 来生成行为——无需扩散采样开销即可捕捉多模态示范。catalog 以官方仓库为源，经树内动作运行时适配器路由。
+  architecture: A residual VQ-VAE action tokenizer plus a GPT-style transformer over behavior tokens, with offset heads recovering continuous actions. Further internals are not recorded in this repository.
+  architecture_zh: 残差 VQ-VAE 动作 tokenizer 加 GPT 式行为 token transformer，偏移头恢复连续动作。更多内部细节仓库未记录。
+  usage_notes: Checkpoint absence is reported by runtime missing_assets and is not a catalog blocker; runs emit a runtime plan until weights are staged. Train your own task checkpoint with the official code before running.
+  usage_notes_zh: checkpoint 缺失由运行时 missing_assets 报告，不视为 catalog 阻塞；权重就位前运行输出运行时计划。运行前需用官方代码训练自己的任务 checkpoint。
+  limitations:
+  - No official pretrained checkpoints are recorded.
+  - No license is recorded in this repository.
+  limitations_zh:
+  - 未记录官方预训练 checkpoint。
+  - 仓库未记录许可证。
