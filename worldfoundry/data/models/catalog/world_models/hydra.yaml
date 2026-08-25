@@ -20,3 +20,25 @@ runner_parity:
   status: pending
   notes: [In-tree runtime and WRBench camera JSON route are wired; GPU artifact validation requires checkpoints.]
 catalog_category: world_models
+docs:
+  publisher: Open-source research release (institution not recorded)
+  publisher_kind: lab
+  publisher_zh: 开源研究发布（仓库未记录正式机构）
+  overview: 'HyDRA is a camera-controlled video-to-video world model: it re-renders an input video along new camera behavior described by a camera JSON. In this catalog the official source is vendored at a pinned revision and the in-tree runtime plus WRBench camera JSON route are wired; GPU artifact validation waits on checkpoints.'
+  overview_zh: HyDRA 是相机可控的视频到视频世界模型：按 camera JSON 描述的新相机行为重新渲染输入视频。本 catalog 中官方源码以固定 revision 内置，树内运行时与 WRBench camera JSON 路径已接通；GPU 产物验证待 checkpoint 就位。
+  architecture: Architecture internals are not recorded in this repository. The pinned public revision has no LICENSE file, so license review remains required before downstream use.
+  architecture_zh: 架构内部细节仓库未记录。固定的公开 revision 无 LICENSE 文件，下游使用前必须先做许可审查。
+  usage_notes: Bundled source is mandatory — external source checkouts are rejected. Inputs are prompt, video, and camera_json; stage checkpoints before expecting artifacts.
+  usage_notes_zh: 必须使用内置源码——外部源码检出会被拒绝。输入为提示词、视频与 camera_json；期望得到产物前请先就位 checkpoint。
+  limitations:
+  - 'No LICENSE in the pinned upstream revision: legal review required.'
+  - GPU artifact validation is pending checkpoints.
+  - The publishing institution is not recorded in this repository.
+  limitations_zh:
+  - 固定上游 revision 无 LICENSE：需要法律审查。
+  - GPU 产物验证待 checkpoint。
+  - 发表机构在本仓库中未记录。
+  recommended_benchmarks:
+  - id: camerabench
+    reason: Camera-behavior adherence of re-rendered video.
+    reason_zh: 重渲染视频的相机行为贴合度。

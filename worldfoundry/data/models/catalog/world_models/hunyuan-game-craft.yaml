@@ -34,3 +34,25 @@ runner_parity:
   - Per-run visual QA and artifact checks are tracked outside the catalog.
 catalog_category: world_models
 catalog_scope: world-model/interactive starred models
+docs:
+  publisher: Tencent (Hunyuan)
+  publisher_kind: company
+  publisher_zh: 腾讯（混元）
+  overview: 'Hunyuan GameCraft turns a single game scene image into interactive world video: send keyboard-style actions (forward/backward/left/right) and it generates high-dynamic game footage that follows them. In this catalog the runner is verified — the official village image-conditioned demo runs with 129 frames at 704x1216, 50 steps, CFG 2.0, over 8 torchrun ranks.'
+  overview_zh: 混元 GameCraft 把一张游戏场景图变成可交互的世界视频：发送键盘式动作（前/后/左/右），它就生成跟随动作的高动态游戏画面。本 catalog 中 runner 已验证——官方 village 图像条件 demo 以 129 帧 704x1216、50 步、CFG 2.0、8 个 torchrun rank 运行。
+  architecture: 'Per the upstream release, GameCraft builds on HunyuanVideo with unified continuous action-space injection and history-conditioned autoregressive extension. The infer-only runtime is retained in-tree and rejects external source roots; its Python 3.10 / torch 2.5.1 stack stays isolated in the documented HYGameCraft environment (license: tencent-hunyuan-community).'
+  architecture_zh: 按上游发布，GameCraft 基于 HunyuanVideo，采用统一连续动作空间注入与历史条件自回归扩展。仅推理运行时保留在树内并拒绝外部源码根；其 Python 3.10 / torch 2.5.1 栈隔离在文档化的 HYGameCraft 环境中（许可：tencent-hunyuan-community）。
+  usage_notes: Official inference uses the HYGameCraft conda profile and torchrun dispatch — plan for a multi-GPU host. Per-run visual QA is tracked outside the catalog.
+  usage_notes_zh: 官方推理使用 HYGameCraft conda 档案与 torchrun 分发——请准备多卡主机。每次运行的视觉 QA 在 catalog 外跟踪。
+  limitations:
+  - Dedicated environment (Python 3.10 / torch 2.5.1) isolated from the unified profile.
+  - The verified demo recipe uses 8 GPUs; single-GPU behavior is not the recorded contract.
+  - 'Tencent Hunyuan community license: check territory/usage terms.'
+  limitations_zh:
+  - 专属环境（Python 3.10 / torch 2.5.1），与统一档案隔离。
+  - 已验证 demo 配方使用 8 卡；单卡行为不在记录契约内。
+  - 腾讯混元社区许可：请核对地域/用途条款。
+  recommended_benchmarks:
+  - id: worldmodelbench
+    reason: Action-following world-rollout quality.
+    reason_zh: 动作跟随的世界滚动生成质量。

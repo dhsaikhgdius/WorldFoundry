@@ -42,3 +42,24 @@ runner_parity:
 catalog_category: world_models
 catalog_scope: World-model catalog entries. Integrated entries expose in-tree WorldFoundry runtimes; blocked entries retain
   upstream provenance without runnable backends.
+docs:
+  publisher: GigaAI
+  publisher_kind: company
+  publisher_zh: 极佳科技（GigaAI）
+  overview: 'GigaWorld-0 is GigaAI''s open robotics world-model series: video-generation models trained for action-conditioned robot data generation, with pretrain and GR1-specialized 2B checkpoints recorded. In this catalog the official WorldArena-listed source is vendored in-tree; execution waits on staged checkpoints and task assets.'
+  overview_zh: GigaWorld-0 是极佳科技开源的机器人世界模型系列：面向动作条件机器人数据生成训练的视频生成模型，记录了 pretrain 与 GR1 专用两个 2B checkpoint。本 catalog 中其官方（WorldArena 收录的）源码已内置树内；执行待 checkpoint 与任务资产就位。
+  architecture: Two 2B video checkpoints are recorded — GigaWorld-0-Video-Pretrain-2b and GigaWorld-0-Video-GR1-2b under open-gigaai. Architecture internals beyond the recorded tasks are not stored in this repository.
+  architecture_zh: 记录两个 2B 视频 checkpoint——open-gigaai 下的 GigaWorld-0-Video-Pretrain-2b 与 GigaWorld-0-Video-GR1-2b。除已记录任务外的架构内部细节仓库未存。
+  usage_notes: The pipeline resolves the vendored inference entrypoint and returns blocked runtime diagnostics until checkpoints and task assets are staged.
+  usage_notes_zh: pipeline 解析内置推理入口，在 checkpoint 与任务资产就位前返回 blocked 运行时诊断。
+  limitations:
+  - Execution is checkpoint and task-asset gated.
+  limitations_zh:
+  - 执行受 checkpoint 与任务资产限制。
+  recommended_benchmarks:
+  - id: worldarena
+    reason: The entry is listed on WorldArena for robot world-model evaluation.
+    reason_zh: 该条目已收录于 WorldArena 的机器人世界模型评测。
+  - id: ewmbench
+    reason: Embodied world-model video prediction quality.
+    reason_zh: 具身世界模型视频预测质量。

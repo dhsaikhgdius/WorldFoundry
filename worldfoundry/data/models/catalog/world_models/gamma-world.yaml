@@ -74,3 +74,23 @@ runner_parity:
   - Native recipes cover bidirectional, causal, and four-step causal inference.
 catalog_category: world_models
 catalog_scope: World-model catalog entries. Integrated entries expose in-tree WorldFoundry runtimes.
+docs:
+  publisher: NVIDIA
+  publisher_kind: company
+  publisher_zh: 英伟达（NVIDIA）
+  overview: 'Gamma-World is NVIDIA''s multi-agent world model: given per-player start images and one action stream per player, it generates each player''s view of a shared world. In this catalog it is a native diffusion recipe — no external checkout or model-owned runtime — with bidirectional, causal, and four-step causal variants; the four-step causal model is the default streaming choice.'
+  overview_zh: Gamma-World 是英伟达的多智能体世界模型：给定每个玩家的起始图像与各自的动作流，为每个玩家生成共享世界中的视角画面。本 catalog 中它是原生扩散配方——无外部检出、无模型自有运行时——含双向、因果与四步因果三个 variant；四步因果模型是默认的流式选择。
+  architecture: Reason1 conditioning (nvidia/Cosmos-Reason1-7B as text encoder), the shared Wan VAE, checkpoint loading, scheduling, action normalization, and window execution all reuse WorldFoundry's base-model/core infrastructure; the recorded weights (chijw/Gamma-World, apache-2.0) cover bidirectional, causal, and distilled networks.
+  architecture_zh: Reason1 条件（文本编码器为 nvidia/Cosmos-Reason1-7B）、共享 Wan VAE、checkpoint 加载、调度、动作归一化与窗口执行全部复用 WorldFoundry 的基座/核心基础设施；记录权重（chijw/Gamma-World， apache-2.0）覆盖双向、因果与蒸馏网络。
+  usage_notes: Pass a sequence of per-player images plus one action JSON/mapping per player, or a compatible eval_dir. Runner status is checkpoint_environment_required — stage the Gamma-World and Reason1 weights first.
+  usage_notes_zh: 传入按玩家排列的图像序列与每位玩家一份动作 JSON/映射，或兼容的 eval_dir。runner 状态为 checkpoint_environment_required——请先就位 Gamma-World 与 Reason1 权重。
+  limitations:
+  - Execution needs staged checkpoints and a suitable GPU environment.
+  - Multi-agent consistency degrades as player count and rollout length grow.
+  limitations_zh:
+  - 执行需要就位 checkpoint 与合适的 GPU 环境。
+  - 随玩家数量与滚动长度增长，多智能体一致性会下降。
+  recommended_benchmarks:
+  - id: worldmodelbench
+    reason: World-rollout quality under action conditioning.
+    reason_zh: 动作条件下世界滚动生成质量。

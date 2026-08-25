@@ -16,3 +16,19 @@ integration:
   - This exact route is the official trajectory-render stage over a pre-materialized HY-World scene; it does not claim full five-stage world generation.
 runner_parity: {status: pending, notes: [Dedicated camera.json point-cloud rendering route is wired.]}
 catalog_category: world_models
+docs:
+  publisher: Tencent (Hunyuan)
+  publisher_kind: company
+  publisher_zh: 腾讯（混元）
+  overview: 'HY-World 2.0 Trajectory Renderer is one stage of Tencent''s world-generation chain, cataloged separately: it renders camera-controlled video from a pre-materialized HY-World scene point cloud (render_results/global_pcd.ply) along a camera JSON. It intentionally loads no model checkpoint — it is a renderer, not a generator.'
+  overview_zh: HY-World 2.0 轨迹渲染器是腾讯世界生成链中的一个阶段，单独记录：沿 camera JSON 从预先物化的 HY-World 场景点云（render_results/global_pcd.ply）渲染相机可控视频。它有意不加载任何模型 checkpoint——是渲染器，不是生成器。
+  architecture: 'The unified runtime includes an in-tree torch point-splat fallback and does not require PyTorch3D. Official source is vendored at a pinned revision (license: tencent-hunyuan-community); this route is the official trajectory-render stage and does not claim full five-stage world generation.'
+  architecture_zh: 统一运行时包含树内 torch 点泼溅回退实现，不需要 PyTorch3D。官方源码以固定 revision 内置（许可：tencent-hunyuan-community）；该路径是官方轨迹渲染阶段，不声称完整五阶段世界生成。
+  usage_notes: Provide an image, camera JSON, and a scene_path pointing at a pre-materialized HY-World scene. Scene materialization belongs to the separate full HY-World generation pipeline.
+  usage_notes_zh: 提供图像、camera JSON 与指向预物化 HY-World 场景的 scene_path。场景物化属于独立的完整 HY-World 生成 pipeline。
+  limitations:
+  - Needs a pre-materialized scene (global_pcd.ply) — it cannot create scenes itself.
+  - Point-splat rendering quality is bounded by the input point cloud density.
+  limitations_zh:
+  - 需要预物化场景（global_pcd.ply）——它自身无法创建场景。
+  - 点泼溅渲染质量受输入点云密度限制。

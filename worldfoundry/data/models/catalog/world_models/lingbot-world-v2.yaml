@@ -50,3 +50,28 @@ output_artifacts:
 - generated_world_video
 catalog_category: world_models
 catalog_scope: World-model catalog entries with in-tree inference runtimes.
+docs:
+  publisher: Robbyant (Ant Group)
+  publisher_kind: company
+  publisher_zh: 蚂蚁灵波科技（Robbyant，蚂蚁集团）
+  overview: 'LingBot-World-V2 (also aliased lingbot-world-infinity) is the second generation of Robbyant''s world model: a 14B causal-fast model for image-to-world video with camera control. In this catalog only the released causal-fast inference route is integrated; official 8-GPU artifact parity waits on the staged 14B checkpoint and a CUDA run.'
+  overview_zh: LingBot-World-V2（别名 lingbot-world-infinity）是蚂蚁灵波世界模型的第二代：14B 的 causal-fast 模型，做带相机控制的图到世界视频。本 catalog 中仅集成已发布的 causal-fast 推理路径；官方 8 卡产物一致性待 14B checkpoint 就位与 CUDA 运行。
+  architecture: Common Wan, T5, VAE, scheduler, FSDP, collective, geometry, and media code is reused from WorldFoundry; training, example assets, and unreleased causal-pretrain/bidirectional routes are excluded. The recorded checkpoint is robbyant/lingbot-world-v2-14b-causal-fast.
+  architecture_zh: 通用的 Wan、T5、VAE、调度器、FSDP、集合通信、几何与媒体代码从 WorldFoundry 复用；训练、示例资产与未发布的 causal-pretrain/双向路径被排除。记录的 checkpoint 为 robbyant/lingbot-world-v2-14b-causal-fast。
+  usage_notes: 'Execution is offline-first with no runtime downloads. Eight GPUs are the official causal-fast recipe; Workspace also exposes a four-GPU compact topology. When Workspace already owns the torchrun process group, inference runs in that group without nested torchrun workers. Note the license: the integrated code is CC BY-NC-SA 4.0 — not for commercial use.'
+  usage_notes_zh: 执行为离线优先、无运行时下载。官方 causal-fast 配方为八卡；Workspace 亦提供四卡紧凑拓扑。当 Workspace 已持有 torchrun 进程组时，推理直接在该组内运行、不再嵌套启动 torchrun。注意许可：集成代码为 CC BY-NC-SA 4.0——不可商用。
+  limitations:
+  - 'CC BY-NC-SA 4.0: non-commercial license.'
+  - Official 8-GPU artifact parity is pending the staged 14B checkpoint.
+  - '14B model: high GPU memory requirements.'
+  limitations_zh:
+  - CC BY-NC-SA 4.0：非商用许可。
+  - 官方 8 卡产物一致性待 14B checkpoint 就位。
+  - 14B 模型：显存需求高。
+  recommended_benchmarks:
+  - id: camerabench
+    reason: Camera-control adherence of world rollouts.
+    reason_zh: 世界滚动生成的相机控制贴合度。
+  - id: worldmodelbench
+    reason: General world-rollout quality.
+    reason_zh: 世界滚动生成的总体质量。
