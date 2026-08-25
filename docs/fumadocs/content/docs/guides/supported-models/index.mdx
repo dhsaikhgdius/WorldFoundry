@@ -32,13 +32,14 @@ Model pages are generated from repository manifests by `docs/fumadocs/scripts/ge
 | Record | What it tells you |
 | --- | --- |
 | Catalog | Stable model ID, tasks, official sources (paper, project, code, weights), aliases, and integration status. |
+| Publisher | The formal publishing institution (company first, then university or lab) with its kind. GitHub handles are never presented as brands; when the repository records no formal institution, the page says so explicitly. |
 | Runtime profile | Input contract, artifact contract, backend stage, and runtime readiness. |
 | Environment | Python, CUDA tier, pinned packages, validation imports, and dedicated vs. unified routing. |
 | Pipeline binding | The runner and concrete pipeline target used by WorldFoundry, per variant. |
 | Benchmarks | Evaluation benchmarks recommended by the manifest or referenced in its evidence notes, linked to the Benchmark Hub. |
 | Evidence | Native-demo and WorldFoundry-runner parity; a catalog entry alone is not proof of a successful GPU run. |
 
-Unknown values remain **Not recorded**. A catalog manifest may additionally carry a curated `docs:` block (overview, highlights, use cases, hardware guidance, recommended benchmarks, limitations, all bilingual); when the block is absent, the generator synthesizes an equivalent narrative from the recorded fields, so every page stays detailed either way.
+Unknown values remain **Not recorded**. Every catalog manifest now carries a curated bilingual `docs:` block — overview, architecture, usage notes, limitations, publisher attribution, and recommended benchmarks (only real benchmark ids from this repository) — written from the manifest, the runtime profile, and the recorded official sources. Facts the repository does not record are stated as "not recorded" rather than invented; GPU validation is only claimed where the manifest records it.
 
 ## Common commands
 

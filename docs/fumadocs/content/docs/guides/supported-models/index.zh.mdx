@@ -32,13 +32,14 @@ description: 选择模型，检查运行时，并复制与你的机器匹配的�
 | 记录 | 可以确认什么 |
 | --- | --- |
 | Catalog | 稳定 model ID、任务、官方来源（论文、项目、代码、权重）、别名和集成状态。 |
+| 发表机构 | 正式发表机构（企业优先，其次大学或实验室）及其类型。GitHub 账号永远不会被当作品牌展示；若仓库未记录正式机构，页面会明确说明。 |
 | Runtime profile | 输入契约、artifact 契约、backend stage 和运行时就绪状态。 |
 | Environment | Python、CUDA tier、固定依赖、验证 import，以及独立/统一环境路由。 |
 | Pipeline binding | WorldFoundry 使用的 runner 与每个 variant 的具体 pipeline target。 |
 | Benchmarks | Manifest 推荐或其证据记录中提到的评测，链接到 Benchmark Hub。 |
 | Evidence | 原生 demo 与 WorldFoundry runner 的 parity；只有 catalog 记录并不代表 GPU 已验证。 |
 
-缺失值会明确显示为**未记录**。Catalog manifest 还可以携带人工撰写的 `docs:` 块（概述、亮点、用途、硬件建议、推荐评测、限制，全部双语）；当该块缺失时，生成器会从已记录字段合成等效的叙述，因此每个页面无论如何都保持详细。
+缺失值会明确显示为**未记录**。现在每个 catalog manifest 都携带人工撰写的双语 `docs:` 块——概述、架构、使用建议、限制、发表机构标注与推荐评测（仅使用本仓库真实的 benchmark id）——内容全部来自 manifest、runtime profile 与已记录的官方来源。仓库未记录的事实会明确写为「仓库未记录」而不是编造；GPU 验证只在 manifest 有记录时才会声明。
 
 ## 常用命令
 
