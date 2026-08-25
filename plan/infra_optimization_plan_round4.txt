@@ -3,6 +3,7 @@ WorldFoundry 基础设施优化计划（第 4 轮）
 日期：2026-08-25
 性质：建议修改（本文件只记录计划，不直接改代码）
 承接：plan/infra_optimization_plan.txt、round2、round3
+续篇：plan/infra_optimization_plan_round5.txt（core I/O / manifest / official_runner / docs 门禁）
 方法：主会话编排 + 4 个云端子代理（claude-fable-5-thinking-xhigh）
   - MCP 工具面（输出目录、作业索引、事件循环）
   - core/configuration（LazyConfig / Hydra override）

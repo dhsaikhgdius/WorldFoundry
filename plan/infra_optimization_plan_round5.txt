@@ -1,0 +1,263 @@
+WorldFoundry 基础设施优化计划（第 5 轮）
+========================================
+日期：2026-08-25
+性质：建议修改（本文件只记录计划，不直接改代码）
+承接：plan/infra_optimization_plan.txt、round2、round3、round4
+方法：主会话编排 + 3 个云端子代理（claude-fable-5-thinking-xhigh）
+  - reporting / preflight / run manifest 落盘
+  - evaluation official_runner 框架（非 devil-dynamics 单点）
+  - docs 生成链 / AGENTS 环境 / thirdparty 集成
+  + core I/O / process / serialization（主会话本地评审；第 4 路云端 VM 并发已满）
+
+禁止重复第 1–4 轮已写条目。交叉最多一行。
+用户要求 /loop 无固定时间间隔：已取消 hourly 定时订阅，后续仅在用户跟进时续写。
+
+
+0. 现状一句话
+--------------
+训练侧已用 integrity 栈（fsync + root  confinement）写 manifest；评测 orchestration 仍大量
+``atomic=False`` 直写 scorecard/manifest。official_runner 框架有 freshness 守卫，但 50 个
+bench 文件维护分散；docs 有完整 build.sh 链却未进入 Makefile 门禁。
+
+
+1. 不建议改的地方
+------------------
+- 不要删除 ``core/io/serialization.py`` 的 uuid  sibling-temp 原子写；round2 已确认正确。
+- 不要强制所有 JSON 走 ``integrity.replace_json_atomic`` 的 canonical_json（无 indent）；
+  用户可读 scorecard 仍用 serialization 的 indent=2 + sort_keys。
+- 不要合并 50 个 official runner 为单一 mega-script；只抽公共 CLI/CONFIG 注册表。
+- 不要把 ``make docs-check`` 扩成完整 ``npm run build``（太重）；先接 ``api:check`` + ``types:check``。
+- 不要动 vendored benchmark runtime 内部的 results.json 命名；只改 WorldFoundry 包装层。
+- reproduction_profiles 空目录：延续 round2 [O-09]，本轮不展开第二遍。
+- devil-dynamics scorecard argv 密钥：延续 round3，本轮不重复。
+- 第 1–4 轮边界继续有效。
+
+
+2. 优先级
+----------
+P1
+  1) orchestration 层 scorecard/manifest/index 默认改 atomic=True 或 integrity 替换写
+  2) Makefile docs-check 接入 fumadocs ``api:check``（或 scripts/docs/build.sh 轻量子集）
+  3) official runner 公共注册：未走 ``ors.run_main`` 的 bench 列入迁移清单（phyfps 双入口等）
+
+P2
+  4) JsonlWriter 与 write_jsonl(atomic=False) 在长跑路径统一策略
+  5) runtime_preflight 输出纳入 CI/precommit 可选 gate
+  6) official_runner ``_is_fresh_result`` 增加 run marker 或 content hash 兜底
+  7) predev/prebuild api:generate 加 mtime/内容哈希跳过
+  8) ``run_torchrun_module`` 对齐 ``run_logged_subprocess`` 生命周期观测
+  9) AGENTS dev 端口说明与 package.json ``0.0.0.0`` 默认值对齐
+
+P3
+  10) 遗留 ``download_file_from_url`` 迁移至 ``download_to_cache``
+  11) ``core/io/artifacts.py`` 重命名或拆分（visualization 误标为 io）
+  12) generate-python-api SYMBOLS drift 测试
+  13) per_sample_scores.jsonl 空占位语义文档化或 lazy 创建
+
+
+3. Core I/O / process / serialization
+-------------------------------------
+已核对：``serialization.write_json`` 默认 atomic=True；``integrity`` 用于 training/engine。
+orchestration 显式 ``atomic=False`` 出现在 contract、existing_results、model_benchmark、
+model_benchmark_suite、plan、service 等。
+
+[IO-01] P1 评测 orchestration 与训练 I/O 栈分裂
+  问题：crash/kill 时 scorecard.json、manifest、index 可能半截；训练 manifest 已 fsync。
+  文件：evaluation/tasks/execution/orchestration/{contract,existing_results,model_benchmark,
+        model_benchmark_suite,plan,service}.py
+  改法：批量去掉 ``atomic=False`` 或换 ``integrity.replace_json_atomic``（仅限 machine JSON）；
+        长流 JSONL 用 JsonlWriter + 周期性 flush，终态文件 atomic 替换。
+  验收：kill -9 写 half 文件后，读者 read_json 不抛 JSONDecodeError，或文件不存在。
+
+[IO-02] P2 长跑 JSONL 写路径不统一
+  问题：``existing_results`` 已用 ``JsonlWriter``；suite/benchmark 仍 ``write_jsonl(..., atomic=False)`` 全量 materialize。
+  文件：orchestration/existing_results.py vs model_benchmark_suite.py
+  改法：样本级 append 走 JsonlWriter；聚合/manifest 走 atomic write_json。
+  验收：10k 行 existing-results 峰值内存不随样本线性翻倍。
+
+[IO-03] P2 遗留非原子下载
+  问题：``core/io/artifacts.py:download_file_from_url`` 虽删 partial，但无 validator/atomic rename；
+        注释已指向 ``download_to_cache``。
+  文件：core/io/artifacts.py；grep 调用方
+  改法：调用方迁移；函数 deprecate 并转发 download_to_cache。
+  验收：中断下载后 ``os.path.exists`` 不视为 ready。
+
+[IO-04] P2 torchrun 子进程缺统一观测
+  问题：``core/process.run_torchrun_module`` 用 ``subprocess.run(capture_output=True)``，
+        无进程组终止、无 lifecycle JSONL、大 stdout 全进内存。
+  文件：core/process.py
+  改法：复用 ``run_logged_subprocess`` 或至少 ``start_new_session`` + 日志文件路径参数。
+  验收：torchrun 超时后无 orphan worker；日志可在 stdout_path  tail。
+
+[IO-05] P3 read_json / JSONL 全量读
+  问题：``read_json`` 直接 ``read_text``；损坏文件错误信息差；大 JSONL ``load_serialized`` 一次读入。
+  文件：core/io/serialization.py
+  改法：JSONDecodeError 包装 path；超大 JSONL 文档推荐 iter_jsonl。
+  验收：truncated JSON 报错含路径与 byte offset 提示。
+
+[IO-06] P3 artifacts.py 命名
+  问题：``worldfoundry/core/io/artifacts.py`` 主要是 depth/flow 可视化，非 artifact 持久化。
+  改法：迁至 ``core/visualization/`` 或 ``core/io/visualization.py``，保留 re-export 一期。
+  验收：新代码 import 路径文档化；无循环 import。
+
+
+4. Reporting / preflight / manifest
+-----------------------------------
+已核对：``run_manifest.build_run_manifest`` 写 ``manifest_hash``；
+``reporting/comparison_identity.py`` 引用 ``manifest_sha256``。
+``runtime_preflight.py`` 有 SCHEMA_VERSION v1；``make preflight`` 存在但 ``make docs-check`` 不含。
+
+[RP-01] P1 orchestration 落盘非原子（与 IO-01 同根，reporting 视角）
+  问题：``write_scorecard`` / ``write_run_manifest_artifacts`` 上游 caller 常 atomic=False；
+        comparison 读半截 manifest 得错 hash。
+  文件：orchestration/* 调用 reporting；reporting/scorecard.py、run_manifest.py
+  改法：reporting writer 内部强制 atomic，忽略 caller 的 atomic=False 透传。
+  验收：manifest_hash 与磁盘文件 canonical hash 一致。
+
+[RP-02] P2 preflight 未进质量门禁
+  问题：runtime profile 校验模块完整，但 CI 只跑 ``docs-check``/``data-check``，不跑
+        ``make preflight`` 或 ``cli preflight runtime --json``。
+  文件：Makefile、.github/workflows/*、runtime_profiles/official/
+  改法：CI 增加 CPU-only preflight 对 1–2 个轻量 profile；失败写 JSON 报告 artifact。
+  验收：故意删 PATH 中 python 可执行文件时 preflight job 红。
+
+[RP-03] P2 manifest 哈希语义双轨
+  问题：run_manifest 内 ``manifest_hash`` vs comparison ``manifest_sha256`` 字段来源可能不一致。
+  文件：reporting/run_manifest.py、reporting/comparison_identity.py
+  改法：单一 ``stable_hash`` 函数 + schema 文档；comparison 只读 run_manifest 内嵌 hash。
+  验收：同一 run 目录两次 build comparison identity 输出相同。
+
+[RP-04] P2 official_runner vs orchestration scorecard 写法规不一致
+  问题：``official_runner.build_scorecard`` 经 framework/io 默认 atomic=True；
+        suite 批量 compare 用 atomic=False 写 scorecards.json。
+  文件：framework/official_runner.py、orchestration/model_benchmark_suite.py
+  改法：suite 层统一 import 同一 write  helper。
+  验收：grep orchestration ``atomic=False`` 仅剩 intentional 热路径（若有）。
+
+[RP-05] P3 run_report / index.md 与 scorecard 并发写
+  问题：suite 同时 write_text index 与 write_json scorecards 均 atomic=False。
+  文件：model_benchmark_suite.py
+  改法：index 最后写或写临时目录再 rename 整个 run 目录（staging dir 模式）。
+  验收：中断后 index.md 不引用缺失的 scorecard 路径。
+
+
+5. Official runner 框架
+-----------------------
+已核对：``evaluation/tasks/execution/framework/official_runner.py`` 提供 BenchRunnerConfig、
+run_official_pipeline、``_is_fresh_result``；约 50 个 ``run_*_official_runner.py``。
+phyfps 有 visual_chronometer 与 phyfps_bench_gen 两套自定义 main。
+
+[OR-01] P1  runner 碎片化
+  问题：每 bench 复制 CONFIG/Hooks/argparse；部分未调用 ``ors.run_main``，freshness/blocked 逻辑分叉。
+  文件：runners/phyfps_bench_gen/run_*_official_runner.py 等
+  改法：catalog 注册 ``BenchRunnerConfig`` + entrypoint module；CLI 统一 ``worldfoundry-eval benchmark official``。
+  验收：新增 bench 只需 YAML + hooks 模块，不必新 argparse 文件。
+
+[OR-02] P2 per_sample_scores.jsonl 恒空
+  问题：``build_scorecard`` 总是 ``write_jsonl(per_sample_scores_path, [])``。
+  文件：framework/official_runner.py:646-647
+  改法：有 per-sample 数据的 bench 填 rows；否则不写文件或在 scorecard 标 ``per_sample_scores: null``。
+  验收：downstream 不把空文件当「零样本」证据。
+
+[OR-03] P2 freshness 仅 mtime
+  问题：``_is_fresh_result`` 用 ``st_mtime >= run_started_wall - slack``；NFS 时钟 skew、
+        touch 旧文件可误判 fresh。
+  文件：official_runner.py ``_is_fresh_result``、``_RESULT_FRESHNESS_SLACK_SECONDS``
+  改法：官方命令 stdout 写 ``.run_started`` marker；或 results 内嵌 ``generated_at`` ISO 校验。
+  验收：预置旧 results.json，run-official 成功后 blocked 而非误采 stale。
+
+[OR-04] P2 默认 timeout 7200 无 bench 级覆盖表
+  问题：``build_common_parser`` default ``WORLDFOUNDRY_BENCHMARK_TIMEOUT`` 7200；
+        轻量 normalizer-only bench 与 GPU judge bench 同默认。
+  文件：official_runner.py；各 bench CONFIG
+  改法：BenchRunnerConfig 增 ``default_timeout_seconds``；catalog 可声明。
+  验收：normalizer-only runner 文档化短 timeout 示例。
+
+[OR-05] P3 --run-fixture 与 assets 布局
+  问题：fixture 路径约定 ``worldfoundry/data/benchmarks/assets/<benchmark-id>/`` 无统一校验器。
+  文件：official_runner.py run_fixture 分支；data/benchmarks/assets/
+  改法：preflight 式 ``validate_fixture_layout(benchmark_id)``；缺文件 blocked_reason 明确。
+  验收：缺 sample_results.jsonl 时 scorecard status=blocked 且 reason 可读。
+
+
+6. Docs / AGENTS / thirdparty
+-----------------------------
+已核对：``scripts/docs/build.sh`` 跑 ``npm ci``、``types:check``、``build``；
+``Makefile docs-check`` 仅 ``cli --help`` + ``zoo benchmarks --json``。
+``docs/fumadocs/package.json`` predev/prebuild 均 ``api:generate``。
+
+[DE-01] P1 docs 门禁分裂
+  问题：文档站真实 breakage（API symbol 漂移、TS 类型）不进 PR 必跑 gate。
+  文件：Makefile docs-check；scripts/docs/build.sh
+  改法：``docs-check`` 增加 ``cd docs/fumadocs && npm run api:check && npm run types:check``；
+        完整 build 留 nightly 或 ``docs-check-full``。
+  验收：故意删 SYMBOLS 一项后 ``make docs-check`` 失败。
+
+[DE-02] P2 predev 冷启动慢
+  问题：每次 ``npm run dev`` 全量 ``api:generate`` + mdx:generate。
+  文件：docs/fumadocs/package.json；scripts/generate-python-api.py
+  改法：generator 写 content hash；输入未变则 skip；``--check`` 模式已有，dev 复用。
+  验收：无 Python API 变更时 predev <5s（除 next 本身）。
+
+[DE-03] P2 dev bind 地址与 AGENTS 不一致
+  问题：package.json ``dev`` 用 ``--hostname 0.0.0.0``；AGENTS.md 示例 ``127.0.0.1:8014``。
+  文件：docs/fumadocs/package.json；AGENTS.md
+  改法：默认 127.0.0.1；``dev:lan`` 脚本绑定 0.0.0.0；cloud 文档写 port-forward。
+  验收：本地默认不监听 all interfaces。
+
+[DE-04] P2 thirdparty flash-attention 孤儿 submodule
+  问题：``.gitmodules`` 声明 ``thirdparty/flash-attention``，工作区未 init；与 round2 LFS 交叉。
+  文件：.gitmodules；scripts/setup/*
+  改法：要么 CI/submodule init 文档化，要么从 .gitmodules 移除并改 optional extra 说明。
+  验收：fresh clone 行为与 README 一致，无「半存在」路径。
+
+[DE-05] P3 API 文档 SYMBOLS 手工表
+  问题：``generate-python-api.py`` SYMBOLS tuple 手工维护；新 public API 易漏。
+  文件：docs/fumadocs/scripts/generate-python-api.py
+  改法：从 ``evaluation.api.__all__`` 或 registry 自动生成候选 + CURATED 过滤；api:check 失败列 diff。
+  验收：新增 evaluation.api 导出未手工登记时 api:check  WARN 或 FAIL。
+
+
+7. 文件级改动总表
+----------------
+第一批（P1）
+  orchestration/* atomic 默认
+  reporting/scorecard.py、run_manifest.py writer 内强制 atomic
+  Makefile docs-check + docs/fumadocs api:check
+  official_runner 注册表 / phyfps 迁移清单
+
+第二批（P2）
+  JsonlWriter 统一；runtime_preflight CI job
+  official_runner freshness marker；BenchRunnerConfig.timeout
+  package.json dev host；predev hash skip
+  core/process.py torchrun 观测
+
+第三批（P3）
+  download 迁移；artifacts 重命名
+  generate-python-api drift；per_sample_scores 语义
+
+
+8. 验收（汇总）
+---------------
+- kill 写盘中断后，scorecard/manifest 要么完整要么缺失，无 parse 失败半截 JSON。
+- ``make docs-check`` 在 API symbol 漂移时失败，无需全量 next build。
+- official run-official 不会采信 predates marker 的 stale results（含 NFS skew 用例）。
+- ``npm run dev`` 无 API 变更时不重复 generate-python-api。
+- fresh clone 对 thirdparty/submodule 状态与文档一致。
+
+
+9. 与前轮衔接
+--------------
+serialization 原子写机制：round2 已赞，本轮是 orchestration 侧 ``atomic=False`` 滥用。
+reproduction_profiles 空目录：round2 [O-09]，本轮 RP 不重复。
+official_runner devil-dynamics 密钥：round3，本轮 OR 只谈框架共性。
+MCP output_dir / jobs-index：round4，本轮不涉及。
+generation cache WAL：round2，本轮 JsonlWriter 只对齐评测落盘策略。
+
+
+10. 子代理索引
+--------------
+  reporting/preflight   manifest 非原子、preflight 未 gate、hash 双轨、suite index 竞态
+  official_runner       ~50 文件碎片、freshness mtime、空 per_sample、timeout 表
+  docs/env/thirdparty   docs-check 分裂、predev 慢、0.0.0.0、submodule 孤儿、SYMBOLS  drift
+  core I/O（主会话）    integrity vs serialization 分裂、torchrun 观测、遗留 download
