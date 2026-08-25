@@ -176,3 +176,11 @@ WorldFoundry 会在 `--output-dir` 下写入：
 - `per_sample_metrics.jsonl`：每个发现样例或导入样例指标一行。
 - `raw_metric_table.jsonl`：包含 available、raw score、normalized score 和 source 的指标表。
 - `official_stdout.log` 和 `official_stderr.log`：直接执行官方 runtime 时的日志。
+
+## 不能声称的边界
+
+- catalog 标志为 `leaderboard_valid: false`、`official_benchmark_verified: false`（release status 为 `experimental`）；有界官方 GPU 验证只覆盖一个 dynamic 样例，完整套件验证仍为 pending（catalog blockers）。
+- leaderboard 对齐需要完整 3,000 例套件的 `evaluation.json` 树以及官方 metric checkpoint 栈（DROID、GroundingDINO、SAM、RAFT/SEA-RAFT）；导入的结果只是对调用方数字的归一化拷贝。
+- scorecard 主键：`worldscore_average`。
+
+[← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

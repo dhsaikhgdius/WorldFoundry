@@ -113,3 +113,12 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
 - `per_sample_scores.jsonl`：可用时写出包含阶段分的 prompt 级结果。
 - `phygenbench_results.json`：仓内评分包装器写出的结果。
 - 通过 `worldfoundry-eval zoo benchmark-run` 调用时，还会写出 `specialized_normalizer_stdout.log` 与 `specialized_normalizer_stderr.log`。
+
+## 不能声称的边界
+
+- catalog 校验状态为 `bounded_component_ready`，`leaderboard_valid: false`、`official_benchmark_verified: false`。
+- WorldFoundry 不运行 PhyGenEval 各阶段 judge（VQAScore/CLIP-FlanT5、GPT-4o 或 LLaVA-Interleave、InternVideo2）；仅做 overall 聚合不构成官方基准证据（catalog blocker）。
+- 默认 fixture/mock 后端产出确定性接线数据，不得作为基准证据上报。
+- scorecard 主键：`phygenbench_average`。
+
+[← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

@@ -197,4 +197,10 @@ Each run writes:
 - `per_sample_scores.jsonl`: per-sample rows when the upstream result includes sample detail.
 - `upstream/4dworldbench_results.json`: raw official runtime output when `--run-official` is used.
 
+## What this page does not claim
+
+- Catalog flags are `leaderboard_valid: false` and `official_benchmark_verified: false` (release status `experimental`); no full-suite verified run is claimed.
+- Metric dimensions that depend on external checkpoints or hosted judges only produce numbers when those assets are prepared as described above; imported results are normalized copies of caller-provided numbers, not fresh execution.
+- Scorecard primary key: `four_d_worldbench_average`.
+
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

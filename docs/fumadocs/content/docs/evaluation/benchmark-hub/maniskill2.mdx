@@ -1,126 +1,103 @@
 ---
 title: ManiSkill2
-description: ManiSkill2 — metrics, requirements, and run commands.
+description: SAPIEN-based generalizable manipulation skill benchmark with in-tree closed-loop simulator wiring and official result normalization.
 ---
 
 ## About
 
+ManiSkill2 is the second generation of the ManiSkill benchmark for generalizable manipulation skills on the SAPIEN simulator. It standardizes rigid- and soft-body manipulation tasks (cube picking/stacking, YCB/EGAD object picking, clutter scenes) with unified observation/action spaces and success predicates, and supports large-scale demonstration-driven and online evaluation.
 
+WorldFoundry integrates ManiSkill2 with an in-tree closed-loop simulator adapter at `worldfoundry/evaluation/tasks/embodied/simulators/maniskill2/` (aliases include `maniskill`, `mani-skill2`) plus the shared official result normalizer for caller-provided rollout dumps. The catalog verification status is `normalizer_only`.
 
-ManiSkill2 external benchmark manifest for simulator-backed manipulation policy rollouts.
+Official references:
 
+- Official source reference: [haosulab/ManiSkill](https://github.com/haosulab/ManiSkill)
+- License: Apache-2.0
+- The catalog records no separate paper URL under the `maniskill2` id; see the [ManiSkill](/docs/evaluation/benchmark-hub/maniskill) page for the framework paper.
 
+## In-tree integration
+
+- Catalog: `worldfoundry/data/benchmarks/catalog/embodied/maniskill2.yaml`
+- Task manifest: `worldfoundry/data/benchmarks/tasks/external/maniskill2.yaml`
+- Runtime profile: `worldfoundry/data/benchmarks/runtime_profiles/official/maniskill2.yaml`
+- Simulator adapter: `worldfoundry/evaluation/tasks/embodied/simulators/maniskill2/`
+- Closed-loop eval config: `worldfoundry/data/benchmarks/eval_configs/embodied/maniskill2/eval.yaml`
+- Result normalizer: `worldfoundry.evaluation.tasks.embodied.normalizer` (track `vla`)
+
+## Evaluation protocol and result layout
+
+For result import, the embodied normalizer accepts JSON, JSONL, CSV, TSV, and `result.txt`-style logs. Rows are matched on numeric fields such as `success`, `success_rate`, `task_success`, `episode_success`, and `reward`; booleans and percent strings are coerced to unit-interval floats.
+
+The bundled eval config rolls out five pick/stack tasks (`PickCube-v0`, `StackCube-v0`, `PickSingleYCB-v0`, `PickSingleEGAD-v0`, `PickClutterYCB-v0`) at 256×256 render resolution from the `base_camera`, 400 max episode steps, and 50 episodes per task, against an external policy server at `ws://localhost:8000`.
 
 ## Metrics
 
-ManiSkill2 external benchmark manifest for simulator-backed manipulation policy rollouts.
+Primary metric (scorecard key): `success_rate`.
 
-### Task YAML
-
-`worldfoundry/data/benchmarks/tasks/external/maniskill2.yaml`
-
-### Primary
-
-- `success_rate`
-
-| Metric | Focus |
+| Metric | Meaning |
 | --- | --- |
-| `success_rate` | Share of episodes or tasks that complete successfully. |
-| `task_success` | Share of episodes or tasks that complete successfully. |
-| `episode_success` | Share of episodes or tasks that complete successfully. |
-| `reward` | Cumulative reward on ManiSkill2 dexterous and mobile-manipulation task rollouts. |
+| `success_rate` | Share of rollouts completed successfully; primary leaderboard value. |
+| `task_success` | Per-task success aggregated across episodes. |
+| `episode_success` | Per-episode binary success. |
+| `reward` | Cumulative episode reward. |
 
+Success metrics are normalized via the shared registry (`percent_or_fraction_to_unit`). No video-generation metrics apply.
 
-
-## Environment setup
-
-### Runtime environment
-
-- **Conda env:** `worldfoundry-unified-cu128`.
-- **Separate setup:** defaults to the unified WorldFoundry env (`needs_new_env: false`); a benchmark-only conda env is usually not required.
-- The older maniskill profile remains available; maniskill2 aligns with the external VLA evaluation benchmark ID.
-
-### Evaluation data
-
-- Candidate model outputs: set `WORLDFOUNDRY_MANISKILL2_RESULTS_PATH` to the generated-video or rollout artifact root.
-- `${WORLDFOUNDRY_DATA_DIR}/datasets/maniskill2`
-- `${WORLDFOUNDRY_CACHE_DIR}/repos/haosulab--ManiSkill`
-
-### Checkpoints & assets
-
-- This benchmark is primarily rollout- or official-result-driven; see catalog `requires` and the task YAML for policy/simulator checkpoints.
-
-### Key environment variables
-
-- `WORLDFOUNDRY_MANISKILL2_ROOT`
-- `WORLDFOUNDRY_MANISKILL2_RESULTS_PATH`
-
-
-
-## Run evaluation
-
-
-
-After preparing the assets and candidate artifacts listed on this page, use the public run entry points below.
-
-### Set candidate artifacts
+## Preparation and environment
 
 ```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/generated/artifacts
+cd /path/to/WorldFoundry
+export WORLDFOUNDRY_MANISKILL2_ROOT=/path/to/ManiSkill
+export WORLDFOUNDRY_MANISKILL2_RESULTS_PATH=/path/to/maniskill2_results.json
 ```
 
-### Import official results
+Closed-loop rollouts require the ManiSkill2 runtime, SAPIEN assets, and a policy checkpoint served over WebSocket (catalog `required_assets`). The runtime profile notes the older `maniskill` profile remains available and `maniskill2` aligns with the external VLA evaluation benchmark id.
+
+Verify runtime wiring:
+
+```bash
+python -m worldfoundry.evaluation.tasks.execution.orchestration.runtime_preflight \
+  --profile maniskill2 \
+  --manifest worldfoundry/data/benchmarks/runtime_profiles/official/maniskill2.yaml \
+  --output-dir tmp/worldfoundry_preflight/maniskill2 \
+  --json
+```
+
+## Import official results (official-validation)
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id maniskill2 \
-  --mode normalizer \
-  --official-results-path /path/to/official/results-or-report \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/maniskill2/normalizer \
+  --mode official-validation \
+  --official-results-path "${WORLDFOUNDRY_MANISKILL2_RESULTS_PATH}" \
+  --output-dir tmp/maniskill2/official-validation \
   --json
 ```
 
-### Score generated artifacts
+This routes through the embodied `vla`-track normalizer in-process; no simulator code is executed.
+
+## Closed-loop rollouts (native simulator)
 
 ```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id maniskill2 \
-  --mode official-run \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/maniskill2/official-run \
+worldfoundry-eval embodied run \
+  --config worldfoundry/data/benchmarks/eval_configs/embodied/maniskill2/eval.yaml \
+  --output-dir tmp/maniskill2/embodied-run \
   --json
 ```
 
-### Direct in-tree runner
+`--server-url`, `--shard-id`/`--num-shards`, and `--no-docker` are supported by the `embodied run` entry point.
 
-```bash
-worldfoundry-eval zoo benchmark-run --benchmark-id maniskill2 --mode official-validation --official-results-path <official_results.json> --output-dir <out> --json
-```
+## Outputs
 
+- `scorecard.json`: WorldFoundry scorecard; leaderboard block keyed by `success_rate`.
+- `raw_results.jsonl`: extracted raw result rows.
+- `evaluation/summary.json`: aggregated per-metric statistics.
+- `evaluation/per_sample_metrics.jsonl`: normalized per-episode rows.
 
+## What this page does not claim
 
-## Requirements
-
-
-
-### Inputs
-
-- Official simulator runtime
-- benchmark assets
-- policy checkpoint
-- official result dump
-
-### Environment
-
-- `WORLDFOUNDRY_MANISKILL2_RESULTS_PATH`
-
-### Outputs
-
-- `scorecard.json`
-- `raw_results.jsonl`
-- `evaluation/summary.json`
-
-
+- Catalog status is `normalizer_only` with `leaderboard_valid: false` and `official_benchmark_verified: false`. Imported numbers are normalized copies of caller-provided results, not officially reproduced leaderboard values.
+- SAPIEN assets, the ManiSkill2 runtime, and policy checkpoints are not bundled; closed-loop rollouts require external staging plus a policy server. No local GPU rollout evidence is claimed.
+- Full leaderboard parity is not claimed until official rollouts are executed and imported (catalog blocker).
 
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

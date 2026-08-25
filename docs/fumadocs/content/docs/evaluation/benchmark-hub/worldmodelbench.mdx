@@ -166,3 +166,12 @@ The runner writes these files under `--output-dir`:
 - `upstream_stdout.log` and `upstream_stderr.log`: direct judge execution logs.
 
 Public benchmark-zoo runs can also write `runner_runtime_report.json`.
+
+## What this page does not claim
+
+- Catalog flags are `leaderboard_valid: false` and `official_benchmark_verified: false` (release status `experimental`); the wrapper is `verified`, but full leaderboard parity requires a completed VILA judge checkpoint execution over videos covering the 350-instance manifest plus upstream submission evidence (catalog blockers).
+- The judge path is a local VILA VLM judge: it only runs when you supply a VILA checkpoint or HF model id and generated videos; imported result files are normalized copies, not fresh judging.
+- Official answers are withheld for test integrity, so local numbers cannot be checked against ground truth in-tree.
+- Scorecard primary key: `world_model_average`.
+
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

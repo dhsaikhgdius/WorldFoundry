@@ -10,6 +10,7 @@
     "bridgedata-v2",
     "calvin",
     "kinetix",
+    "larybench",
     "libero",
     "libero-mem",
     "libero-para",
@@ -74,6 +75,9 @@
     "4dworldbench",
     "worldreasonbench",
     "worldolympiad",
-    "wrbench"
+    "wrbench",
+    "apple-pi",
+    "physical-ai-bench",
+    "stevo-bench"
   ]
 }

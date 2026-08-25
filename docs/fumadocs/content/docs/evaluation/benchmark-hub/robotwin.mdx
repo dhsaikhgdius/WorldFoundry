@@ -1,132 +1,108 @@
 ---
 title: RoboTwin 2.0
-description: RoboTwin 2.0 — metrics, requirements, and run commands.
+description: Bimanual manipulation benchmark with domain randomization, in-tree closed-loop wiring, and official result normalization.
 ---
 
 ## About
 
+RoboTwin 2.0 is a scalable benchmark for bimanual robot manipulation built on SAPIEN with Curobo-based motion planning. It provides dual-arm tasks with digital-twin assets, strong domain randomization (clean vs. randomized variants), and language-instruction splits (`seen`/`unseen`), so headline numbers reflect robustness under scene and instruction shift.
 
+WorldFoundry integrates RoboTwin with an in-tree closed-loop simulator adapter at `worldfoundry/evaluation/tasks/embodied/simulators/robotwin/` (aliases `robotwin2`, `robotwin-v2`, `robotwin-2.0`) plus the shared official result normalizer for official `eval_result/_result.txt` trees and structured JSON/CSV exports. The catalog verification status is `normalizer_only`.
 
-RoboTwin 2.0 is a bimanual manipulation benchmark with diverse tasks and sim-to-real oriented evaluation.
+Official references:
 
+- Paper: [arXiv:2506.18088](https://arxiv.org/abs/2506.18088)
+- Project page: [robotwin-platform.github.io](https://robotwin-platform.github.io/)
+- Official source reference: [RoboTwin-Platform/RoboTwin](https://github.com/RoboTwin-Platform/RoboTwin) (pinned `0aeea2d6`)
 
+## In-tree integration
+
+- Catalog: `worldfoundry/data/benchmarks/catalog/embodied/robotwin.yaml`
+- Task manifest: `worldfoundry/data/benchmarks/tasks/external/robotwin.yaml`
+- Runtime profile: `worldfoundry/data/benchmarks/runtime_profiles/official/robotwin.yaml`
+- Simulator adapter: `worldfoundry/evaluation/tasks/embodied/simulators/robotwin/`
+- Closed-loop eval config: `worldfoundry/data/benchmarks/eval_configs/embodied/robotwin/eval.yaml`
+- Result normalizer: `worldfoundry.evaluation.tasks.embodied.normalizer` (track `vla`)
+
+## Evaluation protocol and result layout
+
+For result import, the embodied normalizer accepts official `eval_result/_result.txt` files as well as structured JSON, JSONL, CSV, and TSV exports. Rows are matched on numeric fields such as `success`, `success_rate`, `task_success`, and `episode_success`; booleans and percent strings are coerced to unit-interval floats.
+
+The bundled eval config runs task `grab_roller` with task config `demo_clean`, seed 0, `seen` instruction type, 100 test episodes (one per task instance), and `skip_expert_check: true`, against an external policy server at `ws://localhost:8000`. The runtime profile isolates simulator dependencies in the VLA evaluation harness Docker image — host-side WorldFoundry only needs Docker access, the policy/model server, and mounted assets/results.
 
 ## Metrics
 
-RoboTwin 2.0 external benchmark task manifest for bimanual embodied manipulation policy rollouts.
+Primary metric (scorecard key): `success_rate`.
 
-### Task YAML
-
-`worldfoundry/data/benchmarks/tasks/external/robotwin.yaml`
-
-### Primary
-
-- `success_rate`
-
-| Metric | Focus |
+| Metric | Meaning |
 | --- | --- |
-| `success_rate` | Share of episodes or tasks that complete successfully. |
-| `task_success` | Share of episodes or tasks that complete successfully. |
-| `episode_success` | Share of episodes or tasks that complete successfully. |
-| `bimanual_task_success` | Share of episodes or tasks that complete successfully. |
-| `domain_randomization_success` | Share of episodes or tasks that complete successfully. |
-| `clean_success` | Share of episodes or tasks that complete successfully. |
-| `randomized_success` | Share of episodes or tasks that complete successfully. |
-| `reward` | Cumulative reward on RoboTwin dual-arm manipulation episodes in the official benchmark suite. |
+| `success_rate` | Share of rollouts completed successfully; primary leaderboard value. |
+| `task_success` | Per-task success aggregated across episodes. |
+| `episode_success` | Per-episode binary success. |
+| `bimanual_task_success` | Success on dual-arm coordination tasks, when reported. |
+| `domain_randomization_success` | Success under randomized scene variants, when reported. |
+| `clean_success` / `randomized_success` | Split success on clean vs. randomized configurations. |
+| `reward` | Cumulative episode reward. |
 
+Success metrics are normalized via the shared registry (`percent_or_fraction_to_unit`). No video-generation metrics apply.
 
-
-## Environment setup
-
-### Runtime environment
-
-- **Conda env:** `docker:robotwin`.
-- **Separate setup:** defaults to the unified WorldFoundry env (`needs_new_env: false`); a benchmark-only conda env is usually not required.
-- Embodied simulator dependencies are isolated in the VLA evaluation harness Docker image; WorldFoundry does not ship a RoboTwin conda setup script.
-- Host-side WorldFoundry only needs Docker access, the policy/model server, and mounted assets/results.
-
-### Evaluation data
-
-- Candidate model outputs: set `WORLDFOUNDRY_ROBOTWIN_RESULTS_PATH` to the generated-video or rollout artifact root.
-- `${WORLDFOUNDRY_HFD_DATASET_ROOT}/TianxingChen__RoboTwin2.0`
-- `${WORLDFOUNDRY_HFD_DATASET_ROOT}/lerobot__robotwin_unified`
-
-### Checkpoints & assets
-
-- Base-model / metric dependencies: `robotwin_dataset_assets`.
-- Default metric-checkpoint paths and override env vars are listed in the [local assets guide](/docs/guides/local-assets).
-
-### Key environment variables
-
-- `WORLDFOUNDRY_ROBOTWIN_RESULTS_PATH`
-
-
-
-## Run evaluation
-
-
-
-After preparing the assets and candidate artifacts listed on this page, use the public run entry points below.
-
-### Set candidate artifacts
+## Preparation and environment
 
 ```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/generated/artifacts
+cd /path/to/WorldFoundry
+export WORLDFOUNDRY_ROBOTWIN_ROOT=/path/to/RoboTwin      # official checkout, cached at cache/vla_va_wam/repos/RoboTwin-Platform--RoboTwin
+export WORLDFOUNDRY_ROBOTWIN_RESULTS_PATH=/path/to/robotwin/eval_result/_result.txt
 ```
 
-### Import official results
+WorldFoundry does not ship a RoboTwin conda setup script; simulator dependencies live in the VLA harness Docker image, and full runs require the upstream SAPIEN/Curobo assets and policy checkpoints.
+
+Verify runtime wiring:
+
+```bash
+python -m worldfoundry.evaluation.tasks.execution.orchestration.runtime_preflight \
+  --profile robotwin \
+  --manifest worldfoundry/data/benchmarks/runtime_profiles/official/robotwin.yaml \
+  --output-dir tmp/worldfoundry_preflight/robotwin \
+  --json
+```
+
+## Import official results (official-validation)
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id robotwin \
-  --mode normalizer \
-  --official-results-path /path/to/official/results-or-report \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/robotwin/normalizer \
+  --mode official-validation \
+  --official-results-path "${WORLDFOUNDRY_ROBOTWIN_RESULTS_PATH}" \
+  --output-dir tmp/robotwin/official-validation \
   --json
 ```
 
-### Score generated artifacts
+This routes through the embodied `vla`-track normalizer in-process; no simulator code is executed.
+
+## Closed-loop rollouts (native simulator)
+
+The catalog `run_command` is the closed-loop entry point:
 
 ```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id robotwin \
-  --mode official-run \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/robotwin/official-run \
+worldfoundry-eval embodied run \
+  --config worldfoundry/data/benchmarks/eval_configs/embodied/robotwin/eval.yaml \
+  --output-dir tmp/robotwin/embodied-run \
   --json
 ```
 
-### Direct in-tree runner
+`--server-url`, `--shard-id`/`--num-shards`, `--no-docker`, and `--pull-docker` are supported by the `embodied run` entry point.
 
-```bash
-worldfoundry-eval embodied run --config worldfoundry/data/benchmarks/eval_configs/embodied/robotwin/eval.yaml
-```
+## Outputs
 
+- `scorecard.json`: WorldFoundry scorecard; leaderboard block keyed by `success_rate`.
+- `raw_results.jsonl`: extracted raw result rows.
+- `evaluation/summary.json`: aggregated per-metric statistics.
+- `evaluation/per_sample_metrics.jsonl`: normalized per-episode rows.
 
+## What this page does not claim
 
-## Requirements
-
-
-
-### Inputs
-
-- Official benchmark runtime or preflight validation
-
-### Environment
-
-- `WORLDFOUNDRY_ROBOTWIN_RESULTS_PATH`
-
-### Outputs
-
-- `scorecard.json`
-- `benchmark_contract.json`
-- `task_manifest.json`
-- `official_command_manifest.json`
-- `simulator_validation.json`
-- `raw_metric_table.jsonl`
-- `evaluation/per_sample_metrics.jsonl`
-
-
+- Catalog status is `normalizer_only` with `leaderboard_valid: false` and `official_benchmark_verified: false`. Imported numbers are normalized copies of caller-provided results, not officially reproduced leaderboard values.
+- Full leaderboard parity requires executing the upstream SAPIEN/Curobo simulator and policy evaluation scripts with staged assets and checkpoints (catalog blocker).
+- A recorded bounded simulator validation (2026-05-25, catalog notes) reached CUDA driver allocation in a local RoboTwin runtime, but the upstream `script/test_render.py` exceeded the hard timeout; SAPIEN/Vulkan rendering remains blocked. No successful local GPU rollout is claimed.
 
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

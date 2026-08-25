@@ -63,20 +63,20 @@ existing result file:
 
 artifact-score directory:
   <artifact_score_dir>/
-    one or more WorldFoundry metric artifacts that can be aggregated into
-    video_based_accuracy, text_based_accuracy, multiple_choice_accuracy,
-    binary_accuracy, or worldbench_average
+    one or more WorldFoundry metric artifacts that the shared
+    artifact-score runtime materializes into an intermediate result file,
+    which the normalizer then maps onto the WorldBench metric IDs below
 ```
 
-The simplest supported result table is:
+The simplest supported result table is (input keys are matched through the runner's alias table, e.g. `video_based_accuracy` maps to `foreground_miou`):
 
 ```csv
 metric_id,score
-video_based_accuracy,0.75
+foreground_miou,0.75
+background_rmse,0.05
 text_based_accuracy,0.75
 multiple_choice_accuracy,0.75
 binary_accuracy,0.75
-worldbench_average,0.75
 ```
 
 Per-sample rows are also accepted when they contain recognizable fields such as `sample_id`, `component`, `question_type`, `prediction`, `answer`, `correct`, or `score`.
@@ -134,13 +134,18 @@ tmp/worldbench/direct-artifact-scores/upstream/worldbench_results.json
 
 ## Metrics
 
-| Metric ID | Meaning |
-| --- | --- |
-| `video_based_accuracy` | Accuracy on video-based physical prediction tasks. Fractions and percentages are normalized to a unit score. |
-| `text_based_accuracy` | Accuracy on text-question tasks. |
-| `multiple_choice_accuracy` | Accuracy for multiple-choice text questions when rows expose that question type. |
-| `binary_accuracy` | Accuracy for binary or yes/no text questions when rows expose that question type. |
-| `worldbench_average` | Primary aggregate, computed as the mean of available normalized WorldBench components when not supplied directly. |
+The runner writes exactly these metric IDs (see `METRIC_ORDER` in the runner). `foreground_miou` is the primary metric.
+
+| Metric ID | Group | Meaning |
+| --- | --- | --- |
+| `foreground_miou` | video_based | Conventional per-object foreground IoU. Input keys such as `video_based_accuracy`, `mean_iou`, or `v2v_accuracy` are aliased onto it. **Primary.** |
+| `foreground_dice` | diagnostic | Compatibility value computed by the public release while naming it mIoU (mathematically Dice). |
+| `background_rmse` | video_based | Normalized-pixel RMSE on ground-truth background pixels. Lower is better. |
+| `text_based_accuracy` | text_based | Accuracy on text-question tasks. Computed from multiple-choice and binary scores when not supplied directly. |
+| `multiple_choice_accuracy` | text_based | Accuracy for multiple-choice text questions when rows expose that question type. |
+| `binary_accuracy` | text_based | Accuracy for binary or yes/no text questions when rows expose that question type. |
+
+There is no `worldbench_average` metric in the scorecard; the runner reports the six IDs above without a synthetic aggregate.
 
 ## Outputs
 
@@ -150,3 +155,11 @@ WorldFoundry writes these files under `--output-dir`:
 - `per_sample_scores.jsonl`: normalized sample rows when present in the input.
 - `raw_metric_table.jsonl`: metric rows with raw and normalized scores.
 - `upstream/worldbench_results.json`: only when `--run-official` materializes artifact scores.
+
+## What this page does not claim
+
+- Both paths are normalizer-only: the scorecard records `normalizer_only: true` and `official_runtime_executed: false`, and eligibility is hardcoded to `leaderboard_valid: false` until complete official task coverage and the submission protocol are audited.
+- WorldFoundry does not ship a source-confirmed upstream WorldBench evaluator; imported numbers are caller-provided, and artifact-score materialization is a WorldFoundry-side approximation, not the official scorer.
+- Scorecard primary key: `foreground_miou`.
+
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

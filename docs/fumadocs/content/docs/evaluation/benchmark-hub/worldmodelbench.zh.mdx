@@ -166,3 +166,12 @@ runner 会在 `--output-dir` 下写入：
 - `upstream_stdout.log` 和 `upstream_stderr.log`：直接执行 judge 时的日志。
 
 公开 benchmark-zoo 运行还可能写入 `runner_runtime_report.json`。
+
+## 不能声称的边界
+
+- catalog 标志为 `leaderboard_valid: false`、`official_benchmark_verified: false`（release status 为 `experimental`）；wrapper 状态为 `verified`，但完整 leaderboard 对齐需要在覆盖 350 实例 manifest 的视频上完整执行 VILA judge checkpoint，并保留 upstream 提交证据（catalog blockers）。
+- judge 路径是本地 VILA VLM judge：只有提供 VILA checkpoint 或 HF model id 以及生成视频时才会执行；导入的结果文件只是归一化拷贝，不是新的 judging。
+- 官方答案为保证测试完整性不公开，因此本地数字无法在仓内对照 ground truth 校验。
+- scorecard 主键：`world_model_average`。
+
+[← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

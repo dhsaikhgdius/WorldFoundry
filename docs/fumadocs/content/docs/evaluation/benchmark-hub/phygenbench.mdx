@@ -113,3 +113,12 @@ The output directory contains:
 - `per_sample_scores.jsonl`: prompt-level rows with stage scores when available.
 - `phygenbench_results.json`: written by the in-tree scoring wrapper.
 - `specialized_normalizer_stdout.log` and `specialized_normalizer_stderr.log` when invoked through `worldfoundry-eval zoo benchmark-run`.
+
+## What this page does not claim
+
+- Catalog verification status is `bounded_component_ready` with `leaderboard_valid: false` and `official_benchmark_verified: false`.
+- WorldFoundry does not run the PhyGenEval stage judges (VQAScore/CLIP-FlanT5, GPT-4o or LLaVA-Interleave, InternVideo2); overall aggregation alone is not official benchmark evidence (catalog blocker).
+- The default fixture/mock backend produces deterministic wiring data and must not be reported as benchmark evidence.
+- Scorecard primary key: `phygenbench_average`.
+
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

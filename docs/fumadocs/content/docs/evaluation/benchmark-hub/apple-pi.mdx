@@ -1,0 +1,136 @@
+---
+title: Apple-PI
+description: Law-grounded physical reasoning over chain-of-frames outputs, evaluated fully in tree with a Gemini judge plus SAM3/MoGe objective metrics.
+---
+
+## About
+
+Apple-PI evaluates law-grounded physical reasoning of image/video generation models through a three-phase chain-of-frames protocol: **perception** (annotate the final physical state, in text and graphic form), **formulation** (state the governing law and formula), and **deduction** (roll out the full dynamics). The benchmark documents 10 canonical tasks (9 single-law tasks) with 400 declared ground-truth videos, and requires exactly **three independent rollouts** per case and subtrack.
+
+WorldFoundry implements the Apple-PI protocol natively in tree — no upstream `apple_pi` package is imported at runtime:
+
+- Runner: `worldfoundry/evaluation/tasks/execution/runners/apple_pi/run_apple_pi_official_runner.py`
+- Native evaluator: `worldfoundry/evaluation/tasks/execution/runners/apple_pi/apple_pi_runtime.py`
+- Catalog entry: `worldfoundry/data/benchmarks/catalog/video/apple-pi.yaml`
+- Task contract: `worldfoundry/data/benchmarks/tasks/external/apple-pi.yaml`
+
+Official references:
+
+- Paper: [arXiv:2607.16401](https://arxiv.org/abs/2607.16401)
+- Project page: [21yrm.github.io/Apple-PI-homepage](https://21yrm.github.io/Apple-PI-homepage/)
+- Official source reference: [21yrm/Apple-PI](https://github.com/21yrm/Apple-PI) (Apache-2.0)
+- GT dataset: [yaorunmao/Apple-PI-GT](https://huggingface.co/datasets/yaorunmao/Apple-PI-GT) — documented upstream but **not yet public** at integration time
+- Formats: upstream [`GT_FORMAT.md`](https://github.com/21yrm/Apple-PI/blob/main/docs/GT_FORMAT.md) and [`PREDICTION_FORMAT.md`](https://github.com/21yrm/Apple-PI/blob/main/docs/PREDICTION_FORMAT.md)
+
+## Evaluation protocol and data layout
+
+The GT directory must follow the upstream dataset contract. The runner validates `dataset.json` (`name: Apple-PI`, `num_rollouts: 3`) and loads each case directory listed there:
+
+```text
+/path/to/apple-pi-gt/
+  dataset.json                       # {"name": "Apple-PI", "num_rollouts": 3, "cases": [...]}
+  cases/<case_id>/
+    metadata.json                    # gt_fps, physics_duration, physics_type, formula_info, asset paths
+    initial_state/mask_0000.npy
+    initial_state/instance_segmentation_0000.npy
+    initial_state/instance_segmentation_mapping_0000.json
+    mask/maps.npz                    # GT foreground masks
+    depth/maps.npz                   # GT depth maps
+    velocity/maps.npz                # GT velocity fields
+    ...                              # gt_frames_dir, reference images declared in metadata.json
+```
+
+Predictions are staged in the upstream layout with a `submission.json` declaring `num_rollouts: 3` and the protocol (`video` or `image`):
+
+```text
+/path/to/apple-pi-predictions/
+  submission.json                    # {"model": "...", "protocol": "video", "num_rollouts": 3}
+  cases/<case_id>/<subtrack>/
+    rollout_00.mp4                   # video protocol
+    rollout_01.mp4
+    rollout_02.mp4
+    # image protocol: rollout_XX.png; deduction uses a rollout_XX/ directory of PNG frames
+```
+
+Subtracks: `perception_text`, `perception_graphic`, `formulation_text`, `formulation_graphic`, `deduction`. Subjective criteria are scored by the multimodal judge; the deduction subtrack additionally mixes in programmatic metrics (PSNR, SAM3 spatial/spatiotemporal/weighted IoU, MoGe-2 velocity error) with the paper's 0.20 integrity / 0.20 fidelity / 0.60 physics weighting.
+
+## Metrics
+
+Scorecard metric ids (these are the exact keys the runner writes under `metrics.leaderboard` and `metrics.per_metric`):
+
+| Metric id | Meaning | Direction |
+| --- | --- | --- |
+| `perception_text` | Final-frame text annotation artifact score. | higher is better |
+| `perception_graphic` | Final-frame object-only grounding artifact score. | higher is better |
+| `formulation_text` | Governing-law and formula answer score. | higher is better |
+| `formulation_graphic` | Target-time state, velocity-arrow, and label score. | higher is better |
+| `deduction` | Full-dynamics trajectory score (subjective + objective mix); **primary metric**. | higher is better |
+| `apple_pi_average` | Arithmetic mean of the available subtrack means. | higher is better |
+
+Per-case rows land in `per_sample_scores.jsonl` with `case_id`, `subtrack`, `score`, and rollout coverage counts.
+
+## Preparation, checkpoints, and environment
+
+```bash
+cd /path/to/WorldFoundry
+export WORLDFOUNDRY_APPLE_PI_GT_DIR=/path/to/apple-pi-gt          # documented for the catalog runtime; the runner takes --gt-dir
+export WORLDFOUNDRY_APPLE_PI_PREDICTION_DIR=/path/to/apple-pi-predictions
+export WORLDFOUNDRY_APPLE_PI_JUDGE_BACKEND=gemini                  # or mock (wiring-only)
+export GEMINI_API_KEY=<your-key>                                   # also read: WORLDFOUNDRY_APPLE_PI_GEMINI_API_KEY, GOOGLE_API_KEY
+export APPLE_PI_GEMINI_MODEL=gemini-3-flash-preview                # judge model default
+export WORLDFOUNDRY_APPLE_PI_SAM3_CHECKPOINT=/path/to/sam3         # fallback: WORLDFOUNDRY_SAM3_CHECKPOINT
+export WORLDFOUNDRY_APPLE_PI_MOGE_CHECKPOINT=/path/to/moge-2-vitl-normal  # fallback: WORLDFOUNDRY_MOGE_V2_VITL_NORMAL_MODEL_DIR, else HF Ruicheng/moge-2-vitl-normal
+```
+
+SAM3 (`facebook/sam3`) and MoGe-2 (`Ruicheng/moge-2-vitl-normal`) are reused from the existing WorldFoundry base-model stack — Apple-PI does not vendor separate copies. `opencv-python` is required for the video-protocol metrics. Pass `--no-foundation-models` to skip the SAM3/MoGe adapters for protocol smoke tests; without them, the objective IoU/velocity metrics degrade to conservative fallbacks or are omitted.
+
+## Run the official in-tree evaluation
+
+```bash
+cd /path/to/WorldFoundry
+
+PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
+  worldfoundry/evaluation/tasks/execution/runners/apple_pi/run_apple_pi_official_runner.py \
+  --run-official \
+  --gt-dir "${WORLDFOUNDRY_APPLE_PI_GT_DIR}" \
+  --pred-dir "${WORLDFOUNDRY_APPLE_PI_PREDICTION_DIR}" \
+  --output-dir tmp/apple_pi/official-run \
+  --strict \
+  --json
+```
+
+`--run-official` requires both `--gt-dir` and `--pred-dir` (`--prediction-dir` / `--generated-artifact-dir` are aliases). `--subtrack` restricts to one subtrack; `--protocol` overrides the submission's protocol; `--strict` requires all five subtracks and all three rollouts per case. The evaluator writes the official-compatible `apple_pi_results.json` into the output directory before normalizing it into a scorecard.
+
+Note: the unified `zoo benchmark-run --mode official-run` surface cannot forward the required GT directory to this runner (its `--benchmark-data-root` flag is not routed to `--gt-dir`), so run the official evaluation through the direct runner command above.
+
+## Import existing results (official-validation)
+
+An existing official-compatible Apple-PI result JSON can be normalized without any judge or checkpoints:
+
+```bash
+worldfoundry-eval zoo benchmark-run \
+  --benchmark-id apple-pi \
+  --mode official-validation \
+  --official-results-path /path/to/apple_pi_results.json \
+  --output-dir tmp/apple_pi/official-validation \
+  --json
+```
+
+The direct runner accepts the same import via `--official-results-path` or the `WORLDFOUNDRY_APPLE_PI_RESULTS_PATH` environment variable; a directory is probed for `apple_pi_results.json`, `results.json`, or `evaluation.json`.
+
+## Outputs
+
+- `scorecard.json`: WorldFoundry scorecard; leaderboard keys are the six metric ids above.
+- `raw_metric_table.jsonl`: one row per metric with availability and source.
+- `per_sample_scores.jsonl`: per-case, per-subtrack rows with rollout coverage.
+- `benchmark_contract.json`: benchmark id, protocol, subtracks, and metric ids.
+- `apple_pi_results.json`: official-compatible result JSON (written by `--run-official`).
+
+## What this integration does not claim
+
+- The upstream GT dataset is documented but **not public** at integration time; full-suite official execution and leaderboard parity have not been verified in this workspace. The scorecard always reports `leaderboard_valid: false`.
+- The Gemini judge requires an API key (`GEMINI_API_KEY`/`GOOGLE_API_KEY`/`WORLDFOUNDRY_APPLE_PI_GEMINI_API_KEY`) and the `google-genai` package; without them each rollout is recorded as `failed` rather than silently skipped.
+- `WORLDFOUNDRY_APPLE_PI_JUDGE_BACKEND=mock` returns deterministic 0.5 placeholder rubric values — wiring-only, never usable as reported benchmark numbers.
+- Without SAM3/MoGe checkpoints (or with `--no-foundation-models`), the deduction objective metrics fall back to GT-occupancy placeholders or are dropped; such runs are not comparable to paper numbers.
+
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

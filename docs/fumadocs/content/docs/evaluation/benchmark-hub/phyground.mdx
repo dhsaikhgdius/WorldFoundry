@@ -172,4 +172,10 @@ Primary metric: `phyground_overall`. Higher is better for every metric.
 | `optics_score` | Aggregate over applicable reflection and shadow laws. |
 | `phyground_overall` | Mean over available general and physics-domain scores. |
 
+## What this page does not claim
+
+- Catalog verification status is `result_importer_ready` with `leaderboard_valid: false` and `official_benchmark_verified: false`; imported numbers are normalized copies of caller-provided judge outputs.
+- The in-tree path does not execute PhyJudge or any cloud judge over candidate videos (catalog blocker); judge scores must be produced externally and supplied via `--official-results-path` or `annotations/` under `--benchmark-data-root`.
+- Scorecard primary key: `phyground_overall`.
+
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

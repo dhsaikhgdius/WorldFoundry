@@ -70,12 +70,23 @@ python worldfoundry/evaluation/tasks/execution/runners/mind/run_mind_official_ru
   --json
 ```
 
-执行仓内 metric runtime：
+执行仓内 metric runtime。zoo CLI 不暴露 `--gt-root`/`--dino-path` flag；在 `official-run` 模式下这些路径通过环境变量（`--env`）传入，`--generated-artifact-dir` 会转发给 runner：
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id mind \
-  --mode official-validation \
+  --mode official-run \
+  --generated-artifact-dir <model_outputs> \
+  --env WORLDFOUNDRY_MIND_GT_ROOT=<MIND-Data> \
+  --env WORLDFOUNDRY_MIND_DINO_PATH=<dinov3_vitb16> \
+  --output-dir <out> \
+  --json
+```
+
+也可以直接调用 runner 使用完整 flag 面（`--gt-root`、`--dino-path`、`--weights-dir`、`--vipe-repo`、`--num-gpus`、`--metrics`、`--video-max-time`）：
+
+```bash
+python worldfoundry/evaluation/tasks/execution/runners/mind/run_mind_official_runner.py \
   --run-official \
   --gt-root <MIND-Data> \
   --generated-artifact-dir <model_outputs> \
@@ -102,3 +113,5 @@ worldfoundry-eval zoo benchmark-run \
 - 导入或归一化已有结果**不算** official-run 证据：`official_benchmark_verified` 与 `leaderboard_valid` 保持 `false`。
 - 与 leaderboard 对齐需要完整的 250-clip 官方 split，以及尚未开放的 MIND leaderboard。
 - 缺失的指标组件保持 `None`，不会被填零伪装成完整套件聚合。
+
+[← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

@@ -176,3 +176,11 @@ WorldFoundry writes these files under `--output-dir`:
 - `per_sample_metrics.jsonl`: one row per discovered sample or imported sample metric row.
 - `raw_metric_table.jsonl`: metric rows with availability, raw score, normalized score, and source.
 - `official_stdout.log` and `official_stderr.log` for direct official-runtime execution.
+
+## What this page does not claim
+
+- Catalog flags are `leaderboard_valid: false` and `official_benchmark_verified: false` (release status `experimental`); bounded official GPU validation covers one dynamic sample only, and full-suite validation remains pending (catalog blockers).
+- Leaderboard parity requires complete `evaluation.json` trees for the full 3,000-example suite plus the official metric checkpoint stack (DROID, GroundingDINO, SAM, RAFT/SEA-RAFT); imported results are normalized copies of caller-provided numbers.
+- Scorecard primary key: `worldscore_average`.
+
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

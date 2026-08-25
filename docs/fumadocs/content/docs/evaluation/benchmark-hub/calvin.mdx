@@ -1,132 +1,103 @@
 ---
 title: CALVIN
-description: CALVIN — metrics, requirements, and run commands.
+description: Long-horizon language-conditioned manipulation benchmark with in-tree closed-loop simulator wiring and official result normalization.
 ---
 
 ## About
 
+CALVIN (Composing Actions from Language and Vision) evaluates long-horizon, language-conditioned robot manipulation. Policies must chain multiple sub-tasks specified in natural language within a tabletop PyBullet environment; the canonical protocol rolls 1000 instruction sequences and reports how many consecutive sub-tasks a policy completes per sequence.
 
+WorldFoundry integrates CALVIN with an in-tree closed-loop simulator adapter at `worldfoundry/evaluation/tasks/embodied/simulators/calvin/` plus the shared official result normalizer for caller-provided evaluation dumps. The catalog verification status is `normalizer_only`: result import is verified, while official rollouts require the CALVIN dataset, sequence evaluator, and a policy checkpoint.
 
-CALVIN external benchmark task manifest for long-horizon language-conditioned manipulation.
+Official references:
 
+- Paper: [IEEE RA-L 2022 (9788026)](https://ieeexplore.ieee.org/document/9788026)
+- Project page: [calvin.cs.uni-freiburg.de](http://calvin.cs.uni-freiburg.de/)
+- Official source reference: [mees/calvin](https://github.com/mees/calvin) (pinned `fa03f01f`)
+- License: MIT
 
+## In-tree integration
+
+- Catalog: `worldfoundry/data/benchmarks/catalog/embodied/calvin.yaml`
+- Task manifest: `worldfoundry/data/benchmarks/tasks/external/calvin.yaml`
+- Runtime profile: `worldfoundry/data/benchmarks/runtime_profiles/official/calvin.yaml`
+- Simulator adapter: `worldfoundry/evaluation/tasks/embodied/simulators/calvin/`
+- Closed-loop eval config: `worldfoundry/data/benchmarks/eval_configs/embodied/calvin/eval.yaml`
+- Result normalizer: `worldfoundry.evaluation.tasks.embodied.normalizer` (track `vla`)
+
+## Evaluation protocol and result layout
+
+For result import, the embodied normalizer accepts JSON, JSONL, CSV, TSV, and `result.txt`-style logs. Rows are matched on numeric fields such as `success`, `success_rate`, `task_success`, `sequence_success`, and `completion`; booleans and percent strings are coerced to unit-interval floats.
+
+The bundled eval config evaluates 1000 instruction sequences (seed 0, one episode per sequence) against a validation dataset at `/data/calvin/dataset/validation`, driven by an external policy server at `ws://localhost:8000`.
 
 ## Metrics
 
-CALVIN external benchmark task manifest for long-horizon language-conditioned manipulation.
+Primary metric (scorecard key): `success_rate`.
 
-### Task YAML
-
-`worldfoundry/data/benchmarks/tasks/external/calvin.yaml`
-
-### Primary
-
-- `success_rate`
-
-| Metric | Focus |
+| Metric | Meaning |
 | --- | --- |
-| `success_rate` | Share of episodes or tasks that complete successfully. |
-| `sequence_success` | Share of episodes or tasks that complete successfully. |
-| `task_success` | Share of episodes or tasks that complete successfully. |
-| `completion` | Fraction of consecutive CALVIN language-conditioned sub-tasks completed without environment reset. |
+| `success_rate` | Share of evaluation rollouts completed successfully; primary leaderboard value. |
+| `sequence_success` | Success over full multi-step instruction sequences. |
+| `task_success` | Per-sub-task success aggregated across sequences. |
+| `completion` | Average number/fraction of consecutive sub-tasks completed per sequence. |
 
+Success metrics are normalized via the shared registry (`percent_or_fraction_to_unit`). No video-generation metrics apply.
 
-
-## Environment setup
-
-### Runtime environment
-
-- **Conda env:** `giga-world-policy-py311`.
-- **Separate setup:** defaults to the unified WorldFoundry env (`needs_new_env: false`); a benchmark-only conda env is usually not required.
-- CALVIN 官方 rollout 需要数据集 split、policy checkpoint 和 long-horizon evaluator 输出；轻量 preflight 不启动仿真/评测。
-
-### Evaluation data
-
-- WorldFoundry tracks the upstream CALVIN runtime and normalizes official result files; dataset materialization is handled outside this manifest.
-- Candidate model outputs: set `WORLDFOUNDRY_CALVIN_RESULTS_PATH` to the generated-video or rollout artifact root.
-- `${WORLDFOUNDRY_CACHE_DIR}/repos/mees--calvin`
-
-### Checkpoints & assets
-
-- This benchmark is primarily rollout- or official-result-driven; see catalog `requires` and the task YAML for policy/simulator checkpoints.
-
-### Key environment variables
-
-- `WORLDFOUNDRY_CALVIN_ROOT`
-- `WORLDFOUNDRY_CALVIN_DATASET_ROOT`
-- `WORLDFOUNDRY_CALVIN_RESULTS_PATH`
-
-### Verify setup
+## Preparation and environment
 
 ```bash
-PYTHONPATH=${WORLDFOUNDRY_CACHE_DIR}/repos/mees--calvin:src ${WORLDFOUNDRY_CONDA_ENVS_ROOT}/worldfoundry-giga-world-policy-py311/bin/python -m worldfoundry.evaluation.tasks.execution.orchestration.runtime_preflight --profile calvin --manifest worldfoundry/data/benchmarks/runtime_profiles/official/calvin.yaml --output-dir tmp/worldfoundry_preflight/calvin --json
+cd /path/to/WorldFoundry
+export WORLDFOUNDRY_CALVIN_RESULTS_PATH=/path/to/calvin_results.json
 ```
 
+Closed-loop rollouts require the official CALVIN repository checkout (cached at `cache/vla_va_wam/repos/mees--calvin`), a CALVIN dataset root, and a policy checkpoint served over WebSocket. The runtime profile is a lightweight preflight only (`needs_new_env: false`) and does not start the simulator or download the dataset.
 
-
-## Run evaluation
-
-
-
-After preparing the assets and candidate artifacts listed on this page, use the public run entry points below.
-
-### Set candidate artifacts
+Verify runtime wiring:
 
 ```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/generated/artifacts
+python -m worldfoundry.evaluation.tasks.execution.orchestration.runtime_preflight \
+  --profile calvin \
+  --manifest worldfoundry/data/benchmarks/runtime_profiles/official/calvin.yaml \
+  --output-dir tmp/worldfoundry_preflight/calvin \
+  --json
 ```
 
-### Import official results
+## Import official results (official-validation)
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id calvin \
-  --mode normalizer \
-  --official-results-path /path/to/official/results-or-report \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/calvin/normalizer \
+  --mode official-validation \
+  --official-results-path "${WORLDFOUNDRY_CALVIN_RESULTS_PATH}" \
+  --output-dir tmp/calvin/official-validation \
   --json
 ```
 
-### Score generated artifacts
+This routes through the embodied `vla`-track normalizer in-process; no simulator code is executed.
+
+## Closed-loop rollouts (native simulator)
 
 ```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id calvin \
-  --mode official-run \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/calvin/official-run \
+worldfoundry-eval embodied run \
+  --config worldfoundry/data/benchmarks/eval_configs/embodied/calvin/eval.yaml \
+  --output-dir tmp/calvin/embodied-run \
   --json
 ```
 
-### Direct in-tree runner
+Adjust `dataset_path` inside the config (or copy it) to point at your CALVIN validation split. `--server-url`, `--shard-id`/`--num-shards`, and `--no-docker` are supported.
 
-```bash
-worldfoundry-eval zoo benchmark-run --benchmark-id calvin --mode official-validation --official-results-path <official_results.json> --output-dir <out> --json
-```
+## Outputs
 
+- `scorecard.json`: WorldFoundry scorecard; leaderboard block keyed by `success_rate`.
+- `raw_results.jsonl`: extracted raw result rows.
+- `evaluation/summary.json`: aggregated per-metric statistics.
+- `evaluation/per_sample_metrics.jsonl`: normalized per-sequence rows.
 
+## What this page does not claim
 
-## Requirements
-
-
-
-### Inputs
-
-- Official CALVIN repository checkout
-- CALVIN dataset root
-- Benchmark-specific policy checkpoint
-- Official long-horizon sequence evaluation command
-
-### Environment
-
-- `WORLDFOUNDRY_CALVIN_RESULTS_PATH`
-
-### Outputs
-
-- `scorecard.json`
-- `raw_results.jsonl`
-
-
+- Catalog status is `normalizer_only` with `leaderboard_valid: false` and `official_benchmark_verified: false`. Imported numbers are normalized copies of caller-provided results, not officially reproduced leaderboard values.
+- The CALVIN dataset, PyBullet simulator assets, and policy checkpoints are not bundled; closed-loop rollouts require external staging plus a policy server. No local GPU rollout evidence is claimed.
+- Official CALVIN dataset split, sequence evaluator, and policy checkpoint validation must be completed before integrated status (catalog blocker).
 
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

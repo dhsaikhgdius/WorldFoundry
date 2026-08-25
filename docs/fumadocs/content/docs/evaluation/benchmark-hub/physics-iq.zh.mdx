@@ -118,3 +118,12 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
 - `per_sample_scores.jsonl`：输入文件包含 scenario 级字段时写出的逐场景结果。
 - `physics_iq_results.csv` 或 `physics_iq_results.json`：评分包装器导入结果时复制出的结果文件。
 - 通过 `worldfoundry-eval zoo benchmark-run` 调用时，还会写出 `specialized_normalizer_stdout.log` 与 `specialized_normalizer_stderr.log`。
+
+## 不能声称的边界
+
+- catalog 状态为 `experimental`，`leaderboard_valid: false`、`official_benchmark_verified: false`；runtime 类型为 `in_tree_official_runtime`（校验状态 `in_tree_raw_video_evaluator`）。
+- 导入的结果文件是调用方分数的归一化副本，不是官方复现的 leaderboard 值。
+- 原始视频打分需要在本地部署官方 Physics-IQ 参考视频与 mask，仓库不分发这些数据。
+- scorecard 主键：`physics_iq_score`。
+
+[← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

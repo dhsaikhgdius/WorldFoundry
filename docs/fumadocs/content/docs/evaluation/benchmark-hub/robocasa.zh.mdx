@@ -1,131 +1,107 @@
 ---
 title: RoboCasa
-description: RoboCasa — 指标、依赖与运行命令。
+description: 大规模厨房操作基准，仓内提供闭环仿真接线与官方结果归一化。
 ---
 
-## 简介
+## 关于
 
+RoboCasa 是面向日常厨房环境的大规模仿真基准，用于训练与评测通用机器人操作策略。它提供生成式多样化的厨房场景、覆盖抓放、门/抽屉开合、家电操作等原子与复合任务，并基于 robosuite/MuJoCo 提供标准化的策略 rollout 评测。
 
+WorldFoundry 从两个面集成 RoboCasa：一是仓内闭环仿真适配器 `worldfoundry/evaluation/tasks/embodied/simulators/robocasa/`，通过 `worldfoundry-eval embodied run` 驱动；二是官方结果归一化器，把调用方提供的 rollout 结果文件转换为 WorldFoundry scorecard。catalog 校验状态为 `normalizer_only`：结果导入已验证，完整官方 rollout 仍需要 RoboCasa assets 与策略 checkpoint。
 
-RoboCasa external benchmark task manifest for long-horizon robot manipulation policy rollouts.
+官方来源：
 
+- 论文：[arXiv:2406.02523](https://arxiv.org/abs/2406.02523)
+- 项目主页：[robocasa.ai](https://robocasa.ai/)
+- 官方仓库：[robocasa/robocasa](https://github.com/robocasa/robocasa)（固定 `56e355cc`）
+- 许可：GitHub API 报告为 `NOASSERTION`，再分发许可需人工复核。
 
+## 仓内路径
+
+- Catalog：`worldfoundry/data/benchmarks/catalog/embodied/robocasa.yaml`
+- 任务清单：`worldfoundry/data/benchmarks/tasks/external/robocasa.yaml`
+- 运行时 profile：`worldfoundry/data/benchmarks/runtime_profiles/official/robocasa.yaml`
+- 仿真适配器：`worldfoundry/evaluation/tasks/embodied/simulators/robocasa/`
+- 闭环 eval config：`worldfoundry/data/benchmarks/eval_configs/embodied/robocasa/eval.yaml`
+- 结果归一化器：`worldfoundry.evaluation.tasks.embodied.normalizer`（track `vla`）
+
+## 评测协议与数据布局
+
+结果导入侧，embodied normalizer 接受 JSON、JSONL、CSV、TSV 及 `result.txt` 风格日志。行记录按 `success`、`success_rate`、`task_success`、`episode_success`、`reward` 等数值字段匹配；布尔值与 `xx%` 字符串会被强制转换为 [0,1] 浮点数。episode/task 标识从 `sample_id`、`episode_id`、`task_id`、`task`、`id`、`name` 中读取（若存在）。
+
+内置闭环 eval config 会 rollout 六个厨房任务（`PickPlaceCounterToCabinet`、`PickPlaceCounterToSink`、`OpenSingleDoor`、`CloseDoubleDoor`、`TurnOnSinkFaucet`、`PreheatOven`），使用 `PandaOmron` 机器人、256px 相机、最长 500 步、`pretrain` split、每任务 5 个 episode，并要求 `ws://localhost:8000` 上有外部 policy server。
 
 ## 指标
 
-RoboCasa external benchmark task manifest for long-horizon robot manipulation policy rollouts.
+主指标（scorecard 主键）：`success_rate`。
 
-### Task YAML
-
-`worldfoundry/data/benchmarks/tasks/external/robocasa.yaml`
-
-### Primary
-
-- `success_rate`
-
-| Metric | 关注点 |
+| 指标 | 含义 |
 | --- | --- |
-| `success_rate` | episode / task 是否成功完成的比例或成功率。 |
-| `task_success` | episode / task 是否成功完成的比例或成功率。 |
-| `episode_success` | episode / task 是否成功完成的比例或成功率。 |
-| `reward` | RoboCasa 官方家庭仿真器厨房操作任务的累计 reward。 |
+| `success_rate` | 成功完成的 episode/任务占比；leaderboard 主值。 |
+| `task_success` | 按任务聚合的成功指示。 |
+| `episode_success` | 单 episode 的二值成功。 |
+| `reward` | RoboCasa 厨房操作任务上的累计奖励。 |
 
+成功类指标经共享 registry 的 `percent_or_fraction_to_unit` 归一化；本基准不涉及 FID/CLIP/FVD 等视频生成指标。
 
-
-## 环境准备
-
-### 运行环境
-
-- **Conda 环境：** `robocasa-headless-venv`。
-- **单独配置：** 默认复用 WorldFoundry 统一环境（`needs_new_env: false`），通常不需要额外 benchmark-only conda env。
-- RoboCasa/robosuite import 已在 headless venv 可见；完整官方状态仍需要 assets、task suite 和 policy rollout。
-
-### 测评数据
-
-- RoboCasa uses simulator assets and generated policy rollouts rather than a single public HF benchmark table.
-- 待测模型输出目录：设置 `WORLDFOUNDRY_ROBOCASA_RESULTS_PATH` 指向生成视频或 rollout artifact 根目录。
-- `${WORLDFOUNDRY_CACHE_DIR}/repos/robocasa--robocasa`
-
-### Checkpoint 与资产
-
-- 该 benchmark 以官方结果归一化或仿真 rollout 为主；policy / simulator checkpoint 见 catalog `requires` 与 task YAML。
-
-### 关键环境变量
-
-- `WORLDFOUNDRY_ROBOCASA_ROOT`
-- `WORLDFOUNDRY_ROBOCASA_RESULTS_PATH`
-
-### 环境检查
+## 准备命令与环境变量
 
 ```bash
-PYTHONPATH=${WORLDFOUNDRY_CACHE_DIR}/repos/robocasa--robocasa:src ${WORLDFOUNDRY_CONDA_ENVS_ROOT}/worldfoundry-robocasa-headless-venv/bin/python -m worldfoundry.evaluation.tasks.execution.orchestration.runtime_preflight --profile robocasa --manifest worldfoundry/data/benchmarks/runtime_profiles/official/robocasa.yaml --output-dir tmp/worldfoundry_preflight/robocasa --json
+cd /path/to/WorldFoundry
+export WORLDFOUNDRY_ROBOCASA_RESULTS_PATH=/path/to/robocasa/rollout_results.json
 ```
 
+闭环 rollout 还需要官方 RoboCasa 仓库 checkout（缓存路径 `${WORLDFOUNDRY_CACHE_DIR}/repos/robocasa--robocasa`）、RoboCasa 仿真 assets，以及通过 WebSocket 提供动作的策略 checkpoint。运行时 profile 指向 headless robosuite venv（相对统一环境 `needs_new_env: false`，RoboCasa/robosuite 在 headless venv 中可导入）。
 
-
-## 运行评测
-
-
-
-准备好该 benchmark 页面列出的资产和候选产物后，使用下面的公开运行入口。
-
-### 设置候选产物目录
+不启动仿真器、仅校验运行时接线：
 
 ```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/generated/artifacts
+python -m worldfoundry.evaluation.tasks.execution.orchestration.runtime_preflight \
+  --profile robocasa \
+  --manifest worldfoundry/data/benchmarks/runtime_profiles/official/robocasa.yaml \
+  --output-dir tmp/worldfoundry_preflight/robocasa \
+  --json
 ```
 
-### 导入已有官方结果
+## 导入官方结果（official-validation）
+
+把已有的官方格式 rollout 结果文件归一化为 WorldFoundry scorecard：
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id robocasa \
-  --mode normalizer \
-  --official-results-path /path/to/official/results-or-report \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/robocasa/normalizer \
+  --mode official-validation \
+  --official-results-path "${WORLDFOUNDRY_ROBOCASA_RESULTS_PATH}" \
+  --output-dir tmp/robocasa/official-validation \
   --json
 ```
 
-### 从生成产物重新打分
+该路径在进程内走 embodied `vla` track normalizer，不执行任何仿真代码。
+
+## 闭环 rollout（原生仿真器）
+
+在 RoboCasa 已安装、policy server 已启动的前提下，执行内置 eval config：
 
 ```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id robocasa \
-  --mode official-run \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/robocasa/official-run \
+worldfoundry-eval embodied run \
+  --config worldfoundry/data/benchmarks/eval_configs/embodied/robocasa/eval.yaml \
+  --output-dir tmp/robocasa/embodied-run \
   --json
 ```
 
-### 直接调用仓内 runner
+`embodied run` 入口支持 `--server-url`、`--shard-id`/`--num-shards`、`--no-docker` 等参数。策略需按 `external-policy-server` 使用的 WebSocket 协议应答动作请求。
 
-```bash
-worldfoundry-eval zoo benchmark-run --benchmark-id robocasa --mode official-validation --official-results-path <official_results.json> --output-dir <out> --json
-```
+## 输出
 
+- `scorecard.json`：WorldFoundry scorecard；leaderboard 块以 `success_rate` 为主键。
+- `raw_results.jsonl`：提取的原始结果行，用于审计。
+- `evaluation/summary.json`：按指标聚合的统计。
+- `evaluation/per_sample_metrics.jsonl`：归一化后的逐 episode/任务行。
 
+## 不能声称的边界
 
-## 依赖与产物
-
-
-
-### Inputs
-
-- Official RoboCasa repository checkout
-- RoboCasa simulator assets
-- Long-horizon policy checkpoint
-- Official task and scene split declaration
-
-### Environment
-
-- `WORLDFOUNDRY_ROBOCASA_RESULTS_PATH`
-
-### Outputs
-
-- `scorecard.json`
-- `raw_results.jsonl`
-
-
+- catalog 状态为 `normalizer_only`，`leaderboard_valid: false`、`official_benchmark_verified: false`。导入的数字是调用方结果的归一化副本，不是官方复现的 leaderboard 值。
+- RoboCasa 仿真器、场景 assets、策略 checkpoint 均未随仓库分发；闭环 rollout 需要外部安装 RoboCasa 并运行 policy server。本页不声称任何本地 GPU rollout 证据。
+- catalog blocker：官方 RoboCasa 场景 assets、策略 checkpoint 与长时程仿真 rollout 需验证后才能达到 integrated 状态。
 
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

@@ -1,132 +1,106 @@
 ---
 title: RLBench
-description: RLBench — metrics, requirements, and run commands.
+description: CoppeliaSim/PyRep robot learning benchmark with in-tree closed-loop simulator wiring and official result normalization.
 ---
 
 ## About
 
+RLBench is a large-scale robot learning benchmark built on CoppeliaSim and PyRep. It provides 100+ hand-designed tabletop manipulation tasks with a Franka Panda arm, demonstration generation, and standardized evaluation by rollout success, and is widely used for multi-task, few-shot, and vision-based manipulation research.
 
+WorldFoundry integrates RLBench with an in-tree closed-loop simulator adapter at `worldfoundry/evaluation/tasks/embodied/simulators/rlbench/` plus the shared official result normalizer for caller-provided rollout dumps. The catalog verification status is `normalizer_only`: result import is verified, while simulator execution requires the external CoppeliaSim/PyRep runtime.
 
-RLBench external benchmark task manifest for CoppeliaSim/PyRep robot manipulation rollouts.
+Official references:
 
+- Paper: [arXiv:1909.12271](https://arxiv.org/abs/1909.12271)
+- Project page: [sites.google.com/corp/view/rlbench](https://sites.google.com/corp/view/rlbench)
+- Official source reference: [stepjam/RLBench](https://github.com/stepjam/RLBench) (pinned `02720bba`)
+- License: GitHub API reports `NOASSERTION`; redistribution license needs manual review.
 
+## In-tree integration
+
+- Catalog: `worldfoundry/data/benchmarks/catalog/embodied/rlbench.yaml`
+- Task manifest: `worldfoundry/data/benchmarks/tasks/external/rlbench.yaml`
+- Runtime profile: `worldfoundry/data/benchmarks/runtime_profiles/official/rlbench.yaml`
+- Simulator adapter: `worldfoundry/evaluation/tasks/embodied/simulators/rlbench/`
+- Closed-loop eval config: `worldfoundry/data/benchmarks/eval_configs/embodied/rlbench/eval.yaml`
+- Result normalizer: `worldfoundry.evaluation.tasks.embodied.normalizer` (track `vla`)
+
+## Evaluation protocol and result layout
+
+For result import, the embodied normalizer accepts JSON, JSONL, CSV, TSV, and `result.txt`-style logs. Rows are matched on numeric fields such as `success`, `success_rate`, `task_success`, `episode_success`, `reward`, and `normalized_return`; booleans and percent strings are coerced to unit-interval floats.
+
+The bundled eval config rolls out 18 tabletop tasks (from `reach_target` and `pick_up_cup` through `stack_cups`, `light_bulb_in`, and `take_lid_off_saucepan`) at 256px render resolution, 200 max steps, and 25 episodes per task, against an external policy server at `ws://localhost:8000`.
 
 ## Metrics
 
-RLBench external benchmark task manifest for CoppeliaSim/PyRep robot manipulation rollouts.
+Primary metric (scorecard key): `success_rate`.
 
-### Task YAML
-
-`worldfoundry/data/benchmarks/tasks/external/rlbench.yaml`
-
-### Primary
-
-- `success_rate`
-
-| Metric | Focus |
+| Metric | Meaning |
 | --- | --- |
-| `success_rate` | Share of episodes or tasks that complete successfully. |
-| `task_success` | Share of episodes or tasks that complete successfully. |
-| `episode_success` | Share of episodes or tasks that complete successfully. |
-| `reward` | Sparse or shaped reward accumulated over RLBench tabletop manipulation episode horizons. |
-| `normalized_return` | RLBench return normalized to [0, 1] against demonstration or success benchmarks. |
+| `success_rate` | Share of rollouts completed successfully; primary leaderboard value. |
+| `task_success` | Per-task success aggregated across episodes. |
+| `episode_success` | Per-episode binary success. |
+| `reward` | Cumulative episode reward. |
+| `normalized_return` | Return normalized against task-specific reference ranges, when reported. |
 
+Success metrics are normalized via the shared registry (`percent_or_fraction_to_unit`). No video-generation metrics apply.
 
-
-## Environment setup
-
-### Runtime environment
-
-- **Conda env:** `needs-rlbench-pyrep-coppeliasim-env`.
-- **Separate setup:** this benchmark expects a dedicated conda env rather than the unified runtime.
-- RLBench 需要 CoppeliaSim/PyRep 组合环境；当前只记录 env vars 和 task manifest，不启动 simulator。
-
-### Evaluation data
-
-- RLBench is simulator-backed; WorldFoundry normalizes policy rollout results while CoppeliaSim/PyRep execution remains explicit.
-- Candidate model outputs: set `WORLDFOUNDRY_RLBENCH_RESULTS_PATH` to the generated-video or rollout artifact root.
-
-### Checkpoints & assets
-
-- This benchmark is primarily rollout- or official-result-driven; see catalog `requires` and the task YAML for policy/simulator checkpoints.
-
-### Key environment variables
-
-- `WORLDFOUNDRY_RLBENCH_ROOT`
-- `COPPELIASIM_ROOT`
-- `WORLDFOUNDRY_RLBENCH_RESULTS_PATH`
-
-### Verify setup
+## Preparation and environment
 
 ```bash
-PYTHONPATH=. ${WORLDFOUNDRY_CONDA_ROOT}/worldplay/bin/python -m worldfoundry.evaluation.tasks.execution.orchestration.runtime_preflight --profile rlbench --manifest worldfoundry/data/benchmarks/runtime_profiles/official/rlbench.yaml --output-dir tmp/worldfoundry_preflight/rlbench --json
+cd /path/to/WorldFoundry
+export WORLDFOUNDRY_RLBENCH_RESULTS_PATH=/path/to/rlbench_results.json
 ```
 
+The runtime profile flags `needs_new_env: true`: RLBench requires the combined CoppeliaSim/PyRep environment, and the profile only records env vars and the task manifest without starting the simulator. Closed-loop rollouts also require RLBench task assets and a policy checkpoint served over WebSocket.
 
-
-## Run evaluation
-
-
-
-After preparing the assets and candidate artifacts listed on this page, use the public run entry points below.
-
-### Set candidate artifacts
+Verify runtime wiring:
 
 ```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/generated/artifacts
+python -m worldfoundry.evaluation.tasks.execution.orchestration.runtime_preflight \
+  --profile rlbench \
+  --manifest worldfoundry/data/benchmarks/runtime_profiles/official/rlbench.yaml \
+  --output-dir tmp/worldfoundry_preflight/rlbench \
+  --json
 ```
 
-### Import official results
+## Import official results (official-validation)
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id rlbench \
-  --mode normalizer \
-  --official-results-path /path/to/official/results-or-report \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/rlbench/normalizer \
+  --mode official-validation \
+  --official-results-path "${WORLDFOUNDRY_RLBENCH_RESULTS_PATH}" \
+  --output-dir tmp/rlbench/official-validation \
   --json
 ```
 
-### Score generated artifacts
+This routes through the embodied `vla`-track normalizer in-process; no simulator code is executed.
+
+## Closed-loop rollouts (native simulator)
+
+With CoppeliaSim/PyRep installed and a policy server running:
 
 ```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id rlbench \
-  --mode official-run \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/rlbench/official-run \
+worldfoundry-eval embodied run \
+  --config worldfoundry/data/benchmarks/eval_configs/embodied/rlbench/eval.yaml \
+  --output-dir tmp/rlbench/embodied-run \
   --json
 ```
 
-### Direct in-tree runner
+`--server-url`, `--shard-id`/`--num-shards`, and `--no-docker` are supported by the `embodied run` entry point.
 
-```bash
-worldfoundry-eval zoo benchmark-run --benchmark-id rlbench --mode official-validation --official-results-path <official_results.json> --output-dir <out> --json
-```
+## Outputs
 
+- `scorecard.json`: WorldFoundry scorecard; leaderboard block keyed by `success_rate`.
+- `raw_results.jsonl`: extracted raw result rows.
+- `evaluation/summary.json`: aggregated per-metric statistics.
+- `evaluation/per_sample_metrics.jsonl`: normalized per-episode rows.
 
+## What this page does not claim
 
-## Requirements
-
-
-
-### Inputs
-
-- Official RLBench repository checkout
-- CoppeliaSim and PyRep runtime
-- RLBench task assets
-- Benchmark-specific policy checkpoint
-
-### Environment
-
-- `WORLDFOUNDRY_RLBENCH_RESULTS_PATH`
-
-### Outputs
-
-- `scorecard.json`
-- `raw_results.jsonl`
-
-
+- Catalog status is `normalizer_only` with `leaderboard_valid: false` and `official_benchmark_verified: false`. Imported numbers are normalized copies of caller-provided results, not officially reproduced leaderboard values.
+- CoppeliaSim and PyRep are not installed in the default WorldFoundry environment; closed-loop rollouts require the external simulator runtime and a policy server. No local rollout evidence is claimed.
+- CoppeliaSim/PyRep runtime validation and task-manifest mapping must be completed before integrated status (catalog blocker).
 
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

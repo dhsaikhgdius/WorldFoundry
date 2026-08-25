@@ -116,3 +116,11 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
 - `per_sample_scores.jsonl`：输入结果文件包含 sample-level 字段时写出的 concept/teaching-point 结果。
 - `phyeduvideo_results.csv` 或 `phyeduvideo_results.json`：仓内包装器导入结果时复制出的结果文件。
 - 通过 `worldfoundry-eval zoo benchmark-run` 调用时，还会写出 `specialized_normalizer_stdout.log` 与 `specialized_normalizer_stderr.log`。
+
+## 不能声称的边界
+
+- catalog 校验状态为 `result_importer_ready`，`leaderboard_valid: false`、`official_benchmark_verified: false`。导入的数字是调用方结果的归一化副本，不是官方复现的 leaderboard 值。
+- 原始视频打分需要上游 InternVL/CLIP/VQA judge 资产与协议，仓内不运行（catalog blocker）。WorldFoundry 不分发这些 judge 权重或凭据。
+- scorecard 主键：`phyeduvideo_average`。
+
+[← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

@@ -255,4 +255,10 @@ worldfoundry-eval zoo benchmark-run --benchmark-id worldolympiad --mode official
 - [Project page](https://alibaba-damo-academy.github.io/WorldOlympiad)
 - [Hugging Face dataset](https://huggingface.co/datasets/ziplab/WorldOlympiad)
 
+## 不能声称的边界
+
+- catalog 校验状态为 `in_tree_runtime_plan_verified`，`leaderboard_valid: false`、`official_benchmark_verified: false`（release status 为 `experimental`）。
+- 完整 1,000 视频 split 的打分运行尚未通过本集成执行过；目前只验证了 batch plan（catalog blocker）。plan-only 输出不能当作 leaderboard 数字。
+- scorecard 主键：`combined_score`。
+
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

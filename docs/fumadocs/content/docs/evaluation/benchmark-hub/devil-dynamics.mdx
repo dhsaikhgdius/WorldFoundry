@@ -142,4 +142,11 @@ Use `scorecard.json` for WorldFoundry's normalized aggregate and `upstream/devil
 
 Leaderboard-equivalent numbers require the complete DEVIL prompt suite, filenames that preserve dynamics-grade prefixes, the same checkpoint assets, and Gemini naturalness outputs produced with the same judge settings. Partial imports remain useful for regression testing, but should not be reported as full DEVIL leaderboard results.
 
+## What this page does not claim
+
+- Catalog verification status is `pending` with `leaderboard_valid: false` and `official_benchmark_verified: false` (release status `experimental`).
+- Full validation requires generated videos for the official prompt suite plus official judge/checkpoint/API assets (catalog blockers); no full-suite GPU run is claimed by this integration.
+- The naturalness component is a hosted Gemini judge: the official runtime requires `--gemini-api-key`/`GEMINI_API_KEY` or a precomputed `--naturalness-path` xlsx, and raises a `ValueError` when neither is supplied — it does not silently skip.
+- Scorecard primary key: `devil_dynamics_average`.
+
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

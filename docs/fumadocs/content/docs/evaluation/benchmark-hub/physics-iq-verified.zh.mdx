@@ -132,4 +132,10 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" worldfoundry/evaluation/ta
 - [Project page](https://physics-iq-verified.anates.ai/)
 - [Dataset](https://huggingface.co/datasets/Anates-Labs-Research/Physics-IQ-Verified)
 
+## 不能声称的边界
+
+- catalog 状态为 `experimental`，`leaderboard_valid: false`、`official_benchmark_verified: false`；校验状态为 `in_tree_raw_video_evaluator`。
+- 官方 Verified 数据集必须包含全部 396 个参考视频与 396 个 mask；部分或受限下载会导致 preflight 失败（catalog blocker）。端到端执行证据待完成完整授权下载后补充。
+- scorecard 主键：`physics_iq_verified_score`。
+
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

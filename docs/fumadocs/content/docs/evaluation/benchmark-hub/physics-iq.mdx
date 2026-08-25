@@ -118,3 +118,12 @@ The output directory contains:
 - `per_sample_scores.jsonl`: per-scenario rows when the input file contains scenario-level fields.
 - `physics_iq_results.csv` or `physics_iq_results.json`: copied result file when the scoring wrapper imports one.
 - `specialized_normalizer_stdout.log` and `specialized_normalizer_stderr.log` when invoked through `worldfoundry-eval zoo benchmark-run`.
+
+## What this page does not claim
+
+- Catalog status is `experimental` with `leaderboard_valid: false` and `official_benchmark_verified: false`; the runtime kind is `in_tree_official_runtime` (`in_tree_raw_video_evaluator` verification).
+- Imported result files are normalized copies of caller-provided scores, not officially reproduced leaderboard values.
+- Raw-video scoring requires the official Physics-IQ reference videos and masks staged locally; they are not bundled with the repository.
+- Scorecard primary key: `physics_iq_score`.
+
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)
