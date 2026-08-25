@@ -68,3 +68,56 @@ catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint
   metadata, and runtime-profile planning records. Runner or pipeline targets are present
   only after a complete in-tree WorldFoundry model runtime is registered and validated.
+docs:
+  overview: |
+    StarVLA (starVLA/starVLA) is a Lego-like modular codebase for composing VLA policies from interchangeable VLM backbones and action heads. The entry tracks two released LIBERO-4in1 checkpoints: the QwenOFT policy (`StarVLA/Qwen3-VL-OFT-LIBERO-4in1`, built on Qwen/Qwen3-VL-4B-Instruct) and the WM4A world-action variant (`StarVLA/WM4A-Wan2d2-OFT-LIBERO-4in1`). WorldFoundry executed the official StarVLA QwenOFT predict_action with the local checkpoint and Qwen3-VL-4B base VLM on an 80GB CUDA GPU; the public pipeline emitted a checkpoint-backed LIBERO action_trace with checkpoint-statistics action unnormalization.
+
+    Within the WorldFoundry model catalog this entry is tracked as `starvla` in the `vla_va_wam` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/starVLA/starVLA; Hugging Face `StarVLA/Qwen3-VL-OFT-LIBERO-4in1`, `StarVLA/WM4A-Wan2d2-OFT-LIBERO-4in1`, `Qwen/Qwen3-VL-4B-Instruct`.
+  overview_zh: |
+    StarVLA（starVLA/starVLA）是乐高式模块化代码库，用可互换的 VLM 骨干与动作头组装 VLA 策略。该条目跟踪两个已发布的 LIBERO-4in1 权重：QwenOFT 策略（`StarVLA/Qwen3-VL-OFT-LIBERO-4in1`，基于 Qwen/Qwen3-VL-4B-Instruct）与 WM4A 世界-动作变体（`StarVLA/WM4A-Wan2d2-OFT-LIBERO-4in1`）。WorldFoundry 在 80GB CUDA GPU 上以本地权重与 Qwen3-VL-4B 基座 VLM 执行了官方 StarVLA QwenOFT predict_action；公开管线产出了权重支撑的 LIBERO action_trace，动作反归一化使用权重内统计。
+
+    在 WorldFoundry 模型目录中，该条目以 `starvla` 收录于 `vla_va_wam` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/starVLA/starVLA；Hugging Face `StarVLA/Qwen3-VL-OFT-LIBERO-4in1`、`StarVLA/WM4A-Wan2d2-OFT-LIBERO-4in1`、`Qwen/Qwen3-VL-4B-Instruct`。
+  architecture: |
+    The QwenOFT policy pairs a Qwen3-VL-4B-Instruct vision-language backbone with an OFT-style parallel-decoding continuous action head fine-tuned jointly on the four LIBERO suites (4in1). The WM4A variant couples the policy with a Wan 2.2-based world-action model; its checkpoint is staged with tensor/import probes only and the WM4A world-action runtime has not been promoted by the QwenOFT policy validation. Further architecture details are not recorded in the repository.
+  architecture_zh: |
+    QwenOFT 策略将 Qwen3-VL-4B-Instruct 视觉-语言骨干与 OFT 式并行解码连续动作头配对，在四个 LIBERO 套件上联合微调（4in1）。WM4A 变体将策略与基于 Wan 2.2 的世界-动作模型耦合；其权重仅完成张量/导入探针，WM4A 世界-动作运行时未被 QwenOFT 策略验证所提升。更多架构细节仓库未记录。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `starvla` and runtime profile `runtime-profile:starvla`.
+    Catalog integration status: `integrated`.
+    Integration notes recorded in the catalog:
+    - WorldFoundry runtime executed official StarVLA QwenOFT predict_action with local Qwen3-VL-OFT-LIBERO-4in1 checkpoint and Qwen3-VL-4B base VLM on an 80GB CUDA GPU.
+    - WM4A world-action checkpoint remains staged with tensor/import probes only and is not promoted by the QwenOFT policy run.
+    Recorded variant `starvla-qwen3-vl-oft-libero-4in1`, task `vla.policy_rollout`.
+    Recorded variant `starvla-wm4a-wan2d2-oft-libero-4in1`, task `wam.world_action_modeling`.
+
+    Embodiment contract:
+    - Simulator: none bundled — the LIBERO-4in1 checkpoints target the LIBERO benchmark environments; rollouts run through separate benchmark runners.
+    - Sensors: RGB camera observations plus a language instruction; the exact camera/state contract is not recorded in this catalog file.
+    - Action space: continuous action chunks with checkpoint-statistics unnormalization, per the validated QwenOFT LIBERO route.
+    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `starvla`，运行时配置为 `runtime-profile:starvla`。
+    目录集成状态：已集成（integrated）。
+    目录中记录的集成备注（保留原文）：
+    - WorldFoundry runtime executed official StarVLA QwenOFT predict_action with local Qwen3-VL-OFT-LIBERO-4in1 checkpoint and Qwen3-VL-4B base VLM on an 80GB CUDA GPU.
+    - WM4A world-action checkpoint remains staged with tensor/import probes only and is not promoted by the QwenOFT policy run.
+    目录记录：变体 `starvla-qwen3-vl-oft-libero-4in1`，任务 `vla.policy_rollout`。
+    目录记录：变体 `starvla-wm4a-wan2d2-oft-libero-4in1`，任务 `wam.world_action_modeling`。
+
+    具身接口（embodiment contract）：
+    - 仿真器：不内置仿真器——LIBERO-4in1 权重面向 LIBERO 基准环境；rollout 由独立 benchmark runner 执行。
+    - 传感器：RGB 相机观测加语言指令；具体相机/状态契约本目录文件未记录。
+    - 动作空间：连续动作块，反归一化使用权重内统计（按已验证的 QwenOFT LIBERO 路线）。
+    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`verified`.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=已验证（verified）。
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - libero

@@ -33,3 +33,63 @@ runner_parity:
   - Numerical and GPU rollout validation remain pending until the checkpoint, PaliGemma tokenizer, and matching statistics are staged.
 catalog_category: vla_va_wam
 catalog_scope: In-tree inference runtime and checkpoint metadata for embodied policies.
+docs:
+  overview: |
+    Galaxea G0Plus (OpenGalaxea/GalaxeaVLA) is Galaxea's VLA policy released under the non-commercial G0-Plus community license. WorldFoundry keeps the G0Plus model architecture, KV cache, flow sampler, strict checkpoint loader, tokenizer adapter, preprocessing, and normalization in-tree; the runtime accepts only staged local assets (`OpenGalaxea/G0-VLA` plus the `google/paligemma-3b-pt-224` backbone) and never executes checkpoint-provided Python.
+
+    Within the WorldFoundry model catalog this entry is tracked as `galaxea-vla` in the `vla_va_wam` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/OpenGalaxea/GalaxeaVLA; Hugging Face `OpenGalaxea/G0-VLA`, `google/paligemma-3b-pt-224`.
+  overview_zh: |
+    Galaxea G0Plus（OpenGalaxea/GalaxeaVLA）是星海图（Galaxea）在非商用 G0-Plus 社区许可证下发布的 VLA 策略。WorldFoundry 在树内保留 G0Plus 模型架构、KV 缓存、flow 采样器、严格权重加载器、分词器适配器、预处理与归一化；运行时仅接受本地暂存资产（`OpenGalaxea/G0-VLA` 加 `google/paligemma-3b-pt-224` 骨干），且从不执行权重携带的 Python。
+
+    在 WorldFoundry 模型目录中，该条目以 `galaxea-vla` 收录于 `vla_va_wam` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/OpenGalaxea/GalaxeaVLA；Hugging Face `OpenGalaxea/G0-VLA`、`google/paligemma-3b-pt-224`。
+  architecture: |
+    The recorded composition is a PaliGemma-3B vision-language backbone with a flow-matching action sampler and the official `model.pt` wrapper-prefix checkpoint contract. Dataset, training, evaluation harness, deployment server, and robot-control code are excluded. Further architecture details are not recorded in the repository.
+  architecture_zh: |
+    目录记录的组成为 PaliGemma-3B 视觉-语言骨干加 flow-matching 动作采样器，遵循官方 `model.pt` wrapper-prefix 权重契约。数据集、训练、评测框架、部署服务器与机器人控制代码被排除。更多架构细节仓库未记录。
+  usage_notes: |
+    No runner target is registered for this entry; the catalog tracks upstream provenance metadata without a runnable in-tree pipeline.
+    Catalog integration status: `in_tree_checkpoint_runtime_static_verified`.
+    Integration notes recorded in the catalog:
+    - G0Plus model architecture, KV cache, flow sampler, strict checkpoint loader, tokenizer adapter, preprocessing, and normalization are in-tree.
+    - Runtime accepts only staged local assets and never executes checkpoint-provided Python.
+    - Dataset, training, evaluation harness, deployment server, and robot-control code are excluded.
+
+    Embodiment contract:
+    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
+    - Sensors: RGB camera observations plus a language instruction; the exact camera/state contract is not recorded in this catalog file.
+    - Action space: continuous robot end-effector/joint action chunks; the exact action dimensionality is not recorded in this catalog file.
+    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
+  usage_notes_zh: |
+    该条目未注册 runner target；目录仅跟踪上游来源元数据，暂无可运行的 in-tree 管线。
+    目录集成状态：`in_tree_checkpoint_runtime_static_verified`。
+    目录中记录的集成备注（保留原文）：
+    - G0Plus model architecture, KV cache, flow sampler, strict checkpoint loader, tokenizer adapter, preprocessing, and normalization are in-tree.
+    - Runtime accepts only staged local assets and never executes checkpoint-provided Python.
+    - Dataset, training, evaluation harness, deployment server, and robot-control code are excluded.
+
+    具身接口（embodiment contract）：
+    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
+    - 传感器：RGB 相机观测加语言指令；具体相机/状态契约本目录文件未记录。
+    - 动作空间：连续的机器人末端/关节动作块；具体动作维度本目录文件未记录。
+    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`static_runtime_verified`.
+    Runner parity notes recorded in the catalog:
+    - Parameter names and the official model.pt wrapper-prefix contract are preserved.
+    - Numerical and GPU rollout validation remain pending until the checkpoint, PaliGemma tokenizer, and matching statistics are staged.
+
+    The release is non-commercial (G0-Plus community license); numerical and GPU rollout validation remain pending until the checkpoint, PaliGemma tokenizer, and matching statistics are staged.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=`static_runtime_verified`。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - Parameter names and the official model.pt wrapper-prefix contract are preserved.
+    - Numerical and GPU rollout validation remain pending until the checkpoint, PaliGemma tokenizer, and matching statistics are staged.
+
+    该发布为非商用（G0-Plus 社区许可证）；在权重、PaliGemma 分词器与匹配统计暂存之前，数值与 GPU rollout 验证仍待完成。
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks: []

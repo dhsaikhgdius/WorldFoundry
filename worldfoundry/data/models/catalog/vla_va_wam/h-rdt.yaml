@@ -40,3 +40,61 @@ runner_parity:
   - Numerical and GPU rollout validation remain pending until the checkpoint assets are materialized.
 catalog_category: vla_va_wam
 catalog_scope: In-tree inference runtime and checkpoint metadata for embodied policies.
+docs:
+  overview: |
+    H-RDT (HongzheBi/H_RDT, MPL-2.0) is a robotics diffusion transformer pretrained on large-scale human manipulation data: the official release (`embodiedfoundation/H-RDT`) is a 48-dimensional human-motion pretraining checkpoint, not the unreleased 14-dimensional robot fine-tune. WorldFoundry keeps the transformer, flow-matching sampler, DINOv2 plus SigLIP vision path, and optional T5 language path in-tree; runtime code never imports a source checkout or executes checkpoint-provided Python.
+
+    Within the WorldFoundry model catalog this entry is tracked as `h-rdt` in the `vla_va_wam` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/HongzheBi/H_RDT; Hugging Face `embodiedfoundation/H-RDT`.
+  overview_zh: |
+    H-RDT（HongzheBi/H_RDT，MPL-2.0）是在大规模人类操作数据上预训练的机器人扩散 transformer：官方发布（`embodiedfoundation/H-RDT`）是 48 维人手运动预训练权重，而非未发布的 14 维机器人微调版。WorldFoundry 在树内保留 transformer、flow-matching 采样器、DINOv2 加 SigLIP 视觉通路与可选 T5 语言通路；运行时代码从不导入源码 checkout 或执行权重携带的 Python。
+
+    在 WorldFoundry 模型目录中，该条目以 `h-rdt` 收录于 `vla_va_wam` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/HongzheBi/H_RDT；Hugging Face `embodiedfoundation/H-RDT`。
+  architecture: |
+    The recorded architecture is an RDT-lineage diffusion/flow transformer with dual vision encoders (DINOv2 and SigLIP) and an optional T5 text encoder, trained first on human hand-motion data (48-D action space) with the intent of transfer to robot embodiments via fine-tuning. Training, datasets, ROS, robot drivers, simulator clients, and hub mixins are excluded.
+  architecture_zh: |
+    目录记录的架构是 RDT 谱系的扩散/flow transformer，配双视觉编码器（DINOv2 与 SigLIP）及可选 T5 文本编码器，先在人手运动数据（48 维动作空间）上预训练，意在通过微调迁移到机器人具身。训练、数据集、ROS、机器人驱动、仿真器客户端与 hub mixin 被排除。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `h-rdt` and runtime profile `runtime-profile:h-rdt`.
+    Catalog integration status: `in_tree_checkpoint_runtime_static_verified`.
+    Integration notes recorded in the catalog:
+    - The transformer, flow-matching sampler, DINOv2 plus SigLIP vision path, and optional T5 language path are in-tree.
+    - Runtime code never imports a source checkout or executes checkpoint-provided Python.
+    - The official release is a 48-dimensional human-motion pretraining checkpoint, not the unreleased 14-dimensional robot fine-tune.
+    - Training, datasets, ROS, robot drivers, simulator clients, and hub mixins are excluded.
+
+    Embodiment contract:
+    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
+    - Sensors: RGB camera observations plus a language instruction; the exact camera/state contract is not recorded in this catalog file.
+    - Action space: 48-dimensional human-motion actions in the released pretraining checkpoint; the 14-dimensional robot action fine-tune is not released.
+    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `h-rdt`，运行时配置为 `runtime-profile:h-rdt`。
+    目录集成状态：`in_tree_checkpoint_runtime_static_verified`。
+    目录中记录的集成备注（保留原文）：
+    - The transformer, flow-matching sampler, DINOv2 plus SigLIP vision path, and optional T5 language path are in-tree.
+    - Runtime code never imports a source checkout or executes checkpoint-provided Python.
+    - The official release is a 48-dimensional human-motion pretraining checkpoint, not the unreleased 14-dimensional robot fine-tune.
+    - Training, datasets, ROS, robot drivers, simulator clients, and hub mixins are excluded.
+
+    具身接口（embodiment contract）：
+    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
+    - 传感器：RGB 相机观测加语言指令；具体相机/状态契约本目录文件未记录。
+    - 动作空间：已发布预训练权重的动作为 48 维人手运动；14 维机器人动作微调版未发布。
+    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`static_runtime_verified`.
+    Runner parity notes recorded in the catalog:
+    - Module and parameter names preserve the official checkpoint contract and restoration is strict.
+    - Numerical and GPU rollout validation remain pending until the checkpoint assets are materialized.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=`static_runtime_verified`。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - Module and parameter names preserve the official checkpoint contract and restoration is strict.
+    - Numerical and GPU rollout validation remain pending until the checkpoint assets are materialized.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks: []

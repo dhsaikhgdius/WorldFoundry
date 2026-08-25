@@ -49,3 +49,53 @@ catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint
   metadata, and runtime-profile planning records. Runner or pipeline targets are present
   only after a complete in-tree WorldFoundry model runtime is registered and validated.
+docs:
+  overview: |
+    LAPA — Latent Action Pretraining (LatentActionPretraining/LAPA, MIT) — is an unsupervised VLA pretraining method: it learns quantized latent actions from internet-scale videos without robot action labels, then pretrains a VLA to predict those latent actions before fine-tuning on small robot datasets. The released 7B checkpoint is `latent-action-pretraining/LAPA-7B-openx`. WorldFoundry vendors the latent-action runtime in-tree; `py_compile`, `from_pretrained`, plan-only execution, and alias validation passed, but real 7B inference is blocked by missing `tux` in the prepare env and incompatible JAX in the gpu-jax0325 env.
+
+    Within the WorldFoundry model catalog this entry is tracked as `lapa` in the `vla_va_wam` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/LatentActionPretraining/LAPA; Hugging Face `latent-action-pretraining/LAPA-7B-openx`.
+  overview_zh: |
+    LAPA——Latent Action Pretraining（LatentActionPretraining/LAPA，MIT）——是无监督 VLA 预训练方法：在没有机器人动作标签的情况下，从互联网规模视频学习量化的隐动作，再预训练 VLA 预测这些隐动作，最后在小规模机器人数据上微调。发布的 7B 权重为 `latent-action-pretraining/LAPA-7B-openx`。WorldFoundry 将隐动作运行时内置树内；`py_compile`、`from_pretrained`、plan-only 执行与别名校验通过，但真实 7B 推理因 prepare 环境缺少 `tux`、gpu-jax0325 环境 JAX 不兼容而受阻。
+
+    在 WorldFoundry 模型目录中，该条目以 `lapa` 收录于 `vla_va_wam` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/LatentActionPretraining/LAPA；Hugging Face `latent-action-pretraining/LAPA-7B-openx`。
+  architecture: |
+    The published pipeline first trains a VQ-VAE-style latent action quantizer between consecutive video frames, then pretrains a 7B vision-language model (Large World Model lineage, JAX-based) to predict latent actions from observations and instructions, and finally fine-tunes to real robot actions. The in-tree runtime wraps the official JAX inference path.
+  architecture_zh: |
+    公开管线先在相邻视频帧之间训练 VQ-VAE 式隐动作量化器，再预训练 7B 视觉-语言模型（Large World Model 谱系，基于 JAX）从观测与指令预测隐动作，最后微调到真实机器人动作。树内运行时包装官方 JAX 推理路径。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `lapa` and runtime profile `runtime-profile:lapa`.
+    Catalog integration status: `runtime_ported`.
+    Integration notes recorded in the catalog:
+    - LAPA latent action runtime is vendored in-tree; py_compile, from_pretrained, plan-only execution, and alias validation passed.
+    - Real 7B inference is blocked by missing tux in the prepare env and incompatible JAX in the gpu-jax0325 env.
+    Recorded variant `lapa-7b-openx`, task `vam.video_action_modeling`.
+
+    Embodiment contract:
+    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
+    - Sensors: RGB camera observations plus a language instruction; the exact camera/state contract is not recorded in this catalog file.
+    - Action space: discrete latent action tokens during pretraining; fine-tuned variants map to continuous robot actions (the released openx checkpoint follows the Open X-Embodiment convention).
+    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `lapa`，运行时配置为 `runtime-profile:lapa`。
+    目录集成状态：运行时已移植（runtime_ported）。
+    目录中记录的集成备注（保留原文）：
+    - LAPA latent action runtime is vendored in-tree; py_compile, from_pretrained, plan-only execution, and alias validation passed.
+    - Real 7B inference is blocked by missing tux in the prepare env and incompatible JAX in the gpu-jax0325 env.
+    目录记录：变体 `lapa-7b-openx`，任务 `vam.video_action_modeling`。
+
+    具身接口（embodiment contract）：
+    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
+    - 传感器：RGB 相机观测加语言指令；具体相机/状态契约本目录文件未记录。
+    - 动作空间：预训练阶段为离散隐动作 token；微调后映射到连续机器人动作（发布的 openx 权重遵循 Open X-Embodiment 惯例）。
+    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
+  limitations: |
+    No family-level demo/runner parity status is recorded in this catalog file.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件未记录家族级 demo/runner 一致性状态。
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks: []

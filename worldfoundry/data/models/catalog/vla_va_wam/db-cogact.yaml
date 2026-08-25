@@ -62,3 +62,64 @@ runner_parity:
   - Workspace inference uses the in-tree Dexbotic package alias and configured Dexmal/libero-db-cogact assets.
 catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint metadata, and runtime-profile planning records.
+docs:
+  overview: |
+    DB-CogACT (Dexmal/dexbotic, Apache-2.0) is the Dexbotic re-implementation of CogACT: Dexbotic is Dexmal's open-source VLA toolbox, and DB-CogACT is its CogACT-family policy with released checkpoints for single-arm/humanoid-arm bases plus LIBERO, CALVIN, and SimplerEnv fine-tunes. WorldFoundry records the Dexbotic v1 inference contract with an independent synthesis entrypoint and constructs the official policy in-process from the vendored infer subset under `worldfoundry/synthesis/action_generation/db_cogact/db_cogact_runtime`; checkpoint-backed Workspace inference emits a LIBERO action trace without an external checkout.
+
+    Within the WorldFoundry model catalog this entry is tracked as `db-cogact` in the `vla_va_wam` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/Dexmal/dexbotic; Hugging Face `Dexmal/Dexbotic-CogACT-SArm`, `Dexmal/Dexbotic-CogACT-HArm`, `Dexmal/libero-db-cogact`, `Dexmal/calvin-db-cogact`, `Dexmal/simpler-db-cogact`.
+  overview_zh: |
+    DB-CogACT（Dexmal/dexbotic，Apache-2.0）是 Dexbotic 对 CogACT 的重实现：Dexbotic 是 Dexmal 的开源 VLA 工具箱，DB-CogACT 是其中的 CogACT 系策略，发布了单臂/人形臂基座及 LIBERO、CALVIN、SimplerEnv 微调权重。WorldFoundry 记录 Dexbotic v1 推理契约，提供独立合成入口，并从 `worldfoundry/synthesis/action_generation/db_cogact/db_cogact_runtime` 的内置推理子集在进程内构造官方策略；有权重支撑的 Workspace 推理无需外部 checkout 即产出 LIBERO action trace。
+
+    在 WorldFoundry 模型目录中，该条目以 `db-cogact` 收录于 `vla_va_wam` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/Dexmal/dexbotic；Hugging Face `Dexmal/Dexbotic-CogACT-SArm`、`Dexmal/Dexbotic-CogACT-HArm`、`Dexmal/libero-db-cogact`、`Dexmal/calvin-db-cogact`、`Dexmal/simpler-db-cogact`。
+  architecture: |
+    The policy follows the CogACT design (VLM cognition feature driving a diffusion action head) under Dexbotic's unified training/inference framework. The official v1 API request uses `observation.prompt`, `observation.images` slots 1/2/3, optional state, and sampling `num_steps`/`cfg_scale`/`seed`; Dexbotic declares CogACT `action_mode` as relative by default, which checkpoints or benchmarks may override.
+  architecture_zh: |
+    该策略在 Dexbotic 统一训练/推理框架下遵循 CogACT 设计（VLM 认知特征驱动扩散动作头）。官方 v1 API 请求使用 `observation.prompt`、`observation.images` 槽位 1/2/3、可选 state 以及采样参数 `num_steps`/`cfg_scale`/`seed`；Dexbotic 默认声明 CogACT 的 `action_mode` 为相对模式，权重或基准可覆盖。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `db-cogact` and runtime profile `runtime-profile:db-cogact`.
+    Catalog integration status: `checkpoint_backed_runtime_ready`.
+    Integration notes recorded in the catalog:
+    - WorldFoundry records the Dexbotic v1 inference contract with an independent DB-CogACT synthesis entrypoint.
+    - The current runtime constructs the official Dexbotic policy in-process from the in-tree vendored infer subset under worldfoundry/synthesis/action_generation/db_cogact/db_cogact_runtime.
+    - Checkpoint-backed Workspace inference does not require an external github_repos checkout and emits a LIBERO action trace.
+    Recorded variant `db-cogact-libero`, task `vla.policy_rollout`.
+
+    Embodiment contract:
+    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
+    - Sensors: up to three RGB image slots plus a language prompt and optional proprioceptive state, per the recorded Dexbotic v1 request contract.
+    - Action space: continuous robot end-effector/joint action chunks; the exact action dimensionality is not recorded in this catalog file.
+    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `db-cogact`，运行时配置为 `runtime-profile:db-cogact`。
+    目录集成状态：`checkpoint_backed_runtime_ready`。
+    目录中记录的集成备注（保留原文）：
+    - WorldFoundry records the Dexbotic v1 inference contract with an independent DB-CogACT synthesis entrypoint.
+    - The current runtime constructs the official Dexbotic policy in-process from the in-tree vendored infer subset under worldfoundry/synthesis/action_generation/db_cogact/db_cogact_runtime.
+    - Checkpoint-backed Workspace inference does not require an external github_repos checkout and emits a LIBERO action trace.
+    目录记录：变体 `db-cogact-libero`，任务 `vla.policy_rollout`。
+
+    具身接口（embodiment contract）：
+    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
+    - 传感器：最多三个 RGB 图像槽位加语言提示与可选本体状态（按目录记录的 Dexbotic v1 请求契约）。
+    - 动作空间：连续的机器人末端/关节动作块；具体动作维度本目录文件未记录。
+    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`in_tree_checkpoint_runtime`.
+    Runner parity notes recorded in the catalog:
+    - FastAPI/Flask serving contract is documented, but WorldFoundry does not depend on an external Dexbotic server or checkout.
+    - Workspace inference uses the in-tree Dexbotic package alias and configured Dexmal/libero-db-cogact assets.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=`in_tree_checkpoint_runtime`。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - FastAPI/Flask serving contract is documented, but WorldFoundry does not depend on an external Dexbotic server or checkout.
+    - Workspace inference uses the in-tree Dexbotic package alias and configured Dexmal/libero-db-cogact assets.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - libero
+  - calvin
+  - simpler-env

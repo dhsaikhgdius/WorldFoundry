@@ -99,3 +99,72 @@ runner_parity:
   - LIBERO-Spatial, Object, Goal, and LIBERO-10 all passed strict checkpoint restoration and real two-camera GPU action inference.
 catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint metadata, and runtime-profile planning records.
+docs:
+  overview: |
+    Spatial-Forcing (OpenHelix-Team/Spatial-Forcing, MIT) enhances a VLA policy with implicit spatial understanding: instead of adding 3D sensors, it aligns the intermediate embeddings of the VLA with geometric representations from a pretrained 3D foundation model (VGGT) during training, 'forcing' the policy to develop spatial awareness. The released checkpoints are OpenVLA-OFT-style 7B models fine-tuned on the four LIBERO suites. WorldFoundry's inference-only runtime is in tree, disables checkpoint-hosted remote code, and accepts only locally staged snapshots; all four released snapshots passed strict restoration and real A100 inference with finite 8x7 actions.
+
+    Within the WorldFoundry model catalog this entry is tracked as `spatial-forcing` in the `vla_va_wam` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/OpenHelix-Team/Spatial-Forcing; Hugging Face `haofuly/spatial-forcing-7b-finetuned-libero-spatial`, `haofuly/spatial-forcing-7b-finetuned-libero-object`, `haofuly/spatial-forcing-7b-finetuned-libero-goal`, `haofuly/spatial-forcing-7b-finetuned-libero-10`.
+  overview_zh: |
+    Spatial-Forcing（OpenHelix-Team/Spatial-Forcing，MIT）为 VLA 策略注入隐式空间理解：不增加 3D 传感器，而是在训练期间将 VLA 的中间嵌入与预训练 3D 基础模型（VGGT）的几何表征对齐，'强迫'策略形成空间感知。发布权重为 OpenVLA-OFT 风格的 70 亿参数模型，在四个 LIBERO 套件上微调。WorldFoundry 仅推理运行时在树内，禁用权重内远程代码，只接受本地暂存快照；四个发布快照全部通过严格恢复与真实 A100 推理，输出有限 8x7 动作。
+
+    在 WorldFoundry 模型目录中，该条目以 `spatial-forcing` 收录于 `vla_va_wam` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/OpenHelix-Team/Spatial-Forcing；Hugging Face `haofuly/spatial-forcing-7b-finetuned-libero-spatial`、`haofuly/spatial-forcing-7b-finetuned-libero-object`、`haofuly/spatial-forcing-7b-finetuned-libero-goal`、`haofuly/spatial-forcing-7b-finetuned-libero-10`。
+  architecture: |
+    The inference architecture matches the OpenVLA-OFT lineage: a Prismatic 7B VLM (Llama-2 backbone, fused SigLIP/DINOv2 vision) with parallel decoding and an L1 continuous action head emitting 8x7 action chunks from two-camera input plus proprioception. The spatial-alignment components (VGGT, alignment projectors, LoRA adapter copies) are training-time only and are excluded from the in-tree runtime along with training, RLDS/TensorFlow data tooling, simulators, and servers.
+  architecture_zh: |
+    推理架构与 OpenVLA-OFT 谱系一致：Prismatic 7B VLM（Llama-2 骨干、SigLIP/DINOv2 融合视觉）加并行解码与 L1 连续动作头，从双相机输入加本体感知输出 8x7 动作块。空间对齐组件（VGGT、对齐投影器、LoRA 适配器副本）仅用于训练期，与训练、RLDS/TensorFlow 数据工具、仿真器和服务器一起被排除在树内运行时之外。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `spatial-forcing` and runtime profile `runtime-profile:spatial-forcing`.
+    Catalog integration status: `all_released_checkpoints_gpu_validated`.
+    Integration notes recorded in the catalog:
+    - Action/VLA integration for the four released Spatial-Forcing OpenVLA-LIBERO checkpoints.
+    - The inference-only runtime is in-tree, disables checkpoint-hosted remote code, and accepts only locally staged snapshots.
+    - VGGT, alignment projectors, LoRA adapter copies, training, RLDS/TensorFlow data tooling, simulators, and servers are excluded.
+    - All four released snapshots passed strict restoration and real A100 Workspace inference with finite 8-by-7 actions.
+    Recorded variant `spatial-forcing-libero-spatial`, task `vla.policy_rollout`.
+    Recorded variant `spatial-forcing-libero-object`, task `vla.policy_rollout`.
+    Recorded variant `spatial-forcing-libero-goal`, task `vla.policy_rollout`.
+    Recorded variant `spatial-forcing-libero-10`, task `vla.policy_rollout`.
+
+    Embodiment contract:
+    - Simulator: none bundled — the four released checkpoints target the LIBERO spatial/object/goal/10 suites; the openpi-SF real-robot example has no released checkpoint and remains a user-trained deployment path.
+    - Sensors: two RGB cameras (third-person plus wrist) with proprioceptive state normalization and center crop, per the ported official call chain.
+    - Action space: 8-step chunks of 7-DoF continuous actions (8x7) from the L1 action head, de-normalized with per-suite unnorm_key (e.g. libero_spatial_no_noops).
+    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `spatial-forcing`，运行时配置为 `runtime-profile:spatial-forcing`。
+    目录集成状态：`all_released_checkpoints_gpu_validated`。
+    目录中记录的集成备注（保留原文）：
+    - Action/VLA integration for the four released Spatial-Forcing OpenVLA-LIBERO checkpoints.
+    - The inference-only runtime is in-tree, disables checkpoint-hosted remote code, and accepts only locally staged snapshots.
+    - VGGT, alignment projectors, LoRA adapter copies, training, RLDS/TensorFlow data tooling, simulators, and servers are excluded.
+    - All four released snapshots passed strict restoration and real A100 Workspace inference with finite 8-by-7 actions.
+    目录记录：变体 `spatial-forcing-libero-spatial`，任务 `vla.policy_rollout`。
+    目录记录：变体 `spatial-forcing-libero-object`，任务 `vla.policy_rollout`。
+    目录记录：变体 `spatial-forcing-libero-goal`，任务 `vla.policy_rollout`。
+    目录记录：变体 `spatial-forcing-libero-10`，任务 `vla.policy_rollout`。
+
+    具身接口（embodiment contract）：
+    - 仿真器：不内置仿真器——四个发布权重面向 LIBERO spatial/object/goal/10 套件；openpi-SF 真机示例无发布权重，属用户自训部署路径。
+    - 传感器：两路 RGB 相机（第三人称加腕部），带本体状态归一化与中心裁剪（按移植的官方调用链）。
+    - 动作空间：L1 动作头输出的 8 步 7 自由度连续动作块（8x7），按套件 unnorm_key（如 libero_spatial_no_noops）反归一化。
+    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`all_released_checkpoints_gpu_validated`.
+    Runner parity notes recorded in the catalog:
+    - Official inference call chain, prompt, two-camera input, proprio normalization, center crop, and L1 action head are ported.
+    - The openpi-SF real-robot example has no released Spatial-Forcing policy checkpoint/model ID and remains a user-trained deployment path.
+    - LIBERO-Spatial, Object, Goal, and LIBERO-10 all passed strict checkpoint restoration and real two-camera GPU action inference.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=`all_released_checkpoints_gpu_validated`。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - Official inference call chain, prompt, two-camera input, proprio normalization, center crop, and L1 action head are ported.
+    - The openpi-SF real-robot example has no released Spatial-Forcing policy checkpoint/model ID and remains a user-trained deployment path.
+    - LIBERO-Spatial, Object, Goal, and LIBERO-10 all passed strict checkpoint restoration and real two-camera GPU action inference.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - libero

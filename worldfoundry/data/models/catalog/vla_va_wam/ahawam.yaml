@@ -38,3 +38,54 @@ runtime_profile: runtime-profile:ahawam
 catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint metadata, and runtime-profile planning records.
 schema_version: 2
+docs:
+  overview: |
+    AHA-WAM (Serene-SIVY/AHA-WAM, MIT) is a world-action model in the Wan video-diffusion lineage. WorldFoundry executes the exact video/action experts, mixture cache editor, six-frame history, two-phase chunk inference, VAE, and UMT5 encoder in process; every asset is loaded from local storage with strict key matching, with no upstream checkout, server, Hub download, or custom remote implementation. Confirmed repos are `SereneC/AHA-WAM-RoboTwin2.0` and the Wan safetensors conversion repo `DiffSynth-Studio/Wan-Series-Converted-Safetensors`.
+
+    Within the WorldFoundry model catalog this entry is tracked as `ahawam` in the `vla_va_wam` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/Serene-SIVY/AHA-WAM; Hugging Face `SereneC/AHA-WAM-RoboTwin2.0`, `DiffSynth-Studio/Wan-Series-Converted-Safetensors`.
+  overview_zh: |
+    AHA-WAM（Serene-SIVY/AHA-WAM，MIT）是 Wan 视频扩散谱系中的世界-动作模型（WAM）。WorldFoundry 在进程内执行完全一致的视频/动作专家、混合缓存编辑器、六帧历史、两阶段块推理、VAE 与 UMT5 编码器；所有资产从本地严格按键匹配加载，不使用上游 checkout、服务器、Hub 下载或自定义远程实现。已确认仓库为 `SereneC/AHA-WAM-RoboTwin2.0` 与 Wan safetensors 转换仓库 `DiffSynth-Studio/Wan-Series-Converted-Safetensors`。
+
+    在 WorldFoundry 模型目录中，该条目以 `ahawam` 收录于 `vla_va_wam` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/Serene-SIVY/AHA-WAM；Hugging Face `SereneC/AHA-WAM-RoboTwin2.0`、`DiffSynth-Studio/Wan-Series-Converted-Safetensors`。
+  architecture: |
+    Per the integration notes, the model couples Wan-family video experts with action experts through a mixture cache editor, keeps a six-frame visual history, and performs two-phase chunk inference (Wan VAE plus UMT5 text encoding). Trainers, datasets, simulators, evaluation launchers, and deployment servers are excluded. Further architecture details are not recorded in the repository.
+  architecture_zh: |
+    按集成备注，该模型通过混合缓存编辑器耦合 Wan 系视频专家与动作专家，维护六帧视觉历史，执行两阶段块推理（Wan VAE 加 UMT5 文本编码）。训练器、数据集、仿真器、评测启动器与部署服务器被排除。更多架构细节仓库未记录。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `ahawam` and runtime profile `runtime-profile:ahawam`.
+    Catalog integration status: `in_tree_checkpoint_runtime`.
+    Integration notes recorded in the catalog:
+    - The exact video/action experts, mixture cache editor, six-frame history, two-phase chunk inference, VAE, and UMT5 encoder execute in process.
+    - Every asset is loaded from local storage with strict key matching; no upstream checkout, server, Hub download, or custom remote implementation is used.
+    - Trainers, datasets, simulators, evaluation launchers, and deployment servers are excluded.
+
+    Embodiment contract:
+    - Simulator: none bundled — the released checkpoint targets RoboTwin 2.0 tasks; simulator rollouts are executed by separate benchmark runners.
+    - Sensors: RGB observations with a six-frame visual history plus a language instruction, per the recorded runtime contract.
+    - Action space: continuous robot end-effector/joint action chunks; the exact action dimensionality is not recorded in this catalog file.
+    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `ahawam`，运行时配置为 `runtime-profile:ahawam`。
+    目录集成状态：`in_tree_checkpoint_runtime`。
+    目录中记录的集成备注（保留原文）：
+    - The exact video/action experts, mixture cache editor, six-frame history, two-phase chunk inference, VAE, and UMT5 encoder execute in process.
+    - Every asset is loaded from local storage with strict key matching; no upstream checkout, server, Hub download, or custom remote implementation is used.
+    - Trainers, datasets, simulators, evaluation launchers, and deployment servers are excluded.
+
+    具身接口（embodiment contract）：
+    - 仿真器：不内置仿真器——已发布权重面向 RoboTwin 2.0 任务；仿真 rollout 由独立 benchmark runner 执行。
+    - 传感器：带六帧视觉历史的 RGB 观测加语言指令（按目录记录的运行时契约）。
+    - 动作空间：连续的机器人末端/关节动作块；具体动作维度本目录文件未记录。
+    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
+  limitations: |
+    No family-level demo/runner parity status is recorded in this catalog file.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件未记录家族级 demo/runner 一致性状态。
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - robotwin

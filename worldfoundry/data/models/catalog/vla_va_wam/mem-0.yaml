@@ -33,3 +33,56 @@ runtime_profile: runtime-profile:mem-0
 catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint metadata,
   and executable runtime records.
+docs:
+  overview: |
+    Mem-0 (RoboTwin-Platform/RMBench) is a memory-augmented VLA policy targeting the RMBench memory benchmark on the RoboTwin platform. WorldFoundry's in-tree runtime contains the episodic memory bank, Qwen feature path, classifier, and flow-matching action decoder; the entry targets the published M1 multi-task execution checkpoint (`qiuly/Mem-0-m1mix-RMBench`) and does not require the high-level planning server. The published checkpoint is byte-split, and the runtime reads its contiguous parts directly.
+
+    Within the WorldFoundry model catalog this entry is tracked as `mem-0` in the `vla_va_wam` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/RoboTwin-Platform/RMBench; Hugging Face `qiuly/Mem-0-m1mix-RMBench`.
+  overview_zh: |
+    Mem-0（RoboTwin-Platform/RMBench）是面向 RoboTwin 平台 RMBench 记忆基准的记忆增强 VLA 策略。WorldFoundry 树内运行时包含情景记忆库、Qwen 特征通路、分类器与 flow-matching 动作解码器；该条目面向已发布的 M1 多任务执行权重（`qiuly/Mem-0-m1mix-RMBench`），无需高层规划服务器。发布的权重为字节切分格式，运行时可直接读取其连续分片。
+
+    在 WorldFoundry 模型目录中，该条目以 `mem-0` 收录于 `vla_va_wam` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/RoboTwin-Platform/RMBench；Hugging Face `qiuly/Mem-0-m1mix-RMBench`。
+  architecture: |
+    The recorded composition is an episodic memory bank feeding a Qwen-based feature path, a task classifier, and a flow-matching action decoder. The output layout matches the official 14-value dual-arm joint adapter and excludes the two model-only padding channels. Further details are not recorded in the repository.
+  architecture_zh: |
+    目录记录的组成为情景记忆库接 Qwen 特征通路、任务分类器与 flow-matching 动作解码器。输出布局匹配官方 14 值双臂关节适配器，并排除两个仅模型内部使用的填充通道。更多细节仓库未记录。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `mem-0` and runtime profile `runtime-profile:mem-0`.
+    Catalog integration status: `in_tree_checkpoint_runtime_static_verified`.
+    Integration notes recorded in the catalog:
+    - The in-tree runtime contains the episodic memory bank, Qwen feature path, classifier, and flow-matching action decoder.
+    - This entry targets the published M1 multi-task execution checkpoint and does not require the high-level planning server.
+    - The published checkpoint is byte-split; the runtime can read its contiguous parts directly without assembling another copy.
+    - Output layout matches the official 14-value dual-arm joint adapter and excludes the two model-only padding channels.
+
+    Embodiment contract:
+    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
+    - Sensors: RGB camera observations plus a language instruction; the exact camera/state contract is not recorded in this catalog file.
+    - Action space: 14-value dual-arm joint actions per step (official adapter layout, padding channels excluded).
+    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `mem-0`，运行时配置为 `runtime-profile:mem-0`。
+    目录集成状态：`in_tree_checkpoint_runtime_static_verified`。
+    目录中记录的集成备注（保留原文）：
+    - The in-tree runtime contains the episodic memory bank, Qwen feature path, classifier, and flow-matching action decoder.
+    - This entry targets the published M1 multi-task execution checkpoint and does not require the high-level planning server.
+    - The published checkpoint is byte-split; the runtime can read its contiguous parts directly without assembling another copy.
+    - Output layout matches the official 14-value dual-arm joint adapter and excludes the two model-only padding channels.
+
+    具身接口（embodiment contract）：
+    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
+    - 传感器：RGB 相机观测加语言指令；具体相机/状态契约本目录文件未记录。
+    - 动作空间：每步 14 值的双臂关节动作（官方适配器布局，排除填充通道）。
+    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
+  limitations: |
+    No family-level demo/runner parity status is recorded in this catalog file.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件未记录家族级 demo/runner 一致性状态。
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - robotwin

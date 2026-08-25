@@ -34,3 +34,63 @@ catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint metadata, and runtime-profile
   planning records. Runner or pipeline targets are present only after a complete in-tree WorldFoundry model runtime is registered
   and validated.
+docs:
+  overview: |
+    Diffusion Policy (real-stanford/diffusion_policy, RSS 2023) is the landmark visuomotor imitation method that models action generation as conditional denoising diffusion, handling multimodal demonstrations far better than regression policies. WorldFoundry vendors the low-dimensional PushT runtime in-tree: the released policy is reconstructed from an offline-converted, fully resolved primitive config and tensor-only state dictionaries; the executable dill workspace checkpoint is rejected at runtime with no unsafe deserialization fallback.
+
+    Within the WorldFoundry model catalog this entry is tracked as `diffusion-policy` in the `vla_va_wam` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/real-stanford/diffusion_policy.
+  overview_zh: |
+    Diffusion Policy（real-stanford/diffusion_policy，RSS 2023）是里程碑式的视觉运动模仿方法：把动作生成建模为条件去噪扩散，对多模态示教的处理远优于回归式策略。WorldFoundry 在树内内置低维 PushT 运行时：官方策略从离线转换、完全解析的原语配置与纯张量 state dict 重建；可执行的 dill workspace 权重在运行时被拒绝，且没有不安全的反序列化回退。
+
+    在 WorldFoundry 模型目录中，该条目以 `diffusion-policy` 收录于 `vla_va_wam` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/real-stanford/diffusion_policy。
+  architecture: |
+    The published method trains a denoising diffusion model (U-Net or transformer backbone) over future action sequences conditioned on recent observations, with receding-horizon re-planning at deployment. The in-tree entry targets the released low-dimensional PushT policy; the converted checkpoint passed weights-only reload, strict model/EMA restoration, CPU runtime loading, and a finite GPU action probe.
+  architecture_zh: |
+    公开方法以近期观测为条件，在未来动作序列上训练去噪扩散模型（U-Net 或 transformer 骨干），部署时做滚动时域重规划。树内条目面向官方发布的低维 PushT 策略；转换后的权重通过了 weights-only 重载、严格 model/EMA 恢复、CPU 运行时加载与有限值 GPU 动作探针。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `diffusion-policy` and runtime profile `runtime-profile:diffusion-policy`.
+    Catalog integration status: `integrated`.
+    Integration notes recorded in the catalog:
+    - Low-dimensional PushT Diffusion Policy runtime is vendored in-tree.
+    - The in-tree runtime reconstructs the released low-dimensional policy from an offline-converted, fully resolved primitive config and tensor-only state dictionaries.
+    - The executable dill workspace checkpoint is rejected at runtime and has no unsafe deserialization fallback; conversion must happen once in a trusted offline environment.
+    - The checkpoint-backed policy.predict_action route emits the configured low-dimensional PushT action schema.
+
+    Embodiment contract:
+    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
+    - Sensors: low-dimensional state observations for the in-tree PushT profile (the upstream project also supports image observations, which this entry does not wire).
+    - Action space: continuous 2D end-effector actions following the released low-dimensional PushT action schema.
+    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `diffusion-policy`，运行时配置为 `runtime-profile:diffusion-policy`。
+    目录集成状态：已集成（integrated）。
+    目录中记录的集成备注（保留原文）：
+    - Low-dimensional PushT Diffusion Policy runtime is vendored in-tree.
+    - The in-tree runtime reconstructs the released low-dimensional policy from an offline-converted, fully resolved primitive config and tensor-only state dictionaries.
+    - The executable dill workspace checkpoint is rejected at runtime and has no unsafe deserialization fallback; conversion must happen once in a trusted offline environment.
+    - The checkpoint-backed policy.predict_action route emits the configured low-dimensional PushT action schema.
+
+    具身接口（embodiment contract）：
+    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
+    - 传感器：树内 PushT 配置使用低维状态观测（上游项目也支持图像观测，本条目未接线）。
+    - 动作空间：连续 2D 末端动作，遵循官方低维 PushT 动作 schema。
+    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`converted_checkpoint_strict_restore_and_gpu_action_probe_validated`.
+    Runner parity notes recorded in the catalog:
+    - The architecture and predict_action contract match the released low-dimensional PushT policy.
+    - The safe converted checkpoint passed weights-only reload, strict model/EMA restoration, CPU runtime loading, and a finite GPU action probe.
+    - Per-run action trace evidence is tracked outside the model catalog.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=`converted_checkpoint_strict_restore_and_gpu_action_probe_validated`。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - The architecture and predict_action contract match the released low-dimensional PushT policy.
+    - The safe converted checkpoint passed weights-only reload, strict model/EMA restoration, CPU runtime loading, and a finite GPU action probe.
+    - Per-run action trace evidence is tracked outside the model catalog.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks: []

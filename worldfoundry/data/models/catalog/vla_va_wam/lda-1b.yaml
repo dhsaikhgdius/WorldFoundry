@@ -38,3 +38,64 @@ runner_parity:
   - Exact checkpoint-key and numerical rollout validation require the unstaged 14.4 GB artifact.
 catalog_category: vla_va_wam
 catalog_scope: In-tree inference runtime and checkpoint metadata for embodied policies.
+docs:
+  overview: |
+    LDA-1B (jiangranlv/LDA-1B, CC-BY-NC-4.0) is a roughly 1B-parameter VLA policy with a released RoboCasa checkpoint (`Wayer2/LDA-robocasa`). WorldFoundry keeps the Qwen3-VL assembly, a DINOv3-ViT compatibility model, the MMDiT sampler, state packing, and action unnormalization in-tree; the runtime loads only a locally staged tensor state dict with `weights_only=true` and never executes checkpoint Python.
+
+    Within the WorldFoundry model catalog this entry is tracked as `lda-1b` in the `vla_va_wam` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/jiangranlv/LDA-1B; Hugging Face `Wayer2/LDA-robocasa`.
+  overview_zh: |
+    LDA-1B（jiangranlv/LDA-1B，CC-BY-NC-4.0）是约 10 亿参数的 VLA 策略，发布了 RoboCasa 权重（`Wayer2/LDA-robocasa`）。WorldFoundry 在树内保留 Qwen3-VL 组装、DINOv3-ViT 兼容模型、MMDiT 采样器、状态打包与动作反归一化；运行时仅以 `weights_only=true` 加载本地暂存的张量 state dict，从不执行权重携带的 Python。
+
+    在 WorldFoundry 模型目录中，该条目以 `lda-1b` 收录于 `vla_va_wam` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/jiangranlv/LDA-1B；Hugging Face `Wayer2/LDA-robocasa`。
+  architecture: |
+    The recorded composition is a Qwen3-VL vision-language backbone, a DINOv3-ViT visual compatibility model, and an MMDiT diffusion action sampler. Training, datasets, evaluation servers, simulator adapters, and video generation are excluded. Further details are not recorded in the repository.
+  architecture_zh: |
+    目录记录的组成为 Qwen3-VL 视觉-语言骨干、DINOv3-ViT 视觉兼容模型与 MMDiT 扩散动作采样器。训练、数据集、评测服务器、仿真器适配器与视频生成被排除。更多细节仓库未记录。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `lda-1b` and runtime profile `runtime-profile:lda-1b`.
+    Catalog integration status: `in_tree_checkpoint_runtime_static_verified`.
+    Integration notes recorded in the catalog:
+    - Qwen3-VL assembly, DINOv3-ViT compatibility model, MMDiT sampler, state packing, and action unnormalization are in-tree.
+    - Runtime loads only a locally staged tensor state dict with weights_only=true and never executes checkpoint Python.
+    - Training, datasets, evaluation servers, simulator adapters, and video generation are excluded.
+
+    Embodiment contract:
+    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
+    - Sensors: RGB camera observations plus a language instruction; the exact camera/state contract is not recorded in this catalog file.
+    - Action space: continuous robot end-effector/joint action chunks; the exact action dimensionality is not recorded in this catalog file.
+    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `lda-1b`，运行时配置为 `runtime-profile:lda-1b`。
+    目录集成状态：`in_tree_checkpoint_runtime_static_verified`。
+    目录中记录的集成备注（保留原文）：
+    - Qwen3-VL assembly, DINOv3-ViT compatibility model, MMDiT sampler, state packing, and action unnormalization are in-tree.
+    - Runtime loads only a locally staged tensor state dict with weights_only=true and never executes checkpoint Python.
+    - Training, datasets, evaluation servers, simulator adapters, and video generation are excluded.
+
+    具身接口（embodiment contract）：
+    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
+    - 传感器：RGB 相机观测加语言指令；具体相机/状态契约本目录文件未记录。
+    - 动作空间：连续的机器人末端/关节动作块；具体动作维度本目录文件未记录。
+    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`static_runtime_verified`.
+    Runner parity notes recorded in the catalog:
+    - Model and parameter names preserve the released checkpoint contract.
+    - Exact checkpoint-key and numerical rollout validation require the unstaged 14.4 GB artifact.
+
+    The release is non-commercial (CC-BY-NC-4.0); exact checkpoint-key and numerical rollout validation require the unstaged 14.4 GB artifact.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=`static_runtime_verified`。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - Model and parameter names preserve the released checkpoint contract.
+    - Exact checkpoint-key and numerical rollout validation require the unstaged 14.4 GB artifact.
+
+    该发布为非商用（CC-BY-NC-4.0）；精确的权重键与数值 rollout 验证需要尚未暂存的 14.4 GB artifact。
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - robocasa

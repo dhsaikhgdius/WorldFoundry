@@ -83,3 +83,61 @@ catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint
   metadata, and runtime-profile planning records. Runner or pipeline targets are present
   only after a complete in-tree WorldFoundry model runtime is registered and validated.
+docs:
+  overview: |
+    LingBot-VA (Robbyant/lingbot-va, Apache-2.0) is a video-action model that spans VLA/VA/WAM modalities: a Wan-based generative backbone that models future video jointly with robot actions. WorldFoundry vendors the official `wan_va` server/client runtime under `worldfoundry/synthesis/action_generation/wan_va`. The catalog records that base-transformer CUDA forward, post-train checkpoint tensor probes, and libero-long server-init validation passed on an 80GB CUDA GPU, while full client rollout/action decoding remains unverified, so official demo parity is not claimed. Checkpoints: `robbyant/lingbot-va-base`, `-posttrain-robotwin`, `-posttrain-libero-long`.
+
+    Within the WorldFoundry model catalog this entry is tracked as `lingbot-va` in the `vla_va_wam` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/Robbyant/lingbot-va; Hugging Face `robbyant/lingbot-va-base`, `robbyant/lingbot-va-posttrain-robotwin`, `robbyant/lingbot-va-posttrain-libero-long`.
+  overview_zh: |
+    LingBot-VA（Robbyant/lingbot-va，Apache-2.0）是横跨 VLA/VA/WAM 模态的视频-动作模型：基于 Wan 的生成骨干联合建模未来视频与机器人动作。WorldFoundry 将官方 `wan_va` 服务器/客户端运行时内置于 `worldfoundry/synthesis/action_generation/wan_va`。目录记录：基座 transformer 的 CUDA 前向、后训练权重张量探针与 libero-long 服务器初始化验证均在 80GB CUDA GPU 上通过；完整客户端 rollout/动作解码尚未验证，因此不声称官方演示一致性。权重：`robbyant/lingbot-va-base`、`-posttrain-robotwin`、`-posttrain-libero-long`。
+
+    在 WorldFoundry 模型目录中，该条目以 `lingbot-va` 收录于 `vla_va_wam` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/Robbyant/lingbot-va；Hugging Face `robbyant/lingbot-va-base`、`robbyant/lingbot-va-posttrain-robotwin`、`robbyant/lingbot-va-posttrain-libero-long`。
+  architecture: |
+    The recorded runtime is the official wan_va stack: a Wan-family video-diffusion transformer extended for joint video-action modeling, deployed as a WebSocket server/client pair; staged checkpoint transformer configs are set to `attn_mode=torch` and `build_server_command` passes `--checkpoint-dir` to the vendored server. Layer-level details are not otherwise recorded in the repository.
+  architecture_zh: |
+    目录记录的运行时为官方 wan_va 栈：Wan 系视频扩散 transformer 扩展为视频-动作联合建模，以 WebSocket 服务器/客户端形式部署；暂存权重的 transformer 配置设为 `attn_mode=torch`，`build_server_command` 向内置服务器传递 `--checkpoint-dir`。其余层级细节仓库未记录。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `lingbot-va` and runtime profile `runtime-profile:lingbot-va`.
+    Catalog integration status: `in_tree_checkpoint_runtime_gpu_server_init_verified_rollout_pending`.
+    Integration notes recorded in the catalog:
+    - Local official source and LingBot-VA checkpoints are present; base transformer CUDA forward, posttrain checkpoint tensor probes, and libero-long server-init validation passed on an 80GB CUDA GPU. Full client rollout/action decoding remains unverified, so official demo parity is not claimed.
+    - The staged checkpoint transformer/config.json files are set to attn_mode=torch, and build_server_command passes --checkpoint-dir to the vendored server.
+    - LingBot-VA server/client runtime source is vendored in-tree and server init can reach websocket listen when checkpoint assets are staged.
+    Recorded variant `lingbot-va-base`, task `vam.video_action_modeling`.
+    Recorded variant `lingbot-va-posttrain-robotwin`, task `vla.policy_rollout`.
+    Recorded variant `lingbot-va-posttrain-libero-long`, task `vla.policy_rollout`.
+
+    Embodiment contract:
+    - Simulator: none bundled — post-train checkpoints target RoboTwin and LIBERO-long tasks; rollouts run through separate benchmark runners.
+    - Sensors: RGB camera observations plus a language instruction; the exact camera/state contract is not recorded in this catalog file.
+    - Action space: continuous robot end-effector/joint action chunks; the exact action dimensionality is not recorded in this catalog file.
+    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `lingbot-va`，运行时配置为 `runtime-profile:lingbot-va`。
+    目录集成状态：`in_tree_checkpoint_runtime_gpu_server_init_verified_rollout_pending`。
+    目录中记录的集成备注（保留原文）：
+    - Local official source and LingBot-VA checkpoints are present; base transformer CUDA forward, posttrain checkpoint tensor probes, and libero-long server-init validation passed on an 80GB CUDA GPU. Full client rollout/action decoding remains unverified, so official demo parity is not claimed.
+    - The staged checkpoint transformer/config.json files are set to attn_mode=torch, and build_server_command passes --checkpoint-dir to the vendored server.
+    - LingBot-VA server/client runtime source is vendored in-tree and server init can reach websocket listen when checkpoint assets are staged.
+    目录记录：变体 `lingbot-va-base`，任务 `vam.video_action_modeling`。
+    目录记录：变体 `lingbot-va-posttrain-robotwin`，任务 `vla.policy_rollout`。
+    目录记录：变体 `lingbot-va-posttrain-libero-long`，任务 `vla.policy_rollout`。
+
+    具身接口（embodiment contract）：
+    - 仿真器：不内置仿真器——后训练权重面向 RoboTwin 与 LIBERO-long 任务；rollout 由独立 benchmark runner 执行。
+    - 传感器：RGB 相机观测加语言指令；具体相机/状态契约本目录文件未记录。
+    - 动作空间：连续的机器人末端/关节动作块；具体动作维度本目录文件未记录。
+    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
+  limitations: |
+    No family-level demo/runner parity status is recorded in this catalog file.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件未记录家族级 demo/runner 一致性状态。
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - robotwin
+  - libero

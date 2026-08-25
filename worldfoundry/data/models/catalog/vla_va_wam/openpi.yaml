@@ -70,3 +70,62 @@ catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint
   metadata, and runtime-profile planning records. Runner or pipeline targets are present
   only after a complete in-tree WorldFoundry model runtime is registered and validated.
+docs:
+  overview: |
+    OpenPI (Physical-Intelligence/openpi, Apache-2.0) is Physical Intelligence's open-source repository for the pi-family robot policies (pi0, pi0-FAST, pi0.5). In WorldFoundry it serves as the shared runtime infrastructure: the inference runtime is flattened under `worldfoundry/synthesis/action_generation/openpi`, and `py_compile`, import/from_pretrained, plan-only predict, and checkpoint-backed `pi05_libero` policy inference all passed. Variants tracked on this entry include pi0-base, pi05-libero, pi0-fast-base, and pi0-fast-droid.
+
+    Within the WorldFoundry model catalog this entry is tracked as `openpi` in the `vla_va_wam` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/Physical-Intelligence/openpi.
+  overview_zh: |
+    OpenPI（Physical-Intelligence/openpi，Apache-2.0）是 Physical Intelligence 的 pi 系机器人策略（pi0、pi0-FAST、pi0.5）开源仓库。在 WorldFoundry 中它作为共享运行时基础设施：推理运行时扁平化于 `worldfoundry/synthesis/action_generation/openpi`，`py_compile`、导入/from_pretrained、plan-only 预测与权重支撑的 `pi05_libero` 策略推理均通过。该条目跟踪的变体包括 pi0-base、pi05-libero、pi0-fast-base 与 pi0-fast-droid。
+
+    在 WorldFoundry 模型目录中，该条目以 `openpi` 收录于 `vla_va_wam` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/Physical-Intelligence/openpi。
+  architecture: |
+    The pi-family architecture pairs a PaliGemma-derived vision-language backbone with a flow-matching action expert (pi0) or FAST autoregressive action tokenization (pi0-FAST); pi0.5 adds open-world generalization with hierarchical subtask inference. The in-tree `pi05_libero` route uses backend `worldfoundry.openpi.in_tree_runtime.create_trained_policy_infer` and rejects remote checkpoint URIs.
+  architecture_zh: |
+    pi 系架构将 PaliGemma 派生的视觉-语言骨干与 flow-matching 动作专家（pi0）或 FAST 自回归动作分词（pi0-FAST）配对；pi0.5 通过分层子任务推理增强开放世界泛化。树内 `pi05_libero` 路线使用后端 `worldfoundry.openpi.in_tree_runtime.create_trained_policy_infer`，并拒绝远程权重 URI。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `openpi` and runtime profile `runtime-profile:openpi`.
+    Catalog integration status: `integrated`.
+    Integration notes recorded in the catalog:
+    - The inference runtime is flattened in-tree under worldfoundry/synthesis/action_generation/openpi.
+    - py_compile, import/from_pretrained, plan-only predict, and checkpoint-backed pi05_libero policy inference passed.
+    - The local pi05_libero route uses backend worldfoundry.openpi.in_tree_runtime.create_trained_policy_infer and emits the configured action schema.
+    Recorded variant `pi0-base`, task `vla.policy_rollout`.
+    Recorded variant `pi05-libero`, task `vla.policy_rollout`.
+    Recorded variant `pi0-fast-base`, task `vla.policy_rollout`.
+    Recorded variant `pi0-fast-droid`, task `vla.policy_rollout`.
+
+    Embodiment contract:
+    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
+    - Sensors: RGB camera observations plus a language instruction; the exact camera/state contract is not recorded in this catalog file.
+    - Action space: continuous robot end-effector/joint action chunks; the exact action dimensionality is not recorded in this catalog file.
+    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `openpi`，运行时配置为 `runtime-profile:openpi`。
+    目录集成状态：已集成（integrated）。
+    目录中记录的集成备注（保留原文）：
+    - The inference runtime is flattened in-tree under worldfoundry/synthesis/action_generation/openpi.
+    - py_compile, import/from_pretrained, plan-only predict, and checkpoint-backed pi05_libero policy inference passed.
+    - The local pi05_libero route uses backend worldfoundry.openpi.in_tree_runtime.create_trained_policy_infer and emits the configured action schema.
+    目录记录：变体 `pi0-base`，任务 `vla.policy_rollout`。
+    目录记录：变体 `pi05-libero`，任务 `vla.policy_rollout`。
+    目录记录：变体 `pi0-fast-base`，任务 `vla.policy_rollout`。
+    目录记录：变体 `pi0-fast-droid`，任务 `vla.policy_rollout`。
+
+    具身接口（embodiment contract）：
+    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
+    - 传感器：RGB 相机观测加语言指令；具体相机/状态契约本目录文件未记录。
+    - 动作空间：连续的机器人末端/关节动作块；具体动作维度本目录文件未记录。
+    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
+  limitations: |
+    No family-level demo/runner parity status is recorded in this catalog file.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件未记录家族级 demo/runner 一致性状态。
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - libero

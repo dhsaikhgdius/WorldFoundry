@@ -33,3 +33,55 @@ integration:
   - The public project repository at the pinned revision contains the report and release announcement but not the inference source snapshot used for this integration.
 catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as checkpoint metadata and runtime-profile planning records.
+docs:
+  overview: |
+    Xiaomi-Robotics-1 (XiaomiRobotics/Xiaomi-Robotics-1, Apache-2.0) is Xiaomi's follow-up robot policy release. WorldFoundry keeps the Qwen3-VL policy-token graph, rectified-flow DiT, preprocessing, normalization extraction, and relative-action decoding in tree; checkpoint-side Python is parsed only as literal normalization metadata and never imported or executed, and model/processor/architecture/device/dtype/attention/checkpoint loading are all local-only. Note the recorded caveat: the public project repository at the pinned revision contains the report and release announcement but not the inference source snapshot used for this integration, and no Hugging Face checkpoint repos are recorded on this entry yet.
+
+    Within the WorldFoundry model catalog this entry is tracked as `xiaomi-robotics-1` in the `vla_va_wam` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/XiaomiRobotics/Xiaomi-Robotics-1.
+  overview_zh: |
+    Xiaomi-Robotics-1（XiaomiRobotics/Xiaomi-Robotics-1，Apache-2.0）是小米的后续机器人策略发布。WorldFoundry 在树内保留 Qwen3-VL 策略 token 图、rectified-flow DiT、预处理、归一化提取与相对动作解码；权重侧 Python 仅作为字面归一化元数据解析，从不导入或执行，模型/处理器/架构/设备/精度/注意力/权重加载全部仅限本地。注意目录记录的限制：锁定 revision 的公开项目仓库只包含报告与发布公告，不含本次集成所用的推理源码快照，且该条目暂未记录 Hugging Face 权重仓库。
+
+    在 WorldFoundry 模型目录中，该条目以 `xiaomi-robotics-1` 收录于 `vla_va_wam` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/XiaomiRobotics/Xiaomi-Robotics-1。
+  architecture: |
+    Per the integration notes, the architecture pairs a Qwen3-VL vision-language backbone (policy-token graph) with a rectified-flow DiT action expert decoding relative actions, with normalization statistics extracted from checkpoint metadata. Parameter count and training data are not recorded in the repository.
+  architecture_zh: |
+    按集成备注，架构由 Qwen3-VL 视觉-语言骨干（策略 token 图）与解码相对动作的 rectified-flow DiT 动作专家组成，归一化统计从权重元数据提取。参数量与训练数据仓库未记录。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `xiaomi-robotics-1` and runtime profile `runtime-profile:xiaomi-robotics-1`.
+    Catalog integration status: `runtime_ported`.
+    Integration notes recorded in the catalog:
+    - The Qwen3-VL policy-token graph, rectified-flow DiT, preprocessing, normalization extraction, and relative-action decoding are in tree.
+    - Checkpoint-side Python is parsed only as literal normalization metadata and is never imported or executed.
+    - Model, processor, architecture, device, dtype, attention backend, and checkpoint loading are local-only.
+    - The public project repository at the pinned revision contains the report and release announcement but not the inference source snapshot used for this integration.
+
+    Embodiment contract:
+    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
+    - Sensors: RGB camera observations plus a language instruction; the exact camera/state contract is not recorded in this catalog file.
+    - Action space: relative-action chunks decoded by the rectified-flow DiT; the exact dimensionality is not recorded in this catalog file.
+    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `xiaomi-robotics-1`，运行时配置为 `runtime-profile:xiaomi-robotics-1`。
+    目录集成状态：运行时已移植（runtime_ported）。
+    目录中记录的集成备注（保留原文）：
+    - The Qwen3-VL policy-token graph, rectified-flow DiT, preprocessing, normalization extraction, and relative-action decoding are in tree.
+    - Checkpoint-side Python is parsed only as literal normalization metadata and is never imported or executed.
+    - Model, processor, architecture, device, dtype, attention backend, and checkpoint loading are local-only.
+    - The public project repository at the pinned revision contains the report and release announcement but not the inference source snapshot used for this integration.
+
+    具身接口（embodiment contract）：
+    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
+    - 传感器：RGB 相机观测加语言指令；具体相机/状态契约本目录文件未记录。
+    - 动作空间：由 rectified-flow DiT 解码的相对动作块；具体维度本目录文件未记录。
+    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
+  limitations: |
+    No family-level demo/runner parity status is recorded in this catalog file.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件未记录家族级 demo/runner 一致性状态。
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks: []

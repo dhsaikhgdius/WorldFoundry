@@ -84,3 +84,73 @@ runner_parity:
   - RoboCasa-SFT strict restoration, finite 32-by-7 actions, 9-by-16 proprioception inference, and nine-frame future-RGB decode passed on an A100; RoboTwin-SFT and optional depth decoding remain unvalidated.
 catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint metadata, and runtime-profile planning records.
+docs:
+  overview: |
+    X-WAM (sharinka0715/X-WAM, Apache-2.0) is a world-action model built on Wan 2.2 TI2V-5B: one joint flow process simultaneously predicts future RGB (and optionally depth), proprioception, and robot actions, which is why WorldFoundry routes it as a WAM rather than a plain policy. The official deployed policy uses asynchronous early stopping after 10 action steps and returns a 32-step action chunk; optional full world decoding continues to 50 steps. The inference-only runtime is self-contained in tree, revision-pins both Hub repositories, and never imports an external checkout. The 38.9 GB RoboCasa-SFT checkpoint was restored strictly and passed both the official 10-step action/proprioception path and full 50-step future-RGB decode on an A100.
+
+    Within the WorldFoundry model catalog this entry is tracked as `x-wam` in the `vla_va_wam` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/sharinka0715/X-WAM; Hugging Face `sharinka0715/X-WAM-checkpoints`, `Wan-AI/Wan2.2-TI2V-5B`.
+  overview_zh: |
+    X-WAM（sharinka0715/X-WAM，Apache-2.0）是基于 Wan 2.2 TI2V-5B 的世界-动作模型（WAM）：单一联合 flow 过程同时预测未来 RGB（可选深度）、本体感知与机器人动作，因此 WorldFoundry 将其作为 WAM 而非普通策略路由。官方部署策略在 10 个动作步后异步提前停止并返回 32 步动作块；可选的完整世界解码持续到 50 步。仅推理运行时在树内自包含，对两个 Hub 仓库做 revision 锁定，从不导入外部 checkout。38.9 GB 的 RoboCasa-SFT 权重经严格恢复，在 A100 上通过了官方 10 步动作/本体路径与完整 50 步未来 RGB 解码。
+
+    在 WorldFoundry 模型目录中，该条目以 `x-wam` 收录于 `vla_va_wam` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/sharinka0715/X-WAM；Hugging Face `sharinka0715/X-WAM-checkpoints`、`Wan-AI/Wan2.2-TI2V-5B`。
+  architecture: |
+    The base is the Wan 2.2 TI2V-5B video-diffusion architecture extended into a joint flow over future video, depth, proprioception, and action modalities. The ported pipeline includes the official three-view crop, quantile normalization, deterministic seed, 10-step asynchronous action sampler, 50-step world sampler, and gripper convention. Recorded variant contracts: RoboCasa-SFT consumes three RoboCasa RGB views plus an 8-D single-arm state and yields a 32x7 relative end-effector chunk; RoboTwin-SFT consumes three RoboTwin RGB views plus a 16-D bimanual state and yields a 32x14 chunk; the pretrained subtree has no deployment quantile statistics and is not exposed as a runnable policy variant.
+  architecture_zh: |
+    基座为 Wan 2.2 TI2V-5B 视频扩散架构，扩展为对未来视频、深度、本体感知与动作模态的联合 flow。移植的管线包括官方三视角裁剪、分位数归一化、确定性种子、10 步异步动作采样器、50 步世界采样器与夹爪约定。记录的变体契约：RoboCasa-SFT 输入三路 RoboCasa RGB 视角加 8 维单臂状态，输出 32x7 相对末端动作块；RoboTwin-SFT 输入三路 RoboTwin RGB 视角加 16 维双臂状态，输出 32x14 动作块；预训练子树缺少部署分位数统计，不作为可运行策略变体暴露。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `x-wam` and runtime profile `runtime-profile:x-wam`.
+    Catalog integration status: `in_tree_runtime_selected_checkpoint_gpu_validated`.
+    Integration notes recorded in the catalog:
+    - X-WAM is routed as a world-action model because one Wan 2.2 joint flow process predicts future RGB/depth, proprioception, and robot actions.
+    - The official deployed policy uses asynchronous early stopping after 10 action steps and returns a 32-step action chunk; optional full world decoding continues to 50 steps.
+    - The inference-only runtime is self-contained in-tree, revision-pins both Hub repositories, and never imports an external X-WAM checkout.
+    - Training, datasets, simulators, ZeroMQ services, Lightning, DeepSpeed orchestration, and upstream git submodules are excluded.
+    - The 38.9 GB RoboCasa-SFT checkpoint was restored strictly and passed both the official 10-step action/proprioception path and full 50-step future-RGB decode on an A100; optional depth decoding remains unvalidated.
+    Recorded variant `x-wam-robocasa-sft`, task `wam.world_action_modeling`.
+    Recorded variant `x-wam-robotwin-sft`, task `wam.world_action_modeling`.
+    Recorded variant `x-wam-pretrained`, task `wam.post_training_base`.
+
+    Embodiment contract:
+    - Simulator: none bundled — the SFT checkpoints target RoboCasa and RoboTwin environments; training, datasets, simulators, ZeroMQ services, Lightning, and DeepSpeed orchestration are excluded from the in-tree runtime.
+    - Sensors: three RGB camera views plus a proprioceptive state vector (8-D single-arm for RoboCasa-SFT, 16-D bimanual for RoboTwin-SFT), with quantile normalization.
+    - Action space: 32-step relative end-effector action chunks (32x7 single-arm or 32x14 bimanual) with asynchronous early stopping after 10 steps; predicted proprioception is returned alongside actions.
+    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `x-wam`，运行时配置为 `runtime-profile:x-wam`。
+    目录集成状态：`in_tree_runtime_selected_checkpoint_gpu_validated`。
+    目录中记录的集成备注（保留原文）：
+    - X-WAM is routed as a world-action model because one Wan 2.2 joint flow process predicts future RGB/depth, proprioception, and robot actions.
+    - The official deployed policy uses asynchronous early stopping after 10 action steps and returns a 32-step action chunk; optional full world decoding continues to 50 steps.
+    - The inference-only runtime is self-contained in-tree, revision-pins both Hub repositories, and never imports an external X-WAM checkout.
+    - Training, datasets, simulators, ZeroMQ services, Lightning, DeepSpeed orchestration, and upstream git submodules are excluded.
+    - The 38.9 GB RoboCasa-SFT checkpoint was restored strictly and passed both the official 10-step action/proprioception path and full 50-step future-RGB decode on an A100; optional depth decoding remains unvalidated.
+    目录记录：变体 `x-wam-robocasa-sft`，任务 `wam.world_action_modeling`。
+    目录记录：变体 `x-wam-robotwin-sft`，任务 `wam.world_action_modeling`。
+    目录记录：变体 `x-wam-pretrained`，任务 `wam.post_training_base`。
+
+    具身接口（embodiment contract）：
+    - 仿真器：不内置仿真器——SFT 权重面向 RoboCasa 与 RoboTwin 环境；训练、数据集、仿真器、ZeroMQ 服务、Lightning 与 DeepSpeed 编排被排除在树内运行时之外。
+    - 传感器：三路 RGB 相机视角加本体状态向量（RoboCasa-SFT 为 8 维单臂，RoboTwin-SFT 为 16 维双臂），带分位数归一化。
+    - 动作空间：32 步相对末端动作块（单臂 32x7 或双臂 32x14），10 步后异步提前停止；同时返回预测的本体感知。
+    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`selected_checkpoint_gpu_validated`.
+    Runner parity notes recorded in the catalog:
+    - The official three-view crop, quantile normalization, deterministic seed, 10-step asynchronous action sampler, 50-step world sampler, and gripper convention are ported.
+    - Full future RGB/depth decoding is optional; the default matches the official policy server and returns actions and predicted proprioception only.
+    - RoboCasa-SFT strict restoration, finite 32-by-7 actions, 9-by-16 proprioception inference, and nine-frame future-RGB decode passed on an A100; RoboTwin-SFT and optional depth decoding remain unvalidated.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=`selected_checkpoint_gpu_validated`。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - The official three-view crop, quantile normalization, deterministic seed, 10-step asynchronous action sampler, 50-step world sampler, and gripper convention are ported.
+    - Full future RGB/depth decoding is optional; the default matches the official policy server and returns actions and predicted proprioception only.
+    - RoboCasa-SFT strict restoration, finite 32-by-7 actions, 9-by-16 proprioception inference, and nine-frame future-RGB decode passed on an A100; RoboTwin-SFT and optional depth decoding remain unvalidated.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - robocasa
+  - robotwin

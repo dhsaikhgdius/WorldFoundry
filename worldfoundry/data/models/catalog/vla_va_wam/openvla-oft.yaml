@@ -94,3 +94,72 @@ runner_parity:
   - Training, RLDS data processing, LIBERO benchmark loop, and TensorFlow dataset stack are intentionally excluded from the minimal runtime profile.
 catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint metadata, and runtime-profile planning records.
+docs:
+  overview: |
+    OpenVLA-OFT (moojink/openvla-oft, MIT) is the Optimized Fine-Tuning recipe for OpenVLA, published as 'Fine-Tuning Vision-Language-Action Models: Optimizing Speed and Success': it replaces autoregressive token decoding with parallel decoding plus action chunking and a continuous action head, yielding large gains in both control frequency and LIBERO success rate. WorldFoundry has a flat, inference-only in-tree runtime for HF/local checkpoints, action heads, proprio/noisy-action projectors, and official LIBERO observation inputs. A100 validation restored 7,541,237,184 parameters and produced finite deterministic 8x7 action chunks with 14.47 GiB peak VRAM; all five declared LIBERO checkpoints completed real inference.
+
+    Within the WorldFoundry model catalog this entry is tracked as `openvla-oft` in the `vla_va_wam` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/moojink/openvla-oft; Hugging Face `moojink/openvla-7b-oft-finetuned-libero-spatial`, `moojink/openvla-7b-oft-finetuned-libero-object`, `moojink/openvla-7b-oft-finetuned-libero-goal`, `moojink/openvla-7b-oft-finetuned-libero-10`, `moojink/openvla-7b-oft-finetuned-libero-spatial-object-goal-10`.
+  overview_zh: |
+    OpenVLA-OFT（moojink/openvla-oft，MIT）是 OpenVLA 的优化微调（Optimized Fine-Tuning）方案，出自论文《Fine-Tuning Vision-Language-Action Models: Optimizing Speed and Success》：用并行解码加动作块与连续动作头替代自回归 token 解码，在控制频率与 LIBERO 成功率上均大幅提升。WorldFoundry 提供扁平化、仅推理的树内运行时，覆盖 HF/本地权重、动作头、本体/噪声动作投影器与官方 LIBERO 观测输入。A100 验证恢复 7,541,237,184 个参数并产出有限、确定性的 8x7 动作块，峰值显存 14.47 GiB；已声明的五个 LIBERO 权重全部完成真实推理。
+
+    在 WorldFoundry 模型目录中，该条目以 `openvla-oft` 收录于 `vla_va_wam` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/moojink/openvla-oft；Hugging Face `moojink/openvla-7b-oft-finetuned-libero-spatial`、`moojink/openvla-7b-oft-finetuned-libero-object`、`moojink/openvla-7b-oft-finetuned-libero-goal`、`moojink/openvla-7b-oft-finetuned-libero-10`、`moojink/openvla-7b-oft-finetuned-libero-spatial-object-goal-10`。
+  architecture: |
+    The base model is OpenVLA-7B (Prismatic VLM: Llama-2-7B language backbone with fused SigLIP + DINOv2 visual encoders). The OFT recipe adds bidirectional attention for parallel action decoding, an L1-regression continuous action head that predicts an 8-step chunk of 7-DoF actions, optional FiLM language conditioning, and wrist-camera plus proprioceptive-state inputs. Attention is hardware-resolved in tree: FlashAttention 2 on compatible Ampere/Ada/Hopper installs with portable PyTorch SDPA fallback (including Blackwell).
+  architecture_zh: |
+    基座为 OpenVLA-7B（Prismatic VLM：Llama-2-7B 语言骨干加 SigLIP 与 DINOv2 融合视觉编码器）。OFT 方案增加了用于并行动作解码的双向注意力、预测 8 步 7 自由度动作块的 L1 回归连续动作头、可选 FiLM 语言调制，以及腕部相机与本体状态输入。注意力在树内按硬件解析：兼容的 Ampere/Ada/Hopper 上用 FlashAttention 2，其他 NVIDIA 架构（含 Blackwell）回退到可移植的 PyTorch SDPA。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `openvla-oft` and runtime profile `runtime-profile:openvla-oft`.
+    Catalog integration status: `checkpoint_gpu_validated`.
+    Integration notes recorded in the catalog:
+    - WorldFoundry has a flat, inference-only in-tree OpenVLA-OFT runtime for HF/local checkpoints, action heads, proprio/noisy-action projectors, and official LIBERO observation inputs.
+    - A100-SXM4-80GB validation restored 7,541,237,184 model parameters and produced finite deterministic 8x7 actions for multiple image/state/prompt inputs; peak allocated VRAM was 14.47 GiB.
+    - All five declared LIBERO checkpoints completed real Workspace inference and produced finite 8x7 action chunks.
+    - {'Attention is hardware-resolved': 'usable FlashAttention 2 is selected on compatible Ampere/Ada/Hopper installs, with portable PyTorch SDPA fallback for other NVIDIA architectures including Blackwell.'}
+    - Training, RLDS data processing, TensorFlow data tooling, and LIBERO benchmark loops are intentionally excluded.
+    Recorded variant `openvla-oft-libero-spatial`, task `vla.policy_rollout`.
+    Recorded variant `openvla-oft-libero-object`, task `vla.policy_rollout`.
+    Recorded variant `openvla-oft-libero-goal`, task `vla.policy_rollout`.
+    Recorded variant `openvla-oft-libero-10`, task `vla.policy_rollout`.
+    Recorded variant `openvla-oft-libero-spatial-object-goal-10`, task `vla.policy_rollout`.
+
+    Embodiment contract:
+    - Simulator: none bundled — the five released checkpoints target the LIBERO benchmark suites (spatial/object/goal/10 and a combined checkpoint); the LIBERO benchmark loop itself is intentionally excluded from the minimal runtime profile.
+    - Sensors: the official LIBERO observation contract: full_image, wrist_image, proprioceptive state, and task_description (per the recorded demo, loaded from sample_libero_spatial_observation.pkl).
+    - Action space: an 8-step chunk of 7-DoF continuous actions (8x7), de-normalized with per-suite unnorm_key such as libero_spatial_no_noops.
+    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `openvla-oft`，运行时配置为 `runtime-profile:openvla-oft`。
+    目录集成状态：`checkpoint_gpu_validated`。
+    目录中记录的集成备注（保留原文）：
+    - WorldFoundry has a flat, inference-only in-tree OpenVLA-OFT runtime for HF/local checkpoints, action heads, proprio/noisy-action projectors, and official LIBERO observation inputs.
+    - A100-SXM4-80GB validation restored 7,541,237,184 model parameters and produced finite deterministic 8x7 actions for multiple image/state/prompt inputs; peak allocated VRAM was 14.47 GiB.
+    - All five declared LIBERO checkpoints completed real Workspace inference and produced finite 8x7 action chunks.
+    - {'Attention is hardware-resolved': 'usable FlashAttention 2 is selected on compatible Ampere/Ada/Hopper installs, with portable PyTorch SDPA fallback for other NVIDIA architectures including Blackwell.'}
+    - Training, RLDS data processing, TensorFlow data tooling, and LIBERO benchmark loops are intentionally excluded.
+    目录记录：变体 `openvla-oft-libero-spatial`，任务 `vla.policy_rollout`。
+    目录记录：变体 `openvla-oft-libero-object`，任务 `vla.policy_rollout`。
+    目录记录：变体 `openvla-oft-libero-goal`，任务 `vla.policy_rollout`。
+    目录记录：变体 `openvla-oft-libero-10`，任务 `vla.policy_rollout`。
+    目录记录：变体 `openvla-oft-libero-spatial-object-goal-10`，任务 `vla.policy_rollout`。
+
+    具身接口（embodiment contract）：
+    - 仿真器：不内置仿真器——五个发布权重面向 LIBERO 基准套件（spatial/object/goal/10 及联合权重）；LIBERO 基准循环本身被有意排除在最小运行时之外。
+    - 传感器：官方 LIBERO 观测契约：full_image、wrist_image、本体状态与 task_description（按记录的演示，从 sample_libero_spatial_observation.pkl 加载）。
+    - 动作空间：8 步 7 自由度连续动作块（8x7），按套件 unnorm_key（如 libero_spatial_no_noops）反归一化。
+    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`all_declared_variants_checkpoint_gpu_validated`.
+    Runner parity notes recorded in the catalog:
+    - Training, RLDS data processing, LIBERO benchmark loop, and TensorFlow dataset stack are intentionally excluded from the minimal runtime profile.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=`all_declared_variants_checkpoint_gpu_validated`。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - Training, RLDS data processing, LIBERO benchmark loop, and TensorFlow dataset stack are intentionally excluded from the minimal runtime profile.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - libero
