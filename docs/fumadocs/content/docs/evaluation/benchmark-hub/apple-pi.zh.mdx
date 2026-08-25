@@ -1,0 +1,136 @@
+---
+title: Apple-PI
+description: 面向 chain-of-frames 输出的物理定律推理评测，完全在仓内执行，使用 Gemini judge 加 SAM3/MoGe 客观指标。
+---
+
+## 简介
+
+Apple-PI 通过三阶段 chain-of-frames 协议评估图像/视频生成模型的物理定律推理能力：**perception**（以文本和图形两种形式标注最终物理状态）、**formulation**（写出支配定律与公式）、**deduction**（完整推演动力学过程）。基准文档记录了 10 个 canonical tasks（其中 9 个 single-law tasks）、400 条声明的 ground-truth 视频，并要求每个 case 每个 subtrack 恰好 **三次独立 rollout**。
+
+WorldFoundry 在仓内原生实现 Apple-PI 协议——运行时不 import 任何上游 `apple_pi` 包：
+
+- Runner：`worldfoundry/evaluation/tasks/execution/runners/apple_pi/run_apple_pi_official_runner.py`
+- 原生 evaluator：`worldfoundry/evaluation/tasks/execution/runners/apple_pi/apple_pi_runtime.py`
+- Catalog 条目：`worldfoundry/data/benchmarks/catalog/video/apple-pi.yaml`
+- Task contract：`worldfoundry/data/benchmarks/tasks/external/apple-pi.yaml`
+
+官方参考：
+
+- Paper：[arXiv:2607.16401](https://arxiv.org/abs/2607.16401)
+- Project page：[21yrm.github.io/Apple-PI-homepage](https://21yrm.github.io/Apple-PI-homepage/)
+- 官方源码参考：[21yrm/Apple-PI](https://github.com/21yrm/Apple-PI)（Apache-2.0）
+- GT 数据集：[yaorunmao/Apple-PI-GT](https://huggingface.co/datasets/yaorunmao/Apple-PI-GT)——上游已在文档中声明，但截至集成时 **尚未公开**
+- 格式说明：上游 [`GT_FORMAT.md`](https://github.com/21yrm/Apple-PI/blob/main/docs/GT_FORMAT.md) 与 [`PREDICTION_FORMAT.md`](https://github.com/21yrm/Apple-PI/blob/main/docs/PREDICTION_FORMAT.md)
+
+## 评测协议与数据布局
+
+GT 目录必须遵循上游数据集契约。runner 会校验 `dataset.json`（`name: Apple-PI`、`num_rollouts: 3`），并加载其中列出的每个 case 目录：
+
+```text
+/path/to/apple-pi-gt/
+  dataset.json                       # {"name": "Apple-PI", "num_rollouts": 3, "cases": [...]}
+  cases/<case_id>/
+    metadata.json                    # gt_fps、physics_duration、physics_type、formula_info、资产路径
+    initial_state/mask_0000.npy
+    initial_state/instance_segmentation_0000.npy
+    initial_state/instance_segmentation_mapping_0000.json
+    mask/maps.npz                    # GT 前景掩码
+    depth/maps.npz                   # GT 深度图
+    velocity/maps.npz                # GT 速度场
+    ...                              # metadata.json 中声明的 gt_frames_dir 和 reference 图像
+```
+
+预测按照上游布局放置，`submission.json` 需要声明 `num_rollouts: 3` 和协议（`video` 或 `image`）：
+
+```text
+/path/to/apple-pi-predictions/
+  submission.json                    # {"model": "...", "protocol": "video", "num_rollouts": 3}
+  cases/<case_id>/<subtrack>/
+    rollout_00.mp4                   # video 协议
+    rollout_01.mp4
+    rollout_02.mp4
+    # image 协议使用 rollout_XX.png；deduction 使用装有 PNG 帧的 rollout_XX/ 目录
+```
+
+Subtrack 共五个：`perception_text`、`perception_graphic`、`formulation_text`、`formulation_graphic`、`deduction`。主观判据由多模态 judge 打分；deduction subtrack 额外混入程序化指标（PSNR、SAM3 spatial/spatiotemporal/weighted IoU、MoGe-2 velocity error），按论文的 0.20 integrity / 0.20 fidelity / 0.60 physics 加权聚合。
+
+## 指标
+
+Scorecard 指标 id（即 runner 实际写入 `metrics.leaderboard` 与 `metrics.per_metric` 的键）：
+
+| 指标 id | 含义 | 方向 |
+| --- | --- | --- |
+| `perception_text` | 最终帧文本标注质量得分。 | 越高越好 |
+| `perception_graphic` | 最终帧 object-only grounding 得分。 | 越高越好 |
+| `formulation_text` | 支配定律与公式作答得分。 | 越高越好 |
+| `formulation_graphic` | 目标时刻状态、速度箭头与标签得分。 | 越高越好 |
+| `deduction` | 完整动力学轨迹得分（主观 + 客观混合）；**主指标**。 | 越高越好 |
+| `apple_pi_average` | 可用 subtrack 均值的算术平均。 | 越高越好 |
+
+逐 case 结果写入 `per_sample_scores.jsonl`，包含 `case_id`、`subtrack`、`score` 与 rollout 覆盖计数。
+
+## 准备、权重与环境变量
+
+```bash
+cd /path/to/WorldFoundry
+export WORLDFOUNDRY_APPLE_PI_GT_DIR=/path/to/apple-pi-gt          # catalog runtime 文档字段；runner 本身接收 --gt-dir
+export WORLDFOUNDRY_APPLE_PI_PREDICTION_DIR=/path/to/apple-pi-predictions
+export WORLDFOUNDRY_APPLE_PI_JUDGE_BACKEND=gemini                  # 或 mock（仅接线验证）
+export GEMINI_API_KEY=<your-key>                                   # 亦可用 WORLDFOUNDRY_APPLE_PI_GEMINI_API_KEY、GOOGLE_API_KEY
+export APPLE_PI_GEMINI_MODEL=gemini-3-flash-preview                # judge 模型默认值
+export WORLDFOUNDRY_APPLE_PI_SAM3_CHECKPOINT=/path/to/sam3         # 回退：WORLDFOUNDRY_SAM3_CHECKPOINT
+export WORLDFOUNDRY_APPLE_PI_MOGE_CHECKPOINT=/path/to/moge-2-vitl-normal  # 回退：WORLDFOUNDRY_MOGE_V2_VITL_NORMAL_MODEL_DIR，否则用 HF Ruicheng/moge-2-vitl-normal
+```
+
+SAM3（`facebook/sam3`）与 MoGe-2（`Ruicheng/moge-2-vitl-normal`）复用 WorldFoundry 现有 base-model 栈——Apple-PI 不另行 vendored 副本。video 协议的指标需要 `opencv-python`。协议 smoke 测试可传 `--no-foundation-models` 跳过 SAM3/MoGe 适配器；没有它们时，客观 IoU/velocity 指标会退化为保守 fallback 或被省略。
+
+## 运行仓内 official 评测
+
+```bash
+cd /path/to/WorldFoundry
+
+PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
+  worldfoundry/evaluation/tasks/execution/runners/apple_pi/run_apple_pi_official_runner.py \
+  --run-official \
+  --gt-dir "${WORLDFOUNDRY_APPLE_PI_GT_DIR}" \
+  --pred-dir "${WORLDFOUNDRY_APPLE_PI_PREDICTION_DIR}" \
+  --output-dir tmp/apple_pi/official-run \
+  --strict \
+  --json
+```
+
+`--run-official` 必须同时提供 `--gt-dir` 与 `--pred-dir`（`--prediction-dir` / `--generated-artifact-dir` 为别名）。`--subtrack` 可限定单一 subtrack；`--protocol` 可覆盖 submission 声明的协议；`--strict` 要求五个 subtrack 齐全且每个 case 三次 rollout 完整。evaluator 先把 official 兼容的 `apple_pi_results.json` 写入输出目录，再归一化为 scorecard。
+
+注意：统一入口 `zoo benchmark-run --mode official-run` 无法把必需的 GT 目录传给该 runner（其 `--benchmark-data-root` 不会路由到 `--gt-dir`），因此 official 评测请使用上面的直接 runner 命令。
+
+## 导入已有结果（official-validation）
+
+已有的 official 兼容 Apple-PI 结果 JSON 可以在不需要 judge 或权重的情况下直接归一化：
+
+```bash
+worldfoundry-eval zoo benchmark-run \
+  --benchmark-id apple-pi \
+  --mode official-validation \
+  --official-results-path /path/to/apple_pi_results.json \
+  --output-dir tmp/apple_pi/official-validation \
+  --json
+```
+
+直接调用 runner 时同样接受 `--official-results-path`，或读取环境变量 `WORLDFOUNDRY_APPLE_PI_RESULTS_PATH`；传目录时会依次探测 `apple_pi_results.json`、`results.json`、`evaluation.json`。
+
+## 输出
+
+- `scorecard.json`：WorldFoundry scorecard；leaderboard 键即上表六个指标 id。
+- `raw_metric_table.jsonl`：每个指标一行，含可用性与来源。
+- `per_sample_scores.jsonl`：逐 case、逐 subtrack 行，含 rollout 覆盖。
+- `benchmark_contract.json`：benchmark id、协议、subtrack 与指标 id。
+- `apple_pi_results.json`：official 兼容结果 JSON（由 `--run-official` 写出）。
+
+## 本集成不能声称的边界
+
+- 上游 GT 数据集截至集成时 **尚未公开**；本工作区未验证过 full-suite official 执行与 leaderboard parity。scorecard 恒定输出 `leaderboard_valid: false`。
+- Gemini judge 必须有 API key（`GEMINI_API_KEY`/`GOOGLE_API_KEY`/`WORLDFOUNDRY_APPLE_PI_GEMINI_API_KEY`）以及 `google-genai` 包；缺失时每次 rollout 会记录为 `failed`，不会被静默跳过。
+- `WORLDFOUNDRY_APPLE_PI_JUDGE_BACKEND=mock` 返回确定性的 0.5 占位 rubric 值——仅用于接线验证，绝不能作为对外报告的基准数字。
+- 缺少 SAM3/MoGe 权重（或使用 `--no-foundation-models`）时，deduction 的客观指标会退化为 GT 占用率占位值或被丢弃；此类运行不可与论文数字对比。
+
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

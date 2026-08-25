@@ -1,0 +1,123 @@
+---
+title: STEVO-Bench
+description: 面向视频世界模型的「视线之外状态演化」基准，官方 VLM-judge 评测器已 vendored 在仓内。
+---
+
+## 简介
+
+STEVO-Bench 检验视频世界模型能否在 **状态不可见期间继续模拟其演化**。每个任务施加一种观察控制（场景内遮挡、镜头移开或照明变暗）加一个触发动作，随后由 VLM judges 验证隐藏过程是否持续推进且物理上合理。基准包含 **6 个世界变化类别共 225 个任务**（随时间累积的标量过程、少物体运动学、不可逆结构/材料变换、意图驱动的主体行为等）。
+
+WorldFoundry 将上游评测器 vendored 在仓内，`--run-official` 直接执行官方 judge 代码，无需外部 checkout：
+
+- Runner：`worldfoundry/evaluation/tasks/execution/runners/stevo_bench/run_stevo_bench_official_runner.py`
+- 指标提取/聚合：`worldfoundry/evaluation/tasks/execution/runners/stevo_bench/stevo_bench_metrics.py`
+- Vendored 只读 runtime：`worldfoundry/evaluation/tasks/execution/runners/stevo_bench/runtime/stevo_bench/`（`eval/eval_cli.py`、`eval/summarize_results.py`，MIT，固定在 `680fb6ee2733…`）
+
+**Catalog 状态：未收录。** `worldfoundry/data/benchmarks/catalog/**` 下没有 `stevo-bench.yaml`，该基准也未注册进 workspace/zoo 调度，因此 `worldfoundry-eval zoo benchmark-run --benchmark-id stevo-bench` **不可用**；请使用下文的直接 runner 命令。
+
+官方参考：
+
+- Paper：[arXiv:2603.13215](http://arxiv.org/abs/2603.13215)
+- Website：[glab-caltech.github.io/STEVOBench](https://glab-caltech.github.io/STEVOBench/)
+- 任务数据集：[JhanLiufu/StEvo-Bench](https://huggingface.co/datasets/JhanLiufu/StEvo-Bench)
+- 上游仓库（scorecard 中记录的 provenance）：[jhanliufu-personal/STEVO-Bench](https://github.com/jhanliufu-personal/STEVO-Bench)
+
+## 评测协议与数据布局
+
+任务 YAML 是独立的 Hugging Face 数据集，需放在 vendored 树之外：
+
+```bash
+hf download JhanLiufu/StEvo-Bench --repo-type dataset --local-dir /path/to/stevo-bench-tasks
+export WORLDFOUNDRY_STEVO_BENCH_TASK_ROOT=/path/to/stevo-bench-tasks   # 或传 --task-root
+```
+
+生成视频集中放在一个目录，且必须有 **恰好一个 JSON output map**（`task_id → 视频文件名`）；缺失时 runner 会从视频文件名派生映射，但会被记为 comparability blocker：
+
+```text
+/path/to/generated/
+  <task_id_1>.mp4
+  <task_id_2>.mp4
+  ...
+  output_map.json        # 可选但推荐；多个 JSON 时用 --output-map 消歧
+```
+
+runner 把视频 symlink（或复制）进 `--output-dir` 下隔离的 `stevo_bench_work/outputs/`，再按 criterion 逐个调用 vendored 的 `eval.eval_cli`。vendored 树绝不被修改；所有产物都写到 `--output-dir`。可执行的 criterion 有三个：`control`（`occlusion_done`、`trigger_applied`）、`physics`（`physical_inaccuracy`）、`state`（`state_evol`）。上游 `run_eval.sh` 还传了 `--artifact` 和 `--coherence`，但固定 revision 的 CLI 并未定义这两个 flag，因此这两个 criterion 在上游同样不可执行。
+
+## 指标
+
+聚合逻辑复现官方 `eval/summarize_results.py`：每个指标是字段存在的任务上的均值，`control_success = occlusion_done AND trigger_applied`，`task_success = state_evol AND NOT physical_inaccuracy`。Scorecard 指标 id：
+
+| 指标 id | 含义 | 方向 |
+| --- | --- | --- |
+| `task_success` | 状态演化被确认且无物理不合理；**主指标**。 | 越高越好 |
+| `state_evol_success` | 隐藏过程在不可见期间持续推进。 | 越高越好 |
+| `physical_inaccuracy` | 物理 judge 标记出不合理伪影的比例；normalized score 为 `1 - rate`。 | 越低越好 |
+| `occlusion_done` | 请求的观察控制确实出现在生成视频中。 | 越高越好 |
+| `trigger_applied` | 请求的触发动作确实被施加。 | 越高越好 |
+| `control_success` | 两种控制都被施加。 | 越高越好 |
+
+`per_sample_scores.jsonl` 按（任务, judge）对各写一条记录，包含原始布尔判定与派生字段。
+
+## Judge 与环境变量
+
+官方 judge 是 **远程 VLM API**——不需要本地权重（`--weights-dir` 只是隔离保护，绝不会默认落到 vendored 树内）：
+
+```bash
+export WORLDFOUNDRY_STEVO_BENCH_VLM_PROVIDER=gemini     # 默认 provider（runner --vlm-provider）
+export GOOGLE_API_KEY=<your-key>                        # 上游 Gemini judge 必需
+export WORLDFOUNDRY_STEVO_BENCH_JUDGE_MODEL=<model>     # 可选；同时应用于 control/physics/se 三个 judge
+```
+
+其他被识别的变量：`WORLDFOUNDRY_STEVO_BENCH_ROOT`（覆盖 vendored runtime 根目录）、`WORLDFOUNDRY_STEVO_BENCH_TASK_ROOT`、`WORLDFOUNDRY_STEVO_BENCH_WEIGHTS_DIR`、`WORLDFOUNDRY_STEVO_BENCH_RESULTS_PATH`、`WORLDFOUNDRY_GENERATED_ARTIFACT_DIR`、`WORLDFOUNDRY_BENCHMARK_OUTPUT_DIR`，以及供 judge 子进程使用的 `WORLDFOUNDRY_UNIFIED_PYTHON`。judge 失败会以 `eval.eval_cli` 非零退出码暴露；runner 随即抛错而不是静默跳过，失败细节记录在 `official_runtime.log`。
+
+## 运行仓内 official 评测
+
+```bash
+cd /path/to/WorldFoundry
+
+PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
+  worldfoundry/evaluation/tasks/execution/runners/stevo_bench/run_stevo_bench_official_runner.py \
+  --run-official \
+  --generated-artifact-dir /path/to/generated \
+  --task-root "${WORLDFOUNDRY_STEVO_BENCH_TASK_ROOT}" \
+  --criterion all \
+  --ensemble-size 3 \
+  --workers 5 \
+  --summarize \
+  --output-dir tmp/stevo_bench/official-run \
+  --json
+```
+
+论文配置为 `--ensemble-size 3` 加逐 criterion majority 投票（runner 默认与上游 `run_eval.sh` 一致）；更小的 ensemble 会被记为 comparability blocker。其他 flag：`--criterion {control,physics,state}` 只跑单一 criterion、`--pattern`（对 task id 做 fnmatch 过滤）、`--exclude-baseline`、`--overwrite`、`--output-map`、`--timeout`（默认 6 小时）。
+
+## 导入已有结果（等价于 official-validation）
+
+已有上游产物——`summary.json`、单个 run 目录、`runs/` 父目录或裸 `per_task/` 树——都可以在无 API key 的情况下归一化：
+
+```bash
+PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
+  worldfoundry/evaluation/tasks/execution/runners/stevo_bench/run_stevo_bench_official_runner.py \
+  --official-results-path /path/to/runs/<output_map_stem> \
+  --output-dir tmp/stevo_bench/imported \
+  --json
+```
+
+由于该基准未收录进 catalog，不存在 `zoo benchmark-run --mode official-validation` 的路由；上述直接导入就是结果归一化入口。
+
+## 输出
+
+- `scorecard.json`：WorldFoundry scorecard，`leaderboard_blockers` 与 `comparability_blockers` 均如实填充。
+- `raw_metric_table.jsonl`：每个指标一行，含可用性与原生量纲。
+- `per_sample_scores.jsonl`：逐（任务, judge）判定记录。
+- `benchmark_contract.json`：指标 id、主指标与 runtime 根目录。
+- `stevo_bench_staging.json`、`runtime_summary.json`、`official_runtime.log`、`stevo_bench_work/`：staging 清单、执行摘要、judge 记录以及上游 run 目录（来自 `--run-official`）。
+
+## 本集成不能声称的边界
+
+- **未收录 catalog / 未接入 zoo**：不存在 catalog YAML，`zoo benchmark-run` 无法调度该基准；任何声称已接入 zoo 的说法都不成立。
+- `--run-fixture` 指向 `worldfoundry/data/benchmarks/assets/stevo-bench/sample_run`，该目录 **当前不在仓库内**，随仓库交付的 fixture 路径不可用。
+- `official_benchmark_verified` 要求真实 official 运行且 comparability blocker 为零；结果导入始终是 `normalizer_only`。`leaderboard_valid` 恒为 `false`——leaderboard 提交需要用官方 ensemble 设置评完整的 225 任务划分。
+- 有 judge 的运行依赖远程 VLM provider（默认 Gemini）及其 API key；不存在离线 judge。
+- 任务覆盖不全、由文件名派生的 output map、ensemble 小于 3，都会被如实写进 scorecard 的 blocker 列表而非隐藏。
+
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

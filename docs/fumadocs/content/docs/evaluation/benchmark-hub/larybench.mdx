@@ -1,0 +1,136 @@
+---
+title: LARYBench
+description: Latent-action representation benchmark for embodied action, with the official extract/classify/regress pipeline vendored in tree.
+---
+
+## About
+
+LARYBench (Meituan LongCat) evaluates how well **latent-action representations** extracted from video encoders support embodied action. The pipeline has three stages that build on each other:
+
+1. **extract** — run a representation model over benchmark videos/image pairs and export latent actions.
+2. **classify** — probe the extracted latent actions with an action-semantic classification head (top-1 accuracy, macro/weighted F1).
+3. **regress** — probe with a robot-action regression head on seen/unseen splits (MSE, lower is better).
+
+WorldFoundry vendors the official runtime at the pinned upstream revision — no external checkout is required at run time:
+
+- Runner: `worldfoundry/evaluation/tasks/execution/runners/larybench/run_larybench_official_runner.py`
+- In-tree runtime: `worldfoundry/evaluation/tasks/execution/runners/larybench/` (`cli.py`, `extract.py`, `classification.py`, `regression.py`, `models.py`, `registry.py`)
+- Bundled configs: `worldfoundry/data/benchmarks/assets/larybench/configs/` (model configs include `dinov2`, `dinov3`, `siglip2`, `vjepa2`, `magvit2`, `lapa`, `univla`, `villa-x`, `flux2`, `wan2-2`)
+- Catalog entry: `worldfoundry/data/benchmarks/catalog/embodied/larybench.yaml`
+- Task contract: `worldfoundry/data/benchmarks/tasks/external/larybench.yaml`
+
+Official references:
+
+- Paper: [arXiv:2604.11689](https://arxiv.org/abs/2604.11689)
+- Project page: [meituan-longcat.github.io/LARYBench](https://meituan-longcat.github.io/LARYBench/)
+- Official source reference: [meituan-longcat/LARYBench](https://github.com/meituan-longcat/LARYBench) (MIT, pinned `e7feaf1b7292…`)
+- Dataset: [meituan-longcat/LARYBench](https://huggingface.co/datasets/meituan-longcat/LARYBench) (no auth required)
+
+## Data layout and environment
+
+Classification videos, robot image pairs, trajectories, and metadata are staged outside the package and wired through environment variables (the same names the vendored upstream code reads):
+
+```bash
+hf download meituan-longcat/LARYBench --repo-type dataset --local-dir /path/to/larybench-data
+
+export DATA_DIR=/path/to/larybench-data          # dataset root (also runner --dataset-root)
+export LARY_METADATA_DIR=/path/to/metadata       # metadata CSV root (runner --metadata-root)
+export LARY_LA_DIR=/path/to/latent_actions       # extracted latent-action root (runner --latent-action-root)
+export MODEL_DIR=/path/to/model_checkpoints      # representation checkpoints (runner --model-root)
+export CUDA_VISIBLE_DEVICES=0                    # runner --gpus
+```
+
+The runner additionally sets `LARY_CONFIG_ROOT` to the bundled configs and `LARY_LOG_DIR` to `<output-dir>/larybench_runtime`. When the path flags are omitted, metadata/latent-action/model roots default to subdirectories of `--output-dir`. Extraction partitions one metadata table across the selected GPUs and merges the resulting CSVs; classification launches one local process per GPU; regression runs through Accelerate across `CUDA_VISIBLE_DEVICES`.
+
+Expected stage outputs (which the runner validates after `--run-official`):
+
+```text
+extract  → <metadata-root>/<split>_la_<dataset>[_<stride>]_<model>.csv
+classify → <output-dir>/larybench_runtime/classification/<dataset>/<model>/classification_summary.json
+regress  → <output-dir>/larybench_runtime/regression/logs/<dataset>_<stride>_<model>_<model_type>_<action_mode>/best_result.json
+```
+
+## Metrics
+
+Scorecard metric ids are stage-dependent; the runner emits exactly the numeric keys found in the stage result (catalog-declared ids shown first):
+
+| Metric id | Stage | Meaning | Direction |
+| --- | --- | --- | --- |
+| `extraction_coverage` | extract | Fraction of metadata rows with a populated `la_path`; **primary for extract**. | higher is better |
+| `extracted_samples`, `input_samples` | extract | Absolute row counts. | informational |
+| `top1_accuracy` | classify | Action-semantic top-1 accuracy; **primary for classify**. | higher is better |
+| `macro_f1`, `weighted_f1`, `macro_precision`, `macro_recall` | classify | F1/precision/recall aggregates (derived from `classification_summary.json` or a confusion matrix). | higher is better |
+| `val_seen_mse` | regress | Seen-split robot-action MSE; **primary for regress**. | lower is better |
+| `val_unseen_mse` | regress | Unseen-split robot-action MSE. | lower is better |
+
+Any metric id containing `mse` or `loss` is treated as lower-is-better; unit-interval metrics are clamped into the normalized score.
+
+## Run the official in-tree pipeline
+
+Each stage runs through the same runner with `--run-official --stage <stage>`; `--model` and `--dataset` are always required, and `classify` additionally requires `--dim` and `--classes`:
+
+```bash
+cd /path/to/WorldFoundry
+
+# 1. extract latent actions
+PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" -m \
+  worldfoundry.evaluation.tasks.execution.runners.larybench.run_larybench_official_runner \
+  --run-official --stage extract \
+  --model dinov3 --dataset <dataset> --split all \
+  --dataset-root "$DATA_DIR" --metadata-root "$LARY_METADATA_DIR" \
+  --latent-action-root "$LARY_LA_DIR" --model-root "$MODEL_DIR" \
+  --gpus "${CUDA_VISIBLE_DEVICES:-0}" \
+  --output-dir tmp/larybench/extract --json
+
+# 2. classification probe
+PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" -m \
+  worldfoundry.evaluation.tasks.execution.runners.larybench.run_larybench_official_runner \
+  --run-official --stage classify \
+  --model dinov3 --dataset <dataset> --dim <latent_dim> --classes <num_classes> \
+  --dataset-root "$DATA_DIR" --metadata-root "$LARY_METADATA_DIR" \
+  --latent-action-root "$LARY_LA_DIR" \
+  --output-dir tmp/larybench/classify --json
+
+# 3. regression probe
+PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" -m \
+  worldfoundry.evaluation.tasks.execution.runners.larybench.run_larybench_official_runner \
+  --run-official --stage regress \
+  --model dinov3 --dataset <dataset> --model-type mlp --action-mode absolute \
+  --epochs 20 --lr 1e-4 \
+  --output-dir tmp/larybench/regress --json
+```
+
+Useful extras: `--stride` (default 5), `--mode video|image`, `--batch-size`, `--num-workers`, `--config` (classification YAML override), `--action-data-root`, `--global-stats-json`, `--val-unseen-csv`, `--mixed-precision {no,fp16,bf16}`, `--timeout` (default 24 h), `--strict`.
+
+Note: the unified `zoo benchmark-run --mode official-run` surface cannot forward `--stage`/`--dataset`/`--dim`/`--classes` to this runner, so full official runs go through the direct module invocation above.
+
+## Import existing results (official-validation)
+
+Existing official outputs are normalized without loading datasets or checkpoints. The stage is inferred from the file/directory shape (`classification_summary.json` / `confusion_matrix.json` → classify, `best_result.json|csv` → regress, `*_la_*.csv` → extract):
+
+```bash
+worldfoundry-eval zoo benchmark-run \
+  --benchmark-id larybench \
+  --mode official-validation \
+  --official-results-path /path/to/classification_summary.json \
+  --output-dir tmp/larybench/official-validation \
+  --json
+```
+
+If the stage cannot be inferred, call the runner directly and pass `--stage` explicitly (the zoo CLI does not expose a stage flag). The direct runner also honors `WORLDFOUNDRY_LARYBENCH_RESULTS_PATH`.
+
+## Outputs
+
+- `scorecard.json`: WorldFoundry scorecard; `benchmark.stage` records the evaluated stage and `metrics.summary.primary_metric_id` records the stage primary.
+- `raw_metric_table.jsonl`: one row per emitted metric.
+- `benchmark_contract.json`: benchmark id, stage, and metric ids.
+- `larybench_official_runtime.log`, `runtime_summary.json`: upstream command transcript (written by `--run-official`).
+
+## What this integration does not claim
+
+- Runtime verification covers a **synthetic CPU/gloo classification smoke test** only (`verification_scope: synthetic_cpu_gloo_classification_smoke`); the full official suite has not been run in this workspace and the scorecard always reports `leaderboard_valid: false` and `official_benchmark_verified: false`.
+- Full leaderboard parity requires the complete official split, the exact representation checkpoint, the probe configuration, and retained run artifacts.
+- Real extract/classify/regress runs need GPUs, the staged LARYBench dataset shards, and the checkpoint assets of the selected representation model; none are bundled with the repository.
+- No hosted LLM/VLM judge is involved — all scoring is deterministic probe training/evaluation.
+
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)
