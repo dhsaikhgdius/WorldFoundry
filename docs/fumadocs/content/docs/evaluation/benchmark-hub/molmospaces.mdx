@@ -1,126 +1,103 @@
 ---
 title: MolmoSpaces-Bench
-description: MolmoSpaces-Bench — metrics, requirements, and run commands.
+description: Franka pick-and-place benchmark from the MolmoBot stack with in-tree closed-loop simulator wiring and official result normalization.
 ---
 
 ## About
 
+MolmoSpaces-Bench evaluates embodied manipulation policies on procedurally generated pick-and-place scenes from the AllenAI MolmoBot stack. The bundled configuration targets the `FrankaPickandPlaceHardBench` episode set (200 episodes over ProcTHOR/Objaverse scenes) with a Franka arm, wrist-camera observations, and proprioceptive state streaming.
 
+WorldFoundry integrates MolmoSpaces-Bench with an in-tree closed-loop simulator adapter at `worldfoundry/evaluation/tasks/embodied/simulators/molmospaces/` (aliases `molmo-spaces`, `molmospaces-bench`) plus the shared official result normalizer for caller-provided rollout dumps. The catalog verification status is `normalizer_only`.
 
-MolmoSpaces-Bench external benchmark manifest for spatial embodied policy evaluation.
+Official references:
 
+- Paper: [arXiv:2603.16861](https://arxiv.org/abs/2603.16861) (catalog `paper_url`)
+- Official source reference: [allenai/MolmoBot](https://github.com/allenai/MolmoBot)
+- License: upstream terms (see repository)
 
+## In-tree integration
+
+- Catalog: `worldfoundry/data/benchmarks/catalog/embodied/molmospaces.yaml`
+- Task manifest: `worldfoundry/data/benchmarks/tasks/external/molmospaces.yaml`
+- Runtime profile: `worldfoundry/data/benchmarks/runtime_profiles/official/molmospaces.yaml`
+- Simulator adapter: `worldfoundry/evaluation/tasks/embodied/simulators/molmospaces/`
+- Closed-loop eval config: `worldfoundry/data/benchmarks/eval_configs/embodied/molmospaces/pick_and_place.yaml`
+- Result normalizer: `worldfoundry.evaluation.tasks.embodied.normalizer` (track `vla`)
+
+## Evaluation protocol and result layout
+
+For result import, the embodied normalizer accepts JSON, JSONL, CSV, TSV, and `result.txt`-style logs. Rows are matched on numeric fields such as `success`, `success_rate`, `task_success`, `pick_success_rate`, and `reward`; booleans and percent strings are coerced to unit-interval floats.
+
+The bundled eval config points `benchmark_dir` at a staged `FrankaPickandPlaceHardBench` 200-episode JSON benchmark under `/assets/benchmarks/molmospaces-bench-v2/procthor-objaverse/`, uses the `FrankaState8ClampAbsPosConfig` eval-config class from `olmo.eval.configure_molmo_spaces`, streams wrist images and state, and runs one episode per task over up to 200 tasks with a 600-step horizon and a 600-second policy-server timeout at `ws://localhost:8000`.
 
 ## Metrics
 
-MolmoSpaces-Bench external benchmark manifest for spatial embodied policy evaluation.
+Primary metric (scorecard key): `success_rate`.
 
-### Task YAML
-
-`worldfoundry/data/benchmarks/tasks/external/molmospaces.yaml`
-
-### Primary
-
-- `success_rate`
-
-| Metric | Focus |
+| Metric | Meaning |
 | --- | --- |
-| `success_rate` | Share of episodes or tasks that complete successfully. |
-| `pick_success_rate` | Share of episodes or tasks that complete successfully. |
-| `task_success` | Share of episodes or tasks that complete successfully. |
-| `reward` | Task reward from MoLMoSpaces language-guided navigation and interaction episodes. |
+| `success_rate` | Share of episodes completed successfully; primary leaderboard value. |
+| `pick_success_rate` | Success restricted to the pick phase, when reported. |
+| `task_success` | Per-task success indicator. |
+| `reward` | Cumulative episode reward, when defined. |
 
+Success metrics are normalized via the shared registry (`percent_or_fraction_to_unit`). No video-generation metrics apply.
 
-
-## Environment setup
-
-### Runtime environment
-
-- **Conda env:** `molmospaces-runtime`.
-- **Separate setup:** this benchmark expects a dedicated conda env rather than the unified runtime.
-- Stage only the selected MolmoSpaces-Bench subset; the full public asset corpus is very large.
-
-### Evaluation data
-
-- Candidate model outputs: set `WORLDFOUNDRY_MOLMOSPACES_RESULTS_PATH` to the generated-video or rollout artifact root.
-- `${WORLDFOUNDRY_DATA_DIR}/datasets/molmospaces`
-- `${WORLDFOUNDRY_CACHE_DIR}/repos/allenai--MolmoBot`
-
-### Checkpoints & assets
-
-- This benchmark is primarily rollout- or official-result-driven; see catalog `requires` and the task YAML for policy/simulator checkpoints.
-
-### Key environment variables
-
-- `WORLDFOUNDRY_MOLMOSPACES_ROOT`
-- `WORLDFOUNDRY_MOLMOSPACES_RESULTS_PATH`
-
-
-
-## Run evaluation
-
-
-
-After preparing the assets and candidate artifacts listed on this page, use the public run entry points below.
-
-### Set candidate artifacts
+## Preparation and environment
 
 ```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/generated/artifacts
+cd /path/to/WorldFoundry
+export WORLDFOUNDRY_MOLMOSPACES_ROOT=/path/to/MolmoBot
+export WORLDFOUNDRY_MOLMOSPACES_RESULTS_PATH=/path/to/molmospaces_results.json
 ```
 
-### Import official results
+The runtime profile flags `needs_new_env: true` and advises staging only the selected MolmoSpaces-Bench subset — the full public asset corpus is very large. Closed-loop rollouts also require the MolmoSpaces runtime, benchmark subset assets, and a policy checkpoint served over WebSocket (catalog `required_assets`).
+
+Verify runtime wiring:
+
+```bash
+python -m worldfoundry.evaluation.tasks.execution.orchestration.runtime_preflight \
+  --profile molmospaces \
+  --manifest worldfoundry/data/benchmarks/runtime_profiles/official/molmospaces.yaml \
+  --output-dir tmp/worldfoundry_preflight/molmospaces \
+  --json
+```
+
+## Import official results (official-validation)
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id molmospaces \
-  --mode normalizer \
-  --official-results-path /path/to/official/results-or-report \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/molmospaces/normalizer \
+  --mode official-validation \
+  --official-results-path "${WORLDFOUNDRY_MOLMOSPACES_RESULTS_PATH}" \
+  --output-dir tmp/molmospaces/official-validation \
   --json
 ```
 
-### Score generated artifacts
+This routes through the embodied `vla`-track normalizer in-process; no simulator code is executed.
+
+## Closed-loop rollouts (native simulator)
 
 ```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id molmospaces \
-  --mode official-run \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/molmospaces/official-run \
+worldfoundry-eval embodied run \
+  --config worldfoundry/data/benchmarks/eval_configs/embodied/molmospaces/pick_and_place.yaml \
+  --output-dir tmp/molmospaces/embodied-run \
   --json
 ```
 
-### Direct in-tree runner
+Adjust `benchmark_dir` in the config (or copy it) to your staged asset path. `--server-url`, `--shard-id`/`--num-shards`, and `--no-docker` are supported.
 
-```bash
-worldfoundry-eval zoo benchmark-run --benchmark-id molmospaces --mode official-validation --official-results-path <official_results.json> --output-dir <out> --json
-```
+## Outputs
 
+- `scorecard.json`: WorldFoundry scorecard; leaderboard block keyed by `success_rate`.
+- `raw_results.jsonl`: extracted raw result rows.
+- `evaluation/summary.json`: aggregated per-metric statistics.
+- `evaluation/per_sample_metrics.jsonl`: normalized per-episode rows.
 
+## What this page does not claim
 
-## Requirements
-
-
-
-### Inputs
-
-- Official simulator runtime
-- benchmark assets
-- policy checkpoint
-- official result dump
-
-### Environment
-
-- `WORLDFOUNDRY_MOLMOSPACES_RESULTS_PATH`
-
-### Outputs
-
-- `scorecard.json`
-- `raw_results.jsonl`
-- `evaluation/summary.json`
-
-
+- Catalog status is `normalizer_only` with `leaderboard_valid: false` and `official_benchmark_verified: false`. Imported numbers are normalized copies of caller-provided results, not officially reproduced leaderboard values.
+- MolmoSpaces benchmark assets and policy checkpoints are not bundled (and the full asset corpus is very large); closed-loop rollouts require external staging plus a policy server. No local GPU rollout evidence is claimed.
+- Full leaderboard parity is not claimed until official rollouts are executed and imported (catalog blocker).
 
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

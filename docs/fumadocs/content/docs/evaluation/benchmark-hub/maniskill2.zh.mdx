@@ -1,126 +1,103 @@
 ---
 title: ManiSkill2
-description: ManiSkill2 — 指标、依赖与运行命令。
+description: 基于 SAPIEN 的可泛化操作技能基准，仓内提供闭环仿真接线与官方结果归一化。
 ---
 
-## 简介
+## 关于
 
+ManiSkill2 是 ManiSkill 基准的第二代，面向 SAPIEN 仿真器上的可泛化操作技能。它以统一的观测/动作空间与成功谓词标准化刚体与软体操作任务（方块抓取/堆叠、YCB/EGAD 物体抓取、杂乱场景），支持大规模示范驱动与在线评测。
 
+WorldFoundry 通过仓内闭环仿真适配器 `worldfoundry/evaluation/tasks/embodied/simulators/maniskill2/`（别名含 `maniskill`、`mani-skill2`）以及共享官方结果归一化器集成 ManiSkill2。catalog 校验状态为 `normalizer_only`。
 
-ManiSkill2 external benchmark manifest for simulator-backed manipulation policy rollouts.
+官方来源：
 
+- 官方仓库：[haosulab/ManiSkill](https://github.com/haosulab/ManiSkill)
+- 许可：Apache-2.0
+- catalog 在 `maniskill2` id 下未记录独立论文 URL；框架论文见 [ManiSkill](/docs/evaluation/benchmark-hub/maniskill) 页面。
 
+## 仓内路径
+
+- Catalog：`worldfoundry/data/benchmarks/catalog/embodied/maniskill2.yaml`
+- 任务清单：`worldfoundry/data/benchmarks/tasks/external/maniskill2.yaml`
+- 运行时 profile：`worldfoundry/data/benchmarks/runtime_profiles/official/maniskill2.yaml`
+- 仿真适配器：`worldfoundry/evaluation/tasks/embodied/simulators/maniskill2/`
+- 闭环 eval config：`worldfoundry/data/benchmarks/eval_configs/embodied/maniskill2/eval.yaml`
+- 结果归一化器：`worldfoundry.evaluation.tasks.embodied.normalizer`（track `vla`）
+
+## 评测协议与数据布局
+
+结果导入侧，embodied normalizer 接受 JSON、JSONL、CSV、TSV 及 `result.txt` 风格日志。行记录按 `success`、`success_rate`、`task_success`、`episode_success`、`reward` 等数值字段匹配；布尔值与百分比字符串会被强制转换为 [0,1] 浮点数。
+
+内置 eval config rollout 五个抓取/堆叠任务（`PickCube-v0`、`StackCube-v0`、`PickSingleYCB-v0`、`PickSingleEGAD-v0`、`PickClutterYCB-v0`），`base_camera` 256×256 渲染、单 episode 最长 400 步、每任务 50 个 episode，由 `ws://localhost:8000` 上的外部 policy server 驱动。
 
 ## 指标
 
-ManiSkill2 external benchmark manifest for simulator-backed manipulation policy rollouts.
+主指标（scorecard 主键）：`success_rate`。
 
-### Task YAML
-
-`worldfoundry/data/benchmarks/tasks/external/maniskill2.yaml`
-
-### Primary
-
-- `success_rate`
-
-| Metric | 关注点 |
+| 指标 | 含义 |
 | --- | --- |
-| `success_rate` | episode / task 是否成功完成的比例或成功率。 |
-| `task_success` | episode / task 是否成功完成的比例或成功率。 |
-| `episode_success` | episode / task 是否成功完成的比例或成功率。 |
-| `reward` | ManiSkill2 灵巧与移动操作任务 rollout 的累计 reward。 |
+| `success_rate` | 成功完成的 rollout 占比；leaderboard 主值。 |
+| `task_success` | 按任务聚合的成功率。 |
+| `episode_success` | 单 episode 的二值成功。 |
+| `reward` | episode 累计奖励。 |
 
+成功类指标经共享 registry 的 `percent_or_fraction_to_unit` 归一化；不涉及视频生成类指标。
 
-
-## 环境准备
-
-### 运行环境
-
-- **Conda 环境：** `worldfoundry-unified-cu128`。
-- **单独配置：** 默认复用 WorldFoundry 统一环境（`needs_new_env: false`），通常不需要额外 benchmark-only conda env。
-- The older maniskill profile remains available; maniskill2 aligns with the external VLA evaluation benchmark ID.
-
-### 测评数据
-
-- 待测模型输出目录：设置 `WORLDFOUNDRY_MANISKILL2_RESULTS_PATH` 指向生成视频或 rollout artifact 根目录。
-- `${WORLDFOUNDRY_DATA_DIR}/datasets/maniskill2`
-- `${WORLDFOUNDRY_CACHE_DIR}/repos/haosulab--ManiSkill`
-
-### Checkpoint 与资产
-
-- 该 benchmark 以官方结果归一化或仿真 rollout 为主；policy / simulator checkpoint 见 catalog `requires` 与 task YAML。
-
-### 关键环境变量
-
-- `WORLDFOUNDRY_MANISKILL2_ROOT`
-- `WORLDFOUNDRY_MANISKILL2_RESULTS_PATH`
-
-
-
-## 运行评测
-
-
-
-准备好该 benchmark 页面列出的资产和候选产物后，使用下面的公开运行入口。
-
-### 设置候选产物目录
+## 准备命令与环境变量
 
 ```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/generated/artifacts
+cd /path/to/WorldFoundry
+export WORLDFOUNDRY_MANISKILL2_ROOT=/path/to/ManiSkill
+export WORLDFOUNDRY_MANISKILL2_RESULTS_PATH=/path/to/maniskill2_results.json
 ```
 
-### 导入已有官方结果
+闭环 rollout 需要 ManiSkill2 运行时、SAPIEN assets，以及通过 WebSocket 提供动作的策略 checkpoint（catalog `required_assets`）。运行时 profile 注明旧 `maniskill` profile 仍可用，`maniskill2` 对应外部 VLA 评测的 benchmark id。
+
+校验运行时接线：
+
+```bash
+python -m worldfoundry.evaluation.tasks.execution.orchestration.runtime_preflight \
+  --profile maniskill2 \
+  --manifest worldfoundry/data/benchmarks/runtime_profiles/official/maniskill2.yaml \
+  --output-dir tmp/worldfoundry_preflight/maniskill2 \
+  --json
+```
+
+## 导入官方结果（official-validation）
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id maniskill2 \
-  --mode normalizer \
-  --official-results-path /path/to/official/results-or-report \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/maniskill2/normalizer \
+  --mode official-validation \
+  --official-results-path "${WORLDFOUNDRY_MANISKILL2_RESULTS_PATH}" \
+  --output-dir tmp/maniskill2/official-validation \
   --json
 ```
 
-### 从生成产物重新打分
+该路径在进程内走 embodied `vla` track normalizer，不执行任何仿真代码。
+
+## 闭环 rollout（原生仿真器）
 
 ```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id maniskill2 \
-  --mode official-run \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/maniskill2/official-run \
+worldfoundry-eval embodied run \
+  --config worldfoundry/data/benchmarks/eval_configs/embodied/maniskill2/eval.yaml \
+  --output-dir tmp/maniskill2/embodied-run \
   --json
 ```
 
-### 直接调用仓内 runner
+`embodied run` 入口支持 `--server-url`、`--shard-id`/`--num-shards`、`--no-docker`。
 
-```bash
-worldfoundry-eval zoo benchmark-run --benchmark-id maniskill2 --mode official-validation --official-results-path <official_results.json> --output-dir <out> --json
-```
+## 输出
 
+- `scorecard.json`：WorldFoundry scorecard；leaderboard 块以 `success_rate` 为主键。
+- `raw_results.jsonl`：提取的原始结果行。
+- `evaluation/summary.json`：按指标聚合的统计。
+- `evaluation/per_sample_metrics.jsonl`：归一化后的逐 episode 行。
 
+## 不能声称的边界
 
-## 依赖与产物
+- catalog 状态为 `normalizer_only`，`leaderboard_valid: false`、`official_benchmark_verified: false`。导入的数字是调用方结果的归一化副本，不是官方复现的 leaderboard 值。
+- SAPIEN assets、ManiSkill2 运行时、策略 checkpoint 均未随仓库分发；闭环 rollout 需要外部部署并运行 policy server。本页不声称任何本地 GPU rollout 证据。
+- catalog blocker：官方 rollout 执行并导入之前，不声称完整 leaderboard 对齐。
 
-
-
-### Inputs
-
-- Official simulator runtime
-- benchmark assets
-- policy checkpoint
-- official result dump
-
-### Environment
-
-- `WORLDFOUNDRY_MANISKILL2_RESULTS_PATH`
-
-### Outputs
-
-- `scorecard.json`
-- `raw_results.jsonl`
-- `evaluation/summary.json`
-
-
-
-[← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

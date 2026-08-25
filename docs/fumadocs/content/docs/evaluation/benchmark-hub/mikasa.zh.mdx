@@ -1,126 +1,103 @@
 ---
 title: MiKASA-Robo
-description: MiKASA-Robo — 指标、依赖与运行命令。
+description: 记忆密集型机器人操作基准，仓内提供闭环仿真接线与官方结果归一化。
 ---
 
-## 简介
+## 关于
 
+MiKASA-Robo 是记忆密集型机器人操作任务基准。其任务族显式要求记住过去的观测——记忆颜色与形状、藏物 shell game、旋转历史、拦截运动物体、颜色序列回忆——只对当前帧做反应的智能体无法完成。
 
+WorldFoundry 通过仓内闭环仿真适配器 `worldfoundry/evaluation/tasks/embodied/simulators/mikasa/`（别名 `mikasa-robo`、`mikasa_robo`）以及共享官方结果归一化器集成 MiKASA-Robo。catalog 校验状态为 `normalizer_only`。
 
-MiKASA-Robo external benchmark manifest for manipulation policy evaluation.
+官方来源：
 
+- 官方仓库：[CognitiveAISystems/MIKASA-Robo](https://github.com/CognitiveAISystems/MIKASA-Robo)
+- 许可：上游条款（见仓库）
+- catalog 未为该 benchmark id 记录独立论文 URL。
 
+## 仓内路径
+
+- Catalog：`worldfoundry/data/benchmarks/catalog/embodied/mikasa.yaml`
+- 任务清单：`worldfoundry/data/benchmarks/tasks/external/mikasa.yaml`
+- 运行时 profile：`worldfoundry/data/benchmarks/runtime_profiles/official/mikasa.yaml`
+- 仿真适配器：`worldfoundry/evaluation/tasks/embodied/simulators/mikasa/`
+- 闭环 eval config：`worldfoundry/data/benchmarks/eval_configs/embodied/mikasa/eval.yaml`
+- 结果归一化器：`worldfoundry.evaluation.tasks.embodied.normalizer`（track `vla`）
+
+## 评测协议与数据布局
+
+结果导入侧，embodied normalizer 接受 JSON、JSONL、CSV、TSV 及 `result.txt` 风格日志。行记录按 `success`、`success_rate`、`task_success`、`episode_success`、`reward` 等数值字段匹配；布尔值与百分比字符串会被强制转换为 [0,1] 浮点数。
+
+内置 eval config rollout 32 个记忆任务——`RememberColor{3,5,9}-v0` 与 `RememberShape{3,6,9}-v0` 族、`ShellGame{Touch,Push,Pick}-v0`、`RotateLenient`/`RotateStrict` 变体、`Intercept`/`InterceptGrab` 速度变体、`TakeItBack-v0`、`BunchOfColors`/`SeqOfColors`/`ChainOfColors` 回忆族、以及 `RememberShapeAndColor` 组合——256×256 渲染、每任务 50 个 episode，由 `ws://localhost:8000` 上的外部 policy server 驱动。
 
 ## 指标
 
-MiKASA-Robo external benchmark manifest for manipulation policy evaluation.
+主指标（scorecard 主键）：`success_rate`。
 
-### Task YAML
-
-`worldfoundry/data/benchmarks/tasks/external/mikasa.yaml`
-
-### Primary
-
-- `success_rate`
-
-| Metric | 关注点 |
+| 指标 | 含义 |
 | --- | --- |
-| `success_rate` | episode / task 是否成功完成的比例或成功率。 |
-| `task_success` | episode / task 是否成功完成的比例或成功率。 |
-| `episode_success` | episode / task 是否成功完成的比例或成功率。 |
-| `reward` | Mikasa 记忆增强具身任务在官方仿真器 rollout 中的累计 reward。 |
+| `success_rate` | 成功完成的 rollout 占比；leaderboard 主值。 |
+| `task_success` | 按任务聚合的成功率。 |
+| `episode_success` | 单 episode 的二值成功。 |
+| `reward` | episode 累计奖励。 |
 
+成功类指标经共享 registry 的 `percent_or_fraction_to_unit` 归一化；不涉及视频生成类指标。
 
-
-## 环境准备
-
-### 运行环境
-
-- **Conda 环境：** `worldfoundry-unified-cu128`。
-- **单独配置：** 默认复用 WorldFoundry 统一环境（`needs_new_env: false`），通常不需要额外 benchmark-only conda env。
-- WorldFoundry provides contract and official result normalization for caller-provided MiKASA-Robo outputs.
-
-### 测评数据
-
-- 待测模型输出目录：设置 `WORLDFOUNDRY_MIKASA_RESULTS_PATH` 指向生成视频或 rollout artifact 根目录。
-- `${WORLDFOUNDRY_DATA_DIR}/datasets/mikasa`
-- `${WORLDFOUNDRY_CACHE_DIR}/repos/CognitiveAISystems--MIKASA-Robo`
-
-### Checkpoint 与资产
-
-- 该 benchmark 以官方结果归一化或仿真 rollout 为主；policy / simulator checkpoint 见 catalog `requires` 与 task YAML。
-
-### 关键环境变量
-
-- `WORLDFOUNDRY_MIKASA_ROOT`
-- `WORLDFOUNDRY_MIKASA_RESULTS_PATH`
-
-
-
-## 运行评测
-
-
-
-准备好该 benchmark 页面列出的资产和候选产物后，使用下面的公开运行入口。
-
-### 设置候选产物目录
+## 准备命令与环境变量
 
 ```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/generated/artifacts
+cd /path/to/WorldFoundry
+export WORLDFOUNDRY_MIKASA_ROOT=/path/to/MIKASA-Robo
+export WORLDFOUNDRY_MIKASA_RESULTS_PATH=/path/to/mikasa_results.json
 ```
 
-### 导入已有官方结果
+闭环 rollout 需要 MiKASA-Robo 运行时、任务 assets，以及通过 WebSocket 提供动作的策略 checkpoint（catalog `required_assets`）。
+
+校验运行时接线：
+
+```bash
+python -m worldfoundry.evaluation.tasks.execution.orchestration.runtime_preflight \
+  --profile mikasa \
+  --manifest worldfoundry/data/benchmarks/runtime_profiles/official/mikasa.yaml \
+  --output-dir tmp/worldfoundry_preflight/mikasa \
+  --json
+```
+
+## 导入官方结果（official-validation）
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id mikasa \
-  --mode normalizer \
-  --official-results-path /path/to/official/results-or-report \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/mikasa/normalizer \
+  --mode official-validation \
+  --official-results-path "${WORLDFOUNDRY_MIKASA_RESULTS_PATH}" \
+  --output-dir tmp/mikasa/official-validation \
   --json
 ```
 
-### 从生成产物重新打分
+该路径在进程内走 embodied `vla` track normalizer，不执行任何仿真代码。
+
+## 闭环 rollout（原生仿真器）
 
 ```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id mikasa \
-  --mode official-run \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/mikasa/official-run \
+worldfoundry-eval embodied run \
+  --config worldfoundry/data/benchmarks/eval_configs/embodied/mikasa/eval.yaml \
+  --output-dir tmp/mikasa/embodied-run \
   --json
 ```
 
-### 直接调用仓内 runner
+`embodied run` 入口支持 `--server-url`、`--shard-id`/`--num-shards`、`--no-docker`。
 
-```bash
-worldfoundry-eval zoo benchmark-run --benchmark-id mikasa --mode official-validation --official-results-path <official_results.json> --output-dir <out> --json
-```
+## 输出
 
+- `scorecard.json`：WorldFoundry scorecard；leaderboard 块以 `success_rate` 为主键。
+- `raw_results.jsonl`：提取的原始结果行。
+- `evaluation/summary.json`：按指标聚合的统计。
+- `evaluation/per_sample_metrics.jsonl`：归一化后的逐 episode 行。
 
+## 不能声称的边界
 
-## 依赖与产物
+- catalog 状态为 `normalizer_only`，`leaderboard_valid: false`、`official_benchmark_verified: false`。导入的数字是调用方结果的归一化副本，不是官方复现的 leaderboard 值。
+- MiKASA-Robo 运行时、任务 assets、策略 checkpoint 均未随仓库分发；闭环 rollout 需要外部部署并运行 policy server。本页不声称任何本地 GPU rollout 证据。
+- catalog blocker：官方 rollout 执行并导入之前，不声称完整 leaderboard 对齐。
 
-
-
-### Inputs
-
-- Official simulator runtime
-- benchmark assets
-- policy checkpoint
-- official result dump
-
-### Environment
-
-- `WORLDFOUNDRY_MIKASA_RESULTS_PATH`
-
-### Outputs
-
-- `scorecard.json`
-- `raw_results.jsonl`
-- `evaluation/summary.json`
-
-
-
-[← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)
