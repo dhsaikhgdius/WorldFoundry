@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 from worldfoundry.evaluation.utils import BENCHMARK_ZOO_DIR, MODEL_ZOO_DIR, REPO_ROOT
@@ -11,15 +11,24 @@ from worldfoundry.runtime.jobs import AsyncCommandJobStore
 
 # ── Defaults ───────────────────────────────────────────────────
 
+# Retention bound for the MCP job store: terminal jobs beyond this count are
+# evicted oldest-first on submission, so a long-lived server cannot grow its
+# in-memory registry (and on-disk index) without bound (CM-28).
+DEFAULT_MCP_MAX_TRACKED_JOBS = 256
 
-def _default_mcp_output_root() -> Path:
+# Filename of the persisted job index kept under the MCP output root (CM-28).
+MCP_JOB_INDEX_FILENAME = "jobs-index.json"
+
+
+def resolve_mcp_output_root() -> Path:
     """Resolve the MCP run root to a stable absolute path.
 
     MCP stdio servers are spawned by clients with an arbitrary working
     directory (often ``/``), so a CWD-relative default would scatter run
     outputs in unpredictable places (CM-29). ``WORLDFOUNDRY_MCP_RUN_ROOT``
-    still overrides; a relative override is resolved against the CWD once,
-    at import time, so it stays stable for the server's lifetime.
+    still overrides; a relative override is resolved against the CWD at call
+    time, so a value captured at import or server start stays stable for the
+    server's lifetime.
     """
 
     override = os.environ.get("WORLDFOUNDRY_MCP_RUN_ROOT")
@@ -30,7 +39,7 @@ def _default_mcp_output_root() -> Path:
 
 # NOTE: ``DEFAULT_MCP_OUTPUT_ROOT`` can be overridden via the
 # ``WORLDFOUNDRY_MCP_RUN_ROOT`` environment variable.
-DEFAULT_MCP_OUTPUT_ROOT = _default_mcp_output_root()
+DEFAULT_MCP_OUTPUT_ROOT = resolve_mcp_output_root()
 
 
 @dataclass
@@ -44,16 +53,59 @@ class MCPToolContext:
             ``None`` if not configured.
         benchmark_manifest_dir: Root directory of the benchmark manifest zoo.
         job_store: :class:`AsyncCommandJobStore` used to track active and
-            completed evaluation runs.
+            completed evaluation runs. When omitted, a store is created that
+            persists its job index under ``output_root`` and restores /
+            pid-reconciles previously submitted runs on startup (CM-28).
     """
 
     output_root: Path = DEFAULT_MCP_OUTPUT_ROOT
     model_manifest_dir: Path | None = MODEL_ZOO_DIR
     benchmark_manifest_dir: Path = BENCHMARK_ZOO_DIR
-    job_store: AsyncCommandJobStore = field(default_factory=AsyncCommandJobStore)
+    job_store: AsyncCommandJobStore | None = None
+
+    def __post_init__(self) -> None:
+        if self.job_store is None:
+            self.job_store = AsyncCommandJobStore(
+                max_jobs=DEFAULT_MCP_MAX_TRACKED_JOBS,
+                state_path=Path(self.output_root) / MCP_JOB_INDEX_FILENAME,
+            )
 
 
 DEFAULT_CONTEXT = MCPToolContext()
 
 
-__all__ = ["DEFAULT_CONTEXT", "DEFAULT_MCP_OUTPUT_ROOT", "MCPToolContext"]
+def get_default_context() -> MCPToolContext:
+    """Return the process-wide default MCP tool context.
+
+    Payload functions resolve their fallback context through this accessor
+    (never through a direct ``DEFAULT_CONTEXT`` import binding), so a context
+    installed via :func:`set_default_context` is observed everywhere.
+    """
+
+    return DEFAULT_CONTEXT
+
+
+def set_default_context(context: MCPToolContext) -> MCPToolContext:
+    """Install *context* as the process-wide default and return it.
+
+    ``create_mcp_server`` calls this with the server's own context so payload
+    functions invoked without an explicit ``context`` argument share the same
+    job store and output root as the registered tools — the default context
+    and the server context can no longer hold two separate stores (CM-29).
+    """
+
+    global DEFAULT_CONTEXT
+    DEFAULT_CONTEXT = context
+    return context
+
+
+__all__ = [
+    "DEFAULT_CONTEXT",
+    "DEFAULT_MCP_MAX_TRACKED_JOBS",
+    "DEFAULT_MCP_OUTPUT_ROOT",
+    "MCP_JOB_INDEX_FILENAME",
+    "MCPToolContext",
+    "get_default_context",
+    "resolve_mcp_output_root",
+    "set_default_context",
+]

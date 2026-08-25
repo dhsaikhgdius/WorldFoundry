@@ -87,6 +87,18 @@
 - **验证**：功能冒烟通过——200KB 单行作业 completed 且 JSON result 正确提取；3MB 超限行作业 completed 且含 marker；timeout=2 作业 failed 且孙进程确认被杀；prune 淘汰 terminal 保留 running；timeout=0 拒绝。既有测试 `tests/runtime/test_jobs_logging.py` 通过（pytest -p no:cacheprovider，1 passed）。
 - **风险**：limit 提升与异常路径清理为纯防御性；prune/timeout 均为可选新 API，默认不启用。
 
+### OR-15 续（2026-08-25，CLI/MCP job-store 修复 agent）：`AsyncCommandJobStore` 落盘 JSON 索引 + 启动 pid 对账（CM-28，分支 `cursor/cli-mcp-jobstore-fixes-2f62`）
+
+- **动机**：CLI/MCP 评审 CM-28——作业注册表仅存内存，MCP stdio server 被客户端杀掉重启后 run_id 全部失效而评测子进程作为孤儿继续跑。首轮记 deferred（当时 runtime 超其边界），本轮落地。
+- **改动**（`runtime/jobs.py`，纯增量 API，默认行为不变）：
+  - `AsyncCommandJobStore(state_path=...)`：设置后在 submit / 进程 spawn / 终态 / cancel / prune 各转移点把作业元数据索引（job_id/run_id/**pid**/status/output_dir/日志路径/命令/metadata/时间戳/returncode/error，**不含**内存日志尾——原始流本就逐作业落盘）原子写入 JSON（tmp + `os.replace`），写失败静默不拖垮提交路径。
+  - 构造时恢复 + 对账：非终态作业按 `pid_alive`（signal 0，新公开 helper）核查——活着保持 `running`（`CommandJob(restored=True)`，无进程句柄但元数据/磁盘日志可查），死了标 `failed` 注明 pid 并写回；索引损坏/缺失从空启动。
+  - 恢复作业可取消：`_terminate_process` 对只有 pid 的 restored 作业按进程组走同一 SIGTERM→5s→SIGKILL 阶梯（子进程 `start_new_session=True`，pid==pgid）。
+  - `CommandJob` 新增 `pid`/`restored` 字段并透出 `to_summary`（字段只增不删）；prune 淘汰后同步索引。
+  - MCP 消费侧（`mcp/tools/context.py`，属 05 报告边界）：`MCPToolContext` 缺省自动创建 `state_path=output_root/jobs-index.json`、`max_jobs=256` 的持久化 store；显式传 store 的调用方（含 TUI/studio 与全部既有测试）行为不变。
+- **验证**：新增 `tests/runtime/test_jobs_store_persistence.py` 7 项全过（9.6s，真子进程 + 假 pid：索引往返、legacy 零落盘、死/活 pid 对账、restored cancel 真实击杀收尸 -SIGTERM、损坏索引、max_jobs 淘汰）；`tests/runtime/test_jobs_logging.py` 与 `test/eval_core/test_mcp_web_interfaces.py` 全过（13 passed / 9 skipped，skip 为缺 `mcp` 包既有守卫）。
+- **风险**：`state_path` 缺省 None 完全保持旧行为；持久化路径失败静默降级为内存模式。pid 对账存在理论上的 pid 复用误判窗口（重启间隔内恰好复用），影响为把死作业误报 running，可经 `cancel` 收敛；索引单写者假设与 MCP server 单进程模型一致。
+
 ### OR-16 (P1) `local_checkpoint_cache` 跨进程发布竞争
 
 - **改动**（`runtime/local_checkpoint_cache.py`）：

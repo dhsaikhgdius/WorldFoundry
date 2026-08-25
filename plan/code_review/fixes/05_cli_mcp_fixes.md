@@ -123,20 +123,20 @@
 ## Deferred（评估过、暂不动，附方案）
 
 - **[CM-03] P2 argparse 急切注册全部子命令**：短期已把最重的两条链（CM-01/CM-02）切断，并以回归测试固化"parser 构建不得拉 torch/orchestration.service"约定（`run_mode`/`runtime_preflight` 两个轻量 parser-data 叶子模块保留急切）。长期方案：argv[0] 预分派只注册命中的子 parser——需要重构 `_build_parser` 的注册协议，收益 <100ms，不值本轮风险。
-- **[CM-05] P2 `run` 四形态旗标组合路由**：结构性。方案：拆 `run plan/model/suite` 显式子命令 + `_handle_run` 组合矩阵单测；本轮仅以 CM-04 修正了死路提示。
+- **[CM-05] P2 `run` 四形态旗标组合路由**：结构性。方案：拆 `run plan/model/suite` 显式子命令 + `_handle_run` 组合矩阵单测；本轮仅以 CM-04 修正了死路提示。**第二轮更新**：显式子命令拆分仍 deferred（契约面过大）；组合路由经逐条审计未发现错误分派，唯一真实 exit 缺陷（`run --print-config` 缺位置模型时走 ValueError→exit 1）已随 CM-08 修正为 exit 2 并补测试（见下"第二轮修复"）。
 - **[CM-06] P3 CLI 顶层依赖 `evaluation.utils` 常量**：现状轻量（~5ms）。新回归测试对 parser 构建路径的重导入有守护作用；"utils 保持纯 stdlib"约定留给评测层文档。
-- **[CM-08] P3 handler 错误风格不统一（`return 2` vs `raise ValueError`）**：CM-07 后 raise 路径已不再打印堆栈（默认简洁一行），呈现差异大幅收窄。全面统一需引入 `CliUsageError` 并改十余个 handler，方案：`cli/utils.py` 定义异常类型 + main 兜底按类型分流 exit 1/2，下一轮做。
+- **[CM-08] P3 handler 错误风格不统一（`return 2` vs `raise ValueError`）**：~~下一轮做~~ **已在第二轮落地**（`CliUsageError` + main 兜底分流 exit 1/2，见下"第二轮修复"）。
 - **[CM-10] P3 手写 argv 预扫描日志旗标**：行为保留（`-v/--verbose` 沿用同机制以保持一致）。方案：parent parser（`add_help=False` + `parents=[...]`）注入各子命令；涉及全部子 parser 注册点，本轮不动。
 - **[CM-15] P2 `model_run.py` 1221 行契约推断长在 CLI**：结构性，且目标位置（`worldfoundry/evaluation/models/`）超出本次修改边界。方案：`_field_kind`/`_call_key`/fallback schema 合成迁到 evaluation 层，CLI 留 argparse 装配；迁移时 MCP/TUI 同步改 import。
 - **[CM-16] P2 `zoo.py` readiness/videoscore/成功判定内嵌**：同上，目标位置在 `evaluation.tasks.catalog`（超边界）。方案：readiness 谓词与 `_benchmark_run_cli_success` 移入 catalog/orchestration result；videoscore 命令写回 manifest 数据文件。
 - **[CM-17] P3 `models.py` visualize/assets 执行逻辑**：目标位置 `worldfoundry/studio/visualization/`（超边界）。方案同报告。
 - **[CM-18] P2 跨子命令旗标名/默认值不一致**：修复约束明确"旗标名不得改名/删除、默认值属行为契约"。方案：下一个版本周期加 alias（`--metrics`↔`--metric`、`--limit`↔`--num-samples`）并统一新默认，旧名保留一周期。
 - **[CM-20] P3 训练命令无条件打印 JSON、无 `--json` 旗标**：现行为是既有输出契约（脚本方可能已依赖恒 JSON），加 `--json` 并把默认改人类摘要会破坏它。方案：加 `--json`（默认沿用现行 JSON 以保兼容）+ 文档声明，另行评审。
-- **[CM-22] P2 TUI 两处同步阻塞事件循环**：本机未安装 `textual`，任何改动无法运行验证——违背"修一条验一条"。方案（已核对 Textual API）：`action_refresh`/`_show_artifacts` 改 `self.run_worker(..., thread=True)` + `call_from_thread` 回填；`__init__` 的首次 `load_tui_catalog` 移到 `on_mount` worker。待有 textual 环境的机器执行。
+- **[CM-22] P2 TUI 两处同步阻塞事件循环**：本机未安装 `textual`，任何改动无法运行验证——违背"修一条验一条"。方案（已核对 Textual API）：`action_refresh`/`_show_artifacts` 改 `self.run_worker(..., thread=True)` + `call_from_thread` 回填；`__init__` 的首次 `load_tui_catalog` 移到 `on_mount` worker。待有 textual 环境的机器执行。**第二轮复核**：环境仍无 `textual`（`import textual` → ModuleNotFoundError），按约不装包硬改，维持 deferred。
 - **[CM-23] P2 TUI 500 行手工变体注册表**：结构性；目标位置是 model zoo manifest 数据文件（超边界）。方案：manifest 增加变体分组/标签结构化字段，`tui_discovery` 消费后删表。
 - **[CM-27] P2 MCP 反向依赖 `cli.tui_discovery`**：需要新建库层包（如 `worldfoundry/catalog/`，超边界）。本轮以 TTL 缓存（CM-30）缓解了该依赖的性能面；方向性迁移与 CM-15/16/23 一揽子做。
-- **[CM-28] P2 作业状态仅存内存**：实现位置 `worldfoundry/runtime/jobs.py`（超边界，mcp 只是消费方）。方案：`AsyncCommandJobStore` 落盘 JSON 索引（run_id/pid/output_dir/status）+ 启动对账 pid 存活；`_jobs` 加 LRU 上限。
-- **[CM-29 余项] `DEFAULT_CONTEXT` 双 store 并存**：删除全局单例会改 27 个 payload 函数签名契约。方案：server 启动时把自建 context 写回 `DEFAULT_CONTEXT`（或模块级 setter），下一轮做。
+- **[CM-28] P2 作业状态仅存内存**：~~超边界~~ **已在第二轮落地**（`runtime/jobs.py` 落盘 JSON 索引 + pid 对账 + 上限，MCP context 接线，见下"第二轮修复"与 `07_operators_runtime_fixes.md`）。
+- **[CM-29 余项] `DEFAULT_CONTEXT` 双 store 并存**：~~下一轮做~~ **已在第二轮落地**（`set_default_context` 模块级 setter + server 写回，见下"第二轮修复"）。
 
 ## 验证汇总
 
@@ -149,3 +149,55 @@
   - 修复版：35 failed / 78 passed / 16 skipped；
   - 失败清单逐行 diff：修复版**零新增失败**；唯一差异是 `test_cli_ux.py::test_help_prints_command_areas_without_heavy_runtime_imports` 在 HEAD 失败、修复后通过（该测试正是 CM-01 的既有守护，佐证修复有效）。
   - 其余 35 个失败两侧完全一致，经抽样归因均来自评测层进行中的未提交改动或既有缺口（示例：`zoo env-check`/`validate` 系列——`git grep env-check HEAD -- worldfoundry/` 为空，功能在 HEAD 即不存在而测试存在；`vbench` 掉出 `--integration-status planned` 过滤——评测层新的 status 归一化把未识别状态降级为 unknown，stderr 有其警告）。对照后已从备份恢复全部修复文件并复核逐字节一致、`embodied.py` 保持删除。
+
+---
+
+## 第二轮修复（2026-08-25，CLI/MCP job-store 修复 agent，分支 `cursor/cli-mcp-jobstore-fixes-2f62`）
+
+> 范围：首轮 Deferred 中正确性清晰的三项（CM-08 / CM-28 / CM-29 余项）+ CM-05 路由审计点修。约束沿用首轮：不改旗标名/默认值（CM-18 禁区）、不回退 CM-01 守护、跳过 CM-03、CM-22 无 textual 不动。
+
+### [CM-08] handler 用法错误统一为 `CliUsageError`，main 兜底按类型分流 exit 1（运行期）/ 2（用法）
+
+- 文件：`worldfoundry/cli/utils.py`（新增异常类型）、`worldfoundry/cli/main.py`、`worldfoundry/cli/evaluation_intents.py`、`worldfoundry/cli/tasks.py`、`worldfoundry/cli/reporting.py`。
+- 改动：
+  - `cli/utils.py` 新增 `CliUsageError(Exception)`——用户可通过改命令行修复的错误（旗标互斥/缺参）。
+  - `main()` 新增独立 `except CliUsageError` 分支（先于通用 `except Exception`）：stderr 一行 `error: <msg>`（无堆栈、日志事件不带 exc_info）；`--json` 时 stdout 输出 `{"status":"error","error":{"type":"usage","message":...},"exit_code":2}` 封套；**`return 2` 而非 `parser.exit`**——进程内调用 `main()` 的测试/嵌入方仍拿返回值（与既有 `return 2` handler 契约逐字节兼容）。运行期异常分支维持 CM-07 的 exit 1 + `error.type=异常类名` 不变。
+  - 两种旧风格全部收敛：`print(error, file=sys.stderr); return 2` 共 17 处（main.py 11、reporting.py 4、tasks.py 2）与用法类 `raise ValueError` 共 5 处（evaluation_intents.py 2、tasks.py 1、main.py 2）统一改 `raise CliUsageError`。消息文本逐字保留（main 渲染时统一加 `error: ` 前缀；tasks.py 两处原本无前缀的 stderr 文本获得前缀，全仓无测试断言该文本）。
+  - 附带修正：`_handle_score` 的旗标校验前移到 orchestration 重导入**之前**——用法错误现在毫秒级失败，不再先付 ~0.7s 导入成本。
+- 不变式核对：`zoo benchmark-show --benchmark-id 不存在 --json` 仍 exit 1 + CM-07 封套（未知 id 是运行期查找失败，非用法错误）；argparse 自身用法错误仍 exit 2；`KeyboardInterrupt` 仍 130。
+- 验证：新增 6 项契约测试（exit 2 + 简洁 stderr、`--json` usage 封套、score 快速失败且不导入 orchestration.service、进程内 `main()` 返回值语义、runtime/usage 分流、`run --print-config` 组合）全过。
+
+### [CM-05 审计] `run` 组合路由逐条核对，点修一处真实 exit 缺陷
+
+- 审计四形态（`--plan` 重放 / 位置模型直推 / unified facade / 已裁撤三旗标路径）的分派谓词（`_uses_direct_model_run`、`_run_uses_unified_framework`、`_has_complete_task_args`）：未发现错误分派。
+- 唯一真实缺陷：`run --print-config` 缺位置模型时 `_model_run_plan` 抛 `ValueError` → exit 1（运行期语义），实为用法错误；已随 CM-08 改 `CliUsageError` → exit 2，测试 `test_run_print_config_without_model_is_usage_error` 固化。
+- 显式子命令拆分（`run plan/model/suite`）维持 deferred：契约面过大，不属本轮"点修"范围。
+
+### [CM-28] `AsyncCommandJobStore` 落盘 JSON 索引 + 启动 pid 对账 + 保留上限（实现在 runtime 层，详见 `07_operators_runtime_fixes.md` OR-15 续）
+
+- 文件：`worldfoundry/runtime/jobs.py`、`worldfoundry/mcp/tools/context.py`。
+- 改动（jobs.py，纯增量 API，默认行为不变）：
+  - `AsyncCommandJobStore(state_path=...)`：设置后在 submit/进程 spawn（记录 pid）/终态/cancel/prune 各状态转移点把全部作业的元数据索引（job_id/run_id/**pid**/status/output_dir/日志三路径/命令/metadata/时间戳/returncode/error）原子写入该 JSON 文件（tmp + `os.replace`；写失败静默——持久化是尽力而为，绝不拖垮提交路径）。内存日志尾不入索引（原始 stdout/stderr/events 本就逐作业落盘，评审备注"缺的只是索引"）。
+  - 构造时恢复 + 对账：读索引重建 `CommandJob(restored=True)`；非终态作业查 pid 存活（`pid_alive`，signal 0）——活着保持 `running`（元数据与磁盘日志路径可查，无进程句柄），死了标 `failed` 并注明 pid，对账结果立即写回。索引损坏/缺失从空启动，不抛。
+  - 恢复作业可取消：`_terminate_process` 对无句柄但有 pid 的 restored 作业直接对进程组走同一 SIGTERM→等待→SIGKILL 阶梯（子进程 `start_new_session=True`，pid==pgid）。
+  - `CommandJob` 新增 `pid`/`restored` 字段并透出到 `to_summary`（字段只增不删）。
+- MCP 接线（context.py，只消费新 API，27 个工具名零改动）：`MCPToolContext` 未显式传 `job_store` 时自动创建持久化 store——`state_path=output_root/jobs-index.json`、`max_jobs=DEFAULT_MCP_MAX_TRACKED_JOBS(256)`（终态作业超限按最旧淘汰，长驻 server 内存与索引不再无界涨）。显式传 store 的既有调用方（含全部既有测试）行为不变。
+- 验证：新增 `tests/runtime/test_jobs_store_persistence.py` 7 项——索引跨重启往返、无 state_path 零落盘（legacy）、死 pid 对账为 failed 且写回、活 pid 保持 running 且 cancel 经 pid 阶梯真实击杀（真子进程验证 SIGTERM 收尸）、queued 无 pid 标 failed、损坏索引空启动、max_jobs 淘汰 + 索引同步。既有 `tests/runtime/test_jobs_logging.py` 与 `test/eval_core/test_mcp_web_interfaces.py` 全过。
+
+### [CM-29 余项] `DEFAULT_CONTEXT` 双 store 收敛：模块级 setter + server 写回
+
+- 文件：`worldfoundry/mcp/tools/context.py`、`worldfoundry/mcp/server.py`、payload 消费方 5 个文件（runs/discovery/readiness/server_info/registration）。
+- 改动：
+  - context.py 新增 `get_default_context()`/`set_default_context()`；`_default_mcp_output_root` 转正为公开 `resolve_mcp_output_root()`（语义不变，`DEFAULT_MCP_OUTPUT_ROOT` 仍是 import 时快照）。
+  - 5 个消费模块的 `ctx = context or DEFAULT_CONTEXT`（import 时绑定，setter 对其无效的隐患）全部改 `ctx = context or get_default_context()`——27 个 payload 函数签名零改动。
+  - `create_mcp_server()`：`context = set_default_context(MCPToolContext(output_root=resolve_mcp_output_root()))`——server 自建 context 写回为进程默认，payload 直调与注册工具共用同一 job store。**顺带修正一处首轮遗留 bug**：server.py:44 原来仍用 CWD 相对的 `Path(os.environ.get(..., "runs/mcp"))` 构建 context（CM-29 首轮只改了 context.py 侧，server 侧漏改），现统一走绝对路径解析。
+- 验证：新增 3 项契约测试——MCP context 默认 store 持久化+有界、持久化索引经 payload 函数可见（restored 作业跨"重启"可 list/status）、假 FastMCP 下 `create_mcp_server` 写回默认 context 且注册工具与默认 store 共视同一作业（真实提交作业经 `list_runs` 工具封套回读）。测试带 fixture 守卫，退出时恢复原默认 context。
+
+### 本轮验证汇总（实测数字）
+
+- `py_compile`：16 个改动文件全过（cli：main/utils/evaluation_intents/tasks/reporting；mcp：server/tools 的 context/runs/discovery/readiness/server_info/registration/__init__；runtime：jobs；test 2 个）。
+- `test/test_cli_mcp_fix_contracts.py`：13 → **23 项全过**（5.5s；新增 CM-08 x6、CM-05 x1、CM-28 接线 x2、CM-29 x2，首轮 13 项零回归）。
+- `tests/runtime/test_jobs_store_persistence.py`（新增）：**7 项全过**（9.6s）；`tests/runtime/test_jobs_logging.py` + `test/eval_core/test_mcp_web_interfaces.py`：13 passed / 9 skipped（skip 均为缺 `mcp` 包的既有守卫）。
+- CLI/MCP 相关面回归（12 个测试文件两批）：第一批 82 passed / 5 failed / 10 skipped，第二批 42 passed / 20 failed / 7 skipped——**25 个失败经 main worktree 复跑逐行 diff 完全一致（IDENTICAL_FAILURES），全部为 main 既有失败**（`test_cli_ux.py` 的 zoo readiness JSON 字段 5 项 + `test_eval_cli_contract.py`/`test_tui_cli.py` 的 zoo env-check/validate、vbench 等 20 项，属评测层既有缺口），本分支零新增失败。
+- 启动守护复测：`python -m worldfoundry --help` 与 `python -m worldfoundry.cli zoo benchmarks --help` 经 `-X importtime` 核查 torch-hits=0（CM-01 守护未回退）。
+- 环境注记：本机无 `mcp`/`fastmcp`/`textual` 包；MCP 侧验证经假 FastMCP + payload 直调完成，CM-22 维持 deferred。
