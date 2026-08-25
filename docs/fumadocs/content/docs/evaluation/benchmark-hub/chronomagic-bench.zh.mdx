@@ -148,6 +148,8 @@ from worldfoundry.evaluation.tasks.execution.runners._benchmark_metrics.formulas
 
 `chronomagic_score` 会对可用的 CHScore、MTScore、GPT4o-MTScore 做尺度归一后求平均。`temporal_transformation` 主要关注 MTScore 和 GPT4o-MTScore。两个指标都是越高越好。
 
+scorecard 主键：`chronomagic_score`。
+
 ## 不能声称的边界
 
 - catalog 中记录 `official_benchmark_verified: false` 与 `leaderboard_valid: false`：本地 scorecard 不是官方 leaderboard 提交，本 checkout 也未验证与上游评测器的完整数值对齐。

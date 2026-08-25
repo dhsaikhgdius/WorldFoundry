@@ -159,6 +159,8 @@ VideoScore-Bench 聚合约 **7,000** 个视频，来源包括 [VideoFeedback](ht
 
 WorldFoundry 会把五个 1–4 aspect 分数归一化到 0–1，并报告 `videoscore_average`。benchmark 级证据请使用完整 frame-tree 评测；bounded sample 路径只用于本地验证。
 
+scorecard 主键：`videoscore_average`。
+
 ## 不能声称的边界
 
 - catalog 中记录 `official_benchmark_verified: false` 与 `leaderboard_valid: false`：本地 scorecard 不是官方 leaderboard 提交，本 checkout 也未验证与上游评测器的完整数值对齐。

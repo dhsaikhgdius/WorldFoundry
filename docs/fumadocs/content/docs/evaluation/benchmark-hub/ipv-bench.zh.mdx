@@ -147,6 +147,8 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
 | `open_qa_score` | 导入的 open-ended QA 分数；如果只提供 answer/prediction 字段，则使用简单 exact-match。 |
 | `ipv_bench_average` | 可用 IPV-Bench component metrics 的平均值；如果导入文件直接提供 aggregate，则使用导入值。 |
 
+scorecard 主键：`ipv_bench_average`。
+
 所有指标都会归一到 `[0, 1]`，越高越好。
 
 ## 不能声称的边界

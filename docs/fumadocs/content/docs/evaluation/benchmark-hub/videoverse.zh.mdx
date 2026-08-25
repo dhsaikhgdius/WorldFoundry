@@ -123,6 +123,8 @@ from worldfoundry.evaluation.tasks.execution.runners.videoverse.run_videoverse_o
 
 runner 输出 `qa_accuracy`、`event_coverage`、`temporal_causality`、`world_knowledge_consistency`、`static_scene_consistency`、`dynamic_event_consistency`、`videoverse_average`。七个指标都是越高越好。
 
+scorecard 主键：`videoverse_average`。
+
 ## 不能声称的边界
 
 - catalog 中记录 `official_benchmark_verified: false` 与 `leaderboard_valid: false`：本地 scorecard 不是官方 leaderboard 提交，本 checkout 也未验证与上游评测器的完整数值对齐。
