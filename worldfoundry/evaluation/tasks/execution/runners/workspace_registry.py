@@ -303,6 +303,18 @@ CLI_RUNNERS: dict[str, WorkspaceRunnerSpec] = {
         generated_arg=None,
         limit_arg="--limit",
     ),
+    "stevo-bench": WorkspaceRunnerSpec(
+        "stevo-bench",
+        "worldfoundry.evaluation.tasks.execution.runners.stevo_bench.run_stevo_bench_official_runner",
+        generated_arg="--generated-artifact-dir",
+        dataset_root_arg="--task-root",
+        model_arg="--judge-model",
+        supports_official_runtime=True,
+        accepts_generated_artifacts=True,
+        supports_fixture=True,
+        default_metrics=("task_success",),
+        input_kind="stevo_bench_run_dir_or_official_results",
+    ),
     "t2v-compbench": WorkspaceRunnerSpec(
         "t2v-compbench",
         "worldfoundry.evaluation.tasks.execution.runners.t2v_compbench.run_t2v_compbench_official_runner",

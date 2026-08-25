@@ -148,6 +148,10 @@ VIDEO_RUNNER_REGISTRY: dict[str, VideoRunnerSpec] = {
         "worldfoundry/evaluation/tasks/execution/runners/sana_wm_bench/run_sana_wm_bench_official_runner.py",
         "--official-results-path",
     ),
+    "stevo-bench": VideoRunnerSpec(
+        "worldfoundry/evaluation/tasks/execution/runners/stevo_bench/run_stevo_bench_official_runner.py",
+        "--official-results-path",
+    ),
     "t2v-compbench": VideoRunnerSpec(
         "worldfoundry/evaluation/tasks/execution/runners/t2v_compbench/run_t2v_compbench_official_runner.py",
         "--official-results-path",
