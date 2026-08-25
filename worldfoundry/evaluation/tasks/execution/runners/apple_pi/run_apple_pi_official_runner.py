@@ -221,6 +221,11 @@ def main(argv: list[str] | None = None) -> int:
     try:
         native_runtime = None
         if args.run_official:
+            # Catalog-documented env fallbacks for the GT and prediction roots.
+            if args.gt_dir is None:
+                args.gt_dir = _env_path("WORLDFOUNDRY_APPLE_PI_GT_DIR")
+            if args.pred_dir is None:
+                args.pred_dir = _env_path("WORLDFOUNDRY_APPLE_PI_PREDICTION_DIR")
             if args.gt_dir is None or args.pred_dir is None:
                 raise ValueError("--run-official requires --gt-dir and --pred-dir")
             from worldfoundry.evaluation.tasks.execution.runners.apple_pi.apple_pi_runtime import evaluate_native_apple_pi

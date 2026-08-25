@@ -28,6 +28,8 @@ metadata:
     results_path_env: WORLDFOUNDRY_APPLE_PI_RESULTS_PATH
     gt_dir_env: WORLDFOUNDRY_APPLE_PI_GT_DIR
     prediction_dir_env: WORLDFOUNDRY_APPLE_PI_PREDICTION_DIR
+    root: worldfoundry/evaluation/tasks/execution/runners/apple_pi
+    root_env: WORLDFOUNDRY_APPLE_PI_ROOT
   release_status: experimental
   maturity: verified_runner
   open_source_status: in_tree_runtime
@@ -63,15 +65,16 @@ metadata:
     normalizer_verified: false
     surface: in_tree_model_backed_evaluator
   validation_command:
-  - worldfoundry-eval
-  - zoo
-  - benchmark-run
-  - --benchmark-id
-  - apple-pi
-  - --mode
-  - official-validation
-  - --official-results-path
-  - <apple_pi_results.json>
+  - ${WORLDFOUNDRY_UNIFIED_PYTHON:-python}
+  - -m
+  - worldfoundry.evaluation.tasks.execution.runners.apple_pi.run_apple_pi_official_runner
+  - --run-official
+  - --gt-dir
+  - ${WORLDFOUNDRY_APPLE_PI_GT_DIR}
+  - --pred-dir
+  - ${WORLDFOUNDRY_APPLE_PI_PREDICTION_DIR}
+  - --judge-backend
+  - mock
   - --output-dir
   - <out>
   - --json
@@ -142,3 +145,9 @@ tasks:
       - apple_pi_average
       runner_target: worldfoundry.evaluation.tasks.contracts.external:ApplePIContract
       runner_script: worldfoundry/evaluation/tasks/execution/runners/apple_pi/run_apple_pi_official_runner.py
+    metadata:
+      source_kind: benchmark_zoo
+      benchmark_id: apple-pi
+      official_benchmark_verified: false
+      integration_evidence: false
+      leaderboard_valid: false

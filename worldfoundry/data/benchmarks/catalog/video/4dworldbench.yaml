@@ -207,7 +207,7 @@ integration:
   - Heavy official dependencies are resolved through WorldFoundry base_models or explicit environment variables.
 release_status: experimental
 maturity: contract_ready
-open_source_status: in_tree_official_runtime
+open_source_status: in_tree_runtime
 official_benchmark_verified: false
 integration_evidence: false
 leaderboard_valid: false

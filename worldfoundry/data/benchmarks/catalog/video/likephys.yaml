@@ -125,19 +125,16 @@ runner:
   verification_status: result_normalizer_ready_probe_requires_upstream_checkout
   notes:
   - LikePhys scores a video diffusion model rather than generated videos; there is no candidate-video input.
-  - The in-tree mis-rank formulas reproduce evaluator.py compute_misrank_normalized and read_exp_final.py
-    aggregation, including the filter_config variation exclusions.
-  - The --run-official probe drives the upstream evaluator.py from a caller-supplied checkout because it needs
-    the upstream forked diffusers pipelines and schedulers; it requires CUDA and the probed checkpoints.
+  - The in-tree mis-rank formulas reproduce evaluator.py compute_misrank_normalized and read_exp_final.py aggregation, including the filter_config variation exclusions.
+  - The --run-official probe drives the upstream evaluator.py from a caller-supplied checkout because it needs the upstream forked diffusers pipelines and schedulers; it requires CUDA and the probed checkpoints.
 integration:
   status: integrated
   blocked_reasons:
-  - The ELBO probe needs an official LikePhys checkout (WORLDFOUNDRY_LIKEPHYS_EVALUATOR_ROOT), CUDA, and the probed
-    diffusion checkpoints; WorldFoundry does not vendor the upstream pipeline/scheduler forks.
+  - The ELBO probe needs an official LikePhys checkout (WORLDFOUNDRY_LIKEPHYS_EVALUATOR_ROOT), CUDA, and the probed diffusion checkpoints; WorldFoundry does not vendor the upstream pipeline/scheduler forks.
   - Imported results_<model>.json artifacts are normalized faithfully but are not official-run evidence.
 release_status: experimental
 maturity: contract_ready
-open_source_status: in_tree_scorer_with_external_probe_checkout
+open_source_status: experimental
 official_benchmark_verified: false
 integration_evidence: false
 leaderboard_valid: false
@@ -146,8 +143,7 @@ requires:
 - --probe-model <model_key> when a results root holds several probe backends
 - JianhaoDYDY/LikePhys-Benchmark clips under <likephys_data_root>/<scenario>_videos/subgroup_XXX/
 blockers:
-- WorldFoundry does not vendor the upstream forked diffusers pipelines and schedulers; set
-  WORLDFOUNDRY_LIKEPHYS_EVALUATOR_ROOT to an official checkout to execute the probe.
+- WorldFoundry does not vendor the upstream forked diffusers pipelines and schedulers; set WORLDFOUNDRY_LIKEPHYS_EVALUATOR_ROOT to an official checkout to execute the probe.
 - Probing a full sweep requires one GPU pass per (model, scenario) pair over 920 clips.
 data_refs:
   task_yaml: worldfoundry/data/benchmarks/tasks/external/likephys.yaml

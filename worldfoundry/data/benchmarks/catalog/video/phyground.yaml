@@ -129,7 +129,7 @@ integration:
   - Full leaderboard parity still requires complete PhyJudge/vLLM or cloud API judge scores for all 250 official prompts.
 release_status: experimental
 maturity: contract_ready
-open_source_status: in_tree_result_importer
+open_source_status: normalizer_only
 official_benchmark_verified: false
 integration_evidence: false
 leaderboard_valid: false
@@ -138,8 +138,7 @@ requires:
 - prompts/phyground.json or --prompt-manifest <path> when coverage validation is requested
 - --result-model-id <model_id> when annotations contain multiple model ids
 blockers:
-- WorldFoundry imports PhyGround judge outputs; provide official PhyGround annotations/results through 
-  --official-results-path or annotations/ under --benchmark-data-root.
+- WorldFoundry imports PhyGround judge outputs; provide official PhyGround annotations/results through --official-results-path or annotations/ under --benchmark-data-root.
 - The in-tree path does not execute PhyJudge or any cloud judge over candidate videos.
 data_refs:
   task_yaml: worldfoundry/data/benchmarks/tasks/external/phyground.yaml
