@@ -15,44 +15,47 @@ WorldFoundry 基础设施优化计划（第 5 轮）
 
 0. 现状一句话
 --------------
-训练侧已用 integrity 栈（fsync + root  confinement）写 manifest；评测 orchestration 仍大量
-``atomic=False`` 直写 scorecard/manifest。official_runner 框架有 freshness 守卫，但 50 个
-bench 文件维护分散；docs 有完整 build.sh 链却未进入 Makefile 门禁。
+reporting 契约（scorecard/manifest/summary/index）有 eval_core 覆盖，但四条断点打折：
+official-run 会静默短路导入 data_root 里陈旧 results/annotations；runtime preflight 与
+model_benchmark 执行完全脱节；复现 profile 有代码无数据；model-benchmark 主路径 run 元数据
+关键字段成批 None。另：orchestration 终态 JSON 大量 atomic=False；docs 门禁与 build.sh 分裂。
 
 
 1. 不建议改的地方
 ------------------
-- 不要删除 ``core/io/serialization.py`` 的 uuid  sibling-temp 原子写；round2 已确认正确。
-- 不要强制所有 JSON 走 ``integrity.replace_json_atomic`` 的 canonical_json（无 indent）；
-  用户可读 scorecard 仍用 serialization 的 indent=2 + sort_keys。
-- 不要合并 50 个 official runner 为单一 mega-script；只抽公共 CLI/CONFIG 注册表。
-- 不要把 ``make docs-check`` 扩成完整 ``npm run build``（太重）；先接 ``api:check`` + ``types:check``。
-- 不要动 vendored benchmark runtime 内部的 results.json 命名；只改 WorldFoundry 包装层。
-- reproduction_profiles 空目录：延续 round2 [O-09]，本轮不展开第二遍。
-- devil-dynamics scorecard argv 密钥：延续 round3，本轮不重复。
+- 不要删除 ``core/io/serialization.py`` 的 uuid sibling-temp 原子写；round2 已确认正确。
+- 不要改弱 ``redact_secrets`` 的分词匹配（run_manifest.py）；勿为省事改回 substring 打码。
+- 不要删 ``write_failed_scorecard`` 失败契约；不要削弱 official_runner ``_is_fresh_result`` 防线。
+- 不要精简 scorecard ``_leaderboard_evidence_gate`` 多路径探测（防伪造分数）。
+- 不要强制所有 JSON 走 integrity canonical_json（无 indent）；用户可读 scorecard 仍 indent=2。
+- 不要合并 50 个 official runner 为 mega-script；只抽公共注册表。
+- 不要把 make docs-check 扩成完整 npm build；先接 api:check + types:check。
+- generation cache / metric 注册表：前几轮已覆盖，本轮不重复。
+- devil-dynamics scorecard argv 密钥：延续 round3。
 - 第 1–4 轮边界继续有效。
 
 
 2. 优先级
 ----------
+P0
+  1) [RP-01] official-run 禁止静默短路 benchmark_data_root / annotations 探测
+  2) [RP-02] model_benchmark 启动官方子进程前自动 runtime preflight + 报告落盘
+
 P1
-  1) orchestration 层 scorecard/manifest/index 默认改 atomic=True 或 integrity 替换写
-  2) Makefile docs-check 接入 fumadocs ``api:check``（或 scripts/docs/build.sh 轻量子集）
-  3) official runner 公共注册：未走 ``ors.run_main`` 的 bench 列入迁移清单（phyfps 双入口等）
+  3) [IO-01/RP-08] orchestration 终态 JSON 改 atomic=True
+  4) [RP-03] reproduction_profiles 落库种子 profile（延续 round2 [O-09]）
+  5) [RP-04/05] model-benchmark summary/manifest 补时间戳、指纹、torch/CUDA 包快照
+  6) [DE-01] Makefile docs-check 接入 fumadocs api:check
+  7) [OR-01] official runner 公共注册 / phyfps 迁移
 
 P2
-  4) JsonlWriter 与 write_jsonl(atomic=False) 在长跑路径统一策略
-  5) runtime_preflight 输出纳入 CI/precommit 可选 gate
-  6) official_runner ``_is_fresh_result`` 增加 run marker 或 content hash 兜底
-  7) predev/prebuild api:generate 加 mtime/内容哈希跳过
-  8) ``run_torchrun_module`` 对齐 ``run_logged_subprocess`` 生命周期观测
-  9) AGENTS dev 端口说明与 package.json ``0.0.0.0`` 默认值对齐
+  8) [RP-06/07] reporting schema 版本演进；standalone official runner 补 run_manifest
+  9) [RP-02 延伸] preflight 进 CI 可选 gate
+  10) JsonlWriter 统一；freshness marker；predev hash skip；torchrun 观测；dev bind 对齐
 
 P3
-  10) 遗留 ``download_file_from_url`` 迁移至 ``download_to_cache``
-  11) ``core/io/artifacts.py`` 重命名或拆分（visualization 误标为 io）
-  12) generate-python-api SYMBOLS drift 测试
-  13) per_sample_scores.jsonl 空占位语义文档化或 lazy 创建
+  11) [RP-09/10] reproducibility_hash；_demo.py 移出 wheel；REPO_ROOT 解析
+  12) download 迁移；artifacts 重命名；SYMBOLS drift；per_sample 语义
 
 
 3. Core I/O / process / serialization
@@ -103,42 +106,69 @@ model_benchmark_suite、plan、service 等。
 
 4. Reporting / preflight / manifest
 -----------------------------------
-已核对：``run_manifest.build_run_manifest`` 写 ``manifest_hash``；
-``reporting/comparison_identity.py`` 引用 ``manifest_sha256``。
-``runtime_preflight.py`` 有 SCHEMA_VERSION v1；``make preflight`` 存在但 ``make docs-check`` 不含。
+来源：[reporting/preflight 云端子代理](bc-c951617b-ca8f-5aff-9a31-3dec073b1cd1) 深度评审 + 主会话核对。
 
-[RP-01] P1 orchestration 落盘非原子（与 IO-01 同根，reporting 视角）
-  问题：``write_scorecard`` / ``write_run_manifest_artifacts`` 上游 caller 常 atomic=False；
-        comparison 读半截 manifest 得错 hash。
-  文件：orchestration/* 调用 reporting；reporting/scorecard.py、run_manifest.py
-  改法：reporting writer 内部强制 atomic，忽略 caller 的 atomic=False 透传。
-  验收：manifest_hash 与磁盘文件 canonical hash 一致。
+[RP-01] P0 official-run 静默短路陈旧/错误 results
+  问题：``benchmark_runner._run_official`` 只要 ``runtime_spec.results_path`` 存在即
+        ``official_results_import``、returncode=0、跳过官方命令。``results_path`` 可来自
+        ``benchmark_data_root`` 自动探测，候选含 ``annotations.json``（数据集标注，非模型结果）。
+  文件：orchestration/benchmark_runner.py L294-320、L1062-1092
+  改法：official-run 仅接受显式 results 来源；``results_path_source==benchmark_data_root`` 禁止短路；
+        通用探测删 annotations；短路时 scorecard 写 ``imported_preexisting_results`` blocker。
+  验收：data_root 预置 results.json 时 official-run 不短路（eval_core 回归）。
 
-[RP-02] P2 preflight 未进质量门禁
-  问题：runtime profile 校验模块完整，但 CI 只跑 ``docs-check``/``data-check``，不跑
-        ``make preflight`` 或 ``cli preflight runtime --json``。
-  文件：Makefile、.github/workflows/*、runtime_profiles/official/
-  改法：CI 增加 CPU-only preflight 对 1–2 个轻量 profile；失败写 JSON 报告 artifact。
-  验收：故意删 PATH 中 python 可执行文件时 preflight job 红。
+[RP-02] P0 runtime preflight 与执行链路脱节
+  问题：``runtime_preflight.py`` 完整 fail-closed，但 ``run_model_benchmark`` 启动官方子进程前
+        不调用；``service.py`` preflight 只验 catalog；``preflight_report.json`` 不进 manifest/scorecard artifacts。
+  文件：orchestration/model_benchmark.py、runtime_preflight.py、service.py、cli/preflight.py
+  改法：存在 ``runtime_profiles/official/<benchmark_id>.yaml`` 时自动 preflight 写
+        ``preflight_report.json``；不 ready 则 fail-fast + failed scorecard；
+        ``WORLDFOUNDRY_SKIP_PREFLIGHT=1`` 逃生阀；补 ``check_profile`` 单测。
 
-[RP-03] P2 manifest 哈希语义双轨
-  问题：run_manifest 内 ``manifest_hash`` vs comparison ``manifest_sha256`` 字段来源可能不一致。
-  文件：reporting/run_manifest.py、reporting/comparison_identity.py
-  改法：单一 ``stable_hash`` 函数 + schema 文档；comparison 只读 run_manifest 内嵌 hash。
-  验收：同一 run 目录两次 build comparison identity 输出相同。
+[RP-03] P1 复现 profile 基建空转（延续 round2 [O-09]）
+  问题：``reproduction_profiles/`` 目录不存在，``reproduce`` 子命令 KeyError；
+        缺失时 ``reproduction_profile_summaries`` 静默空元组。
+  文件：data/benchmarks/reproduction_profiles/（新建）、reproduction_profiles.py、service.py
+  改法：check in 1–2 种子 profile；目录缺失给可操作错误；eval_core 遍历 profile 契约测试。
 
-[RP-04] P2 official_runner vs orchestration scorecard 写法规不一致
-  问题：``official_runner.build_scorecard`` 经 framework/io 默认 atomic=True；
-        suite 批量 compare 用 atomic=False 写 scorecards.json。
-  文件：framework/official_runner.py、orchestration/model_benchmark_suite.py
-  改法：suite 层统一 import 同一 write  helper。
-  验收：grep orchestration ``atomic=False`` 仅剩 intentional 热路径（若有）。
+[RP-04] P1 model-benchmark summary 元数据成批 None
+  问题：``model_benchmark.py`` summary ``started_at/finished_at/worldfoundry_version/run_fingerprint`` 全 None；
+        run_index 对主力运行类型无法排序/审计。对照 existing_results 已完整填写。
+  文件：orchestration/model_benchmark.py
+  改法：记录 utc 时间戳；复用 ``build_version_context``/``build_run_fingerprint``；同步 run_manifest。
 
-[RP-05] P3 run_report / index.md 与 scorecard 并发写
-  问题：suite 同时 write_text index 与 write_json scorecards 均 atomic=False。
-  文件：model_benchmark_suite.py
-  改法：index 最后写或写临时目录再 rename 整个 run 目录（staging dir 模式）。
-  验收：中断后 index.md 不引用缺失的 scorecard 路径。
+[RP-05] P1 environment.json 缺 torch/CUDA
+  问题：``package_names=("worldfoundry","numpy","pandas")`` 三处硬编码；GPU 复现关键版本缺失。
+  文件：run_manifest.py、model_benchmark.py、existing_results.py
+  改法：共享 ``REPRODUCIBILITY_PACKAGES`` 常量；``build_environment`` 增 cuda 段（import 失败置 null）。
+
+[RP-06] P2 reporting schema 无版本号、loader 硬拒绝
+  问题：reporting 侧 ``worldfoundry-scorecard`` 等无 ``-vN``；orchestration 已有 v1/v2 惯例；
+        ``load_run_summary`` 不认识 schema 则 raise，历史 run 不可读。
+  文件：reporting/run_report.py、run_index.py、__init__ 各 SCHEMA_VERSION
+  改法：统一 ``<name>-vN``；loader 设 ``SUPPORTED_SCHEMA_VERSIONS``；bump 配 fixture 迁移测试。
+
+[RP-07] P2 standalone official runner 无 run_manifest；samples_ref 路径错
+  问题：``official_runner.run_main`` 只写 scorecard+jsonl，无 environment 快照；
+        scorecard.py L243 硬编码 ``metrics/per_sample.jsonl``，实际为 ``per_sample_scores.jsonl``。
+  文件：framework/official_runner.py、reporting/scorecard.py
+  改法：run_main 成功/失败均 ``write_run_manifest_artifacts``；samples_ref 参数化。
+
+[RP-08] P2 终态 JSON atomic=False；index 遇坏 summary 整表失败
+  问题：model_benchmark_run.json、summary.json、prepared_evaluation.json 显式 atomic=False；
+        kill 留截断 JSON；``build_run_index`` 单坏文件 raise 而非记入 issues。
+  文件：model_benchmark.py、service.py、reporting/run_index.py
+  改法：终态小文件删 atomic=False；index 构建单条 parse 失败入 issues 继续。
+  （与 [IO-01] 同根。）
+
+[RP-09] P3 manifest_hash 含绝对路径，跨机不可比
+  问题：manifest_hash 覆盖 resolve() 过的 artifacts/output_dir/cache_paths。
+  文件：reporting/run_manifest.py
+  改法：保留 manifest_hash（完整性）；新增 reproducibility_hash（排除 host-specific 字段）。
+
+[RP-10] P3 _demo.py 随包发布；preflight REPO_ROOT=parents[5] pip 失效
+  问题：reporting/_demo.py 打进 wheel；runtime_preflight REPO_ROOT 在 site-packages 无意义。
+  改法：_demo 移 scripts/examples；REPO_ROOT 改 ``core.io.paths.project_root()`` + fallback cwd。
 
 
 5. Official runner 框架
@@ -220,44 +250,49 @@ phyfps 有 visual_chronometer 与 phyfps_bench_gen 两套自定义 main。
 
 7. 文件级改动总表
 ----------------
-第一批（P1）
-  orchestration/* atomic 默认
-  reporting/scorecard.py、run_manifest.py writer 内强制 atomic
-  Makefile docs-check + docs/fumadocs api:check
-  official_runner 注册表 / phyfps 迁移清单
+P0
+  benchmark_runner.py          RP-01 短路来源限制
+  model_benchmark.py           RP-02 自动 preflight；RP-04/05/08 元数据+原子写
+  runtime_preflight.py         RP-02/10
 
-第二批（P2）
-  JsonlWriter 统一；runtime_preflight CI job
-  official_runner freshness marker；BenchRunnerConfig.timeout
-  package.json dev host；predev hash skip
-  core/process.py torchrun 观测
+P1
+  reproduction_profiles/       RP-03 种子 profile
+  run_manifest.py              RP-05 REPRODUCIBILITY_PACKAGES
+  existing_results.py          RP-05 package_names
+  orchestration/* atomic       IO-01/RP-08
+  Makefile docs-check          DE-01
+  official_runner 注册         OR-01
 
-第三批（P3）
-  download 迁移；artifacts 重命名
-  generate-python-api drift；per_sample_scores 语义
+P2/P3
+  reporting/* schema           RP-06/07/09
+  official_runner.py           RP-07 run_manifest
+  reporting/_demo.py           RP-10 移出 wheel
+  test/eval_core/              RP-01/02/03 回归
 
 
 8. 验收（汇总）
 ---------------
-- kill 写盘中断后，scorecard/manifest 要么完整要么缺失，无 parse 失败半截 JSON。
-- ``make docs-check`` 在 API symbol 漂移时失败，无需全量 next build。
-- official run-official 不会采信 predates marker 的 stale results（含 NFS skew 用例）。
-- ``npm run dev`` 无 API 变更时不重复 generate-python-api。
-- fresh clone 对 thirdparty/submodule 状态与文档一致。
+- RP-01：official-run + data_root 预置 results/annotations 不短路；显式 import 带 blocker。
+- RP-02：model_benchmark run 目录含 preflight_report.json；profile 不 ready 不启子进程。
+- RP-03：reproduce 对种子 benchmark CPU 可过 prepare；profile 契约进 test-eval-core。
+- RP-04/05：summary 时间戳/指纹非空；environment 含 torch（若已装）与 cuda 段。
+- RP-08：截断 summary 不拖垮 build_run_index；终态 JSON 无半截 parse 错误。
+- RP-07：CLI 直跑 official runner 输出含 run_manifest + environment。
+- make docs-check 在 API symbol 漂移时失败。
 
 
 9. 与前轮衔接
 --------------
-serialization 原子写机制：round2 已赞，本轮是 orchestration 侧 ``atomic=False`` 滥用。
-reproduction_profiles 空目录：round2 [O-09]，本轮 RP 不重复。
-official_runner devil-dynamics 密钥：round3，本轮 OR 只谈框架共性。
-MCP output_dir / jobs-index：round4，本轮不涉及。
-generation cache WAL：round2，本轮 JsonlWriter 只对齐评测落盘策略。
+serialization 原子写：round2 已赞；本轮 RP-08/IO-01 是 orchestration 侧 atomic=False。
+reproduction_profiles：round2 [O-09] 指问题；本轮 RP-03 给落库动作。
+official-run 陈旧 results：round2 提过探测风险；本轮 RP-01 给 P0 止血规格。
+official_runner devil-dynamics 密钥：round3。
+MCP / metrics / pipelines：round4。
 
 
 10. 子代理索引
 --------------
-  reporting/preflight   manifest 非原子、preflight 未 gate、hash 双轨、suite index 竞态
-  official_runner       ~50 文件碎片、freshness mtime、空 per_sample、timeout 表
-  docs/env/thirdparty   docs-check 分裂、predev 慢、0.0.0.0、submodule 孤儿、SYMBOLS  drift
-  core I/O（主会话）    integrity vs serialization 分裂、torchrun 观测、遗留 download
+  [reporting/preflight](bc-c951617b-ca8f-5aff-9a31-3dec073b1cd1)  RP-01~10 已并入 §4
+  official_runner（bc-e8d9e476-2c63-520e-adf5-5cdf601de7aa）  §5 待并入或 round6
+  docs/env/thirdparty（bc-3d049994-ee98-5465-8177-d18b149c896f）  §6 待并入或 round6
+  core I/O（主会话）  §3
