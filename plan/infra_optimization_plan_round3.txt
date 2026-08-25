@@ -1,0 +1,250 @@
+WorldFoundry 基础设施优化计划（第 3 轮）
+========================================
+日期：2026-08-25
+性质：建议修改（本文件只记录计划，不直接改代码）
+承接：plan/infra_optimization_plan.txt（第 1 轮）、plan/infra_optimization_plan_round2.txt（第 2 轮）
+方法：主会话编排 + 云端子代理并行评审（模型 claude-fable-5-thinking-xhigh）
+  - 训练启动 / recipe / checkpoint / post-training reward 作业
+  - 数据集与 checkpoint 下载流水线
+  - CLI 冷启动残余、operators 设备、密钥落盘、scripts 膨胀、dino_wm SLURM
+  - Studio 服务面由主会话只读补全（该方向云端评审触发了内容策略拦截，未做攻击面展开）
+
+本轮不重复：Docker/CI/conda/DLC/device_pool、LFS/wheel、catalog binding、generation cache WAL、
+sp logger stdout、metric_sync HOSTNAME、native-kernels CI、gradio pin。
+
+
+0. 现状一句话
+--------------
+训练引擎的 checkpoint 协议已经扎实，缺口在「抢占/信号/reward 侧车」。
+下载链路有五套入口、三套 ready 判定，半截下载会被当成完整资产。
+公共 CLI 仍有密钥进 scorecard argv、以及 wheel 安装后 zoo download 直接 ImportError。
+
+
+1. 不建议改的地方
+------------------
+- 不要动 training/distributed/parallel.py 的 torchrun 边界。
+- 不要放松 checkpointer 的「step 目录已存在则失败、output_dir 必须全新」。
+- 不要在信号/异常路径新增集合通信。
+- 不要把 reward URL 写进 recipe；只补超时/重试/预检。
+- 不要为未接线的 ~18 种 post-train 算法批量写 CLI 分支；矩阵数据化 + 早失败即可。
+- 不要给全部 HF repo 建人工 sha256 清单；revision pin + hub etag 是正路，只给绕过 hub 的镜像补点状校验。
+- 不要把 download_hfd_models.sh 强行并进 Python。
+- 不要默认开启 HF_HUB_ENABLE_HF_TRANSFER。
+- 不要给 90 个 operator 换 entry_points 自动注册。
+- 不要删除 scorecard.run.command，只脱敏。
+- 不要改 runtime/env.py 与 run_manifest.redact_secrets 另起第三套脱敏。
+- 第 1–2 轮已划边界继续有效。
+
+
+2. 优先级实施顺序
+------------------
+P0
+  1) devil-dynamics 官方 runner：Gemini key 走子进程 env，scorecard.command 脱敏
+  2) prepare_official_assets：.cache 里的 .incomplete 不得判 ready
+
+P1
+  3) train-reward-service from_mapping 默认 127.0.0.1；客户端 health() + 重试
+  4) 训练 SIGTERM/SIGINT 把 run.json 写成 interrupted
+  5) zoo models download 实现迁入 worldfoundry 包（wheel 可用）
+  6) link_hf_checkpoints.sh 去掉同名目录多 repo 别名
+  7) 删除 scripts/dev/project_codex_env.sh（硬编码个人 CPFS）
+  8) download_hfd_models.sh：wait -n、磁盘预检、删 --hf_token argv
+
+P2
+  9) --resume-from-run；CheckpointSpec.keep_last
+ 10) post-train 能力矩阵表化 + --list-support
+ 11) 下载默认根对齐 WORLDFOUNDRY_HFD_ROOT；materialize 默认可校验 sha256
+ 12) CLI tui 惰性导出；tui_brand 惰性 numpy
+ 13) dino_wm hydra launcher 默认改 local
+ 14) Studio：get_external_ip 勿依赖 8.8.8.8；可视化子进程 shutdown 与 websocket 消息上限文档化
+
+P3
+ 15) gpu marker 统一、run_id 跨 rank、help 敏感默认值抑制、脚本死码收敛
+
+
+3. 训练启动 / checkpoint / post-training
+----------------------------------------
+现状
+  生产入口已收敛到 worldfoundry train / post-train；默认输出 runs/（已 gitignore）。
+  TrainingCheckpointer：staging → manifest+_SUCCESS → fsync → os.replace，质量高。
+  keep-last-N 只有环境变量 WORLDFOUNDRY_TRAINING_CHECKPOINT_KEEP_LAST。
+  训练树 grep 无 signal/SIGTERM/KeyboardInterrupt。
+  ScorerServiceConfig.from_mapping 默认 host 0.0.0.0；HTTPRewardEvaluator 调用点 retry_attempts=0。
+
+建议修改
+
+[T-01] P1 无信号/中断落盘
+  文件：worldfoundry/training/engine/sessions/single_device.py
+        worldfoundry/training/engine/wan/flow_policy_run.py 及同类 run
+  改法：SIGTERM/SIGINT 置位、step 边界尽力存盘、manifest status=interrupted；
+        except Exception 扩为 BaseException 中的 KeyboardInterrupt 分支（只写状态不吞）。
+        多 rank 只做本 rank 动作，不加 barrier。
+
+[T-02] P1 reward 服务默认绑定未闭环
+  文件：worldfoundry/training/post_training/rewards/scorers/service_config.py
+        rewards/http/service.py 、 client.py
+        configs/post_training/reward_service_*.yaml
+  改法：from_mapping 默认 127.0.0.1；非回环启动打 warning；
+        可选 server.auth_token_env；请求条数/解码字节上限。
+  交叉：与第 1 轮 embodied model_server 0.0.0.0 同模式，这是训练侧车，未写过。
+
+[T-03] P1 reward 客户端零容错
+  文件：engine/video_policy.py 、 post_training/causal_lm/qwen3/materializer.py
+        recipes/post_training/rewards/remote.py
+  改法：构造后 health()；校验 reward_ids 覆盖 recipe；RemoteRewardSpec 加 timeout/retry；默认重试 2–3。
+
+[T-04] P2 无 auto-resume 编排
+  文件：cli/training_commands/handlers/train.py
+  改法：--resume-from-run RUN_DIR，内部用 checkpointer._resolve("latest")。
+
+[T-05] P2 post-train 矩阵硬编码
+  文件：cli/training_commands/handlers/post_train.py
+  改法：{algorithm: (families, materializer, flags)} 声明表；未接线早失败；--list-support --json。
+
+[T-06] P2 keep_last 配置面
+  文件：training/recipes/spec.py CheckpointSpec 、 session 构造
+  改法：recipe 字段 + env 覆盖；生效值写入 run manifest；可选 statvfs 预检。
+
+[T-07] P2 torchrun 下每 rank 独立 run_id
+  文件：worldfoundry/cli/main.py
+  改法：从 TORCHELASTIC_RUN_ID 或 MASTER_ADDR:PORT 派生；lifecycle 仅 rank0 写。
+
+[T-08] P3 tests/training 用 skipif 而非 pytest.mark.gpu
+[T-09] P3 --steps 输出加 steps_unit；manifest 记录 base_dir。
+
+
+4. 下载 / materialize / model_zoo
+---------------------------------
+现状
+  五入口：download_checkpoints.py、download_hfd_models.sh、prepare_official_assets.py、
+  prepare_model_infer.sh、core/io/hf.py。磁盘预检只在运行时路径。
+  dataset CLI 无 download 子命令；materialize 不跑 sha256。
+
+建议修改
+
+[A-01] P0 半截下载判 ready
+  文件：scripts/embodied/prepare_official_assets.py asset_ready
+  改法：不可忽略 .cache/huggingface/download 下的 .incomplete；与 check_local_checkpoint 对齐。
+  同步：runtime/assets.py 目录分支抽到 core/io 共用 incomplete 判定。
+
+[A-02] P1 同目录多 repo 链接
+  文件：scripts/setup/link_hf_checkpoints.sh
+  现状：KwaiVGI/Astra 与 EvanEternal/Astra 都链到 Astra；Wan2.2-Lightning 两源同理。
+  改法：去重；链接前核对 config.json 身份。
+
+[A-03] P1 wheel 下 zoo download 坏死
+  文件：worldfoundry/cli/zoo.py _load_repo_script 、 pyproject.toml
+  改法：下载实现迁入 worldfoundry 包；scripts 变薄 shim。失败时明确「需要源码树」不可作为唯一路径。
+
+[A-04] P1 download_hfd_models.sh
+  wait -n 代替 wait_for_oldest；下载前 ensure_free_disk；--max-workers 默认；每仓重试；删除 --hf_token argv。
+
+[A-05] P1 默认根分裂
+  download_checkpoints.py DEFAULT_CACHE_DIR 跟随 WORLDFOUNDRY_HFD_ROOT；
+  与第 1 轮路径四套默认是同一根因在下载脚本上的落地。
+
+[A-06] P2 重试无退避、失败无 stderr 捕获、timeout 默认无限
+  文件：scripts/model_zoo/download_checkpoints.py
+
+[A-07] P2 prepare_benchmark_assets.py 单引号杀死 ${VAR} 展开
+
+[A-08] P2 materialize 默认不校验 sha256；hf-mirror 回退的 Wan 基模无校验
+
+[A-09] P2 ModelConfig.download() 不 pin revision、ignore_patterns=已存在文件
+
+[A-10] P3 prepare_official_assets run_command 全量 PIPE；camerabench import 期 os.system pip install；
+      local_checkpoint_cache 异 pid 的 .tmp-* 无人回收。
+
+
+5. CLI / operators / 密钥 / scripts / SLURM
+-------------------------------------------
+建议修改
+
+[C-01] P0 devil-dynamics Gemini key 进 argv 与 scorecard
+  文件：runners/devil_dynamics/run_devil_dynamics_official_runner.py
+        evaluation/tasks/execution/framework/official_runner.py
+  改法：密钥改子进程 env（仿 camerabench）；build_scorecard 对 *-api-key/*-token 旗标值 <redacted>。
+  已核对：run_devil_dynamics_official_runner.py:99,126 与 official_runner.py:662-668。
+
+[C-02] P1 删除 scripts/dev/project_codex_env.sh
+  硬编码 /mnt/cpfs/yangboxue/... ，全仓零功能引用。
+
+[C-03] P2 tui 入口急切拉起 eval CLI；tui_brand 顶层 numpy
+  cli/__init__.py PEP 562；tui_brand 把 numpy/PIL 移入 render 函数。
+
+[C-04] P2 hunyuan_game_craft_operator 热路径硬编码 cuda:0 / 每次重建 transform
+
+[C-05] P2 托管管线 _resolve_api_key 四份拷贝，改调 pipelines/api_runtime.resolve_api_key
+
+[C-06] P2 与 CLI 重复的脚本：materialize_base_model_assets.py、run_video_model_benchmark_suite.py 改为 shim 或删除
+
+[C-07] P2 dino_wm conf/plan.yaml 默认 hydra/launcher: submitit_slurm，gres gpu:h100:1、qos: explore
+  改默认 basic/local；实验室参数移到 override 示例。
+
+[C-08] P3 help.py 对敏感键抑制 default 渲染；operators 设备默认清点；embodied 两份 prepare 脚本收敛；
+      submitit 安装归属写进 profile 文档。
+
+
+6. Studio 服务面（主会话补全）
+------------------------------
+serving/auth.py 对非回环 fail-closed 要求 WORLDFOUNDRY_STUDIO_AUTH_TOKEN，质量高，保持。
+serving/http.py 的 path_allowed 限制静态根，ThreadingHTTPServer + backlog 可配，保持。
+
+新建议（非攻击步骤，只谈运维默认值）：
+
+[S-01] P2 network.get_external_ip 向 8.8.8.8:80 发 UDP 来猜出口 IP
+  离线/禁网环境失败则回 127.0.0.1，但会制造意外外连。改为只在显式 --advertise-host 或已绑定非回环时使用，默认不探测。
+
+[S-02] P2 workspace_app 仍用 app.add_event_handler("shutdown", ...)
+  第 1 轮已 pin gradio<6；本轮补充：迁到 lifespan 后才能解 pin。可视化 _stop_all_visualizers 必须挂在进程退出路径上（含 SIGTERM），避免 world_explorer 子进程残留。
+
+[S-03] P3 实时通道
+  已有 WORLDFOUNDRY_REALTIME_WEBSOCKET_ONLY；文档写清 WebRTC 失败时的回退、消息体上限、心跳。
+  daemon_threads=True 的产物 HTTP 服务在解释器退出时可能不等待传输完成——关闭顺序：先停生成作业，再停静态服务。
+
+[S-04] P3 上传/作业
+  查清 Gradio/FastAPI 上传默认上限并写成 WORLDFOUNDRY_STUDIO_MAX_UPLOAD_MB；与第 1 轮 MAX_JOBS 自适应一起做。
+
+
+7. 建议的文件级改动总表（本轮）
+--------------------------------
+第一批
+  official_runner.py + run_devil_dynamics_official_runner.py
+  scripts/embodied/prepare_official_assets.py
+  training/.../service_config.py + reward 客户端调用点
+  git rm scripts/dev/project_codex_env.sh
+
+第二批
+  cli/zoo.py 下载迁包内
+  link_hf_checkpoints.sh 去重
+  download_hfd_models.sh 调度/预检
+  training session 信号与 --resume-from-run
+  dino_wm plan.yaml 默认 launcher
+
+第三批
+  CLI 惰性 import、help 脱敏、materialize --verify、Studio get_external_ip、lifespan
+
+
+8. 验收标准
+------------
+- 设置 GEMINI_API_KEY 后跑 devil 官方 runner，scorecard.json 与 ps 命令行均无密钥明文。
+- 故意打断 hf download 后，prepare_official_assets --skip-existing 不得跳过该目录。
+- pip install 出的 wheel 上 worldfoundry-eval zoo models download --help 能工作或给出「实现已打进包」的路径，而不是 ImportError。
+- train-reward-service 无 server.host 时监听 127.0.0.1。
+- 对 single-device 训练发 SIGTERM，run.json 不为 running。
+- dino_wm 默认配置在无 SLURM 的机器上不再尝试 sbatch h100。
+
+
+9. 与第 1–2 轮衔接
+------------------
+reward 0.0.0.0、MCP max_jobs、下载根路径：同模式不同文件，本轮是训练/下载/官方 runner 的落地。
+zoo download 进 wheel 与第 2 轮 MANIFEST prune scripts 冲突时：实现进包、scripts 只留 shim。
+Studio add_event_handler 与第 1 轮 gradio pin：pin 是止血，lifespan 是解针条件。
+
+
+10. 子代理与缺口
+----------------
+  训练     信号/中断、reward 默认绑定、无 auto-resume、CLI 矩阵
+  下载     incomplete 判 ready、多 repo 同目录、五入口默认根、token argv
+  横切     scorecard 密钥、个人 CPFS 脚本、tui 冷启动、dino_wm slurm 默认
+  Studio   云端评审被拦截；主会话只补了绑定探测、lifespan、实时通道文档三项，未做完整 HTTP 面评审
