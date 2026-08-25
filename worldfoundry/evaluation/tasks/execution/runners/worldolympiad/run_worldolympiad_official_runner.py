@@ -78,8 +78,8 @@ def _resolve_weight_value(
     Precedence per model: an explicit per-model env var (``QWENVL_MODEL_PATH``,
     ``SAM3_MODEL``, ``CLIP_DOWNLOAD_ROOT``) wins via the capability registry's
     ``check``; then the staged base_models asset; then the bulk ``--weights-dir``
-    fallback. CLIP has no staged weight asset, so its managed cache (or
-    ``CLIP_DOWNLOAD_ROOT``) is always used and ViT-B/32 auto-downloads on first use.
+    fallback. CLIP has no staged weight asset, so absent ``CLIP_DOWNLOAD_ROOT``
+    its cache lives under ``--weights-dir`` and ViT-B/32 auto-downloads there.
     """
 
     if relative == "QwenVL" and resolved.qwenvl_dir is not None:
@@ -88,7 +88,7 @@ def _resolve_weight_value(
         return str(resolved.da3_weights_dir)
     if relative == "sam3/sam3.pt" and resolved.sam3_path is not None:
         return str(resolved.sam3_path)
-    if relative == "clip":
+    if relative == "clip" and os.environ.get("CLIP_DOWNLOAD_ROOT"):
         return str(resolved.clip_cache_dir)
     return str(weights_dir / relative)
 

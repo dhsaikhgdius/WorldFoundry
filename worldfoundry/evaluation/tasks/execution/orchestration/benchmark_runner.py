@@ -2128,7 +2128,7 @@ def run_benchmark_execution(
             "INFO" if result.ok else "ERROR",
             "benchmark.execution.finished",
             "Benchmark execution finished",
-            status=result.status,
+            status="ok" if result.ok else "failed",
             output_dir=str(result.output_dir),
         )
         return result

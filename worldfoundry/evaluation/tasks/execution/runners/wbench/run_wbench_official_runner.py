@@ -21,7 +21,6 @@ if str(REPO_ROOT) not in sys.path:
 from worldfoundry.core.time import utc_now_iso  # noqa: E402
 from worldfoundry.evaluation.reporting.scorecard import SCORECARD_SCHEMA_VERSION  # noqa: E402
 from worldfoundry.evaluation.tasks.execution.framework.io import env_path, write_json  # noqa: E402
-from worldfoundry.evaluation.tasks.execution.framework.official_runner import default_benchmark_timeout  # noqa: E402
 
 RUNNER_ROOT = Path(__file__).resolve().parent
 DEFAULT_WBENCH_ROOT = RUNNER_ROOT / "runtime" / "wbench"
@@ -673,7 +672,6 @@ def run_official_wbench(args: argparse.Namespace) -> dict[str, Any]:
         text=True,
         capture_output=True,
         check=False,
-        timeout=default_benchmark_timeout(),
     )
     log_path = output_dir / "wbench_official_runtime.log"
     log_path.write_text((proc.stdout or "") + ("\n[stderr]\n" + proc.stderr if proc.stderr else ""), encoding="utf-8")
