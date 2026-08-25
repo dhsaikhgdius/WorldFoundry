@@ -35,3 +35,19 @@ catalog_scope: World-model catalog entries. Integrated entries expose in-tree Wo
   runtimes; blocked entries retain upstream provenance without runnable backends.
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 pipeline_binding: wilddet3d
+docs:
+  publisher: Allen Institute for AI (AI2)
+  publisher_kind: lab
+  publisher_zh: 艾伦人工智能研究所（AI2）
+  overview: 'WildDet3D from the Allen Institute for AI tackles 3D detection in the wild: recovering 3D object boxes from unconstrained real-world imagery as a world-understanding capability. Both the official GitHub repository and the allenai/WildDet3D Hugging Face model are confirmed; WorldFoundry registers the official inference route in-tree with detector assets runtime-gated.'
+  overview_zh: 艾伦人工智能研究所（AI2）的 WildDet3D 面向野外 3D 检测：从不受约束的真实图像中恢复 3D 物体框，作为世界理解能力。官方 GitHub 仓库与 allenai/WildDet3D Hugging Face 模型均已确认；WorldFoundry 树内注册了官方推理路由，检测器资产为运行时门控。
+  architecture: 'This is a perception entry rather than a generator: outputs are 3D detection artifacts (generated_3d_asset) instead of video. Architecture internals beyond the official repository pointer (pinned head 1b8aa52b) are not recorded in this repository.'
+  architecture_zh: 这是感知类条目而非生成器：输出为 3D 检测产物（generated_3d_asset）而非视频。官方仓库指针（锁定 head 1b8aa52b）之外的架构内部细节仓库未记录。
+  usage_notes: Config resolution and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged. Missing assets are reported by the plan and are not treated as catalog blockers. Note the SAM-derived license recorded upstream (other:sam-license).
+  usage_notes_zh: 配置解析与 pipeline 导入预期可通过；在所需 checkpoint/资产就位前，真实生成会输出运行时计划。缺失资产由计划报告，不视为 catalog 阻塞。注意上游记录的 SAM 派生许可（other:sam-license）。
+  limitations:
+  - 'Perception-only: no video or world generation output.'
+  - License is recorded as other:sam-license; review before commercial use.
+  limitations_zh:
+  - 仅感知：不产出视频或世界生成结果。
+  - 许可记录为 other:sam-license；商用前请审查。

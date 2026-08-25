@@ -20,3 +20,23 @@ runner_parity:
   status: pending
   notes: [Camera-only 4D-control rendering and diffusion stages are wired in-tree.]
 catalog_category: world_models
+docs:
+  publisher: Tencent ARC Lab
+  publisher_kind: company
+  publisher_zh: 腾讯 ARC 实验室
+  overview: 'VerseCrafter from Tencent ARC is a camera-controlled image-to-video world model built on 4D control: a geometry-aware rendering stage produces 4D control signals that guide the diffusion stage along the requested camera path. WorldFoundry vendors the official source (revision 008693b5) plus the exact VideoX-Fun submodule (revision 246a0e3a) in-tree, with the sxzheng/VerseCrafter checkpoint reference.'
+  overview_zh: 腾讯 ARC 的 VerseCrafter 是基于 4D 控制的相机可控图生视频世界模型：几何感知渲染阶段产出 4D 控制信号，引导扩散阶段沿指定相机路径生成。WorldFoundry 将官方源码（revision 008693b5）与精确的 VideoX-Fun 子模块（revision 246a0e3a）内置树内，checkpoint 引用为 sxzheng/VerseCrafter。
+  architecture: 'Two stages are wired in-tree: camera-only 4D-control rendering followed by the diffusion stage. The diffusion backbone comes from the pinned VideoX-Fun submodule. Further architecture internals are not recorded in this repository.'
+  architecture_zh: 树内接通两个阶段：仅相机的 4D 控制渲染，随后是扩散阶段。扩散骨干来自锁定版本的 VideoX-Fun 子模块。更多架构内部细节仓库未记录。
+  usage_notes: 'Note the license before any deployment: upstream is research-only, non-commercial, and excludes intended EU use. Runner parity is pending, so treat outputs as unverified until a parity run is recorded.'
+  usage_notes_zh: 部署前务必注意许可：上游为仅研究、非商用，且排除面向欧盟的使用。runner parity 仍为 pending，在记录 parity 运行前请将输出视为未验证。
+  limitations:
+  - Research-only, non-commercial license that excludes intended EU use.
+  - Runner parity is pending; no GPU validation is recorded in this repository.
+  limitations_zh:
+  - 仅研究、非商用许可，且排除面向欧盟的使用。
+  - runner parity 为 pending；仓库未记录 GPU 验证。
+  recommended_benchmarks:
+  - id: camerabench
+    reason: Camera-path adherence for 4D-controlled generation.
+    reason_zh: 4D 控制生成的相机路径跟随。
