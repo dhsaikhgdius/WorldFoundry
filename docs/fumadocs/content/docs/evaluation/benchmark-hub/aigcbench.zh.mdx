@@ -122,4 +122,10 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
 | `genvideo_refvideo_ssim` | 越高越好 | 生成视频与参考视频之间的 SSIM。 |
 | `aigcbench_average` | 越高越好 | 未直接提供 aggregate 时，对可用 AIGCBench 组件指标取均值。 |
 
+## 不能声称的边界
+
+- catalog 中记录 `official_benchmark_verified: false` 与 `leaderboard_valid: false`：本地 scorecard 不是官方 leaderboard 提交，本 checkout 也未验证与上游评测器的完整数值对齐。
+- 公开入口本质是结果导入/归一化器：`--run-official` 只有在本地已配置好 WorldFoundry scorer 栈时才会产出指标行。树内 runner 并未重新实现完整的 CLIP/DOVER/光流管线。
+- 完整验证需要官方 prompt 套件的生成视频，以及保真度与参考视频指标族所需的参考图像和参考视频。
+
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

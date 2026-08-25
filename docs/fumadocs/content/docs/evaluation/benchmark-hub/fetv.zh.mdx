@@ -178,4 +178,11 @@ worldfoundry-eval zoo benchmark-run \
 - `auto_eval_results/`: 使用 `--run-official` 时的 CLIP/BLIP/FID/FVD 原始输出。
 - `fetv_official_runtime_summary.json`: runtime 命令和结果路径。
 
+## 不能声称的边界
+
+- catalog 中记录 `official_benchmark_verified: false` 与 `leaderboard_valid: false`：本地 scorecard 不是官方 leaderboard 提交，本 checkout 也未验证与上游评测器的完整数值对齐。
+- 默认的树内组件只覆盖 CLIPScore；完整指标执行仍需 BLIP/FID/FVD 指标包与参考帧资产。
+- 完整 leaderboard 验证需要覆盖全部 FETV prompt 集的生成视频，以及 FETV 指标依赖的完整安装。
+- 本页只给出可运行的命令，不声称这些 GPU 运行已在此环境中执行过。
+
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

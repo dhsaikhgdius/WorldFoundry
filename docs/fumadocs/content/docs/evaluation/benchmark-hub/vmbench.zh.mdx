@@ -208,4 +208,11 @@ tmp/vmbench/direct-official-run/
 
 WorldFoundry scorecard 只是本地证据。要达到 leaderboard parity，需要恰好 `0001.mp4` 到 `1050.mp4` 且与 bundled prompt 顺序对齐。
 
+## 不能声称的边界
+
+- catalog 中记录 `official_benchmark_verified: false` 与 `leaderboard_valid: false`：本地 scorecard 不是官方 leaderboard 提交，本 checkout 也未验证与上游评测器的完整数值对齐。
+- 所有指标都基于本地 checkpoint 运行（无 hosted 评审），但完整重算需要 CUDA 指标栈：GroundingDINO、SAM/SAM2、CoTracker、Q-Align 与 VMBench CAS checkpoint。
+- 集成时 `AMAP-ML/VMBench` 的 Hugging Face 数据集端点并未公开；prompt 套件已捆绑在树内 `worldfoundry/data/benchmarks/assets/vmbench` 下。生成视频必须遵循官方 `0001.mp4` … `1050.mp4` 命名。
+- 本页只给出可运行的命令，不声称这些 GPU 运行已在此环境中执行过。
+
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

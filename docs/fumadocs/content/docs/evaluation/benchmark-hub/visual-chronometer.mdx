@@ -130,4 +130,11 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" worldfoundry/evaluation/ta
 
 - [GitHub](https://github.com/taco-group/Visual_Chronometer)
 
+## What this cannot claim
+
+- The catalog records `official_benchmark_verified: false` and `leaderboard_valid: false`: a local scorecard is not an official leaderboard submission, and full numerical parity with the upstream evaluator has not been demonstrated in this checkout.
+- There is no dedicated `execution/runners/visual-chronometer` directory: this surface is served by the shared Visual Chronometer runtime and `run_visual_chronometer_official_runner.py` under `worldfoundry/evaluation/tasks/execution/runners/phyfps_bench_gen`.
+- A mock prediction backend exists (`WORLDFOUNDRY_VISUAL_CHRONOMETER_PREDICT_BACKEND=mock`) for wiring tests only; full official prediction requires the Visual Chronometer checkpoint and a GPU.
+- Full leaderboard parity requires the complete official assets, generated artifacts, and verified scorecard evidence.
+
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

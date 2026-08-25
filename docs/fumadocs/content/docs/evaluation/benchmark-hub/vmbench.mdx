@@ -207,3 +207,12 @@ The official VMBench README publishes a leaderboard with scores on a 0–100 sty
 The upstream README also reports roughly **6 hours 45 minutes** of GPU evaluation time for all five metrics on 1,050 CogVideoX-5B videos (49 frames, 8 FPS), with TCS and MSS as the slowest stages.
 
 WorldFoundry scorecards are local evidence. Leaderboard parity requires exactly `0001.mp4` through `1050.mp4` aligned with the bundled prompt order.
+
+## What this cannot claim
+
+- The catalog records `official_benchmark_verified: false` and `leaderboard_valid: false`: a local scorecard is not an official leaderboard submission, and full numerical parity with the upstream evaluator has not been demonstrated in this checkout.
+- All metrics run from local checkpoints (no hosted judge), but full recomputation requires the CUDA metric stack: GroundingDINO, SAM/SAM2, CoTracker, Q-Align, and the VMBench CAS checkpoint.
+- The `AMAP-ML/VMBench` Hugging Face dataset endpoint was not public at integration time; the prompt suite is bundled in tree under `worldfoundry/data/benchmarks/assets/vmbench`. Generated videos must follow the official `0001.mp4` … `1050.mp4` naming.
+- This page documents runnable commands; it does not claim those GPU runs were executed in this environment.
+
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

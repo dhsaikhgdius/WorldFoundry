@@ -145,3 +145,11 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
 | `nsfw_average` | 可用 safety metrics 的 mean violation rate；主指标。 |
 
 这些值是 violation rates，越低越安全。WorldFoundry 会把导入数值直接写入 metric score 字段。
+
+## 不能声称的边界
+
+- catalog 中记录 `official_benchmark_verified: false` 与 `leaderboard_valid: false`：本地 scorecard 不是官方 leaderboard 提交，本 checkout 也未验证与上游评测器的完整数值对齐。
+- judge 模式会调用 hosted GPT 评审，需要 `OPENAI_API_KEY` 或 `WORLDFOUNDRY_T2V_SAFETY_BENCH_GPT_API_KEY`；由于依赖用户凭据，发布验证期间未真正运行过评审。
+- 完整验证需要所有官方 prompt 类别的全部生成视频；leaderboard 对齐要求使用与基准作者相同的评审模型与协议。
+
+[← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

@@ -198,4 +198,11 @@ Video-Bench 还报告了比既有自动指标更强的人类对齐 Spearman 相�
 
 WorldFoundry scorecard 只是本地证据。复现上表仍需要官方 prompt suite、GPT judge 凭证，以及按维度组织的视频 layout。
 
+## 不能声称的边界
+
+- catalog 中记录 `official_benchmark_verified: false` 与 `leaderboard_valid: false`：本地 scorecard 不是官方 leaderboard 提交，本 checkout 也未验证与上游评测器的完整数值对齐。
+- 官方协议使用 hosted GPT-4o 评审打分，需要 `WORLDFOUNDRY_VIDEOBENCH_GPT4O_API_KEY` 或 `OPENAI_API_KEY`；没有凭据时不会进行任何评审。
+- 官方视频数据集（`Video-Bench/Video-Bench_videos`）在 Hugging Face 上是 gated 的，需要单独申请访问。
+- 完整 leaderboard 对齐需要完整官方资产、生成产物与经验证的 scorecard 证据。
+
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

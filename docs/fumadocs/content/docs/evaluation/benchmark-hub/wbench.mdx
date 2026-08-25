@@ -188,4 +188,11 @@ For leaderboard submission, the official package is:
 
 The official WBench process accepts either self-evaluated scores plus videos, or videos only for the WBench team to evaluate. WorldFoundry does not run or host your model for that process; it prepares local scorecards and artifacts from the assets you provide.
 
+## What this cannot claim
+
+- The catalog records `official_benchmark_verified: false` and `leaderboard_valid: false`: a local scorecard is not an official leaderboard submission, and full numerical parity with the upstream evaluator has not been demonstrated in this checkout.
+- The official VLM metrics call a hosted VLM API and require `VLM_API_KEY`; local visual-plausibility scoring additionally needs the PAVRM model directory.
+- Leaderboard-valid scores require a complete official report over the full split; WorldFoundry does not run or host your model for the official WBench submission process.
+- This page documents runnable commands; it does not claim those GPU runs were executed in this environment.
+
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

@@ -140,3 +140,11 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
 | `genai_bench_average` | 可用 task-level preference accuracy 的平均值；主指标。 |
 
 所有指标都会归一到 `[0, 1]`，越高越好。
+
+## 不能声称的边界
+
+- catalog 中记录 `official_benchmark_verified: false` 与 `leaderboard_valid: false`：本地 scorecard 不是官方 leaderboard 提交，本 checkout 也未验证与上游评测器的完整数值对齐。
+- 当 `WORLDFOUNDRY_GENAI_BENCH_SCORER_BACKEND`（或 `WORLDFOUNDRY_T2V_METRICS_BACKEND`）未设置时，scorer backend 默认是 `mock`。mock 偏好预测是确定性的占位值；真实评分必须把 backend 设为 `vqascore`，绝不要报告 mock 数值。
+- 完整 leaderboard 验证需要官方人工偏好标签或评审输出，以及官方成对 prompt/任务套件的生成产物。
+
+[← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

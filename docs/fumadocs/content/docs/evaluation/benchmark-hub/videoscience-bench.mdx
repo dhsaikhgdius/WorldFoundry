@@ -178,3 +178,11 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
 | `videoscience_average` | Mean aggregate over available VideoScience metrics; primary metric. |
 
 The judge rubric is 1-4. WorldFoundry normalizes rubric scores to `[0, 1]` with `(score - 1) / 3`, and higher is better.
+
+## What this cannot claim
+
+- The catalog records `official_benchmark_verified: false` and `leaderboard_valid: false`: a local scorecard is not an official leaderboard submission, and full numerical parity with the upstream evaluator has not been demonstrated in this checkout.
+- Full official-run mode calls a hosted VLM judge and requires a configured judge provider plus API key; import mode only normalizes existing judge outputs.
+- Full validation requires generated videos for the official experiment suite; leaderboard parity requires official judge assets and normalized upstream result files.
+
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

@@ -130,4 +130,11 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" worldfoundry/evaluation/ta
 
 - [GitHub](https://github.com/taco-group/Visual_Chronometer)
 
+## 不能声称的边界
+
+- catalog 中记录 `official_benchmark_verified: false` 与 `leaderboard_valid: false`：本地 scorecard 不是官方 leaderboard 提交，本 checkout 也未验证与上游评测器的完整数值对齐。
+- 不存在独立的 `execution/runners/visual-chronometer` 目录：该入口由 `worldfoundry/evaluation/tasks/execution/runners/phyfps_bench_gen` 下共享的 Visual Chronometer runtime 与 `run_visual_chronometer_official_runner.py` 提供。
+- 存在 mock 预测后端（`WORLDFOUNDRY_VISUAL_CHRONOMETER_PREDICT_BACKEND=mock`），仅用于接线测试；完整官方预测需要 Visual Chronometer checkpoint 与 GPU。
+- 完整 leaderboard 对齐需要完整官方资产、生成产物与经验证的 scorecard 证据。
+
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

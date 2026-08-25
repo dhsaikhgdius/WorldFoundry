@@ -198,4 +198,11 @@ Video-Bench also reports stronger human alignment than existing automatic metric
 
 A WorldFoundry scorecard is local evidence only. Reproducing the table above still requires the official prompt suite, GPT judge credentials, and a per-dimension video layout.
 
+## What this cannot claim
+
+- The catalog records `official_benchmark_verified: false` and `leaderboard_valid: false`: a local scorecard is not an official leaderboard submission, and full numerical parity with the upstream evaluator has not been demonstrated in this checkout.
+- The official protocol scores with a hosted GPT-4o judge and requires `WORLDFOUNDRY_VIDEOBENCH_GPT4O_API_KEY` or `OPENAI_API_KEY`; no judging happens without credentials.
+- The official videos dataset (`Video-Bench/Video-Bench_videos`) is gated on Hugging Face; access must be requested separately.
+- Full leaderboard parity requires the complete official assets, generated artifacts, and verified scorecard evidence.
+
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

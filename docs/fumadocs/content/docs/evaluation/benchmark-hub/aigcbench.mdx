@@ -122,4 +122,10 @@ Primary metric: `aigcbench_average`.
 | `genvideo_refvideo_ssim` | Higher is better | SSIM between generated and reference videos. |
 | `aigcbench_average` | Higher is better | Mean over available AIGCBench component metrics when not supplied directly. |
 
+## What this cannot claim
+
+- The catalog records `official_benchmark_verified: false` and `leaderboard_valid: false`: a local scorecard is not an official leaderboard submission, and full numerical parity with the upstream evaluator has not been demonstrated in this checkout.
+- The public surface is a result importer/normalizer: `--run-official` only produces metric rows when a locally configured WorldFoundry scorer stack exists. The in-tree runner does not reimplement the full CLIP/DOVER/optical-flow pipeline.
+- Full validation requires generated videos for the official prompt suite plus reference images and reference videos for the fidelity and reference-video metric families.
+
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

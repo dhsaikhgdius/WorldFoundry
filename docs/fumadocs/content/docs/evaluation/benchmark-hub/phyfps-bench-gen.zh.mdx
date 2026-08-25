@@ -247,4 +247,11 @@ video,segment,start_frame,mid_frame,end_frame,predicted_phyfps
 | `intra_video_cv` | 每个视频内部滑窗 PhyFPS 预测的变异系数均值。 |
 | `phyfps_bench_gen_average` | 可用 PhyFPS score family 的均值。 |
 
+## 不能声称的边界
+
+- catalog 中记录 `official_benchmark_verified: false` 与 `leaderboard_valid: false`：本地 scorecard 不是官方 leaderboard 提交，本 checkout 也未验证与上游评测器的完整数值对齐。
+- 存在 mock 预测后端（`WORLDFOUNDRY_PHYFPS_PREDICT_BACKEND=mock`）；用它产出的 scorecard 会被标记为 mock runtime，不是官方证据。默认后端为 `official`。
+- Meta FPS 对齐指标需要调用方提供 Meta FPS 值；完整 leaderboard 对齐需要完整官方 prompt 套件、生成产物与 Visual Chronometer checkpoint。
+- 本页只给出可运行的命令，不声称这些 GPU 运行已在此环境中执行过。
+
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

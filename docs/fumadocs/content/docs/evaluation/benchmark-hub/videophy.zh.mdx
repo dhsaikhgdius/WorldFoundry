@@ -180,4 +180,10 @@ worldfoundry-eval zoo benchmark-run \
 - `videocon_physics_outputs/`: VideoCon-Physics 原始 CSV 输出。
 - `logs/`: VideoCon-Physics stdout/stderr 日志。
 
+## 不能声称的边界
+
+- catalog 中记录 `official_benchmark_verified: false` 与 `leaderboard_valid: false`：本地 scorecard 不是官方 leaderboard 提交，本 checkout 也未验证与上游评测器的完整数值对齐。
+- VideoCon-Physics 官方 runtime 已集成，但未在本 checkout 中执行过；运行它需要 `videophysics/videocon_physics` checkpoint 与 CUDA GPU。
+- 完整验证需要官方 prompt 套件的生成视频；leaderboard 对齐需要完整的上游 scorer 执行与归一化的官方结果文件。
+
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

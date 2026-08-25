@@ -123,4 +123,11 @@ from worldfoundry.evaluation.tasks.execution.runners.videoverse.run_videoverse_o
 
 runner 输出 `qa_accuracy`、`event_coverage`、`temporal_causality`、`world_knowledge_consistency`、`static_scene_consistency`、`dynamic_event_consistency`、`videoverse_average`。七个指标都是越高越好。
 
+## 不能声称的边界
+
+- catalog 中记录 `official_benchmark_verified: false` 与 `leaderboard_valid: false`：本地 scorecard 不是官方 leaderboard 提交，本 checkout 也未验证与上游评测器的完整数值对齐。
+- 默认 judge backend 是 hosted Gemini API（`gemini`，默认模型 `gemini-2.5-pro`），需要 API key；评审是付费的外部调用，不是本地计算。
+- `WORLDFOUNDRY_VIDEOVERSE_JUDGE_BACKEND=mock` 仅用于接线测试；绝不要把 mock 评审当作基准结果报告。
+- 完整 leaderboard 对齐需要完整官方资产、生成产物与经验证的 scorecard 证据。
+
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

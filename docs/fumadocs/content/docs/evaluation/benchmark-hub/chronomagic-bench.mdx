@@ -148,4 +148,11 @@ The output directory contains:
 
 `chronomagic_score` averages available CHScore, MTScore, and GPT4o-MTScore values after scale normalization. `temporal_transformation` focuses on MTScore and GPT4o-MTScore. Higher is better for both metrics.
 
+## What this cannot claim
+
+- The catalog records `official_benchmark_verified: false` and `leaderboard_valid: false`: a local scorecard is not an official leaderboard submission, and full numerical parity with the upstream evaluator has not been demonstrated in this checkout.
+- Full official core runs require a user-provided MTScore checkpoint and OpenAI credentials for GPT4o-MTScore (a hosted judge); without them only the CHScore-family components run.
+- Leaderboard parity requires the complete ChronoMagic prompt set, generated videos, MTScore, GPT4o-MTScore, UMT fields, and the official submission protocol.
+- This page documents runnable commands; it does not claim those GPU runs were executed in this environment.
+
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

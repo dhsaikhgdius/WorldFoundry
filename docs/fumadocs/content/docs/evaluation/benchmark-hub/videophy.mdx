@@ -180,4 +180,10 @@ The run writes:
 - `videocon_physics_outputs/`: raw VideoCon-Physics CSV outputs.
 - `logs/`: VideoCon-Physics stdout/stderr logs.
 
+## What this cannot claim
+
+- The catalog records `official_benchmark_verified: false` and `leaderboard_valid: false`: a local scorecard is not an official leaderboard submission, and full numerical parity with the upstream evaluator has not been demonstrated in this checkout.
+- The VideoCon-Physics official runtime is integrated but has not been executed in this checkout; running it requires the `videophysics/videocon_physics` checkpoint and a CUDA GPU.
+- Full validation requires generated videos for the official prompt suite; leaderboard parity requires full upstream scorer execution and normalized official result files.
+
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

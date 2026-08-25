@@ -178,4 +178,11 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
 - `vbench2_video_coverage.json`: 生成视频相对 reference 的覆盖情况。
 - `upstream_stdout.log` 和 `upstream_stderr.log`: 仓内 runtime 日志。
 
+## 不能声称的边界
+
+- catalog 中记录 `official_benchmark_verified: false` 与 `leaderboard_valid: false`：本地 scorecard 不是官方 leaderboard 提交，本 checkout 也未验证与上游评测器的完整数值对齐。
+- 有界官方 GPU 验证只覆盖 Diversity 一个维度；完整维度栈需要完整的生成视频集、数据集资产与已就位的基础模型 checkpoint。
+- 上游 Hugging Face 的 license 字段在 API 响应中为空，再分发前需要人工审查。
+- 本页只给出可运行的命令，不声称这些 GPU 运行已在此环境中执行过。
+
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

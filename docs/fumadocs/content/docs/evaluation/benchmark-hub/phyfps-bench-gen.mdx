@@ -247,4 +247,11 @@ Primary metric: `phyfps_bench_gen_average`. Lower is better for every metric on 
 | `intra_video_cv` | Mean within-video coefficient of variation over sliding-window PhyFPS predictions. |
 | `phyfps_bench_gen_average` | Mean over available PhyFPS score families. |
 
+## What this cannot claim
+
+- The catalog records `official_benchmark_verified: false` and `leaderboard_valid: false`: a local scorecard is not an official leaderboard submission, and full numerical parity with the upstream evaluator has not been demonstrated in this checkout.
+- A mock prediction backend exists (`WORLDFOUNDRY_PHYFPS_PREDICT_BACKEND=mock`); scorecards produced with it are flagged as mock runtime and are not official evidence. The default backend is `official`.
+- Meta FPS alignment metrics require caller-supplied Meta FPS values; full leaderboard parity requires the complete official prompt suite, generated artifacts, and the Visual Chronometer checkpoint.
+- This page documents runnable commands; it does not claim those GPU runs were executed in this environment.
+
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

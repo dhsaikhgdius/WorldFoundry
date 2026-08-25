@@ -140,4 +140,11 @@ runner 会写出：
 
 如果要做 leaderboard 级别复现，需要确认本地 dataset root 覆盖完整 test split，并且 score directory 包含你要报告的全部指标族。
 
+## 不能声称的边界
+
+- catalog 中记录 `official_benchmark_verified: false` 与 `leaderboard_valid: false`：本地 scorecard 不是官方 leaderboard 提交，本 checkout 也未验证与上游评测器的完整数值对齐。
+- 公开入口只能导入官方结果文件或聚合已准备好的 score 目录，不会生成 VLM/SfM 预测。产出官方 CameraBench score 文件仍需上游的分数生成栈。
+- caption GPT 评审是可选项，只有显式启用并提供 `OPENAI_API_KEY` 时才运行；默认不执行任何 hosted 评审。
+- 完整 leaderboard 验证仍需在完整测试划分上做经源码审计的分数生成，并遵循上游提交协议。
+
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

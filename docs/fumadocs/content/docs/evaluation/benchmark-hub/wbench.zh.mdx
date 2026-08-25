@@ -188,4 +188,11 @@ leaderboard 提交的官方 package 是：
 
 官方 WBench 流程接受自评 scores 加 videos，也接受只提交 videos 由 WBench 团队评测。WorldFoundry 不负责托管或运行你的模型；它只基于你准备好的资产生成本地 scorecard 和 artifacts。
 
+## 不能声称的边界
+
+- catalog 中记录 `official_benchmark_verified: false` 与 `leaderboard_valid: false`：本地 scorecard 不是官方 leaderboard 提交，本 checkout 也未验证与上游评测器的完整数值对齐。
+- 官方 VLM 指标会调用 hosted VLM API，需要 `VLM_API_KEY`；本地视觉合理性打分还需要 PAVRM 模型目录。
+- leaderboard 有效分数要求覆盖完整划分的完整官方报告；WorldFoundry 不会为官方 WBench 提交流程运行或托管你的模型。
+- 本页只给出可运行的命令，不声称这些 GPU 运行已在此环境中执行过。
+
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

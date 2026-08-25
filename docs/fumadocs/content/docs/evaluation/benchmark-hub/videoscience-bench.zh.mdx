@@ -177,3 +177,11 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
 | `videoscience_average` | 可用 VideoScience metrics 的平均值；主指标。 |
 
 judge rubric 是 1-4 分。WorldFoundry 使用 `(score - 1) / 3` 归一到 `[0, 1]`，越高越好。
+
+## 不能声称的边界
+
+- catalog 中记录 `official_benchmark_verified: false` 与 `leaderboard_valid: false`：本地 scorecard 不是官方 leaderboard 提交，本 checkout 也未验证与上游评测器的完整数值对齐。
+- 完整 official-run 模式会调用 hosted VLM 评审，需要配置好的 judge provider 与 API key；导入模式只对已有评审输出做归一化。
+- 完整验证需要官方实验套件的生成视频；leaderboard 对齐需要官方评审资产与归一化的上游结果文件。
+
+[← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

@@ -165,4 +165,11 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
 - `upstream_stdout.log` 和 `upstream_stderr.log`: 仓内 runtime 日志。
 - `vbenchpp_long_presplit_manifest.json`: 使用 `long_custom_input` 时的 long-video split preparation metadata。
 
+## 不能声称的边界
+
+- catalog 中记录 `official_benchmark_verified: false` 与 `leaderboard_valid: false`：本地 scorecard 不是官方 leaderboard 提交，本 checkout 也未验证与上游评测器的完整数值对齐。
+- 有界官方 GPU 验证只覆盖 long-video 变体；完整的 I2V、long-video 与 trustworthiness 套件覆盖仍待完成。
+- leaderboard 对齐需要完整的官方变体套件与生成产物。
+- 本页只给出可运行的命令，不声称这些 GPU 运行已在此环境中执行过。
+
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

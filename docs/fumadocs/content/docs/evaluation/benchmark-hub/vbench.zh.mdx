@@ -164,4 +164,11 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
 - `upstream/*_eval_results.json`: 重新计算 metric 时的官方 runtime 结果 JSON。
 - `upstream_stdout.log` 和 `upstream_stderr.log`: 仓内 VBench runtime 日志。
 
+## 不能声称的边界
+
+- catalog 中记录 `official_benchmark_verified: false` 与 `leaderboard_valid: false`：本地 scorecard 不是官方 leaderboard 提交，本 checkout 也未验证与上游评测器的完整数值对齐。
+- 本仓库的有界官方 GPU 验证只覆盖 `aesthetic_quality` 一个维度；完整 16 维套件验证仍待完成。
+- 部分全套件维度仍依赖 detectron2 等重量级第三方依赖。
+- leaderboard 级别的运行需要覆盖完整上游 VBench prompt 套件的生成视频。
+
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)
