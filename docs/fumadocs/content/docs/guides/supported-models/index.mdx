@@ -5,19 +5,40 @@ description: Pick a model, inspect its runtime, and copy a command that matches 
 
 <ModelRecipeCatalog />
 
-## What a recipe records
+## How to read the status column
 
-Each detail page is assembled from the repository manifests rather than a hand-maintained marketing table. A recipe keeps these claims separate:
+Every model carries one readiness badge. The badge is computed from independent manifest records and never rounds missing evidence up to a stronger claim.
+
+| Status | Meaning | What you can do |
+| --- | --- | --- |
+| **Runner verified** | A WorldFoundry runner-parity artifact is recorded for at least one route. | Copy the run command and expect it to produce the recorded artifact. |
+| **Integrated** | A runnable pipeline is bound, but end-to-end GPU parity is still pending. | Run it; treat outputs as unvalidated until parity is recorded. |
+| **Runtime ported** | Runtime code exists in-tree; the route is still being wired up. | Inspect the manifest; running may require manual steps. |
+| **Profile only** | Only a runtime profile is recorded — no bound pipeline. | Use the page for provenance and planning; no run command is shown. |
+| **Planned** | The entry records intent and upstream provenance only. | Track it; nothing is runnable yet. |
+| **Blocked** | A recorded blocker (license, weights, upstream) prevents integration. | Read the manifest notes for the specific blocker. |
+
+## How to choose a model
+
+1. **Filter by family and task.** Use the category tabs (Video, World models, 3D & 4D, Embodied, Hosted API) and the search box — it matches model names, aliases, providers, and task ids.
+2. **Prefer verified or integrated entries.** These have a bound pipeline; everything else is reference material.
+3. **Check the runtime columns.** Dedicated environments need their own install; unified-environment models share one conda environment. Python/CUDA columns tell you whether your driver stack matches before you install anything.
+4. **Open the model page.** Each page explains what the model is, where it comes from, its input/output contract, exact environment, weight repositories with pinned revisions, and a command builder that emits the copy-paste run command for a chosen variant.
+
+## What each model page contains
+
+Model pages are generated from repository manifests by `docs/fumadocs/scripts/generate-model-recipes.py` — not hand-maintained marketing pages. Each page keeps these claims separate:
 
 | Record | What it tells you |
 | --- | --- |
-| Catalog | Stable model ID, tasks, official sources, aliases, and integration status. |
+| Catalog | Stable model ID, tasks, official sources (paper, project, code, weights), aliases, and integration status. |
 | Runtime profile | Input contract, artifact contract, backend stage, and runtime readiness. |
 | Environment | Python, CUDA tier, pinned packages, validation imports, and dedicated vs. unified routing. |
-| Pipeline binding | The runner and concrete pipeline target used by WorldFoundry. |
+| Pipeline binding | The runner and concrete pipeline target used by WorldFoundry, per variant. |
+| Benchmarks | Evaluation benchmarks recommended by the manifest or referenced in its evidence notes, linked to the Benchmark Hub. |
 | Evidence | Native-demo and WorldFoundry-runner parity; a catalog entry alone is not proof of a successful GPU run. |
 
-Unknown values remain **Not recorded**. WorldFoundry does not turn a catalog entry into a stronger “supported” claim without runtime or evidence records.
+Unknown values remain **Not recorded**. A catalog manifest may additionally carry a curated `docs:` block (overview, highlights, use cases, hardware guidance, recommended benchmarks, limitations, all bilingual); when the block is absent, the generator synthesizes an equivalent narrative from the recorded fields, so every page stays detailed either way.
 
 ## Common commands
 
@@ -36,6 +57,17 @@ worldfoundry-eval zoo model-download \
 
 # Resolve and install the environment manifest for one runtime profile.
 bash scripts/setup/model_env_install.sh --model <model-id>
+
+# Download checkpoints and source assets for a runtime profile.
+bash scripts/inference/prepare_model_infer.sh <model-id>
+
+# Run a recorded task profile (each model page generates the exact flags).
+worldfoundry-eval run <model-id> --pipeline.task-profile <task> --json
 ```
 
-For the full request-file and artifact flow, continue to [Run inference](/docs/guides/inference). For environment routing policy, see [Environment reference](/docs/reference/environments).
+## Where this fits in the docs
+
+- [Run inference](/docs/guides/inference) — the full request-file and artifact flow once you have picked a model.
+- [Environment reference](/docs/reference/environments) — how unified vs. dedicated environment routing is decided.
+- [Evaluation](/docs/evaluation) and the Benchmark Hub — score a model's outputs; model pages link to benchmarks their manifests recommend or reference.
+- [Add a model](/docs/guides/add-model) — how new catalog manifests (and their optional `docs:` block) are written.
