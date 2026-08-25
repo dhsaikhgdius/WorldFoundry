@@ -1,0 +1,205 @@
+WorldFoundry 基础设施优化计划（第 4 轮）
+========================================
+日期：2026-08-25
+性质：建议修改（本文件只记录计划，不直接改代码）
+承接：plan/infra_optimization_plan.txt、round2、round3
+方法：主会话编排 + 4 个云端子代理（claude-fable-5-thinking-xhigh）
+  - MCP 工具面（输出目录、作业索引、事件循环）
+  - core/configuration（LazyConfig / Hydra override）
+  - evaluation/api + metrics 注册与 vendor 加载
+  - pipelines / synthesis 适配器加载与显存
+
+禁止重复第 1–3 轮已写条目。交叉最多一行。
+
+
+0. 现状一句话
+--------------
+MCP 骨架已健康，但默认评测目录没有 run 级唯一性，agent 重试会串结果。
+配置系统公共 API 的 YAML 往返与 Hydra 并发尚未被真实流量打到，常驻进程化前必须修。
+metric list 与 show 回答不同的宇宙；pipeline 路由一个坏 YAML 能放翻全部模型。
+
+
+1. 不建议改的地方
+------------------
+- 不要把 MCP evaluate 改成 in-process。
+- 不要删除 MCP_TOOL_NAMES 静态清单。
+- 不要一次性 rename 已发布的 MCP 工具名。
+- 不要给 LazyConfig 的 .py 配置做语言级沙箱；只收路径白名单。
+- 不要动 vendored dino_wm @hydra.main；outputs/ 已被 gitignore。
+- 不要合并 MetricRegistry 与 api MetricSpec 为单一表。
+- 不要动 vendored 指标算法数值路径；锁加在 wrapper。
+- 不要把 spawn-per-model 改成 per-metric 进程池。
+- 不要给 313 个 from_pretrained 逐个加 try/except；只在 choke point 兜底。
+- 不要全量重命名 vendor offload 参数。
+- 不要在每次 predict 后 empty_cache。
+- 第 1–3 轮边界继续有效。
+
+
+2. 优先级
+----------
+P1
+  1) MCP 默认 output_dir 追加 job_id；jobs-index 加锁或 per-job 文件
+  2) metric list 默认 include_discovered；缺依赖错误区分 unknown vs extra 未装
+  3) RuntimeVideoSynthesis：采样参数不要触发整模型重载；override 不要粘性写回
+  4) LazyConfig save_yaml/load 往返；hydra.override 加锁
+  5) 单文件坏 binding 不要放翻全局路由；Studio load_pipeline 失败回收显存
+
+P2
+  6) MCP studio 工具 to_thread；env_overrides 二选一；sse --host/--port 默认回环
+  7) instantiate 缺 _target_ 严格模式；LazyConfig.load 路径白名单
+  8) vendor sys.path 通用名（compute/util）；下载 filelock
+  9) dtype 统一 parse_torch_dtype；synthesis 反向依赖下沉
+
+P3
+  10) MCP schema 词表、client isError、json_contract NaN、EvaluationProtocolSpec schema_version
+
+
+3. MCP 工具面
+--------------
+已核对：_default_output_dir 仅为 model__bench，无 job_id。
+
+[M-01] P1 默认目录无 run 唯一性
+  文件：worldfoundry/mcp/tools/runs.py
+  改法：root / label / job_id；或拒绝同目录非终态作业。
+
+[M-02] P2 jobs-index.json 最后写者胜；import 即恢复并可能写回
+  文件：runtime/jobs.py 、 mcp/tools/context.py
+  改法：DEFAULT_CONTEXT 惰性；_persist 加锁或按 job_id 合并；构造函数不要无条件写回。
+
+[M-03] P2 8 个同步 Studio HTTP 工具阻塞事件循环；get_run_samples 扫全文件算 total
+  文件：mcp/tools/registration.py
+  改法：asyncio.to_thread（已有 submit_studio_inference_payload_async 范式）。
+
+[M-04] P2 submit_studio_inference.env_overrides 被 JobCreateRequest 丢弃
+  实现字段或从 MCP schema 删除。
+
+[M-05] P2 SSE 无 --host/--port；两入口重复 argparse
+  默认回环；cli/mcp.py 复用 mcp/__init__.py parser。
+  （绑定加固只谈默认值，不展开攻击面。）
+
+[M-06] P2 无 GPU 时 studio 提交仍 ok=true
+  _INSTRUCTIONS / docstring 写明前提；更好是查设备契约。
+
+[M-07] P3 generation_cache_mode 枚举不全；preview 死变换 python_module_command；
+      cancel_run vs stop_studio_job；client 不检查 isError；env=None 丢掉 WORLDFOUNDRY_*。
+
+
+4. core/configuration
+---------------------
+[F-01] P1 save_yaml → load 往返失败
+  LazyCall 把 class 对象写入 _target_，yaml.dump 出 !!python/name，safe_load 炸。
+  文件：lazy_config/config.py
+  改法：落盘前 convert_target_to_string；容器叶子递归审查；优先 safe_dump。
+
+[F-02] P1 hydra.override 线程不安全
+  ConfigStore 单例永久 store(name="config")；TOCTOU initialize。
+  文件：core/configuration/hydra.py
+  改法：模块锁；唯一节点名 + finally 清理；已初始化时显式报错。
+
+[F-03] P2 instantiate 无 _target_ 静默返回；assert 在 python -O 消失
+[F-04] P2 LazyCall 烘焙签名默认值，callable vs 字符串目标配置内容不同——先文档后开关
+[F-05] P2 LazyConfig.load 任意路径 exec；常驻进程 CWD 漂移——加 base_dir 白名单（趁零调用者收紧）
+[F-06] P2 WORLDFOUNDRY_* 真值语法至少 4 种；提公共 env_bool
+[F-07] P3 PLACEHOLDER/LazyDict 死表面；yaml.add_representer 每次改全局；
+      import_all_modules_from_package 用 log.critical；recipe options 可塞可变 DictConfig
+
+
+5. evaluation/api + metrics
+---------------------------
+已核对：MetricRegistry.list(include_discovered=False) 为默认。
+
+[N-01] P1 缺 torch 时 ssim 报 unknown，建议改用 artifact_count
+  区分「未注册」与「已知但缺 extra」；错误里写 pip install worldfoundry[distribution_metrics]。
+
+[N-02] P1 metric list 不含 discovered，show 会触发发现——列表依赖调用历史
+  list() 默认 include_discovered=True。
+
+[N-03] P1 5 处手工清单 + catalog 不经 registry；family 字段两套语义
+  BUILTIN 只留 result_only；其余迁入包 METRIC_MODULE；catalog 转换时交叉校验 higher_is_better。
+
+[N-04] P1 vendor prepend sys.path：顶层模块名 compute / util / sad
+  改 spec_from_file_location 带前缀；piq/rke pip extra 与 vendored 二选一。
+
+[N-05] P2 懒发现把包 __init__ eager import torch；先读元数据应走 lazy_export
+[N-06] P2 GPU 默认三套（cuda bool / device="cuda" / None 自动）
+[N-07] P2 权重下载无锁（cleanfid 直写最终路径；torch.hub 并发 clone）
+[N-08] P2 _discovered 先置 True 再导入——Studio 线程瞬时假阴性
+[N-09] P2 json_dumps 允许 NaN、canonical 不允许；stable_hash 含全部默认字段、无缓存
+[N-10] P3 EvaluationProtocolSpec 不校验 schema_version；numeric: 缺列静默丢；
+      REMOTE_URI_SCHEMES 是伪扩展点
+
+
+6. pipelines / synthesis
+------------------------
+已核对：_apply_prediction_runtime_overrides 改 kwargs 后 generator=None。
+
+[L-01] P1 RuntimeVideoSynthesis 把 seed/steps 当构造参数
+  内省 generate_video 而非 __init__；重建前 gc+empty_cache；per-call override 不要永久写回 runtime_kwargs。
+
+[L-02] P1 Studio load_pipeline 无 try/finally：先逐出后加载失败则半初始化占显存
+  choke point 失败调用 _collect_device_memory。
+
+[L-03] P1 一个坏 binding YAML 使 313 个模型路由全部失败
+  按文件收集 issue 并跳过，对齐 merge_pipeline_binding_plugins。
+
+[L-04] P1 运行时错误丢掉 binding_id/source
+  PipelineRunnerSpec 带 provenance；import 失败写清来自哪级路由。
+
+[L-05] P2 synthesis 约 40 处反向 import evaluation（load_runtime_profile / worldfoundry_data_path）
+  能力下沉到 runtime/core.io。
+
+[L-06] P2 synthesis getattr(torch, dtype) 不认 bf16；offload 五套名字
+  适配器边界用 parse_torch_dtype / parse_offload_policy。
+
+[L-07] P2 三套 kwargs 别名表（native diffusion / RuntimeVideoSynthesis / invocation）
+  单一常量表；operator 与 synthesis 只走一条通道。
+
+[L-08] P3 from_pretrained 四种约定静默分派；alias KeyError 报 canonical 非用户输入；
+      Studio 清理缺 ipc_collect。
+
+
+7. 文件级改动总表
+----------------
+第一批
+  mcp/tools/runs.py _default_output_dir
+  runtime/jobs.py persist 锁；mcp context 惰性
+  tasks/metrics/registry.py list 默认 + 缺依赖错误
+  synthesis/.../runtime_video_synthesis.py 采样参数
+  lazy_config/config.py save/load；hydra.py override 锁
+  evaluation/models/pipelines/bindings.py 坏文件隔离
+  studio/execution.py load 失败回收
+
+第二批
+  mcp registration to_thread；sse host/port
+  instantiate 严格模式；LazyConfig.load base_dir
+  vendor 模块名前缀；下载 filelock
+  parse_torch_dtype 收敛；PipelineRunnerSpec provenance
+
+第三批
+  MCP 词表、json_contract NaN、env_bool、synthesis 反向依赖分批
+
+
+8. 验收
+--------
+- MCP 对同一 (model, benchmark) 连发两次 evaluate，产物目录不同，get_run_samples(run_id) 不串读。
+- 未装 torch 时 metric show ssim 的错误提到 extra 名，而不是 artifact_count。
+- metric list 与随后的 show 看到同一批 id。
+- 改一个非法 YAML binding 后，其他模型 resolve_pipeline_route 仍可用。
+- LazyCall 配置 save_yaml 后再 load 成功。
+- RuntimeVideoSynthesis 连续两个不同 seed 的 predict 不触发第二次 from_pretrained（可用日志断言）。
+
+
+9. 与前轮衔接
+--------------
+MCP max_jobs / logger stdout：第 2–3 轮；本轮是输出目录与索引竞态。
+catalog pipeline_binding 静态校验：第 2 轮；本轮是运行时 provenance 与坏文件爆炸半径。
+generation cache schema：第 2 轮；本轮是 api json NaN 与 metric 注册表。
+Studio 绑定探测：第 3 轮；本轮是 load_pipeline 失败回收，不谈 HTTP 攻击面。
+
+
+10. 子代理索引
+--------------
+  MCP        默认目录串 run、索引无锁、循环阻塞、env_overrides 幻影
+  配置       YAML 往返、override 并发、load 路径、env 真值
+  metrics    list/show 分裂、缺依赖误导、sys.path 污染、下载无锁
+  pipelines  采样参数重载、坏 YAML 全局失败、反向依赖、dtype 分叉

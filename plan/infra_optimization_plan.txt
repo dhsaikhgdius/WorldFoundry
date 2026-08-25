@@ -10,7 +10,8 @@ WorldFoundry 基础设施优化计划
 
 对照：plan/code_review/14_tests_ci.md（2026-08-14）与 2026-08-17 落地提交。
 续篇：plan/infra_optimization_plan_round2.txt（包装/LFS、catalog/preflight、评测编排、日志与分布式启动）；
-        plan/infra_optimization_plan_round3.txt（训练/下载/密钥落盘/CLI 脚本）。
+        plan/infra_optimization_plan_round3.txt（训练/下载/密钥落盘/CLI 脚本）；
+        plan/infra_optimization_plan_round4.txt（MCP 工具、配置运行时、metrics 注册、pipeline 加载）。
 结论：骨架建议多数已落地，但门禁仍无绿色基线；安装/镜像/集群侧仍有一批可独立落地的止血项。
 
 

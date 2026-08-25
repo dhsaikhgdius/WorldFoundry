@@ -3,6 +3,7 @@ WorldFoundry 基础设施优化计划（第 3 轮）
 日期：2026-08-25
 性质：建议修改（本文件只记录计划，不直接改代码）
 承接：plan/infra_optimization_plan.txt（第 1 轮）、plan/infra_optimization_plan_round2.txt（第 2 轮）
+续篇：plan/infra_optimization_plan_round4.txt
 方法：主会话编排 + 云端子代理并行评审（模型 claude-fable-5-thinking-xhigh）
   - 训练启动 / recipe / checkpoint / post-training reward 作业
   - 数据集与 checkpoint 下载流水线
