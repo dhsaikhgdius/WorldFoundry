@@ -125,10 +125,10 @@
 - 原因：把 `num_updates`/`iteration_shift`/`exponent` 从 GPU buffer 改为 python int 会改变 `state_dict` 载荷形态（buffer 序列化 → 需自定义 state_dict/load_state_dict），破坏既有 EMA checkpoint 兼容性；属性能清理且量级小（评审原文"量级不大，属清理项"）。
 - 方案：保留 buffer 作为持久化载体，运行期用 python int 镜像计数、仅在 state_dict/load_state_dict 时同步 buffer；或等 TE-06 的 schema 版本化窗口一并处理。
 
-### [TE-13] P3 训练/推理三套 FSDP 与两套 DCP 并存、core 版缺 inference-only 标注
+### [TE-13] P3 训练/推理三套 FSDP 与两套 DCP 并存、core 版缺 inference-only 标注 —— docstring 部分已修（infra 任务 6）
 
 - 原因：评审建议的落点（给 `core/distributed/fsdp2_sharding.py`、`core/distributed/block_fsdp.py` 加 docstring 标注 + 长期收敛）在 `worldfoundry/core/`，超出本任务允许改动范围（只许改 training 子树）。
-- 方案：由 core owner 在两个 `shard_model` docstring 标注"inference/vendored-only，训练一律用 `training/distributed.apply_fsdp2`（其 fallback 分支静默退化单卡，用于训练是灾难）"；长期将 vendored 推理路径收敛到审计版。
+- **后续更新（infra 任务 6，分支 `cursor/infra-code-review-fixes-2f62`）**：两个文件已加模块级与 `shard_model` docstring，标注 inference/vendored-only、训练一律用 `worldfoundry.training.distributed.apply_fsdp2`（其 fallback 分支静默退化单卡，用于训练是灾难）。验证：`py_compile` 通过，纯 docstring 零行为变化。长期收敛（vendored 推理路径合并到审计版）仍 deferred。
 
 ### [TE-14.2/14.3/14.4] P3 weight_sync 串行 gather、anyflow DDP find_unused_parameters/no_sync、video_rollout 私有导入
 

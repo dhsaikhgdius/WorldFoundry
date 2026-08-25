@@ -104,9 +104,10 @@
 - 原因：`PipelineABC.__init__` 会设置 `model_id/memory_module/options/operators/device` 等状态并可能触发组件装配逻辑，给 10+ 个手写 `__init__` 补 `super().__init__(...)` 需要逐家核对参数映射与副作用（有的家族根本没有 memory/operator 概念），改错即运行期行为变化；当前靠 `_uses_component_contract()` 返回 False 是稳定的。
 - 建议方案：与 PL-02 的基类抽取合并做（`HostedApiPipeline.__init__` 统一调 super 并显式声明属性），native 家族则在 PL-09 归拢时处理；过渡期可在 `PipelineABC.__init_subclass__` 加"缺关键属性时警告"的软校验。
 
-### [PL-04] `_call_component_pipeline` 的 `processed["actions"]` 隐式四键契约
-- 原因：加 TypedDict/显式校验属基类契约变更，会影响全部走组件契约的声明式 pipeline（~50 个类），校验过严可能把现在能跑的 operator 打断；收益是报错更早，风险是误伤。
-- 建议方案：在 `pipeline_utils.py` 定义 `ProcessedInputs(TypedDict)`；`_call_component_pipeline` 在取键前做 `missing = {"prompt","images","video","actions"} - processed.keys()`，缺键时抛带 operator 类名与修复提示的 `TypeError`。CPU 单测可全覆盖（伪 operator），可在下一轮安全落地——留给有时间跑全量 tests/pipelines 的轮次。
+### [PL-04] `_call_component_pipeline` 的 `processed["actions"]` 隐式四键契约 —— 已修（infra 任务 6）
+- 原因（原 deferred）：加 TypedDict/显式校验属基类契约变更，会影响全部走组件契约的声明式 pipeline（~50 个类），校验过严可能把现在能跑的 operator 打断；收益是报错更早，风险是误伤。
+- **修复（infra 任务 6，分支 `cursor/infra-code-review-fixes-2f62`）**：按建议方案落地——`_call_component_pipeline` 在取键前校验 `processed` 是 Mapping 且含 `{"prompt","images","video","actions"}` 四键，违约时抛带 pipeline 类名、缺失键与 operator 类名的 `TypeError`（替代裸 `KeyError`）。校验只在原本必然 `KeyError` 崩溃的路径上抛错，合法 operator 零影响（无误伤面）。
+- 验证：`tests/pipelines/test_pipeline_component_contract_errors.py`（4 条：缺单键、缺多键、非 Mapping 返回、合法输出不受影响）全部通过；`py_compile` 通过。
 
 ### [PL-05] `PipelineInvocation` 下沉 core（跨包搬家）
 - 原因：目标位置在 `core/`（或独立协议模块），本轮禁止跨包移动。已用 TYPE_CHECKING 消除运行期反向依赖（见已修复）。
