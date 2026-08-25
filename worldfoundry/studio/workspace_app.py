@@ -765,7 +765,12 @@ def _launch_visualizer_locked(mode: str, payload: VisualizerLaunchRequest) -> di
             stdout=log_file,
             stderr=subprocess.STDOUT,
             text=True,
-            preexec_fn=os.setsid if hasattr(os, "setsid") else None,
+            # start_new_session is the thread-safe equivalent of
+            # preexec_fn=os.setsid: CPython documents preexec_fn as unsafe in
+            # multi-threaded programs, and this Popen runs inside FastAPI's
+            # threadpool (SA-8/PLW1509).  The child still becomes its own
+            # process group leader, which _terminate_process_group relies on.
+            start_new_session=hasattr(os, "setsid"),
         )
     ready = _wait_for_visualizer(health_url, timeout=_visualizer_startup_timeout(mode))
     if not ready:
@@ -887,12 +892,12 @@ def _append_task_inputs(
         return spec
     patched_tasks = []
     for task in spec.tasks:
-        existing = {(field.target, _param_key(field.field_id)) for field in task.inputs}
+        existing = {(input_field.target, _param_key(input_field.field_id)) for input_field in task.inputs}
         merged = list(task.inputs)
-        for field in fields:
-            key = (field.target, _param_key(field.field_id))
+        for input_field in fields:
+            key = (input_field.target, _param_key(input_field.field_id))
             if key not in existing:
-                merged.append(field)
+                merged.append(input_field)
                 existing.add(key)
         patched_tasks.append(replace(task, inputs=tuple(merged)))
     return replace(spec, tasks=tuple(patched_tasks))
@@ -919,11 +924,11 @@ def _entry_inference_spec(entry: CatalogEntry):
                 replace(
                     task,
                     inputs=tuple(
-                        replace(field, default=entry.default_interactions or ("forward",))
-                        if field.target == "params"
-                        and _param_key(field.field_id) in {"interactions", "interaction", "interaction_signal", "action"}
-                        else field
-                        for field in task.inputs
+                        replace(input_field, default=entry.default_interactions or ("forward",))
+                        if input_field.target == "params"
+                        and _param_key(input_field.field_id) in {"interactions", "interaction", "interaction_signal", "action"}
+                        else input_field
+                        for input_field in task.inputs
                     ),
                 )
                 for task in spec.tasks
@@ -1024,7 +1029,7 @@ def _entry_inference_spec(entry: CatalogEntry):
                 replace(
                     task,
                     label="Video Inference",
-                    inputs=tuple(field for field in task.inputs if field.target != "input_path"),
+                    inputs=tuple(input_field for input_field in task.inputs if input_field.target != "input_path"),
                     outputs=(
                         InferenceArtifactSpec("video", "video", required=True, preview=True),
                         InferenceArtifactSpec("manifest", "manifest", required=True),
@@ -1048,7 +1053,7 @@ def _entry_inference_spec(entry: CatalogEntry):
                     task,
                     task_id="image-generation",
                     label="Image Inference",
-                    inputs=tuple(field for field in task.inputs if field.target != "input_path"),
+                    inputs=tuple(input_field for input_field in task.inputs if input_field.target != "input_path"),
                     outputs=(
                         InferenceArtifactSpec("image", "generated_image", required=True, preview=True),
                         InferenceArtifactSpec("manifest", "manifest", required=True),
@@ -1062,16 +1067,16 @@ def _entry_inference_spec(entry: CatalogEntry):
         for task in spec.tasks:
             inputs = []
             changed = False
-            for field in task.inputs:
+            for input_field in task.inputs:
                 if (
-                    field.target == "params"
-                    and _param_key(field.field_id) in {"interactions", "interaction", "interaction_signal", "action"}
-                    and (field.default is None or field.default == "")
+                    input_field.target == "params"
+                    and _param_key(input_field.field_id) in {"interactions", "interaction", "interaction_signal", "action"}
+                    and (input_field.default is None or input_field.default == "")
                 ):
-                    inputs.append(replace(field, default=entry.default_interactions))
+                    inputs.append(replace(input_field, default=entry.default_interactions))
                     changed = True
                 else:
-                    inputs.append(field)
+                    inputs.append(input_field)
             tasks.append(replace(task, inputs=tuple(inputs)) if changed else task)
         spec = replace(spec, tasks=tuple(tasks))
     if entry.default_prompt:
@@ -1079,12 +1084,12 @@ def _entry_inference_spec(entry: CatalogEntry):
         for task in spec.tasks:
             inputs = []
             changed = False
-            for field in task.inputs:
-                if field.target == "prompt" and (field.default is None or field.default == ""):
-                    inputs.append(replace(field, default=entry.default_prompt))
+            for input_field in task.inputs:
+                if input_field.target == "prompt" and (input_field.default is None or input_field.default == ""):
+                    inputs.append(replace(input_field, default=entry.default_prompt))
                     changed = True
                 else:
-                    inputs.append(field)
+                    inputs.append(input_field)
             tasks.append(replace(task, inputs=tuple(inputs)) if changed else task)
         spec = replace(spec, tasks=tuple(tasks))
     if entry.default_input_path:
@@ -1092,12 +1097,12 @@ def _entry_inference_spec(entry: CatalogEntry):
         for task in spec.tasks:
             inputs = []
             changed = False
-            for field in task.inputs:
-                if field.target == "input_path":
-                    inputs.append(replace(field, default=entry.default_input_path))
+            for input_field in task.inputs:
+                if input_field.target == "input_path":
+                    inputs.append(replace(input_field, default=entry.default_input_path))
                     changed = True
                 else:
-                    inputs.append(field)
+                    inputs.append(input_field)
             tasks.append(replace(task, inputs=tuple(inputs)) if changed else task)
         spec = replace(spec, tasks=tuple(tasks))
     extra_variants = _entry_extra_variants(entry)
@@ -1174,14 +1179,14 @@ def _resolve_inference_contract(
 
     model_ref = payload.model_ref or _variant_model_ref(entry, variant)
     load_kwargs = _variant_load_kwargs(entry, variant)
-    for field in task.inputs:
-        if field.target == "load_kwargs" and field.default is not None:
+    for input_field in task.inputs:
+        if input_field.target == "load_kwargs" and input_field.default is not None:
             # Task profiles may specialize a variant's loading policy.  For
             # example, Cosmos3 action inference intentionally skips the audio
             # tokenizer even though the same Nano checkpoint loads it for
             # sound-generation tasks.  Explicit request load_kwargs are merged
             # later and therefore remain the final override.
-            load_kwargs[field.field_id] = field.default
+            load_kwargs[input_field.field_id] = input_field.default
     call_kwargs = {}
     if entry.model_id == "cosmos3":
         # Cosmos3 variants carry a complete T2V fallback, while the selected
@@ -1658,10 +1663,10 @@ def _param_key_aliases(key: str) -> tuple[str, ...]:
 
 def _task_allowed_param_keys(task: InferenceTaskProfile) -> set[str]:
     allowed: set[str] = set()
-    for field in task.inputs:
-        if field.target != "params":
+    for input_field in task.inputs:
+        if input_field.target != "params":
             continue
-        field_key = _param_key(field.field_id)
+        field_key = _param_key(input_field.field_id)
         allowed.add(field_key)
         allowed.update(_param_key(alias) for alias in _param_key_aliases(field_key))
     return allowed
@@ -1669,11 +1674,11 @@ def _task_allowed_param_keys(task: InferenceTaskProfile) -> set[str]:
 
 def _task_field_default(task: InferenceTaskProfile, *field_ids: str, target: str | None = None) -> Any:
     wanted = {_param_key(field_id) for field_id in field_ids}
-    for field in task.inputs:
-        if target is not None and field.target != target:
+    for input_field in task.inputs:
+        if target is not None and input_field.target != target:
             continue
-        if _param_key(field.field_id) in wanted and field.default is not None and field.default != "":
-            return field.default
+        if _param_key(input_field.field_id) in wanted and input_field.default is not None and input_field.default != "":
+            return input_field.default
     return None
 
 
@@ -1690,9 +1695,9 @@ def _runtime_alias_names_for_supported_options(entry: CatalogEntry) -> set[str]:
 
 def _task_declared_kwargs(task: InferenceTaskProfile, target: str) -> set[str]:
     return {
-        _param_key(field.field_id)
-        for field in task.inputs
-        if field.target == target
+        _param_key(input_field.field_id)
+        for input_field in task.inputs
+        if input_field.target == target
     }
 
 
@@ -1755,12 +1760,12 @@ def _validate_field_choice(
 
 def _task_choice_fields(task: InferenceTaskProfile, target: str) -> dict[str, tuple[str, tuple[str, ...]]]:
     fields: dict[str, tuple[str, tuple[str, ...]]] = {}
-    for field in task.inputs:
-        if field.target != target or not field.choices:
+    for input_field in task.inputs:
+        if input_field.target != target or not input_field.choices:
             continue
-        field_key = _param_key(field.field_id)
+        field_key = _param_key(input_field.field_id)
         for key in (field_key, *_param_key_aliases(field_key)):
-            fields[_param_key(key)] = (field.field_id, field.choices)
+            fields[_param_key(key)] = (input_field.field_id, input_field.choices)
     return fields
 
 
@@ -1774,10 +1779,10 @@ def _validate_task_field_choices(entry: CatalogEntry, task: InferenceTaskProfile
         if not fields:
             continue
         for key, value in values.items():
-            field = fields.get(_param_key(key))
-            if field is None:
+            choice_field = fields.get(_param_key(key))
+            if choice_field is None:
                 continue
-            field_id, choices = field
+            field_id, choices = choice_field
             _validate_field_choice(entry, task, field_id, choices, value)
 
     direct_values = {
@@ -1786,10 +1791,10 @@ def _validate_task_field_choices(entry: CatalogEntry, task: InferenceTaskProfile
         "negative_prompt": payload.negative_prompt,
         "model_ref": payload.model_ref,
     }
-    for field in task.inputs:
-        if field.target not in direct_values:
+    for input_field in task.inputs:
+        if input_field.target not in direct_values:
             continue
-        _validate_field_choice(entry, task, field.field_id, field.choices, direct_values[field.target])
+        _validate_field_choice(entry, task, input_field.field_id, input_field.choices, direct_values[input_field.target])
 
 
 def _validate_inference_payload(entry: CatalogEntry, task: InferenceTaskProfile, payload: JobCreateRequest) -> None:
