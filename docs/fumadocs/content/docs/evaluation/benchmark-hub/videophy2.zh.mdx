@@ -42,15 +42,16 @@ WorldFoundry 使用仓内 prompt manifest：`worldfoundry/data/benchmarks/assets
 
 完整官方套件下，生成产物目录应包含 `1.mp4` 到 `200.mp4`。
 
-主指标是 `videophy2_average`。
+主指标是 `joint_score`。所有指标都是越高越好，并归一化到单位区间。
 
 | Metric | 含义 |
 | --- | --- |
-| `semantic_adherence` | 1-5 分平均值：视频是否呈现了 prompt 要求的动作、物体和场景。 |
-| `physical_commonsense` | 1-5 分平均值：动作和材料交互是否符合物理常识。 |
-| `joint_score` | semantic adherence 和 physical commonsense 同时至少达到 4/5 的 prompt 比例。 |
-| `rule_classification_accuracy` | 对列出的物理规则是否被遵守或违反进行分类的准确率。 |
-| `videophy2_average` | WorldFoundry scorecard 使用的主聚合指标。 |
+| `semantic_adherence` | 1-5 分平均值（归一化到单位区间）：视频是否呈现了 prompt 要求的动作、物体和场景。 |
+| `physical_commonsense` | 1-5 分平均值（归一化到单位区间）：动作和材料交互是否符合物理常识。 |
+| `joint_score` | semantic adherence 和 physical commonsense 同时至少达到 4/5 的 prompt 比例。scorecard 主键。 |
+| `rule_followed_rate` | 已判定物理规则中被判为「遵守」而非「违反」的比例。 |
+
+旧指标 id `rule_classification_accuracy` 与 `videophy2_average` 已废弃：导入的结果文件中若出现，会保留在 `components.deprecated_metrics` 里，但不会作为 scorecard 指标报告。
 
 官方 AutoEval 内部会跑三个任务：`sa` 评估语义对齐，`pc` 评估物理常识，`rule` 评估物理规则 grounding。
 
@@ -163,7 +164,7 @@ worldfoundry-eval zoo benchmark-run \
 
 运行会写出：
 
-- `scorecard.json`: WorldFoundry 统一 scorecard，包含 `semantic_adherence`、`physical_commonsense`、`joint_score`、`rule_classification_accuracy` 和 `videophy2_average`。
+- `scorecard.json`: WorldFoundry 统一 scorecard，包含 `semantic_adherence`、`physical_commonsense`、`joint_score` 和 `rule_followed_rate`。
 - `videophy2_results.json`: 使用 `--run-official` 时合并后的 AutoEval 逐 prompt 结果 JSON。
 - `raw_metric_table.jsonl`: scorecard 使用的 metric rows。
 - `per_sample_scores.jsonl`: 逐 prompt 的 SA/PC/joint/rule 结果。

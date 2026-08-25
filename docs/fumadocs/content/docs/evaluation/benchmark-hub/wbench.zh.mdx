@@ -40,14 +40,15 @@ work_dirs/<model_name>/
 
 `<id>` 是 case JSON 里的 id，不是 case 文件名。一个完整多轮视频保存为一个 `case_<id>_combined.mp4`。如果模型每个 turn 的帧数不一致，leaderboard 提交时需要准备 `turns.json`，这样 per-turn metrics 才能正确切分 combined video。
 
-| Dimension | Metrics |
-| --- | --- |
-| Quality | `aesthetic_quality`, `imaging_quality`, `temporal_flickering`, `dynamic_degree`, `motion_smoothness`, `hpsv3_quality` |
-| Setting | `scene_adherence`, `subject_adherence` |
-| Interaction | `navigation_trajectory`, `event_edit_adherence`, `subject_action_adherence`, `perspective_switch_adherence` |
-| Consistency | `background_consistency`, `segment_continuity`, `perspective_consistency`, `subject_consistency`, `geometric_consistency`, `photometric_consistency`, `spatial_consistency`, `gated_spatial_consistency` |
-| Physical | `visual_plausibility`, `causal_fidelity` |
-| Primary | `wbench_average`，优先由五个 dimension score 聚合 |
+| 维度 | 聚合指标 id | 单项指标 id |
+| --- | --- | --- |
+| Quality | `quality_score` | `aesthetic_quality`, `imaging_quality`, `temporal_flickering`, `dynamic_degree`, `motion_smoothness`, `hpsv3_quality` |
+| Setting | `setting_score` | `scene_adherence`, `subject_adherence` |
+| Interaction | `interaction_score` | `navigation_trajectory`, `event_edit_adherence`, `subject_action_adherence`, `perspective_switch_adherence` |
+| Consistency | `consistency_score` | `background_consistency`, `segment_continuity`, `perspective_consistency`, `subject_consistency`, `geometric_consistency`, `photometric_consistency`, `spatial_consistency`, `gated_spatial_consistency` |
+| Physical | `physical_score` | `visual_plausibility`, `causal_fidelity` |
+
+所有指标都是越高越好。每个 `<dimension>_score` 聚合是该组单项指标的均值，且仅在组内全部指标可用时才输出。主键 `wbench_average` 在五个维度分数齐全时取其均值。
 
 ## WorldFoundry 集成
 

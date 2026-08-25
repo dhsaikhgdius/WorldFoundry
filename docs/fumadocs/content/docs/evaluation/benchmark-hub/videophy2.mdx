@@ -42,15 +42,16 @@ Each candidate model must generate one video per prompt. The expected filename i
 
 For the full official suite, the generated artifact directory should contain `1.mp4` through `200.mp4`.
 
-Primary metric: `videophy2_average`.
+Primary metric: `joint_score`. All metrics are higher-is-better and normalized to the unit interval.
 
 | Metric | Meaning |
 | --- | --- |
-| `semantic_adherence` | Mean 1-5 rating for whether the video depicts the requested action, objects, and scene. |
-| `physical_commonsense` | Mean 1-5 rating for whether the action and material interaction are physically plausible. |
-| `joint_score` | Fraction of prompts where semantic adherence and physical commonsense are both at least 4/5. |
-| `rule_classification_accuracy` | Accuracy for classifying whether the listed physical rule is followed or violated. |
-| `videophy2_average` | Primary aggregate used by the WorldFoundry scorecard. |
+| `semantic_adherence` | Mean 1-5 rating for whether the video depicts the requested action, objects, and scene, normalized to the unit interval. |
+| `physical_commonsense` | Mean 1-5 rating for whether the action and material interaction are physically plausible, normalized to the unit interval. |
+| `joint_score` | Fraction of prompts where semantic adherence and physical commonsense are both at least 4/5. Primary scorecard key. |
+| `rule_followed_rate` | Fraction of determined physical rules judged as followed rather than violated. |
+
+The legacy ids `rule_classification_accuracy` and `videophy2_average` are deprecated: when present in an imported result file they are preserved under `components.deprecated_metrics` but are not reported as scorecard metrics.
 
 The official AutoEval model runs three tasks internally: `sa` for semantic adherence, `pc` for physical commonsense, and `rule` for physical-rule grounding.
 
@@ -163,7 +164,7 @@ worldfoundry-eval zoo benchmark-run \
 
 The run writes:
 
-- `scorecard.json`: WorldFoundry scorecard with `semantic_adherence`, `physical_commonsense`, `joint_score`, `rule_classification_accuracy`, and `videophy2_average`.
+- `scorecard.json`: WorldFoundry scorecard with `semantic_adherence`, `physical_commonsense`, `joint_score`, and `rule_followed_rate`.
 - `videophy2_results.json`: merged AutoEval per-prompt result JSON when `--run-official` is used.
 - `raw_metric_table.jsonl`: metric rows used by the scorecard.
 - `per_sample_scores.jsonl`: per-prompt SA/PC/joint/rule rows.

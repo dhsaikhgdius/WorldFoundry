@@ -81,11 +81,10 @@ Start from the WorldFoundry repository root:
 
 ```bash
 cd /path/to/WorldFoundry
-export WORLDFOUNDRY_T2VWORLDBENCH_RUNTIME="$PWD/worldfoundry/evaluation/tasks/execution/runners/t2vworldbench/runtime/t2vworldbench"
-export WORLDFOUNDRY_T2VWORLDBENCH_ASSETS="$PWD/worldfoundry/data/benchmarks/assets/t2vworldbench"
-export WORLDFOUNDRY_T2VWORLDBENCH_PROMPT_CSV="$WORLDFOUNDRY_T2VWORLDBENCH_ASSETS/prompt/prompt.csv"
-export WORLDFOUNDRY_T2VWORLDBENCH_PROMPT_FILE="$WORLDFOUNDRY_T2VWORLDBENCH_ASSETS/data/meta_data/meta_data.json"
+export WORLDFOUNDRY_T2VWORLDBENCH_PROMPT_FILE="$PWD/worldfoundry/data/benchmarks/assets/t2vworldbench/data/meta_data/meta_data.json"
 ```
+
+`WORLDFOUNDRY_T2VWORLDBENCH_PROMPT_FILE` is the only prompt-related environment variable the runner reads; the vendored official runtime lives at `worldfoundry/evaluation/tasks/execution/runners/t2vworldbench/runtime/t2vworldbench` and the bundled prompt CSV at `worldfoundry/data/benchmarks/assets/t2vworldbench/prompt/prompt.csv`.
 
 Download or prepare the official metadata JSON. The repository includes a tiny example at:
 

@@ -40,14 +40,15 @@ work_dirs/<model_name>/
 
 `<id>` is the case JSON id, not the case filename. A full multi-turn clip is stored as one `case_<id>_combined.mp4` file. If a model emits turns with unequal frame counts, prepare `turns.json` for leaderboard submission so per-turn metrics can split the combined video correctly.
 
-| Dimension | Metrics |
-| --- | --- |
-| Quality | `aesthetic_quality`, `imaging_quality`, `temporal_flickering`, `dynamic_degree`, `motion_smoothness`, `hpsv3_quality` |
-| Setting | `scene_adherence`, `subject_adherence` |
-| Interaction | `navigation_trajectory`, `event_edit_adherence`, `subject_action_adherence`, `perspective_switch_adherence` |
-| Consistency | `background_consistency`, `segment_continuity`, `perspective_consistency`, `subject_consistency`, `geometric_consistency`, `photometric_consistency`, `spatial_consistency`, `gated_spatial_consistency` |
-| Physical | `visual_plausibility`, `causal_fidelity` |
-| Primary | `wbench_average`, computed from the five dimension scores when available |
+| Dimension | Aggregate metric id | Per-metric ids |
+| --- | --- | --- |
+| Quality | `quality_score` | `aesthetic_quality`, `imaging_quality`, `temporal_flickering`, `dynamic_degree`, `motion_smoothness`, `hpsv3_quality` |
+| Setting | `setting_score` | `scene_adherence`, `subject_adherence` |
+| Interaction | `interaction_score` | `navigation_trajectory`, `event_edit_adherence`, `subject_action_adherence`, `perspective_switch_adherence` |
+| Consistency | `consistency_score` | `background_consistency`, `segment_continuity`, `perspective_consistency`, `subject_consistency`, `geometric_consistency`, `photometric_consistency`, `spatial_consistency`, `gated_spatial_consistency` |
+| Physical | `physical_score` | `visual_plausibility`, `causal_fidelity` |
+
+All metrics are higher-is-better. Each `<dimension>_score` aggregate is the mean of its per-metric ids and is only emitted when every metric in the group is available. The primary key `wbench_average` is the mean of the five dimension scores when all five are present.
 
 ## WorldFoundry integration
 

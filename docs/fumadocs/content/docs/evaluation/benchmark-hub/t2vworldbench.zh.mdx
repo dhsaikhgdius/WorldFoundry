@@ -81,11 +81,10 @@ worldfoundry/data/benchmarks/assets/t2vworldbench/prompt/prompt.csv
 
 ```bash
 cd /path/to/WorldFoundry
-export WORLDFOUNDRY_T2VWORLDBENCH_RUNTIME="$PWD/worldfoundry/evaluation/tasks/execution/runners/t2vworldbench/runtime/t2vworldbench"
-export WORLDFOUNDRY_T2VWORLDBENCH_ASSETS="$PWD/worldfoundry/data/benchmarks/assets/t2vworldbench"
-export WORLDFOUNDRY_T2VWORLDBENCH_PROMPT_CSV="$WORLDFOUNDRY_T2VWORLDBENCH_ASSETS/prompt/prompt.csv"
-export WORLDFOUNDRY_T2VWORLDBENCH_PROMPT_FILE="$WORLDFOUNDRY_T2VWORLDBENCH_ASSETS/data/meta_data/meta_data.json"
+export WORLDFOUNDRY_T2VWORLDBENCH_PROMPT_FILE="$PWD/worldfoundry/data/benchmarks/assets/t2vworldbench/data/meta_data/meta_data.json"
 ```
+
+`WORLDFOUNDRY_T2VWORLDBENCH_PROMPT_FILE` 是 runner 读取的唯一 prompt 相关环境变量；官方 runtime 的树内位置为 `worldfoundry/evaluation/tasks/execution/runners/t2vworldbench/runtime/t2vworldbench`，随仓库捆绑的 prompt CSV 位于 `worldfoundry/data/benchmarks/assets/t2vworldbench/prompt/prompt.csv`。
 
 下载或准备官方 metadata JSON。仓内有一个极小示例：
 
