@@ -13,18 +13,17 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 MODEL_CATALOG_DIR = REPO_ROOT / "worldfoundry" / "data" / "models" / "catalog"
 VISUAL_GENERATION_ROOT = REPO_ROOT / "worldfoundry" / "synthesis" / "visual_generation"
 
+# Models whose catalog entries still record a planned (not integrated)
+# in-tree runner surface.  cameractrl/motionctrl/open-magvit2/show-o/
+# splatt3r/step-video-t2v graduated to integrated runnable runners once the
+# schema registered the catalog's verified/in-tree integration statuses, so
+# they no longer belong in this list.
 NON_RUNNABLE_VISUAL_MODEL_IDS = frozenset(
     {
-        "cameractrl",
         "dreamdojo",
         "irasim",
-        "motionctrl",
-        "open-magvit2",
         "pandora",
         "pixelsplat",
-        "show-o",
-        "splatt3r",
-        "step-video-t2v",
     }
 )
 

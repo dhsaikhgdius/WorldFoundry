@@ -116,8 +116,9 @@ def test_duplicate_keys_and_aliases_are_left_to_registry() -> None:
 
 
 def test_model_package_facade_imports_are_stdlib_or_local() -> None:
+    # The repository uses a flat package layout (no src/ directory).
     repo_root = Path(__file__).resolve().parents[2]
-    models_root = repo_root / "src" / "worldfoundry" / "evaluation" / "models"
+    models_root = repo_root / "worldfoundry" / "evaluation" / "models"
     allowed_modules = set(sys.stdlib_module_names) | {"__future__"}
 
     path = models_root / "__init__.py"

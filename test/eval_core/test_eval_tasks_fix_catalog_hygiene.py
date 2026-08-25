@@ -34,14 +34,17 @@ def _reset_status_warning_dedupe() -> None:
 
 
 def test_unknown_source_status_warns_and_degrades(caplog: pytest.LogCaptureFixture) -> None:
+    # Use a synthetic value: real catalog statuses (e.g.
+    # confirmed_official_code_in_github) are registered aliases now and no
+    # longer exercise the unknown-status path.
     with caplog.at_level(logging.WARNING, logger="worldfoundry.evaluation.tasks.catalog.schema"):
-        assert _normalize_source_status("confirmed_official_code_in_github") == "unknown"
-    assert any("confirmed_official_code_in_github" in record.message for record in caplog.records)
+        assert _normalize_source_status("definitely_not_a_registered_source_status") == "unknown"
+    assert any("definitely_not_a_registered_source_status" in record.message for record in caplog.records)
 
     # Deduped: the same value does not warn twice.
     caplog.clear()
     with caplog.at_level(logging.WARNING, logger="worldfoundry.evaluation.tasks.catalog.schema"):
-        assert _normalize_source_status("confirmed_official_code_in_github") == "unknown"
+        assert _normalize_source_status("definitely_not_a_registered_source_status") == "unknown"
     assert not caplog.records
 
 

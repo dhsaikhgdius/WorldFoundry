@@ -186,7 +186,11 @@ def test_embodied_benchmark_zoo_manifest_is_discoverable_as_tasks() -> None:
 
 def test_vla_va_wam_model_zoo_manifest_records_current_runtime_readiness() -> None:
     registry = load_model_zoo_registry(REPO_ROOT / "worldfoundry" / "data" / "models" / "catalog")
-    runner_candidate_expected = {"lingbot-va"}
+    # lingbot-va's catalog integration status
+    # (in_tree_checkpoint_runtime_gpu_server_init_verified_rollout_pending) is
+    # registered as an in-tree integrated surface, so it now classifies as a
+    # runnable runner alongside the other checkpoint-backed VLA models.
+    runner_candidate_expected: set[str] = set()
     runnable_runner_expected = {
         "act",
         "being-h05",
@@ -195,6 +199,7 @@ def test_vla_va_wam_model_zoo_manifest_records_current_runtime_readiness() -> No
         "giga-brain-0",
         "gr00t",
         "lapa",
+        "lingbot-va",
         "octo",
         "openpi",
         "openvla",

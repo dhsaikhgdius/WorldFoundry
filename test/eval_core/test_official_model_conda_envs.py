@@ -56,7 +56,10 @@ def test_runtime_conda_env_specs_cover_runtime_profiles() -> None:
     assert expected.issubset(specs)
     assert specs["zeroscope"].cuda_profile == "cu128"
     assert specs["zeroscope"].driver_compatible is True
-    assert specs["step-video-t2v"].driver_compatible is False
+    # step-video-t2v moved onto the shared native diffusion runtime and now
+    # routes into the unified cu128 env instead of a driver-gated isolated env.
+    assert specs["step-video-t2v"].env_name == "worldfoundry-unified-cu128"
+    assert specs["step-video-t2v"].driver_compatible is True
     assert specs["animatediff"].env_name == "worldfoundry-unified-cu128"
     assert "diffusers" in specs["animatediff"].pip_packages
     assert "transformers" in specs["animatediff"].pip_packages
@@ -71,45 +74,47 @@ def test_runtime_conda_env_specs_cover_runtime_profiles() -> None:
     assert specs["scope"].source_requirement_files == ()
     assert profiles["openvla"].task_family == "vla_policy"
     assert profiles["openvla"].backend_stage == "in_tree_runtime"
-    assert profiles["openvla"].runtime_status == "in_tree_openvla_predict_action_verified"
-    assert specs["openpi"].cuda_profile == "cu118"
+    # runtime_status vocabulary was downgraded from *_verified to *_ready where
+    # GPU parity evidence has not been re-recorded; keep the current statuses.
+    assert profiles["openvla"].runtime_status == "in_tree_openvla_predict_action_ready"
+    assert specs["openpi"].cuda_profile == "cu124_or_newer"
     assert specs["openpi"].driver_compatible is True
     assert specs["giga-brain-0"].cuda_profile == "cu128"
     assert profiles["giga-brain-0"].task_family == "vla_policy"
     assert profiles["giga-brain-0"].artifact_kind == "action_trace"
-    assert specs["being-h05"].cuda_profile == "prepare_only"
+    assert specs["being-h05"].cuda_profile == "cu118_or_newer"
     assert profiles["being-h05"].task_family == "vla_policy"
     assert profiles["being-h05"].artifact_kind == "action_trace"
-    assert specs["dreamzero"].cuda_profile == "prepare_only"
+    assert specs["dreamzero"].cuda_profile == "cu129"
     assert profiles["dreamzero"].task_family == "world_action_model"
     assert profiles["dreamzero"].artifact_kind == "action_trace"
     assert profiles["dreamzero"].backend_stage == "in_tree_official_server_client"
     assert (
         profiles["dreamzero"].runtime_status
-        == "in_tree_official_server_client_checkpoint_gpu_probe_verified_cuda129_multigpu_required"
+        == "in_tree_official_server_client_checkpoint_gpu_probe_ready_cuda129_multigpu_required"
     )
-    assert specs["lingbot-va"].cuda_profile == "prepare_only"
+    assert specs["lingbot-va"].cuda_profile == "cu126_or_newer"
     assert profiles["lingbot-va"].task_family == "embodied_action"
     assert profiles["lingbot-va"].artifact_kind == "action_trace"
     assert specs["lapa"].cuda_profile == "cu118"
     assert specs["lapa"].driver_compatible is True
-    assert profiles["lapa"].runtime_status == "in_tree_lapa_7b_openx_jax_gpu_action_tokens_verified"
-    assert specs["dreamdojo"].cuda_profile == "prepare_only"
+    assert profiles["lapa"].runtime_status == "in_tree_lapa_7b_openx_jax_gpu_action_tokens_ready"
+    assert specs["dreamdojo"].cuda_profile == "cu128"
     assert profiles["dreamdojo"].task_family == "world_model"
     assert profiles["dreamdojo"].artifact_kind == "generated_world"
     assert profiles["dreamdojo"].runtime_status == "in_tree_dreamdojo_runtime_ported_dataset_and_gpu_parity_pending"
     assert specs["octo"].cuda_profile == "cu118"
     assert specs["rt-1"].cuda_profile == "cpu"
-    assert specs["diffusion-policy"].cuda_profile == "cu113"
+    assert specs["diffusion-policy"].cuda_profile == "cu118_or_newer"
     assert profiles["diffusion-policy"].task_family == "visuomotor_policy"
-    assert profiles["openpi"].runtime_status == "in_tree_openpi_pi05_libero_jax_gpu_infer_verified"
+    assert profiles["openpi"].runtime_status == "in_tree_openpi_pi05_libero_local_checkpoint_runtime_ready"
     assert (
         profiles["giga-brain-0"].runtime_status
-        == "in_tree_giga_brain_0_runtime_converted_lerobot_stats_predict_gpu_verified_non_leaderboard"
+        == "in_tree_giga_brain_0_runtime_converted_lerobot_stats_predict_gpu_ready_non_leaderboard"
     )
-    assert profiles["octo"].runtime_status == "in_tree_octo_small_jax_gpu_sample_actions_verified"
+    assert profiles["octo"].runtime_status == "in_tree_octo_small_jax_gpu_sample_actions_ready"
     assert profiles["rt-1"].runtime_status == "in_tree_rt1_runtime_ported_savedmodel_checkpoint_missing"
-    assert profiles["diffusion-policy"].runtime_status == "in_tree_lowdim_pusht_predict_action_ready"
+    assert profiles["diffusion-policy"].runtime_status == "in_tree_lowdim_pusht_runtime_safe_checkpoint_gpu_validated"
     assert profiles["act"].task_family == "action_chunking_policy"
     assert "torch" in specs["zeroscope"].pip_packages
 
@@ -177,7 +182,9 @@ def test_model_env_install_script_has_current_open_source_contract() -> None:
     assert "--model MODEL" in help_result.stdout
     assert "--verify-only" in help_result.stdout
     assert "unified env is the default" in help_result.stdout
-    assert "dry" not in help_result.stdout.lower()
+    # A bare "dry" substring check false-positives on "worldfoundry"; the
+    # contract is that the script exposes no dry-run flag.
+    assert "--dry-run" not in help_result.stdout.lower()
 
 
 def test_model_env_install_list_uses_unified_default_for_runtime_profiles(tmp_path: Path) -> None:
@@ -218,6 +225,10 @@ def test_runtime_conda_resolver_routes_compatible_profiles_to_unified_env(tmp_pa
     assert specs["animatediff"].env_name == "worldfoundry-unified-cu128"
     assert specs["zeroscope"].env_name == "worldfoundry-unified-cu128"
     assert specs["matrix-game-2"].env_name == "worldfoundry-unified-cu128"
-    assert specs["openpi"].env_name == "worldfoundry-unified-cu128"
-    assert "jax==0.4.25" in specs["openpi"].pip_packages
-    assert specs["openpi"].pythonpath_dirs == ("worldfoundry/synthesis/action_generation/openpi/openpi_runtime",)
+    # openpi's JAX cuda12 stack conflicts with the unified torch env, so it
+    # keeps its isolated per-model env even when unified routing is enabled.
+    # The runtime is a flattened package now: no jax 0.4 pin and no
+    # source-tree PYTHONPATH injection.
+    assert specs["openpi"].env_name == "worldfoundry-openpi-cu12"
+    assert "jax[cuda12]==0.5.3" in specs["openpi"].pip_packages
+    assert specs["openpi"].pythonpath_dirs == ()

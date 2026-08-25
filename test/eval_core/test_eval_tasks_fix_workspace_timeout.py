@@ -16,7 +16,9 @@ from pathlib import Path
 
 import pytest
 
-from worldfoundry.evaluation.tasks.execution.runners.workspace_registry import (
+# The package __init__ re-exports only public names (``from .dispatch import *``),
+# so the private helpers under test must be imported from the dispatch module.
+from worldfoundry.evaluation.tasks.execution.runners.workspace_registry.dispatch import (
     _run_cli_command,
     _workspace_subprocess_timeout,
 )

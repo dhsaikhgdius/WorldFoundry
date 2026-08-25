@@ -144,17 +144,38 @@ def test_tui_infer_control_schema_is_variant_specific() -> None:
 
 def test_tui_keeps_studio_runtime_for_non_script_infer_models() -> None:
     catalog = load_tui_catalog()
+    rows = {row.model_id: row for row in catalog.models}
 
-    for model_id in ("hy-worldplay", "multiworld"):
-        row = next(row for row in catalog.models if row.model_id == model_id)
-        assert row.integration_status == "integrated"
-        # runner_status vocabulary moved from "ready" to evidence-based values
-        # (_inference_runner_status): verified / partially_verified /
-        # contract_ready. The exact value depends on recorded inference
-        # evidence, so assert membership rather than pin one value.
-        assert row.runner_status in {"verified", "partially_verified", "contract_ready"}
-        assert row.runner_kind == "studio_runtime"
-        assert is_infer_model_row(row)
+    # Studio catalog entries are folded into their owning TUI rows:
+    # ``hunyuan-worldplay`` belongs to the ``hunyuan`` script-infer family and
+    # ``multiworld-ittakestwo`` owns its own studio-runtime row.  The zoo rows
+    # (``hy-worldplay``/``multiworld``) keep their catalog-derived runner kind
+    # (``runner_entry_kind``) instead of being rewritten to ``studio_runtime``.
+    ittakestwo = rows["multiworld-ittakestwo"]
+    assert ittakestwo.runner_kind == "studio_runtime"
+    assert ittakestwo.integration_status == "integrated"
+    # runner_status vocabulary moved from "ready" to evidence-based values
+    # (_inference_runner_status): verified / partially_verified /
+    # contract_ready. The exact value depends on recorded inference
+    # evidence, so assert membership rather than pin one value.
+    assert ittakestwo.runner_status in {"verified", "partially_verified", "contract_ready"}
+    assert is_infer_model_row(ittakestwo)
+
+    hunyuan = rows["hunyuan"]
+    assert hunyuan.integration_status == "integrated"
+    assert is_infer_model_row(hunyuan)
+
+    # hy-worldplay is catalog-integrated with an in-tree runner; the TUI row
+    # reflects the model-zoo entry rather than the studio merge.
+    worldplay = rows["hy-worldplay"]
+    assert worldplay.integration_status == "integrated"
+    assert worldplay.runner_kind == "runnable_runner"
+    assert worldplay.runner_status in {"verified", "partially_verified", "contract_ready"}
+
+    # Infer commands for the legacy model ids still resolve to the Studio
+    # runtime via alias routing (workspace_job infer), so non-script models
+    # keep a working studio-runtime inference path.
+    for model_id in ("hy-worldplay", "multiworld", "multiworld-ittakestwo"):
         command = build_model_infer_command(
             model_id=model_id,
             output_dir="runs/tui/infer",
