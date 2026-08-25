@@ -30,3 +30,15 @@
 
 ### 待第二轮清理（本文件两处的 F811）
 - `robotics.py` 有 4 处 F811（`require_package` 等重复定义/导入）——pre-existing 卫生问题，非本次引入；留待第二轮批量卫生清理时处理（需先确认是重复 import 还是真覆盖）。
+
+## studio 静态分析/横切遗留（第三轮，分支 `cursor/studio-remaining-fixes-2f62`）
+
+以下条目已在该分支落地，详细证据、改法与测试见 `plan/code_review/fixes/10_studio_fixes.md` 的"第三轮定点修复"章节：
+
+- **SA-3 (P2)** `human_pose.py` `draw_mask`：不存在的 `alphaMerge` 调用与 `backgournd` 拼写死变量 → 函数内标准 alpha 合成，resize 结果被真实使用，`return_rgba` 形参生效。+12 例回归测试（含 mask/背景边界情况）。
+- **SA-6 (P2)** `human_pose.py` 裸 `raise`（非 except 内）→ `ValueError`；`draw_handpose_new` 同模式缺 else（UnboundLocalError）一并补上。
+- **SA-5 (P3)** `workspace_app.py` 13 处 `field` 绑定改名 `input_field`/`choice_field`，不再遮蔽 `dataclasses.field`；AST 回归测试防复发。
+- **SA-7 (P2, studio 侧)** `world_realtime.py` DataChannel `on_close` 的 fire-and-forget `asyncio.create_task(self.close_active())` → `RealtimePeerManager._spawn_background_task`（强引用集合 + done 回调 discard）。`cli/tui_app.py` 一处超出 studio 边界未动。
+- **SA-8 (P2)** `workspace_app.py` visualizer Popen 的 `preexec_fn=os.setsid` → `start_new_session=`（线程安全等效，进程组语义不变）。
+- **SA-9 (P3, studio 半)** `execution.py` `persisted_preview` 闭包改默认参数绑定（B023）；evaluation 侧另一处超出边界未动。
+- **XC-2 (P2)** 验证已由 commit `b92eb890` 修复（`hed_annotator.py` 走 `safe_loading.load_tensor_state_dict`），本轮记录证据后跳过。
