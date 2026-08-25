@@ -57,12 +57,117 @@ _UNKNOWN_SOURCE_ALIASES = frozenset(
 )
 _API_ALIASES = frozenset({"api", "api_or_closed", "commercial_api", "restricted_api"})
 _CLOSED_ALIASES = frozenset({"closed", "closed_source", "proprietary"})
-_INTEGRATED_INTEGRATION_ALIASES = frozenset({"runtime_ported", "route_ready", "runner_ready"})
+# Registered integration-status vocabulary.  ``integrated`` means the in-tree
+# integration surface (runner/pipeline wiring) exists; how far it has been
+# validated is tracked separately by ``demo_parity``/``runner_parity``.  The
+# checked-in catalog records that evidence directly in ``integration.status``
+# strings, so every status that asserts an existing (at least statically
+# validated) in-tree surface normalizes to ``integrated`` instead of silently
+# degrading to ``planned`` and dropping the model from runnable listings.
+_INTEGRATED_INTEGRATION_ALIASES = frozenset(
+    {
+        "runtime_ported",
+        "route_ready",
+        "runner_ready",
+        "verified",
+        "runnable",
+        "component_verified",
+        "checkpoint_gpu_validated",
+        "all_released_checkpoints_gpu_validated",
+        "checkpoint_backed_runtime_ready",
+        "implemented_checkpoint_pending",
+        "in_tree_checkpoint_gated_runtime",
+        "in_tree_checkpoint_runtime",
+        "in_tree_checkpoint_runtime_checkpoint_gpu_probe_verified",
+        "in_tree_checkpoint_runtime_gpu_forward_server_init_verified",
+        "in_tree_checkpoint_runtime_gpu_server_init_verified_rollout_pending",
+        "in_tree_checkpoint_runtime_static_validated",
+        "in_tree_checkpoint_runtime_static_verified",
+        "in_tree_in_process_checkpoint_runtime",
+        "in_tree_runtime_selected_checkpoint_gpu_validated",
+        "in_tree_vendored_import_verified",
+        "in_tree_vendored_checkpoint_pending",
+        "in_tree_checkpoint_validation_pending",
+        "in_tree_runtime_checkpoint_validation_pending",
+    }
+)
 
 # ── Alias normalisation sets ─────────────────────────────────
 
-_PENDING_INTEGRATION_ALIASES = frozenset({"pending", "todo", "not_started", "not_applicable"})
-_PENDING_DEMO_ALIASES = frozenset({"pending_checkpoint_and_demo", "pending_demo", "pending_parity"})
+_PENDING_INTEGRATION_ALIASES = frozenset(
+    {
+        "pending",
+        "todo",
+        "not_started",
+        "not_applicable",
+        # Metadata/staging states: catalog entry exists but no runnable
+        # in-tree surface has landed (or its static validation is still in
+        # progress), so they stay in the ``planned`` bucket.
+        "metadata_only",
+        "metadata_only_post_training_base",
+        "checkpoint_asset_only",
+        "checkpoint_assets_staged_cpu_schema_validated_gpu_pending",
+        "entrypoint_profiled_runtime_port_pending",
+        "in_tree_import_verification_in_progress",
+    }
+)
+_PENDING_DEMO_ALIASES = frozenset(
+    {
+        "pending_checkpoint_and_demo",
+        "pending_demo",
+        "pending_parity",
+        # Registered staging/component-level demo states from the checked-in
+        # catalog.  They record partial evidence (implemented code, staged or
+        # statically validated checkpoints, component-level checks) but NOT a
+        # completed end-to-end demo parity run, so they normalize to
+        # ``pending`` without triggering the unregistered-status warning.
+        "checkpoint_environment_required",
+        "checkpoint_required",
+        "component_verified_worldgen_pending",
+        "configured",
+        "implemented",
+        "implemented_checkpoint_pending",
+        "implemented_hidden_weights_pending",
+        "implemented_local_extension_pending",
+        "implemented_pending_gpu_parity",
+        "implemented_pending_native_gpu_parity",
+        "implemented_public_checkpoint_not_staged",
+        "in_tree_checkpoint_runtime",
+        "in_tree_inference_ready_checkpoint_pending",
+        "in_tree_vendor_ready_checkpoint_pending",
+        "integrated",
+        "native_checkpoint_layout_validated",
+        "native_checkpoint_validated",
+        "native_pipeline_cuda_artifact_pending",
+        "not_recorded",
+        "official_in_process_runtime_static_checkpoint_validation_complete",
+        "partial",
+        "partial_studio_visual_validation_verified",
+        "planned",
+        "runtime_ported",
+        "static_runtime_verified",
+        "static_runtime_verified_checkpoint_assets_staged",
+        "structural_validation_passed",
+    }
+)
+# Demo states that record a completed checkpoint-backed GPU demo/parity run in
+# the catalog.  Only statuses that explicitly claim that end-to-end evidence
+# normalize to ``verified``; component/static validation stays ``pending``.
+_VERIFIED_DEMO_ALIASES = frozenset(
+    {
+        "full_demo_verified",
+        "full_default_gpu_parity_verified",
+        "passed",
+        "checkpoint_verified",
+        "checkpoint_backed_verified",
+        "checkpoint_gpu_validated",
+        "selected_checkpoint_gpu_validated",
+        "all_declared_variants_checkpoint_gpu_validated",
+        "all_released_checkpoints_gpu_validated",
+        "robotwin_and_umi_checkpoints_gpu_validated",
+        "converted_checkpoint_strict_restore_and_gpu_action_probe_validated",
+    }
+)
 
 # ── Type aliases and shared helpers ──────────────────────────
 
@@ -233,6 +338,8 @@ def _normalize_demo_status(value: Any) -> str:
     normalized = str(value or "not_applicable").strip().lower()
     if normalized in DEMO_PARITY_STATUSES:
         return normalized
+    if normalized in _VERIFIED_DEMO_ALIASES:
+        return "verified"
     if normalized in _PENDING_DEMO_ALIASES or normalized.startswith("pending"):
         return "pending"
     _warn_unknown_status_once("demo_status", normalized, "pending")
