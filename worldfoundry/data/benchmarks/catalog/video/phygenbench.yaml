@@ -111,7 +111,7 @@ integration:
   - Only result import and the bounded overall aggregation component are available; stage judge execution is absent.
 release_status: experimental
 maturity: contract_ready
-open_source_status: in_tree_result_importer_and_bounded_aggregator
+open_source_status: normalizer_only
 official_benchmark_verified: false
 integration_evidence: false
 leaderboard_valid: false

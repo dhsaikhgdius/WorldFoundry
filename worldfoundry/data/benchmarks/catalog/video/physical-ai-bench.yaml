@@ -81,6 +81,7 @@ integration:
 
 release_status: experimental
 maturity: verified_runner
+open_source_status: in_tree_runtime
 official_benchmark_verified: false
 integration_evidence: true
 leaderboard_valid: false
@@ -108,6 +109,12 @@ runner_availability:
   normalizer_verified: true
 
 base_model_dependencies: [vbench, vbench-plus-plus, qwen-vl, dover, lpips, video-depth-anything, grounding-dino, sam2]
+checkpoint_refs:
+- {id: depth_anything_checkpoint, cli_flag: --depth-checkpoint, role: depth_si_rmse}
+- {id: grounding_dino_checkpoint, cli_flag: --grounding-checkpoint, role: segmentation_metrics}
+- {id: sam2_checkpoint, cli_flag: --sam2-checkpoint, role: segmentation_metrics}
+- {id: dover_checkpoint, cli_flag: --dover-checkpoint, role: dover_tech_score}
+validation_command: ["${WORLDFOUNDRY_UNIFIED_PYTHON:-python}", -m, worldfoundry.evaluation.tasks.execution.runners.physical_ai_bench.run_physical_ai_bench_official_runner, --track, conditional-generation, --run-official, --dataset-root, "${WORLDFOUNDRY_PHYSICAL_AI_BENCH_DATASET_ROOT}", --generated-video-dir, "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}", --output-dir, <out>, --json]
 artifact_layout:
   generated_artifact_dir_env: WORLDFOUNDRY_GENERATED_ARTIFACT_DIR
   dataset_root_env: WORLDFOUNDRY_PHYSICAL_AI_BENCH_DATASET_ROOT

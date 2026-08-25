@@ -341,6 +341,7 @@ _DISCOVERABLE_METRIC_PACKAGES: tuple[str, ...] = (
     "worldfoundry.evaluation.tasks.metrics.facesim_cur",
     "worldfoundry.evaluation.tasks.metrics.sadpad",
     "worldfoundry.evaluation.tasks.metrics.opens2v",
+    "worldfoundry.evaluation.tasks.metrics.laion_aesthetic",
 )
 
 

@@ -1086,6 +1086,28 @@ WorldReasonBenchContract = ExternalBenchmarkContract(
     ),
 )
 
+StevoBenchContract = ExternalBenchmarkContract(
+    benchmark_id="stevo-bench",
+    display_name="STEVO-Bench",
+    input_keys=("generated_video_dir", "stevo_output_map", "stevo_task_root", "official_results_path"),
+    output_keys=("scorecard", "raw_metric_table", "per_sample_scores", "benchmark_contract"),
+    metric_ids=(
+        "task_success",
+        "state_evol_success",
+        "physical_inaccuracy",
+        "occlusion_done",
+        "trigger_applied",
+        "control_success",
+    ),
+    requires_upstream_runtime=True,
+    notes=(
+        "The official evaluator is vendored in-tree; --run-official executes it without an external checkout.",
+        "Official judging is performed by hosted VLM APIs (Gemini default, OpenAI supported), so real runs need "
+        "GOOGLE_API_KEY or OPENAI_API_KEY plus network access; result normalization is pure-local.",
+        "The 225-task YAML suite is a separate Hugging Face dataset (JhanLiufu/StEvo-Bench) supplied by the caller.",
+    ),
+)
+
 VideoScienceBenchContract = ExternalBenchmarkContract(
     benchmark_id="videoscience-bench",
     display_name="VideoScience-Bench",
@@ -1736,6 +1758,7 @@ _BUILTIN_CONTRACT_ITEMS = (
     RoboTwinContract,
     RLBenchContract,
     SimplerEnvContract,
+    StevoBenchContract,
     T2VSafetyBenchContract,
     T2VWorldBenchContract,
     T2VCompBenchContract,

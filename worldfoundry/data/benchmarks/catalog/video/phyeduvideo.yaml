@@ -135,14 +135,12 @@ runner:
 integration:
   status: integrated
   evidence:
-    framework_validation: worldfoundry-eval zoo benchmark-run --benchmark-id phyeduvideo --mode official-validation 
-      --official-results-path <results_summary.csv> --generated-artifact-dir <generated_videos> --output-dir <out> 
-      --json
+    framework_validation: worldfoundry-eval zoo benchmark-run --benchmark-id phyeduvideo --mode official-validation --official-results-path <results_summary.csv> --generated-artifact-dir <generated_videos> --output-dir <out> --json
     normalizer_surface: in_tree_result_importer
     dataset_readiness: Prompts/Prompts.json
 release_status: experimental
 maturity: contract_ready
-open_source_status: in_tree_result_importer
+open_source_status: normalizer_only
 official_benchmark_verified: false
 integration_evidence: false
 leaderboard_valid: false

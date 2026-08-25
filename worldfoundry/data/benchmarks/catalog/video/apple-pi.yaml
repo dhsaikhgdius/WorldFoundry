@@ -198,3 +198,17 @@ artifact_layout:
   generated_artifact_dir_env: WORLDFOUNDRY_APPLE_PI_PREDICTION_DIR
   output_artifact: benchmark_scorecard
   filename_template: scorecard.json
+validation_command:
+- ${WORLDFOUNDRY_UNIFIED_PYTHON:-python}
+- -m
+- worldfoundry.evaluation.tasks.execution.runners.apple_pi.run_apple_pi_official_runner
+- --run-official
+- --gt-dir
+- ${WORLDFOUNDRY_APPLE_PI_GT_DIR}
+- --pred-dir
+- ${WORLDFOUNDRY_APPLE_PI_PREDICTION_DIR}
+- --judge-backend
+- mock
+- --output-dir
+- <out>
+- --json

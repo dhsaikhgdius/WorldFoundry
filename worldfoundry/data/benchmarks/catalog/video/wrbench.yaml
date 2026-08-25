@@ -206,3 +206,24 @@ runner_availability:
 notes:
 - D1-CamPrec and D1-CamAlign are deliberately not merged.
 - D5 and D6 are conditional on the official re-observation applicability gate.
+validation_command:
+- worldfoundry-eval
+- zoo
+- benchmark-run
+- --benchmark-id
+- wrbench
+- --mode
+- official-validation
+- --official-results-path
+- <official_results.json_or_csv>
+- --generated-artifact-dir
+- <generated_videos>
+- --output-dir
+- <out>
+- --json
+checkpoint_refs: []
+artifact_layout:
+  generated_artifact_dir_env: WORLDFOUNDRY_GENERATED_ARTIFACT_DIR
+  results_path_env: WORLDFOUNDRY_WRBENCH_RESULTS_PATH
+  output_artifact: benchmark_scorecard
+  filename_template: scorecard.json

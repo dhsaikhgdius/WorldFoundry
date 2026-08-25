@@ -202,9 +202,7 @@ runner:
   - track_breakdown.json
   verification_status: in_tree_official_aggregation_ready_judge_external
   notes:
-  - The in-tree scorer reproduces eval/4_embodiments and eval/5_tasks aggregation from per-video outputs,
-    including the option-to-score mapping, min-max normalization, PAS and consistency penalties, and the
-    amplitude filter that drops videos with no measured motion amplitude.
+  - The in-tree scorer reproduces eval/4_embodiments and eval/5_tasks aggregation from per-video outputs, including the option-to-score mapping, min-max normalization, PAS and consistency penalties, and the amplitude filter that drops videos with no measured motion amplitude.
   - VLM judging (GPT or Qwen3-VL) and the GroundingDINO/SAM2/CoTracker/Q-Align operator stack run upstream.
   - gpt and qwen judge outputs are never mixed; one backend is aggregated per run.
 integration:
@@ -214,7 +212,7 @@ integration:
   - rbench_overall is a WorldFoundry composite; RBench publishes the two tracks separately.
 release_status: experimental
 maturity: contract_ready
-open_source_status: in_tree_official_source
+open_source_status: normalizer_only
 official_benchmark_verified: false
 integration_evidence: false
 leaderboard_valid: false
@@ -224,8 +222,7 @@ requires:
 - --result-model-id <model_id> when the results tree holds several generation models
 - --vlm-backend when both gpt and qwen judge outputs are present
 blockers:
-- WorldFoundry aggregates supplied judge and operator outputs; it does not run the VLM judge or the
-  GroundingDINO/SAM2/CoTracker/Q-Align stack.
+- WorldFoundry aggregates supplied judge and operator outputs; it does not run the VLM judge or the GroundingDINO/SAM2/CoTracker/Q-Align stack.
 data_refs:
   task_yaml: worldfoundry/data/benchmarks/tasks/external/rbench.yaml
   dataset_refs:

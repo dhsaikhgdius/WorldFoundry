@@ -80,7 +80,7 @@ integration:
   - Prompt materialization, mask generation, raw video metrics, and original score aggregation execute in tree.
   - Official media are data assets and are not vendored; the upstream source repository is provenance only.
 release_status: experimental
-maturity: official_runtime_ready
+maturity: verified_runner
 open_source_status: in_tree_runtime
 official_benchmark_verified: false
 integration_evidence: true
@@ -88,6 +88,8 @@ leaderboard_valid: false
 requires:
 - Official physics-IQ-benchmark media directory
 - 198 generated five-second videos from the bundled prompt suite
+blockers:
+- Full-suite official media evaluation and leaderboard-valid scoring require the complete downloaded Physics-IQ dataset.
 data_refs:
   task_yaml: worldfoundry/data/benchmarks/tasks/external/physics-iq.yaml
   bundled_assets: worldfoundry/data/benchmarks/assets/physics-iq
@@ -95,11 +97,20 @@ official_runner_script: worldfoundry/evaluation/tasks/execution/runners/physics_
 runner_availability:
   available: true
   runner_target: worldfoundry.evaluation.tasks.contracts.external:PhysicsIQContract
+  runner_script_available: true
+  task_yaml_available: true
   runtime_verified: true
   runtime_verification_scope: bounded_complete_three_view_scenario
   full_suite_verified: false
+  normalizer_verified: true
+  surface: physics_iq_official_in_tree
 dataset:
   not_applicable: false
   reason: Official reference videos and real masks must be downloaded separately.
 validation_command: [worldfoundry-eval, zoo, benchmark-run, --benchmark-id, physics-iq, --mode, official-validation, --official-results-path, <raw_metrics.csv>, --output-dir, <out>, --json]
 checkpoint_refs: []
+artifact_layout:
+  generated_artifact_dir_env: WORLDFOUNDRY_GENERATED_ARTIFACT_DIR
+  dataset_root_env: WORLDFOUNDRY_PHYSICS_IQ_ORIGINAL_ROOT
+  output_artifact: benchmark_scorecard
+  filename_template: scorecard.json

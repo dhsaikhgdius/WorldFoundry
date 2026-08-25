@@ -219,6 +219,13 @@ BENCHMARK_INTEGRATION_REGISTRY: dict[str, BenchmarkIntegrationSpec] = {
         _runner_path("sana-wm-bench"),
         hf_dataset_id="Efficient-Large-Model/SANA-WM-Bench",
     ),
+    "stevo-bench": BenchmarkIntegrationSpec(
+        "stevo-bench",
+        IntegrationTier.MODEL_BACKED,
+        _runner_path("stevo-bench"),
+        hf_dataset_id="JhanLiufu/StEvo-Bench",
+        judge_model_id="gemini-3.1-pro-preview",
+    ),
     "t2v-compbench": BenchmarkIntegrationSpec(
         "t2v-compbench", IntegrationTier.IN_TREE, _runner_path("t2v-compbench"),
     ),
