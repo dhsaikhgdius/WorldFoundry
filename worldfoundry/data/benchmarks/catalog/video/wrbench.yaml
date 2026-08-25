@@ -1,5 +1,7 @@
 id: wrbench
 name: WRBench
+publisher: University of Science and Technology of China
+publisher_kind: university
 aliases:
 - wr-bench
 benchmark_kind:

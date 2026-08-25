@@ -1,151 +1,100 @@
 ---
 title: ChronoMagic-Bench
-description: ChronoMagic-Bench time-lapse evaluation in WorldFoundry.
+description: "Metamorphic time-lapse T2V benchmark (NeurIPS 2024 D&B): 1,649 prompts scored with CHScore coherence and MTScore metamorphic amplitude."
 ---
 
-## What it measures
+## About
 
-ChronoMagic-Bench evaluates text-to-time-lapse generation. It targets long-horizon metamorphic change: biological growth, human-created construction or fabrication, meteorological evolution, and physical transformations such as melting or baking.
+**Publisher:** Peking University (Yuan Group, with University of Rochester)
 
-The official benchmark emphasizes metamorphic amplitude and temporal coherence rather than ordinary action-video quality. The paper reports 1,649 benchmark prompts across 4 categories and 75 subcategories; the in-tree WorldFoundry manifest tracks the Hugging Face `BestWishYsh/ChronoMagic-Bench` test split with 1,799 expected rows for local evidence and coverage accounting.
+ChronoMagic-Bench evaluates text-to-time-lapse video generation: can a model synthesize videos with large physical, biological, or chemical state changes (melting ice, blooming flowers, construction) while staying temporally coherent? The official suite pairs 1,649 prompts with two metric families: CHScore (tracking-point coherence via CoTracker) and MTScore (metamorphic amplitude, judged by InternVideo2 or GPT-4o). The release also includes the ChronoMagic-Pro/ProH training datasets.
 
-## Assets and data
+WorldFoundry vendors the ChronoMagic-Bench runtime in tree and executes selected official component scripts directly — CHScore, MTScore, GPT4o-MTScore, then the official `get_uploaded_json.py` normalization — via `run_chronomagic_bench_official_runner.py`.
 
-WorldFoundry vendors the official runner source in-tree:
+Official references:
 
-| Asset | Path |
-| --- | --- |
-| Task YAML | `worldfoundry/data/benchmarks/tasks/external/chronomagic-bench.yaml` |
-| Runner | `worldfoundry/evaluation/tasks/execution/runners/chronomagic_bench/run_chronomagic_bench_official_runner.py` |
-| Runtime root | `worldfoundry/evaluation/tasks/execution/runners/chronomagic_bench/runtime/chronomagic_bench` |
-| CHScore scripts | `runtime/chronomagic_bench/CHScore/` |
-| GPT4o-MTScore scripts | `runtime/chronomagic_bench/GPT4o_MTScore/` |
-| MTScore scripts | `runtime/chronomagic_bench/MTScore/` |
+- Paper: [arxiv.org/abs/2406.18522](https://arxiv.org/abs/2406.18522)
+- Project page: [pku-yuangroup.github.io/ChronoMagic-Bench](https://pku-yuangroup.github.io/ChronoMagic-Bench/)
+- Official repository: [PKU-YuanGroup/ChronoMagic-Bench](https://github.com/PKU-YuanGroup/ChronoMagic-Bench)
 
-Dataset assets may be downloaded from Hugging Face and pointed to with `WORLDFOUNDRY_CHRONOMAGIC_DATASET_ROOT`. The code does not require cloning an external source tree.
+## Evaluation protocol
 
-## Generated artifacts
+Select official components with `--components` (`all`, `chscore`, `mtscore`, `gpt4o_mtscore`) and the evaluation split with `--eval-type` (e.g. `close` for the closed 1,649-prompt set). CHScore needs a CoTracker checkpoint (`--model-pth-chscore`); MTScore needs an InternVideo2 checkpoint (`--model-pth-mtscore`); GPT4o-MTScore needs OpenAI credentials. Existing upstream results can instead be normalized through `--official-results-path` / `--from-upstream-results`.
 
-For close evaluation, ChronoMagic expects an input root containing a model subdirectory:
+Primary metric: `chronomagic_score`.
 
-```text
-/path/to/chronomagic/input/
-  worldfoundry/
-    sample_000.mp4
-    sample_001.mp4
-```
+| Metric | Meaning | Direction |
+| --- | --- | --- |
+| `chronomagic_score` | Primary metamorphic time-lapse score family. | Higher is better |
+| `temporal_transformation` | Time-lapse transformation and ordering consistency score family. | Higher is better |
 
-You can either pass that layout with `--input-folder /path/to/chronomagic/input --model-name worldfoundry`, or pass an arbitrary generated-video directory with `--generated-video-dir`. The runner will stage it into the expected layout under the output directory.
+## Data and artifact layout
 
-For open evaluation, use three part directories:
+In-tree paths:
 
 ```text
-/path/to/chronomagic/input/
-  worldfoundry/
-    1/*.mp4
-    2/*.mp4
-    3/*.mp4
+worldfoundry/data/benchmarks/tasks/external/chronomagic-bench.yaml
+worldfoundry/evaluation/tasks/execution/runners/chronomagic_bench/runtime/chronomagic_bench
 ```
 
-Supported suffixes are `.mp4`, `.m4v`, `.mov`, `.mkv`, `.avi`, and `.webm`.
-
-## Dependencies
-
-ChronoMagic components are selectable:
-
-| Component | Needs |
-| --- | --- |
-| `chscore` | CoTracker checkpoint, usually `cotracker2.pth`, passed with `--model-pth-chscore` or `WORLDFOUNDRY_CHRONOMAGIC_CHSCORE_CKPT`. |
-| `mtscore` | InternVideo checkpoint, passed with `--model-pth-mtscore` or `WORLDFOUNDRY_CHRONOMAGIC_MTSCORE_CKPT`; the environment must include the InternVideo dependencies used by the official scripts. |
-| `gpt4o_mtscore` | OpenAI-compatible API key via `--openai-api`, `OPENAI_API_KEY`, or `WORLDFOUNDRY_CHRONOMAGIC_OPENAI_API`. |
-
-Use `--components chscore` for a CHScore-only run, `--components mtscore`, `--components gpt4o_mtscore`, or `--components all` for the full core component set. Full leaderboard parity additionally needs complete prompt coverage and the official submission fields that are not produced by a bounded component run.
-
-## Commands
-
-Set common paths:
-
-```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/chronomagic/generated
-export WORLDFOUNDRY_BENCHMARK_OUTPUT_DIR=tmp/chronomagic-bench/chscore
-export WORLDFOUNDRY_CHRONOMAGIC_CHSCORE_CKPT=/path/to/cotracker2.pth
+```text
+.../runners/chronomagic_bench/runtime/chronomagic_bench    # vendored official runtime
+cache/worldfoundry/data/hfd_datasets/BestWishYsh/ChronoMagic-Bench   # 1,799-row benchmark dataset
+${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}/                    # generated time-lapse videos
 ```
 
-Run CHScore from generated videos:
+Stage the benchmark dataset for discovery evidence:
 
 ```bash
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-  worldfoundry/evaluation/tasks/execution/runners/chronomagic_bench/run_chronomagic_bench_official_runner.py \
+hf download BestWishYsh/ChronoMagic-Bench --repo-type dataset \
+  --local-dir cache/worldfoundry/data/hfd_datasets/BestWishYsh/ChronoMagic-Bench
+```
+
+## Run the benchmark
+
+Catalog-recorded validation command:
+
+```bash
+${WORLDFOUNDRY_UNIFIED_PYTHON} worldfoundry/evaluation/tasks/execution/runners/chronomagic_bench/run_chronomagic_bench_official_runner.py \
   --chronomagic-root worldfoundry/evaluation/tasks/execution/runners/chronomagic_bench/runtime/chronomagic_bench \
   --components chscore \
-  --generated-video-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
+  --generated-video-dir ${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR} \
   --model-name worldfoundry \
   --eval-type close \
-  --model-pth-chscore "${WORLDFOUNDRY_CHRONOMAGIC_CHSCORE_CKPT}" \
-  --output-dir "${WORLDFOUNDRY_BENCHMARK_OUTPUT_DIR}" \
-  --python "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
+  --model-pth-chscore ${WORLDFOUNDRY_CHRONOMAGIC_CHSCORE_CKPT} \
+  --output-dir <out> \
+  --python ${WORLDFOUNDRY_UNIFIED_PYTHON} \
   --json
 ```
 
-Run the full core component set when the MTScore checkpoint and API key are available:
+## Checkpoints and environment variables
 
-```bash
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-  worldfoundry/evaluation/tasks/execution/runners/chronomagic_bench/run_chronomagic_bench_official_runner.py \
-  --components all \
-  --generated-video-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --dataset-root "${WORLDFOUNDRY_CHRONOMAGIC_DATASET_ROOT}" \
-  --model-name worldfoundry \
-  --eval-type close \
-  --model-pth-chscore "${WORLDFOUNDRY_CHRONOMAGIC_CHSCORE_CKPT}" \
-  --model-pth-mtscore "${WORLDFOUNDRY_CHRONOMAGIC_MTSCORE_CKPT}" \
-  --openai-api "${WORLDFOUNDRY_CHRONOMAGIC_OPENAI_API:-${OPENAI_API_KEY}}" \
-  --output-dir tmp/chronomagic-bench/full \
-  --python "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-  --timeout "${WORLDFOUNDRY_CHRONOMAGIC_TIMEOUT:-7200}" \
-  --json
-```
-
-Import an existing `ChronoMagic-Bench-Input.json`:
-
-```bash
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-  worldfoundry/evaluation/tasks/execution/runners/chronomagic_bench/run_chronomagic_bench_official_runner.py \
-  --official-results-path /path/to/ChronoMagic-Bench-Input.json \
-  --all-results-dir /path/to/all \
-  --generated-video-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --dataset-root "${WORLDFOUNDRY_CHRONOMAGIC_DATASET_ROOT}" \
-  --model-name worldfoundry \
-  --output-dir tmp/chronomagic-bench/import \
-  --json
-```
-
-## Import paths
-
-For direct Python use:
-
-```python
-from worldfoundry.evaluation.tasks.execution.runners.chronomagic_bench.chronomagic_official_impl import (
-    normalize_chronomagic_results,
-    run_chronomagic,
-)
-from worldfoundry.evaluation.tasks.execution.runners._benchmark_metrics.formulas import chronomagic_average_scores
-```
+- `WORLDFOUNDRY_CHRONOMAGIC_ROOT`: Optional override pointing at an external runtime checkout.
+- `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR`: Directory containing the candidate generated artifacts to score or import against.
+- `WORLDFOUNDRY_CHRONOMAGIC_RESULTS_PATH`: Default path the importer reads official result exports from when `--official-results-path` is not passed.
+- `WORLDFOUNDRY_CHRONOMAGIC_CHSCORE_CKPT`: CoTracker checkpoint for CHScore.
+- `WORLDFOUNDRY_CHRONOMAGIC_MTSCORE_CKPT`: InternVideo2 checkpoint for MTScore.
+- `WORLDFOUNDRY_CHRONOMAGIC_DATASET_ROOT`: Local BestWishYsh/ChronoMagic-Bench dataset root for discovery evidence.
+- `OPENAI_API_KEY`: Required for the GPT4o-MTScore component.
 
 ## Outputs
 
-The output directory contains:
+The run writes into `--output-dir`:
 
-| File | Meaning |
-| --- | --- |
-| `scorecard.json` | Component availability, coverage, eligibility, and metric summary. |
-| `raw_metric_table.jsonl` | `chronomagic_score` and `temporal_transformation` rows. |
-| `per_sample_metrics.jsonl` | Per-model and per-video rows when component JSON files are available. |
-| `generated_video_manifest.json` | Generated-video coverage accounting. |
-| `dataset_manifest.json` | Local dataset evidence when `--dataset-root` is supplied. |
-| `upstream_stdout.log` / `upstream_stderr.log` | Captured official component logs. |
-| `staged_input_manifest.json` | Written when `--generated-video-dir` is staged into ChronoMagic layout. |
+- `scorecard.json`: WorldFoundry scorecard with the metric values recorded above.
+- `per_sample_metrics.jsonl`
+- `raw_metric_table.jsonl`: Metric rows backing the scorecard.
+- `generated_video_manifest.json`
+- `dataset_manifest.json`
+- `upstream_stdout.log`: Captured stdout of the upstream official scorer.
+- `upstream_stderr.log`: Captured stderr of the upstream official scorer.
 
-`chronomagic_score` averages available CHScore, MTScore, and GPT4o-MTScore values after scale normalization. `temporal_transformation` focuses on MTScore and GPT4o-MTScore. Higher is better for both metrics.
+Scorecard primary key: `chronomagic_score` (leaderboard key `chronomagic_score`), stored in `scorecard.json`.
+
+## Limitations
+
+- Component-level validation (e.g. CHScore only) is not leaderboard-valid; leaderboard parity additionally requires full prompt coverage, UMT-FVD, UMTScore, and the official submission protocol.
+- Full official core runs need a user-supplied MTScore checkpoint and OpenAI credentials.
+- One historical MTScore attempt in the worldscore environment lacked `flash_attn`/`dropout_layer_norm` for InternVideo2; install them before MTScore runs there.
 
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

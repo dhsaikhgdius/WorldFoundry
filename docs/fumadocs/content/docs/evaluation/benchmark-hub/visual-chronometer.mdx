@@ -1,133 +1,87 @@
 ---
 title: Visual Chronometer
-description: Visual Chronometer — metrics, requirements, and run commands.
+description: "PhyFPS prediction over arbitrary videos: measure the physical frame rate implied by visual motion, independent of metadata."
 ---
 
 ## About
 
-Visual Chronometer external benchmark task manifest for in-tree PhyFPS prediction.
+**Publisher:** TACO Group, Texas A&M University
 
-**WorldFoundry evaluation path:** Runs the in-tree official metric runtime on caller-supplied generated artifacts using local checkpoints and evaluators. Candidate outputs are read from the generated-artifact directory.
+Visual Chronometer predicts the Physical Frames Per Second (PhyFPS) of a video — the true temporal scale implied by its visual dynamics — bypassing unreliable container metadata. Trained via controlled temporal resampling with physics-grounded augmentations (motion blur, rolling shutter), it exposes temporal instability in both real and generated footage. As a WorldFoundry benchmark it scores a directory of videos with mean PhyFPS plus intra-/inter-video coefficients of variation; lower values indicate steadier, more consistent temporal behavior.
 
-## Integration status
+WorldFoundry runs PhyFPS prediction in-process through the checked-in runtime wrapper shared with PhyFPS-Bench-Gen.
 
-| Item | Current state |
-| --- | --- |
-| Catalog integration | `integrated` |
-| Runner verification | `official_runtime_ready` |
-| Leaderboard | not yet eligible for leaderboard claims |
+Official references:
 
-## Metrics
+- Official repository: [taco-group/Visual_Chronometer](https://github.com/taco-group/Visual_Chronometer)
 
-### Task YAML
+## Evaluation protocol
 
-`worldfoundry/data/benchmarks/tasks/external/visual-chronometer.yaml`
+Point `--generated-artifact-dir` at any directory of videos; the runner slides windows over each clip, predicts per-window PhyFPS, and aggregates. `WORLDFOUNDRY_VISUAL_CHRONOMETER_PREDICT_BACKEND` selects the local prediction backend. `official-validation` mode normalizes an existing `results.csv` instead of re-predicting.
 
-### Primary
+Primary metric: `visual_chronometer_average`.
 
-- `visual_chronometer_average`
+| Metric | Meaning | Direction |
+| --- | --- | --- |
+| `mean_phyfps` | Mean average PhyFPS across evaluated videos. | Lower is better |
+| `inter_video_cv` | Cross-video coefficient of variation over average PhyFPS. | Lower is better |
+| `intra_video_cv` | Mean within-video coefficient of variation over sliding-window clips. | Lower is better |
+| `visual_chronometer_average` | Mean over available Visual Chronometer consistency score families. | Lower is better |
 
-| Metric | Focus |
-| --- | --- |
-| `mean_phyfps` | Mean average PhyFPS across evaluated videos. |
-| `inter_video_cv` | Cross-video coefficient of variation over average PhyFPS. |
-| `intra_video_cv` | Mean within-video coefficient of variation over sliding-window clips. |
-| `visual_chronometer_average` | Mean over Visual Chronometer temporal-consistency score families for time-perception probes (lower is better). |
+## Data and artifact layout
 
-## Environment setup
+In-tree paths:
 
-### Runtime environment
-
-- **Conda env:** `worldfoundry-unified-cu128`.
-- **Separate setup:** defaults to the unified WorldFoundry env (`needs_new_env: false`); a benchmark-only conda env is usually not required.
-- WorldFoundry runs Visual Chronometer PhyFPS prediction in-process and normalizes results.csv into the Visual Chronometer metric surface.
-- Use WORLDFOUNDRY_VISUAL_CHRONOMETER_PREDICT_BACKEND to select the local prediction backend.
-
-### Evaluation data
-
-- Candidate model outputs: set `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR` to the generated-video or rollout artifact root.
-- `worldfoundry/evaluation/tasks/execution/runners/phyfps_bench_gen/runtime/visual_chronometer`
-- `worldfoundry/data/benchmarks/tasks/external/visual-chronometer.yaml`
-
-### Checkpoints & assets
-
-- Base-model / metric dependencies: `visual_chronometer_fps_predictor`.
-- Default metric-checkpoint paths and override env vars are listed in the [local assets guide](/docs/guides/local-assets).
-
-### Key environment variables
-
-- `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR`
-- `WORLDFOUNDRY_VISUAL_CHRONOMETER_ROOT`
-- `WORLDFOUNDRY_VISUAL_CHRONOMETER_PREDICT_BACKEND`
-- `WORLDFOUNDRY_VISUAL_CHRONOMETER_RESULTS_PATH`
-- `WORLDFOUNDRY_VISUAL_CHRONOMETER_STRICT`
-
-### Verify setup
-
-```bash
-PYTHONPATH=. ${WORLDFOUNDRY_UNIFIED_PYTHON:-python} -m worldfoundry.evaluation.tasks.execution.orchestration.runtime_preflight --profile visual-chronometer --manifest worldfoundry/data/benchmarks/runtime_profiles/official/visual-chronometer.yaml --output-dir tmp/worldfoundry_preflight/visual-chronometer --json
+```text
+worldfoundry/data/benchmarks/tasks/external/visual-chronometer.yaml
+worldfoundry/evaluation/tasks/execution/runners/phyfps_bench_gen/runtime/visual_chronometer
 ```
 
-## Run evaluation
-
-After preparing the assets and candidate artifacts listed on this page, use the public run entry points below.
-
-### Set candidate artifacts
-
-```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/generated/artifacts
+```text
+.../runners/phyfps_bench_gen/runtime/visual_chronometer/   # shared in-tree runtime
+${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}/*.mp4               # videos to score
+<out>/results.csv                                          # per-clip PhyFPS predictions
 ```
 
-### Import official results
+The VC-Common checkpoint (`xiangbog/Visual_Chronometer`, 10-60 FPS range) is required for real predictions.
+
+## Run the benchmark
+
+Catalog-recorded validation command:
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id visual-chronometer \
-  --mode normalizer \
-  --official-results-path /path/to/official/results-or-report \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/visual-chronometer/normalizer \
+  --mode official-validation \
+  --official-results-path <results.csv> \
+  --generated-artifact-dir <generated_videos> \
+  --output-dir <out> \
   --json
 ```
 
-### Score generated artifacts
+## Checkpoints and environment variables
 
-```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id visual-chronometer \
-  --mode official-run \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/visual-chronometer/official-run \
-  --json
-```
+- `WORLDFOUNDRY_VISUAL_CHRONOMETER_ROOT`: Optional override pointing at an external runtime checkout.
+- `WORLDFOUNDRY_VISUAL_CHRONOMETER_RESULTS_PATH`: Default path the importer reads official result exports from when `--official-results-path` is not passed.
+- `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR`: Directory containing the candidate generated artifacts to score or import against.
+- `WORLDFOUNDRY_VISUAL_CHRONOMETER_PREDICT_BACKEND`: Selects the local PhyFPS prediction backend.
 
-### Direct in-tree runner
+## Outputs
 
-```bash
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" worldfoundry/evaluation/tasks/execution/runners/phyfps_bench_gen/run_visual_chronometer_official_runner.py --run-official --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" --output-dir "${WORLDFOUNDRY_BENCHMARK_OUTPUT_DIR}" --json
-```
+The run writes into `--output-dir`:
 
-## Requirements
-
-### Inputs
-
-- WORLDFOUNDRY_GENERATED_ARTIFACT_DIR
-- Visual Chronometer checkpoint assets for full official prediction
-
-### Environment
-
-- `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR`
-
-### Outputs
-
-- `scorecard.json`
-- `benchmark_contract.json`
-- `raw_metric_table.jsonl`
+- `scorecard.json`: WorldFoundry scorecard with the metric values recorded above.
+- `benchmark_contract.json`: Benchmark contract record for the run (inputs, mode, provenance).
+- `raw_metric_table.jsonl`: Metric rows backing the scorecard.
 - `results.csv`
-- `per_sample_scores.jsonl`
+- `per_sample_scores.jsonl`: Per-sample rows when the result source exposes sample-level values.
 
-## Official references
+Scorecard primary key: `visual_chronometer_average` (leaderboard key `visual_chronometer_average`), stored in `scorecard.json`.
 
-- [GitHub](https://github.com/taco-group/Visual_Chronometer)
+## Limitations
+
+- Full leaderboard parity requires the complete official checkpoint assets and verified scorecard evidence.
+- The released VC-Common checkpoint covers 10-60 FPS and is not the authors' strongest internal model.
+- Mock prediction backends are wiring-only and never benchmark evidence.
 
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

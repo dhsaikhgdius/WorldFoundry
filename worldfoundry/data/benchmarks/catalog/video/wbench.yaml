@@ -1,5 +1,7 @@
 id: wbench
 name: WBench
+publisher: Meituan
+publisher_kind: company
 benchmark_kind:
 - interactive-video-world-model
 - video-generation-quality

@@ -1,5 +1,7 @@
 id: rlbench
 name: RLBench
+publisher: Imperial College London
+publisher_kind: university
 benchmark_kind:
 - embodied-action
 - robot-manipulation

@@ -1,0 +1,458 @@
+WorldFoundry 基础设施优化计划
+================================
+日期：2026-08-25
+性质：建议修改（本文件只记录计划，不直接改代码）
+方法：主会话编排 + 4 个云端子代理并行评审
+  - Docker / 镜像 / 构建链路
+  - CI/CD、质量门禁、测试基建
+  - 安装脚本、conda、pip extras、依赖锁定
+  - 运行时平台、GPU 调度、作业系统、DLC/评测容器
+
+对照：plan/code_review/14_tests_ci.md（2026-08-14）与 2026-08-17 落地提交。
+结论：骨架建议多数已落地，但门禁仍无绿色基线；安装/镜像/集群侧仍有一批可独立落地的止血项。
+
+
+0. 现状一句话
+--------------
+仓库已有 conda 统一 GPU 环境、CUDA tier 探测、Studio 设备租约、评测 CLI 门禁雏形，
+但四条基建链路彼此脱节：基座 Docker 镜像无人消费、CI 两个 job 在 main 上均红、
+安装脚本默认走 GPU 全量且无 lockfile、集群/评测容器靠硬编码与 :latest。
+
+
+1. 不建议改的地方（先划边界）
+------------------------------
+- environment.yml 瘦 + pip 层胖：conda 只管系统件（ffmpeg/eigen/nvcc），torch 走 wheel index。不要合成单一 conda YAML。
+- model_env_install.sh 的专用 env：部分模型确有硬 ABI pin，隔离机制保留；只修黑名单矛盾。
+- packages/worldfoundry-native-kernels 独立包 + 禁 build isolation：ABI 契约正确，不要并入主 wheel、不要发通用 PyPI 二进制。
+- test/conftest.py 的 collect_ignore：44 个顶层 demo 脚本继续排除，不要改造成 CI 测试。
+- ruff==0.12.7：Makefile / pre-commit / AGENTS.md 三处对齐；升级会改 import-sort 输出。CI 建议改成 == 而不是放宽。
+- ruff 白名单（RUFF_SOURCES）本次不要扩张到 core/training：那是内容治理，会淹没门禁修绿。
+- 不要一次性 xfail/删除 eval-core 里大量契约失败：用 allow-failure 分层，按契约域分批修。
+- 不要把 allenai vla-evaluation-harness 换成自建镜像：official parity 依赖它们；治理点是 digest/mirror，不是镜像内容。
+- 不要现在把源码 COPY 进基座做全量 release 镜像：flash-attn 与 CUDA tier 是运行时决策。
+- 不要给当前 bash 基座加 HEALTHCHECK / 强推 non-root：无守护进程；评测需要写挂载卷。
+- runtime/jobs.py 进程组终止链、local_checkpoint_cache 的 rank0+flock、compile_cache 指纹设计、studio/serving/auth.py fail-closed：质量高，只补缺口。
+- platforms/ 的 Protocol 探测层不要为「多云」提前重写；真正的单云问题在 DLC bash 脚本。
+- vendored mmyolo Dockerfile：标注非支持路径即可，不要改上游 diff。
+- 不要在 CI 装 [all] extra 或 GPU 依赖。
+
+
+2. 优先级实施顺序（建议按此落地）
+--------------------------------
+P0 止血（改动小、立刻改善正确性/可用性）
+  1) pin [ui] extra 的 gradio/starlette（裸装 Studio 即碎）
+  2) ruff --fix 修掉现有 8 个 lint，让 public-surface 能绿
+  3) CI eval-core 补齐 CPU torch + 隐式依赖；收集漂移修 1 处 import
+  4) conda 第二段 pip 加 torch 三件套 constraint，防止 xformers 偷换 CUDA 构建
+  5) CUDA_DEVICE_ORDER=PCI_BUS_ID（或 GPU UUID 作为租约 token）
+  6) DLC 脚本去掉账户级硬编码默认值；job 名用 config-id
+
+P1 可复现与门禁分层
+  7) 分 CUDA tier 的 lockfile + git 依赖 pin commit + CI dry-run 防漂移
+  8) cu121/cu124 与 torch>=2.7 矩阵对齐（修上限或下线旧 tier）
+  9) CPU 主机默认不再走 cu128+强制 flash-attn 源码编译
+ 10) CI 拆 docs-build / python-quality；miniconda 换成 setup-python + pip cache
+ 11) eval-core 全量 continue-on-error + 绿色子集硬门禁；新增 training-tests job
+ 12) embodied 评测镜像 :latest → digest；mirror 保真
+
+P2 入口收敛与隔离
+ 13) 删除 conda_profile_install.sh 与被忽略的 legacy flags；preset slim 要么真 slim 要么删
+ 14) docker build 去掉 host network；push 默认只 amd64；CI 加 docker-smoke
+ 15) docker_runner 加 shm/init/超时/只读挂载；model_server 默认 127.0.0.1 + 非回环鉴权
+ 16) 作业落盘 job.json + 崩溃孤儿对账
+
+P3 约定统一与清理
+ 17) checkpoint 三套布局收敛、GC、size 校验
+ 18) WORLDFOUNDRY_* 路径默认统一；脚本默认产物离开仓库 tmp/
+ 19) extras 去重、README 双轨安装文档、native-kernels 可选安装
+ 20) dependabot、actions SHA pin、compile_cache --gc、Studio 并发按 GPU 自适应
+
+
+3. Docker / 镜像 / 构建
+------------------------
+现状
+  docker/Dockerfile 只做 CUDA devel 基座 + apt + uv，不装 worldfoundry、不 COPY 源码。
+  docker/build_with_docker.sh 无条件 --allow network.host --network host；--push 默认 linux/amd64,linux/arm64。
+  全仓无消费者：test/run_tests_docker.sh 默认仍用裸 nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04，并重复一份 apt 清单。
+  embodied 评测走另一套：runtime profile 的 ghcr.io/allenai/...:latest，经 scripts/embodied/mirror_docker_images.py 搬运。
+  CI 零 docker 覆盖；make shell-check 只 lint scripts/setup。
+
+建议修改
+
+[D-01] P1 评测镜像全部 :latest，mirror 丢 digest
+  文件：worldfoundry/data/benchmarks/runtime_profiles/official/*.yaml
+        scripts/embodied/mirror_docker_images.py
+        worldfoundry/evaluation/tasks/embodied/docker_runner.py
+  改法：mirror 改 docker buildx imagetools create 或 skopeo copy --all，写出 source digest 映射 JSON；
+        profile 增加 docker.digest 或直接用 @sha256:...；_ensure_image pull 后校验。
+
+[D-02] P1 构建脚本硬编码 host network
+  文件：docker/build_with_docker.sh
+  改法：删除 --allow network.host --network host；如需内网代理用 WORLDFOUNDRY_DOCKER_NETWORK 显式 opt-in。
+  原因：该 Dockerfile 不需要 host 网络；docker-container driver 未开 entitlement 时多架构 push 开箱即坏。
+
+[D-03] P2 push 默认 arm64 对本栈不现实
+  文件：docker/build_with_docker.sh
+  改法：默认 linux/amd64；arm64 仅 --platform 显式开启。
+  原因：xformers/gsplat/flash-attn/pipablepytorch3d 无可用 aarch64 CUDA wheel。
+
+[D-04] P1 基座镜像是孤儿，apt 清单双份维护
+  文件：test/run_tests_docker.sh 、 docker/Dockerfile
+  改法：测试脚本默认镜像改为发布后的 ghcr.io/openenvision/worldfoundry:base（保留 env 回退）。
+
+[D-05] P2 uv/Python 不 pin，镜像 Python 3.10 vs environment.yml 3.11
+  文件：docker/Dockerfile 、 test/run_tests_docker.sh
+  改法：uv 改固定 tag（不要 :latest，不要 curl | sh 无版本）；容器 Python 对齐 3.11。
+
+[D-06] P2 .dockerignore 根锚定导致多数模式失效
+  文件：.dockerignore
+  改法：裸 data/ cache/ *.mp4 *.ckpt 等改为 **/ 前缀；显式忽略 worldfoundry/data/test_cases/、thirdparty/、plan/、docs/。
+  备注：当前 Dockerfile 无 COPY，问题潜伏；一旦 COPY . . 会把约 400MB test_cases 打进上下文。
+  另：忽略 .git 后 setuptools-scm 动态版本需要 SETUPTOOLS_SCM_PRETEND_VERSION，加注释。
+
+[D-07] P2 缺 runtime / CPU 瘦镜像
+  文件：docker/Dockerfile
+  改法：多 stage：base-runtime（cudnn-runtime + 最小 apt）与现有 base-devel；CPU CI 可用 python:3.11-slim。
+  devel 保留（flash-attn 需要 nvcc），但不应是唯一选项。不要为 cu121/cu124 各出一份基座。
+
+[D-08] P1 CI 无 docker 冒烟
+  文件：.github/workflows/ci.yml 、 Makefile
+  改法：paths 过滤 docker/** 时跑 hadolint + amd64 build（不 push）；shell-check 扩到 docker/ scripts/embodied/ test/*.sh。
+
+[D-09] P2 docker_runner 隔离弱
+  文件：worldfoundry/evaluation/tasks/embodied/docker_runner.py
+  现状：--network host 写死；仓库读写挂载；PYTHONPATH 含不存在的 /workspace/WorldFoundry/src；gpus 默认 all；无 --shm-size/--init；无超时。
+  改法：network/gpus/shm 进配置（默认保持兼容，因 model_server 走 ws://127.0.0.1）；仓库挂载 :ro；删 /src；
+        默认 --shm-size（可配，如 8g）与 --init；存在 CUDA_VISIBLE_DEVICES 时透传而非 all；
+        用 run_bounded_command 包超时；--name 加 eval_id 后缀。
+
+[D-10] P3 Dockerfile 卫生
+  删冗余 mkdir / bash；加 OCI LABEL org.opencontainers.image.source；交互工具（nano/tmux/ping）移到 dev stage。
+
+[D-11] P3 run_tests_docker.sh 挂整份 ~/.netrc
+  改法：改为 -e HF_TOKEN；netrc 仅 WORLDFOUNDRY_MOUNT_NETRC=1 时挂载。
+
+
+4. CI / 质量门禁 / 测试基建
+----------------------------
+现状（对照 14_tests_ci.md）
+  TC-01 部分落地：已有 eval-core-tests job，但依赖过轻，收集即挂。
+  TC-02 基本修复：收集错误从 18 降到约 1 处新漂移。
+  TC-03 已缓解：collect_ignore 排除 44 个 demo。
+  TC-04 已修：Makefile 有 test-eval-core / test-training。
+  TC-05 部分：pytest.ini 收编 tests/，但 training 无 CI job。
+  TC-06 已修：pytest.ini 存在。
+  TC-10/11 未修。TC-12 部分。
+
+  两个 CI job 在 main 上均红：
+    public-surface：make lint 约 8 个 ruff I001/F401（均可 --fix）。
+    eval-core-tests：pip install -e . pytest numpy 不够；补依赖后仍有契约断言失败。
+  tests/training 实测成本低（约 20 秒量级）却无人消费。
+  无 concurrency、无 timeout-minutes、无 pip 缓存；Miniconda 每个 job 重复且未 pin Python。
+  public-surface 的 Node 未 pin，deploy-docs 却 pin 了 24。
+  format-check 实际是 compileall，与 compile-eval 重复。
+  pytest markers（gpu/slow/network）几乎空转。
+
+建议修改
+
+[C-01] P0 让 public-surface 变绿
+  文件：worldfoundry/cli/*.py 、 worldfoundry/evaluation/api/registry.py 、
+        worldfoundry/evaluation/models/runtime/profiles.py 、 worldfoundry/mcp/tools/registration.py
+  改法：ruff check --fix 修 I001/F401。AGENTS.md 修绿后删「已有失败」caveat，避免红色被文档合法化。
+
+[C-02] P0 eval-core 依赖与收集
+  文件：.github/workflows/ci.yml 、 pyproject.toml
+  改法：新增 test extra（pytest>=8,<10、pytest-cov、numpy、joblib、pillow、pandas、einops、safetensors；
+        triton 仅 linux）；CI 另装 CPU torch（--index-url https://download.pytorch.org/whl/cpu）。
+        修 test/eval_core 中已删除符号的 import（如 _run_cli_command）。
+        全量套件暂时 continue-on-error；用文件白名单或 --deselect 把已通过子集设为硬门禁。
+
+[C-03] P1 换掉 Miniconda
+  文件：.github/workflows/ci.yml
+  改法：actions/setup-python + cache: pip；至少 pin 一个 Python（建议 3.12）；
+        可选 matrix 3.10 与 3.13 覆盖 requires-python 边界。conda 在这两个 job 里没有任何作用。
+
+[C-04] P1 拆 job、对齐 Node、加 concurrency
+  文件：.github/workflows/ci.yml
+  改法：
+    concurrency.group: ci-${{ github.ref }}，cancel-in-progress: true
+    每个 job timeout-minutes（quality 20、eval-core 30、training 15）
+    python-quality：lint / compile-eval / cli-check / docs-check
+    docs-build：path filter docs/** scripts/docs/**；node-version: "24" 与 deploy 对齐
+    training-tests：make test-training（失败先 continue-on-error 或先修少量失败）
+
+[C-05] P2 Makefile 名实不符
+  文件：Makefile
+  改法：format-check 改名 syntax-check，范围只留 CANONICAL_DIFFUSION_SOURCES；
+        lint 增加 ruff format --check $(RUFF_SOURCES)；
+        test-* 支持 PYTEST_ARGS 透传；CI 统一带 -m "not gpu and not network"。
+
+[C-06] P2 pytest 进依赖组、CONTRIBUTING 补测试
+  文件：pyproject.toml 、 CONTRIBUTING.md
+  改法：dev extra 加入 pytest；CONTRIBUTING checklist 增加 make test-eval-core / test-training。
+        覆盖率先 --cov=worldfoundry/evaluation 写到 job summary，codecov 后置。
+
+[C-07] P2 供应链
+  新增 .github/dependabot.yml：github-actions、pip、npm/docs/fumadocs，weekly。
+  actions 改 pin 40 位 SHA + 注释版本。
+  .pre-commit-config.yaml：pre-commit-hooks v4.0.1 → v6.x；ruff-pre-commit 保持 v0.12.7。
+
+[C-08] P3 deploy-docs 小清理
+  cancel-in-progress 建议 false（避免打断进行中的 Pages 部署）；
+  「Preserve Next.js assets」步骤实际是删 out/demos + 写 .nojekyll，改名；
+  scripts/docs/build.sh 的 --skip-bootstrap 是 no-op，删或真正生效；
+  pages/id-token 权限下沉到 deploy job。
+
+[C-09] P3 裸 pytest 收集
+  修 tests/synthesis 与 test/test_lingbot_runtime_paths.py 模块级 parents[6] IndexError；
+  缺 cv2 的文件加 importorskip。目标：裸 pytest 至少能完成收集。
+
+CI 结构草稿（落地时再细化 YAML）
+
+  jobs:
+    python-quality     setup-python 3.12 + make lint compile-eval cli-check docs-check
+    docs-build         Node 24 + scripts/docs/build.sh ，paths 过滤
+    eval-core-tests    CPU torch + .[test] ；硬门禁绿色子集 + 全量 allow-failure
+    training-tests     make test-training
+    docker-smoke       仅 docker/** 变更时
+
+
+5. 安装 / conda / extras / 锁定
+--------------------------------
+现状
+  五层 bash：setup.sh → bootstrap_worldfoundry.sh → unified_install.sh → conda_install.sh → install_flash_attn.sh。
+  conda_profile_install.sh 全仓无引用；它转发的 --pytorch-bundle/--transformers/--three-d-core 在 conda_install.sh 里被丢弃。
+  preset max-infer 与 slim 装同一份 requirements/worldfoundry-unified.txt。
+  无任何 lockfile；Docker 装了 uv 但仓库从不 uv lock。
+  默认 TORCH_SPEC=torch>=2.7,<2.12.0，但官方 cu121 index 最高 2.5.1、cu124 最高 2.6.0；
+  pip 会经 --extra-index-url 静默从 PyPI 拉错 CUDA 变体。
+  第二段 pip 只用 pypi.org，未 pin 的 xformers/torchao 可能重装 torch 覆盖 cu-index 版本。
+  [ui] extra 的 gradio 未 pin；workspace_app.py 仍用 app.add_event_handler，gradio 6 / starlette>=1 会启动失败（AGENTS.md 已记录）。
+  无 GPU 时 auto 仍返回 cu128，且默认源码编译 flash-attn，验证阶段再因无 CUDA 退出。
+  flash-attn：FORCE_BUILD + --no-binary，bucket 参数不参与安装；CUDA_HOME 默认 /usr/local/cuda，绕过 conda 刚装的 nvcc。
+  checkpoint 默认路径至少四种：installer 的 HOME/models/checkpoints、env.py 的 HOME/checkpoints、
+  paths.py 的 cache/checkpoints 或 ../ckpt 魔法、Makefile 的 ~/.cache/worldfoundry/checkpoints/hfd。
+
+建议修改
+
+[I-01] P0 pin Studio UI 依赖
+  文件：pyproject.toml
+  改法：ui extra 写 gradio>=5,<6 与 starlette<1.0；给 gradio-imageslider 加兼容上限。
+  长期：把 workspace_app 从 add_event_handler 迁到 lifespan 后再放开上限。
+
+[I-02] P0 防止第二段 pip 偷换 torch
+  文件：scripts/setup/conda_install.sh
+  改法：第一段装完后把 torch/torchvision/torchaudio 精确版本写成 constraint，第二段 --constraint 强制。
+        安装后断言 torch.version.cuda 与所选 tier 一致。
+
+[I-03] P0 CUDA tier × torch 版本矩阵
+  文件：worldfoundry/runtime/cuda_tiers.py 、 scripts/setup/conda_install.sh
+  改法：TIER_TORCH_SPECS：cu121 → <2.6，cu124 → <2.7，cu128 → 当前范围；或宣布只支持 cu126/cu128 并下线旧 tier。
+        auto 在探测不到驱动时不要默认 cu128：报错并提示 --cuda / --allow-no-cuda --skip-flash-attn / 纯 pip 轻量路径。
+
+[I-04] P0 CPU 主机默认失败
+  文件：scripts/setup/bootstrap_worldfoundry.sh 、 cuda_tiers.py
+  改法：探测不到 nvidia-smi 时自动追加 --skip-flash-attn --allow-no-cuda 并警告。
+
+[I-05] P1 lockfile
+  文件：requirements/lock/worldfoundry-unified.<tier>.lock.txt（新建，进 git）
+        requirements/worldfoundry-unified.txt
+        scripts/setup/conda_install.sh
+        .github/workflows/ci.yml
+  改法：uv pip compile 分 tier 生成 lock（带 --index-url 注解）；安装器默认装 lock，--unlocked 逃生；
+        clip @ git+https://github.com/openai/CLIP.git pin 到 commit SHA；
+        CI 加 uv pip compile --check 或 dry-run resolve。
+
+[I-06] P1 flash-attn
+  文件：scripts/setup/install_flash_attn.sh 、 conda_install.sh
+  改法：bucket 映射真实 pin（fa25→2.5.*，fa28→2.8.*）；先试官方预编译 wheel，WORLDFOUNDRY_FLASH_ATTN_FORCE_BUILD=1 才源码；
+        调用时 CUDA_HOME="$ENV_PREFIX"。
+
+[I-07] P1 入口收敛
+  删除 scripts/setup/conda_profile_install.sh。
+  setup.sh 保留唯一公开入口；unified_install.sh 与 conda_install.sh 合并或前者降为内部函数。
+  删除 --pytorch-bundle/--transformers/--three-d-core/--skip-three-d-core；preset slim 要么只装 .[tui,ui,api,hf] 要么删除参数。
+  pyproject [dependency-groups] 中无消费者的组删除（lint 可留）。
+
+[I-08] P1 extras 单一事实来源
+  文件：pyproject.toml 、 requirements/worldfoundry-unified.txt
+  改法：txt 去掉与 extras 重复的散包，只留 extras 覆盖不到的评测/世界模型层；
+        rerun-sdk 统一 >=0.22.1,<0.23（现在 vipe/txt 是 ==0.22.1，dvlt/all 是 <0.23）；
+        all extra 改为 worldfoundry[video,ui,metrics,...] 自引用，停止手工并集。
+        extras 里的裸 "torch" 不会走 CUDA index，文档明确：单独 pip install -e ".[vipe]" 不是 GPU 正路。
+
+[I-09] P2 路径约定
+  权威：worldfoundry/core/io/paths.py 与 installer 对齐为 ${WORLDFOUNDRY_HOME}/models/checkpoints。
+  env.py 模板、Makefile RELEASE_HFD_ROOT 跟随。
+  删除 paths.py 的 ../ckpt ../conda 相邻目录魔法。
+  别名变量（CONDA_ENVS_ROOT/CONDA_ENV_ROOT、CUDA_PROFILE/CUDA_TIER、UNIFIED_ENV_PREFIX/CONDA_ENV_PREFIX）读旧写新，下一周期删写入。
+  env 文件停止 export CONDA_PREFIX（干扰真实 activate）；删除已弃用的 TRANSFORMERS_CACHE，保留 HF_HOME/HF_HUB_CACHE。
+
+[I-10] P2 文档双轨
+  文件：README.md 、 docs/fumadocs/.../quickstart.mdx
+  轻量/CPU/CI：pip install -e ".[tui,ui]"（无 conda、无 CUDA）
+  GPU 全量：bash scripts/setup/setup.sh
+  写清能力边界。修好 I-01 后 CI 可升级为 pip install -e ".[ui]" pytest 作回归。
+
+[I-11] P2 native kernels 可选
+  conda_install 加 --with-native-kernels：env 内 python -m build --wheel --no-isolation packages/worldfoundry-native-kernels && pip install dist/*.whl；
+  失败告警不阻断；验证打印 native_provider 状态。
+
+[I-12] P3 manifest 一致性
+  _unified.yaml 声称的 xfuser 从未安装：加进 unified txt 或从 yaml 删除，并做 pip_packages ⊆ lock 的 registry-check。
+  conda.py 的 _MODEL_SPECIFIC_ISOLATED_PACKAGES 含 denku/controlnet-aux/open3d，但这三个已在 unified txt——从黑名单或从 txt 二选一删除。
+  模型别名只留 conda.py 一处，bash 通过 python -m 查询。
+
+[I-13] P3 杂项
+  environment.yml channels 去掉 defaults（Anaconda ToS）和未使用的 pytorch channel，只留 conda-forge + nvidia。
+  link_hf_checkpoints.sh 的 --default-world 百余条硬编码 repo 映射下沉为 YAML manifest。
+  unified_install 手写 bash wrapper 覆盖 console scripts：删除或注释必须覆盖的原因。
+
+
+6. 运行时 / GPU / 作业 / 集群
+------------------------------
+现状
+  device_pool.CudaDeviceLeasePool 是进程内内存池；conda_dispatch 把 nvidia-smi index 写入 CUDA_VISIBLE_DEVICES，
+  从未 set CUDA_DEVICE_ORDER（默认 FASTEST_FIRST ≠ PCI 顺序）。
+  jobs.py / StudioJobStore 作业全在内存；崩溃后子进程组可继续占 GPU，无 pid 对账。
+  checkpoint 下载三条路径三种布局（hfd 直下、HF hub cache、ckpt/hfd_models），无 sha256、无 GC。
+  DLC 脚本默认 DLC_BIN=/etc/dsw/runtime/export_bin/dlc，job 名 sft_innovator_science_data，
+  账户 resource/workspace/vpc/sg/cidr 写死；镜像密码走 argv。
+  embodied model_server 默认 0.0.0.0 且无 token；Studio serving 已有 fail-closed 鉴权可作模板。
+  Studio MAX_JOBS 默认 8，常驻 worker 上限跟随；无 GPU 云主机不安全。
+  多个脚本默认写仓库 tmp/，与 WORLDFOUNDRY_ARTIFACT_DIR 规范并存。
+  studio/runtime_paths.py 硬编码 /share/project ↔ /bench-workspace。
+
+建议修改
+
+[R-01] P0 CUDA 设备索引语义
+  文件：worldfoundry/studio/conda_dispatch.py （写入 CUDA_VISIBLE_DEVICES 处，约 1813 行一带）
+        或 worldfoundry/runtime/device_pool.py discover_cuda_device_tokens
+  改法：setdefault CUDA_DEVICE_ORDER=PCI_BUS_ID；更好是租约 token 用 GPU UUID（normalize_cuda_device_groups 已兼容）。
+
+[R-02] P0 DLC 提交脚本
+  文件：scripts/embodied/submit_dlc_embodied_eval.sh
+  改法：
+    job 名默认 wf-embodied-${CONFIG_ID}-<UTC timestamp>（CONFIG_ID 已解析却未用）
+    resource_id / workspace_id / vpc_id / switch_id / security_group_id / extended_cidrs 改为必填 env，缺失即报错；
+    或读 configs/cluster/dlc.yaml（该文件不进公开默认）
+    DLC_BIN 增加 command -v dlc 回退与可执行预检
+    镜像凭证走 dlc config，不要 --image_repo_password argv
+    提交前或 INNER_COMMAND 内校验 REPO_ROOT 在容器中存在
+    worker_cpu/memory/gpu 可保留覆盖，但默认值应标成「示例机型」而非静默提交
+
+[R-03] P1 作业持久化与孤儿对账
+  文件：worldfoundry/runtime/jobs.py 、 worldfoundry/studio/jobs.py 、 worldfoundry/mcp/tools/context.py
+  改法：submit/终态写 <log_dir>/job.json（job_id, run_id, pid, pgid, output_dir, status）；
+        启动扫描非终态记录，os.killpg(pgid, 0) 探活：死标 failed，活的提示收养或击杀；
+        MCP DEFAULT_CONTEXT 显式 max_jobs（如 500）；StudioJobStore 加终态上限。
+
+[R-04] P1 跨进程 GPU 租约
+  文件：worldfoundry/runtime/device_pool.py
+  改法：${WORLDFOUNDRY_HOME}/locks/gpu-<token>.lock 上 fcntl.flock（可复用 local_checkpoint_cache 模式）；
+        acquire 前可用 NVML used_memory 超阈值告警；CLI 长期作业接入同一租约。
+        另：大请求可被小请求饿死，加简单 ticket 队列（队首或可同时满足才取设备）。
+
+[R-05] P1 embodied 服务绑定
+  文件：worldfoundry/evaluation/tasks/embodied/model_server/serve.py
+        scripts/embodied/run_dlc_embodied_eval.sh
+  改法：默认 host=127.0.0.1；非回环必须 WF_EMBODIED_SERVER_TOKEN（复用 studio/serving/auth.py 模式）；
+        就绪检查从 TCP connect 升级为协议 ping。
+        cleanup 杀进程组（setsid 启动 + kill -- -$SERVER_PID），不要只 kill $SERVER_PID。
+
+[R-06] P2 checkpoint 布局与 GC
+  文件：scripts/download_hfd_models.sh
+        scripts/model_zoo/download_checkpoints.py
+        scripts/embodied/prepare_official_assets.py
+  改法：默认根统一 resolve_hfd_root()；收敛到 HF hub 布局（blob 去重 + 符号链接），直下 hfd/ 只读兼容；
+        记录每文件 size，check_local_checkpoint 校验；download_hfd_models.sh 默认 2–3 次指数退避；
+        新增 scripts/model_zoo/gc_checkpoints.py（列出未被 manifest 引用的目录，--delete 才删）。
+
+[R-07] P2 local_checkpoint_cache / compile_cache GC
+  local_checkpoint_cache：ready 文件已有 size_bytes，_is_ready 核对；空间不足时按 mtime LRU 清未被 flock 的旧目录；
+    提供 python -m worldfoundry.runtime.local_checkpoint_cache --gc。
+  compile_cache：文档写明共享 NFS 风险，建议每节点 WORLDFOUNDRY_COMPILE_CACHE_DIR 指向本地盘；
+    --gc 清非当前指纹目录；允许 env 打开 TORCHINDUCTOR_AUTOTUNE_REMOTE_CACHE。
+
+[R-08] P2 Studio 并发与产物路径
+  文件：scripts/workspace/run_workspace.sh 、 各脚本默认 tmp/
+  改法：MAX_JOBS 默认 min(可见 GPU 数, 4)，无 GPU 时 2；resident worker 上限 min(MAX_JOBS, GPU 数)；启动 banner 打印。
+        默认产物改 ${WORLDFOUNDRY_ARTIFACT_DIR}/...（env.py 已有 ~/.cache/worldfoundry 兜底）；tmp/ 仅显式传参。
+
+[R-09] P2 内部路径参数化
+  文件：worldfoundry/studio/runtime_paths.py 、 worldfoundry/runtime/probes.py
+  改法：镜像映射改 WORLDFOUNDRY_PATH_MIRRORS=src:dst,... ；probes 候选 conda env 清单移到 runtime manifest。
+
+[R-10] P3 集群提交抽象（中期，勿提前重写）
+  把 DLC bash 收成 runtime/platforms/submitters/（dlc / 以后 slurm、k8s）+ manifest。当前先做 R-02 即可。
+
+
+7. 建议的文件级改动总表
+------------------------
+止血（建议第一批 PR，可拆多个小 PR）
+  pyproject.toml                          pin gradio/starlette；新增 test extra
+  worldfoundry/cli, mcp, evaluation/api   ruff --fix
+  .github/workflows/ci.yml                setup-python、依赖、concurrency、timeout、拆 docs
+  scripts/setup/conda_install.sh          torch constraint + 安装后 CUDA 断言
+  worldfoundry/runtime/cuda_tiers.py      tier×torch 矩阵；无驱动不再默 cu128
+  worldfoundry/studio/conda_dispatch.py   CUDA_DEVICE_ORDER 或 UUID token
+  scripts/embodied/submit_dlc_embodied_eval.sh   去硬编码、改 job 名、DLC_BIN 预检
+
+第二批
+  requirements/lock/*.lock.txt            新建
+  requirements/worldfoundry-unified.txt   git pin、去重
+  scripts/setup/install_flash_attn.sh     wheel 优先 + CUDA_HOME
+  scripts/setup/bootstrap_worldfoundry.sh CPU 自动 skip flash-attn
+  docker/build_with_docker.sh             去 host network、默认 amd64
+  docker/Dockerfile                       pin uv、Python 3.11、多 stage
+  .dockerignore                           **/ 前缀
+  Makefile                                syntax-check、PYTEST_ARGS、shell-check 范围
+  CONTRIBUTING.md / AGENTS.md             测试命令与「已有失败」同步
+  .github/dependabot.yml                  新建
+  .pre-commit-config.yaml                 hooks 升级
+
+第三批
+  删除 conda_profile_install.sh
+  scripts/embodied/mirror_docker_images.py + official/*.yaml digest
+  worldfoundry/evaluation/tasks/embodied/docker_runner.py
+  worldfoundry/evaluation/tasks/embodied/model_server/serve.py
+  worldfoundry/runtime/jobs.py + studio/jobs.py
+  worldfoundry/runtime/device_pool.py     跨进程 flock
+  scripts/workspace/run_workspace.sh      并发自适应、产物目录
+  worldfoundry/studio/runtime_paths.py    镜像映射 env 化
+  README / quickstart                     双轨安装
+  test/run_tests_docker.sh                接基座镜像、pin uv、去 netrc
+
+
+8. 验收标准（落地时）
+--------------------
+- make lint 在 main 上绿；pre-commit run -a 不再因 lint 必红。
+- CI python-quality 绿；eval-core 至少有一个非空的硬门禁子集持续绿。
+- pip install -e ".[ui]" 能启动 Studio（不再因 add_event_handler 崩溃）。
+- --cuda cu121/cu124 要么装到匹配 CUDA 的 torch，要么明确拒绝，禁止静默 PyPI 回退。
+- 无 GPU 机器跑 setup.sh 得到可理解的 CPU 路径，而不是编译 flash-attn 数小时后失败。
+- docker buildx build -f docker/Dockerfile . 在干净 Docker 上不需要 network.host entitlement。
+- 公开默认值中不再出现具体阿里云 VPC/配额 ID；DLC 缺配置时本地失败而不是提交到他人资源。
+- 评测 official profile 至少对一条 benchmark 绑定 digest，重复跑镜像内容不变。
+- conda_dispatch 子进程的 CUDA_VISIBLE_DEVICES 与 nvidia-smi PCI 顺序一致（或改用 UUID）。
+
+
+9. 风险与拆分建议
+----------------
+- 不要把本计划做成一个巨型 PR。按第 2 节 P0 → P1 → P2 拆。
+- P0 的 ruff --fix 与 pin gradio 互不阻塞，可并行。
+- eval-core 444 量级契约失败属于目录/内容问题，不要塞进 infra PR。
+- lockfile 会让 requirements 评审变大，单独 PR，并先只锁 cu128。
+- DLC 去硬编码是行为变化：内部用户必须改设 env；PR 说明里写迁移清单。
+- digest 固定评测镜像会让「自动跟随 upstream latest」变成显式 bump，这是期望行为。
+
+
+10. 子代理产出索引
+------------------
+本计划综合以下云端评审（分析性结论已在主会话交叉核对关键路径）：
+  Docker/镜像     基座孤儿、host network、:latest、arm64、dockerignore
+  CI/门禁         双 job 必红、Miniconda 负资产、training 套件未消费、14_tests_ci 落地缺口
+  安装/依赖       torch×tier 矛盾、无 lockfile、[ui] 未 pin、入口死代码、路径四套默认
+  运行时/集群     设备顺序、DLC 硬编码、作业内存态、checkpoint 三布局、评测容器隔离
+
+如需进入实现阶段，建议从第 7 节「止血」第一批文件开始，每个主题独立 PR。

@@ -1,131 +1,80 @@
 ---
 title: ManiSkill
-description: ManiSkill — 指标、依赖与运行命令。
+description: 基于 SAPIEN 的 GPU 并行操作技能评测；WorldFoundry 归一化官方 rollout 导出。
 ---
 
 ## 简介
 
+**发表机构：** UC San Diego（加州大学圣迭戈分校 Hao Su 实验室）
 
+ManiSkill 来自 UC San Diego 的 Hao Su 实验室，是基于 SAPIEN 的 GPU 并行机器人仿真与操作技能评测：数十个操作任务族、多种机器人形态、演示数据集，以及面向 RL 与模仿学习的大规模并行 rollout 采集。
 
-ManiSkill external benchmark task manifest for simulator-backed manipulation and planning rollouts.
+WorldFoundry 以官方结果 runner 集成 ManiSkill：上游工具产出的 rollout 导出被归一化为统一 scorecard；模拟器执行保持显式且在上游完成。
 
+官方参考：
 
+- Paper: [arxiv.org/abs/2302.04659](https://arxiv.org/abs/2302.04659)
+- 项目主页: [maniskill.ai](https://maniskill.ai/)
+- 官方仓库: [haosulab/ManiSkill](https://github.com/haosulab/ManiSkill)
+- License: `apache-2.0`
 
-## 指标
+## 评测协议
 
-ManiSkill external benchmark task manifest for simulator-backed manipulation and planning rollouts.
+WorldFoundry 通过统一的结果导入路径集成该 benchmark：`worldfoundry-eval zoo benchmark-run --mode official-validation` 把调用方提供的官方结果导出（JSON/CSV rollout 汇总）归一化为 WorldFoundry scorecard，不执行模拟器。模拟器执行、策略加载与 rollout 采集仍是使用官方工具完成的显式上游步骤。
 
-### Task YAML
+主指标是 `success_rate`。
 
-`worldfoundry/data/benchmarks/tasks/external/maniskill.yaml`
+| Metric | 含义 | 方向 |
+| --- | --- | --- |
+| `success_rate` | 评测 rollout 上的主成功率（逐 episode 成功比例）。 | 越高越好 |
+| `task_success` | 按任务聚合的成功率。 | 越高越好 |
+| `reward` | 平均 episode 奖励 / 回报。 | 越高越好 |
+| `normalized_return` | 归一化 episode 回报。 | 越高越好 |
 
-### Primary
+## 数据与产物布局
 
-- `success_rate`
+WorldFoundry 仓内路径：
 
-| Metric | 关注点 |
-| --- | --- |
-| `success_rate` | episode / task 是否成功完成的比例或成功率。 |
-| `task_success` | episode / task 是否成功完成的比例或成功率。 |
-| `reward` | 官方 ManiSkill SAPIEN 操作 rollout 中累计的未折扣任务 reward。 |
-| `normalized_return` | ManiSkill episode return 相对专家或随机策略上界归一化，便于跨任务对比。 |
-
-
-
-## 环境准备
-
-### 运行环境
-
-- **Conda 环境：** `maniskill`。
-- **单独配置：** 默认复用 WorldFoundry 统一环境（`needs_new_env: false`），通常不需要额外 benchmark-only conda env。
-- ManiSkill/SAPIEN 可见；完整官方状态仍需要任务套件、assets 和 policy rollout，不在本轮运行。
-
-### 测评数据
-
-- ManiSkill is simulator-backed; WorldFoundry normalizes rollout results and keeps simulator execution explicit.
-- 待测模型输出目录：设置 `WORLDFOUNDRY_MANISKILL_RESULTS_PATH` 指向生成视频或 rollout artifact 根目录。
-- `${WORLDFOUNDRY_CACHE_DIR}/repos/haosulab--ManiSkill`
-
-### Checkpoint 与资产
-
-- 该 benchmark 以官方结果归一化或仿真 rollout 为主；policy / simulator checkpoint 见 catalog `requires` 与 task YAML。
-
-### 关键环境变量
-
-- `WORLDFOUNDRY_MANISKILL_ROOT`
-- `WORLDFOUNDRY_MANISKILL_RESULTS_PATH`
-
-### 环境检查
-
-```bash
-PYTHONPATH=${WORLDFOUNDRY_CACHE_DIR}/repos/haosulab--ManiSkill:src python -m worldfoundry.evaluation.tasks.execution.orchestration.runtime_preflight --profile maniskill --manifest worldfoundry/data/benchmarks/runtime_profiles/official/maniskill.yaml --output-dir tmp/worldfoundry_preflight/maniskill --json
+```text
+worldfoundry/data/benchmarks/tasks/external/maniskill.yaml
 ```
 
-
+```text
+<official_results.json>                 # 官方工具产出的 rollout 汇总导出
+${WORLDFOUNDRY_MANISKILL_RESULTS_PATH}   # 默认导入路径
+```
+上游 checkout 镜像在 `cache/vla_va_wam/repos/haosulab--ManiSkill`。
 
 ## 运行评测
 
-
-
-准备好该 benchmark 页面列出的资产和候选产物后，使用下面的公开运行入口。
-
-### 设置候选产物目录
-
-```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/generated/artifacts
-```
-
-### 导入已有官方结果
+目录 manifest 记录的 validation 命令：
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id maniskill \
-  --mode normalizer \
-  --official-results-path /path/to/official/results-or-report \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/maniskill/normalizer \
+  --mode official-validation \
+  --official-results-path <official_results.json> \
+  --output-dir <out> \
   --json
 ```
 
-### 从生成产物重新打分
+## 权重与环境变量
 
-```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id maniskill \
-  --mode official-run \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/maniskill/official-run \
-  --json
-```
+- `WORLDFOUNDRY_MANISKILL_RESULTS_PATH`: 未显式传 `--official-results-path` 时，导入器默认从该路径读取官方结果导出文件。
 
-### 直接调用仓内 runner
+## 输出文件
 
-```bash
-worldfoundry-eval zoo benchmark-run --benchmark-id maniskill --mode official-validation --official-results-path <official_results.json> --output-dir <out> --json
-```
+运行会在 `--output-dir` 下写出：
 
+- `scorecard.json`: WorldFoundry 统一 scorecard，记录上表中的指标值。
+- `raw_results.jsonl`: 从官方结果导出解析出的归一化行。
 
+Scorecard 主键：`success_rate`（leaderboard key `success_rate`），写入 `scorecard.json`。
 
-## 依赖与产物
+## 边界与限制
 
-
-
-### Inputs
-
-- Official ManiSkill repository checkout
-- SAPIEN/ManiSkill simulator assets
-- Benchmark-specific policy checkpoint or controller
-- Official task suite selection
-
-### Environment
-
-- `WORLDFOUNDRY_MANISKILL_RESULTS_PATH`
-
-### Outputs
-
-- `scorecard.json`
-- `raw_results.jsonl`
-
-
+- WorldFoundry 只归一化所提供的 rollout 结果；不在仓内运行官方模拟器或策略。
+- 在用就位的模拟器资产与策略权重执行官方 rollout 并导入之前，不声称完整 leaderboard 对齐。
+- 导入的 scorecard 是集成证据，不是 leaderboard 提交。
 
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

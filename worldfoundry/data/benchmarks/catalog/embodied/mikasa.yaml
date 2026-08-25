@@ -1,5 +1,7 @@
 id: mikasa
 name: MiKASA-Robo
+publisher: AIRI
+publisher_kind: institute
 benchmark_kind:
 - vla
 - embodied-action

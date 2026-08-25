@@ -1,5 +1,7 @@
 id: sana-wm-bench
 name: SANA-WM 80-Scene Benchmark
+publisher: NVIDIA
+publisher_kind: company
 aliases: [sana-wm-benchmark, sana-wm-80scene]
 benchmark_kind: [camera-controlled-video, world-model, long-horizon-video]
 domains: [world-model, camera-control, video-generation, long-horizon]

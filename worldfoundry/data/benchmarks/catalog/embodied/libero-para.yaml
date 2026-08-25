@@ -1,5 +1,7 @@
 id: libero-para
 name: LIBERO-Para
+publisher: Soongsil University
+publisher_kind: university
 benchmark_kind:
 - vla
 - robot-manipulation

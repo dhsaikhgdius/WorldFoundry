@@ -1,5 +1,7 @@
 id: vlabench
 name: VLABench
+publisher: Fudan University
+publisher_kind: university
 benchmark_kind:
 - vla
 - embodied-action

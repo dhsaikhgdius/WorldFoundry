@@ -1,5 +1,7 @@
 id: vbench-plus-plus
 name: VBench++
+publisher: Nanyang Technological University
+publisher_kind: university
 benchmark_kind:
 - image-to-video
 - long-video

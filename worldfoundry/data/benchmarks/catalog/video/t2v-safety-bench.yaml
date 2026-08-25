@@ -1,5 +1,7 @@
 id: t2v-safety-bench
 name: T2VSafetyBench
+publisher: Chinese Academy of Sciences
+publisher_kind: institute
 benchmark_kind:
 - text-to-video
 - safety

@@ -1,5 +1,7 @@
 id: videoverse
 name: VideoVerse
+publisher: OPPO Research Institute
+publisher_kind: company
 benchmark_kind:
 - text-to-video
 - world-model

@@ -1,5 +1,7 @@
 id: apple-pi
 name: Apple-PI
+publisher: Nanyang Technological University
+publisher_kind: university
 benchmark_kind:
 - physics
 - physical-intelligence

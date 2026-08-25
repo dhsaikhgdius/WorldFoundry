@@ -1,5 +1,7 @@
 id: videoscore
 name: VideoScore
+publisher: University of Waterloo
+publisher_kind: university
 benchmark_kind:
 - video-reward-model
 - human-feedback

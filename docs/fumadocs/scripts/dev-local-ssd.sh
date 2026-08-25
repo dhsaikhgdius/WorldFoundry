@@ -32,11 +32,11 @@ sync_repo_links() {
 
   # Logos are regenerated on CPFS; symlink avoids stale SSD copies and 404 storms in dev.
   mkdir -p "${LOCAL_FUMADOCS}/public"
-  local logo_link="${LOCAL_FUMADOCS}/public/model-logos"
+  local logo_link="${LOCAL_FUMADOCS}/public/org-logos"
   if [[ -e "${logo_link}" && ! -L "${logo_link}" ]]; then
     rm -rf "${logo_link}"
   fi
-  ln -sfn "${FUMADOCS_SRC}/public/model-logos" "${logo_link}"
+  ln -sfn "${FUMADOCS_SRC}/public/org-logos" "${logo_link}"
 }
 
 clean_local_caches() {

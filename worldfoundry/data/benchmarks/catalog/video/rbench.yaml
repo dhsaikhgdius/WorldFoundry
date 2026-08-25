@@ -1,5 +1,7 @@
 id: rbench
 name: RBench
+publisher: Peking University
+publisher_kind: university
 aliases:
 - ReVidgen
 benchmark_kind:

@@ -1,102 +1,79 @@
 ---
 title: AI2-THOR
-description: AI2-THOR — metrics, requirements, and run commands.
+description: Interactive 3D household simulator from Ai2, wired into WorldFoundry as a native closed-loop embodied runtime.
 ---
 
 ## About
 
+**Publisher:** Allen Institute for AI (Ai2)
 
+AI2-THOR is the Allen Institute for AI's interactive 3D environment for embodied AI: near photo-realistic household scenes with actionable objects, physics, and an agent that navigates and manipulates through discrete actions. It underpins task suites such as ALFRED and TEACh.
 
-AI2-THOR external task manifest for native embodied closed-loop rollouts.
+WorldFoundry wires AI2-THOR as a *native closed-loop simulator*: `worldfoundry-eval embodied run` boots the Unity-based simulator, steps a policy that emits discrete simulator tokens (`forward`, `left`, `pickup`, …), and writes rollout records plus a scorecard. Default scene tasks (e.g. FloorPlan1) are provided for wiring validation.
 
+Official references:
 
+- Paper: [ai2thor.allenai.org/](https://ai2thor.allenai.org/)
+- Official repository: [allenai/ai2thor](https://github.com/allenai/ai2thor)
+- License: `upstream_terms`
 
-## Metrics
+## Evaluation protocol
 
-AI2-THOR external task manifest for native embodied closed-loop rollouts.
+Closed-loop runs are driven by eval configs under `worldfoundry/data/benchmarks/eval_configs/embodied/ai2thor/`; the policy is a checkpoint or an external policy server that maps observations to discrete simulator tokens. Result import via `WORLDFOUNDRY_AI2THOR_RESULTS_PATH` normalizes existing rollout summaries instead.
 
-### Task YAML
+Primary metric: `success_rate`.
 
-`worldfoundry/data/benchmarks/tasks/external/ai2thor.yaml`
+| Metric | Meaning | Direction |
+| --- | --- | --- |
+| `success_rate` | Primary episode success rate over evaluated rollouts. | Higher is better |
+| `task_success` | Per-task success aggregate. | Higher is better |
+| `episode_success` | Per-episode success indicator aggregate. | Higher is better |
+| `reward` | Mean episode reward / return. | Higher is better |
 
-### Primary
+## Data and artifact layout
 
-- `success_rate`
+In-tree paths:
 
-| Metric | Focus |
-| --- | --- |
-| `success_rate` | Share of episodes or tasks that complete successfully. |
-| `task_success` | Share of episodes or tasks that complete successfully. |
-| `episode_success` | Share of episodes or tasks that complete successfully. |
-| `reward` | Cumulative AI2-THOR simulator reward across interactive household navigation and manipulation episodes toward the language goal. |
-
-
-
-## Run evaluation
-
-
-
-After preparing the assets and candidate artifacts listed on this page, use the public run entry points below.
-
-### Set candidate artifacts
-
-```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/generated/artifacts
+```text
+worldfoundry/data/benchmarks/tasks/external/ai2thor.yaml
 ```
 
-### Import official results
-
-```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id ai2thor \
-  --mode normalizer \
-  --official-results-path /path/to/official/results-or-report \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/ai2thor/normalizer \
-  --json
+```text
+worldfoundry/data/benchmarks/eval_configs/embodied/ai2thor/floorplan1.yaml   # wiring-validation task
+cache/vla_va_wam/repos/allenai--ai2thor                                      # upstream repo mirror
 ```
 
-### Score generated artifacts
+Requires the AI2-THOR Python package, the Unity simulator build/cache, and a headless CloudRendering or X11 display backend.
+
+## Run the benchmark
+
+Catalog-recorded validation command:
 
 ```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id ai2thor \
-  --mode official-run \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/ai2thor/official-run \
-  --json
+worldfoundry-eval embodied run \
+  --config worldfoundry/data/benchmarks/eval_configs/embodied/ai2thor/floorplan1.yaml
 ```
 
-### Direct in-tree runner
+## Checkpoints and environment variables
 
-```bash
-worldfoundry-eval embodied run --config worldfoundry/data/benchmarks/eval_configs/embodied/ai2thor/floorplan1.yaml
-```
+- `WORLDFOUNDRY_AI2THOR_ROOT`: Optional override pointing at a local benchmark runtime/repository root.
+- `WORLDFOUNDRY_AI2THOR_RESULTS_PATH`: Default path the importer reads official result exports from when `--official-results-path` is not passed.
 
+## Outputs
 
+The run writes into `--output-dir`:
 
-## Requirements
+- `scorecard.json`: WorldFoundry scorecard with the metric values recorded above.
+- `run_manifest.json`: Manifest of the executed rollout run.
+- `results.jsonl`: Per-episode rollout records.
+- `metrics/summary.json`: Aggregated metric summary for the run.
 
+Scorecard primary key: `success_rate` (leaderboard key `success_rate`), stored in `scorecard.json`.
 
+## Limitations
 
-### Inputs
-
-- AI2-THOR Python package
-- AI2-THOR Unity simulator build/cache
-- Headless CloudRendering or X11 display backend
-- Policy checkpoint or external policy server for non-zero rollouts
-
-### Environment
-
-- `WORLDFOUNDRY_AI2THOR_RESULTS_PATH`
-
-### Outputs
-
-- `scorecard.json`
-- `run_manifest.json`
-- `results.jsonl`
-- `metrics/summary.json`
-
-
+- Official task suites such as ALFRED/TEACh are not bundled yet; the default scene tasks validate wiring only.
+- Non-zero rollouts require a policy checkpoint or an external policy server.
+- Closed-loop scores over default scene tasks are not comparable to published ALFRED/TEACh numbers.
 
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

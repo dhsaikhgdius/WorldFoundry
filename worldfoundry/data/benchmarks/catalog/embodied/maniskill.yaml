@@ -1,5 +1,7 @@
 id: maniskill
 name: ManiSkill
+publisher: UC San Diego
+publisher_kind: university
 benchmark_kind:
 - vla
 - robot-manipulation

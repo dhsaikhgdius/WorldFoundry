@@ -1,205 +1,88 @@
 ---
 title: World-in-World
-description: 使用 WorldFoundry 仓内运行器归一化 World-in-World closed-loop utility metrics。
+description: ICLR 2026 闭环效用评测：世界模型是否真的帮助智能体完成具身任务。
 ---
-
-## 评测什么
-
-World-in-World 用**闭环具身效用**评测 visual world model，而不是 open-loop 视频外观。具身环境中的 task success 是主信号——高视觉质量不等于高任务成功率。
-
-## Benchmark 设计
-
-| 任务 | 主指标 | 测试内容 |
-| --- | --- | --- |
-| Active Recognition (AR) | `active_recognition_success_rate` | 探索场景并识别目标物体 |
-| Image-Goal Navigation (IGNav) | `image_goal_navigation_success_rate`、`image_goal_navigation_spl` | 到达图像指定目标并兼顾路径效率 |
-| Active Embodied QA (AEQA) | `active_embodied_qa_score`、`active_embodied_qa_spl` | 在导航过程中高效回答问题 |
-| Robotic Manipulation | `robotic_manipulation_success_rate` | 闭环操作任务成功率 |
-
-平台提供统一 online planning 策略和标准化 action API。官方项目的关键发现：controllability 比画面质量更重要；action-observation post-training scaling 比升级预训练生成器更有效；更多 inference-time rollout 能提升闭环表现。
 
 ## 简介
 
-World-in-World 评测 visual world model 的闭环具身效用，而不只看 open-loop 视频外观。任务族包括 Active Recognition、Image-Goal Navigation、Active Embodied QA 和 Robotic Manipulation。
+**发表机构：** Johns Hopkins University（约翰斯·霍普金斯大学，联合 PKU、Princeton、MIT、Harvard）
 
-WorldFoundry 已经把 benchmark adapter 和 metric aggregation code 放在仓内：
+World-in-World（ICLR 2026 Oral）在贴近真实智能体-环境交互的闭环中评测生成式世界模型，把任务成功率置于视觉质量之上。它提供统一的在线规划策略与标准化动作 API，覆盖四个闭环环境：主动识别（Active Recognition）、主动具身 QA（A-EQA）、图像目标导航（IGNav）与机器人操作。核心发现：仅有视觉质量不能保证任务成功（可控性更重要）；动作-观测后训练比升级视频生成器更有效；推理时算力可显著提升闭环表现。
+
+WorldFoundry 以结果导入器集成 World-in-World：把调用方提供的任务摘要归一化到指标面，捆绑资产支持解析与覆盖率检查。
+
+官方参考：
+
+- Paper: [arxiv.org/abs/2510.18135](https://arxiv.org/abs/2510.18135)
+- 项目主页: [world-in-world.github.io](https://world-in-world.github.io/)
+- 官方仓库: [World-In-World/world-in-world](https://github.com/World-In-World/world-in-world)
+
+## 评测协议
+
+仓内 runner 仅导入结果摘要：传 `--official-results-path`（或 `WORLDFOUNDRY_WORLD_IN_WORLD_RESULTS_PATH`），可用 `--task` 与 `--exp-id` 限定范围。闭环环境、规划器、worker 与任务 scorer 都在上游执行——不在 WorldFoundry 内。
+
+主指标是 `world_in_world_average`。
+
+| Metric | 含义 | 方向 |
+| --- | --- | --- |
+| `active_recognition_success_rate` | 主动识别闭环任务成功率。 | 越高越好 |
+| `image_goal_navigation_success_rate` | 图像目标导航成功率。 | 越高越好 |
+| `image_goal_navigation_spl` | 图像目标导航按路径长度加权的成功率（SPL）。 | 越高越好 |
+| `active_embodied_qa_score` | 主动具身 QA 的答案得分。 | 越高越好 |
+| `active_embodied_qa_spl` | 主动具身 QA 探索过程的 SPL。 | 越高越好 |
+| `robotic_manipulation_success_rate` | 机器人操作任务成功率。 | 越高越好 |
+| `interaction_trace_consistency` | 世界模型预测交互轨迹的一致性。 | 越高越好 |
+| `world_in_world_average` | 可用闭环任务指标的均值。 | 越高越好 |
+
+## 数据与产物布局
+
+WorldFoundry 仓内路径：
 
 ```text
-worldfoundry/evaluation/tasks/execution/runners/world_in_world/run_world_in_world_official_runner.py
-worldfoundry/evaluation/tasks/execution/runners/world_in_world/world_in_world_runtime.py
-worldfoundry/evaluation/tasks/execution/runners/world_in_world/world_in_world_official_runtime.py
-worldfoundry/evaluation/tasks/execution/runners/world_in_world/world_in_world_metrics.py
-worldfoundry/evaluation/tasks/execution/runners/world_in_world/runtime/official
+worldfoundry/data/benchmarks/tasks/external/world-in-world.yaml
 worldfoundry/data/benchmarks/assets/world-in-world
+worldfoundry/evaluation/tasks/execution/runners/world_in_world
 ```
-
-正常使用 WorldFoundry 评测时，用户不应该 clone official repos。上游 World-in-World README 是生成 rollout 和 task summary 的协议参考。WorldFoundry 当前消费这些 summary 并写出 normalized scorecard；它不会启动 Habitat、VLM、SAM2、world-model 或 manipulation servers。
-
-协议参考：
-
-- Paper: [World-in-World: World Models in a Closed-Loop World](https://arxiv.org/abs/2510.18135)
-- Project page: [world-in-world.github.io](https://world-in-world.github.io/)
-- Source reference: [github.com/World-In-World/world-in-world](https://github.com/World-In-World/world-in-world)
-- Dataset page: [zonszer/WIW_datasets](https://huggingface.co/datasets/zonszer/WIW_datasets)
-
-## 准备数据和资产
-
-从 WorldFoundry 仓库根目录开始：
-
-```bash
-cd /path/to/WorldFoundry
-export WORLDFOUNDRY_REPO_ROOT="$PWD"
-export PYTHONPATH="$WORLDFOUNDRY_REPO_ROOT:${PYTHONPATH:-}"
-```
-
-WorldFoundry 为默认 AEQA 路径内置了 OpenEQA prompt assets：
 
 ```text
-worldfoundry/data/benchmarks/assets/world-in-world/
-  subtrees/open-eqa/data/open-eqa-184.json
-  subtrees/open-eqa/data/open-eqa-41.json
-  sample_results.csv
+worldfoundry/data/benchmarks/assets/world-in-world              # 捆绑解析/覆盖率资产
+worldfoundry/evaluation/tasks/execution/runners/world_in_world  # 结果导入器
+<official_results.json>                                         # 调用方提供的任务摘要
 ```
 
-如果需要更完整的 AR、IGNav、AEQA 或 manipulation evidence，准备一个本地 asset root。runner 可以通过 `WORLDFOUNDRY_WORLD_IN_WORLD_ASSETS_ROOT` 读取 task manifests：
+## 运行评测
 
-```bash
-export WORLDFOUNDRY_WORLD_IN_WORLD_ASSETS_ROOT=/path/to/world-in-world/assets
-
-hf download zonszer/WIW_datasets \
-  eval_datasets/AR/episodes_AR.json.gz \
-  eval_datasets/IGNav/episodes_IGNav.json.gz \
-  eval_datasets/IGNav/igdataset_goal_imgs.zip \
-  eval_datasets/AEQA/episodes_AEQA.json.gz \
-  --repo-type dataset \
-  --local-dir "${WORLDFOUNDRY_WORLD_IN_WORLD_ASSETS_ROOT}/data/WIW_datasets"
-```
-
-如果使用上游 rollout workflow 生成 summary，还需要准备该 workflow 依赖的 scene 和 policy assets：
-
-```text
-${WORLDFOUNDRY_WORLD_IN_WORLD_ASSETS_ROOT}/data/scene_datasets/hm3d/val/
-${WORLDFOUNDRY_WORLD_IN_WORLD_ASSETS_ROOT}/data/scene_datasets/mp3d/
-AR 和 AEQA 使用时需要的 SAM2 或 Grounding SAM2 weights
-VLM policy checkpoints 或 hosted VLM credentials
-rollout server 使用的 world-model checkpoints
-使用 manipulation 时需要的 simulator assets 以及 3D-Diffuser/OpenPI checkpoints
-```
-
-设置生成产物和结果 summary：
-
-```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/world-in-world/generated_artifacts
-export WORLDFOUNDRY_WORLD_IN_WORLD_RESULTS_PATH="${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}/world_in_world_metrics.json"
-export WORLDFOUNDRY_WORLD_IN_WORLD_TASK=AEQA
-```
-
-生成产物目录应包含 `metrics.json` 或 `world_in_world_metrics.json`。可选视频用于 prompt coverage checks，文件名应使用 prompt id：
-
-```text
-/path/to/world-in-world/generated_artifacts/
-  world_in_world_metrics.json
-  f2e82760-5c3c-41b1-88b6-85921b9e7b32.mp4
-  traces/
-    f2e82760-5c3c-41b1-88b6-85921b9e7b32.json
-```
-
-结果 summary 可以是带直接 metric ID 或 task summary 的 JSON object，也可以是包含 `metric_id,score` columns 的 CSV。对于 task summary，runner 会把 `accuracy` 映射到 Active Recognition，把 `sr` 和 `spl` 映射到 IGNav，把 `mean_score` 和 `mean_efficiency` 映射到 AEQA，把 `success_rate` 映射到 Manipulation。
-
-## 运行命令
-
-直接仓内 runner 会读取 generated artifact directory 下的 metrics：
-
-```bash
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-  worldfoundry/evaluation/tasks/execution/runners/world_in_world/run_world_in_world_official_runner.py \
-  --run-official \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --task "${WORLDFOUNDRY_WORLD_IN_WORLD_TASK}" \
-  --output-dir tmp/world-in-world/direct-official-run \
-  --json
-```
-
-通过直接 runner 导入显式结果文件：
-
-```bash
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-  worldfoundry/evaluation/tasks/execution/runners/world_in_world/run_world_in_world_official_runner.py \
-  --official-results-path /path/to/world_in_world_metrics.json \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --task "${WORLDFOUNDRY_WORLD_IN_WORLD_TASK}" \
-  --output-dir tmp/world-in-world/direct-official-validation \
-  --json
-```
-
-使用公开 CLI 的 in-tree run path：
-
-```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id world-in-world \
-  --mode official-run \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/world-in-world/official-run \
-  --json
-```
-
-使用公开 CLI 导入已有 result summary：
+目录 manifest 记录的 validation 命令：
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id world-in-world \
   --mode official-validation \
-  --official-results-path /path/to/world_in_world_metrics.json \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/world-in-world/official-validation \
+  --official-results-path <official_results.json> \
+  --generated-artifact-dir <generated_videos> \
+  --output-dir <out> \
   --json
 ```
 
-## 指标
+## 权重与环境变量
 
-World-in-World 主要指标都是越高越好。rate 和 normalized score 在 WorldFoundry 中按 0 到 1 报告。
+- `WORLDFOUNDRY_WORLD_IN_WORLD_RESULTS_PATH`: 未显式传 `--official-results-path` 时，导入器默认从该路径读取官方结果导出文件。
+- `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR`: 存放待评测生成产物（候选视频/rollout）的目录。
 
-| Metric ID | 含义 |
-| --- | --- |
-| `active_recognition_success_rate` | 探索场景并识别目标物体的成功率。 |
-| `image_goal_navigation_success_rate` | IGNav episode 到达图像指定目标的比例。 |
-| `image_goal_navigation_spl` | 按路径效率加权的 IGNav 成功率。 |
-| `active_embodied_qa_score` | active embodied QA 的平均回答正确率。 |
-| `active_embodied_qa_spl` | 按路径效率加权的 active embodied QA 分数。 |
-| `robotic_manipulation_success_rate` | 从提供的结果 summary 读取的 manipulation task 成功率。 |
-| `interaction_trace_consistency` | 提供该信息时，预测交互轨迹与执行轨迹的一致性。 |
-| `world_in_world_average` | 可用 utility metrics 的平均值，也是 WorldFoundry primary score。 |
+## 输出文件
 
-如果 summary 中包含 FVD、SSIM、PSNR、LPIPS 等 video-quality values，仓内 parser 可以把它们放入 component metadata，但它们不属于上表的 primary metric order。
+运行会在 `--output-dir` 下写出：
 
-## 输出布局
+- `scorecard.json`: WorldFoundry 统一 scorecard，记录上表中的指标值。
+- `benchmark_contract.json`: 本次运行的 benchmark contract 记录（输入、模式、来源信息）。
+- `raw_metric_table.jsonl`: 支撑 scorecard 的原始 metric 行。
 
-直接 `--run-official` 会写出：
+Scorecard 主键：`world_in_world_average`（leaderboard key `world_in_world_average`），写入 `scorecard.json`。
 
-```text
-tmp/world-in-world/direct-official-run/
-  scorecard.json
-  raw_metric_table.jsonl
-  world_in_world_metrics.json
-```
+## 边界与限制
 
-直接显式结果导入会写出：
+- 闭环 rollout 生成、环境执行与官方任务打分完全在本导入器之外。
+- 导入的摘要不构成官方 benchmark / leaderboard 证据。
+- 覆盖率检查只验证摘要结构，不验证上游结果的产生过程。
 
-```text
-tmp/world-in-world/direct-official-validation/
-  scorecard.json
-  raw_metric_table.jsonl
-```
-
-公开 CLI 运行还会在指定输出目录下写出 `runner_runtime_report.json` 和 specialized runner stdout/stderr logs。稳定消费时以 `scorecard.json` 和 `raw_metric_table.jsonl` 为准。
-
-## Runtime 说明
-
-World-in-World worker 启动配置由环境变量驱动，不包含机器本地 conda 路径。
-worker command 默认使用当前 Python 解释器和仓内相对脚本。使用
-`WORLDFOUNDRY_WORLD_IN_WORLD_<WORKER>_CMD` 覆盖整个命令，或用
-`WORLDFOUNDRY_WORLD_IN_WORLD_<WORKER>_PYTHON` 只覆盖解释器。Checkpoint 变量使用
-同一前缀，例如 `WORLDFOUNDRY_WORLD_IN_WORLD_SAM2_WORKER_CKPT_PATH`、
-`WORLDFOUNDRY_WORLD_IN_WORLD_SAM2_WORKER_CFG_PATH`、
-`WORLDFOUNDRY_WORLD_IN_WORLD_FTWAN21_WORKER_LORA_PATH` 和
-`WORLDFOUNDRY_WORLD_IN_WORLD_NWM_WORKER_CKPT_PATH`。
+[← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

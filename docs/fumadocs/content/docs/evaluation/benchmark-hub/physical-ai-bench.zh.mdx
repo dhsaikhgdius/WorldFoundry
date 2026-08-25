@@ -1,40 +1,104 @@
 ---
-title: Physical AI Bench
-description: 在 WorldFoundry tree 内运行 PAI-Bench-G 与 PAI-Bench-C 评测。
+title: Physical AI Bench (PAI-Bench)
+description: CVPR 2026 多赛道 Physical AI 评测：生成、条件生成与 VQA 三条赛道共 2,808 个真实世界样例。
 ---
 
-## 集成方式
+## 简介
 
-WorldFoundry 独立、in-tree 集成了 SHI-Labs PAI-Bench-G 与 PAI-Bench-C，并且只保留推理与评测代码。
+**发表机构：** SHI Labs（Georgia Tech，联合 CMU；NVIDIA Research 支持）
 
-| Track | 实现 |
-| --- | --- |
-| PAI-Bench-G | 复用 tree 内 VBench 与 VBench++ I2V；二分类 VQA 可读取预测或调用 Qwen-compatible judge。 |
-| PAI-Bench-C | 本地实现 Canny、blur SSIM、depth SI-RMSE、分割匹配与聚合；复用共享 DOVER、LPIPS、Video-Depth-Anything、GroundingDINO 与 SAM2。 |
+PAI-Bench（Physical AI Bench，CVPR 2026 Oral）从三条赛道评测 Physical AI 的感知与预测能力：PAI-Bench-G（视频生成，用 VBench/VBench++ 风格感知指标加 VQA 评审打分）、PAI-Bench-C（条件生成，用控制保真指标——canny F1、深度 si-RMSE、分割 mIoU、blur SSIM、LPIPS 多样性）与 PAI-Bench-U（视频理解）。全套共 2,808 个真实世界样例，指标与任务对齐，聚焦物理合理性与领域推理。
 
-运行时不需要上游 repo、`third_party` 目录或 `SOURCE.json`。配置、prompt 与 provenance 全部位于 `worldfoundry/data/benchmarks/assets/physical-ai-bench`。
+WorldFoundry 实现了多赛道仓内 evaluator：按赛道就位官方 Hugging Face 数据集，并复用共享模型栈（VBench、VBench++、Qwen-VL、DOVER、LPIPS、Video-Depth-Anything、Grounding-DINO、SAM2）。
 
-## 运行
+官方参考：
 
-```bash
-python -m worldfoundry.evaluation.tasks.execution.runners.physical_ai_bench.run_physical_ai_bench_official_runner \
-  --track conditional-generation --run-official \
-  --dataset-root /path/to/physical-ai-bench-conditional-generation \
-  --generated-video-dir /path/to/generated/videos \
-  --allow-trusted-pickle \
-  --output-dir outputs/physical-ai-bench-c --json
+- Paper: [arxiv.org/abs/2512.01989](https://arxiv.org/abs/2512.01989)
+- 官方仓库: [SHI-Labs/physical-ai-bench](https://github.com/SHI-Labs/physical-ai-bench)
+
+## 评测协议
+
+用 `--track`（或 `WORLDFOUNDRY_PHYSICAL_AI_BENCH_TRACK`）选择赛道，用 `--metrics` 限定指标。生成类赛道需要 `--generated-video-dir`；条件生成指标可传模型权重（`--depth-checkpoint`、`--grounding-checkpoint`、`--sam2-checkpoint`、`--dover-checkpoint`）或预测目录（`--pred-depth-dir`、`--pred-segmentation-dir`）；生成赛道的 VQA 需要预测 manifest 或已配置的 Qwen 兼容 judge（`--judge-backend`、`--judge-model`、`--judge-base-url`）。
+
+主指标是 `aesthetic_quality`。
+
+| Metric | 含义 | 方向 |
+| --- | --- | --- |
+| `aesthetic_quality` | VBench 风格的生成帧美学质量。 | 越高越好 |
+| `background_consistency` | VBench 风格的跨帧背景一致性。 | 越高越好 |
+| `imaging_quality` | VBench 风格的生成帧成像质量。 | 越高越好 |
+| `motion_smoothness` | VBench 风格的运动平滑度。 | 越高越好 |
+| `overall_consistency` | VBench 风格的整体文本-视频一致性。 | 越高越好 |
+| `subject_consistency` | VBench 风格的主体身份一致性。 | 越高越好 |
+| `i2v_background` | VBench++ 图生视频背景保持度。 | 越高越好 |
+| `i2v_subject` | VBench++ 图生视频主体保持度。 | 越高越好 |
+| `vqa_accuracy` | judge 评分的物理合理性 VQA 准确率。 | 越高越好 |
+| `dover_tech_score` | DOVER 技术性视频质量分。 | 越高越好 |
+| `blur_ssim` | 模糊条件输出与参考间的 SSIM（条件生成赛道）。 | 越高越好 |
+| `canny_f1_score` | 生成视频 Canny 边缘相对条件边缘的 F1（条件生成赛道）。 | 越高越好 |
+| `canny_precision` | 生成视频 Canny 边缘相对条件边缘的精确率。 | 越高越好 |
+| `canny_recall` | 生成视频 Canny 边缘相对条件边缘的召回率。 | 越高越好 |
+| `depth_si_rmse` | 预测深度与条件深度间的尺度不变 RMSE。 | 越低越好 |
+| `seg_m_iou` | 预测分割与条件分割间的平均 IoU。 | 越高越好 |
+| `seg_recall` | 条件分割在生成视频中的召回率。 | 越高越好 |
+| `lpips_diversity` | 同一条件多次生成间的 LPIPS 多样性。 | 越高越好 |
+
+## 数据与产物布局
+
+WorldFoundry 仓内路径：
+
+```text
+worldfoundry/data/benchmarks/tasks/external/physical-ai-bench.yaml
 ```
 
-PAI-Bench-G 使用 `--track generation`。其二分类 VQA 可通过 `--prediction-manifest` 读取预测，也支持 `local-qwen` 和 `openai-compatible` judge。官方 conditional-generation mask 是 pickle 文件，因此需要像上面的命令一样显式传入 `--allow-trusted-pickle`。
+每条赛道对应一个官方 Hugging Face 数据集：
 
-## 环境
+```text
+shi-labs/physical-ai-bench-generation               # PAI-Bench-G
+shi-labs/physical-ai-bench-conditional-generation   # PAI-Bench-C（约 273 GB）
+shi-labs/physical-ai-bench-understanding            # PAI-Bench-U
+```
 
-benchmark runtime 使用 `worldfoundry-unified-cu128`。CPU metric 与结果归一化不需要额外环境。若 72B Qwen 无法放入统一进程，可以在单独的 vLLM serving 环境启动 OpenAI-compatible 服务，并通过 `--judge-base-url` 连接；benchmark code 与计分逻辑仍然全部在 tree 内。
+把所选赛道数据放到 `WORLDFOUNDRY_PHYSICAL_AI_BENCH_DATASET_ROOT` 下；evaluator 接线在 `worldfoundry/data/benchmarks/assets/physical-ai-bench/evaluator.yaml`，同目录记录 provenance。
 
-## 官方链接
+## 运行评测
 
-- [SHI-Labs/physical-ai-bench](https://github.com/SHI-Labs/physical-ai-bench)
-- [Generation dataset](https://huggingface.co/datasets/shi-labs/physical-ai-bench-generation)
-- [Conditional-generation dataset](https://huggingface.co/datasets/shi-labs/physical-ai-bench-conditional-generation)
+对已就位数据与生成视频评测 generation 赛道：
 
-本地 scorecard 不等同于 SHI-Labs 官方 leaderboard submission；特别是大体量 conditional-generation dataset 的全量数值一致性仍待验证。
+```bash
+${WORLDFOUNDRY_UNIFIED_PYTHON} \
+  worldfoundry/evaluation/tasks/execution/runners/physical_ai_bench/run_physical_ai_bench_official_runner.py \
+  --run-official \
+  --track generation \
+  --dataset-root "${WORLDFOUNDRY_PHYSICAL_AI_BENCH_DATASET_ROOT}" \
+  --generated-video-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
+  --output-dir tmp/physical_ai_bench/generation \
+  --json
+```
+
+## 权重与环境变量
+
+- `WORLDFOUNDRY_PHYSICAL_AI_BENCH_DATASET_ROOT`: 所选赛道官方数据集的本地根目录。
+- `WORLDFOUNDRY_PHYSICAL_AI_BENCH_TRACK`: 未传 `--track` 时的默认赛道。
+- `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR`: 候选生成视频目录。
+
+该 benchmark 复用共享 base-model 依赖栈：`vbench`, `vbench-plus-plus`, `qwen-vl`, `dover`, `lpips`, `video-depth-anything`, `grounding-dino`, `sam2`。
+
+## 输出文件
+
+运行会在 `--output-dir` 下写出：
+
+- `scorecard.json`: WorldFoundry 统一 scorecard，记录上表中的指标值。
+- `raw_metric_table.jsonl`: 支撑 scorecard 的原始 metric 行。
+- `per_sample_scores.jsonl`: 当结果源包含逐样本数值时写出的逐样本行。
+- `official_results.json`
+
+Scorecard 主键：`aesthetic_quality`（leaderboard key `aesthetic_quality`），写入 `scorecard.json`。
+
+## 边界与限制
+
+- 在约 273 GB 的条件生成数据集上尚未审计全量数值对齐。
+- 本地 scorecard 不是官方 SHI-Labs leaderboard 提交；leaderboard 运行其自身协议。
+- 通过 `--metrics` 选出的指标子集只是开发信号，不是赛道总分。
+
+[← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

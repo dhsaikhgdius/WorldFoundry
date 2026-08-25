@@ -1,143 +1,96 @@
 ---
 title: CameraBench
-description: 相机运动理解 benchmark，WorldFoundry 提供仓内结果聚合入口。
+description: 相机运动理解评测：在专家标注视频上考察二分类、VQA、检索与描述四类任务。
 ---
 
 ## 简介
 
-CameraBench 评估视频模型是否真正理解相机运动，而不是只生成视觉上好看的片段。它关注 pan、tilt、roll、zoom、tracking、follow 等运动，并判断生成或检索到的视频是否匹配目标相机行为。
+**发表机构：** Carnegie Mellon University（卡内基梅隆大学）
 
-该 benchmark 来自 CameraBench 项目与论文 "Towards Understanding Camera Motions in Any Video"。公开版本包含 Hugging Face 上的 test split，以及用于相机运动判断的 fine-tuned Qwen2.5-VL 模型。WorldFoundry 不要求用户获取外部源码树：结果导入和指标聚合代码已经在仓内，路径是 `worldfoundry/evaluation/tasks/execution/runners/camerabench/`。
+CameraBench 评测视频模型对相机运动的理解。它基于与专业摄影师共同设计、经专家标注打磨的相机运动基元分类体系，从二分类（average precision / ROC AUC）、相机运动 VQA、文本/图像/组检索与描述质量四个方面打分。在 WorldFoundry 中它还可以为生成侧实验提供相机控制评测的 prompt 与标签。
 
-当前 WorldFoundry 覆盖的是可复现的聚合阶段。你需要提供官方 CameraBench 结果 JSON，或者已经生成好的 CameraBench `score_dir`，WorldFoundry 会输出统一的 scorecard。从视频生成原始 CameraBench score JSON 仍需要准备 CameraBench scorer 资产和下面列出的 fine-tuned VLM checkpoint。
+仓内集成把准备好的 CameraBench score 目录聚合为官方指标族，并支持导入官方结果导出；实际的 VLM/SfM 打分栈在上游仓库（`sy77777en/CameraBench`、`linzhiqiu/t2v_metrics`）。
 
+官方参考：
 
-## 官方参考
+- Paper: [arxiv.org/abs/2504.15376](https://arxiv.org/abs/2504.15376)
+- 项目主页: [linzhiqiu.github.io/papers/camerabench](https://linzhiqiu.github.io/papers/camerabench/)
+- 官方仓库: [sy77777en/CameraBench](https://github.com/sy77777en/CameraBench)
+- 官方仓库: [linzhiqiu/t2v_metrics](https://github.com/linzhiqiu/t2v_metrics)
 
-| 资源 | 链接 |
-| --- | --- |
-| 项目页 | [linzhiqiu.github.io/papers/camerabench](https://linzhiqiu.github.io/papers/camerabench/) |
-| 论文 | [arXiv:2504.15376](https://arxiv.org/abs/2504.15376) |
-| GitHub | [github.com/sy77777en/CameraBench](https://github.com/sy77777en/CameraBench) |
-| HF 数据集 | [syCen/CameraBench](https://huggingface.co/datasets/syCen/CameraBench) |
-| 仓内 runner | `worldfoundry/evaluation/tasks/execution/runners/camerabench/run_camerabench_official_runner.py` |
+## 评测协议
 
-## 需要准备什么
+两条路径：通过 `--official-results-path` 导入官方结果导出；或把准备好的 CameraBench `score_dir`（`--score-dir` 或 `WORLDFOUNDRY_CAMERABENCH_SCORE_DIR`）聚合为二分类、VQA/检索、描述与总分四个得分族。`--task` 可限定单一得分族。描述任务的 GPT 评审是可选项：仅在显式启用时运行，需要 `OPENAI_API_KEY`（`--no-gpt` 关闭）。
 
-### 数据集
+主指标是 `camerabench_average`。
 
-从 Hugging Face 下载公开测试资产：
+| Metric | 含义 | 方向 |
+| --- | --- | --- |
+| `camera_motion_average_precision` | CameraBench 二分类平均精度均值（mAP）。 | 越高越好 |
+| `camera_motion_roc_auc` | CameraBench 二分类 ROC AUC。 | 越高越好 |
+| `camera_vqa_accuracy` | CameraBench 是/否二元与问题准确率的均值。 | 越高越好 |
+| `camera_retrieval_accuracy` | CameraBench 文本、图像与组检索得分的均值。 | 越高越好 |
+| `camera_caption_score` | 官方 CameraBench caption 评测输出的平均描述得分。 | 越高越好 |
+| `camerabench_average` | 可用官方 CameraBench 指标族的均值。 | 越高越好 |
 
-```bash
-hf download syCen/CameraBench \
-  --repo-type dataset \
-  --local-dir /path/to/datasets/CameraBench
-```
+## 数据与产物布局
 
-本地根目录应包含测试元数据和视频资产：
-
-```text
-/path/to/datasets/CameraBench/
-|-- test.jsonl
-`-- videos_gif/
-    |-- *.gif
-    `-- ...
-```
-
-运行时通过 `WORLDFOUNDRY_CAMERABENCH_DATA_ROOT` 或 `--benchmark-data-root` 指向这个目录。
-
-### Scorer Checkpoint
-
-CameraBench 报告使用 fine-tuned Qwen2.5-VL camera-motion 模型。把 checkpoint 下载到你的模型缓存或共享 checkpoint 目录：
-
-```bash
-hf download chancharikm/qwen2.5-vl-7b-cam-motion  --local-dir /path/to/checkpoints/qwen2.5-vl-7b-cam-motion
-hf download chancharikm/qwen2.5-vl-32b-cam-motion --local-dir /path/to/checkpoints/qwen2.5-vl-32b-cam-motion
-hf download chancharikm/qwen2.5-vl-72b-cam-motion --local-dir /path/to/checkpoints/qwen2.5-vl-72b-cam-motion
-```
-
-WorldFoundry 的 `worldfoundry/base_models/` 中已经有可复用的 Qwen/VQAScore 基础设施。checkpoint 建议放在源码树外，除非你正在制作本地发布包。
-
-### Score directory
-
-仓内 CameraBench runner 消费已经准备好的 JSON score 文件。文件名应符合：
+WorldFoundry 仓内路径：
 
 ```text
-/path/to/camerabench/score_dir/
-|-- classification_scores_*.json
-|-- vqa_retrieval_scores_*.json
-`-- caption_results_*.json
+worldfoundry/data/benchmarks/tasks/external/camerabench.yaml
 ```
 
-每个文件需要包含顶层 `scores` list，可选 `metadata` 字段包括 `model_name`、`checkpoint`、`split_name`。这些文件对应官方 CameraBench 的三个指标族：二分类相机运动判断、VQA/retrieval、caption matching。
+```text
+${WORLDFOUNDRY_CAMERABENCH_DATA_ROOT}/                        # syCen/CameraBench 测试集根
+cache/worldfoundry/data/hfd_datasets/syCen/CameraBench        # 默认就位路径
+<score_dir>/                                                  # 准备好的逐任务 CameraBench score 文件
+```
+
+```bash
+hf download syCen/CameraBench --repo-type dataset \
+  --local-dir cache/worldfoundry/data/hfd_datasets/syCen/CameraBench
+```
 
 ## 运行评测
 
-### 聚合已经准备好的 Score Directory
-
-```bash
-export WORLDFOUNDRY_CAMERABENCH_DATA_ROOT=/path/to/datasets/CameraBench
-export WORLDFOUNDRY_CAMERABENCH_SCORE_DIR=/path/to/camerabench/score_dir
-
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-  worldfoundry/evaluation/tasks/execution/runners/camerabench/run_camerabench_official_runner.py \
-  --score-dir "${WORLDFOUNDRY_CAMERABENCH_SCORE_DIR}" \
-  --benchmark-data-root "${WORLDFOUNDRY_CAMERABENCH_DATA_ROOT}" \
-  --task all \
-  --mode both \
-  --output-dir tmp/camerabench/score-dir \
-  --json
-```
-
-只跑部分指标时，把 `--task` 改成 `binary`、`vqa_retrieval` 或 `caption`。Caption matching 如果要用 API-backed judge，可以传 `--openai-api-key "$OPENAI_API_KEY"`；如果你的本地复现只覆盖 binary 和 VQA/retrieval，可以不跑 caption。
-
-### 使用公开 CLI
+目录 manifest 记录的 validation 命令：
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id camerabench \
   --mode official-validation \
-  --score-dir "${WORLDFOUNDRY_CAMERABENCH_SCORE_DIR}" \
-  --benchmark-data-root "${WORLDFOUNDRY_CAMERABENCH_DATA_ROOT}" \
-  --output-dir tmp/camerabench/score-dir-cli \
+  --official-results-path <official_results.json> \
+  --benchmark-data-root <camerabench_data_root> \
+  --output-dir <out> \
   --json
 ```
 
-### 导入已有官方结果
+## 权重与环境变量
 
-```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id camerabench \
-  --mode official-validation \
-  --official-results-path /path/to/camerabench_results.json \
-  --benchmark-data-root "${WORLDFOUNDRY_CAMERABENCH_DATA_ROOT}" \
-  --output-dir tmp/camerabench/imported \
-  --json
-```
+- `WORLDFOUNDRY_CAMERABENCH_DATA_ROOT`: syCen/CameraBench 测试集本地根目录。
+- `WORLDFOUNDRY_CAMERABENCH_RESULTS_PATH`: 导入模式默认读取的官方结果路径。
+- `WORLDFOUNDRY_CAMERABENCH_SCORE_DIR`: 供仓内聚合的已备 CameraBench score 目录。
+- `OPENAI_API_KEY`: 仅在显式启用描述 GPT 评审时需要。
 
-当你已经有一次 CameraBench 评测输出的 JSON，只需要把它转换成 WorldFoundry 统一 scorecard 时，使用这个路径。
+该 benchmark 复用共享 base-model 依赖栈：`camera_geometry_stack`。
 
-## 指标
+## 输出文件
 
-| Metric | 含义 |
-| --- | --- |
-| `camera_motion_average_precision` | 二分类相机运动判断的 mean average precision。 |
-| `camera_motion_roc_auc` | 二分类相机运动判断的 ROC-AUC。 |
-| `camera_vqa_accuracy` | CameraBench yes/no 与 question-level VQA accuracy 的平均。 |
-| `camera_retrieval_accuracy` | text、image、group retrieval accuracy 的平均。 |
-| `camera_caption_score` | 已准备 CameraBench caption 输出中的 caption agreement 分数。 |
-| `camerabench_average` | 可用 CameraBench 指标族的平均值。 |
+运行会在 `--output-dir` 下写出：
 
-## 输出
-
-runner 会写出：
-
-- `scorecard.json`
+- `scorecard.json`: WorldFoundry 统一 scorecard，记录上表中的指标值。
 - `camera_predictions.jsonl`
-- `raw_metric_table.jsonl`
-- `upstream_stdout.log`
-- `upstream_stderr.log`
+- `raw_metric_table.jsonl`: 支撑 scorecard 的原始 metric 行。
+- `upstream_stdout.log`: 上游官方 scorer 的 stdout 日志。
+- `upstream_stderr.log`: 上游官方 scorer 的 stderr 日志。
 
-如果要做 leaderboard 级别复现，需要确认本地 dataset root 覆盖完整 test split，并且 score directory 包含你要报告的全部指标族。
+Scorecard 主键：`camerabench_average`（leaderboard key `camerabench_average`），写入 `scorecard.json`。
+
+## 边界与限制
+
+- WorldFoundry 只聚合准备好的 score 文件；VLM/SfM 分数生成在上游完成，仓内未做源码审计。
+- 完整 leaderboard 验证需要源码审计过的分数生成、全套 CameraBench score 文件以及上游提交协议。
+- 仅跑部分 `--task` 得到的是单一得分族信号，不等于 `camerabench_average`。
 
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

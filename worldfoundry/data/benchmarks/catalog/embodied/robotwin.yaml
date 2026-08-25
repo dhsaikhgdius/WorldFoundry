@@ -1,5 +1,7 @@
 id: robotwin
 name: RoboTwin 2.0
+publisher: The University of Hong Kong
+publisher_kind: university
 benchmark_kind:
 - vla
 - embodied-action

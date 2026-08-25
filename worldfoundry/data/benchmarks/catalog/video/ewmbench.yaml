@@ -1,5 +1,7 @@
 id: ewmbench
 name: EWMBench
+publisher: AgiBot
+publisher_kind: company
 benchmark_kind:
 - embodied-world-model
 - video-generation-quality

@@ -1,5 +1,7 @@
 id: behavior1k
 name: BEHAVIOR-1K
+publisher: Stanford University
+publisher_kind: university
 benchmark_kind:
 - vla
 - embodied-action

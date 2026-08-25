@@ -1,132 +1,80 @@
 ---
 title: CALVIN
-description: CALVIN — metrics, requirements, and run commands.
+description: Long-horizon language-conditioned manipulation benchmark (RA-L 2022); WorldFoundry normalizes official sequence-evaluation exports.
 ---
 
 ## About
 
+**Publisher:** University of Freiburg
 
+CALVIN (Composing Actions from Language and Vision) from the University of Freiburg evaluates long-horizon, language-conditioned manipulation: a policy in a PyBullet tabletop environment must chain up to five language instructions in sequence, across four environment configurations (A/B/C/D) that test zero-shot transfer. The signature protocol reports success at each chain length and the average number of completed instructions.
 
-CALVIN external benchmark task manifest for long-horizon language-conditioned manipulation.
+WorldFoundry integrates CALVIN as an official-results runner: exports from the official long-horizon sequence evaluator are normalized into the unified scorecard.
 
+Official references:
 
+- Paper: [ieeexplore.ieee.org/document/9788026](https://ieeexplore.ieee.org/document/9788026)
+- Project page: [calvin.cs.uni-freiburg.de](http://calvin.cs.uni-freiburg.de/)
+- Official repository: [mees/calvin](https://github.com/mees/calvin)
+- License: `mit`
 
-## Metrics
+## Evaluation protocol
 
-CALVIN external benchmark task manifest for long-horizon language-conditioned manipulation.
+WorldFoundry integrates this benchmark through the unified result-import path: `worldfoundry-eval zoo benchmark-run --mode official-validation` normalizes a caller-provided official result export (JSON/CSV rollout summaries) into the WorldFoundry scorecard without executing the simulator. Simulator execution, policy loading, and rollout collection remain explicit upstream steps performed with the official tooling.
 
-### Task YAML
+Primary metric: `success_rate`.
 
-`worldfoundry/data/benchmarks/tasks/external/calvin.yaml`
+| Metric | Meaning | Direction |
+| --- | --- | --- |
+| `success_rate` | Primary episode success rate over evaluated rollouts. | Higher is better |
+| `sequence_success` | Success over five-instruction chains (long-horizon protocol). | Higher is better |
+| `task_success` | Per-task success aggregate. | Higher is better |
+| `completion` | Average number of completed instructions per sequence. | Higher is better |
 
-### Primary
+## Data and artifact layout
 
-- `success_rate`
+In-tree paths:
 
-| Metric | Focus |
-| --- | --- |
-| `success_rate` | Share of episodes or tasks that complete successfully. |
-| `sequence_success` | Share of episodes or tasks that complete successfully. |
-| `task_success` | Share of episodes or tasks that complete successfully. |
-| `completion` | Fraction of consecutive CALVIN language-conditioned sub-tasks completed without environment reset. |
-
-
-
-## Environment setup
-
-### Runtime environment
-
-- **Conda env:** `giga-world-policy-py311`.
-- **Separate setup:** defaults to the unified WorldFoundry env (`needs_new_env: false`); a benchmark-only conda env is usually not required.
-- CALVIN 官方 rollout 需要数据集 split、policy checkpoint 和 long-horizon evaluator 输出；轻量 preflight 不启动仿真/评测。
-
-### Evaluation data
-
-- WorldFoundry tracks the upstream CALVIN runtime and normalizes official result files; dataset materialization is handled outside this manifest.
-- Candidate model outputs: set `WORLDFOUNDRY_CALVIN_RESULTS_PATH` to the generated-video or rollout artifact root.
-- `${WORLDFOUNDRY_CACHE_DIR}/repos/mees--calvin`
-
-### Checkpoints & assets
-
-- This benchmark is primarily rollout- or official-result-driven; see catalog `requires` and the task YAML for policy/simulator checkpoints.
-
-### Key environment variables
-
-- `WORLDFOUNDRY_CALVIN_ROOT`
-- `WORLDFOUNDRY_CALVIN_DATASET_ROOT`
-- `WORLDFOUNDRY_CALVIN_RESULTS_PATH`
-
-### Verify setup
-
-```bash
-PYTHONPATH=${WORLDFOUNDRY_CACHE_DIR}/repos/mees--calvin:src ${WORLDFOUNDRY_CONDA_ENVS_ROOT}/worldfoundry-giga-world-policy-py311/bin/python -m worldfoundry.evaluation.tasks.execution.orchestration.runtime_preflight --profile calvin --manifest worldfoundry/data/benchmarks/runtime_profiles/official/calvin.yaml --output-dir tmp/worldfoundry_preflight/calvin --json
+```text
+worldfoundry/data/benchmarks/tasks/external/calvin.yaml
 ```
 
-
-
-## Run evaluation
-
-
-
-After preparing the assets and candidate artifacts listed on this page, use the public run entry points below.
-
-### Set candidate artifacts
-
-```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/generated/artifacts
+```text
+<official_results.json>                 # rollout summary export from the official tooling
+${WORLDFOUNDRY_CALVIN_RESULTS_PATH}   # default import path
 ```
+The upstream checkout is mirrored at `cache/vla_va_wam/repos/mees--calvin`; dataset roots and policy checkpoints follow the official CALVIN documentation.
 
-### Import official results
+## Run the benchmark
+
+Catalog-recorded validation command:
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id calvin \
-  --mode normalizer \
-  --official-results-path /path/to/official/results-or-report \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/calvin/normalizer \
+  --mode official-validation \
+  --official-results-path <official_results.json> \
+  --output-dir <out> \
   --json
 ```
 
-### Score generated artifacts
+## Checkpoints and environment variables
 
-```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id calvin \
-  --mode official-run \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/calvin/official-run \
-  --json
-```
+- `WORLDFOUNDRY_CALVIN_RESULTS_PATH`: Default path the importer reads official result exports from when `--official-results-path` is not passed.
 
-### Direct in-tree runner
+## Outputs
 
-```bash
-worldfoundry-eval zoo benchmark-run --benchmark-id calvin --mode official-validation --official-results-path <official_results.json> --output-dir <out> --json
-```
+The run writes into `--output-dir`:
 
+- `scorecard.json`: WorldFoundry scorecard with the metric values recorded above.
+- `raw_results.jsonl`: Normalized rows parsed from the official result export.
 
+Scorecard primary key: `success_rate` (leaderboard key `success_rate`), stored in `scorecard.json`.
 
-## Requirements
+## Limitations
 
-
-
-### Inputs
-
-- Official CALVIN repository checkout
-- CALVIN dataset root
-- Benchmark-specific policy checkpoint
-- Official long-horizon sequence evaluation command
-
-### Environment
-
-- `WORLDFOUNDRY_CALVIN_RESULTS_PATH`
-
-### Outputs
-
-- `scorecard.json`
-- `raw_results.jsonl`
-
-
+- WorldFoundry normalizes supplied rollout results; it does not run the official simulator or policies in tree.
+- Full leaderboard parity is not claimed until official rollouts are executed with staged simulator assets and policy checkpoints, then imported.
+- Imported scorecards are integration evidence, not leaderboard submissions.
 
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

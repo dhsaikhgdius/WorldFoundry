@@ -1,5 +1,7 @@
 id: world-in-world
 name: World-in-World
+publisher: Johns Hopkins University
+publisher_kind: university
 benchmark_kind:
 - closed-loop-world-model
 - embodied-action

@@ -1,5 +1,7 @@
 id: iworld-bench
 name: iWorld-Bench
+publisher: Tsinghua University
+publisher_kind: university
 benchmark_kind:
 - interactive-world-model
 - action-control

@@ -1,5 +1,7 @@
 id: fetv
 name: FETV
+publisher: Peking University
+publisher_kind: university
 benchmark_kind:
 - text-to-video
 - fine-grained-evaluation

@@ -1,5 +1,7 @@
 id: likephys
 name: LikePhys
+publisher: University of Oxford
+publisher_kind: university
 benchmark_kind:
 - text-to-video
 - physical-understanding

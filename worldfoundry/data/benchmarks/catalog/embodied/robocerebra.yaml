@@ -1,5 +1,7 @@
 id: robocerebra
 name: RoboCerebra
+publisher: Beihang University
+publisher_kind: university
 benchmark_kind:
 - vla
 - embodied-action

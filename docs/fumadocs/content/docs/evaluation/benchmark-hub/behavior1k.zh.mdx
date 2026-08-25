@@ -1,126 +1,81 @@
 ---
 title: BEHAVIOR-1K
-description: BEHAVIOR-1K — 指标、依赖与运行命令。
+description: OmniGibson 模拟器中的 1,000 项日常家务活动，通过官方结果归一化导入 WorldFoundry。
 ---
 
 ## 简介
 
+**发表机构：** Stanford University（斯坦福大学 SVL 实验室）
 
+BEHAVIOR-1K 是斯坦福以人为中心的具身 AI 评测：从人类时间使用调查中选出的 1,000 项日常活动（清洁、烹饪、整理），用 BDDL 谓词语言定义，并在 OmniGibson 中以逼真物理、流体与物体状态仿真。成功以满足活动的逻辑目标条件衡量，子目标满足率作为部分得分信号。
 
-BEHAVIOR-1K external benchmark manifest for household embodied policy rollouts.
+WorldFoundry 以官方结果 runner 集成 BEHAVIOR-1K：上游 OmniGibson 工具产出的 rollout 导出被归一化为统一 scorecard。
 
+官方参考：
 
+- Paper: [arxiv.org/abs/2403.09227](https://arxiv.org/abs/2403.09227)
+- 官方仓库: [StanfordVL/OmniGibson](https://github.com/StanfordVL/OmniGibson)
+- License: `upstream_terms`
 
-## 指标
+## 评测协议
 
-BEHAVIOR-1K external benchmark manifest for household embodied policy rollouts.
+WorldFoundry 通过统一的结果导入路径集成该 benchmark：`worldfoundry-eval zoo benchmark-run --mode official-validation` 把调用方提供的官方结果导出（JSON/CSV rollout 汇总）归一化为 WorldFoundry scorecard，不执行模拟器。模拟器执行、策略加载与 rollout 采集仍是使用官方工具完成的显式上游步骤。
 
-### Task YAML
+主指标是 `success_rate`。
 
-`worldfoundry/data/benchmarks/tasks/external/behavior1k.yaml`
+| Metric | 含义 | 方向 |
+| --- | --- | --- |
+| `success_rate` | 评测 rollout 上的主成功率（逐 episode 成功比例）。 | 越高越好 |
+| `task_success` | 按任务聚合的成功率。 | 越高越好 |
+| `episode_success` | 逐 episode 成功指示的聚合值。 | 越高越好 |
+| `subgoal_success` | BDDL 子目标满足率（部分得分）。 | 越高越好 |
 
-### Primary
+## 数据与产物布局
 
-- `success_rate`
+WorldFoundry 仓内路径：
 
-| Metric | 关注点 |
-| --- | --- |
-| `success_rate` | episode / task 是否成功完成的比例或成功率。 |
-| `task_success` | episode / task 是否成功完成的比例或成功率。 |
-| `episode_success` | episode / task 是否成功完成的比例或成功率。 |
-| `subgoal_success` | episode / task 是否成功完成的比例或成功率。 |
+```text
+worldfoundry/data/benchmarks/tasks/external/behavior1k.yaml
+```
 
-
-
-## 环境准备
-
-### 运行环境
-
-- **Conda 环境：** `worldfoundry-unified-cu128`。
-- **单独配置：** 需要 benchmark 专用 conda 环境，不要与统一 runtime 混用。
-- WorldFoundry provides the native contract, result normalizer, and in-tree simulator wrapper; full rollout execution still depends on the upstream OmniGibson runtime.
-
-### 测评数据
-
-- 待测模型输出目录：设置 `WORLDFOUNDRY_BEHAVIOR1K_RESULTS_PATH` 指向生成视频或 rollout artifact 根目录。
-- `${WORLDFOUNDRY_DATA_DIR}/datasets/behavior1k`
-- `${WORLDFOUNDRY_CACHE_DIR}/repos/StanfordVL--OmniGibson`
-
-### Checkpoint 与资产
-
-- 该 benchmark 以官方结果归一化或仿真 rollout 为主；policy / simulator checkpoint 见 catalog `requires` 与 task YAML。
-
-### 关键环境变量
-
-- `WORLDFOUNDRY_BEHAVIOR1K_ROOT`
-- `WORLDFOUNDRY_BEHAVIOR1K_RESULTS_PATH`
-
-
+```text
+<official_results.json>                 # 官方工具产出的 rollout 汇总导出
+${WORLDFOUNDRY_BEHAVIOR1K_RESULTS_PATH}   # 默认导入路径
+```
+模拟器 runtime、benchmark 资产与策略权重遵循上游 [StanfordVL/OmniGibson](https://github.com/StanfordVL/OmniGibson) 文档。
 
 ## 运行评测
 
-
-
-准备好该 benchmark 页面列出的资产和候选产物后，使用下面的公开运行入口。
-
-### 设置候选产物目录
-
-```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/generated/artifacts
-```
-
-### 导入已有官方结果
+目录 manifest 记录的 validation 命令：
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id behavior1k \
-  --mode normalizer \
-  --official-results-path /path/to/official/results-or-report \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/behavior1k/normalizer \
+  --mode official-validation \
+  --official-results-path <official_results.json> \
+  --output-dir <out> \
   --json
 ```
 
-### 从生成产物重新打分
+## 权重与环境变量
 
-```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id behavior1k \
-  --mode official-run \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/behavior1k/official-run \
-  --json
-```
+- `WORLDFOUNDRY_BEHAVIOR1K_ROOT`: 可选覆盖项，指向本地 benchmark runtime / 仓库根目录。
+- `WORLDFOUNDRY_BEHAVIOR1K_RESULTS_PATH`: 未显式传 `--official-results-path` 时，导入器默认从该路径读取官方结果导出文件。
 
-### 直接调用仓内 runner
+## 输出文件
 
-```bash
-worldfoundry-eval zoo benchmark-run --benchmark-id behavior1k --mode official-validation --official-results-path <official_results.json> --output-dir <out> --json
-```
+运行会在 `--output-dir` 下写出：
 
+- `scorecard.json`: WorldFoundry 统一 scorecard，记录上表中的指标值。
+- `raw_results.jsonl`: 从官方结果导出解析出的归一化行。
+- `evaluation/summary.json`: 聚合评测摘要。
 
+Scorecard 主键：`success_rate`（leaderboard key `success_rate`），写入 `scorecard.json`。
 
-## 依赖与产物
+## 边界与限制
 
-
-
-### Inputs
-
-- Official simulator runtime
-- benchmark assets
-- policy checkpoint
-- official result dump
-
-### Environment
-
-- `WORLDFOUNDRY_BEHAVIOR1K_RESULTS_PATH`
-
-### Outputs
-
-- `scorecard.json`
-- `raw_results.jsonl`
-- `evaluation/summary.json`
-
-
+- WorldFoundry 只归一化所提供的 rollout 结果；不在仓内运行官方模拟器或策略。
+- 在用就位的模拟器资产与策略权重执行官方 rollout 并导入之前，不声称完整 leaderboard 对齐。
+- 导入的 scorecard 是集成证据，不是 leaderboard 提交。
 
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

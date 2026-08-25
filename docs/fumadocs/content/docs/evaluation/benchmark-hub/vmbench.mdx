@@ -1,66 +1,53 @@
 ---
 title: VMBench
-description: "VMBench in WorldFoundry: perception-aligned motion metrics, 1,050-prompt suite, checkpoints, and in-tree runner commands."
+description: Perception-aligned video motion benchmark with five motion-centric metrics over a 1,050-prompt suite.
 ---
 
-## What it measures
+## About
 
-VMBench (ICCV 2025) evaluates **text-to-video motion quality from a human-perception alignment perspective**. Most T2V benchmarks emphasize temporal consistency or frame sharpness, but they can miss three recurring motion failures:
+**Publisher:** Alibaba AMAP (AMAP-ML)
 
-- videos that look stable because they barely move;
-- videos that move, but not at the amplitude implied by the prompt;
-- videos with unnatural or commonsense-breaking motion even when frames look sharp.
+VMBench (ICCV 2025) evaluates motion generation quality with five perception-aligned metrics: perceptible amplitude, object integrity, temporal coherence, commonsense adherence, and motion smoothness. Its prompt suite contains 1,050 motion-centric prompts; generated videos are scored by local metric runtimes without any hosted judge API.
 
-VMBench introduces five perception-aligned motion metrics (PAS, OIS, TCS, CAS, MSS) and reports that its metrics improve Spearman correlation with human preference annotations by about **35.3%** over prior automatic motion scorers.
+WorldFoundry vendors the official VMBench metric code in tree (`runtime/official`), bundles the prompt suite at `worldfoundry/data/benchmarks/assets/vmbench/prompts/prompts.json`, and can either run the vendored metrics or normalize official `results.json`/`scores.csv` exports.
 
 Official references:
 
-- Paper: [arXiv:2503.10076](https://arxiv.org/abs/2503.10076)
+- Paper: [openaccess.thecvf.com/content/ICCV2025/html/Ling_VMBench_A_Benchmark_for_Perception-Aligned_Video_Motion_Generation_ICCV_2025_paper.html](https://openaccess.thecvf.com/content/ICCV2025/html/Ling_VMBench_A_Benchmark_for_Perception-Aligned_Video_Motion_Generation_ICCV_2025_paper.html)
 - Project page: [amap-ml.github.io/VMBench-Website](https://amap-ml.github.io/VMBench-Website/)
-- Source reference: [github.com/AMAP-ML/VMBench](https://github.com/AMAP-ML/VMBench)
-- Checkpoint assets: [GD-ML/VMBench](https://huggingface.co/GD-ML/VMBench)
-- In-tree runner: `worldfoundry/evaluation/tasks/execution/runners/vmbench/run_vmbench_official_runner.py`
+- Official repository: [AMAP-ML/VMBench](https://github.com/AMAP-ML/VMBench)
+- License: `apache-2.0`
 
-WorldFoundry ships the benchmark code in-tree. The upstream README is a protocol reference; normal WorldFoundry evaluation uses the vendored evaluator and bundled prompt manifest.
+## Evaluation protocol
 
-## Benchmark design
+Generated videos must follow the official prompt-index naming convention `0001.mp4` … `1050.mp4`. The runner materializes `meta_info` rows from the video directory, dispatches the vendored metric stack (`--run-official`), or imports official result exports (`--official-results-path` / `--from-upstream-results`).
 
-### Prompt suite
+Primary metric: `vmbench_average`.
 
-The official prompt library contains **1,050** prompts with stable four-digit indices (`0001`–`1050`). Prompts are produced through meta-guided LLM generation and human-AI validation, covering six dynamic-scene dimensions in the upstream release.
-
-WorldFoundry bundles the manifest at `worldfoundry/data/benchmarks/assets/vmbench/prompts/prompts.json`.
-
-### Motion metrics
-
-| Metric ID | Upstream | What it tests |
+| Metric | Meaning | Direction |
 | --- | --- | --- |
-| `perceptible_amplitude_score` | PAS | Whether motion amplitude is large enough to be perceived |
-| `object_integrity_score` | OIS | Whether moving objects preserve identity and structure |
-| `temporal_coherence_score` | TCS | Whether motion stays coherent over time |
-| `commonsense_adherence_score` | CAS | Whether depicted actions follow commonsense motion expectations |
-| `motion_smoothness_score` | MSS | Whether motion is smooth rather than jittery |
-| `vmbench_average` | Avg | Mean of available PAS/OIS/TCS/CAS/MSS scores |
+| `perceptible_amplitude_score` | Official VMBench PAS metric for perceptible motion amplitude. | Higher is better |
+| `object_integrity_score` | Official VMBench OIS metric for object identity and integrity under motion. | Higher is better |
+| `temporal_coherence_score` | Official VMBench TCS metric for temporal coherence. | Higher is better |
+| `commonsense_adherence_score` | Official VMBench CAS metric for action and motion commonsense adherence. | Higher is better |
+| `motion_smoothness_score` | Official VMBench MSS metric for motion smoothness. | Higher is better |
+| `vmbench_average` | Mean of available official VMBench PAS/OIS/TCS/CAS/MSS component scores. | Higher is better |
 
-All primary scores are higher-is-better. WorldFoundry normalizes them on a 0–1 scale in the scorecard.
+## Data and artifact layout
 
-## Data and artifacts
+In-tree paths:
 
-Start from the WorldFoundry repository root:
-
-```bash
-cd /path/to/WorldFoundry
-export WORLDFOUNDRY_REPO_ROOT="$PWD"
-export PYTHONPATH="$WORLDFOUNDRY_REPO_ROOT:${PYTHONPATH:-}"
+```text
+worldfoundry/data/benchmarks/tasks/external/vmbench.yaml
+worldfoundry/evaluation/tasks/execution/runners/vmbench/run_vmbench_official_runner.py
+worldfoundry/evaluation/tasks/execution/runners/vmbench/vmbench_official_runtime.py
+worldfoundry/evaluation/tasks/execution/runners/vmbench/runtime/official
 ```
 
-Use the bundled prompt manifest:
-
 ```bash
-export WORLDFOUNDRY_VMBENCH_PROMPT_MANIFEST="$WORLDFOUNDRY_REPO_ROOT/worldfoundry/data/benchmarks/assets/vmbench/prompts/prompts.json"
+export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/vmbench/generated_videos
+export WORLDFOUNDRY_VMBENCH_PROMPT_MANIFEST=worldfoundry/data/benchmarks/assets/vmbench/prompts/prompts.json
 ```
-
-Generate videos into a flat directory. Filenames must match prompt indices:
 
 ```text
 /path/to/vmbench/generated_videos/
@@ -70,140 +57,56 @@ Generate videos into a flat directory. Filenames must match prompt indices:
   1050.mp4
 ```
 
-Then point WorldFoundry at that directory:
+## Run the benchmark
 
-```bash
-export WORLDFOUNDRY_VMBENCH_VIDEO_DIR=/path/to/vmbench/generated_videos
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR="${WORLDFOUNDRY_VMBENCH_VIDEO_DIR}"
-```
-
-Download the VMBench checkpoint bundle plus companion models:
-
-```bash
-export WORLDFOUNDRY_VMBENCH_ASSET_DIR=/path/to/vmbench/assets
-
-hf download GD-ML/VMBench \
-  --local-dir "${WORLDFOUNDRY_VMBENCH_ASSET_DIR}"
-
-hf download q-future/one-align \
-  --local-dir "${WORLDFOUNDRY_VMBENCH_ASSET_DIR}/q-future/one-align"
-
-hf download google-bert/bert-base-uncased \
-  --local-dir "${WORLDFOUNDRY_VMBENCH_ASSET_DIR}/google-bert/bert-base-uncased"
-```
-
-Set the checkpoint paths used by the in-tree runtime:
-
-```bash
-export WORLDFOUNDRY_GROUNDING_DINO_BERT_BASE_UNCASED="${WORLDFOUNDRY_VMBENCH_ASSET_DIR}/google-bert/bert-base-uncased"
-export WORLDFOUNDRY_QALIGN_ONE_ALIGN_MODEL="${WORLDFOUNDRY_VMBENCH_ASSET_DIR}/q-future/one-align"
-export WORLDFOUNDRY_VMBENCH_CAS_CKPT="${WORLDFOUNDRY_VMBENCH_ASSET_DIR}/vit_g_vmbench.pt"
-
-export WORLDFOUNDRY_VMBENCH_GROUNDING_DINO_CKPT="${WORLDFOUNDRY_VMBENCH_ASSET_DIR}/groundingdino_swinb_cogcoor.pth"
-export WORLDFOUNDRY_SAM_VIT_H_CKPT="${WORLDFOUNDRY_VMBENCH_ASSET_DIR}/sam_vit_h_4b8939.pth"
-export WORLDFOUNDRY_SAM2_CKPT="${WORLDFOUNDRY_VMBENCH_ASSET_DIR}/sam2.1_hiera_large.pt"
-export WORLDFOUNDRY_COTRACKER2_CKPT="${WORLDFOUNDRY_VMBENCH_ASSET_DIR}/scaled_offline.pth"
-```
-
-The runner defaults to all five metrics. To run a subset while preparing assets:
-
-```bash
-export WORLDFOUNDRY_VMBENCH_METRICS="pas ois tcs cas mss"
-```
-
-In-tree paths:
-
-```text
-worldfoundry/evaluation/tasks/execution/runners/vmbench/run_vmbench_official_runner.py
-worldfoundry/evaluation/tasks/execution/runners/vmbench/vmbench_official_runtime.py
-worldfoundry/evaluation/tasks/execution/runners/vmbench/runtime/official
-worldfoundry/data/benchmarks/assets/vmbench/prompts/prompts.json
-```
-
-## Run with WorldFoundry
-
-Run full metric recomputation through the direct in-tree runner:
-
-```bash
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-  worldfoundry/evaluation/tasks/execution/runners/vmbench/run_vmbench_official_runner.py \
-  --run-official \
-  --runtime-backend official \
-  --video-dir "${WORLDFOUNDRY_VMBENCH_VIDEO_DIR}" \
-  --prompt-manifest "${WORLDFOUNDRY_VMBENCH_PROMPT_MANIFEST}" \
-  --output-dir tmp/vmbench/direct-official-run \
-  --json
-```
-
-If you already have VMBench-shaped metric artifacts from another WorldFoundry evaluator, import them with the artifact backend:
-
-```bash
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-  worldfoundry/evaluation/tasks/execution/runners/vmbench/run_vmbench_official_runner.py \
-  --run-official \
-  --runtime-backend artifact \
-  --video-dir "${WORLDFOUNDRY_VMBENCH_VIDEO_DIR}" \
-  --artifact-score-dir /path/to/vmbench/metric_artifacts \
-  --prompt-manifest "${WORLDFOUNDRY_VMBENCH_PROMPT_MANIFEST}" \
-  --output-dir tmp/vmbench/artifact-run \
-  --json
-```
-
-Use the public CLI when importing an existing `results.json` or `scores.csv`:
+Catalog-recorded validation command:
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id vmbench \
   --mode official-validation \
-  --official-results-path /path/to/vmbench/results.json \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/vmbench/official-validation \
+  --official-results-path <official_results.json> \
+  --generated-artifact-dir <generated_videos> \
+  --output-dir <out> \
   --json
 ```
 
-The public CLI does not currently declare a VMBench local recomputation command. Use the direct runner above for `pas`, `ois`, `tcs`, `cas`, and `mss` execution.
+Run the vendored metric stack over generated videos:
+
+```bash
+${WORLDFOUNDRY_UNIFIED_PYTHON} \
+  worldfoundry/evaluation/tasks/execution/runners/vmbench/run_vmbench_official_runner.py \
+  --run-official \
+  --generated-video-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
+  --prompt-manifest "${WORLDFOUNDRY_VMBENCH_PROMPT_MANIFEST}" \
+  --output-dir tmp/vmbench/official-run \
+  --json
+```
+
+## Checkpoints and environment variables
+
+- `WORLDFOUNDRY_VMBENCH_PROMPT_MANIFEST`: Prompt manifest path; defaults to the bundled in-tree suite.
+- `WORLDFOUNDRY_VMBENCH_RESULTS_PATH`: Default path the importer reads official result exports from when `--official-results-path` is not passed.
+- `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR`: Directory containing the candidate generated artifacts to score or import against.
+
+This benchmark reuses the shared base-model dependency stack: `motion_stack`.
 
 ## Outputs
 
-Direct full runs write:
+The run writes into `--output-dir`:
 
-```text
-tmp/vmbench/direct-official-run/
-  scorecard.json
-  raw_metric_table.jsonl
-  per_sample_metrics.jsonl
-  upstream_stdout.log
-  upstream_stderr.log
-  upstream/
-    results.json
-    scores.csv
-    pas.stdout.log
-    pas.stderr.log
-    ois.stdout.log
-    ois.stderr.log
-    tcs.stdout.log
-    tcs.stderr.log
-    cas.stdout.log
-    cas.stderr.log
-    mss.stdout.log
-    mss.stderr.log
-```
+- `scorecard.json`: WorldFoundry scorecard with the metric values recorded above.
+- `raw_metric_table.jsonl`: Metric rows backing the scorecard.
+- `per_sample_metrics.jsonl`
+- `upstream_stdout.log`: Captured stdout of the upstream official scorer.
+- `upstream_stderr.log`: Captured stderr of the upstream official scorer.
 
-Public CLI imports also write `scorecard.json`, `raw_metric_table.jsonl`, `per_sample_metrics.jsonl`, and runner log files under the requested output directory.
+Scorecard primary key: `vmbench_average` (leaderboard key `Avg`), stored in `scorecard.json`.
 
-## Leaderboard notes
+## Limitations
 
-The official VMBench README publishes a leaderboard with scores on a 0–100 style scale. Representative upstream baselines:
+- Full metric recomputation is GPU-heavy and requires CUDA metric dependencies plus multiple detector/tracker checkpoints.
+- The official Hugging Face dataset endpoint was not public at integration time; the in-tree prompt bundle is the tracked source.
+- A local scorecard is not an official VMBench leaderboard result.
 
-| Model | Avg | CAS | MSS | OIS | PAS | TCS |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Wan2.1 | 78.4 | 62.8 | 84.2 | 66.0 | 17.9 | 97.8 |
-| HunyuanVideo | 63.4 | 51.9 | 81.6 | 65.8 | 26.1 | 96.3 |
-| CogVideoX-5B | 60.6 | 50.6 | 61.6 | 75.4 | 24.6 | 91.0 |
-| OpenSora-Plan-v1.3.0 | 58.9 | 39.3 | 76.0 | 78.6 | 6.0 | 94.7 |
-| Mochi 1 | 53.2 | 37.7 | 62.0 | 68.6 | 14.4 | 83.6 |
-| OpenSora-v1.2 | 51.6 | 31.2 | 61.9 | 73.0 | 3.4 | 88.5 |
-
-The upstream README also reports roughly **6 hours 45 minutes** of GPU evaluation time for all five metrics on 1,050 CogVideoX-5B videos (49 frames, 8 FPS), with TCS and MSS as the slowest stages.
-
-WorldFoundry scorecards are local evidence. Leaderboard parity requires exactly `0001.mp4` through `1050.mp4` aligned with the bundled prompt order.
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)
