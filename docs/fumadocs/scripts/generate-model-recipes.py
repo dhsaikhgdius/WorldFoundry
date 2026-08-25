@@ -23,6 +23,24 @@ conflicts). All keys are optional. Schema::
         ...
       overview_zh: >-
         ...
+      # How the model works internally (backbone, conditioning, decoding).
+      # Only recorded facts — write "Not recorded in this repository" when
+      # the manifest and official sources do not describe a detail.
+      architecture: >-
+        ...
+      architecture_zh: >-
+        ...
+      # Practical notes for running or reading this entry (assets, keys,
+      # environment quirks, what the WorldFoundry route actually does).
+      usage_notes: >-
+        ...
+      usage_notes_zh: >-
+        ...
+      # Formal name of the publishing institution. Companies first, then
+      # universities/labs. Never a GitHub username or avatar identity.
+      publisher: Alibaba (Tongyi Lab)
+      publisher_kind: company   # company | university | lab
+      publisher_zh: 阿里巴巴（通义实验室）
       # Short capability bullets rendered under "What this model is".
       highlights: [ ... ]
       highlights_zh: [ ... ]
@@ -435,6 +453,14 @@ def checkpoint_data(item: dict[str, Any], profile: dict[str, Any] | None) -> lis
 
 
 def provider_name(item: dict[str, Any], links: list[dict[str, str]], checkpoints: list[dict[str, Any]]) -> str:
+    # The curated publisher (docs.publisher) is the formal institution name and
+    # therefore the best identity to show; catalog-level organization fields
+    # come next, before any repo-derived guesses.
+    curated = docs_override(item)
+    for candidate in (curated.get("publisher"), item.get("publisher"), item.get("organization")):
+        normalized = text(candidate)
+        if normalized:
+            return normalized
     for key in ("developer", "organization", "family"):
         candidate = text(item.get(key))
         if candidate:
@@ -1447,10 +1473,30 @@ def docs_data(
         limitations = limitations or synthesized_l_en
         limitations_zh = limitations_zh or synthesized_l_zh
 
+    publisher_name = compact_text(docs.get("publisher") or item.get("publisher") or item.get("organization"))
+    publisher_kind = text(docs.get("publisher_kind"))
+    if publisher_kind and publisher_kind not in {"company", "university", "lab"}:
+        print(f"warning: docs.publisher_kind '{publisher_kind}' is not company/university/lab", file=sys.stderr)
+        publisher_kind = None
+    publisher = (
+        {
+            "name": publisher_name,
+            "nameZh": compact_text(docs.get("publisher_zh")) or publisher_name,
+            "kind": publisher_kind,
+        }
+        if publisher_name
+        else None
+    )
+
     return {
         "curated": curated,
+        "publisher": publisher,
         "overview": overview,
         "overviewZh": overview_zh,
+        "architecture": paragraphs(docs.get("architecture")),
+        "architectureZh": paragraphs(docs.get("architecture_zh")),
+        "usageNotes": paragraphs(docs.get("usage_notes")),
+        "usageNotesZh": paragraphs(docs.get("usage_notes_zh")),
         "highlights": highlights,
         "highlightsZh": highlights_zh,
         "modalities": modality_data(tasks, docs),

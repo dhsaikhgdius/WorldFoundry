@@ -36,6 +36,12 @@ const copy = {
       'Plain-language summary assembled from the catalog manifest — what the model does, what it takes in, and what it writes out.',
     curatedNarrative: 'Curated in the catalog manifest',
     synthesizedNarrative: 'Synthesized from recorded manifest fields',
+    architecture: 'Architecture',
+    usageNotes: 'Usage notes',
+    publisher: 'Publisher',
+    publisherKindCompany: 'Company',
+    publisherKindUniversity: 'University',
+    publisherKindLab: 'Research lab',
     highlights: 'At a glance',
     modalities: 'Modalities',
     modalityInputs: 'Inputs',
@@ -161,6 +167,12 @@ const copy = {
     whatIsIntro: '由 catalog manifest 生成的平实说明——模型做什么、接受什么输入、写出什么。',
     curatedNarrative: '来自 catalog manifest 的人工撰写内容',
     synthesizedNarrative: '由 manifest 已记录字段自动合成',
+    architecture: '架构',
+    usageNotes: '使用要点',
+    publisher: '发表机构',
+    publisherKindCompany: '企业',
+    publisherKindUniversity: '高校',
+    publisherKindLab: '研究机构',
     highlights: '速览',
     modalities: '模态',
     modalityInputs: '输入',
@@ -400,9 +412,21 @@ export function ModelRecipePage({ recipe, locale }: { recipe: ModelRecipe; local
   const taskLabel = recipe.tasks.length > 0 ? recipe.tasks.join(' · ') : t.notRecorded;
   const docs = recipe.docs;
   const overviewParagraphs = locale === 'zh' && docs.overviewZh.length > 0 ? docs.overviewZh : docs.overview;
+  const architectureParagraphs =
+    locale === 'zh' && docs.architectureZh.length > 0 ? docs.architectureZh : docs.architecture;
+  const usageNoteParagraphs = locale === 'zh' && docs.usageNotesZh.length > 0 ? docs.usageNotesZh : docs.usageNotes;
   const highlights = locale === 'zh' && docs.highlightsZh.length > 0 ? docs.highlightsZh : docs.highlights;
   const useCases = locale === 'zh' && docs.useCasesZh.length > 0 ? docs.useCasesZh : docs.useCases;
   const limitations = locale === 'zh' && docs.limitationsZh.length > 0 ? docs.limitationsZh : docs.limitations;
+  const publisher = docs.publisher;
+  const publisherName = publisher ? (locale === 'zh' ? publisher.nameZh : publisher.name) : null;
+  const publisherKindLabel = publisher?.kind === 'company'
+    ? t.publisherKindCompany
+    : publisher?.kind === 'university'
+      ? t.publisherKindUniversity
+      : publisher?.kind === 'lab'
+        ? t.publisherKindLab
+        : null;
   const hasModalities = docs.modalities.inputs.length > 0 || docs.modalities.outputs.length > 0;
   const hasHardware = docs.hardware.minVramGb !== null
     || Boolean(docs.hardware.recommended)
@@ -550,7 +574,12 @@ export function ModelRecipePage({ recipe, locale }: { recipe: ModelRecipe; local
                   />
                   <div>
                     <h1>{recipe.name}</h1>
-                    <p>{recipe.provider}</p>
+                    <p>
+                      {publisherName ?? recipe.provider}
+                      {publisherKindLabel ? (
+                        <span className="wf-recipe-publisher-kind"> · {publisherKindLabel}</span>
+                      ) : null}
+                    </p>
                   </div>
                 </div>
                 <p className="wf-recipe-summary">{recipe.summary}</p>
@@ -618,7 +647,12 @@ export function ModelRecipePage({ recipe, locale }: { recipe: ModelRecipe; local
                   <h2 id="wf-reference-heading">{t.referenceHeadline}</h2>
                   <p>{t.referenceBody}</p>
                   <dl className="wf-recipe-reference-meta">
-                    {recipe.provider ? <DefinitionRow label="Provider" value={recipe.provider} /> : null}
+                    {publisherName || recipe.provider ? (
+                      <DefinitionRow
+                        label={publisherName ? t.publisher : 'Provider'}
+                        value={publisherName ?? recipe.provider}
+                      />
+                    ) : null}
                     <DefinitionRow label={t.tasksLabel} value={recipe.tasks.length > 0 ? recipe.tasks.join(' · ') : null} />
                     <DefinitionRow label={t.integration} value={formatStatus(recipe.status.integration, t.notRecorded)} />
                     <DefinitionRow label={t.runnerEvidence} value={formatStatus(recipe.status.runner, t.notRecorded)} />
@@ -668,6 +702,22 @@ export function ModelRecipePage({ recipe, locale }: { recipe: ModelRecipe; local
                     </ul>
                   </div>
                 ) : null}
+                {architectureParagraphs.length > 0 ? (
+                  <div className="wf-recipe-usecases wf-recipe-architecture">
+                    <h3>{t.architecture}</h3>
+                    {architectureParagraphs.map((paragraph) => (
+                      <p key={paragraph}>{paragraph}</p>
+                    ))}
+                  </div>
+                ) : null}
+                {usageNoteParagraphs.length > 0 ? (
+                  <div className="wf-recipe-usecases wf-recipe-usage-notes">
+                    <h3>{t.usageNotes}</h3>
+                    {usageNoteParagraphs.map((paragraph) => (
+                      <p key={paragraph}>{paragraph}</p>
+                    ))}
+                  </div>
+                ) : null}
                 {useCases.length > 0 ? (
                   <div className="wf-recipe-usecases">
                     <h3>{t.useCases}</h3>
@@ -679,6 +729,18 @@ export function ModelRecipePage({ recipe, locale }: { recipe: ModelRecipe; local
                   </div>
                 ) : null}
                 <dl className="wf-recipe-what-is-meta">
+                  {publisherName ? (
+                    <DefinitionRow
+                      label={t.publisher}
+                      value={
+                        publisherKindLabel
+                          ? locale === 'zh'
+                            ? `${publisherName}（${publisherKindLabel}）`
+                            : `${publisherName} (${publisherKindLabel})`
+                          : publisherName
+                      }
+                    />
+                  ) : null}
                   <DefinitionRow label={t.tasksLabel} value={recipe.tasks.length > 0 ? recipe.tasks.join(' · ') : t.notRecorded} />
                   <DefinitionRow label={t.environment} value={recipe.runtime.environmentName} />
                   <DefinitionRow label={t.output} value={artifactSummary(recipe, t.notRecorded)} />
