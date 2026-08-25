@@ -48,53 +48,22 @@ runner_parity:
 output_artifacts:
 - generated_world
 docs:
-  overview: |
-    HunyuanWorld 1.0 (Tencent-Hunyuan/HunyuanWorld-1.0; Hugging Face `tencent/HunyuanWorld-1`, Tencent HunyuanWorld community license) is Tencent's text/image-to-3D-world generator: it produces immersive, explorable 3D scenes via panorama generation and semantic layering, with mesh export for graphics pipelines. WorldFoundry registers the official source route with checkpoints and third-party assets runtime-gated; real generation emits a runtime plan until required assets are staged.
-
-    Within the WorldFoundry model catalog this entry is tracked as `hunyuanworld-1` in the `world_models` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/Tencent-Hunyuan/HunyuanWorld-1.0; Hugging Face `tencent/HunyuanWorld-1`.
-  overview_zh: |
-    HunyuanWorld 1.0（Tencent-Hunyuan/HunyuanWorld-1.0；Hugging Face `tencent/HunyuanWorld-1`，腾讯 HunyuanWorld 社区许可）是腾讯的文本/图像到 3D 世界生成器：通过全景生成与语义分层产出可沉浸探索的 3D 场景，并支持网格导出接入图形管线。WorldFoundry 注册官方源码路线，权重与第三方资产受运行时门控；在暂存所需资产之前，真实生成输出运行时计划。
-
-    在 WorldFoundry 模型目录中，该条目以 `hunyuanworld-1` 收录于 `world_models` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/Tencent-Hunyuan/HunyuanWorld-1.0；Hugging Face `tencent/HunyuanWorld-1`。
-  architecture: |
-    The published pipeline is panorama-first: a panoramic image is generated as the world proxy, decomposed into semantically layered components (sky, background, foreground objects), lifted to 3D with depth-based reconstruction, and exported as layered meshes. Recorded modalities are text-to-3d-world, image-to-3d-world, panorama, and mesh-export.
-  architecture_zh: |
-    公开管线以全景为先：先生成全景图作为世界代理，再语义分层（天空、背景、前景物体），用基于深度的重建提升到 3D，并导出分层网格。记录模态为 text-to-3d-world、image-to-3d-world、panorama 与 mesh-export。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `hunyuanworld-1` and runtime profile `runtime-profile:hunyuanworld-1`.
-    Catalog integration status: `runtime_ported`.
-    Integration notes recorded in the catalog:
-    - HunyuanWorld 1.0 official source route is registered; checkpoints and third-party assets are runtime-gated.
-
-    Embodiment contract:
-    - Simulator: generates explorable 3D world assets (panoramas plus layered meshes) rather than rolling video; downstream renderers/engines consume the exports.
-    - Sensors: conditioning inputs per the recorded modalities (typically an initial image and/or a text prompt); exact tensor contracts are not recorded in this catalog file.
-    - Action space: no action interface; control is via text or image prompts, and exploration happens in the exported 3D scene.
-    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `hunyuanworld-1`，运行时配置为 `runtime-profile:hunyuanworld-1`。
-    目录集成状态：运行时已移植（runtime_ported）。
-    目录中记录的集成备注（保留原文）：
-    - HunyuanWorld 1.0 official source route is registered; checkpoints and third-party assets are runtime-gated.
-
-    具身接口（embodiment contract）：
-    - 仿真器：生成可探索的 3D 世界资产（全景加分层网格）而非滚动视频；下游渲染器/引擎消费导出结果。
-    - 传感器：按记录的模态提供条件输入（通常为初始图像和/或文本提示）；具体张量契约本目录文件未记录。
-    - 动作空间：无动作接口；通过文本或图像提示控制，探索在导出的 3D 场景中进行。
-    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`implemented_checkpoint_pending`.
-    Runner parity notes recorded in the catalog:
-    - resolve_model_zoo_config and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已实现、待权重就绪（implemented_checkpoint_pending）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - resolve_model_zoo_config and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Tencent (Hunyuan)
+  publisher_kind: company
+  publisher_zh: 腾讯（混元）
+  overview: HunyuanWorld 1.0 generates immersive, explorable 3D worlds from text or an image — the first generation of Tencent's open world-generation stack, exporting layered panoramas and mesh scenes. In this catalog the official source route is registered; checkpoints and third-party assets stay runtime-gated.
+  overview_zh: HunyuanWorld 1.0 从文本或一张图生成沉浸式、可探索的 3D 世界——腾讯开源世界生成栈的第一代，导出分层全景与网格场景。本 catalog 中官方源码路径已注册；checkpoint 与第三方资产保持运行时限制。
+  architecture: 'Per the upstream release, generation goes panorama-first: a panoramic proxy is generated, semantically layered, and lifted to a 3D world representation. Architecture internals beyond this are not recorded in this repository.'
+  architecture_zh: 按上游发布，生成以全景为先：先生成全景代理图，再做语义分层并提升为 3D 世界表示。除此之外的架构内部细节仓库未记录。
+  usage_notes: Config resolution and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged. Missing assets are reported by the plan and are not treated as catalog blockers. For the newer component-verified stack, see the hy-world-2.0 entry.
+  usage_notes_zh: 配置解析与 pipeline 导入预期可通过；在所需 checkpoint/资产就位前，真实生成会输出运行时计划。缺失资产由计划报告，不视为 catalog 阻塞。较新的组件已验证栈请见 hy-world-2.0 条目。
+  limitations:
+  - Real generation is checkpoint/asset gated.
+  - Superseded by HY-World 2.0 for most world-generation use.
+  limitations_zh:
+  - 真实生成受 checkpoint/资产限制。
+  - 多数世界生成用途已被 HY-World 2.0 取代。
   recommended_benchmarks:
-  - worldscore
+  - id: worldscore
+    reason: Standard scoring for generated explorable worlds.
+    reason_zh: 生成可探索世界的标准评分。

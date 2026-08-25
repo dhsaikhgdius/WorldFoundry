@@ -41,56 +41,25 @@ catalog_scope: world-model/interactive starred models
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 pipeline_binding: dreamx-world-5b
 docs:
-  overview: |
-    DreamX-World 5B AR (AMAP-ML/DreamX-World; Hugging Face `GD-ML/DreamX-World-5B`, Apache-2.0) is the causal autoregressive variant of the DreamX-World family: an interactive image-to-video world model that streams blocks with latent, attention, cross-attention, and VAE caches. WorldFoundry runs it as an in-tree resident causal AR runtime; a recorded 2026-07-28 single-A100 run generated a finite, decodable native nine-frame 1280x704 block using the released causal checkpoint and four-step AR-Forcing schedule without RGB feedback.
-
-    Within the WorldFoundry model catalog this entry is tracked as `dreamx-world-5b` in the `world_models` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/AMAP-ML/DreamX-World; Hugging Face `GD-ML/DreamX-World-5B`.
-  overview_zh: |
-    DreamX-World 5B AR（AMAP-ML/DreamX-World；Hugging Face `GD-ML/DreamX-World-5B`，Apache-2.0）是 DreamX-World 家族的因果自回归变体：交互式图像到视频世界模型，用隐变量、注意力、交叉注意力与 VAE 缓存流式生成块。WorldFoundry 以树内常驻因果 AR 运行时运行；记录的 2026-07-28 单卡 A100 运行使用发布的因果权重与四步 AR-Forcing 调度（无 RGB 反馈），生成了有限值、可解码的原生九帧 1280x704 块。
-
-    在 WorldFoundry 模型目录中，该条目以 `dreamx-world-5b` 收录于 `world_models` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/AMAP-ML/DreamX-World；Hugging Face `GD-ML/DreamX-World-5B`。
-  architecture: |
-    The architecture is a causal world-video transformer distilled to a four-step AR-Forcing schedule: blocks of latent frames are generated autoregressively with KV/cross-attention/VAE caches so the resident process can extend the world video interactively. Camera-action control is a recorded modality shared with the Cam variant. Further details are not recorded in the repository.
-  architecture_zh: |
-    架构为蒸馏到四步 AR-Forcing 调度的因果世界视频 transformer：隐帧块借助 KV/交叉注意力/VAE 缓存自回归生成，常驻进程可交互式延展世界视频。相机-动作控制是与 Cam 变体共享的记录模态。更多细节仓库未记录。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `dreamx-world-5b` and runtime profile `runtime-profile:dreamx-world-5b`.
-    Catalog integration status: `integrated`.
-    Integration notes recorded in the catalog:
-    - In-tree resident causal AR runtime with latent, attention, cross-attention and VAE caches.
-    - The Workspace default includes a staged fixture and non-empty prompt; a 2026-07-28 single-A100 run generated a finite, decodable native nine-frame 1280x704 block.
-
-    Embodiment contract:
-    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
-    - Sensors: an initial image (and optionally a text prompt) plus a camera trajectory / pose sequence as the control signal.
-    - Action space: the action channel is the camera trajectory (extrinsics/pose sequence); the model renders the world consistently along the requested path.
-    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `dreamx-world-5b`，运行时配置为 `runtime-profile:dreamx-world-5b`。
-    目录集成状态：已集成（integrated）。
-    目录中记录的集成备注（保留原文）：
-    - In-tree resident causal AR runtime with latent, attention, cross-attention and VAE caches.
-    - The Workspace default includes a staged fixture and non-empty prompt; a 2026-07-28 single-A100 run generated a finite, decodable native nine-frame 1280x704 block.
-
-    具身接口（embodiment contract）：
-    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
-    - 传感器：初始图像（可选文本提示）加相机轨迹/位姿序列作为控制信号。
-    - 动作空间：动作通道为相机轨迹（外参/位姿序列）；模型沿请求路径一致地渲染世界。
-    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`integrated`.
-    Runner parity notes recorded in the catalog:
-    - Uses the released causal checkpoint and four-step AR-Forcing schedule without RGB feedback.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已集成（integrated）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - Uses the released causal checkpoint and four-step AR-Forcing schedule without RGB feedback.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Alibaba (Amap, AMAP-ML)
+  publisher_kind: company
+  publisher_zh: 阿里巴巴（高德地图 AMAP-ML）
+  overview: 'DreamX-World 5B AR is the causal autoregressive profile of Amap''s DreamX-World: a resident runtime with latent, attention, cross-attention, and VAE caches that rolls world video forward block by block under action control. A 2026-07-28 single-A100 run generated a finite, decodable native nine-frame 1280x704 block from the official example image.'
+  overview_zh: DreamX-World 5B AR 是高德 DreamX-World 的因果自回归档案：常驻运行时带潜变量、注意力、交叉注意力与 VAE 缓存，在动作控制下逐块向前滚动世界视频。2026-07-28 的单 A100 运行从官方示例图生成有限、可解码的原生九帧 1280x704 块。
+  architecture: 'Causal three-latent blocks use the released causal checkpoint with a distilled four-step AR-Forcing schedule and no RGB feedback: attention KV, cross-attention, latent, and causal VAE state stay resident across controls, and decoded RGB is output-only — never reused as conditioning.'
+  architecture_zh: 因果三潜块使用发布的 causal checkpoint 与蒸馏的四步 AR-Forcing 调度，且无 RGB 回灌：注意力 KV、交叉注意力、潜变量与因果 VAE 状态跨控制常驻，解码的 RGB 仅作输出——绝不回用为条件。
+  usage_notes: The Workspace default includes a staged fixture and non-empty prompt. The validated two-control rollout confirms the resident AR path — it is not a long-horizon quality-parity claim, so evaluate long rollouts yourself before relying on them.
+  usage_notes_zh: Workspace 默认包含就位的 fixture 与非空提示词。已验证的两次控制滚动确认了常驻 AR 路径——这不是长时程质量一致性声明，依赖长滚动前请自行评估。
+  limitations:
+  - Validated scope is a short two-control rollout; long-horizon quality is unverified.
+  - Requires the released causal checkpoint plus support assets staged locally.
+  limitations_zh:
+  - 已验证范围是两次控制的短滚动；长时程质量未验证。
+  - 需要发布的 causal checkpoint 与支持资产本地就位。
   recommended_benchmarks:
-  - wrbench
-  - worldscore
+  - id: worldmodelbench
+    reason: General world-rollout quality.
+    reason_zh: 世界滚动生成的总体质量。
+  - id: memobench
+    reason: Long-horizon consistency of autoregressive rollouts.
+    reason_zh: 自回归滚动生成的长时程一致性。

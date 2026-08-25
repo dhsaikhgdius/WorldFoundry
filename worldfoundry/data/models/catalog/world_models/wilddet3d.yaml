@@ -36,52 +36,18 @@ catalog_scope: World-model catalog entries. Integrated entries expose in-tree Wo
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 pipeline_binding: wilddet3d
 docs:
-  overview: |
-    WildDet3D (allenai/WildDet3D; Hugging Face `allenai/WildDet3D`) is an Allen Institute for AI 3D detection model tracked in the world_models catalog for world understanding: recorded modalities are 3d-detection, wild-3d-perception, and world-understanding, i.e. it is a perception model that infers 3D structure from in-the-wild imagery rather than a generative world model. WorldFoundry registers the official inference route; detector assets are runtime-gated, so real inference emits a runtime plan until they are staged.
-
-    Within the WorldFoundry model catalog this entry is tracked as `wilddet3d` in the `world_models` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/allenai/WildDet3D; Hugging Face `allenai/WildDet3D`.
-  overview_zh: |
-    WildDet3D（allenai/WildDet3D；Hugging Face `allenai/WildDet3D`）是 Allen AI 的 3D 检测模型，因面向世界理解而收录于 world_models 目录：记录模态为 3d-detection、wild-3d-perception 与 world-understanding，即它是从真实场景图像推断 3D 结构的感知模型，而非生成式世界模型。WorldFoundry 注册官方推理路线；检测器资产受运行时门控，在暂存之前真实推理输出运行时计划。
-
-    在 WorldFoundry 模型目录中，该条目以 `wilddet3d` 收录于 `world_models` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/allenai/WildDet3D；Hugging Face `allenai/WildDet3D`。
-  architecture: |
-    Beyond the modality tags (open-world 3D detection from in-the-wild images) and the registered inference route, the repository does not record architecture details (backbone, detection head design, training data) for this entry.
-  architecture_zh: |
-    除模态标签（面向真实场景图像的开放世界 3D 检测）与已注册推理路线外，仓库未记录该条目的架构细节（骨干、检测头设计、训练数据）。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `wilddet3d` and runtime profile `runtime-profile:wilddet3d`.
-    Catalog integration status: `runtime_ported`.
-    Integration notes recorded in the catalog:
-    - WildDet3D official inference route is registered; detector assets are runtime-gated.
-
-    Embodiment contract:
-    - Simulator: not a simulator or generator: this entry is a 3D perception model whose outputs are 3D detections, not generated world states.
-    - Sensors: RGB images of in-the-wild scenes; the exact input contract is not recorded in this catalog file.
-    - Action space: no action interface; the model performs perception, not control or rollout.
-    - Dedicated environment: no dedicated environment; inference runs on user-provided imagery once detector assets are staged.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `wilddet3d`，运行时配置为 `runtime-profile:wilddet3d`。
-    目录集成状态：运行时已移植（runtime_ported）。
-    目录中记录的集成备注（保留原文）：
-    - WildDet3D official inference route is registered; detector assets are runtime-gated.
-
-    具身接口（embodiment contract）：
-    - 仿真器：不是模拟器或生成器：该条目是 3D 感知模型，输出为 3D 检测结果而非生成的世界状态。
-    - 传感器：真实场景的 RGB 图像；具体输入契约本目录文件未记录。
-    - 动作空间：无动作接口；模型做感知，不做控制或 rollout。
-    - 是否专用环境：无专用环境；检测器资产暂存后即可对用户提供的图像做推理。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`implemented_checkpoint_pending`.
-    Runner parity notes recorded in the catalog:
-    - resolve_model_zoo_config and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已实现、待权重就绪（implemented_checkpoint_pending）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - resolve_model_zoo_config and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
-  recommended_benchmarks: []
+  publisher: Allen Institute for AI (AI2)
+  publisher_kind: lab
+  publisher_zh: 艾伦人工智能研究所（AI2）
+  overview: 'WildDet3D from the Allen Institute for AI tackles 3D detection in the wild: recovering 3D object boxes from unconstrained real-world imagery as a world-understanding capability. Both the official GitHub repository and the allenai/WildDet3D Hugging Face model are confirmed; WorldFoundry registers the official inference route in-tree with detector assets runtime-gated.'
+  overview_zh: 艾伦人工智能研究所（AI2）的 WildDet3D 面向野外 3D 检测：从不受约束的真实图像中恢复 3D 物体框，作为世界理解能力。官方 GitHub 仓库与 allenai/WildDet3D Hugging Face 模型均已确认；WorldFoundry 树内注册了官方推理路由，检测器资产为运行时门控。
+  architecture: 'This is a perception entry rather than a generator: outputs are 3D detection artifacts (generated_3d_asset) instead of video. Architecture internals beyond the official repository pointer (pinned head 1b8aa52b) are not recorded in this repository.'
+  architecture_zh: 这是感知类条目而非生成器：输出为 3D 检测产物（generated_3d_asset）而非视频。官方仓库指针（锁定 head 1b8aa52b）之外的架构内部细节仓库未记录。
+  usage_notes: Config resolution and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged. Missing assets are reported by the plan and are not treated as catalog blockers. Note the SAM-derived license recorded upstream (other:sam-license).
+  usage_notes_zh: 配置解析与 pipeline 导入预期可通过；在所需 checkpoint/资产就位前，真实生成会输出运行时计划。缺失资产由计划报告，不视为 catalog 阻塞。注意上游记录的 SAM 派生许可（other:sam-license）。
+  limitations:
+  - 'Perception-only: no video or world generation output.'
+  - License is recorded as other:sam-license; review before commercial use.
+  limitations_zh:
+  - 仅感知：不产出视频或世界生成结果。
+  - 许可记录为 other:sam-license；商用前请审查。

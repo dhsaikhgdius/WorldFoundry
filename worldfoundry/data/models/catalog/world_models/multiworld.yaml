@@ -31,50 +31,24 @@ catalog_category: world_models
 catalog_scope: World-model catalog entries. Integrated entries expose in-tree WorldFoundry
   runtimes; blocked entries retain upstream provenance without runnable backends.
 docs:
-  overview: |
-    MultiWorld (CIntellifusion/MultiWorld) is a multi-agent interactive world model for game video generation: the project studies world video generation where more than one agent acts in the same scene. WorldFoundry registers the in-tree MultiWorld ItTakesTwo wrapper as the model-zoo entry; full generation remains dependency/checkpoint gated, so the entry currently tracks provenance plus the wrapper contract rather than a runnable artifact path.
-
-    Within the WorldFoundry model catalog this entry is tracked as `multiworld` in the `world_models` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/CIntellifusion/MultiWorld.
-  overview_zh: |
-    MultiWorld（CIntellifusion/MultiWorld）是面向游戏视频生成的多智能体交互世界模型：该项目研究同一场景中多个智能体行动时的世界视频生成。WorldFoundry 将树内 MultiWorld ItTakesTwo 包装器注册为 model-zoo 条目；完整生成仍受依赖/权重门控，因此该条目当前跟踪来源与包装器契约，而非可运行的 artifact 路径。
-
-    在 WorldFoundry 模型目录中，该条目以 `multiworld` 收录于 `world_models` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/CIntellifusion/MultiWorld。
-  architecture: |
-    Recorded modalities are video_generation, multi-agent-world-model, interactive-video-generation, and game-video; the tracked route is the ItTakesTwo (two-agent) configuration. Beyond these modality tags and the wrapper registration, the repository does not record architecture details (backbone, parameter count, training data) for this entry.
-  architecture_zh: |
-    记录模态为 video_generation、multi-agent-world-model、interactive-video-generation 与 game-video；跟踪的路线是 ItTakesTwo（双智能体）配置。除这些模态标签与包装器注册外，仓库未记录该条目的架构细节（骨干、参数量、训练数据）。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `multiworld` and runtime profile `runtime-profile:multiworld`.
-    Catalog integration status: `planned`.
-    Integration notes recorded in the catalog:
-    - The in-tree MultiWorld ItTakesTwo wrapper is registered as the model-zoo entry; full generation remains dependency/checkpoint gated.
-
-    Embodiment contract:
-    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
-    - Sensors: an initial image or context frames plus streaming interaction inputs.
-    - Action space: multi-agent game-style control inputs per the recorded modalities; the exact per-agent action encoding is not recorded in this catalog file.
-    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `multiworld`，运行时配置为 `runtime-profile:multiworld`。
-    目录集成状态：计划中（planned）。
-    目录中记录的集成备注（保留原文）：
-    - The in-tree MultiWorld ItTakesTwo wrapper is registered as the model-zoo entry; full generation remains dependency/checkpoint gated.
-
-    具身接口（embodiment contract）：
-    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
-    - 传感器：初始图像或上下文帧，加流式交互输入。
-    - 动作空间：按记录模态为多智能体游戏式控制输入；每个智能体的具体动作编码本目录文件未记录。
-    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`pending`.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=待验证（pending）。
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Open-source research release (institution not recorded)
+  publisher_kind: lab
+  publisher_zh: 开源研究发布（仓库未记录正式机构）
+  overview: 'MultiWorld ("It Takes Two") is a multi-agent interactive video generator: two players'' actions drive one shared generated game world. In this catalog the in-tree ItTakesTwo wrapper is registered as the model-zoo entry; full generation remains dependency/checkpoint gated.'
+  overview_zh: MultiWorld（「It Takes Two」）是多智能体交互视频生成器：两名玩家的动作驱动同一个共享生成游戏世界。本 catalog 中树内 ItTakesTwo 封装注册为 model-zoo 条目；完整生成仍受依赖/checkpoint 限制。
+  architecture: Architecture internals beyond the recorded tasks are not stored in this repository. The upstream license is custom and flagged for manual review.
+  architecture_zh: 除已记录任务外的架构内部细节仓库未存。上游许可为自定义条款，已标记需人工审查。
+  usage_notes: Full generation is dependency/checkpoint gated — treat this entry as planned until assets and environment parity are staged. Review the custom upstream license first.
+  usage_notes_zh: 完整生成受依赖/checkpoint 限制——在资产与环境一致性就位前请视其为 planned。请先审查上游自定义许可。
+  limitations:
+  - Custom upstream license flagged for manual review.
+  - Full generation is dependency/checkpoint gated.
+  - The publishing institution is not recorded in this repository.
+  limitations_zh:
+  - 上游自定义许可需人工审查。
+  - 完整生成受依赖/checkpoint 限制。
+  - 发表机构在本仓库中未记录。
   recommended_benchmarks:
-  - world-in-world
-  - iworld-bench
+  - id: worldmodelbench
+    reason: Multi-agent world-rollout quality.
+    reason_zh: 多智能体世界滚动生成质量。

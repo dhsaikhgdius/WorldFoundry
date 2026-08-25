@@ -67,60 +67,16 @@ runner_parity:
 catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint metadata, and runtime-profile planning records.
 docs:
-  overview: |
-    MolmoBot (allenai/MolmoBot, Apache-2.0) is AI2's robot policy family in the Molmo lineage, with released DROID, image-DROID, RBY1 multitask, and Pi0-DROID checkpoints. WorldFoundry records the MolmoBot OLMo/MolmoBot-Pi0 action inference contracts with an independent synthesis entrypoint calling the flattened in-tree SynthManip wrapper under `worldfoundry/synthesis/action_generation/molmobot`; resolver, runtime import, and compileall checks pass without an external checkout, while checkpoint-backed action-chunk validation remains required before demo parity is claimed.
-
-    Within the WorldFoundry model catalog this entry is tracked as `molmobot` in the `vla_va_wam` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/allenai/MolmoBot; Hugging Face `allenai/MolmoBot-DROID`, `allenai/MolmoBot-Img-DROID`, `allenai/MolmoBot-RBY1Multitask`, `allenai/MolmoBot-Pi0-DROID`.
-  overview_zh: |
-    MolmoBot（allenai/MolmoBot，Apache-2.0）是 AI2 Molmo 谱系的机器人策略家族，发布了 DROID、图像版 DROID、RBY1 多任务与 Pi0-DROID 权重。WorldFoundry 以独立合成入口记录 MolmoBot OLMo/MolmoBot-Pi0 动作推理契约，调用 `worldfoundry/synthesis/action_generation/molmobot` 下扁平化的树内 SynthManip 包装器；解析器、运行时导入与 compileall 检查无需外部 checkout 即通过，但在声称演示一致性之前仍需权重支撑的动作块验证。
-
-    在 WorldFoundry 模型目录中，该条目以 `molmobot` 收录于 `vla_va_wam` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/allenai/MolmoBot；Hugging Face `allenai/MolmoBot-DROID`、`allenai/MolmoBot-Img-DROID`、`allenai/MolmoBot-RBY1Multitask`、`allenai/MolmoBot-Pi0-DROID`。
-  architecture: |
-    The recorded contracts are: the OLMo-backboned MolmoBot served via `launch_scripts/serve_molmo.py --hf-repo allenai/MolmoBot-DROID`, and the MolmoBot-Pi0 route using `PiJointPosPolicy` with qpos arm/gripper, `exo_camera_1`, `wrist_camera`, and a task prompt. Further architecture details are not recorded in the repository.
-  architecture_zh: |
-    目录记录的契约为：以 OLMo 为骨干的 MolmoBot 通过 `launch_scripts/serve_molmo.py --hf-repo allenai/MolmoBot-DROID` 提供服务；MolmoBot-Pi0 路线使用 `PiJointPosPolicy`，输入 qpos 手臂/夹爪、`exo_camera_1`、`wrist_camera` 与任务提示。更多架构细节仓库未记录。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `molmobot` and runtime profile `runtime-profile:molmobot`.
-    Catalog integration status: `in_tree_import_verification_in_progress`.
-    Integration notes recorded in the catalog:
-    - WorldFoundry records MolmoBot OLMo/MolmoBot-Pi0 action inference contracts with an independent synthesis entrypoint.
-    - The current runtime directly calls the flattened in-tree SynthManip MolmoBot inference wrapper under worldfoundry/synthesis/action_generation/molmobot.
-    - Resolver, runtime import, and compileall checks pass without an external github_repos checkout; checkpoint-backed action chunk validation remains required before demo parity is claimed.
-    Recorded variant `molmobot-droid`, task `vla.policy_rollout`.
-    Recorded variant `molmobot-pi0-droid`, task `vla.policy_rollout`.
-
-    Embodiment contract:
-    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
-    - Sensors: external and wrist RGB cameras plus joint positions (qpos) and a task prompt, per the recorded Pi0-DROID demo contract.
-    - Action space: continuous robot end-effector/joint action chunks; the exact action dimensionality is not recorded in this catalog file.
-    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `molmobot`，运行时配置为 `runtime-profile:molmobot`。
-    目录集成状态：`in_tree_import_verification_in_progress`。
-    目录中记录的集成备注（保留原文）：
-    - WorldFoundry records MolmoBot OLMo/MolmoBot-Pi0 action inference contracts with an independent synthesis entrypoint.
-    - The current runtime directly calls the flattened in-tree SynthManip MolmoBot inference wrapper under worldfoundry/synthesis/action_generation/molmobot.
-    - Resolver, runtime import, and compileall checks pass without an external github_repos checkout; checkpoint-backed action chunk validation remains required before demo parity is claimed.
-    目录记录：变体 `molmobot-droid`，任务 `vla.policy_rollout`。
-    目录记录：变体 `molmobot-pi0-droid`，任务 `vla.policy_rollout`。
-
-    具身接口（embodiment contract）：
-    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
-    - 传感器：外部与腕部 RGB 相机加关节位置（qpos）与任务提示（按目录记录的 Pi0-DROID 演示契约）。
-    - 动作空间：连续的机器人末端/关节动作块；具体动作维度本目录文件未记录。
-    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`in_tree_inference_ready_checkpoint_pending`.
-    Runner parity notes recorded in the catalog:
-    - MolmoSpaces simulator, real robot clients, training code, W&B/SPoC paths, and benchmark assets are excluded.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=`in_tree_inference_ready_checkpoint_pending`。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - MolmoSpaces simulator, real robot clients, training code, W&B/SPoC paths, and benchmark assets are excluded.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
-  recommended_benchmarks: []
+  publisher: Allen Institute for AI (AI2)
+  publisher_kind: lab
+  publisher_zh: 艾伦人工智能研究所（AI2）
+  overview: MolmoBot is AI2's robot policy family around the Molmo VLM, with Apache-2.0 checkpoints for Franka DROID, image-conditioned DROID, RBY1 multitask, and a Pi0-based DROID variant. WorldFoundry records the OLMo/MolmoBot-Pi0 action inference contracts and calls a flattened in-tree inference wrapper.
+  overview_zh: MolmoBot 是 AI2 围绕 Molmo VLM 的机器人策略家族，Apache-2.0 checkpoint 覆盖 Franka DROID、图像条件 DROID、RBY1 多任务与基于 Pi0 的 DROID 变体。WorldFoundry 记录 OLMo/MolmoBot-Pi0 动作推理契约，并调用扁平化树内推理封装。
+  architecture: 'Two inference contracts are recorded: an OLMo-based MolmoBot path and a MolmoBot-Pi0 path. Resolver, runtime import, and compileall checks pass without an external checkout; further internals are not recorded in this repository.'
+  architecture_zh: 仓库记录两个推理契约：基于 OLMo 的 MolmoBot 路径与 MolmoBot-Pi0 路径。解析器、运行时导入与 compileall 检查无需外部 checkout 即通过；更多内部细节仓库未记录。
+  usage_notes: Checkpoint-backed action-chunk validation remains required before demo parity is claimed. Choose MolmoBot-DROID for Franka, RBY1Multitask for the RBY1 humanoid platform.
+  usage_notes_zh: 在声称 demo parity 前仍需 checkpoint 驱动的动作块验证。Franka 用 MolmoBot-DROID，RBY1 人形平台用 RBY1Multitask。
+  limitations:
+  - Import verification is in progress; demo parity is not yet claimed.
+  limitations_zh:
+  - 导入验证进行中；尚未声称 demo parity。

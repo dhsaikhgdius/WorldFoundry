@@ -40,54 +40,18 @@ catalog_scope: 3D Gaussian-splatting catalog entries. Integrated entries expose 
 output_artifacts:
 - generated_video
 docs:
-  overview: |
-    LagrNVS is catalogued as a novel-view-synthesis / 3D-scene-rendering / camera-path-rendering model. WorldFoundry exposes an in-tree adapter that runs the upstream LagrNVS `minimal_inference.py` command; missing HF_TOKEN or gated-checkpoint access is reported at inference time. The repository does not record an official GitHub or Hugging Face source link for this entry.
-
-    Within the WorldFoundry model catalog this entry is tracked as `lagernvs` in the `three_d_four_d` category.
-    The repository does not record an official source link for this entry.
-  overview_zh: |
-    LagrNVS 在目录中登记为新视角合成 / 3D 场景渲染 / 相机路径渲染模型。WorldFoundry 暴露 in-tree 适配器以运行上游 LagrNVS 的 `minimal_inference.py` 命令；HF_TOKEN 缺失或 gated 权重不可访问会在推理时报告。仓库未记录该条目的官方 GitHub 或 Hugging Face 来源链接。
-
-    在 WorldFoundry 模型目录中，该条目以 `lagernvs` 收录于 `three_d_four_d` 分类。
-    仓库未记录该条目的官方来源链接。
-  architecture: |
-    The repository records only the entry's modalities (novel-view synthesis, 3D scene rendering, camera-path rendering), the upstream `minimal_inference.py` entrypoint, and the gated-checkpoint requirement. The repository does not record architecture details for this entry beyond the metadata quoted above.
-  architecture_zh: |
-    仓库仅记录该条目的模态（新视角合成、3D 场景渲染、相机路径渲染）、上游 `minimal_inference.py` 入口以及 gated 权重要求。除上文引用的元数据外，仓库未记录该条目的架构细节。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `lagernvs` and runtime profile `runtime-profile:lagernvs`.
-    Catalog integration status: `integrated`.
-    Integration notes recorded in the catalog:
-    - WorldFoundry exposes an in-tree adapter that runs the upstream LagrNVS minimal_inference.py command.
-    - Missing HF_TOKEN/gated checkpoint access is reported at inference time.
-
-    Embodiment contract:
-    - Simulator: none — this is an offline reconstruction model that consumes recorded images or video; it does not drive or require a simulator.
-    - Sensors: monocular or multi-view RGB images/video frames; no additional sensor modalities are recorded in the repository.
-    - Action space: camera-path rendering control (a caller-specified camera trajectory); no robot/agent action space is recorded.
-    - Dedicated environment: no dedicated environment; it runs through the shared WorldFoundry pipeline runtime described in the integration notes.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `lagernvs`，运行时配置为 `runtime-profile:lagernvs`。
-    目录集成状态：已集成（integrated）。
-    目录中记录的集成备注（保留原文）：
-    - WorldFoundry exposes an in-tree adapter that runs the upstream LagrNVS minimal_inference.py command.
-    - Missing HF_TOKEN/gated checkpoint access is reported at inference time.
-
-    具身接口（embodiment contract）：
-    - 仿真器：无——这是一个离线重建模型，输入为已录制的图像或视频，不驱动也不依赖仿真器。
-    - 传感器：单目或多视角 RGB 图像/视频帧；仓库未记录其它传感器模态。
-    - 动作空间：相机路径渲染控制（由调用方指定相机轨迹）；仓库未记录机器人/智能体动作空间。
-    - 是否专用环境：无专用环境；通过集成备注中描述的 WorldFoundry 共享管线运行时执行。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`pending`.
-    Runner parity notes recorded in the catalog:
-    - Pipeline target imports and plan-only inference are wired; full artifact parity needs gated checkpoints and CUDA.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=待验证（pending）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - Pipeline target imports and plan-only inference are wired; full artifact parity needs gated checkpoints and CUDA.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
-  recommended_benchmarks: []
+  publisher: Meta AI (FAIR)
+  publisher_kind: company
+  publisher_zh: Meta AI（FAIR）
+  overview: LagrNVS is Meta's novel-view-synthesis model for rendering new camera paths through a scene (facebook/lagernvs_general_512). WorldFoundry wraps the upstream minimal_inference.py command with an in-tree adapter; the checkpoint is gated on Hugging Face and missing HF_TOKEN access is reported at inference time.
+  overview_zh: LagrNVS 是 Meta 的新视角合成模型，用于沿新的相机路径渲染场景（facebook/lagernvs_general_512）。 WorldFoundry 用树内适配器封装上游 minimal_inference.py 命令；checkpoint 在 Hugging Face 上为 gated， HF_TOKEN 缺失会在推理时报告。
+  architecture: The catalog records a novel-view/camera-path rendering model at 512 resolution; internals are not recorded in this repository. License is the FAIR non-commercial research license.
+  architecture_zh: catalog 记录其为 512 分辨率的新视角/相机路径渲染模型；内部细节仓库未记录。许可为 FAIR 非商用研究许可。
+  usage_notes: 'Runner parity is pending: pipeline imports and plan-only inference are wired, and full artifact parity needs the gated checkpoint plus CUDA. Accept the gated terms and set HF_TOKEN before running.'
+  usage_notes_zh: runner parity 为 pending：pipeline 导入与 plan-only 推理已接好，完整产物一致性需要 gated checkpoint 与 CUDA。运行前请先接受 gated 条款并设置 HF_TOKEN。
+  limitations:
+  - Gated checkpoint under the FAIR non-commercial research license.
+  - Full artifact parity is pending gated access and CUDA validation.
+  limitations_zh:
+  - checkpoint 为 gated，受 FAIR 非商用研究许可约束。
+  - 完整产物一致性待 gated 权限与 CUDA 验证。

@@ -41,58 +41,18 @@ catalog_scope: 3D Gaussian-splatting catalog entries. Integrated entries expose 
   WorldFoundry runtimes; metadata-only entries retain upstream provenance without runnable
   backends.
 docs:
-  overview: |
-    VGGT-Omega is a WorldFoundry catalog entry for an official-architecture VGGT-family representation runner: it reuses the existing WorldFoundry `VGGTResult`/save interface for 3D reconstruction, Gaussian splatting, and novel-view synthesis artifacts. Weights stay under `assets/checkpoints` and are not committed into source files. The catalog records verified single-image GPU parity against `${WORLDFOUNDRY_MODEL_SOURCE_DIR}/vggt-omega` commit `815432d4384d707c8e33478a9a72e214cb4cf9f1` with `max_abs_diff=0.0` for comparable outputs.
-
-    Within the WorldFoundry model catalog this entry is tracked as `vggt-omega` in the `three_d_four_d` category.
-    The repository does not record an official source link for this entry.
-  overview_zh: |
-    VGGT-Omega 是 WorldFoundry 目录中官方架构 VGGT 系表示 runner 的条目：复用现有 WorldFoundry `VGGTResult`/保存接口，产出 3D 重建、高斯 splatting 与新视角合成 artifact。权重存放于 `assets/checkpoints`，不提交进源码。目录记录了针对 `${WORLDFOUNDRY_MODEL_SOURCE_DIR}/vggt-omega` commit `815432d4384d707c8e33478a9a72e214cb4cf9f1` 的单图 GPU 一致性验证，可比对输出的 `max_abs_diff=0.0`。
-
-    在 WorldFoundry 模型目录中，该条目以 `vggt-omega` 收录于 `three_d_four_d` 分类。
-    仓库未记录该条目的官方来源链接。
-  architecture: |
-    The catalog records that this entry uses an official-architecture representation runner in the VGGT family together with the shared `VGGTResult` interface and the official scene-export route. No public paper, GitHub, or Hugging Face source is recorded for this entry; beyond the above, the repository does not record architecture details for this entry beyond the metadata quoted above.
-  architecture_zh: |
-    目录记录该条目使用 VGGT 系官方架构表示 runner，配合共享 `VGGTResult` 接口与官方场景导出路线。该条目未记录公开论文、GitHub 或 Hugging Face 来源；除上述信息外，除上文引用的元数据外，仓库未记录该条目的架构细节。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `vggt-omega` and runtime profile `runtime-profile:vggt-omega`.
-    Catalog integration status: `integrated`.
-    Integration notes recorded in the catalog:
-    - VGGT-Omega uses an official-architecture representation runner plus the existing WorldFoundry VGGTResult/save interface.
-    - Weights stay under assets/checkpoints and are not committed into source files.
-
-    Embodiment contract:
-    - Simulator: none — this is an offline reconstruction model that consumes recorded images or video; it does not drive or require a simulator.
-    - Sensors: monocular or multi-view RGB images/video frames; no additional sensor modalities are recorded in the repository.
-    - Action space: not applicable — the model does not consume an action or control stream.
-    - Dedicated environment: no dedicated environment; it runs through the shared WorldFoundry pipeline runtime described in the integration notes.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `vggt-omega`，运行时配置为 `runtime-profile:vggt-omega`。
-    目录集成状态：已集成（integrated）。
-    目录中记录的集成备注（保留原文）：
-    - VGGT-Omega uses an official-architecture representation runner plus the existing WorldFoundry VGGTResult/save interface.
-    - Weights stay under assets/checkpoints and are not committed into source files.
-
-    具身接口（embodiment contract）：
-    - 仿真器：无——这是一个离线重建模型，输入为已录制的图像或视频，不驱动也不依赖仿真器。
-    - 传感器：单目或多视角 RGB 图像/视频帧；仓库未记录其它传感器模态。
-    - 动作空间：不适用——该模型不接收动作或控制流输入。
-    - 是否专用环境：无专用环境；通过集成备注中描述的 WorldFoundry 共享管线运行时执行。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`verified`.
-    Runner parity notes recorded in the catalog:
-    - Single-image GPU parity against ${WORLDFOUNDRY_MODEL_SOURCE_DIR}/vggt-omega commit 815432d4384d707c8e33478a9a72e214cb4cf9f1 passed with max_abs_diff=0.0 for comparable outputs.
-    - The in-tree runner supports the official scene-export route and WorldFoundry representation artifacts.
-    - Per-run validation evidence is tracked outside the model catalog.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已验证（verified）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - Single-image GPU parity against ${WORLDFOUNDRY_MODEL_SOURCE_DIR}/vggt-omega commit 815432d4384d707c8e33478a9a72e214cb4cf9f1 passed with max_abs_diff=0.0 for comparable outputs.
-    - The in-tree runner supports the official scene-export route and WorldFoundry representation artifacts.
-    - Per-run validation evidence is tracked outside the model catalog.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
-  recommended_benchmarks: []
+  publisher: Meta AI
+  publisher_kind: company
+  publisher_zh: Meta AI
+  overview: 'VGGT-Omega is the extended VGGT release published under facebook/VGGT-Omega, covering 3D reconstruction, Gaussian splatting, and novel view synthesis. In this catalog it is verified with unusually strong evidence: single-image GPU parity against the pinned upstream commit passed with max_abs_diff=0.0 for comparable outputs, and the in-tree runner supports the official scene-export route.'
+  overview_zh: VGGT-Omega 是以 facebook/VGGT-Omega 发布的 VGGT 扩展版本，覆盖 3D 重建、高斯泼溅与新视角合成。本 catalog 中它以异常严格的证据验证：与固定上游 commit 的单图 GPU 一致性对比在可比输出上达到 max_abs_diff=0.0，树内 runner 支持官方场景导出路径。
+  architecture: It uses an official-architecture representation runner plus the existing WorldFoundry VGGTResult/save interface, emitting predictions.npz plus GLB scene artifacts. Weights stay under assets/checkpoints and are never committed into source files; the checkpoint license is CC-BY-NC-4.0.
+  architecture_zh: 它使用官方架构的表示 runner 加上现有的 WorldFoundry VGGTResult/save 接口，输出 predictions.npz 与 GLB 场景产物。权重存放于 assets/checkpoints、绝不提交进源码；checkpoint 许可为 CC-BY-NC-4.0。
+  usage_notes: Use this entry for the verified official scene-export route with WorldFoundry representation artifacts. It is distinct from the vggt (base) and vggt-world entries — pick by route, not by name.
+  usage_notes_zh: 需要已验证的官方场景导出路径与 WorldFoundry 表示产物时使用本条目。它与 vggt（基础版）及 vggt-world 条目相互独立——请按路径而非名称选择。
+  limitations:
+  - 'CC-BY-NC-4.0 checkpoint: non-commercial license terms apply downstream.'
+  - Verified scope is single-image parity plus scene export; broader multi-view coverage is tracked outside the catalog.
+  limitations_zh:
+  - checkpoint 为 CC-BY-NC-4.0：下游适用非商用许可条款。
+  - 已验证范围为单图一致性加场景导出；更广的多视图覆盖在 catalog 外跟踪。

@@ -67,59 +67,22 @@ catalog_policy:
     Hugging Face model page was confirmed. Do not infer checkpoint availability from
     papers, demos, or third-party mirrors.
 docs:
-  overview: |
-    HY-World 2.0 (Tencent-Hunyuan/HY-World-2.0; Hugging Face `tencent/HY-World-2.0`) is Tencent's second-generation text/image/video-to-3D-world simulation stack. WorldFoundry wraps the HY-Pano 2.0 panorama generation and WorldMirror 2.0 reconstruction components in tree; the WorldMirror 2.0 reconstruction path is Workspace-verified and exports depth, normals, point cloud, Gaussian splat, camera parameters, COLMAP sparse files, and RRD scene metadata. Full text/image-to-3D world generation is open upstream but remains gated until the five-stage WorldNav, WorldStereo 2.0, GS-data, and 3DGS-composition runtime is fully migrated and verified.
-
-    Within the WorldFoundry model catalog this entry is tracked as `hy-world-2.0` in the `world_models` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/Tencent-Hunyuan/HY-World-2.0; Hugging Face `tencent/HY-World-2.0`.
-  overview_zh: |
-    HY-World 2.0（Tencent-Hunyuan/HY-World-2.0；Hugging Face `tencent/HY-World-2.0`）是腾讯第二代文本/图像/视频到 3D 世界仿真栈。WorldFoundry 在树内封装 HY-Pano 2.0 全景生成与 WorldMirror 2.0 重建组件；WorldMirror 2.0 重建路径已通过 Workspace 验证，导出深度、法线、点云、高斯泼溅、相机参数、COLMAP 稀疏文件与 RRD 场景元数据。完整文本/图像到 3D 世界生成上游已开源，但在五阶段 WorldNav、WorldStereo 2.0、GS 数据与 3DGS 组合运行时完全迁移并验证之前保持门控。
-
-    在 WorldFoundry 模型目录中，该条目以 `hy-world-2.0` 收录于 `world_models` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/Tencent-Hunyuan/HY-World-2.0；Hugging Face `tencent/HY-World-2.0`。
-  architecture: |
-    The upstream pipeline is five-stage: panorama generation (HY-Pano 2.0), trajectory generation/rendering (WorldNav), stereo/video expansion (WorldStereo 2.0), Gaussian-splat data generation, and 3DGS composition/training — producing explorable 3D Gaussian worlds. In tree, only the panorama and reconstruction components are currently wrapped; full world-generation parity requires in-tree orchestration of traj_generate.py, traj_render.py, video_gen.py, gen_gs_data.py, and world_gs_trainer.py with the required native extensions and a VLM endpoint.
-  architecture_zh: |
-    上游管线为五阶段：全景生成（HY-Pano 2.0）、轨迹生成/渲染（WorldNav）、立体/视频扩展（WorldStereo 2.0）、高斯泼溅数据生成与 3DGS 组合/训练——产出可探索的 3D 高斯世界。树内目前仅封装全景与重建组件；完整世界生成一致性需要在树内编排 traj_generate.py、traj_render.py、video_gen.py、gen_gs_data.py 与 world_gs_trainer.py，并具备所需原生扩展与 VLM 端点。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `hy-world-2.0` and runtime profile `runtime-profile:hy-world-2.0`.
-    Catalog integration status: `component_verified`.
-    Integration notes recorded in the catalog:
-    - WorldFoundry wraps HY-Pano 2.0 panorama generation and WorldMirror 2.0 reconstruction in-tree.
-    - The WorldMirror 2.0 reconstruction path is verified through the Workspace infer path and exports depth, normals, point cloud, Gaussian splat, camera parameters, COLMAP sparse files, and RRD scene metadata.
-    - Full text/image-to-3D world generation is open upstream but remains gated in WorldFoundry until the five-stage WorldNav, WorldStereo 2.0, GS data, and 3DGS composition runtime is fully migrated and verified.
-
-    Embodiment contract:
-    - Simulator: generates explorable 3D Gaussian worlds (panorama-first, multi-stage); the reconstruction sub-path recovers 3D structure from inputs.
-    - Sensors: conditioning inputs per the recorded modalities (typically an initial image and/or a text prompt); exact tensor contracts are not recorded in this catalog file.
-    - Action space: no action interface; control is via text/image/video prompts and generated navigation trajectories.
-    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `hy-world-2.0`，运行时配置为 `runtime-profile:hy-world-2.0`。
-    目录集成状态：`component_verified`。
-    目录中记录的集成备注（保留原文）：
-    - WorldFoundry wraps HY-Pano 2.0 panorama generation and WorldMirror 2.0 reconstruction in-tree.
-    - The WorldMirror 2.0 reconstruction path is verified through the Workspace infer path and exports depth, normals, point cloud, Gaussian splat, camera parameters, COLMAP sparse files, and RRD scene metadata.
-    - Full text/image-to-3D world generation is open upstream but remains gated in WorldFoundry until the five-stage WorldNav, WorldStereo 2.0, GS data, and 3DGS composition runtime is fully migrated and verified.
-
-    具身接口（embodiment contract）：
-    - 仿真器：生成可探索的 3D 高斯世界（全景先行、多阶段）；重建子路径从输入恢复 3D 结构。
-    - 传感器：按记录的模态提供条件输入（通常为初始图像和/或文本提示）；具体张量契约本目录文件未记录。
-    - 动作空间：无动作接口；通过文本/图像/视频提示与生成的导航轨迹控制。
-    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`component_verified_worldgen_pending`.
-    Runner parity notes recorded in the catalog:
-    - In-tree HY-World 2.0 pipeline target is registered and verified for WorldMirror 2.0 reconstruction.
-    - Full world-generation parity still requires in-tree orchestration of traj_generate.py, traj_render.py, video_gen.py, gen_gs_data.py, and world_gs_trainer.py with the required native extensions and VLM endpoint.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=`component_verified_worldgen_pending`。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - In-tree HY-World 2.0 pipeline target is registered and verified for WorldMirror 2.0 reconstruction.
-    - Full world-generation parity still requires in-tree orchestration of traj_generate.py, traj_render.py, video_gen.py, gen_gs_data.py, and world_gs_trainer.py with the required native extensions and VLM endpoint.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Tencent (Hunyuan)
+  publisher_kind: company
+  publisher_zh: 腾讯（混元）
+  overview: 'HY-World 2.0 is Tencent''s second-generation world stack, recorded here as components: HY-Pano 2.0 panorama generation (supported in-tree), WorldMirror 2.0 reconstruction (verified through the Workspace infer path), and full text/image-to-3D-world generation (open upstream, migration pending in WorldFoundry). The verified reconstruction path exports depth, normals, point cloud, Gaussian splat, cameras, COLMAP files, and RRD scene metadata.'
+  overview_zh: HY-World 2.0 是腾讯第二代世界生成栈，此处按组件记录：HY-Pano 2.0 全景生成（树内支持）、 WorldMirror 2.0 重建（已通过 Workspace 推理路径验证），以及完整文/图到 3D 世界生成（上游已开源， WorldFoundry 侧迁移待完成）。已验证的重建路径导出深度、法线、点云、高斯泼溅、相机参数、COLMAP 文件与 RRD 场景元数据。
+  architecture: The upstream five-stage world generation chains WorldNav trajectory generation, trajectory rendering, video generation, GS data preparation, and 3DGS composition (traj_generate.py through world_gs_trainer.py) plus a VLM endpoint. WorldFoundry wraps HY-Pano 2.0 and WorldMirror 2.0 in-tree; the remaining stages are not yet migrated.
+  architecture_zh: 上游的五阶段世界生成串联 WorldNav 轨迹生成、轨迹渲染、视频生成、GS 数据准备与 3DGS 组合（traj_generate.py 到 world_gs_trainer.py），另需 VLM 端点。WorldFoundry 已树内封装 HY-Pano 2.0 与 WorldMirror 2.0；其余阶段尚未迁移。
+  usage_notes: Use the verified WorldMirror 2.0 reconstruction path today; treat full world generation as upstream-only until the five-stage runtime is migrated and verified. The trajectory-render stage is separately cataloged as hyworld-worldgen.
+  usage_notes_zh: 当下请使用已验证的 WorldMirror 2.0 重建路径；在五阶段运行时迁移并验证之前，完整世界生成请视为仅上游可用。轨迹渲染阶段单独记录为 hyworld-worldgen 条目。
+  limitations:
+  - Full text/image-to-3D-world generation is migration-pending in WorldFoundry.
+  - The worldgen stages need native extensions and a VLM endpoint.
+  limitations_zh:
+  - 完整文/图到 3D 世界生成在 WorldFoundry 侧待迁移。
+  - worldgen 各阶段需要原生扩展与 VLM 端点。
   recommended_benchmarks:
-  - worldscore
+  - id: worldscore
+    reason: Standard scoring for generated explorable worlds.
+    reason_zh: 生成可探索世界的标准评分。

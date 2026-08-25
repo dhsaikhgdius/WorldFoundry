@@ -27,53 +27,22 @@ catalog_category: world_models
 catalog_scope: World-model catalog entries. Integrated entries expose in-tree WorldFoundry runtimes; blocked entries retain
   upstream provenance without runnable backends.
 docs:
-  overview: |
-    IRASim ('Learning an Interactive Real-Robot Action Simulator') is a robot world model that generates realistic robot-arm videos conditioned on an initial frame and an action trajectory, serving as a learned action simulator for real-robot data. In WorldFoundry the runtime source is vendored in tree and IRASimSynthesis provides a runtime-plan wrapper; real video generation requires manually staged official checkpoint archives, and no GitHub/Hugging Face source links are recorded on this entry.
-
-    Within the WorldFoundry model catalog this entry is tracked as `irasim` in the `world_models` category.
-    The repository does not record an official source link for this entry.
-  overview_zh: |
-    IRASim（《Learning an Interactive Real-Robot Action Simulator》）是机器人世界模型：以初始帧与动作轨迹为条件生成逼真的机械臂视频，充当真实机器人数据的学习型动作模拟器。在 WorldFoundry 中运行时源码内嵌在树内，IRASimSynthesis 提供运行时计划包装器；真实视频生成需手动暂存官方权重归档，且该条目未记录 GitHub/Hugging Face 来源链接。
-
-    在 WorldFoundry 模型目录中，该条目以 `irasim` 收录于 `world_models` 分类。
-    仓库未记录该条目的官方来源链接。
-  architecture: |
-    The published method is a diffusion-transformer video generator with frame-level action conditioning: each action step conditions its corresponding frame, giving precise action-video alignment across datasets such as RT-1, Bridge, and Language-Table. The repository records only the vendored-runtime integration; further details are not recorded.
-  architecture_zh: |
-    公开方法为带帧级动作条件的扩散 transformer 视频生成器：每个动作步条件对应帧，在 RT-1、Bridge、Language-Table 等数据集上实现精确的动作-视频对齐。仓库仅记录内嵌运行时集成；更多细节未记录。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `irasim` and runtime profile `runtime-profile:irasim`.
-    Catalog integration status: `planned`.
-    Integration notes recorded in the catalog:
-    - Runtime source is vendored in-tree; full generation remains checkpoint- and fixture-gated.
-
-    Embodiment contract:
-    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
-    - Sensors: initial visual context of a robot scene (and optionally text) plus a robot action sequence as conditioning.
-    - Action space: robot action trajectories are the conditioning channel: the model predicts the resulting future observations instead of emitting actions itself.
-    - Dedicated environment: targets the robot-manipulation domains recorded per checkpoint; no simulator ships with this entry.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `irasim`，运行时配置为 `runtime-profile:irasim`。
-    目录集成状态：计划中（planned）。
-    目录中记录的集成备注（保留原文）：
-    - Runtime source is vendored in-tree; full generation remains checkpoint- and fixture-gated.
-
-    具身接口（embodiment contract）：
-    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
-    - 传感器：机器人场景的初始视觉上下文（可选文本），加机器人动作序列作为条件。
-    - 动作空间：机器人动作轨迹是条件通道：模型预测动作导致的未来观测，而不是自己输出动作。
-    - 是否专用环境：面向各权重记录的机器人操作域；该条目不附带仿真器。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`implemented_checkpoint_pending`.
-    Runner parity notes recorded in the catalog:
-    - IRASimSynthesis provides an in-tree runtime plan wrapper; real video generation requires manually staged official checkpoint archives.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已实现、待权重就绪（implemented_checkpoint_pending）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - IRASimSynthesis provides an in-tree runtime plan wrapper; real video generation requires manually staged official checkpoint archives.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: ByteDance
+  publisher_kind: company
+  publisher_zh: 字节跳动
+  overview: IRASim (Interactive Real-Robot Action Simulator) generates realistic robot-arm videos from an initial frame plus an action trajectory — a learned simulator for robot data. In this catalog the model, diffusion, and inference pipeline modules are vendored in-tree; real generation waits on manually staged official checkpoint archives.
+  overview_zh: IRASim（交互式真实机器人动作模拟器）从初始帧加动作轨迹生成逼真的机械臂视频——机器人数据的学习型模拟器。本 catalog 中其模型、扩散与推理 pipeline 模块已内置树内；真实生成待手动就位官方 checkpoint 归档。
+  architecture: Per the upstream release, a DiT video diffusion model conditions on per-frame action tokens for trajectory-accurate robot video. Training dataloaders, evaluation scripts, and interactive demos are pruned from the packaged runtime under synthesis/visual_generation/irasim/irasim_runtime.
+  architecture_zh: 按上游发布，DiT 视频扩散模型以逐帧动作 token 为条件，生成轨迹精确的机器人视频。打包在 synthesis/visual_generation/irasim/irasim_runtime 的运行时已裁剪训练数据加载器、评估脚本与交互 demo。
+  usage_notes: Published checkpoint archives are not HF model repos staged by the current downloader — supply checkpoints and task fixtures manually before expecting real video.
+  usage_notes_zh: 发布的 checkpoint 归档不是当前下载器支持的 HF 模型仓库——期望得到真实视频前请手动提供 checkpoint 与任务 fixture。
+  limitations:
+  - Checkpoints must be manually staged (non-HF archives).
+  - 'Robot-domain simulator: not a general video generator.'
+  limitations_zh:
+  - checkpoint 需手动就位（非 HF 归档）。
+  - 机器人领域模拟器：不是通用视频生成器。
   recommended_benchmarks:
-  - ewmbench
+  - id: ewmbench
+    reason: Embodied world-model video prediction quality.
+    reason_zh: 具身世界模型视频预测质量。

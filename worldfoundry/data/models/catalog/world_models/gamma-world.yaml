@@ -75,62 +75,22 @@ runner_parity:
 catalog_category: world_models
 catalog_scope: World-model catalog entries. Integrated entries expose in-tree WorldFoundry runtimes.
 docs:
-  overview: |
-    Gamma-World (nv-tlabs/Gamma-World; Hugging Face `chijw/Gamma-World` plus `nvidia/Cosmos-Reason1-7B`) is an NVIDIA Toronto AI Lab multi-agent action-conditioned world model: image-to-video generation driven by agent actions. In WorldFoundry it is a native diffusion recipe with no external source checkout: Reason1 conditioning, Wan VAE, checkpoint loading, scheduling, action normalization, and window execution all reuse shared base-model/core infrastructure, and native recipes cover bidirectional, causal, and four-step causal inference (three recorded variants).
-
-    Within the WorldFoundry model catalog this entry is tracked as `gamma-world` in the `world_models` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/nv-tlabs/Gamma-World; Hugging Face `chijw/Gamma-World`, `nvidia/Cosmos-Reason1-7B`.
-  overview_zh: |
-    Gamma-World（nv-tlabs/Gamma-World；Hugging Face `chijw/Gamma-World` 加 `nvidia/Cosmos-Reason1-7B`）是 NVIDIA 多伦多 AI Lab 的多智能体动作条件世界模型：由智能体动作驱动的图像到视频生成。在 WorldFoundry 中它是原生扩散 recipe，无外部源码 checkout：Reason1 条件、Wan VAE、权重加载、调度、动作归一化与窗口执行全部复用共享基座/核心基础设施，原生 recipe 覆盖双向、因果与四步因果推理（三个记录变体）。
-
-    在 WorldFoundry 模型目录中，该条目以 `gamma-world` 收录于 `world_models` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/nv-tlabs/Gamma-World；Hugging Face `chijw/Gamma-World`、`nvidia/Cosmos-Reason1-7B`。
-  architecture: |
-    The recorded composition is a video diffusion transformer conditioned by Cosmos-Reason1-7B language/vision features over the Wan VAE latent space, with action normalization and windowed execution for action-conditioned rollout; bidirectional, causal, and few-step causal recipes share the same checkpoint family. Further architecture details are not recorded in the repository.
-  architecture_zh: |
-    记录的组成为以 Cosmos-Reason1-7B 语言/视觉特征为条件、基于 Wan VAE 隐空间的视频扩散 transformer，带动作归一化与窗口化执行以支持动作条件 rollout；双向、因果与少步因果 recipe 共享同一权重家族。更多架构细节仓库未记录。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `gamma-world` and runtime profile `runtime-profile:gamma-world`.
-    Catalog integration status: `integrated`.
-    Integration notes recorded in the catalog:
-    - Gamma-World is a native diffusion recipe and does not require an external source checkout or model-owned runtime.
-    - Reason1, Wan VAE, checkpoint loading, scheduling, action normalization, and window execution reuse the shared base-model/core infrastructure.
-    Recorded variant `gamma-world-causal-few-step`, task `action-conditioned-video`, runner parity `checkpoint_environment_required`.
-    Recorded variant `gamma-world-causal`, task `action-conditioned-video`, runner parity `checkpoint_environment_required`.
-    Recorded variant `gamma-world-bidirectional`, task `action-conditioned-video`, runner parity `checkpoint_environment_required`.
-
-    Embodiment contract:
-    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
-    - Sensors: an initial image plus per-agent action sequences (normalized in tree) as conditioning.
-    - Action space: multi-agent action trajectories condition the generated video; the exact action parameterization is not recorded in this catalog file.
-    - Dedicated environment: targets the robot-manipulation domains recorded per checkpoint; no simulator ships with this entry.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `gamma-world`，运行时配置为 `runtime-profile:gamma-world`。
-    目录集成状态：已集成（integrated）。
-    目录中记录的集成备注（保留原文）：
-    - Gamma-World is a native diffusion recipe and does not require an external source checkout or model-owned runtime.
-    - Reason1, Wan VAE, checkpoint loading, scheduling, action normalization, and window execution reuse the shared base-model/core infrastructure.
-    目录记录：变体 `gamma-world-causal-few-step`，任务 `action-conditioned-video`，runner 一致性 `checkpoint_environment_required`。
-    目录记录：变体 `gamma-world-causal`，任务 `action-conditioned-video`，runner 一致性 `checkpoint_environment_required`。
-    目录记录：变体 `gamma-world-bidirectional`，任务 `action-conditioned-video`，runner 一致性 `checkpoint_environment_required`。
-
-    具身接口（embodiment contract）：
-    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
-    - 传感器：初始图像加每个智能体的动作序列（树内做归一化）作为条件。
-    - 动作空间：多智能体动作轨迹作为生成视频的条件；具体动作参数化本目录文件未记录。
-    - 是否专用环境：面向各权重记录的机器人操作域；该条目不附带仿真器。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`checkpoint_environment_required`.
-    Runner parity notes recorded in the catalog:
-    - Native recipes cover bidirectional, causal, and four-step causal inference.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=`checkpoint_environment_required`。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - Native recipes cover bidirectional, causal, and four-step causal inference.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: NVIDIA
+  publisher_kind: company
+  publisher_zh: 英伟达（NVIDIA）
+  overview: 'Gamma-World is NVIDIA''s multi-agent world model: given per-player start images and one action stream per player, it generates each player''s view of a shared world. In this catalog it is a native diffusion recipe — no external checkout or model-owned runtime — with bidirectional, causal, and four-step causal variants; the four-step causal model is the default streaming choice.'
+  overview_zh: Gamma-World 是英伟达的多智能体世界模型：给定每个玩家的起始图像与各自的动作流，为每个玩家生成共享世界中的视角画面。本 catalog 中它是原生扩散配方——无外部检出、无模型自有运行时——含双向、因果与四步因果三个 variant；四步因果模型是默认的流式选择。
+  architecture: Reason1 conditioning (nvidia/Cosmos-Reason1-7B as text encoder), the shared Wan VAE, checkpoint loading, scheduling, action normalization, and window execution all reuse WorldFoundry's base-model/core infrastructure; the recorded weights (chijw/Gamma-World, apache-2.0) cover bidirectional, causal, and distilled networks.
+  architecture_zh: Reason1 条件（文本编码器为 nvidia/Cosmos-Reason1-7B）、共享 Wan VAE、checkpoint 加载、调度、动作归一化与窗口执行全部复用 WorldFoundry 的基座/核心基础设施；记录权重（chijw/Gamma-World， apache-2.0）覆盖双向、因果与蒸馏网络。
+  usage_notes: Pass a sequence of per-player images plus one action JSON/mapping per player, or a compatible eval_dir. Runner status is checkpoint_environment_required — stage the Gamma-World and Reason1 weights first.
+  usage_notes_zh: 传入按玩家排列的图像序列与每位玩家一份动作 JSON/映射，或兼容的 eval_dir。runner 状态为 checkpoint_environment_required——请先就位 Gamma-World 与 Reason1 权重。
+  limitations:
+  - Execution needs staged checkpoints and a suitable GPU environment.
+  - Multi-agent consistency degrades as player count and rollout length grow.
+  limitations_zh:
+  - 执行需要就位 checkpoint 与合适的 GPU 环境。
+  - 随玩家数量与滚动长度增长，多智能体一致性会下降。
   recommended_benchmarks:
-  - world-in-world
-  - ewmbench
+  - id: worldmodelbench
+    reason: World-rollout quality under action conditioning.
+    reason_zh: 动作条件下世界滚动生成质量。

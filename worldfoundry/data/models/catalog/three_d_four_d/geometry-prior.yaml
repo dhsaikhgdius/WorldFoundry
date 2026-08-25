@@ -22,54 +22,16 @@ runner_parity:
 catalog_category: three_d_four_d
 catalog_scope: Independent geometric prior integrations used by 3D and world-model runtimes.
 docs:
-  overview: |
-    Geometry (`geometry-prior`) is not a single upstream model: it is the shared WorldFoundry geometry-prior pipeline/operator contract surface through which individual priors (DUSt3R, Depth Anything, Metric3D, UniDepth, GeoCalib, and others) are exposed to 3D and world-model runtimes. Each upstream prior registers as a separate catalog entry with its own provenance; this entry records the common contract itself.
-
-    Within the WorldFoundry model catalog this entry is tracked as `geometry-prior` in the `three_d_four_d` category.
-    The repository does not record an official source link for this entry.
-  overview_zh: |
-    Geometry（`geometry-prior`）不是某个单一上游模型：它是 WorldFoundry 共享的几何先验 pipeline/operator 契约面，DUSt3R、Depth Anything、Metric3D、UniDepth、GeoCalib 等各个先验经由它暴露给 3D 与世界模型运行时。各上游先验以独立目录条目登记并携带各自来源信息；本条目记录的是公共契约本身。
-
-    在 WorldFoundry 模型目录中，该条目以 `geometry-prior` 收录于 `three_d_four_d` 分类。
-    仓库未记录该条目的官方来源链接。
-  architecture: |
-    As a contract entry, there is no model architecture: the surface defines how prior pipelines/operators are constructed, resolved through the shared priors factory, and invoked by higher-level runtimes. Per-prior architecture and parity evidence live on the specific prior catalog entries.
-  architecture_zh: |
-    作为契约条目，本条目没有模型架构：该契约面定义先验 pipeline/operator 的构造方式、经共享先验工厂的解析方式，以及被上层运行时调用的方式。各先验的架构与一致性证据记录在对应的先验目录条目中。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `geometry-prior`.
-    Catalog integration status: `runtime_ported`.
-    Integration notes recorded in the catalog:
-    - Shared WorldFoundry geometry-prior pipeline/operator contract surface.
-    - Individual upstream priors (DUSt3R, Depth Anything, Metric3D, etc.) register as separate catalog entries with their own provenance.
-
-    Embodiment contract:
-    - Simulator: none — this entry is an offline geometric prior invoked by other WorldFoundry pipelines, not a simulator-driven model.
-    - Sensors: monocular RGB images (or video frames for temporal variants); no additional sensor modalities are recorded in the repository.
-    - Action space: not applicable — priors are pure perception modules without an action interface.
-    - Dedicated environment: no dedicated environment; it is exposed through the shared WorldFoundry geometry-prior pipeline/operator contract.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `geometry-prior`。
-    目录集成状态：运行时已移植（runtime_ported）。
-    目录中记录的集成备注（保留原文）：
-    - Shared WorldFoundry geometry-prior pipeline/operator contract surface.
-    - Individual upstream priors (DUSt3R, Depth Anything, Metric3D, etc.) register as separate catalog entries with their own provenance.
-
-    具身接口（embodiment contract）：
-    - 仿真器：无——该条目是被其它 WorldFoundry 管线调用的离线几何先验，不涉及仿真器。
-    - 传感器：单目 RGB 图像（时序变体为视频帧）；仓库未记录其它传感器模态。
-    - 动作空间：不适用——先验模块为纯感知组件，没有动作接口。
-    - 是否专用环境：无专用环境；通过 WorldFoundry 共享几何先验 pipeline/operator 契约暴露。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`pending`.
-    Runner parity notes recorded in the catalog:
-    - This entry records the shared contract; per-prior parity evidence lives on the specific prior catalog entries.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=待验证（pending）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - This entry records the shared contract; per-prior parity evidence lives on the specific prior catalog entries.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
-  recommended_benchmarks: []
+  publisher: WorldFoundry (this repository)
+  publisher_kind: lab
+  publisher_zh: WorldFoundry（本仓库）
+  overview: Geometry is not an upstream model — it is WorldFoundry's shared geometry-prior contract surface. Individual priors (DUSt3R, Depth Anything, Metric3D, GeoCalib, UniDepth, and others) register as separate catalog entries with their own provenance, and all of them are consumed through the pipeline/ operator contract this entry documents.
+  overview_zh: Geometry 不是上游模型——它是 WorldFoundry 的共享几何先验契约面。各个先验（DUSt3R、 Depth Anything、Metric3D、GeoCalib、UniDepth 等）以独立 catalog 条目注册并各自携带溯源，全部通过本条目所描述的 pipeline/operator 契约被调用。
+  architecture: 'A contract, not a network: it defines how geometry priors are constructed, invoked, and how their artifacts are exported, so that higher-level pipelines can swap priors through configuration alone.'
+  architecture_zh: 这是契约而非网络：定义几何先验如何构造、如何调用、产物如何导出，使上层管线仅靠配置即可更换先验。
+  usage_notes: Do not run this entry directly; pick a concrete prior entry instead. Per-prior parity evidence lives on the specific prior catalog entries.
+  usage_notes_zh: 不要直接运行本条目；请选择具体的先验条目。每个先验的一致性证据都在其各自的 catalog 条目上。
+  limitations:
+  - A contract surface only — it has no weights and produces no artifacts by itself.
+  limitations_zh:
+  - 仅为契约面——本身没有权重，也不直接产出产物。

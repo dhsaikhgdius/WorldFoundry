@@ -37,58 +37,23 @@ catalog_policy:
   open_source_rule: Only mark open_source when an official GitHub repository or official Hugging Face model page was confirmed.
     Do not infer checkpoint availability from papers, demos, or third-party mirrors.
 docs:
-  overview: |
-    WorldCam (cvlab-kaist/WorldCam, code-only release) is the KAIST / Adobe Research / MAUM AI interactive world model with camera-pose control for long-horizon game video. WorldCam runtime code is in-tree and the wrapper supports load_model=False planning without external checkout dependency; the WorldFoundry runner supports the official-style conditioning-video demo in the unified environment profile with local WorldCam/Wan assets, and both integration and runner status are verified.
-
-    Within the WorldFoundry model catalog this entry is tracked as `worldcam` in the `world_models` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/cvlab-kaist/WorldCam.
-  overview_zh: |
-    WorldCam（cvlab-kaist/WorldCam，仅发布代码）是 KAIST / Adobe Research / MAUM AI 联合的交互式世界模型，面向长时程游戏视频的相机位姿控制。WorldCam 运行时代码已在树内，包装器支持 load_model=False 规划、无需外部 checkout 依赖；WorldFoundry runner 在统一环境配置中以本地 WorldCam/Wan 资产支持官方风格的条件视频演示，集成与 runner 状态均为已验证。
-
-    在 WorldFoundry 模型目录中，该条目以 `worldcam` 收录于 `world_models` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/cvlab-kaist/WorldCam。
-  architecture: |
-    The recorded stack pairs WorldCam runtime code with local Wan-family assets, and the recorded demo contract is conditioning-video based: a context video plus camera-pose control drives long-horizon interactive generation. Recorded modalities are interactive-world-model, camera-pose-control, game-video, and long-horizon; further architecture details (parameter count, training data) are not recorded in the repository.
-  architecture_zh: |
-    记录的栈由 WorldCam 运行时代码与本地 Wan 系资产组成，记录的演示契约基于条件视频：上下文视频加相机位姿控制驱动长时程交互生成。记录模态为 interactive-world-model、camera-pose-control、game-video 与 long-horizon；更多架构细节（参数量、训练数据）仓库未记录。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `worldcam` and runtime profile `runtime-profile:worldcam`.
-    Catalog integration status: `verified`.
-    Integration notes recorded in the catalog:
-    - WorldCam runtime code is in-tree and the wrapper now supports load_model=False planning without external checkout dependency.
-    - The WorldFoundry runner supports the official-style conditioning-video demo in the unified environment profile.
-
-    Embodiment contract:
-    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
-    - Sensors: a conditioning video (context clip) plus a camera-pose control sequence.
-    - Action space: the action channel is the camera trajectory (extrinsics/pose sequence); the model renders the world consistently along the requested path.
-    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `worldcam`，运行时配置为 `runtime-profile:worldcam`。
-    目录集成状态：已验证（verified）。
-    目录中记录的集成备注（保留原文）：
-    - WorldCam runtime code is in-tree and the wrapper now supports load_model=False planning without external checkout dependency.
-    - The WorldFoundry runner supports the official-style conditioning-video demo in the unified environment profile.
-
-    具身接口（embodiment contract）：
-    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
-    - 传感器：条件视频（上下文片段）加相机位姿控制序列。
-    - 动作空间：动作通道为相机轨迹（外参/位姿序列）；模型沿请求路径一致地渲染世界。
-    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`verified`.
-    Runner parity notes recorded in the catalog:
-    - The in-tree WorldCam runner supports the official-style conditioning-video path and local WorldCam/Wan assets.
-    - Per-run artifact checks are tracked outside the model catalog.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已验证（verified）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - The in-tree WorldCam runner supports the official-style conditioning-video path and local WorldCam/Wan assets.
-    - Per-run artifact checks are tracked outside the model catalog.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: KAIST / Adobe Research / MAUM AI
+  publisher_kind: university
+  publisher_zh: KAIST（韩国科学技术院）/ Adobe Research / MAUM AI
+  overview: 'WorldCam, from KAIST''s CV Lab with Adobe Research and MAUM AI, is an interactive world model with camera-pose control for long-horizon game video. In this catalog the integration is verified: the runtime code is in-tree, the wrapper supports load_model=False planning without external checkout dependency, and the runner supports the official-style conditioning-video demo in the unified environment profile.'
+  overview_zh: WorldCam 由 KAIST CV Lab 联合 Adobe Research 与 MAUM AI 发布，是支持相机位姿控制的交互式世界模型，面向长时程游戏视频。本 catalog 中集成状态为 verified：运行时代码已内置树内，wrapper 支持 load_model=False 规划、无外部 checkout 依赖，runner 支持统一环境 profile 下官方风格的条件视频 demo。
+  architecture: The in-tree runner follows the official conditioning-video path and consumes local WorldCam/Wan assets, indicating a Wan-based diffusion backbone with camera-pose conditioning. Architecture internals beyond this are not recorded in this repository.
+  architecture_zh: 树内 runner 遵循官方条件视频路径，使用本地 WorldCam/Wan 资产，表明其为基于 Wan 的扩散骨干加相机位姿条件。除此之外的架构内部细节仓库未记录。
+  usage_notes: The release is code-only (no confirmed official checkpoints), so stage local WorldCam/Wan assets yourself; the wrapper's load_model=False mode lets you validate planning without weights. Per-run artifact checks are tracked outside the catalog.
+  usage_notes_zh: 该发布为 code-only（无已确认的官方 checkpoint），需自行就位本地 WorldCam/Wan 资产； wrapper 的 load_model=False 模式可在无权重时验证规划。每次运行的产物检查在 catalog 外跟踪。
+  limitations:
+  - 'Code-only release: no official checkpoints are confirmed in this repository.'
+  limitations_zh:
+  - code-only 发布：仓库未确认任何官方 checkpoint。
   recommended_benchmarks:
-  - camerabench
-  - wrbench
+  - id: camerabench
+    reason: Camera-pose-controlled rollout adherence.
+    reason_zh: 相机位姿控制的滚动生成跟随度。
+  - id: worldmodelbench
+    reason: Long-horizon interactive world quality.
+    reason_zh: 长时程交互世界质量。

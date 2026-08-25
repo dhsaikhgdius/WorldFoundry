@@ -47,54 +47,25 @@ catalog_policy:
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 pipeline_binding: dreamx-world-5b-cam
 docs:
-  overview: |
-    DreamX-World 5B Cam (AMAP-ML/DreamX-World; Hugging Face `GD-ML/DreamX-World-5B-Cam`, Apache-2.0) is the camera-control variant of AMAP's DreamX-World interactive world model family: image-to-video world generation steered by camera/action control. WorldFoundry provides an in-tree resident camera-control runtime with configurable Ulysses GPU count, and the unified pipeline runs the local 5B Cam and Wan2.2 support checkpoints directly.
-
-    Within the WorldFoundry model catalog this entry is tracked as `dreamx-world-5b-cam` in the `world_models` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/AMAP-ML/DreamX-World; Hugging Face `GD-ML/DreamX-World-5B-Cam`.
-  overview_zh: |
-    DreamX-World 5B Cam（AMAP-ML/DreamX-World；Hugging Face `GD-ML/DreamX-World-5B-Cam`，Apache-2.0）是高德 DreamX-World 交互世界模型家族的相机控制变体：由相机/动作控制引导的图像到视频世界生成。WorldFoundry 提供树内常驻相机控制运行时，Ulysses GPU 数量可配置；统一管线直接运行本地 5B Cam 与 Wan2.2 支撑权重。
-
-    在 WorldFoundry 模型目录中，该条目以 `dreamx-world-5b-cam` 收录于 `world_models` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/AMAP-ML/DreamX-World；Hugging Face `GD-ML/DreamX-World-5B-Cam`。
-  architecture: |
-    The model is a 5B-parameter world generator over the Wan2.2 base stack (the runtime resolves Wan2.2 support checkpoints alongside the 5B Cam weights) with camera-control conditioning. Beyond this composition, the repository does not record architecture details for this entry.
-  architecture_zh: |
-    该模型是基于 Wan2.2 基座栈的 50 亿参数世界生成器（运行时同时解析 Wan2.2 支撑权重与 5B Cam 权重），带相机控制条件。除该组成外，仓库未记录该条目的架构细节。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `dreamx-world-5b-cam` and runtime profile `runtime-profile:dreamx-world-5b-cam`.
-    Catalog integration status: `integrated`.
-    Integration notes recorded in the catalog:
-    - In-tree resident camera-control runtime with configurable Ulysses GPU count.
-
-    Embodiment contract:
-    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
-    - Sensors: an initial image (and optionally a text prompt) plus a camera trajectory / pose sequence as the control signal.
-    - Action space: the action channel is the camera trajectory (extrinsics/pose sequence); the model renders the world consistently along the requested path.
-    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `dreamx-world-5b-cam`，运行时配置为 `runtime-profile:dreamx-world-5b-cam`。
-    目录集成状态：已集成（integrated）。
-    目录中记录的集成备注（保留原文）：
-    - In-tree resident camera-control runtime with configurable Ulysses GPU count.
-
-    具身接口（embodiment contract）：
-    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
-    - 传感器：初始图像（可选文本提示）加相机轨迹/位姿序列作为控制信号。
-    - 动作空间：动作通道为相机轨迹（外参/位姿序列）；模型沿请求路径一致地渲染世界。
-    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`integrated`.
-    Runner parity notes recorded in the catalog:
-    - The unified pipeline runs the local 5B Cam and Wan2.2 support checkpoints directly.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已集成（integrated）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - The unified pipeline runs the local 5B Cam and Wan2.2 support checkpoints directly.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Alibaba (Amap, AMAP-ML)
+  publisher_kind: company
+  publisher_zh: 阿里巴巴（高德地图 AMAP-ML）
+  overview: 'DreamX-World 5B Cam is the camera-controlled profile of Amap''s DreamX-World: a resident runtime that generates world video under explicit camera-pose control, continuing from the previous final frame without subprocess or MP4 round trips. A real single-A100 run loaded both pinned checkpoints and generated four finite, decodable 1280x704 frames from the official example image.'
+  overview_zh: DreamX-World 5B Cam 是高德 DreamX-World 的相机控制档案：常驻运行时在显式相机位姿控制下生成世界视频，并从上一个最终帧续接，无需子进程或 MP4 往返。真实单 A100 运行加载两个固定 checkpoint，从官方示例图生成四帧有限、可解码的 1280x704 输出。
+  architecture: The camera-conditioned 5B runtime, diffusion pipeline, pose controls, VAE, and text-encoder adapters are integrated in-tree under synthesis/visual_generation/dreamx_world, running over Wan2.2 support checkpoints. The resident session caches weights and prompt embeddings and uses native 1+4k windows; multi-GPU inference offers 1/2/3/4/6/8-rank Ulysses sequence parallelism.
+  architecture_zh: 相机条件的 5B 运行时、扩散 pipeline、位姿控制、VAE 与文本编码器适配器集成于树内 synthesis/visual_generation/dreamx_world，运行于 Wan2.2 支持 checkpoint 之上。常驻会话缓存权重与提示词嵌入，使用原生 1+4k 窗口；多卡推理支持 1/2/3/4/6/8 rank 的 Ulysses 序列并行。
+  usage_notes: The verified single-A100 run used an 8-step 5-frame window — an integration smoke, not the default 30-step quality recipe. For quality output use the default recipe and expect longer runtimes.
+  usage_notes_zh: 已验证的单 A100 运行使用 8 步 5 帧窗口——这是集成冒烟测试，不是默认的 30 步质量配方。追求质量请使用默认配方并预期更长运行时间。
+  limitations:
+  - The validated run is an integration smoke; 30-step quality parity is a separate claim.
+  - Requires local DreamX 5B Cam plus Wan2.2 support checkpoints.
+  limitations_zh:
+  - 已验证运行为集成冒烟测试；30 步质量一致性是另一回事。
+  - 需要本地 DreamX 5B Cam 与 Wan2.2 支持 checkpoint。
   recommended_benchmarks:
-  - wrbench
-  - camerabench
+  - id: camerabench
+    reason: Camera-pose adherence of controlled rollouts.
+    reason_zh: 受控滚动生成的相机位姿贴合度。
+  - id: worldmodelbench
+    reason: General world-rollout quality.
+    reason_zh: 世界滚动生成的总体质量。

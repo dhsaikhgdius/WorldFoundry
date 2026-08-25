@@ -29,52 +29,18 @@ runner_parity:
 catalog_category: three_d_four_d
 catalog_scope: Official-source manifest for 3D, 4D, and camera-controlled world/model generation projects.
 docs:
-  overview: |
-    CUT3R (Continuous Updating Transformer for 3D Reconstruction) is an online 3D reconstruction model: it ingests a stream of RGB images and continuously updates a persistent internal state, emitting metric-scale pointmaps and camera poses for each incoming view without offline global alignment. WorldFoundry registers in-tree CUT3R point-cloud and two-stage 3DGS routes through Studio discovery; checkpoint-backed inference depends on staged local or Hugging Face `liguang0115/cut3r` weights.
-
-    Within the WorldFoundry model catalog this entry is tracked as `cut3r` in the `three_d_four_d` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/CUT3R/CUT3R; Hugging Face `liguang0115/cut3r`.
-  overview_zh: |
-    CUT3R（Continuous Updating Transformer for 3D Reconstruction）是在线 3D 重建模型：它接收 RGB 图像流并持续更新持久化内部状态，对每个新视角输出公制尺度的 pointmap 与相机位姿，无需离线全局对齐。WorldFoundry 通过 Studio discovery 注册了 in-tree 的 CUT3R 点云路线与两阶段 3DGS 路线；有权重支撑的推理依赖本地或 Hugging Face `liguang0115/cut3r` 权重的就绪。
-
-    在 WorldFoundry 模型目录中，该条目以 `cut3r` 收录于 `three_d_four_d` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/CUT3R/CUT3R；Hugging Face `liguang0115/cut3r`。
-  architecture: |
-    The published model is a recurrent transformer in the DUSt3R lineage: a ViT image encoder feeds a stateful decoder whose learned state tokens persist across frames, so each new image both reads from and writes to the accumulated scene memory. Heads regress per-view pointmaps (in a common world frame) and camera poses; the design also supports querying unseen views via virtual raymap tokens. The catalog wires it to pipeline binding `cut3r` with integration status `runtime_ported`.
-  architecture_zh: |
-    公开模型是 DUSt3R 谱系中的循环式 transformer：ViT 图像编码器接入带状态的解码器，其学习到的 state token 跨帧持久保存，因此每张新图像同时读取并写入累积的场景记忆。输出头回归统一世界坐标系下的每视角 pointmap 与相机位姿；该设计还支持通过虚拟 raymap token 查询未观测视角。目录将其绑定到 pipeline `cut3r`，集成状态为 runtime_ported。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `cut3r`.
-    Catalog integration status: `runtime_ported`.
-    Integration notes recorded in the catalog:
-    - In-tree CUT3R point-cloud and two-stage 3DGS routes are registered through Studio discovery.
-
-    Embodiment contract:
-    - Simulator: none — this is an offline reconstruction model that consumes recorded images or video; it does not drive or require a simulator.
-    - Sensors: monocular or multi-view RGB images/video frames; no additional sensor modalities are recorded in the repository.
-    - Action space: not applicable — the model does not consume an action or control stream.
-    - Dedicated environment: no dedicated environment; it runs through the shared WorldFoundry pipeline runtime described in the integration notes.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `cut3r`。
-    目录集成状态：运行时已移植（runtime_ported）。
-    目录中记录的集成备注（保留原文）：
-    - In-tree CUT3R point-cloud and two-stage 3DGS routes are registered through Studio discovery.
-
-    具身接口（embodiment contract）：
-    - 仿真器：无——这是一个离线重建模型，输入为已录制的图像或视频，不驱动也不依赖仿真器。
-    - 传感器：单目或多视角 RGB 图像/视频帧；仓库未记录其它传感器模态。
-    - 动作空间：不适用——该模型不接收动作或控制流输入。
-    - 是否专用环境：无专用环境；通过集成备注中描述的 WorldFoundry 共享管线运行时执行。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`pending`.
-    Runner parity notes recorded in the catalog:
-    - Checkpoint-backed inference depends on staged local or Hugging Face cut3r weights.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=待验证（pending）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - Checkpoint-backed inference depends on staged local or Hugging Face cut3r weights.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
-  recommended_benchmarks: []
+  publisher: UC Berkeley
+  publisher_kind: university
+  publisher_zh: 加州大学伯克利分校（UC Berkeley）
+  overview: 'CUT3R is a continuous 3D perception model with persistent state: it ingests a stream of images and continuously updates a metric-scale 3D reconstruction, without offline bundling. In this catalog the in-tree point-cloud and two-stage 3DGS routes are registered through Studio discovery. CUT3R also serves as the geometry backbone for the verified VMem entry in the video category.'
+  overview_zh: CUT3R 是带持久状态的连续 3D 感知模型：接收图像流并持续更新米制尺度的 3D 重建，无需离线捆绑优化。本 catalog 中已通过 Studio 发现机制注册了树内点云与两段式 3DGS 路径。CUT3R 同时是 video 类别中已验证的 VMem 条目的几何主干。
+  architecture: A recurrent transformer maintains a persistent scene state; each new frame updates the state and outputs pointmaps and camera parameters online (per the upstream publication). The recorded routes cover raw point-cloud export and a two-stage 3DGS pipeline; weights are apache-2.0.
+  architecture_zh: 循环 Transformer 维护持久场景状态；每帧新图像更新状态并在线输出点图与相机参数（见上游论文）。已记录路径覆盖点云导出与两段式 3DGS pipeline；权重为 apache-2.0。
+  usage_notes: 'Runner parity is pending: checkpoint-backed inference depends on staged local or Hugging Face cut3r weights. Stage them before submitting Studio jobs.'
+  usage_notes_zh: Runner parity 为 pending：checkpoint 加载推理依赖就位的本地或 Hugging Face cut3r 权重。提交 Studio 任务前请先就位权重。
+  limitations:
+  - Checkpoint-backed parity is pending; the routes are registered but unverified in this workspace.
+  - Streaming reconstruction quality degrades on long sequences with severe viewpoint changes.
+  limitations_zh:
+  - checkpoint 加载一致性待验证；路径已注册但本工作区尚未验证。
+  - 长序列且视角剧烈变化时，流式重建质量会下降。

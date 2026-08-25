@@ -60,59 +60,20 @@ runner_parity:
 catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint metadata, and runtime-profile planning records.
 docs:
-  overview: |
-    MME-VLA (RoboMME/robomme_policy_learning, Apache-2.0) is the policy suite released with the RoboMME memory/multimodal embodied benchmark, including a perceptual frame-sampling module, the MME-VLA suite, a pi0.5 baseline, and a VLM subgoal predictor (all under the `Yinpei` Hugging Face namespace). WorldFoundry records the policy contract with an independent synthesis entrypoint and calls `create_trained_policy(...).infer` in-process from the vendored infer subset under `worldfoundry/synthesis/action_generation/mme_vla/mme_vla_runtime`.
-
-    Within the WorldFoundry model catalog this entry is tracked as `mme-vla` in the `vla_va_wam` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/RoboMME/robomme_policy_learning; Hugging Face `Yinpei/perceptual-framesamp-modul`, `Yinpei/mme_vla_suite`, `Yinpei/pi05_baseline`, `Yinpei/vlm_subgoal_predictor`.
-  overview_zh: |
-    MME-VLA（RoboMME/robomme_policy_learning，Apache-2.0）是随 RoboMME 记忆/多模态具身基准发布的策略套件，包括感知帧采样模块、MME-VLA 套件、pi0.5 基线与 VLM 子目标预测器（均位于 Hugging Face `Yinpei` 命名空间）。WorldFoundry 以独立合成入口记录其策略契约，并从 `worldfoundry/synthesis/action_generation/mme_vla/mme_vla_runtime` 的内置推理子集在进程内调用 `create_trained_policy(...).infer`。
-
-    在 WorldFoundry 模型目录中，该条目以 `mme-vla` 收录于 `vla_va_wam` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/RoboMME/robomme_policy_learning；Hugging Face `Yinpei/perceptual-framesamp-modul`、`Yinpei/mme_vla_suite`、`Yinpei/pi05_baseline`、`Yinpei/vlm_subgoal_predictor`。
-  architecture: |
-    The recorded stack builds on the OpenPI policy framework (the official QuickStart serves checkpoint subdir 79999 with `scripts/serve_policy.py --policy.config=mme_vla_suite`); runtime input keys are `observation/state`, `observation/image`, `observation/wrist_image`, `prompt`, and optional memory/subgoal tensors. Further architecture details are not recorded in the repository.
-  architecture_zh: |
-    目录记录的栈基于 OpenPI 策略框架（官方 QuickStart 用 `scripts/serve_policy.py --policy.config=mme_vla_suite` 提供 checkpoint 子目录 79999）；运行时输入键为 `observation/state`、`observation/image`、`observation/wrist_image`、`prompt` 及可选记忆/子目标张量。更多架构细节仓库未记录。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `mme-vla` and runtime profile `runtime-profile:mme-vla`.
-    Catalog integration status: `in_tree_vendored_import_verified`.
-    Integration notes recorded in the catalog:
-    - WorldFoundry records the MME-VLA policy contract with an independent synthesis entrypoint.
-    - The current runtime calls create_trained_policy(...).infer in-process from the in-tree vendored infer subset under worldfoundry/synthesis/action_generation/mme_vla/mme_vla_runtime.
-    - Resolver, runtime import, and compileall checks pass without an external github_repos checkout; checkpoint-backed action chunk validation remains required before demo parity is claimed.
-    Recorded variant `perceptual-framesamp-modul`, task `vla.policy_rollout`.
-
-    Embodiment contract:
-    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
-    - Sensors: a third-person RGB image, a wrist RGB image, proprioceptive state, and a language prompt, plus optional memory/subgoal tensors per the recorded input contract.
-    - Action space: continuous robot end-effector/joint action chunks; the exact action dimensionality is not recorded in this catalog file.
-    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `mme-vla`，运行时配置为 `runtime-profile:mme-vla`。
-    目录集成状态：`in_tree_vendored_import_verified`。
-    目录中记录的集成备注（保留原文）：
-    - WorldFoundry records the MME-VLA policy contract with an independent synthesis entrypoint.
-    - The current runtime calls create_trained_policy(...).infer in-process from the in-tree vendored infer subset under worldfoundry/synthesis/action_generation/mme_vla/mme_vla_runtime.
-    - Resolver, runtime import, and compileall checks pass without an external github_repos checkout; checkpoint-backed action chunk validation remains required before demo parity is claimed.
-    目录记录：变体 `perceptual-framesamp-modul`，任务 `vla.policy_rollout`。
-
-    具身接口（embodiment contract）：
-    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
-    - 传感器：第三人称 RGB 图像、腕部 RGB 图像、本体状态与语言提示，另有可选记忆/子目标张量（按目录记录的输入契约）。
-    - 动作空间：连续的机器人末端/关节动作块；具体动作维度本目录文件未记录。
-    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`in_tree_vendor_ready_checkpoint_pending`.
-    Runner parity notes recorded in the catalog:
-    - RoboMME simulator, dataset builders, VLM subgoal training, OpenPI websocket server execution, and evaluation loops are excluded.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=`in_tree_vendor_ready_checkpoint_pending`。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - RoboMME simulator, dataset builders, VLM subgoal training, OpenPI websocket server execution, and evaluation loops are excluded.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Open-source research release (institution not recorded)
+  publisher_kind: lab
+  publisher_zh: 开源研究发布（仓库未记录正式机构）
+  overview: MME-VLA is the policy-learning line of the RoboMME project, centered on perceptual frame sampling for memory-heavy manipulation. Four Apache-2.0 checkpoint repos are confirmed from the README — the best perceptual-framesamp module, the mme_vla_suite collection, a pi05 baseline, and a VLM subgoal predictor. WorldFoundry calls create_trained_policy(...).infer in-process from a vendored subset.
+  overview_zh: MME-VLA 是 RoboMME 项目的策略学习线，核心是面向重记忆操作的感知帧采样。README 确认四个 Apache-2.0 checkpoint 仓库——最佳感知帧采样模块、mme_vla_suite 集合、pi05 基线与 VLM 子目标预测器。 WorldFoundry 从内置子集在进程内调用 create_trained_policy(...).infer。
+  architecture: The recorded design combines a perceptual frame-sampling module with policy learning and an optional VLM subgoal predictor. Resolver, runtime import, and compileall checks pass without an external checkout; further internals are not recorded in this repository.
+  architecture_zh: 仓库记录的设计将感知帧采样模块与策略学习及可选的 VLM 子目标预测器结合。解析器、运行时导入与 compileall 检查无需外部 checkout 即通过；更多内部细节仓库未记录。
+  usage_notes: Checkpoint-backed action-chunk validation remains required before demo parity is claimed; stage the framesamp module checkpoint first.
+  usage_notes_zh: 在声称 demo parity 前仍需 checkpoint 驱动的动作块验证；请先就位帧采样模块 checkpoint。
+  limitations:
+  - Demo parity is not yet claimed; checkpoint-backed validation is pending.
+  limitations_zh:
+  - 尚未声称 demo parity；checkpoint 驱动验证待完成。
   recommended_benchmarks:
-  - robomme
+  - id: robomme
+    reason: Native benchmark of the RoboMME project.
+    reason_zh: RoboMME 项目的原生基准。

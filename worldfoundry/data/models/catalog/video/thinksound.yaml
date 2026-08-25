@@ -25,3 +25,19 @@ runner_parity:
 catalog_category: video
 catalog_scope: Video-generation and video-token catalog entries. Integrated entries expose WorldFoundry pipeline targets;
   metadata-only entries retain upstream provenance without runnable WorldFoundry backends.
+docs:
+  publisher: Alibaba (Tongyi FunAudioLLM)
+  publisher_kind: company
+  publisher_zh: 阿里巴巴（通义 FunAudioLLM）
+  overview: 'ThinkSound is Alibaba FunAudioLLM''s video-to-audio generation model that uses chain-of-thought style reasoning to decide what a scene should sound like before synthesizing audio. In this catalog it is currently metadata_only: the entry is hidden from Studio until the infer-only runtime and the ThinkSound diffusion checkpoint are both available.'
+  overview_zh: ThinkSound 是阿里通义 FunAudioLLM 的视频配音模型，用思维链式推理先判断场景应有的声音、再合成音频。本 catalog 中它目前为 metadata_only：在仅推理运行时与 ThinkSound 扩散 checkpoint 都就位之前，条目在 Studio 中隐藏。
+  architecture: Upstream describes a reasoning stage (audio-focused chain of thought) feeding a flow/ diffusion audio generator. This repository records only the prompt/video contract and the generated_audio artifact — internals are not recorded here.
+  architecture_zh: 上游描述为「推理阶段（面向音频的思维链）+ 流/扩散音频生成器」。本仓库仅记录 prompt/video 契约与 generated_audio 产物——内部细节仓库未记录。
+  usage_notes: 'Not runnable yet: checkpoint-backed parity is blocked by the missing thinksound.ckpt diffusion checkpoint. Watch the integration status before planning any runs; MMAudio is the runnable video-to-audio alternative in this catalog.'
+  usage_notes_zh: 目前不可运行：checkpoint 加载一致性被缺失的 thinksound.ckpt 扩散 checkpoint 阻塞。计划运行前请先确认集成状态；catalog 中可运行的视频配音替代是 MMAudio。
+  limitations:
+  - 'Blocked: the thinksound.ckpt diffusion checkpoint is missing, so nothing runs.'
+  - Hidden from Studio until runtime and checkpoint are both in place.
+  limitations_zh:
+  - 阻塞中：缺少 thinksound.ckpt 扩散 checkpoint，无法运行。
+  - 运行时与 checkpoint 双双就位前，条目在 Studio 中隐藏。

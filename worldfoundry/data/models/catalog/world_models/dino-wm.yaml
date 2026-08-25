@@ -34,60 +34,18 @@ catalog_category: world_models
 catalog_scope: World-model catalog entries. Integrated entries expose in-tree WorldFoundry runtimes; blocked
   entries retain upstream provenance without runnable backends.
 docs:
-  overview: |
-    DINO-WM (gaoyuezhou/dino_wm, 'DINO-WM: World Models on Pre-trained Visual Features enable Zero-shot Planning') builds world models directly on frozen DINOv2 patch features: dynamics are learned in feature space, and planning is performed by optimizing action sequences against a goal image with MPC, without task-specific training. WorldFoundry vendors the official planning/evaluation route in tree under `synthesis/visual_generation/world_model/dino_wm`, including the required `dino_wm/env/` simulators; execution remains checkpoint/task-asset gated (OSF checkpoint layout) but needs no external repo checkout.
-
-    Within the WorldFoundry model catalog this entry is tracked as `dino-wm` in the `world_models` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/gaoyuezhou/dino_wm.
-  overview_zh: |
-    DINO-WM（gaoyuezhou/dino_wm，《DINO-WM: World Models on Pre-trained Visual Features enable Zero-shot Planning》）直接在冻结的 DINOv2 patch 特征上构建世界模型：在特征空间学习动力学，并通过 MPC 针对目标图像优化动作序列实现零样本规划，无需任务特定训练。WorldFoundry 在 `synthesis/visual_generation/world_model/dino_wm` 内嵌官方规划/评测路线，包括必需的 `dino_wm/env/` 仿真器；执行仍受权重/任务资产（OSF 权重布局）门控，但不需要外部仓库 checkout。
-
-    在 WorldFoundry 模型目录中，该条目以 `dino-wm` 收录于 `world_models` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/gaoyuezhou/dino_wm。
-  architecture: |
-    The published architecture: a frozen DINOv2 encoder produces patch tokens; a ViT dynamics model predicts future patch features conditioned on actions (and proprioception); planning uses model-predictive control (CEM-style optimization) in feature space toward goal-image features. A decoder is optional and used only for visualization.
-  architecture_zh: |
-    公开架构：冻结的 DINOv2 编码器产出 patch token；ViT 动力学模型以动作（与本体感知）为条件预测未来 patch 特征；规划在特征空间用模型预测控制（CEM 式优化）逼近目标图像特征。解码器为可选，仅用于可视化。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `dino-wm` and runtime profile `runtime-profile:dino-wm`.
-    Catalog integration status: `integrated`.
-    Integration notes recorded in the catalog:
-    - WorldFoundry vendors the official DINO-WM planning/evaluation route in-tree under synthesis/visual_generation/world_model/dino_wm.
-    - The WorldFoundry infer entrypoint loads runtime configs from worldfoundry/data/models/runtime/configs/dino_wm/conf.
-    - The vendored `dino_wm/env/` simulators are required for official planning runs and are intentionally kept in-tree.
-    - Execution remains checkpoint/task-asset gated but no longer depends on an external repo checkout.
-
-    Embodiment contract:
-    - Simulator: the vendored dino_wm/env simulators (e.g. PushT-style 2D manipulation, maze/rope/particle environments) are required for official planning runs and are intentionally kept in tree.
-    - Sensors: RGB observations encoded to DINOv2 patch features, plus proprioceptive state where the environment provides it.
-    - Action space: low-dimensional continuous actions of the vendored environments, optimized by MPC at plan time.
-    - Dedicated environment: dedicated to the vendored planning environments; goal conditioning is a target image.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `dino-wm`，运行时配置为 `runtime-profile:dino-wm`。
-    目录集成状态：已集成（integrated）。
-    目录中记录的集成备注（保留原文）：
-    - WorldFoundry vendors the official DINO-WM planning/evaluation route in-tree under synthesis/visual_generation/world_model/dino_wm.
-    - The WorldFoundry infer entrypoint loads runtime configs from worldfoundry/data/models/runtime/configs/dino_wm/conf.
-    - The vendored `dino_wm/env/` simulators are required for official planning runs and are intentionally kept in-tree.
-    - Execution remains checkpoint/task-asset gated but no longer depends on an external repo checkout.
-
-    具身接口（embodiment contract）：
-    - 仿真器：官方规划运行需要内嵌的 dino_wm/env 仿真器（如 PushT 式 2D 操作、迷宫/绳索/颗粒环境），它们被有意保留在树内。
-    - 传感器：RGB 观测编码为 DINOv2 patch 特征，环境提供时另加本体状态。
-    - 动作空间：内嵌环境的低维连续动作，规划时由 MPC 优化。
-    - 是否专用环境：专用于内嵌的规划环境；目标条件为目标图像。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`pending`.
-    Runner parity notes recorded in the catalog:
-    - The pipeline resolves the in-tree infer.py wrapper and official planning_main route.
-    - Full runtime parity remains blocked until the OSF checkpoint/task-asset layout is staged; per-run validation evidence is tracked outside the model catalog.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=待验证（pending）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - The pipeline resolves the in-tree infer.py wrapper and official planning_main route.
-    - Full runtime parity remains blocked until the OSF checkpoint/task-asset layout is staged; per-run validation evidence is tracked outside the model catalog.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
-  recommended_benchmarks: []
+  publisher: New York University (NYU)
+  publisher_kind: university
+  publisher_zh: 纽约大学（NYU）
+  overview: 'DINO-WM builds world models on pre-trained DINOv2 visual features instead of pixels: it predicts future patch features and plans robot behavior by optimizing action sequences against a goal feature state — zero-shot planning without reconstruction. In this catalog the official planning/evaluation route is vendored in-tree, including the required env simulators.'
+  overview_zh: DINO-WM 在预训练 DINOv2 视觉特征（而非像素）上构建世界模型：预测未来 patch 特征，并通过针对目标特征状态优化动作序列来规划机器人行为——无需重建即可零样本规划。本 catalog 中官方规划/评估路径已内置树内，包括必需的 env 仿真器。
+  architecture: Per the upstream project, a ViT predictor rolls DINOv2 patch features forward conditioned on actions; planning is model-predictive control in feature space. The infer entrypoint loads runtime configs from data/models/runtime/configs/dino_wm/conf, and the vendored dino_wm/env simulators are intentionally kept in-tree for official planning runs.
+  architecture_zh: 按上游项目，ViT 预测器在动作条件下向前滚动 DINOv2 patch 特征；规划是特征空间中的模型预测控制。推理入口从 data/models/runtime/configs/dino_wm/conf 加载运行时配置，内置的 dino_wm/env 仿真器为官方规划运行有意保留在树内。
+  usage_notes: Execution remains checkpoint/task-asset gated but no longer depends on an external repo checkout. Full runtime parity is blocked until the OSF checkpoint/task-asset layout is staged.
+  usage_notes_zh: 执行仍受 checkpoint/任务资产限制，但不再依赖外部仓库检出。完整运行时一致性在 OSF checkpoint/任务资产布局就位前保持 blocked。
+  limitations:
+  - Full parity waits on the OSF checkpoint/task-asset layout.
+  - 'Feature-space world model: it plans, it does not render pixels.'
+  limitations_zh:
+  - 完整一致性待 OSF checkpoint/任务资产布局就位。
+  - 特征空间世界模型：用于规划，不渲染像素。

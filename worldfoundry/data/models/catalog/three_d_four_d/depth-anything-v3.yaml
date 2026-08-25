@@ -32,52 +32,16 @@ runner_parity:
 catalog_category: three_d_four_d
 catalog_scope: Independent geometric prior integrations used by 3D and world-model runtimes.
 docs:
-  overview: |
-    Depth Anything 3 (ByteDance-Seed/Depth-Anything-3) is the third-generation Depth Anything release: an any-view geometry model that predicts spatially consistent geometry from one or many images, with or without known camera poses. WorldFoundry registers the in-tree official SOH export route (`depth-anything-v3` pipeline binding), kept separate from the geometry-prior profile tracked as `depth-anything-v3-prior`; the confirmed public checkpoint is `depth-anything/DA3-LARGE`.
-
-    Within the WorldFoundry model catalog this entry is tracked as `depth-anything-v3` in the `three_d_four_d` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/ByteDance-Seed/Depth-Anything-3; Hugging Face `depth-anything/DA3-LARGE`.
-  overview_zh: |
-    Depth Anything 3（ByteDance-Seed/Depth-Anything-3）是 Depth Anything 系列第三代发布：任意视角几何模型，可在有或没有已知相机位姿的情况下，从单张或多张图像预测空间一致的几何。WorldFoundry 注册了 in-tree 官方 SOH 导出路线（pipeline 绑定 `depth-anything-v3`），与作为 `depth-anything-v3-prior` 跟踪的几何先验配置相互独立；已确认公开权重为 `depth-anything/DA3-LARGE`。
-
-    在 WorldFoundry 模型目录中，该条目以 `depth-anything-v3` 收录于 `three_d_four_d` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/ByteDance-Seed/Depth-Anything-3；Hugging Face `depth-anything/DA3-LARGE`。
-  architecture: |
-    Publicly, DA3 argues that a single plain transformer with a unified depth-ray representation suffices for visual geometry: the model regresses per-pixel depth alongside ray/camera information, enabling monocular depth, multi-view reconstruction, and pose estimation from the same backbone, trained with a teacher-student recipe on mixed real and synthetic data. The catalog records integration status `runtime_ported` and a `pending` runner parity.
-  architecture_zh: |
-    公开资料中，DA3 主张单一朴素 transformer 配合统一的 depth-ray 表示即可覆盖视觉几何任务：模型逐像素回归深度并同时输出光线/相机信息，使同一骨干可完成单目深度、多视角重建与位姿估计，训练采用教师-学生配方并混合真实与合成数据。目录记录其集成状态为 runtime_ported，runner 一致性为 pending。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `depth-anything-v3`.
-    Catalog integration status: `runtime_ported`.
-    Integration notes recorded in the catalog:
-    - In-tree official SOH export route is registered separately from the geometry-prior profile at depth-anything-v3-prior.
-
-    Embodiment contract:
-    - Simulator: none — this is an offline reconstruction model that consumes recorded images or video; it does not drive or require a simulator.
-    - Sensors: monocular or multi-view RGB images/video frames; no additional sensor modalities are recorded in the repository.
-    - Action space: not applicable — the model does not consume an action or control stream.
-    - Dedicated environment: no dedicated environment; it runs through the shared WorldFoundry pipeline runtime described in the integration notes.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `depth-anything-v3`。
-    目录集成状态：运行时已移植（runtime_ported）。
-    目录中记录的集成备注（保留原文）：
-    - In-tree official SOH export route is registered separately from the geometry-prior profile at depth-anything-v3-prior.
-
-    具身接口（embodiment contract）：
-    - 仿真器：无——这是一个离线重建模型，输入为已录制的图像或视频，不驱动也不依赖仿真器。
-    - 传感器：单目或多视角 RGB 图像/视频帧；仓库未记录其它传感器模态。
-    - 动作空间：不适用——该模型不接收动作或控制流输入。
-    - 是否专用环境：无专用环境；通过集成备注中描述的 WorldFoundry 共享管线运行时执行。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`pending`.
-    Runner parity notes recorded in the catalog:
-    - Per-run validation evidence is tracked outside the model catalog.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=待验证（pending）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - Per-run validation evidence is tracked outside the model catalog.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
-  recommended_benchmarks: []
+  publisher: ByteDance (Seed)
+  publisher_kind: company
+  publisher_zh: 字节跳动（Seed 团队）
+  overview: 'Depth Anything 3 is ByteDance Seed''s geometry foundation model: beyond monocular depth it predicts consistent geometry from multiple views. This entry registers the in-tree official SOH export route, separate from the depth-anything-v3-prior geometry-prior profile.'
+  overview_zh: Depth Anything 3 是字节 Seed 团队的几何基础模型：在单目深度之外还能从多视角预测一致几何。本条目注册树内官方 SOH 导出路径，与 depth-anything-v3-prior 的几何先验档案相互独立。
+  architecture: DA3 uses a plain-transformer backbone with a depth-ray prediction target, spanning monocular depth through multi-view geometry (per the upstream release). Weights are apache-2.0; this entry's runtime specifics live in its recorded route.
+  architecture_zh: DA3 采用朴素 Transformer 主干与「深度-射线」预测目标，覆盖单目深度到多视角几何（见上游发布）。权重为 apache-2.0；本条目的运行时细节在其记录路径中。
+  usage_notes: Integration is runtime_ported with runner parity pending. If you only need a depth prior for another pipeline, use depth-anything-v3-prior; this entry is for the full export route.
+  usage_notes_zh: 集成为 runtime_ported，runner parity 待验证。若只需为其它管线提供深度先验，请用 depth-anything-v3-prior；本条目面向完整导出路径。
+  limitations:
+  - Runner parity is pending; per-run validation evidence is tracked outside the catalog.
+  limitations_zh:
+  - runner parity 待验证；每次运行的验证证据在 catalog 外跟踪。

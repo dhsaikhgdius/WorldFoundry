@@ -46,3 +46,23 @@ catalog_category: video
 catalog_scope: Video-generation and video-token catalog entries. Integrated entries
   expose WorldFoundry pipeline targets; metadata-only entries retain upstream provenance
   without runnable WorldFoundry backends.
+docs:
+  publisher: StepFun
+  publisher_kind: company
+  publisher_zh: 阶跃星辰（StepFun）
+  overview: Step-Video-T2V is StepFun's large open text-to-video model (30B parameters upstream, MIT weights at stepfun-ai/stepvideo-t2v). In WorldFoundry the public pipeline is assembled from native role-based components with the shared diffusion runner — DiT, Step-LLM text encoder, CLIP, scheduler, latent initialization, and VAE decoding all execute in-process.
+  overview_zh: Step-Video-T2V 是阶跃星辰的大规模开源文生视频模型（上游 300 亿参数，MIT 权重位于 stepfun-ai/stepvideo-t2v）。在 WorldFoundry 中，公开 pipeline 由原生角色化组件与共享扩散 runner 装配—— DiT、Step-LLM 文本编码器、CLIP、调度器、潜变量初始化与 VAE 解码全部进程内执行。
+  architecture: 'Upstream: a 30B DiT with a deeply compressed Video-VAE (16x16 spatial, 8x temporal) and bilingual text encoders. In this repository the notable engineering fact is the native re-assembly: the former xFuser and caption/VAE HTTP-service runtime is not a backend — runner status records the native checkpoint layout as validated.'
+  architecture_zh: 上游：30B DiT，配深压缩 Video-VAE（空间 16x16、时间 8x）与双语文本编码器。本仓库中值得注意的工程事实是原生重装配：原 xFuser 与 caption/VAE HTTP 服务运行时不再是后端——runner 状态记录原生 checkpoint 布局已验证。
+  usage_notes: Native checkpoint layout is validated; full GPU artifact parity is not yet recorded. Use id step-video-t2v. At 30B scale plan for serious VRAM or multi-GPU setups.
+  usage_notes_zh: 原生 checkpoint 布局已验证；完整 GPU 产物一致性尚未记录。请使用 id step-video-t2v。30B 规模需要充足显存或多卡配置。
+  limitations:
+  - Full GPU artifact parity is not recorded — validation so far is checkpoint-layout level.
+  - 30B scale demands datacenter GPUs; single consumer cards are not viable.
+  limitations_zh:
+  - 完整 GPU 产物一致性尚未记录——目前验证到 checkpoint 布局层。
+  - 30B 规模需要数据中心级 GPU；单张消费级显卡不可行。
+  recommended_benchmarks:
+  - id: vbench
+    reason: Standard open T2V quality suite.
+    reason_zh: 标准开源文生视频质量评测。

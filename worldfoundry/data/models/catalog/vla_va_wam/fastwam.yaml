@@ -43,56 +43,23 @@ catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance,
   metadata, and runtime-profile planning records. Runner or pipeline targets are present
   only after a complete in-tree WorldFoundry model runtime is registered and validated.
 docs:
-  overview: |
-    FastWAM (yuantianyuan01/FastWAM, MIT) is a fast world-action model built on the Wan2.1-T2V-1.3B backbone. WorldFoundry contains the released MoT (mixture-of-transformers) action-inference graph, Wan VAE, UMT5 encoder, scheduler, preprocessing, and normalization code; both official LIBERO and RoboTwin checkpoint variants are declared in the runtime data configuration, and both passed real A100 Workspace inference with finite 32-step action chunks using their official camera/state contracts.
-
-    Within the WorldFoundry model catalog this entry is tracked as `fastwam` in the `vla_va_wam` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/yuantianyuan01/FastWAM; Hugging Face `yuanty/fastwam`, `DiffSynth-Studio/Wan-Series-Converted-Safetensors`, `Wan-AI/Wan2.1-T2V-1.3B`.
-  overview_zh: |
-    FastWAM（yuantianyuan01/FastWAM，MIT）是基于 Wan2.1-T2V-1.3B 骨干的快速世界-动作模型。WorldFoundry 内含官方发布的 MoT（mixture-of-transformers）动作推理图、Wan VAE、UMT5 编码器、调度器、预处理与归一化代码；官方 LIBERO 与 RoboTwin 两个权重变体均在运行时数据配置中声明，且都以各自官方相机/状态契约通过了真实 A100 Workspace 推理，输出有限值的 32 步动作块。
-
-    在 WorldFoundry 模型目录中，该条目以 `fastwam` 收录于 `vla_va_wam` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/yuantianyuan01/FastWAM；Hugging Face `yuanty/fastwam`、`DiffSynth-Studio/Wan-Series-Converted-Safetensors`、`Wan-AI/Wan2.1-T2V-1.3B`。
-  architecture: |
-    The catalog records a Wan2.1-T2V-1.3B video-diffusion backbone (staged from `Wan-AI/Wan2.1-T2V-1.3B` and the DiffSynth safetensors conversion) extended with a mixture-of-transformers action-inference graph that decodes 32-step action chunks. Runtime execution never imports an adjacent FastWAM source checkout and never enables remote checkpoint code. Further details are not recorded in the repository.
-  architecture_zh: |
-    目录记录其骨干为 Wan2.1-T2V-1.3B 视频扩散（从 `Wan-AI/Wan2.1-T2V-1.3B` 与 DiffSynth safetensors 转换仓库暂存），扩展 mixture-of-transformers 动作推理图，解码 32 步动作块。运行时从不导入相邻 FastWAM 源码 checkout，也不启用远程权重代码。更多细节仓库未记录。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `fastwam` and runtime profile `runtime-profile:fastwam`.
-    Catalog integration status: `all_released_checkpoints_gpu_validated`.
-    Integration notes recorded in the catalog:
-    - WorldFoundry contains the released MoT action-inference graph, Wan VAE, UMT5 encoder, scheduler, preprocessing, and normalization code.
-    - Both official LIBERO and RoboTwin checkpoint variants are declared in the runtime data configuration.
-    - Runtime execution never imports an adjacent FastWAM source checkout and never enables remote checkpoint code.
-    - Both variants passed real A100 Workspace inference with finite 32-step action chunks using their official camera/state contracts.
-
-    Embodiment contract:
-    - Simulator: none bundled — the two released checkpoints target LIBERO and RoboTwin environments; rollouts run through separate benchmark runners.
-    - Sensors: RGB camera observations plus a language instruction; the exact camera/state contract is not recorded in this catalog file.
-    - Action space: finite 32-step action chunks following each checkpoint's official camera/state contract, as validated on A100 per the catalog record.
-    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `fastwam`，运行时配置为 `runtime-profile:fastwam`。
-    目录集成状态：`all_released_checkpoints_gpu_validated`。
-    目录中记录的集成备注（保留原文）：
-    - WorldFoundry contains the released MoT action-inference graph, Wan VAE, UMT5 encoder, scheduler, preprocessing, and normalization code.
-    - Both official LIBERO and RoboTwin checkpoint variants are declared in the runtime data configuration.
-    - Runtime execution never imports an adjacent FastWAM source checkout and never enables remote checkpoint code.
-    - Both variants passed real A100 Workspace inference with finite 32-step action chunks using their official camera/state contracts.
-
-    具身接口（embodiment contract）：
-    - 仿真器：不内置仿真器——两个已发布权重面向 LIBERO 与 RoboTwin 环境；rollout 由独立 benchmark runner 执行。
-    - 传感器：RGB 相机观测加语言指令；具体相机/状态契约本目录文件未记录。
-    - 动作空间：32 步动作块，遵循各权重的官方相机/状态契约（目录记录已在 A100 上验证有限值输出）。
-    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
-  limitations: |
-    No family-level demo/runner parity status is recorded in this catalog file.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件未记录家族级 demo/runner 一致性状态。
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Open-source research release (institution not recorded)
+  publisher_kind: lab
+  publisher_zh: 开源研究发布（仓库未记录正式机构）
+  overview: 'FastWAM is a GPU-validated world-action model built on the Wan video stack: a mixture-of-transformers (MoT) action-inference graph rides on Wan2.1-T2V-1.3B components. Both official LIBERO and RoboTwin checkpoint variants passed real A100 workspace inference with finite 32-step action chunks using their official camera/state contracts — the catalog status is all_released_checkpoints_gpu_validated (MIT license).'
+  overview_zh: FastWAM 是基于 Wan 视频栈的 GPU 已验证世界-动作模型：mixture-of-transformers（MoT）动作推理图构建在 Wan2.1-T2V-1.3B 组件之上。官方 LIBERO 与 RoboTwin 两个 checkpoint 变体均按官方相机/状态契约在真实 A100 上通过推理，输出有限的 32 步动作块——catalog 状态为 all_released_checkpoints_gpu_validated（MIT 许可）。
+  architecture: The released MoT action-inference graph, Wan VAE, UMT5 encoder, scheduler, preprocessing, and normalization all live in-tree. Runtime execution never imports an adjacent FastWAM source checkout and never enables remote checkpoint code.
+  architecture_zh: 发布的 MoT 动作推理图、Wan VAE、UMT5 编码器、调度器、预处理与归一化全部内置树内。运行时执行绝不导入相邻的 FastWAM 源码 checkout，也不启用远程 checkpoint 代码。
+  usage_notes: Both LIBERO and RoboTwin variants are declared in the runtime data configuration — pick per benchmark. Stage yuanty/fastwam plus the Wan-series converted safetensors and Wan2.1-T2V-1.3B base locally.
+  usage_notes_zh: LIBERO 与 RoboTwin 变体均已在运行时数据配置中声明——按基准选择。需在本地就位 yuanty/fastwam、Wan 系列转换 safetensors 与 Wan2.1-T2V-1.3B 基座。
+  limitations:
+  - Action chunks are fixed 32-step under the official contracts.
+  limitations_zh:
+  - 按官方契约，动作块固定为 32 步。
   recommended_benchmarks:
-  - libero
-  - robotwin
+  - id: libero
+    reason: GPU-validated LIBERO checkpoint variant.
+    reason_zh: GPU 已验证的 LIBERO checkpoint 变体。
+  - id: robotwin
+    reason: GPU-validated RoboTwin checkpoint variant.
+    reason_zh: GPU 已验证的 RoboTwin checkpoint 变体。

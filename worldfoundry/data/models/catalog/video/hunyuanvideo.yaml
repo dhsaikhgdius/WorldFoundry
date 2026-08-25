@@ -125,3 +125,28 @@ catalog_policy:
   github: Validate with git ls-remote and record the official default branch revision.
   huggingface: Record official repo id, revision, access state, license metadata, and task tags.
   parity: A pre-cutover official-runtime artifact does not establish NativeDiffusionPipeline parity.
+docs:
+  publisher: Tencent (Hunyuan)
+  publisher_kind: company
+  publisher_zh: 腾讯（混元）
+  overview: HunyuanVideo is Tencent's large open video generation model, recorded here with T2V and I2V variants. In WorldFoundry both are declarative recipes assembled by the shared native diffusion runner — the canonical PyTorch network, prompt encoders, causal 3D VAE, scheduler, and loaders live in role-based diffusion_model packages, and the former upstream CLI runtime is deliberately not a backend.
+  overview_zh: HunyuanVideo 是腾讯的大规模开源视频生成模型，本条目记录 T2V 与 I2V 两个 variant。在 WorldFoundry 中，两者都是由共享原生扩散 runner 装配的声明式配方——规范化的 PyTorch 网络、文本编码器、因果 3D VAE、调度器与加载器分布在按角色划分的 diffusion_model 包中，原上游 CLI 运行时被有意排除在后端之外。
+  architecture: 'Upstream HunyuanVideo is a ~13B diffusion transformer with a causal 3D VAE and dual text encoders (per Tencent''s public release). This repository records the native re-assembly: role-based network/conditioner/VAE/scheduler components with registry-verified checkpoint structure.'
+  architecture_zh: 上游 HunyuanVideo 是约 13B 的扩散 Transformer，配因果 3D VAE 与双文本编码器（见腾讯公开发布）。本仓库记录的是原生重装配方案：按角色划分的网络/条件器/VAE/调度器组件，checkpoint 结构已经注册表验证。
+  usage_notes: Registry resolution and checkpoint structure are verified; native CUDA artifact parity remains pending. Checkpoints are external and their HF license metadata is 'other' — review before commercial use. Choose hunyuanvideo-t2v or hunyuanvideo-i2v as the variant.
+  usage_notes_zh: 注册表解析与 checkpoint 结构已验证；原生 CUDA 产物一致性仍在等待。checkpoint 为外部资产且 HF 许可元数据为“other”——商用前请审阅。variant 二选一：hunyuanvideo-t2v 或 hunyuanvideo-i2v。
+  limitations:
+  - Native CUDA artifact parity is pending — structural verification only so far.
+  - Checkpoint license metadata is 'other'; commercial review required.
+  - 'Large model: expect high VRAM demands typical of 13B-class video DiTs.'
+  limitations_zh:
+  - 原生 CUDA 产物一致性尚未完成——目前只有结构层验证。
+  - checkpoint 许可元数据为“other”，商用需审阅。
+  - 大模型：显存需求高，属 13B 级视频 DiT 的典型水平。
+  recommended_benchmarks:
+  - id: vbench
+    reason: Standard open T2V quality suite.
+    reason_zh: 标准开源文生视频质量评测。
+  - id: physics-iq
+    reason: Physical-plausibility probe for large video models.
+    reason_zh: 针对大视频模型的物理合理性检验。

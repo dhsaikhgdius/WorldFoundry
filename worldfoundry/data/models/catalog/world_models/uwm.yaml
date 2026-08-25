@@ -34,53 +34,23 @@ catalog_scope: World-model catalog entries. Integrated entries expose in-tree Wo
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 pipeline_binding: uwm
 docs:
-  overview: |
-    Unified World Models (WEIRDLabUW/unified-world-model) is the UW WEIRD Lab's video-action diffusion model: a single diffusion transformer jointly models robot video and action trajectories, so one checkpoint can act as a policy (marginalize video), a video predictor (marginalize actions), or a full world model, and can pretrain on action-free video. WorldFoundry registers the official evaluation route; checkpoints and datasets are runtime-gated, so real generation emits a runtime plan until required assets are staged.
-
-    Within the WorldFoundry model catalog this entry is tracked as `uwm` in the `world_models` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/WEIRDLabUW/unified-world-model.
-  overview_zh: |
-    Unified World Models（WEIRDLabUW/unified-world-model）是华盛顿大学 WEIRD Lab 的视频-动作扩散模型：单个扩散 transformer 联合建模机器人视频与动作轨迹，一个权重即可作为策略（对视频边缘化）、视频预测器（对动作边缘化）或完整世界模型，并可在无动作视频上预训练。WorldFoundry 注册官方评测路线；权重与数据集受运行时门控，在暂存所需资产之前，真实生成输出运行时计划。
-
-    在 WorldFoundry 模型目录中，该条目以 `uwm` 收录于 `world_models` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/WEIRDLabUW/unified-world-model。
-  architecture: |
-    The published design couples an action diffusion head and a video diffusion stream inside one transformer with independent per-modality diffusion timesteps, which is what allows flexibly conditioning or marginalizing each modality. Recorded modalities are robot-world-model, action-conditioned-video, and video-action-diffusion; further architecture details are not recorded in the repository.
-  architecture_zh: |
-    公开设计在单个 transformer 内耦合动作扩散头与视频扩散流，并为每个模态使用独立扩散时间步，因此可灵活地对各模态施加条件或边缘化。记录模态为 robot-world-model、action-conditioned-video 与 video-action-diffusion；更多架构细节仓库未记录。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `uwm` and runtime profile `runtime-profile:uwm`.
-    Catalog integration status: `runtime_ported`.
-    Integration notes recorded in the catalog:
-    - UWM official evaluation route is registered; checkpoints/datasets are runtime-gated.
-
-    Embodiment contract:
-    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
-    - Sensors: initial visual context of a robot scene (and optionally text) plus a robot action sequence as conditioning.
-    - Action space: robot action trajectories are jointly modeled with video: they can be conditioned on (world-model mode) or generated (policy mode).
-    - Dedicated environment: targets the robot-manipulation domains recorded per checkpoint; no simulator ships with this entry.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `uwm`，运行时配置为 `runtime-profile:uwm`。
-    目录集成状态：运行时已移植（runtime_ported）。
-    目录中记录的集成备注（保留原文）：
-    - UWM official evaluation route is registered; checkpoints/datasets are runtime-gated.
-
-    具身接口（embodiment contract）：
-    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
-    - 传感器：机器人场景的初始视觉上下文（可选文本），加机器人动作序列作为条件。
-    - 动作空间：机器人动作轨迹与视频联合建模：既可作为条件（世界模型模式），也可被生成（策略模式）。
-    - 是否专用环境：面向各权重记录的机器人操作域；该条目不附带仿真器。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`implemented_checkpoint_pending`.
-    Runner parity notes recorded in the catalog:
-    - resolve_model_zoo_config and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已实现、待权重就绪（implemented_checkpoint_pending）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - resolve_model_zoo_config and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: University of Washington (WEIRD Lab)
+  publisher_kind: university
+  publisher_zh: 华盛顿大学（WEIRD 实验室）
+  overview: Unified World Models (UWM) from the University of Washington's WEIRD Lab couples video prediction and action diffusion in one robot world model, with recorded variants for LIBERO-90 (uwm-libero90) and DROID (uwm-droid). WorldFoundry registers the official evaluation route in-tree; checkpoints and datasets are runtime-gated.
+  overview_zh: 华盛顿大学 WEIRD 实验室的 Unified World Models（UWM）将视频预测与动作扩散耦合进同一个机器人世界模型，仓库记录了 LIBERO-90（uwm-libero90）与 DROID（uwm-droid）两个变体。WorldFoundry 树内注册了官方评测路由；checkpoint 与数据集为运行时门控。
+  architecture: 'UWM is a video-action diffusion design: one diffusion process jointly models future observations and robot actions, so the same network serves prediction and policy roles. Details beyond the official repository pointer are not recorded in this repository.'
+  architecture_zh: UWM 是视频-动作扩散设计：单个扩散过程联合建模未来观测与机器人动作，同一网络兼任预测与策略角色。官方仓库指针之外的细节仓库未记录。
+  usage_notes: Config resolution and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged. Missing assets are reported by the plan and are not treated as catalog blockers. Pick the LIBERO-90 or DROID variant to match your evaluation suite.
+  usage_notes_zh: 配置解析与 pipeline 导入预期可通过；在所需 checkpoint/资产就位前，真实生成会输出运行时计划。缺失资产由计划报告，不视为 catalog 阻塞。请按评测套件选择 LIBERO-90 或 DROID 变体。
+  limitations:
+  - Checkpoints/datasets are runtime-gated; no GPU validation is recorded in this repository.
+  limitations_zh:
+  - checkpoint/数据集为运行时门控；仓库未记录 GPU 验证。
   recommended_benchmarks:
-  - ewmbench
+  - id: libero
+    reason: The uwm-libero90 variant targets LIBERO tasks.
+    reason_zh: uwm-libero90 变体面向 LIBERO 任务。
+  - id: ewmbench
+    reason: Robot world-model rollout quality.
+    reason_zh: 机器人世界模型滚动生成质量。

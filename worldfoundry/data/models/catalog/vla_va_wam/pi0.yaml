@@ -27,51 +27,22 @@ catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance,
   metadata, and runtime-profile planning records. Runner or pipeline targets are present
   only after a complete in-tree WorldFoundry model runtime is registered and validated.
 docs:
-  overview: |
-    pi0 is Physical Intelligence's flagship generalist robot policy ('pi0: A Vision-Language-Action Flow Model for General Robot Control'), released through the openpi repository. It pairs a pretrained vision-language backbone with a flow-matching action expert and was trained on a large cross-embodiment mixture spanning single-arm, bimanual, and mobile manipulators, producing 50 Hz continuous action chunks. WorldFoundry tracks it as a concrete algorithm entry and reuses the flattened in-tree OpenPI runtime under `worldfoundry/synthesis/action_generation/openpi` with pi0-specific runtime config; the generic openpi entry remains the shared runtime infrastructure.
-
-    Within the WorldFoundry model catalog this entry is tracked as `pi0` in the `vla_va_wam` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/Physical-Intelligence/openpi.
-  overview_zh: |
-    pi0 是 Physical Intelligence 的旗舰通用机器人策略（《pi0: A Vision-Language-Action Flow Model for General Robot Control》），通过 openpi 仓库发布。它将预训练视觉-语言骨干与 flow-matching 动作专家配对，在覆盖单臂、双臂与移动操作平台的大规模跨具身混合数据上训练，输出 50 Hz 连续动作块。WorldFoundry 将其作为具体算法条目跟踪，复用 `worldfoundry/synthesis/action_generation/openpi` 下的扁平化树内 OpenPI 运行时并使用 pi0 专属运行时配置；通用 openpi 条目保留为共享运行时基础设施。
-
-    在 WorldFoundry 模型目录中，该条目以 `pi0` 收录于 `vla_va_wam` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/Physical-Intelligence/openpi。
-  architecture: |
-    The published architecture is a PaliGemma-derived vision-language transformer (about 3B) augmented with a smaller flow-matching action expert (about 300M) that attends to the VLM's keys/values and iteratively denoises a chunk of future continuous actions conditioned on images, proprioceptive state, and the language prompt. Training follows a pretrain-on-mixture then post-train-per-platform recipe. The openpi repository also publishes LIBERO fine-tune configurations for the pi family.
-  architecture_zh: |
-    公开架构为 PaliGemma 派生的视觉-语言 transformer（约 30 亿参数），外挂较小的 flow-matching 动作专家（约 3 亿参数）：动作专家读取 VLM 的 keys/values，以图像、本体状态与语言提示为条件，迭代去噪未来连续动作块。训练采用混合数据预训练加按平台后训练的流程。openpi 仓库还发布了 pi 系的 LIBERO 微调配置。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `pi0` and runtime profile `runtime-profile:pi0`.
-    Catalog integration status: `runtime_ported`.
-    Integration notes recorded in the catalog:
-    - Concrete pi0 algorithm entry backed by Physical Intelligence openpi. The generic openpi runtime record remains as shared runtime infrastructure.
-    - WorldFoundry reuses the flattened in-tree OpenPI runtime under worldfoundry/synthesis/action_generation/openpi with pi0-specific runtime config.
-
-    Embodiment contract:
-    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
-    - Sensors: multiple RGB camera views (typically base plus wrist) with proprioceptive state and a language prompt, per the standard openpi policy input contract.
-    - Action space: continuous action chunks produced by the flow-matching expert at up to 50 Hz; dimensionality follows the target embodiment configuration.
-    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `pi0`，运行时配置为 `runtime-profile:pi0`。
-    目录集成状态：运行时已移植（runtime_ported）。
-    目录中记录的集成备注（保留原文）：
-    - Concrete pi0 algorithm entry backed by Physical Intelligence openpi. The generic openpi runtime record remains as shared runtime infrastructure.
-    - WorldFoundry reuses the flattened in-tree OpenPI runtime under worldfoundry/synthesis/action_generation/openpi with pi0-specific runtime config.
-
-    具身接口（embodiment contract）：
-    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
-    - 传感器：多路 RGB 相机视角（通常为基座加腕部）加本体状态与语言提示，遵循标准 openpi 策略输入契约。
-    - 动作空间：flow-matching 专家输出的连续动作块，最高 50 Hz；维度随目标具身配置而定。
-    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
-  limitations: |
-    No family-level demo/runner parity status is recorded in this catalog file.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件未记录家族级 demo/runner 一致性状态。
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Physical Intelligence
+  publisher_kind: company
+  publisher_zh: Physical Intelligence（PI）
+  overview: 'pi0 is Physical Intelligence''s flagship flow-matching VLA: a PaliGemma-based backbone with an action expert that decodes continuous action chunks via flow matching. This catalog entry is the concrete pi0 algorithm route, reusing the flattened in-tree OpenPI runtime with pi0-specific configuration.'
+  overview_zh: pi0 是 Physical Intelligence 的旗舰 flow-matching VLA：基于 PaliGemma 的骨干加动作专家，经 flow matching 解码连续动作块。本 catalog 条目是具体的 pi0 算法路由，复用扁平化树内 OpenPI 运行时与 pi0 专用配置。
+  architecture: A PaliGemma VLM backbone plus a flow-matching action expert producing action chunks; the model graph, transforms, local checkpoint loader, and action sampler are in-tree. Checkpoints are GCS-hosted (gs://openpi-assets).
+  architecture_zh: PaliGemma VLM 骨干加 flow-matching 动作专家，输出动作块；模型图、变换、本地 checkpoint 加载器与动作采样器内置树内。checkpoint 托管于 GCS（gs://openpi-assets）。
+  usage_notes: Stage GCS checkpoints with gsutil/gcloud (not Hugging Face). Numerical parity remains gated only by staged checkpoint assets; the shared runtime infrastructure is validated under the openpi entry.
+  usage_notes_zh: 用 gsutil/gcloud 就位 GCS checkpoint（非 Hugging Face）。数值 parity 仅受 checkpoint 资产就位限制；共享运行时基础设施已在 openpi 条目下验证。
+  limitations:
+  - GCS-hosted checkpoints require gsutil/gcloud tooling.
+  - No license is recorded on this entry (see the openpi entry, Apache-2.0).
+  limitations_zh:
+  - GCS 托管 checkpoint 需要 gsutil/gcloud 工具。
+  - 本条目未记录许可证（参见 openpi 条目，Apache-2.0）。
   recommended_benchmarks:
-  - libero
+  - id: libero
+    reason: The openpi family validates pi05_libero in-tree.
+    reason_zh: openpi 家族在树内验证了 pi05_libero。

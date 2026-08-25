@@ -52,60 +52,25 @@ catalog_policy:
     Hugging Face model page was confirmed. Do not infer checkpoint availability from
     papers, demos, or third-party mirrors.
 docs:
-  overview: |
-    HunyuanWorld-Voyager (Tencent-Hunyuan/HunyuanWorld-Voyager; Hugging Face `tencent/HunyuanWorld-Voyager`) is Tencent's long-range, world-consistent RGBD video generation model: from a single image and a user-defined camera path it generates aligned RGB and depth sequences that can be reconstructed into 3D, using a world cache mechanism for long-range consistency. WorldFoundry exposes the in-tree runtime through a BaseSynthesis subclass following the official case1 conditioned-video demo (num_frames=49, infer_steps=50, flow_shift=7.0, seed=0, embedded_cfg_scale=6.0, i2v_stability=true) with no external checkout required at import or inference time; the runner is verified.
-
-    Within the WorldFoundry model catalog this entry is tracked as `hunyuanworld-voyager` in the `world_models` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/Tencent-Hunyuan/HunyuanWorld-Voyager; Hugging Face `tencent/HunyuanWorld-Voyager`.
-  overview_zh: |
-    HunyuanWorld-Voyager（Tencent-Hunyuan/HunyuanWorld-Voyager；Hugging Face `tencent/HunyuanWorld-Voyager`）是腾讯的长程、世界一致 RGBD 视频生成模型：从单张图像与用户定义相机路径生成对齐的 RGB 与深度序列，可重建为 3D，并用世界缓存机制保持长程一致性。WorldFoundry 通过 BaseSynthesis 子类暴露树内运行时，遵循官方 case1 条件视频演示（num_frames=49、infer_steps=50、flow_shift=7.0、seed=0、embedded_cfg_scale=6.0、i2v_stability=true），导入与推理时无需外部 checkout；runner 已验证。
-
-    在 WorldFoundry 模型目录中，该条目以 `hunyuanworld-voyager` 收录于 `world_models` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/Tencent-Hunyuan/HunyuanWorld-Voyager；Hugging Face `tencent/HunyuanWorld-Voyager`。
-  architecture: |
-    The published architecture couples a HunyuanVideo-based diffusion transformer that jointly generates RGB and depth with a world-caching scheme: previously generated content is projected into the new view as partial conditioning, so camera-controlled exploration stays geometrically consistent over long ranges. Recorded modalities include image-to-video, 3d-reconstruction, world-generation, and long-range.
-  architecture_zh: |
-    公开架构将联合生成 RGB 与深度的 HunyuanVideo 系扩散 transformer 与世界缓存方案耦合：已生成内容投影到新视角作为部分条件，使相机控制探索在长程内保持几何一致。记录模态包括 image-to-video、3d-reconstruction、world-generation 与 long-range。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `hunyuanworld-voyager` and runtime profile `runtime-profile:hunyuanworld-voyager`.
-    Catalog integration status: `integrated`.
-    Integration notes recorded in the catalog:
-    - Existing in-tree runtime is now exposed through a BaseSynthesis subclass.
-    - The WorldFoundry runner follows the official case1 conditioned-video demo and upstream single-GPU command shape.
-
-    Embodiment contract:
-    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
-    - Sensors: an initial image (and optionally a text prompt) plus a camera trajectory / pose sequence as the control signal.
-    - Action space: the action channel is the camera trajectory (extrinsics/pose sequence); the model renders the world consistently along the requested path.
-    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `hunyuanworld-voyager`，运行时配置为 `runtime-profile:hunyuanworld-voyager`。
-    目录集成状态：已集成（integrated）。
-    目录中记录的集成备注（保留原文）：
-    - Existing in-tree runtime is now exposed through a BaseSynthesis subclass.
-    - The WorldFoundry runner follows the official case1 conditioned-video demo and upstream single-GPU command shape.
-
-    具身接口（embodiment contract）：
-    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
-    - 传感器：初始图像（可选文本提示）加相机轨迹/位姿序列作为控制信号。
-    - 动作空间：动作通道为相机轨迹（外参/位姿序列）；模型沿请求路径一致地渲染世界。
-    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`verified`.
-    Runner parity notes recorded in the catalog:
-    - HunyuanWorldVoyagerPipeline is registered against the in-tree Voyager runtime and no external repo checkout is required at import or inference time.
-    - The official README case1 defaults are represented in the runtime profile: num_frames=49, infer_steps=50, flow_shift=7.0, seed=0, embedded_cfg_scale=6.0, i2v_stability=true, ulysses_degree=1, and ring_degree=1.
-    - Per-run visual QA and artifact checks are tracked outside the catalog.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已验证（verified）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - HunyuanWorldVoyagerPipeline is registered against the in-tree Voyager runtime and no external repo checkout is required at import or inference time.
-    - The official README case1 defaults are represented in the runtime profile: num_frames=49, infer_steps=50, flow_shift=7.0, seed=0, embedded_cfg_scale=6.0, i2v_stability=true, ulysses_degree=1, and ring_degree=1.
-    - Per-run visual QA and artifact checks are tracked outside the catalog.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Tencent (Hunyuan)
+  publisher_kind: company
+  publisher_zh: 腾讯（混元）
+  overview: HunyuanWorld-Voyager generates world-consistent RGB-D video along user-defined camera paths — walk a camera through the scene implied by one image and get aligned color and depth for 3D reconstruction. In this catalog the runner is verified against the official case1 conditioned-video demo with the upstream single-GPU command shape.
+  overview_zh: HunyuanWorld-Voyager 沿用户定义的相机路径生成世界一致的 RGB-D 视频——让相机在一张图所暗示的场景中游走，得到对齐的彩色与深度，可用于 3D 重建。本 catalog 中 runner 已按官方 case1 条件视频 demo 与上游单卡命令形状验证。
+  architecture: 'Per the upstream release, Voyager combines a HunyuanVideo-based generator with joint RGB-D output and a world-cache mechanism for long-range consistency. The official case1 defaults are recorded in the runtime profile: num_frames=49, infer_steps=50, flow_shift=7.0, embedded_cfg_scale=6.0, i2v_stability=true.'
+  architecture_zh: 按上游发布，Voyager 将基于 HunyuanVideo 的生成器与 RGB-D 联合输出及世界缓存机制结合，实现长程一致性。运行时档案记录官方 case1 默认值：num_frames=49、infer_steps=50、flow_shift=7.0、 embedded_cfg_scale=6.0、i2v_stability=true。
+  usage_notes: HunyuanWorldVoyagerPipeline wraps the in-tree runtime — no external checkout at import or inference time. Per-run visual QA is tracked outside the catalog.
+  usage_notes_zh: HunyuanWorldVoyagerPipeline 封装树内运行时——导入与推理时都不需要外部检出。每次运行的视觉 QA 在 catalog 外跟踪。
+  limitations:
+  - '49-frame default clips: longer voyages need iterative extension.'
+  - Depth quality is generative, not sensor-grade — validate before metric use.
+  limitations_zh:
+  - 默认 49 帧片段：更长的游走需要迭代扩展。
+  - 深度是生成式的、非传感器级——用于米制用途前请先验证。
   recommended_benchmarks:
-  - worldscore
-  - camerabench
+  - id: worldscore
+    reason: Scoring for camera-navigable generated worlds.
+    reason_zh: 相机可游走生成世界的评分。
+  - id: camerabench
+    reason: Camera-path adherence evaluation.
+    reason_zh: 相机路径贴合度评测。

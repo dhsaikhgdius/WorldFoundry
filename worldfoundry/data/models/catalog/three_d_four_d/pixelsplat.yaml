@@ -33,52 +33,18 @@ catalog_scope: 3D Gaussian-splatting catalog entries. Integrated entries expose 
   WorldFoundry runtimes; metadata-only entries retain upstream provenance without runnable
   backends.
 docs:
-  overview: |
-    pixelSplat (CVPR 2024) is a feed-forward 3D Gaussian Splatting model: from a pair of posed images it directly predicts a 3D Gaussian primitive cloud, enabling generalizable, real-time-renderable scene reconstruction. In WorldFoundry, `PixelSplatSynthesis` provides an in-tree wrapper around the official test entrypoint; the runtime source is vendored, but inference is blocked until a local Gaussian rasterization extension is provided and the upstream `re10k.ckpt` checkpoint is staged, so the catalog status is `planned`.
-
-    Within the WorldFoundry model catalog this entry is tracked as `pixelsplat` in the `three_d_four_d` category.
-    The repository does not record an official source link for this entry.
-  overview_zh: |
-    pixelSplat（CVPR 2024）是前向 3D Gaussian Splatting 模型：从一对带位姿图像直接预测 3D 高斯基元云，实现可泛化、可实时渲染的场景重建。在 WorldFoundry 中，`PixelSplatSynthesis` 对官方测试入口做了 in-tree 包装；运行时源码已内置，但推理在提供本地高斯光栅化扩展并暂存上游 `re10k.ckpt` 权重之前保持受阻，目录状态为 planned。
-
-    在 WorldFoundry 模型目录中，该条目以 `pixelsplat` 收录于 `three_d_four_d` 分类。
-    仓库未记录该条目的官方来源链接。
-  architecture: |
-    The published architecture uses an epipolar transformer to resolve scale ambiguity between the two views, then predicts per-pixel probabilistic depth distributions from which Gaussian means are sampled (reparameterized to stay differentiable), along with covariances, opacities, and spherical-harmonics colors; rendering uses standard differentiable splatting.
-  architecture_zh: |
-    公开架构用极线 transformer 消解两视角间的尺度歧义，随后预测逐像素的概率深度分布，从中采样高斯均值（重参数化以保持可微），同时输出协方差、不透明度与球谐颜色；渲染使用标准可微 splatting。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `pixelsplat` and runtime profile `runtime-profile:pixelsplat`.
-    Catalog integration status: `planned`.
-    Integration notes recorded in the catalog:
-    - Runtime source is vendored in-tree; inference is blocked until a local Gaussian rasterization extension is provided and re10k.ckpt is staged.
-
-    Embodiment contract:
-    - Simulator: none — this is an offline reconstruction model that consumes recorded images or video; it does not drive or require a simulator.
-    - Sensors: monocular or multi-view RGB images/video frames; no additional sensor modalities are recorded in the repository.
-    - Action space: not applicable — the model does not consume an action or control stream.
-    - Dedicated environment: no dedicated environment; it runs through the shared WorldFoundry pipeline runtime described in the integration notes.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `pixelsplat`，运行时配置为 `runtime-profile:pixelsplat`。
-    目录集成状态：计划中（planned）。
-    目录中记录的集成备注（保留原文）：
-    - Runtime source is vendored in-tree; inference is blocked until a local Gaussian rasterization extension is provided and re10k.ckpt is staged.
-
-    具身接口（embodiment contract）：
-    - 仿真器：无——这是一个离线重建模型，输入为已录制的图像或视频，不驱动也不依赖仿真器。
-    - 传感器：单目或多视角 RGB 图像/视频帧；仓库未记录其它传感器模态。
-    - 动作空间：不适用——该模型不接收动作或控制流输入。
-    - 是否专用环境：无专用环境；通过集成备注中描述的 WorldFoundry 共享管线运行时执行。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`implemented_local_extension_pending`.
-    Runner parity notes recorded in the catalog:
-    - PixelSplatSynthesis provides an in-tree wrapper around the official test entrypoint.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已实现、待本地扩展组件（implemented_local_extension_pending）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - PixelSplatSynthesis provides an in-tree wrapper around the official test entrypoint.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
-  recommended_benchmarks: []
+  publisher: Massachusetts Institute of Technology (MIT)
+  publisher_kind: university
+  publisher_zh: 麻省理工学院（MIT）
+  overview: pixelSplat reconstructs a 3D Gaussian-splat scene from just two images in a single forward pass — feed-forward 3DGS rather than per-scene optimization (CVPR 2024). In this catalog the runtime source is vendored in-tree, but inference stays blocked until a local Gaussian rasterization extension is provided and the re10k.ckpt checkpoint is staged.
+  overview_zh: pixelSplat 仅凭两张图像即可在单次前向中重建 3D 高斯泼溅场景——前馈式 3DGS，而非逐场景优化（CVPR 2024）。本 catalog 中其运行时源码已内置树内，但在本地提供高斯光栅化扩展并就位 re10k.ckpt checkpoint 之前，推理保持受限。
+  architecture: Per the publication, an epipolar transformer resolves scale ambiguity between the two views, and the network predicts a probabilistic distribution over Gaussian parameters. WorldFoundry vendors the source under base_models/three_dimensions/point_clouds/pixelsplat with a lazy wrapper around the official test entrypoint (MIT license; checkpoint mirror dylanebert/pixelSplat).
+  architecture_zh: 按论文，极线 Transformer 消解两视图间的尺度歧义，网络预测高斯参数的概率分布。 WorldFoundry 将源码内置于 base_models/three_dimensions/point_clouds/pixelsplat，并对官方测试入口做惰性封装（MIT 许可；checkpoint 镜像 dylanebert/pixelSplat）。
+  usage_notes: PixelSplatSynthesis wraps the official test entrypoint but fails fast without the local Gaussian rasterization extension and the staged re10k.ckpt. Build/stage both before submitting jobs.
+  usage_notes_zh: PixelSplatSynthesis 封装官方测试入口，但缺少本地高斯光栅化扩展与就位的 re10k.ckpt 时会快速失败。提交任务前请先编译/就位两者。
+  limitations:
+  - Inference is blocked until a local Gaussian rasterization extension is compiled and re10k.ckpt is staged.
+  - Trained on RealEstate10K-style two-view input; generalization beyond that domain is limited.
+  limitations_zh:
+  - 在本地编译高斯光栅化扩展并就位 re10k.ckpt 之前无法推理。
+  - 训练数据为 RealEstate10K 风格的双视图输入；跨域泛化有限。

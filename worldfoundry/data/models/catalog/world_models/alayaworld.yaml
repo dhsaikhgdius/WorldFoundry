@@ -53,64 +53,27 @@ starred: true
 catalog_category: world_models
 catalog_scope: world-model/interactive starred models
 docs:
-  overview: |
-    AlayaWorld (AlayaLab/AlayaWorld, LTX-2 community license) is a camera/action-controllable world model in the LTX-2.3 lineage with temporal history and spatial memory. WorldFoundry's runtime reuses the in-tree LTX-2.3 transformer, VAE, Gemma connector, RoPE, patchifier, attention dispatcher, and distributed helpers; Alaya-specific checkpoint tensors map only to the action AdaLN layers and the temporal-history encoder. The released 33.6 GB merged checkpoint passed exact size and SHA-256 validation, and the unified pipeline generated the official case1 first chunk on an A100 with Depth Anything 3 spatial memory enabled (32 H.264 frames at 544x960, 24 fps).
-
-    Within the WorldFoundry model catalog this entry is tracked as `alayaworld` in the `world_models` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/AlayaLab/AlayaWorld; Hugging Face `AlayaLab/AlayaWorld`.
-  overview_zh: |
-    AlayaWorld（AlayaLab/AlayaWorld，LTX-2 社区许可）是 LTX-2.3 谱系中带时间历史与空间记忆的相机/动作可控世界模型。WorldFoundry 运行时复用树内 LTX-2.3 Transformer、VAE、Gemma 连接器、RoPE、patchifier、注意力分发器与分布式辅助组件；Alaya 特有的权重张量仅映射到动作 AdaLN 层与时间历史编码器。发布的 33.6 GB 合并权重通过精确大小与 SHA-256 校验；统一管线在 A100 上启用 Depth Anything 3 空间记忆生成了官方 case1 首块（32 帧 H.264，544x960，24 fps）。
-
-    在 WorldFoundry 模型目录中，该条目以 `alayaworld` 收录于 `world_models` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/AlayaLab/AlayaWorld；Hugging Face `AlayaLab/AlayaWorld`。
-  architecture: |
-    The base is the LTX-2.3 video diffusion architecture (transformer plus VAE with a Gemma text connector); AlayaWorld adds action AdaLN conditioning and a temporal-history encoder for camera/action control, and its spatial memory reuses the in-tree Depth Anything 3 model plus shared camera/geometry helpers. Transformer, history encoder, and video-only Gemma connector checkpoint key/shape mappings were checked against the released safetensors header.
-  architecture_zh: |
-    基座为 LTX-2.3 视频扩散架构（transformer 加 VAE，带 Gemma 文本连接器）；AlayaWorld 增加动作 AdaLN 条件与时间历史编码器实现相机/动作控制，空间记忆复用树内 Depth Anything 3 模型与共享相机/几何辅助组件。Transformer、历史编码器与仅视频 Gemma 连接器的权重键/形状映射已对照发布的 safetensors 头校验。
-  usage_notes: |
-    No runner target is registered for this entry; the catalog tracks upstream provenance metadata without a runnable in-tree pipeline.
-    Catalog integration status: `integrated`.
-    Integration notes recorded in the catalog:
-    - The runtime reuses WorldFoundry's existing LTX-2.3 Transformer, VAE, Gemma connector, RoPE, patchifier, attention dispatcher, and distributed helpers.
-    - Alaya-specific checkpoint tensors map only to action AdaLN and the temporal-history encoder; external source repositories are never imported at runtime.
-    - Spatial memory reuses the in-tree Depth Anything 3 model and shared core camera/geometry helpers.
-
-    Embodiment contract:
-    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
-    - Sensors: an initial image (and optionally a text prompt) plus a camera trajectory / pose sequence as the control signal.
-    - Action space: the action channel is the camera trajectory (extrinsics/pose sequence); the model renders the world consistently along the requested path.
-    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
-  usage_notes_zh: |
-    该条目未注册 runner target；目录仅跟踪上游来源元数据，暂无可运行的 in-tree 管线。
-    目录集成状态：已集成（integrated）。
-    目录中记录的集成备注（保留原文）：
-    - The runtime reuses WorldFoundry's existing LTX-2.3 Transformer, VAE, Gemma connector, RoPE, patchifier, attention dispatcher, and distributed helpers.
-    - Alaya-specific checkpoint tensors map only to action AdaLN and the temporal-history encoder; external source repositories are never imported at runtime.
-    - Spatial memory reuses the in-tree Depth Anything 3 model and shared core camera/geometry helpers.
-
-    具身接口（embodiment contract）：
-    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
-    - 传感器：初始图像（可选文本提示）加相机轨迹/位姿序列作为控制信号。
-    - 动作空间：动作通道为相机轨迹（外参/位姿序列）；模型沿请求路径一致地渲染世界。
-    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`checkpoint_gpu_validated`.
-    Runner parity notes recorded in the catalog:
-    - Transformer, history encoder, and video-only Gemma connector checkpoint key/shape mappings were checked against the released safetensors header.
-    - The released 33.6 GB merged checkpoint passed exact size and SHA-256 validation.
-    - {'The unified in-tree pipeline generated the official case1 first chunk on an NVIDIA A100 with DA3 spatial memory enabled': '32 H.264 frames at 544x960 and 24 fps.'}
-    - Multi-rank Ulysses tensor parity is validated; a true NCCL multi-GPU artifact run remains pending multi-GPU availability.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=`checkpoint_gpu_validated`。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - Transformer, history encoder, and video-only Gemma connector checkpoint key/shape mappings were checked against the released safetensors header.
-    - The released 33.6 GB merged checkpoint passed exact size and SHA-256 validation.
-    - {'The unified in-tree pipeline generated the official case1 first chunk on an NVIDIA A100 with DA3 spatial memory enabled': '32 H.264 frames at 544x960 and 24 fps.'}
-    - Multi-rank Ulysses tensor parity is validated; a true NCCL multi-GPU artifact run remains pending multi-GPU availability.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Open-source research release (institution not recorded)
+  publisher_kind: lab
+  publisher_zh: 开源研究发布（仓库未记录正式机构）
+  overview: 'AlayaWorld is a camera-controlled interactive world model for long video: from an image it rolls out world video autoregressively with action control and DA3-backed spatial memory. In this catalog it is checkpoint/GPU validated — the released 33.6 GB merged checkpoint passed exact size and SHA-256 validation, and the unified in-tree pipeline generated the official case1 first chunk (32 H.264 frames at 544x960, 24 fps) on an A100 with spatial memory enabled.'
+  overview_zh: AlayaWorld 是面向长视频的相机可控交互式世界模型：从一张图出发，带动作控制与 DA3 空间记忆自回归滚动生成世界视频。本 catalog 中它已通过 checkpoint/GPU 验证——发布的 33.6 GB 合并 checkpoint 通过精确字节数与 SHA-256 校验，统一树内 pipeline 在 A100 上开启 DA3 空间记忆生成官方 case1 首个 chunk （544x960、24 fps 的 32 帧 H.264）。
+  architecture: The runtime is a thin extension of WorldFoundry's canonical in-tree LTX-2.3 model — Transformer, VAE, Gemma connector, RoPE, patchifier, attention dispatcher, and distributed helpers are all reused; Alaya-specific tensors map only to action AdaLN and the temporal-history encoder. Spatial memory reuses the in-tree Depth Anything 3 model (paper arXiv 2607.06291).
+  architecture_zh: 运行时是 WorldFoundry 规范树内 LTX-2.3 模型的轻量扩展——Transformer、VAE、Gemma 连接器、RoPE、patchifier、注意力分发器与分布式辅助全部复用；Alaya 专属张量仅映射到动作 AdaLN 与时间历史编码器。空间记忆复用树内 Depth Anything 3 模型（论文 arXiv 2607.06291）。
+  usage_notes: Attention dispatch is capability-based; multi-GPU Ulysses context parallelism uses WorldFoundry core collectives. Multi-rank Ulysses tensor parity is validated, but a true NCCL multi-GPU artifact run remains pending multi-GPU availability.
+  usage_notes_zh: 注意力分发按硬件能力选择；多卡 Ulysses 上下文并行使用 WorldFoundry 核心集合通信。多 rank Ulysses 张量一致性已验证，但真正的 NCCL 多卡产物运行仍待多 GPU 环境。
+  limitations:
+  - The 33.6 GB merged checkpoint requires substantial disk and GPU memory.
+  - True multi-GPU artifact validation is pending; single-A100 evidence covers the first chunk only.
+  - The publishing institution is not recorded in this repository.
+  limitations_zh:
+  - 33.6 GB 合并 checkpoint 需要可观的磁盘与显存。
+  - 真正的多卡产物验证待完成；单 A100 证据仅覆盖首个 chunk。
+  - 发表机构在本仓库中未记录。
   recommended_benchmarks:
-  - wrbench
-  - memobench
+  - id: camerabench
+    reason: Camera-control quality of interactive rollouts.
+    reason_zh: 交互滚动生成的相机控制质量。
+  - id: memobench
+    reason: Long-horizon spatial-memory consistency evaluation.
+    reason_zh: 长时程空间记忆一致性评测。

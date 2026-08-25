@@ -32,54 +32,20 @@ catalog_scope: World-model catalog entries. Integrated entries expose in-tree Wo
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 pipeline_binding: vid2world
 docs:
-  overview: |
-    Vid2World (thuml/Vid2World) is THU-ML's recipe for turning pre-trained full-sequence video diffusion models into interactive world models: it causalizes the architecture and weights and adds causal action guidance, so the adapted model performs autoregressive, action-conditioned rollout in domains like robot manipulation and game simulation. WorldFoundry registers the official evaluation route; checkpoints and config assets are runtime-gated, so real generation emits a runtime plan until required assets are staged.
-
-    Within the WorldFoundry model catalog this entry is tracked as `vid2world` in the `world_models` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/thuml/Vid2World.
-  overview_zh: |
-    Vid2World（thuml/Vid2World）是清华 THU-ML 将预训练全序列视频扩散模型转为交互式世界模型的方案：对架构与权重做因果化改造并加入因果动作引导，使改造后的模型能在机器人操作、游戏仿真等领域做自回归、动作条件 rollout。WorldFoundry 注册官方评测路线；权重与配置资产受运行时门控，在暂存所需资产之前，真实生成输出运行时计划。
-
-    在 WorldFoundry 模型目录中，该条目以 `vid2world` 收录于 `world_models` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/thuml/Vid2World。
-  architecture: |
-    The published method contributes video diffusion causalization (converting bidirectional temporal attention and weights into a causal form suitable for autoregressive rollout) and causal action guidance (injecting per-step actions so the rollout responds to control). Recorded modalities are interactive-world-model, video-diffusion-adaptation, and action-conditioned-video; further architecture details are not recorded in the repository.
-  architecture_zh: |
-    公开方法的贡献是视频扩散因果化（把双向时间注意力与权重改造成适合自回归 rollout 的因果形式）与因果动作引导（逐步注入动作使 rollout 响应控制）。记录模态为 interactive-world-model、video-diffusion-adaptation 与 action-conditioned-video；更多架构细节仓库未记录。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `vid2world` and runtime profile `runtime-profile:vid2world`.
-    Catalog integration status: `runtime_ported`.
-    Integration notes recorded in the catalog:
-    - Vid2World official evaluation route is registered; checkpoints/config assets are runtime-gated.
-
-    Embodiment contract:
-    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
-    - Sensors: an initial image or context frames plus streaming interaction inputs.
-    - Action space: per-step actions injected through causal action guidance; the concrete action space follows the adapted downstream domain (e.g. robot or game controls).
-    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `vid2world`，运行时配置为 `runtime-profile:vid2world`。
-    目录集成状态：运行时已移植（runtime_ported）。
-    目录中记录的集成备注（保留原文）：
-    - Vid2World official evaluation route is registered; checkpoints/config assets are runtime-gated.
-
-    具身接口（embodiment contract）：
-    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
-    - 传感器：初始图像或上下文帧，加流式交互输入。
-    - 动作空间：通过因果动作引导逐步注入动作；具体动作空间随下游适配领域（如机器人或游戏控制）而定。
-    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`implemented_checkpoint_pending`.
-    Runner parity notes recorded in the catalog:
-    - resolve_model_zoo_config and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已实现、待权重就绪（implemented_checkpoint_pending）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - resolve_model_zoo_config and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Tsinghua University (THUML)
+  publisher_kind: university
+  publisher_zh: 清华大学（THUML 机器学习组）
+  overview: 'Vid2World from Tsinghua''s THUML group turns pretrained video diffusion models into interactive world models: it adapts a passive video generator into an action-conditioned, autoregressive predictor. WorldFoundry registers the official evaluation route in-tree; checkpoints and config assets are runtime-gated.'
+  overview_zh: 清华大学 THUML 组的 Vid2World 将预训练视频扩散模型改造为交互式世界模型：把被动的视频生成器适配成动作条件的自回归预测器。WorldFoundry 树内注册了官方评测路由；checkpoint 与配置资产为运行时门控。
+  architecture: 'The core idea recorded here is video-diffusion adaptation: converting a full-sequence diffusion model to causal, action-conditioned rollout. Architecture internals beyond the official repository pointer (thuml/Vid2World, pinned head ae24077a) are not recorded in this repository.'
+  architecture_zh: 仓库记录的核心思想是视频扩散适配：将全序列扩散模型改造成因果、动作条件的滚动生成。官方仓库指针（thuml/Vid2World，锁定 head ae24077a）之外的架构内部细节仓库未记录。
+  usage_notes: Config resolution and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged. Missing assets are reported by the plan and are not treated as catalog blockers.
+  usage_notes_zh: 配置解析与 pipeline 导入预期可通过；在所需 checkpoint/资产就位前，真实生成会输出运行时计划。缺失资产由计划报告，不视为 catalog 阻塞。
+  limitations:
+  - Checkpoints/config assets are runtime-gated; no GPU validation is recorded in this repository.
+  limitations_zh:
+  - checkpoint/配置资产为运行时门控；仓库未记录 GPU 验证。
   recommended_benchmarks:
-  - world-in-world
-  - ewmbench
+  - id: worldmodelbench
+    reason: Action-conditioned interactive rollout quality.
+    reason_zh: 动作条件交互滚动生成质量。

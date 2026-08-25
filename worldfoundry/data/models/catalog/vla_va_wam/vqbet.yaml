@@ -30,52 +30,18 @@ catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance,
   metadata, and runtime-profile planning records. Runner or pipeline targets are present
   only after a complete in-tree WorldFoundry model runtime is registered and validated.
 docs:
-  overview: |
-    VQ-BeT (jayLEE0301/vq_bet_official, 'Behavior Generation with Latent Actions', ICML 2024 Spotlight) is a behavior-generation model in the Behavior Transformer lineage: it tokenizes continuous action chunks with a hierarchical residual VQ-VAE and predicts those latent action codes with a GPT-style transformer, capturing multimodal demonstration distributions without diffusion-style iterative sampling. WorldFoundry tracks it as a concrete algorithm entry from the official repository and routes it through an in-tree action runtime adapter; checkpoint absence is reported by runtime missing_assets and is not a catalog blocker.
-
-    Within the WorldFoundry model catalog this entry is tracked as `vqbet` in the `vla_va_wam` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/jayLEE0301/vq_bet_official.
-  overview_zh: |
-    VQ-BeT（jayLEE0301/vq_bet_official，《Behavior Generation with Latent Actions》，ICML 2024 Spotlight）是 Behavior Transformer 谱系的行为生成模型：用分层残差 VQ-VAE 对连续动作块做 token 化，再用 GPT 式 transformer 预测这些隐动作码，无需扩散式迭代采样即可刻画多模态示教分布。WorldFoundry 将其作为来自官方仓库的具体算法条目跟踪，通过树内动作运行时适配器接入；权重缺失由运行时 missing_assets 报告，不构成目录阻塞。
-
-    在 WorldFoundry 模型目录中，该条目以 `vqbet` 收录于 `vla_va_wam` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/jayLEE0301/vq_bet_official。
-  architecture: |
-    Two stages: (1) a residual VQ-VAE learns a discrete hierarchical codebook over short action sequences; (2) a minGPT-style transformer conditioned on observation history (and optionally goals) predicts primary plus residual code indices, with a small offset head refining the decoded continuous actions. Public evaluations span simulated manipulation and self-driving environments plus real-robot tasks; those environments are not part of this entry.
-  architecture_zh: |
-    两阶段：（1）残差 VQ-VAE 在短动作序列上学习离散分层码本；（2）minGPT 式 transformer 以观测历史（可选目标）为条件，预测主码与残差码索引，另有小的偏移头精修解码后的连续动作。公开评测覆盖仿真操作、自动驾驶环境与真机任务；这些环境不属于本条目。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `vqbet` and runtime profile `runtime-profile:vqbet`.
-    Catalog integration status: `runtime_ported`.
-    Integration notes recorded in the catalog:
-    - Concrete algorithm entry sourced from the official VQ-BeT repository.
-    - WorldFoundry routes VQ-BeT through an in-tree action runtime adapter against the concrete VQ-BeT policy.
-    - Checkpoint absence is reported by runtime missing_assets and is not a catalog blocker.
-
-    Embodiment contract:
-    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
-    - Sensors: visual and/or state observation history per the trained task configuration; goal conditioning is optional.
-    - Action space: continuous action chunks decoded from predicted residual-VQ latent codes plus a learned offset.
-    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `vqbet`，运行时配置为 `runtime-profile:vqbet`。
-    目录集成状态：运行时已移植（runtime_ported）。
-    目录中记录的集成备注（保留原文）：
-    - Concrete algorithm entry sourced from the official VQ-BeT repository.
-    - WorldFoundry routes VQ-BeT through an in-tree action runtime adapter against the concrete VQ-BeT policy.
-    - Checkpoint absence is reported by runtime missing_assets and is not a catalog blocker.
-
-    具身接口（embodiment contract）：
-    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
-    - 传感器：按训练任务配置的视觉与/或状态观测历史；目标条件可选。
-    - 动作空间：由预测的残差 VQ 隐码解码、再加学习偏移量的连续动作块。
-    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
-  limitations: |
-    No family-level demo/runner parity status is recorded in this catalog file.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件未记录家族级 demo/runner 一致性状态。
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
-  recommended_benchmarks: []
+  publisher: Open-source research release (institution not recorded)
+  publisher_kind: lab
+  publisher_zh: 开源研究发布（仓库未记录正式机构）
+  overview: VQ-BeT (Vector-Quantized Behavior Transformer) generates behavior by tokenizing continuous actions with a hierarchical VQ-VAE and predicting those tokens with a transformer — capturing multimodal demonstrations without diffusion sampling costs. The catalog sources the official repository and routes it through an in-tree action runtime adapter.
+  overview_zh: VQ-BeT（向量量化行为 Transformer）用分层 VQ-VAE 将连续动作 token 化，再以 transformer 预测这些 token 来生成行为——无需扩散采样开销即可捕捉多模态示范。catalog 以官方仓库为源，经树内动作运行时适配器路由。
+  architecture: A residual VQ-VAE action tokenizer plus a GPT-style transformer over behavior tokens, with offset heads recovering continuous actions. Further internals are not recorded in this repository.
+  architecture_zh: 残差 VQ-VAE 动作 tokenizer 加 GPT 式行为 token transformer，偏移头恢复连续动作。更多内部细节仓库未记录。
+  usage_notes: Checkpoint absence is reported by runtime missing_assets and is not a catalog blocker; runs emit a runtime plan until weights are staged. Train your own task checkpoint with the official code before running.
+  usage_notes_zh: checkpoint 缺失由运行时 missing_assets 报告，不视为 catalog 阻塞；权重就位前运行输出运行时计划。运行前需用官方代码训练自己的任务 checkpoint。
+  limitations:
+  - No official pretrained checkpoints are recorded.
+  - No license is recorded in this repository.
+  limitations_zh:
+  - 未记录官方预训练 checkpoint。
+  - 仓库未记录许可证。

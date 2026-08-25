@@ -44,56 +44,22 @@ catalog_category: world_models
 catalog_scope: World-model catalog entries. Integrated entries expose in-tree WorldFoundry runtimes; blocked entries retain
   upstream provenance without runnable backends.
 docs:
-  overview: |
-    Oasis 500M (etched-ai/open-oasis; Hugging Face `Etched/oasis-500m`) is the open-sourced 500M-parameter snapshot of Oasis, the Decart/Etched interactive Minecraft world model: it generates playable Minecraft-style video frame by frame from keyboard/mouse actions, with no game engine behind it. WorldFoundry vendors the Open-Oasis source as an independent in-tree package and registers a model-specific pipeline; the official generate entrypoint resolves, and real inference remains gated until the checkpoint and action assets are staged.
-
-    Within the WorldFoundry model catalog this entry is tracked as `oasis-500m` in the `world_models` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/etched-ai/open-oasis; Hugging Face `Etched/oasis-500m`.
-  overview_zh: |
-    Oasis 500M（etched-ai/open-oasis；Hugging Face `Etched/oasis-500m`）是 Decart/Etched 交互式 Minecraft 世界模型 Oasis 的开源 5 亿参数快照：从键鼠动作逐帧生成可游玩的 Minecraft 风格视频，背后没有游戏引擎。WorldFoundry 将 Open-Oasis 源码内嵌为独立树内包并注册专属管线；官方 generate 入口可解析，真实推理在暂存权重与动作资产之前保持门控。
-
-    在 WorldFoundry 模型目录中，该条目以 `oasis-500m` 收录于 `world_models` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/etched-ai/open-oasis；Hugging Face `Etched/oasis-500m`。
-  architecture: |
-    Per the public release, Open-Oasis pairs a ViT-based VAE with a ~500M-parameter diffusion transformer trained with Diffusion Forcing-style noise schedules for autoregressive frame generation conditioned on Minecraft keyboard/mouse actions. The in-tree route tracks the official generate script contract; further architecture details are not recorded in the repository.
-  architecture_zh: |
-    按公开发布，Open-Oasis 由基于 ViT 的 VAE 与约 5 亿参数的扩散 transformer 组成，采用 Diffusion Forcing 式噪声调度训练，以 Minecraft 键鼠动作为条件自回归生成帧。树内路线跟踪官方 generate 脚本契约；更多架构细节仓库未记录。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `oasis-500m` and runtime profile `runtime-profile:oasis-500m`.
-    Catalog integration status: `runtime_ported`.
-    Integration notes recorded in the catalog:
-    - WorldFoundry registers an in-tree runtime manifest pipeline for the vendored Open-Oasis source.
-    - A model-specific WorldFoundry pipeline is registered against the independent in-tree Open-Oasis source package; real upstream inference remains checkpoint/environment gated.
-
-    Embodiment contract:
-    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
-    - Sensors: an initial image or context frames plus streaming interaction inputs.
-    - Action space: Minecraft-style keyboard/mouse actions drive frame-by-frame world evolution.
-    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `oasis-500m`，运行时配置为 `runtime-profile:oasis-500m`。
-    目录集成状态：运行时已移植（runtime_ported）。
-    目录中记录的集成备注（保留原文）：
-    - WorldFoundry registers an in-tree runtime manifest pipeline for the vendored Open-Oasis source.
-    - A model-specific WorldFoundry pipeline is registered against the independent in-tree Open-Oasis source package; real upstream inference remains checkpoint/environment gated.
-
-    具身接口（embodiment contract）：
-    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
-    - 传感器：初始图像或上下文帧，加流式交互输入。
-    - 动作空间：Minecraft 式键鼠动作驱动逐帧世界演化。
-    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`implemented_checkpoint_pending`.
-    Runner parity notes recorded in the catalog:
-    - The pipeline resolves the official Open-Oasis generate entrypoint and returns blocked runtime diagnostics until checkpoints and action assets are staged.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已实现、待权重就绪（implemented_checkpoint_pending）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - The pipeline resolves the official Open-Oasis generate entrypoint and returns blocked runtime diagnostics until checkpoints and action assets are staged.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Etched / Decart
+  publisher_kind: company
+  publisher_zh: Etched / Decart
+  overview: 'Oasis 500M (open-oasis) is the open release of the famous playable-Minecraft world model: an action-conditioned diffusion transformer that renders the next game frame from context frames and keyboard/mouse actions. In this catalog the source is vendored in-tree; execution waits on the Etched/oasis-500m checkpoint plus prompt image/video and action tensors.'
+  overview_zh: Oasis 500M（open-oasis）是著名「可游玩 Minecraft」世界模型的开源版本：动作条件扩散 Transformer，从上下文帧与键鼠动作渲染下一游戏帧。本 catalog 中源码已内置树内；执行待 Etched/oasis-500m checkpoint 及提示图像/视频与动作张量就位。
+  architecture: Per the upstream release, a ViT VAE compresses frames and a 500M diffusion transformer generates the next frame conditioned on past frames and actions (MIT license). Internals beyond this are not recorded here.
+  architecture_zh: 按上游发布，ViT VAE 压缩帧，500M 扩散 Transformer 以历史帧与动作为条件生成下一帧（MIT 许可）。除此之外的内部细节此处未记录。
+  usage_notes: The pipeline resolves the official generate entrypoint and returns blocked diagnostics until checkpoints and action assets are staged. Supply action tensors in the official format.
+  usage_notes_zh: pipeline 解析官方 generate 入口，在 checkpoint 与动作资产就位前返回 blocked 诊断。请按官方格式提供动作张量。
+  limitations:
+  - Execution is checkpoint/environment/action-asset gated.
+  - '500M research model: short-horizon drift and low resolution versus commercial demos.'
+  limitations_zh:
+  - 执行受 checkpoint/环境/动作资产限制。
+  - 500M 研究模型：相较商业 demo 存在短时漂移与低分辨率。
   recommended_benchmarks:
-  - iworld-bench
-  - world-in-world
+  - id: worldmodelbench
+    reason: Action-conditioned game-world rollout quality.
+    reason_zh: 动作条件游戏世界滚动生成质量。

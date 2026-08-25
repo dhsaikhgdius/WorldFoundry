@@ -47,57 +47,18 @@ catalog_policy:
   - api_or_closed
   - unknown
 docs:
-  overview: |
-    MVDiffusion (Tangshitao/MVDiffusion, NeurIPS 2023) is a multi-view image generation method that produces consistent panoramas and multi-view texture images by generating all views simultaneously with correspondence-aware attention. WorldFoundry exposes an in-tree runtime subprocess adapter; missing source checkout, checkpoints, or CUDA dependencies are reported at inference time. Upstream weights are recorded as not confirmed and the license as not found.
-
-    Within the WorldFoundry model catalog this entry is tracked as `mvdiffusion` in the `three_d_four_d` category.
-    Recorded availability: status=source_available, open_source=False, code=public, weights=not_confirmed, license=not_found.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/Tangshitao/MVDiffusion.
-  overview_zh: |
-    MVDiffusion（Tangshitao/MVDiffusion，NeurIPS 2023）是多视角图像生成方法：通过对应关系感知注意力同时生成所有视角，产出一致的全景图与多视角纹理图像。WorldFoundry 暴露 in-tree 运行时子进程适配器；源码检出、权重或 CUDA 依赖缺失会在推理时报告。上游权重记录为未确认，许可证记录为未找到。
-
-    在 WorldFoundry 模型目录中，该条目以 `mvdiffusion` 收录于 `three_d_four_d` 分类。
-    仓库记录的可用性：状态=source_available，是否开源=False，代码=public，权重=not_confirmed，许可证=not_found。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/Tangshitao/MVDiffusion。
-  architecture: |
-    The published architecture runs a frozen-backbone Stable Diffusion UNet per view in parallel and inserts correspondence-aware attention blocks that align latent features across views using known pixel correspondences (e.g., panorama homographies or depth-based warps), enabling holistic multi-view denoising rather than autoregressive stitching.
-  architecture_zh: |
-    公开架构对每个视角并行运行冻结骨干的 Stable Diffusion UNet，并插入对应关系感知注意力模块，利用已知像素对应（如全景单应或基于深度的 warp）在视角间对齐潜特征，实现整体式多视角去噪而非自回归拼接。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `mvdiffusion` and runtime profile `runtime-profile:mvdiffusion`.
-    Catalog integration status: `integrated`.
-    Integration notes recorded in the catalog:
-    - WorldFoundry exposes an in-tree runtime subprocess adapter for MVDiffusion.
-    - Missing source checkout, checkpoints, or CUDA dependencies are reported at inference time.
-
-    Embodiment contract:
-    - Simulator: none — this is an offline 3D scene generation model; it produces renderable scene artifacts rather than running inside a simulator.
-    - Sensors: text prompts and/or a single RGB image as conditioning; no additional sensor modalities are recorded in the repository.
-    - Action space: not applicable at generation time; navigation of the generated scene is a rendering-side camera path, not a learned action space.
-    - Dedicated environment: no dedicated environment; it runs through the shared WorldFoundry pipeline runtime described in the integration notes.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `mvdiffusion`，运行时配置为 `runtime-profile:mvdiffusion`。
-    目录集成状态：已集成（integrated）。
-    目录中记录的集成备注（保留原文）：
-    - WorldFoundry exposes an in-tree runtime subprocess adapter for MVDiffusion.
-    - Missing source checkout, checkpoints, or CUDA dependencies are reported at inference time.
-
-    具身接口（embodiment contract）：
-    - 仿真器：无——这是离线 3D 场景生成模型，产出可渲染的场景 artifact，而非在仿真器内运行。
-    - 传感器：以文本提示和/或单张 RGB 图像为条件；仓库未记录其它传感器模态。
-    - 动作空间：生成阶段不适用；对生成场景的浏览属于渲染侧的相机路径，不是学习得到的动作空间。
-    - 是否专用环境：无专用环境；通过集成备注中描述的 WorldFoundry 共享管线运行时执行。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`pending`.
-    Runner parity notes recorded in the catalog:
-    - Pipeline target imports and plan-only inference are wired; full artifact parity needs runtime assets.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=待验证（pending）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - Pipeline target imports and plan-only inference are wired; full artifact parity needs runtime assets.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
-  recommended_benchmarks:
-  - worldscore
+  publisher: Simon Fraser University
+  publisher_kind: university
+  publisher_zh: 西蒙菲莎大学（Simon Fraser University）
+  overview: MVDiffusion generates consistent multi-view images in one shot — panoramas from text or perspective views, and texture views for scenes — by letting diffusion branches attend to each other. In this catalog it runs through an in-tree runtime subprocess adapter; runner parity is pending runtime assets.
+  overview_zh: MVDiffusion 一次性生成一致的多视角图像——从文本或透视图生成全景，或为场景生成纹理视图——方法是让多个扩散分支相互注意。本 catalog 中它经树内运行时子进程适配器运行；runner parity 待运行时资产就位。
+  architecture: Per the NeurIPS 2023 paper (arXiv 2307.01097), parallel diffusion-model branches generate all views simultaneously with correspondence-aware attention keeping them globally consistent. Missing source checkout, checkpoints, or CUDA dependencies are reported at inference time.
+  architecture_zh: 按 NeurIPS 2023 论文（arXiv 2307.01097），多个并行扩散分支借助「对应感知注意力」同时生成所有视图并保持全局一致。源码、checkpoint 或 CUDA 依赖缺失会在推理时报告。
+  usage_notes: Integration is wired for plan-only inference today; full artifact parity needs the upstream source checkout and checkpoints staged locally. Stage them before expecting real multi-view output.
+  usage_notes_zh: 当前集成已接通 plan-only 推理；完整产物一致性需要本地就位上游源码与 checkpoint。期望得到真实多视角输出前请先完成资产就位。
+  limitations:
+  - 'Runner parity is pending: plan-only inference works, real generation needs staged assets.'
+  - 'Panorama-oriented training: free-form camera trajectories are out of scope.'
+  limitations_zh:
+  - runner parity 待验证：plan-only 推理可用，真实生成需要就位资产。
+  - 训练面向全景场景：自由相机轨迹不在其范围内。

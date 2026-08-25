@@ -38,53 +38,22 @@ runtime_profile: runtime-profile:dm0
 catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint metadata, and runtime-profile planning records.
 docs:
-  overview: |
-    DM0 (Dexmal/dexbotic, MIT) is Dexmal's flow-matching VLA policy: a Qwen3 flow action expert with merged prefix/suffix attention, triple-view preprocessing, normalization, and an Euler sampler, all running in process from local checkpoints (`Dexmal/DM0-base`, `Dexmal/DM0-libero`). The Perception Encoder and multimodal base are reused from the compatible in-tree DB-CogACT implementation; training, servers, benchmark launchers, and the optional Triton realtime backend are excluded.
-
-    Within the WorldFoundry model catalog this entry is tracked as `dm0` in the `vla_va_wam` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/Dexmal/dexbotic; Hugging Face `Dexmal/DM0-base`, `Dexmal/DM0-libero`.
-  overview_zh: |
-    DM0（Dexmal/dexbotic，MIT）是 Dexmal 的 flow-matching VLA 策略：Qwen3 flow 动作专家配合合并的 prefix/suffix 注意力、三视角预处理、归一化与 Euler 采样器，全部从本地权重（`Dexmal/DM0-base`、`Dexmal/DM0-libero`）在进程内运行。Perception Encoder 与多模态基座复用兼容的树内 DB-CogACT 实现；训练、服务器、基准启动器与可选 Triton 实时后端被排除。
-
-    在 WorldFoundry 模型目录中，该条目以 `dm0` 收录于 `vla_va_wam` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/Dexmal/dexbotic；Hugging Face `Dexmal/DM0-base`、`Dexmal/DM0-libero`。
-  architecture: |
-    Per the integration notes, DM0 pairs a Qwen3-based vision-language backbone with a flow-matching action expert; prefix/suffix attention is merged for efficient chunk decoding and actions are integrated with an Euler sampler. Further architecture details (parameter count, chunk size) are not recorded in the repository.
-  architecture_zh: |
-    按集成备注，DM0 将基于 Qwen3 的视觉-语言骨干与 flow-matching 动作专家配对；合并 prefix/suffix 注意力以高效解码动作块，动作用 Euler 采样器积分。更多架构细节（参数量、块长度）仓库未记录。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `dm0` and runtime profile `runtime-profile:dm0`.
-    Catalog integration status: `in_tree_checkpoint_runtime`.
-    Integration notes recorded in the catalog:
-    - The Qwen3 flow action expert, merged prefix/suffix attention, triple-view preprocessing, normalization, and Euler sampler run in process from local checkpoints.
-    - The Perception Encoder and multimodal base are reused from the existing compatible in-tree DB-CogACT implementation.
-    - Training, datasets, servers, benchmark launchers, and the optional Triton realtime backend are excluded.
-
-    Embodiment contract:
-    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
-    - Sensors: triple RGB camera views plus a language instruction, per the recorded triple-view preprocessing contract.
-    - Action space: continuous robot end-effector/joint action chunks; the exact action dimensionality is not recorded in this catalog file.
-    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `dm0`，运行时配置为 `runtime-profile:dm0`。
-    目录集成状态：`in_tree_checkpoint_runtime`。
-    目录中记录的集成备注（保留原文）：
-    - The Qwen3 flow action expert, merged prefix/suffix attention, triple-view preprocessing, normalization, and Euler sampler run in process from local checkpoints.
-    - The Perception Encoder and multimodal base are reused from the existing compatible in-tree DB-CogACT implementation.
-    - Training, datasets, servers, benchmark launchers, and the optional Triton realtime backend are excluded.
-
-    具身接口（embodiment contract）：
-    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
-    - 传感器：三路 RGB 相机视角加语言指令（按目录记录的三视角预处理契约）。
-    - 动作空间：连续的机器人末端/关节动作块；具体动作维度本目录文件未记录。
-    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
-  limitations: |
-    No family-level demo/runner parity status is recorded in this catalog file.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件未记录家族级 demo/runner 一致性状态。
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Dexmal
+  publisher_kind: company
+  publisher_zh: Dexmal（原力灵机）
+  overview: 'DM0 is Dexmal''s Dexbotic-family flow-matching VLA: a Qwen3 flow action expert with merged prefix/suffix attention and triple-view preprocessing. Base and LIBERO checkpoints are recorded (Dexmal/DM0-base, Dexmal/DM0-libero, CC license) and the full inference loop — normalization plus Euler sampler — runs in process from local checkpoints.'
+  overview_zh: DM0 是 Dexmal 的 Dexbotic 家族 flow-matching VLA：Qwen3 flow 动作专家，合并前后缀注意力与三视角预处理。仓库记录 base 与 LIBERO 两个 checkpoint（Dexmal/DM0-base、Dexmal/DM0-libero，CC 许可），完整推理环路——归一化加 Euler 采样器——在进程内从本地 checkpoint 运行。
+  architecture: A Qwen3-based flow action expert decodes actions with an Euler sampler; the Perception Encoder and multimodal base are reused from the compatible in-tree DB-CogACT implementation, keeping the Dexbotic family consistent.
+  architecture_zh: 基于 Qwen3 的 flow 动作专家配 Euler 采样器解码动作；Perception Encoder 与多模态基座复用兼容的树内 DB-CogACT 实现，保持 Dexbotic 家族一致性。
+  usage_notes: Use DM0-libero for LIBERO evaluation and DM0-base for initialization. Training, datasets, servers, benchmark launchers, and the optional Triton realtime backend are excluded.
+  usage_notes_zh: LIBERO 评测用 DM0-libero，初始化用 DM0-base。训练、数据集、服务、基准启动器与可选的 Triton 实时后端均被排除。
+  limitations:
+  - Checkpoints carry a CC license — review terms before commercial deployment.
+  - No GPU rollout validation is recorded in this repository.
+  limitations_zh:
+  - checkpoint 为 CC 许可——商业部署前请审查条款。
+  - 仓库未记录 GPU rollout 验证。
   recommended_benchmarks:
-  - libero
+  - id: libero
+    reason: Dedicated DM0-libero policy checkpoint.
+    reason_zh: 有专门的 DM0-libero 策略 checkpoint。

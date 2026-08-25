@@ -60,62 +60,22 @@ catalog_category: world_models
 catalog_scope: world-model/camera-control models
 schema_version: 2
 docs:
-  overview: |
-    DualCamCtrl (EnVision-Research/DualCamCtrl; Hugging Face `FayeHongfeiZhang/DualCamCtrl`) is a camera-controlled image-to-video diffusion model that additionally conditions on depth, following an RGB/depth/camera demo contract. WorldFoundry integrates the runtime in tree with default HF/local cache checkpoint loading; the official seaside demo is recorded as demo-verified through the Workspace job route (61 frames at 320x480, 50 steps, cfg 5.0, tiled, with control latents returned).
-
-    Within the WorldFoundry model catalog this entry is tracked as `dualcamctrl` in the `world_models` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/EnVision-Research/DualCamCtrl; Hugging Face `FayeHongfeiZhang/DualCamCtrl`.
-  overview_zh: |
-    DualCamCtrl（EnVision-Research/DualCamCtrl；Hugging Face `FayeHongfeiZhang/DualCamCtrl`）是相机控制的图像到视频扩散模型，额外以深度为条件，遵循 RGB/深度/相机演示契约。WorldFoundry 在树内集成运行时，权重采用默认 HF/本地缓存加载；官方 seaside 演示记录为经 Workspace 作业路径的演示验证（61 帧 320x480、50 步、cfg 5.0、tiled、返回控制隐变量）。
-
-    在 WorldFoundry 模型目录中，该条目以 `dualcamctrl` 收录于 `world_models` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/EnVision-Research/DualCamCtrl；Hugging Face `FayeHongfeiZhang/DualCamCtrl`。
-  architecture: |
-    Per the recorded contract, the model is a dual-branch controllable video diffusion: an RGB generation stream plus a geometry (depth) control stream jointly conditioned on camera poses, in the modern camera-control video-diffusion lineage. Upstream license is recorded as unknown; further architecture details are not recorded in the repository.
-  architecture_zh: |
-    按记录契约，该模型是双分支可控视频扩散：RGB 生成流与几何（深度）控制流共同以相机位姿为条件，属于现代相机控制视频扩散谱系。上游许可证记录为 unknown；更多架构细节仓库未记录。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `dualcamctrl` and runtime profile `runtime-profile:dualcamctrl`.
-    Catalog integration status: `integrated`.
-    Integration notes recorded in the catalog:
-    - Runtime code is integrated in-tree; checkpoints use the default Hugging Face/local cache loading path.
-    - The WorldFoundry runner follows the official RGB/depth/camera demo contract.
-    Recorded official demo command: `python -m worldfoundry.studio.workspace_job infer --model-id dualcamctrl --call-json {"demo_name":"seaside","num_frames":61,"height":320,"width":480,"num_inference_steps":50,"fps":10,"seed":42,"cfg_scale":5.0,"original_height":360,"original_width":640,"tiled":true,"return_control_latents":true}`.
-
-    Embodiment contract:
-    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
-    - Sensors: an initial RGB image, a depth control sequence, and a camera trajectory, per the official seaside demo contract.
-    - Action space: the action channel is the camera trajectory (extrinsics/pose sequence); the model renders the world consistently along the requested path.
-    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `dualcamctrl`，运行时配置为 `runtime-profile:dualcamctrl`。
-    目录集成状态：已集成（integrated）。
-    目录中记录的集成备注（保留原文）：
-    - Runtime code is integrated in-tree; checkpoints use the default Hugging Face/local cache loading path.
-    - The WorldFoundry runner follows the official RGB/depth/camera demo contract.
-    目录记录的官方演示命令：`python -m worldfoundry.studio.workspace_job infer --model-id dualcamctrl --call-json {"demo_name":"seaside","num_frames":61,"height":320,"width":480,"num_inference_steps":50,"fps":10,"seed":42,"cfg_scale":5.0,"original_height":360,"original_width":640,"tiled":true,"return_control_latents":true}`。
-
-    具身接口（embodiment contract）：
-    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
-    - 传感器：初始 RGB 图像、深度控制序列与相机轨迹（按官方 seaside 演示契约）。
-    - 动作空间：动作通道为相机轨迹（外参/位姿序列）；模型沿请求路径一致地渲染世界。
-    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
-  limitations: |
-    Parity fields recorded in this catalog file: demo_parity=`verified`, runner_parity=`verified`.
-    Runner parity notes recorded in the catalog:
-    - Per-run artifact checks are tracked outside the model catalog.
-    Demo parity notes recorded in the catalog:
-    - Follows the official seaside RGB/depth/camera demo contract with in-tree fixtures.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：demo_parity=已验证（verified），runner_parity=已验证（verified）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - Per-run artifact checks are tracked outside the model catalog.
-    目录中记录的演示一致性备注（保留原文）：
-    - Follows the official seaside RGB/depth/camera demo contract with in-tree fixtures.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: The Hong Kong University of Science and Technology (Guangzhou) (EnVision Lab)
+  publisher_kind: university
+  publisher_zh: 香港科技大学（广州）EnVision 实验室
+  overview: 'DualCamCtrl controls video generation with a camera trajectory plus a depth image: the RGB and depth conditions together pin down scene geometry so the generated camera move stays physically grounded. In this catalog the runner is verified and follows the official RGB/depth/camera demo contract.'
+  overview_zh: DualCamCtrl 用「相机轨迹 + 深度图」控制视频生成：RGB 与深度条件共同确定场景几何，使生成的相机运动保持物理可信。本 catalog 中 runner 已验证，遵循官方 RGB/深度/相机 demo 契约。
+  architecture: 'The default demo contract follows the official recipe: an image, a depth image, a camera .torch trajectory file, 61 frames at 320x480, 50 steps. The in-tree inference runtime lives under synthesis/visual_generation/dualcamctrl; internals beyond the recorded contract are not stored here.'
+  architecture_zh: 默认 demo 契约遵循官方配方：一张图、一张深度图、一个相机 .torch 轨迹文件，61 帧 320x480、50 步。树内推理运行时位于 synthesis/visual_generation/dualcamctrl；除记录契约外的内部细节此处未存。
+  usage_notes: Open-source users should rely on the default Hugging Face cache/download path; pre-staged local assets can be passed through checkpoint_path, base_model_path, or WORLDFOUNDRY_MODEL_DIR.
+  usage_notes_zh: 开源用户默认使用 Hugging Face 缓存/下载路径；已就位的本地资产可通过 checkpoint_path、 base_model_path 或 WORLDFOUNDRY_MODEL_DIR 传入。
+  limitations:
+  - Needs a depth image alongside the RGB input — pair with a depth prior when you only have RGB.
+  - 'Fixed demo contract (61 frames, 320x480): other shapes are untested here.'
+  limitations_zh:
+  - 除 RGB 输入外还需要深度图——只有 RGB 时请配合深度先验使用。
+  - demo 契约固定（61 帧、320x480）：其它输出形状此处未测试。
   recommended_benchmarks:
-  - wrbench
-  - camerabench
+  - id: camerabench
+    reason: Camera-trajectory adherence of controlled generation.
+    reason_zh: 受控生成的相机轨迹贴合度。

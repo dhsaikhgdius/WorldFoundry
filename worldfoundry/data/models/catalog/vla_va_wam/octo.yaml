@@ -62,57 +62,22 @@ catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance,
   metadata, and runtime-profile planning records. Runner or pipeline targets are present
   only after a complete in-tree WorldFoundry model runtime is registered and validated.
 docs:
-  overview: |
-    Octo (octo-models/octo, RSS 2024) is the Berkeley-led open generalist robot policy pretrained on 800k Open X-Embodiment trajectories. WorldFoundry integrates it as a direct in-tree inference package (flat runtime plus one-level modeling/preprocessing modules, no source checkout or sys.path injection). The catalog records that the official `octo-small-1.5` Orbax tree restored on an A100 (136,670,604 parameters) and `sample_actions` produced a finite (1, 4, 7) action chunk; the base-1.5 variant remains pending a separate checkpoint-backed run.
-
-    Within the WorldFoundry model catalog this entry is tracked as `octo` in the `vla_va_wam` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/octo-models/octo; Hugging Face `rail-berkeley/octo-base-1.5`, `rail-berkeley/octo-small-1.5`.
-  overview_zh: |
-    Octo（octo-models/octo，RSS 2024）是伯克利主导的开源通用机器人策略，在 80 万条 Open X-Embodiment 轨迹上预训练。WorldFoundry 将其集成为直接的树内推理包（扁平运行时加一层建模/预处理模块，无源码 checkout 或 sys.path 注入）。目录记录：官方 `octo-small-1.5` 的 Orbax 树在 A100 上恢复（136,670,604 参数），`sample_actions` 产出有限值 (1, 4, 7) 动作块；base-1.5 变体的权重支撑运行待另行完成。
-
-    在 WorldFoundry 模型目录中，该条目以 `octo` 收录于 `vla_va_wam` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/octo-models/octo；Hugging Face `rail-berkeley/octo-base-1.5`、`rail-berkeley/octo-small-1.5`。
-  architecture: |
-    The published architecture is a transformer that tokenizes multi-camera RGB observations, proprioception, and language/goal conditioning into a unified sequence, with readout tokens feeding a diffusion action head that decodes continuous action chunks; the JAX/Flax implementation serializes checkpoints as Orbax trees. Legacy class names serialized in checkpoints are translated by the internal ModuleSpec resolver only for inference components.
-  architecture_zh: |
-    公开架构是一个 transformer：把多相机 RGB 观测、本体感知与语言/目标条件 token 化为统一序列，readout token 接扩散动作头解码连续动作块；JAX/Flax 实现以 Orbax 树序列化权重。权重中序列化的旧类名仅在推理组件范围内由内部 ModuleSpec 解析器转换。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `octo` and runtime profile `runtime-profile:octo`.
-    Catalog integration status: `integrated`.
-    Integration notes recorded in the catalog:
-    - Octo is a direct in-tree inference package with a flat runtime plus one-level modeling and preprocessing modules; no source checkout, package alias, or sys.path injection is used.
-    - The official octo-small-1.5 Orbax tree restored on an A100 (136,670,604 parameters) and sample_actions produced a finite (1, 4, 7) action chunk.
-    - Legacy class names serialized in checkpoints are translated by the internal ModuleSpec resolver only for inference components.
-    Recorded variant `octo-base-1.5`, task `vla.policy_rollout`.
-    Recorded variant `octo-small-1.5`, task `vla.policy_rollout`.
-
-    Embodiment contract:
-    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
-    - Sensors: RGB camera observations plus a language instruction; the exact camera/state contract is not recorded in this catalog file.
-    - Action space: continuous action chunks from the diffusion head; the recorded in-tree validation produced a (1, 4, 7) chunk (4 steps of 7-DoF actions).
-    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `octo`，运行时配置为 `runtime-profile:octo`。
-    目录集成状态：已集成（integrated）。
-    目录中记录的集成备注（保留原文）：
-    - Octo is a direct in-tree inference package with a flat runtime plus one-level modeling and preprocessing modules; no source checkout, package alias, or sys.path injection is used.
-    - The official octo-small-1.5 Orbax tree restored on an A100 (136,670,604 parameters) and sample_actions produced a finite (1, 4, 7) action chunk.
-    - Legacy class names serialized in checkpoints are translated by the internal ModuleSpec resolver only for inference components.
-    目录记录：变体 `octo-base-1.5`，任务 `vla.policy_rollout`。
-    目录记录：变体 `octo-small-1.5`，任务 `vla.policy_rollout`。
-
-    具身接口（embodiment contract）：
-    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
-    - 传感器：RGB 相机观测加语言指令；具体相机/状态契约本目录文件未记录。
-    - 动作空间：扩散头输出的连续动作块；目录记录的树内验证产出 (1, 4, 7) 块（4 步 7 自由度动作）。
-    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
-  limitations: |
-    No family-level demo/runner parity status is recorded in this catalog file.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件未记录家族级 demo/runner 一致性状态。
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: University of California, Berkeley (RAIL)
+  publisher_kind: university
+  publisher_zh: 加州大学伯克利分校（RAIL 实验室）
+  overview: Octo is Berkeley RAIL's generalist robot policy trained on Open X-Embodiment data, released as octo-base-1.5 and octo-small-1.5 with pinned revisions. In this catalog the official octo-small-1.5 Orbax tree restored on an A100 (136.7M parameters) and sample_actions produced a finite (1, 4, 7) action chunk — a real-GPU validation of the in-tree JAX runtime.
+  overview_zh: Octo 是伯克利 RAIL 在 Open X-Embodiment 数据上训练的通用机器人策略，发布 octo-base-1.5 与 octo-small-1.5 并锁定 revision。本 catalog 中官方 octo-small-1.5 的 Orbax 树在 A100 上恢复（1.367 亿参数），sample_actions 产出有限的 (1, 4, 7) 动作块——树内 JAX 运行时的真实 GPU 验证。
+  architecture: A transformer generalist policy with diffusion action heads, implemented in JAX/Flax. The in-tree package is flat with one-level modeling and preprocessing modules; legacy class names in checkpoints are translated by an internal ModuleSpec resolver for inference components only.
+  architecture_zh: 带扩散动作头的 transformer 通用策略，以 JAX/Flax 实现。树内包为扁平结构、单层建模与预处理模块；checkpoint 中的旧类名由内部 ModuleSpec 解析器仅针对推理组件转换。
+  usage_notes: Choose octo-small-1.5 (GPU-validated restore) or octo-base-1.5; both use the same in-tree modeling package. No source checkout, package alias, or sys.path injection is used.
+  usage_notes_zh: 选择 octo-small-1.5（GPU 已验证恢复）或 octo-base-1.5；两者共用同一树内建模包。不使用源码 checkout、包别名或 sys.path 注入。
+  limitations:
+  - JAX/Flax stack — environment differs from PyTorch entries.
+  - No license is recorded in this repository.
+  limitations_zh:
+  - JAX/Flax 栈——环境与 PyTorch 条目不同。
+  - 仓库未记录许可证。
   recommended_benchmarks:
-  - simpler-env
+  - id: simpler-env
+    reason: Common evaluation venue for Open X generalist policies.
+    reason_zh: Open X 通用策略的常用评测场。

@@ -34,55 +34,22 @@ catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance,
   planning records. Runner or pipeline targets are present only after a complete in-tree WorldFoundry model runtime is registered
   and validated.
 docs:
-  overview: |
-    RoboFlamingo (RoboFlamingo/RoboFlamingo, ICLR 2024 Spotlight) adapts the open-source OpenFlamingo VLM into a language-conditioned robot manipulation policy with a deliberately cheap fine-tuning recipe: the VLM backbone stays frozen and only a lightweight policy head is trained on manipulation demonstrations, achieving state-of-the-art results on the CALVIN long-horizon benchmark at the time. WorldFoundry vendors the RoboFlamingo/OpenFlamingo architecture and inference source in tree; the public pipeline passed CUDA action_trace validation with the staged RoboFlamingo, OpenFlamingo, and MPT checkpoints.
-
-    Within the WorldFoundry model catalog this entry is tracked as `roboflamingo` in the `vla_va_wam` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/RoboFlamingo/RoboFlamingo.
-  overview_zh: |
-    RoboFlamingo（RoboFlamingo/RoboFlamingo，ICLR 2024 Spotlight）把开源 OpenFlamingo VLM 改造为语言条件的机器人操作策略，微调代价刻意做低：冻结 VLM 骨干，只在操作示教上训练轻量策略头，当时在 CALVIN 长时程基准上取得最先进结果。WorldFoundry 在树内内嵌 RoboFlamingo/OpenFlamingo 架构与推理源码；公开管线用暂存的 RoboFlamingo、OpenFlamingo 与 MPT 权重通过了 CUDA action_trace 验证。
-
-    在 WorldFoundry 模型目录中，该条目以 `roboflamingo` 收录于 `vla_va_wam` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/RoboFlamingo/RoboFlamingo。
-  architecture: |
-    The published architecture keeps OpenFlamingo's design — a frozen language model (the staged in-tree route uses an MPT backbone) with gated cross-attention layers over CLIP ViT visual features — and appends a recurrent (LSTM-based) policy head that consumes per-step VLM features and history to output continuous end-effector actions plus a gripper command. Only the policy head and cross-attention adaptation are fine-tuned on CALVIN demonstrations.
-  architecture_zh: |
-    公开架构保留 OpenFlamingo 设计——冻结语言模型（树内暂存路线使用 MPT 骨干）加对 CLIP ViT 视觉特征的门控交叉注意力层——并追加一个循环（LSTM）策略头，消费逐步 VLM 特征与历史，输出连续末端动作加夹爪指令。仅策略头与交叉注意力适配部分在 CALVIN 示教上微调。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `roboflamingo` and runtime profile `runtime-profile:roboflamingo`.
-    Catalog integration status: `integrated`.
-    Integration notes recorded in the catalog:
-    - RoboFlamingo/OpenFlamingo architecture and inference source are vendored in-tree; public pipeline CUDA action_trace validation passed.
-
-    Embodiment contract:
-    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
-    - Sensors: the CALVIN observation contract: a static RGB camera and a gripper RGB camera plus a language instruction.
-    - Action space: 7-DoF continuous actions (6-DoF relative end-effector pose plus binary gripper), one step per pass with recurrent history.
-    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `roboflamingo`，运行时配置为 `runtime-profile:roboflamingo`。
-    目录集成状态：已集成（integrated）。
-    目录中记录的集成备注（保留原文）：
-    - RoboFlamingo/OpenFlamingo architecture and inference source are vendored in-tree; public pipeline CUDA action_trace validation passed.
-
-    具身接口（embodiment contract）：
-    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
-    - 传感器：CALVIN 观测契约：静态 RGB 相机与夹爪 RGB 相机，加语言指令。
-    - 动作空间：7 自由度连续动作（6 自由度相对末端位姿加二值夹爪），带循环历史逐步输出。
-    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`verified`.
-    Runner parity notes recorded in the catalog:
-    - Verified through the public WorldFoundry pipeline runner on CUDA with the staged RoboFlamingo, OpenFlamingo, and MPT checkpoints.
-    - Per-run action trace evidence is tracked outside the model catalog.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已验证（verified）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - Verified through the public WorldFoundry pipeline runner on CUDA with the staged RoboFlamingo, OpenFlamingo, and MPT checkpoints.
-    - Per-run action trace evidence is tracked outside the model catalog.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Open-source research release (institution not recorded)
+  publisher_kind: lab
+  publisher_zh: 开源研究发布（仓库未记录正式机构）
+  overview: 'RoboFlamingo adapts the OpenFlamingo vision-language model into a robot imitation policy: a lightweight policy head turns the VLM''s visual-language features into actions. In this catalog it is GPU-validated — the vendored architecture passed public pipeline CUDA action_trace validation with staged RoboFlamingo, OpenFlamingo, and MPT checkpoints, and runner parity is verified.'
+  overview_zh: RoboFlamingo 将 OpenFlamingo 视觉-语言模型改造为机器人模仿策略：轻量策略头把 VLM 的视觉-语言特征转为动作。本 catalog 中已 GPU 验证——内置架构以就位的 RoboFlamingo、OpenFlamingo 与 MPT checkpoint 通过公开 pipeline 的 CUDA action_trace 验证，runner parity 为 verified。
+  architecture: An OpenFlamingo backbone (MPT language model with cross-attention vision fusion) plus a recurrent policy head for action prediction. The full architecture and inference source are vendored in-tree.
+  architecture_zh: OpenFlamingo 骨干（MPT 语言模型加交叉注意力视觉融合），配循环策略头做动作预测。完整架构与推理源码内置树内。
+  usage_notes: Stage the RoboFlamingo policy, OpenFlamingo backbone, and MPT language model checkpoints locally. Per-run action trace evidence is tracked outside the model catalog.
+  usage_notes_zh: 在本地就位 RoboFlamingo 策略、OpenFlamingo 骨干与 MPT 语言模型 checkpoint。每次运行的动作轨迹证据在模型 catalog 外跟踪。
+  limitations:
+  - Three separate checkpoint stacks (policy, backbone, LM) must be staged.
+  - No license is recorded in this repository.
+  limitations_zh:
+  - 需就位三套 checkpoint（策略、骨干、语言模型）。
+  - 仓库未记录许可证。
   recommended_benchmarks:
-  - calvin
+  - id: calvin
+    reason: RoboFlamingo's standard long-horizon evaluation suite.
+    reason_zh: RoboFlamingo 的标准长时程评测套件。

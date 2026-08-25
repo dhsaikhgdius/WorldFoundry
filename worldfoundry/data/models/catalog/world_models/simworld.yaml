@@ -31,52 +31,18 @@ catalog_scope: World-model catalog entries. Integrated entries expose in-tree Wo
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 pipeline_binding: simworld
 docs:
-  overview: |
-    SimWorld is a simulator-control entry rather than a learned video world model: recorded modalities are simulator-control, multi-agent-simulation, and embodied.policy_rollout, i.e. the route drives an external simulator server for multi-agent embodied policy rollouts. WorldFoundry registers the SimWorld route; the simulator server and its assets are runtime-gated, so execution emits a runtime plan until they are staged. No official GitHub repository or Hugging Face checkpoint is recorded in this catalog file.
-
-    Within the WorldFoundry model catalog this entry is tracked as `simworld` in the `world_models` category.
-    The repository does not record an official source link for this entry.
-  overview_zh: |
-    SimWorld 是模拟器控制条目而非学习得到的视频世界模型：记录模态为 simulator-control、multi-agent-simulation 与 embodied.policy_rollout，即该路线驱动外部模拟器服务器进行多智能体具身策略 rollout。WorldFoundry 注册 SimWorld 路线；模拟器服务器及其资产受运行时门控，在暂存之前执行输出运行时计划。本目录文件未记录官方 GitHub 仓库或 Hugging Face 权重。
-
-    在 WorldFoundry 模型目录中，该条目以 `simworld` 收录于 `world_models` 分类。
-    仓库未记录该条目的官方来源链接。
-  architecture: |
-    This entry wraps an external simulator service instead of a neural generator; observations and dynamics come from the simulator. Beyond the modality tags and the registered route, the repository does not record implementation details (engine, physics, asset pipeline) for this entry.
-  architecture_zh: |
-    该条目包装的是外部模拟器服务而非神经生成器；观测与动力学来自模拟器。除模态标签与已注册路线外，仓库未记录该条目的实现细节（引擎、物理、资产管线）。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `simworld` and runtime profile `runtime-profile:simworld`.
-    Catalog integration status: `runtime_ported`.
-    Integration notes recorded in the catalog:
-    - SimWorld route is registered; simulator server/assets are runtime-gated.
-
-    Embodiment contract:
-    - Simulator: an external simulator server is the world engine for this entry; it must be running and reachable at rollout time.
-    - Sensors: simulator-rendered observations for the embodied agents; the exact observation contract is not recorded in this catalog file.
-    - Action space: embodied policy actions forwarded to the simulator for multi-agent rollouts; the exact action encoding is not recorded in this catalog file.
-    - Dedicated environment: yes - this entry is inseparable from its dedicated simulator server and assets, which are runtime-gated.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `simworld`，运行时配置为 `runtime-profile:simworld`。
-    目录集成状态：运行时已移植（runtime_ported）。
-    目录中记录的集成备注（保留原文）：
-    - SimWorld route is registered; simulator server/assets are runtime-gated.
-
-    具身接口（embodiment contract）：
-    - 仿真器：外部模拟器服务器是该条目的世界引擎；rollout 时必须已启动且可达。
-    - 传感器：模拟器渲染的具身智能体观测；具体观测契约本目录文件未记录。
-    - 动作空间：转发给模拟器、用于多智能体 rollout 的具身策略动作；具体动作编码本目录文件未记录。
-    - 是否专用环境：是——该条目离不开其专用模拟器服务器与资产，二者受运行时门控。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`implemented_checkpoint_pending`.
-    Runner parity notes recorded in the catalog:
-    - resolve_model_zoo_config and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已实现、待权重就绪（implemented_checkpoint_pending）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - resolve_model_zoo_config and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
-  recommended_benchmarks: []
+  publisher: Open-source research release (institution not recorded)
+  publisher_kind: lab
+  publisher_zh: 开源研究发布（仓库未记录正式机构）
+  overview: 'SimWorld is a simulator-control entry rather than a video generator: it drives multi-agent embodied simulation (policy rollouts, world state) through a simulator server. In this catalog the route is registered; the simulator server and assets stay runtime-gated, and the recorded artifact type is world_state.'
+  overview_zh: SimWorld 是模拟器控制条目而非视频生成器：通过模拟器服务器驱动多智能体具身仿真（策略滚动、世界状态）。本 catalog 中路径已注册；模拟器服务器与资产保持运行时限制，记录的产物类型为 world_state。
+  architecture: Architecture internals are not recorded in this repository — this entry catalogs a simulation platform surface, not a neural network.
+  architecture_zh: 架构内部细节仓库未记录——该条目登记的是仿真平台接口，不是神经网络。
+  usage_notes: Config resolution and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged. Missing assets are reported by the plan and are not treated as catalog blockers. A running simulator server is the key prerequisite.
+  usage_notes_zh: 配置解析与 pipeline 导入预期可通过；在所需 checkpoint/资产就位前，真实生成会输出运行时计划。缺失资产由计划报告，不视为 catalog 阻塞。关键前置条件是一个运行中的模拟器服务器。
+  limitations:
+  - Needs an external simulator server; no standalone generation.
+  - The publishing institution is not recorded in this repository.
+  limitations_zh:
+  - 需要外部模拟器服务器；无法独立生成。
+  - 发表机构在本仓库中未记录。

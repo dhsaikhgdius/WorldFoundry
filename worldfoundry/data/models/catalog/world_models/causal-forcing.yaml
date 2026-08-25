@@ -69,57 +69,22 @@ catalog_policy:
   integration_rule: Closed, API-only, or unknown releases stay blocked or planned until an official integration surface is available.
   open_source_rule: Only mark open_source when an official GitHub repository or official model page was confirmed.
 docs:
-  overview: |
-    Causal-Forcing (thu-ml/Causal-Forcing; Hugging Face `zhuhz22/Causal-Forcing`) is THU-ML's autoregressive video diffusion work in the Forcing lineage: it distills a bidirectional Wan teacher into a causal student so text/image-to-video generation can run in real time with chunk-wise (or frame-wise) causal decoding. WorldFoundry vendors the official infer-only runtime under `worldfoundry/synthesis/visual_generation/forcing/causal_forcing_runtime`, owning prompt/i2v data materialization, Wan weight symlinks, command construction, and output loading; the chunk-wise checkpoint is staged locally, with config/checkpoint overrides for frame-wise or Causal-Forcing++ variants.
-
-    Within the WorldFoundry model catalog this entry is tracked as `causal-forcing` in the `world_models` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/thu-ml/Causal-Forcing; Hugging Face `zhuhz22/Causal-Forcing`.
-  overview_zh: |
-    Causal-Forcing（thu-ml/Causal-Forcing；Hugging Face `zhuhz22/Causal-Forcing`）是清华 THU-ML 在 Forcing 谱系的自回归视频扩散工作：把双向 Wan 教师蒸馏为因果学生，使文本/图像到视频生成能以块级（或帧级）因果解码实时运行。WorldFoundry 在 `worldfoundry/synthesis/visual_generation/forcing/causal_forcing_runtime` 内嵌官方仅推理运行时，负责 prompt/i2v 数据物化、Wan 权重软链、命令构建与输出加载；本地已暂存块级权重，帧级或 Causal-Forcing++ 变体可通过 config_path/checkpoint_path 覆盖。
-
-    在 WorldFoundry 模型目录中，该条目以 `causal-forcing` 收录于 `world_models` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/thu-ml/Causal-Forcing；Hugging Face `zhuhz22/Causal-Forcing`。
-  architecture: |
-    The approach converts a bidirectional Wan video diffusion transformer into a causal, few-step autoregressive generator via distillation ('forcing'), maintaining a KV cache over previously generated chunks so new chunks extend the video without re-denoising history. The vendored path executes the official inference.py; full parity requires local Wan2.1 weights plus the selected Causal-Forcing checkpoint/config pair.
-  architecture_zh: |
-    该方法通过蒸馏（forcing）把双向 Wan 视频扩散 transformer 转为因果、少步数的自回归生成器，对已生成块维护 KV 缓存，使新块在不重新去噪历史的情况下延展视频。内嵌路径执行官方 inference.py；完整一致性需本地 Wan2.1 权重与所选 Causal-Forcing 权重/配置对。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `causal-forcing` and runtime profile `runtime-profile:causal-forcing`.
-    Catalog integration status: `integrated`.
-    Integration notes recorded in the catalog:
-    - WorldFoundry vendors the official infer-only Causal-Forcing runtime under worldfoundry/synthesis/visual_generation/forcing/causal_forcing_runtime; the runner owns prompt/i2v data materialization, Wan weight symlinks, command construction, output loading, and pipeline/catalog exposure in-tree.
-    - The local workspace currently has the chunk-wise checkpoint staged under ${WORLDFOUNDRY_CKPT_DIR}/Causal-Forcing. Override config_path/checkpoint_path for frame-wise or Causal-Forcing++ variants.
-
-    Embodiment contract:
-    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
-    - Sensors: conditioning inputs per the recorded modalities (typically an initial image and/or a text prompt); exact tensor contracts are not recorded in this catalog file.
-    - Action space: no explicit action interface is recorded for this entry; controllability is limited to the conditioning inputs.
-    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `causal-forcing`，运行时配置为 `runtime-profile:causal-forcing`。
-    目录集成状态：已集成（integrated）。
-    目录中记录的集成备注（保留原文）：
-    - WorldFoundry vendors the official infer-only Causal-Forcing runtime under worldfoundry/synthesis/visual_generation/forcing/causal_forcing_runtime; the runner owns prompt/i2v data materialization, Wan weight symlinks, command construction, output loading, and pipeline/catalog exposure in-tree.
-    - The local workspace currently has the chunk-wise checkpoint staged under ${WORLDFOUNDRY_CKPT_DIR}/Causal-Forcing. Override config_path/checkpoint_path for frame-wise or Causal-Forcing++ variants.
-
-    具身接口（embodiment contract）：
-    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
-    - 传感器：按记录的模态提供条件输入（通常为初始图像和/或文本提示）；具体张量契约本目录文件未记录。
-    - 动作空间：该条目未记录显式动作接口；可控性仅限于条件输入。
-    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`pending`.
-    Runner parity notes recorded in the catalog:
-    - The adapter executes the vendored official inference.py path. Full parity requires local Wan2.1 weights and the selected Causal-Forcing checkpoint/config pair.
-    - Per-run visual QA and artifact checks are tracked outside the model catalog.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=待验证（pending）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - The adapter executes the vendored official inference.py path. Full parity requires local Wan2.1 weights and the selected Causal-Forcing checkpoint/config pair.
-    - Per-run visual QA and artifact checks are tracked outside the model catalog.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Tsinghua University (thu-ml)
+  publisher_kind: university
+  publisher_zh: 清华大学（thu-ml）
+  overview: Causal-Forcing distills bidirectional video diffusion into a causal, autoregressive generator — including Causal-Forcing++ few-step variants — so video can be generated chunk by chunk or frame by frame. In this catalog the official infer-only runtime is vendored in-tree, with the chunk-wise checkpoint staged as the local default and frame-wise/++ variants selectable by config override.
+  overview_zh: Causal-Forcing 把双向视频扩散蒸馏为因果自回归生成器——包括 Causal-Forcing++ 少步 variant——使视频可以逐 chunk 或逐帧生成。本 catalog 中官方仅推理运行时已内置树内，chunk-wise checkpoint 为本地默认，frame-wise 与 ++ variant 可通过配置覆盖选择。
+  architecture: Per the paper (arXiv 2602.02214), a Wan2.1-based teacher is distilled into causal students with chunk-wise or frame-wise attention; the ++ variants push to 1-2 step sampling. Recorded checkpoints include chunk-wise plus frame-wise and two ++ few-step variants under zhuhz22/Causal-Forcing.
+  architecture_zh: 按论文（arXiv 2602.02214），基于 Wan2.1 的教师被蒸馏为 chunk-wise 或 frame-wise 注意力的因果学生；++ variant 进一步压缩到 1-2 步采样。记录的 checkpoint 包括 chunk-wise，以及 zhuhz22/Causal-Forcing 下的 frame-wise 与两个 ++ 少步 variant。
+  usage_notes: The adapter executes the vendored official inference.py path; full parity requires local Wan2.1 weights plus the selected Causal-Forcing checkpoint/config pair. Benchmark prompt lists live under worldfoundry/data/test_cases/forcing/prompts/.
+  usage_notes_zh: 适配器执行内置的官方 inference.py 路径；完整一致性需要本地 Wan2.1 权重与所选 Causal-Forcing checkpoint/config 配对。benchmark 提示词列表位于 worldfoundry/data/test_cases/forcing/prompts/。
+  limitations:
+  - Runner parity is pending staged Wan2.1 weights and the chosen checkpoint/config pair.
+  - Distilled causal students trade some quality for autoregressive speed versus the bidirectional teacher.
+  limitations_zh:
+  - runner parity 待 Wan2.1 权重与所选 checkpoint/config 配对就位。
+  - 蒸馏的因果学生以部分质量换取自回归速度，弱于双向教师。
   recommended_benchmarks:
-  - vbench
+  - id: vbench
+    reason: Standard multi-dimension quality suite for text/image-to-video.
+    reason_zh: 文/图生视频的标准多维质量评测。

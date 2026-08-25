@@ -56,61 +56,22 @@ catalog_category: world_models
 catalog_scope: World-model catalog entries. Integrated entries expose in-tree WorldFoundry runtimes; blocked entries retain
   upstream provenance without runnable backends.
 docs:
-  overview: |
-    Navigation World Models (facebookresearch/nwm; Hugging Face `facebook/nwm`) is Meta AI's navigation world model: a controllable video generator that predicts future egocentric observations conditioned on past frames and navigation actions, enabling planning-by-simulation for visual navigation. WorldFoundry vendors the NWM source as an independent in-tree package and registers a model-specific pipeline; the official inference entrypoint resolves, and the entry is the initial candidate for non-driving navigation video evaluation. Real upstream inference remains checkpoint/environment gated, with recorded dataset variants nwm-recon and nwm-scand.
-
-    Within the WorldFoundry model catalog this entry is tracked as `nwm` in the `world_models` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/facebookresearch/nwm; Hugging Face `facebook/nwm`.
-  overview_zh: |
-    Navigation World Models（facebookresearch/nwm；Hugging Face `facebook/nwm`）是 Meta AI 的导航世界模型：可控视频生成器，以历史帧与导航动作为条件预测未来第一视角观测，为视觉导航提供『以仿真做规划』的能力。WorldFoundry 将 NWM 源码内嵌为独立树内包并注册专属管线；官方推理入口可解析，该条目是非驾驶类导航视频评测的首选候选。真实上游推理仍受权重/环境门控，记录的数据集变体为 nwm-recon 与 nwm-scand。
-
-    在 WorldFoundry 模型目录中，该条目以 `nwm` 收录于 `world_models` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/facebookresearch/nwm；Hugging Face `facebook/nwm`。
-  architecture: |
-    Per the public project, NWM is a Conditional Diffusion Transformer (CDiT) trained on large-scale egocentric navigation footage from robot and human data: it scales more efficiently than a standard DiT by attending to conditioning frames only in dedicated layers, and predicts future observations given navigation action sequences. The two recorded variants correspond to RECON and SCAND dataset configurations; further architecture details are not recorded in the repository.
-  architecture_zh: |
-    按公开项目，NWM 是条件扩散 Transformer（CDiT），在来自机器人与人类数据的大规模第一视角导航录像上训练：仅在专用层对条件帧做注意力，比标准 DiT 更高效扩展，并在给定导航动作序列时预测未来观测。两个记录变体对应 RECON 与 SCAND 数据集配置；更多架构细节仓库未记录。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `nwm` and runtime profile `runtime-profile:nwm`.
-    Catalog integration status: `runtime_ported`.
-    Integration notes recorded in the catalog:
-    - WorldFoundry registers an in-tree runtime manifest pipeline for the vendored NWM source.
-    - Initial candidate for non-driving navigation video evaluation.
-    - A model-specific WorldFoundry pipeline is registered against the independent in-tree NWM source package; real upstream inference remains checkpoint/environment gated.
-    Recorded variant `nwm-recon`, task `navigation-world-model`.
-    Recorded variant `nwm-scand`, task `navigation-world-model`.
-
-    Embodiment contract:
-    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
-    - Sensors: past egocentric RGB frames of the navigating agent as visual context.
-    - Action space: continuous navigation actions (translation/rotation-style egomotion commands) condition the rollout; the model predicts the observations that would result.
-    - Dedicated environment: targets the robot-manipulation domains recorded per checkpoint; no simulator ships with this entry.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `nwm`，运行时配置为 `runtime-profile:nwm`。
-    目录集成状态：运行时已移植（runtime_ported）。
-    目录中记录的集成备注（保留原文）：
-    - WorldFoundry registers an in-tree runtime manifest pipeline for the vendored NWM source.
-    - Initial candidate for non-driving navigation video evaluation.
-    - A model-specific WorldFoundry pipeline is registered against the independent in-tree NWM source package; real upstream inference remains checkpoint/environment gated.
-    目录记录：变体 `nwm-recon`，任务 `navigation-world-model`。
-    目录记录：变体 `nwm-scand`，任务 `navigation-world-model`。
-
-    具身接口（embodiment contract）：
-    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
-    - 传感器：导航智能体的历史第一视角 RGB 帧作为视觉上下文。
-    - 动作空间：连续导航动作（平移/旋转式自运动指令）作为 rollout 条件；模型预测这些动作产生的观测。
-    - 是否专用环境：面向各权重记录的机器人操作域；该条目不附带仿真器。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`implemented_checkpoint_pending`.
-    Runner parity notes recorded in the catalog:
-    - The pipeline resolves the official NWM inference entrypoint and returns blocked runtime diagnostics until checkpoints and datasets are staged.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已实现、待权重就绪（implemented_checkpoint_pending）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - The pipeline resolves the official NWM inference entrypoint and returns blocked runtime diagnostics until checkpoints and datasets are staged.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Meta AI (FAIR)
+  publisher_kind: company
+  publisher_zh: Meta AI（FAIR）
+  overview: 'Navigation World Models (NWM) is Meta''s navigation world model (CVPR 2025 highlight): a conditional diffusion transformer that predicts egocentric future video from past frames and navigation actions, and can plan trajectories by imagining them. Recorded variants cover RECON and SCAND dataset checkpoints. In this catalog the source is vendored in-tree; execution stays checkpoint/dataset gated.'
+  overview_zh: Navigation World Models（NWM）是 Meta 的导航世界模型（CVPR 2025 highlight）：条件扩散 Transformer，从历史帧与导航动作预测第一视角未来视频，并能通过「想象」来规划轨迹。记录的 variant 覆盖 RECON 与 SCAND 数据集 checkpoint。本 catalog 中源码已内置树内；执行保持 checkpoint/数据集限制。
+  architecture: Per the upstream release, a Conditional Diffusion Transformer (CDiT) scales to 1B parameters and conditions on action and time embeddings for egocentric prediction (checkpoints at facebook/nwm, CC-BY-NC-4.0).
+  architecture_zh: 按上游发布，条件扩散 Transformer（CDiT）参数量达 1B，以动作与时间嵌入为条件做第一视角预测（checkpoint 位于 facebook/nwm，CC-BY-NC-4.0）。
+  usage_notes: The pipeline resolves the official NWM inference entrypoint and returns blocked diagnostics until checkpoints and evaluation datasets are staged. It is the recorded candidate for non-driving navigation video evaluation.
+  usage_notes_zh: pipeline 解析官方 NWM 推理入口，在 checkpoint 与评估数据集就位前返回 blocked 诊断。它是「非驾驶类导航视频评估」的记录候选。
+  limitations:
+  - 'CC-BY-NC-4.0: non-commercial license.'
+  - Execution is checkpoint/environment/dataset gated.
+  limitations_zh:
+  - CC-BY-NC-4.0：非商用许可。
+  - 执行受 checkpoint/环境/数据集限制。
   recommended_benchmarks:
-  - world-in-world
+  - id: worldmodelbench
+    reason: Navigation world-rollout quality.
+    reason_zh: 导航世界滚动生成质量。

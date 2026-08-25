@@ -31,52 +31,23 @@ catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance,
   planning records. Runner or pipeline targets are present only after a complete in-tree WorldFoundry model runtime is registered
   and validated.
 docs:
-  overview: |
-    LIBERO-Para (cau-hai-lab/LIBERO-Para, MIT) is the policy/model entry associated with the LIBERO-Para paraphrased language-conditioned manipulation benchmark (which is also tracked in the WorldFoundry benchmark catalog as `libero-para`). WorldFoundry routes LIBERO-Para action evaluation through an in-tree official-policy runtime adapter; checkpoint absence (`HAI-Lab/LIBERO-Para`) is reported by runtime `missing_assets` and is not a catalog blocker.
-
-    Within the WorldFoundry model catalog this entry is tracked as `libero-para` in the `vla_va_wam` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/cau-hai-lab/LIBERO-Para; Hugging Face `HAI-Lab/LIBERO-Para`.
-  overview_zh: |
-    LIBERO-Para（cau-hai-lab/LIBERO-Para，MIT）是与 LIBERO-Para 释义化语言条件操作基准（在 WorldFoundry benchmark 目录中同名收录为 `libero-para`）关联的策略/模型条目。WorldFoundry 通过树内官方策略运行时适配器接入其动作评测；权重（`HAI-Lab/LIBERO-Para`）缺失由运行时 `missing_assets` 报告，不构成目录阻塞。
-
-    在 WorldFoundry 模型目录中，该条目以 `libero-para` 收录于 `vla_va_wam` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/cau-hai-lab/LIBERO-Para；Hugging Face `HAI-Lab/LIBERO-Para`。
-  architecture: |
-    The repository does not record architecture details for this entry beyond the modalities (vla, policy_rollout, embodied_benchmark) and official sources quoted above.
-  architecture_zh: |
-    除上述模态（vla、policy_rollout、embodied_benchmark）与官方来源外，仓库未记录该条目的架构细节。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `libero-para` and runtime profile `runtime-profile:libero-para`.
-    Catalog integration status: `runtime_ported`.
-    Integration notes recorded in the catalog:
-    - WorldFoundry routes LIBERO-Para action evaluation through an in-tree official-policy runtime adapter.
-    - Checkpoint absence is reported by runtime missing_assets and is not a catalog blocker.
-
-    Embodiment contract:
-    - Simulator: none bundled — the entry targets the LIBERO / LIBERO-Para benchmark environments (robosuite/MuJoCo based); rollouts run through separate benchmark runners.
-    - Sensors: RGB camera observations plus a language instruction; the exact camera/state contract is not recorded in this catalog file.
-    - Action space: continuous robot end-effector/joint action chunks; the exact action dimensionality is not recorded in this catalog file.
-    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `libero-para`，运行时配置为 `runtime-profile:libero-para`。
-    目录集成状态：运行时已移植（runtime_ported）。
-    目录中记录的集成备注（保留原文）：
-    - WorldFoundry routes LIBERO-Para action evaluation through an in-tree official-policy runtime adapter.
-    - Checkpoint absence is reported by runtime missing_assets and is not a catalog blocker.
-
-    具身接口（embodiment contract）：
-    - 仿真器：不内置仿真器——该条目面向 LIBERO / LIBERO-Para 基准环境（基于 robosuite/MuJoCo）；rollout 由独立 benchmark runner 执行。
-    - 传感器：RGB 相机观测加语言指令；具体相机/状态契约本目录文件未记录。
-    - 动作空间：连续的机器人末端/关节动作块；具体动作维度本目录文件未记录。
-    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
-  limitations: |
-    No family-level demo/runner parity status is recorded in this catalog file.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件未记录家族级 demo/runner 一致性状态。
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Open-source research release (institution not recorded)
+  publisher_kind: lab
+  publisher_zh: 开源研究发布（仓库未记录正式机构）
+  overview: 'LIBERO-Para is a paraphrase-robustness evaluation line around the LIBERO benchmark: it tests how VLA policies behave when task instructions are reworded (paper: hf.co/papers/2603.28301, MIT license). The HAI-Lab/LIBERO-Para dataset is confirmed on Hugging Face; WorldFoundry routes action evaluation through an in-tree official-policy runtime adapter.'
+  overview_zh: LIBERO-Para 是围绕 LIBERO 基准的指令改写鲁棒性评测线：测试 VLA 策略在任务指令被改写时的表现（论文：hf.co/papers/2603.28301，MIT 许可）。HAI-Lab/LIBERO-Para 数据集已在 Hugging Face 确认； WorldFoundry 通过树内官方策略运行时适配器路由动作评测。
+  architecture: This is an evaluation/dataset-centered entry rather than a new policy architecture; the recorded artifact is the paraphrased-instruction dataset plus an evaluation route. Further internals are not recorded in this repository.
+  architecture_zh: 这是以评测/数据集为中心的条目，而非新策略架构；记录的工件为指令改写数据集与评测路由。更多内部细节仓库未记录。
+  usage_notes: Checkpoint absence is reported by runtime missing_assets and is not a catalog blocker; runs emit a runtime plan until weights are staged. Pair it with a LIBERO-capable policy to measure paraphrase robustness.
+  usage_notes_zh: checkpoint 缺失由运行时 missing_assets 报告，不视为 catalog 阻塞；权重就位前运行输出运行时计划。与支持 LIBERO 的策略搭配即可测量指令改写鲁棒性。
+  limitations:
+  - No policy checkpoint of its own; it evaluates other policies.
+  limitations_zh:
+  - 自身无策略 checkpoint；用于评测其他策略。
   recommended_benchmarks:
-  - libero-para
-  - libero
+  - id: libero-para
+    reason: This entry is the LIBERO-Para evaluation itself.
+    reason_zh: 本条目即 LIBERO-Para 评测本身。
+  - id: libero
+    reason: Built on the LIBERO task suite.
+    reason_zh: 构建于 LIBERO 任务套件之上。

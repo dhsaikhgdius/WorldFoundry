@@ -56,59 +56,20 @@ runner_parity:
 catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint metadata, and runtime-profile planning records.
 docs:
-  overview: |
-    CogACT (microsoft/CogACT, MIT) is a componentized VLA from Microsoft Research: it separates 'cognition' (a Prismatic-style Llama-2 VLM) from 'action' (a diffusion action head), rather than quantizing actions into the language vocabulary. WorldFoundry keeps an independent synthesis entrypoint, strict local checkpoint mapper, and inference-only DiT action model under `worldfoundry/synthesis/action_generation/cogact`; checkpoint-backed Workspace inference passes without an external checkout. Released checkpoints are `CogACT/CogACT-Small`, `-Base`, and `-Large`.
-
-    Within the WorldFoundry model catalog this entry is tracked as `cogact` in the `vla_va_wam` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/microsoft/CogACT; Hugging Face `CogACT/CogACT-Small`, `CogACT/CogACT-Base`, `CogACT/CogACT-Large`.
-  overview_zh: |
-    CogACT（microsoft/CogACT，MIT）是微软研究院的组件化 VLA：把『认知』（Prismatic 式 Llama-2 VLM）与『动作』（扩散动作头）分离，而不是把动作量化进语言词表。WorldFoundry 在 `worldfoundry/synthesis/action_generation/cogact` 下保留独立合成入口、严格本地权重映射器与仅推理 DiT 动作模型；有权重支撑的 Workspace 推理无需外部 checkout。已发布权重为 `CogACT/CogACT-Small`、`-Base` 与 `-Large`。
-
-    在 WorldFoundry 模型目录中，该条目以 `cogact` 收录于 `vla_va_wam` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/microsoft/CogACT；Hugging Face `CogACT/CogACT-Small`、`CogACT/CogACT-Base`、`CogACT/CogACT-Large`。
-  architecture: |
-    Publicly, CogACT feeds the cognition feature of a Prismatic VLM (SigLIP/DINOv2 vision encoders plus Llama-2 7B) into a DiT-family diffusion action module (DiT-S/B/L for the Small/Base/Large releases) that denoises a 16-step, 7-DoF action chunk; the official demo calls `predict_action` with image, prompt, `unnorm_key`, `cfg_scale`, and DDIM steps. WorldFoundry reuses the in-tree Prismatic implementation and local tokenizer assets while loading every VLM weight from the CogACT checkpoint itself.
-  architecture_zh: |
-    公开资料中，CogACT 将 Prismatic VLM（SigLIP/DINOv2 视觉编码器加 Llama-2 7B）的认知特征输入 DiT 系扩散动作模块（Small/Base/Large 对应 DiT-S/B/L），去噪生成 16 步、7 自由度的动作块；官方演示调用 `predict_action`，参数含图像、提示词、`unnorm_key`、`cfg_scale` 与 DDIM 步数。WorldFoundry 复用树内 Prismatic 实现与本地分词器资产，同时全部 VLM 权重从 CogACT 权重本身加载。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `cogact` and runtime profile `runtime-profile:cogact`.
-    Catalog integration status: `integrated`.
-    Integration notes recorded in the catalog:
-    - WorldFoundry has an independent CogACT synthesis entrypoint, strict local checkpoint mapper, and inference-only DiT action model under worldfoundry/synthesis/action_generation/cogact.
-    - Checkpoint-backed Workspace inference passes without an external checkout; the inference-only loader reuses an installed OpenVLA Llama tokenizer when a gated Llama 2 mirror is unavailable.
-    Recorded variant `cogact-base`, task `vla.action_prediction`.
-
-    Embodiment contract:
-    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
-    - Sensors: a single third-person RGB image plus a language instruction, following the official predict_action contract.
-    - Action space: a 16x7 action chunk (7-DoF end-effector deltas plus gripper); default SimplerEnv setups use bridge_orig or fractal20220817_data normalization keys.
-    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `cogact`，运行时配置为 `runtime-profile:cogact`。
-    目录集成状态：已集成（integrated）。
-    目录中记录的集成备注（保留原文）：
-    - WorldFoundry has an independent CogACT synthesis entrypoint, strict local checkpoint mapper, and inference-only DiT action model under worldfoundry/synthesis/action_generation/cogact.
-    - Checkpoint-backed Workspace inference passes without an external checkout; the inference-only loader reuses an installed OpenVLA Llama tokenizer when a gated Llama 2 mirror is unavailable.
-    目录记录：变体 `cogact-base`，任务 `vla.action_prediction`。
-
-    具身接口（embodiment contract）：
-    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
-    - 传感器：单张第三人称 RGB 图像加语言指令，遵循官方 predict_action 契约。
-    - 动作空间：16×7 动作块（7 自由度末端增量加夹爪）；默认 SimplerEnv 配置使用 bridge_orig 或 fractal20220817_data 归一化键。
-    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`in_tree_checkpoint_runtime`.
-    Runner parity notes recorded in the catalog:
-    - FSDP training, TensorFlow/RLDS loaders, deployment server, and SimplerEnv benchmark adapters are excluded.
-    - Official CogACT reconstructs the Prismatic Llama-2 VLM; WorldFoundry reuses the in-tree Prismatic implementation and local tokenizer assets while loading every VLM weight from the CogACT checkpoint itself.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=`in_tree_checkpoint_runtime`。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - FSDP training, TensorFlow/RLDS loaders, deployment server, and SimplerEnv benchmark adapters are excluded.
-    - Official CogACT reconstructs the Prismatic Llama-2 VLM; WorldFoundry reuses the in-tree Prismatic implementation and local tokenizer assets while loading every VLM weight from the CogACT checkpoint itself.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Microsoft
+  publisher_kind: company
+  publisher_zh: 微软（Microsoft）
+  overview: 'CogACT from Microsoft is a componentized VLA: a Prismatic-style Llama-2 VLM handles cognition while a dedicated DiT action module handles control, released in Small/Base/Large variants under MIT. WorldFoundry has an independent in-tree synthesis entrypoint with a strict local checkpoint mapper; checkpoint-backed workspace inference passes without an external checkout.'
+  overview_zh: 微软的 CogACT 是组件化 VLA：Prismatic 式 Llama-2 VLM 负责认知，专用 DiT 动作模块负责控制，按 Small/Base/Large 三档发布，MIT 许可。WorldFoundry 拥有独立的树内 synthesis 入口与严格本地 checkpoint 映射器；checkpoint 驱动的 Workspace 推理无需外部 checkout 即可通过。
+  architecture: 'Cognition and action are separated: the VLM encodes image+instruction, then a DiT (diffusion transformer) action model predicts a 16x7 action chunk. The official demo contract is load_vla(...).predict_action(image, prompt, unnorm_key, cfg_scale, use_ddim, num_ddim_steps).'
+  architecture_zh: 认知与动作分离：VLM 编码图像+指令，DiT（扩散 transformer）动作模型预测 16x7 动作块。官方 demo 契约为 load_vla(...).predict_action(image, prompt, unnorm_key, cfg_scale, use_ddim, num_ddim_steps)。
+  usage_notes: Default SimplerEnv setups use bridge_orig or fractal20220817_data normalization keys. The inference-only loader reuses an installed OpenVLA Llama tokenizer when a gated Llama 2 mirror is unavailable. FSDP training, RLDS loaders, deployment server, and SimplerEnv adapters are excluded.
+  usage_notes_zh: 默认 SimplerEnv 配置使用 bridge_orig 或 fractal20220817_data 归一化键。当门控的 Llama 2 镜像不可用时，推理加载器复用已安装的 OpenVLA Llama tokenizer。FSDP 训练、RLDS 加载器、部署服务与 SimplerEnv 适配器均被排除。
+  limitations:
+  - Llama-2 tokenizer dependency may require a gated mirror or OpenVLA fallback.
+  limitations_zh:
+  - Llama-2 tokenizer 依赖可能需要门控镜像或 OpenVLA 回退。
   recommended_benchmarks:
-  - simpler-env
+  - id: simpler-env
+    reason: Official normalization targets SimplerEnv setups.
+    reason_zh: 官方归一化面向 SimplerEnv 配置。

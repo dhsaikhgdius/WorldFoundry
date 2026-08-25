@@ -173,10 +173,26 @@ export type ModelRecipeBenchmarkRef = {
  * catalog, runtime, binding, and evidence fields by
  * scripts/generate-model-recipes.py.
  */
+/**
+ * Formal publishing institution recorded in the catalog manifest.
+ * Companies take precedence over universities/labs; GitHub usernames are
+ * never used as a publisher identity.
+ */
+export type ModelRecipePublisher = {
+  name: string;
+  nameZh: string;
+  kind: 'company' | 'university' | 'lab' | null;
+};
+
 export type ModelRecipeDocs = {
   curated: boolean;
+  publisher: ModelRecipePublisher | null;
   overview: string[];
   overviewZh: string[];
+  architecture: string[];
+  architectureZh: string[];
+  usageNotes: string[];
+  usageNotesZh: string[];
   highlights: string[];
   highlightsZh: string[];
   modalities: { inputs: string[]; outputs: string[] };

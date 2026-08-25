@@ -38,56 +38,18 @@ catalog_scope: Independent geometric prior integrations used by 3D and world-mod
   runtimes.
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 docs:
-  overview: |
-    Segment and Track Anything (`track-anything-prior`) is an interactive video object segmentation and tracking prior. WorldFoundry integrates it as an independent tracking prior at `worldfoundry/base_models/perception_core/tracking/track_anything`; its SAM, GroundingDINO, and AOT subcomponents reuse canonical WorldFoundry owners where available, and it is exposed through the shared geometry-prior pipeline/operator contract. Real prior inference remains gated by checkpoints/assets.
-
-    Within the WorldFoundry model catalog this entry is tracked as `track-anything-prior` in the `three_d_four_d` category.
-    The repository does not record an official source link for this entry.
-  overview_zh: |
-    Segment and Track Anything（`track-anything-prior`）是交互式视频物体分割与跟踪先验。WorldFoundry 将其作为独立跟踪先验集成于 `worldfoundry/base_models/perception_core/tracking/track_anything`；其 SAM、GroundingDINO 与 AOT 子组件尽可能复用 WorldFoundry 的规范归属实现，并经共享几何先验 pipeline/operator 契约暴露。真实先验推理仍受权重/资产限制。
-
-    在 WorldFoundry 模型目录中，该条目以 `track-anything-prior` 收录于 `three_d_four_d` 分类。
-    仓库未记录该条目的官方来源链接。
-  architecture: |
-    Per the integration notes, the prior composes three published components: SAM (promptable image segmentation) for mask initialization, GroundingDINO for open-vocabulary text-prompted detection, and AOT (Associating Objects with Transformers) for mask propagation across video frames. The composition follows the upstream Segment-and-Track-Anything design; further architecture details are not recorded in the repository.
-  architecture_zh: |
-    按集成备注，该先验组合三个公开组件：SAM（可提示图像分割）用于掩码初始化，GroundingDINO 用于开放词表文本提示检测，AOT（Associating Objects with Transformers）用于掩码跨帧传播。组合方式遵循上游 Segment-and-Track-Anything 设计；更多架构细节仓库未记录。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` and runtime profile `runtime-profile:track-anything-prior`.
-    Catalog integration status: `integrated`.
-    Integration notes recorded in the catalog:
-    - Integrated as an independent tracking prior at worldfoundry/base_models/perception_core/tracking/track_anything.
-    - Its SAM, GroundingDINO, and AOT subcomponents reuse canonical WorldFoundry owners where available.
-    - Exposed through the shared WorldFoundry geometry-prior pipeline/operator contract.
-
-    Embodiment contract:
-    - Simulator: none — this entry is an offline geometric prior invoked by other WorldFoundry pipelines, not a simulator-driven model.
-    - Sensors: RGB video frames plus user prompts (points/boxes/text) for target selection; no additional sensors are recorded.
-    - Action space: not applicable — priors are pure perception modules without an action interface.
-    - Dedicated environment: no dedicated environment; it is exposed through the shared WorldFoundry geometry-prior pipeline/operator contract.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，运行时配置为 `runtime-profile:track-anything-prior`。
-    目录集成状态：已集成（integrated）。
-    目录中记录的集成备注（保留原文）：
-    - Integrated as an independent tracking prior at worldfoundry/base_models/perception_core/tracking/track_anything.
-    - Its SAM, GroundingDINO, and AOT subcomponents reuse canonical WorldFoundry owners where available.
-    - Exposed through the shared WorldFoundry geometry-prior pipeline/operator contract.
-
-    具身接口（embodiment contract）：
-    - 仿真器：无——该条目是被其它 WorldFoundry 管线调用的离线几何先验，不涉及仿真器。
-    - 传感器：RGB 视频帧加用户提示（点/框/文本）用于目标选择；仓库未记录其它传感器。
-    - 动作空间：不适用——先验模块为纯感知组件，没有动作接口。
-    - 是否专用环境：无专用环境；通过 WorldFoundry 共享几何先验 pipeline/operator 契约暴露。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`implemented_checkpoint_pending`.
-    Runner parity notes recorded in the catalog:
-    - resolve_model_zoo_config and pipeline/operator import are expected to pass; real prior inference remains gated by checkpoints/assets.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已实现、待权重就绪（implemented_checkpoint_pending）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - resolve_model_zoo_config and pipeline/operator import are expected to pass; real prior inference remains gated by checkpoints/assets.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
-  recommended_benchmarks: []
+  publisher: Zhejiang University (ReLER Lab)
+  publisher_kind: university
+  publisher_zh: 浙江大学（ReLER 实验室）
+  overview: Segment and Track Anything (SAM-Track) combines SAM segmentation with AOT/DeAOT tracking so objects can be segmented once and tracked across a whole video, with GroundingDINO enabling text-prompted selection. In this catalog it is an independent tracking prior consumed through the shared geometry-prior contract.
+  overview_zh: Segment and Track Anything（SAM-Track）把 SAM 分割与 AOT/DeAOT 跟踪结合起来：对象只需分割一次即可在整段视频中被跟踪，GroundingDINO 支持文本提示选择。本 catalog 中它是经共享 geometry-prior 契约调用的独立跟踪先验。
+  architecture: The recorded structure combines three subcomponents — SAM for masks, GroundingDINO for text grounding, and AOT/DeAOT for propagation — reusing canonical WorldFoundry owners where available. Registered at base_models/perception_core/tracking/track_anything; upstream license is AGPL-3.0.
+  architecture_zh: 记录的结构组合三个子组件——SAM 出掩码、GroundingDINO 做文本定位、AOT/DeAOT 做传播——并在可用时复用 WorldFoundry 的规范组件。注册于 base_models/perception_core/tracking/track_anything；上游许可为 AGPL-3.0。
+  usage_notes: It is integrated as an independent geometry prior under worldfoundry/base_models and exposed through the shared geometry-prior pipeline/operator contract. Higher-level pipelines (e.g. ViPE) import it from this canonical owner instead of keeping private copies. Config resolution and pipeline/operator import are expected to pass; real prior inference remains gated by checkpoints/assets.
+  usage_notes_zh: 它作为独立几何先验集成在 worldfoundry/base_models 下，通过共享的 geometry-prior pipeline/operator 契约对外暴露。上层管线（如 ViPE）从这一规范位置导入它，而不是各自保留私有副本。配置解析与 pipeline/operator 导入预期可通过；真实先验推理仍受 checkpoint/资产限制。
+  limitations:
+  - 'AGPL-3.0 license: copyleft terms apply downstream.'
+  - Real inference is checkpoint-gated (SAM, GroundingDINO, AOT assets).
+  limitations_zh:
+  - AGPL-3.0 许可：下游适用 copyleft 条款。
+  - 真实推理受 checkpoint 限制（SAM、GroundingDINO、AOT 资产）。

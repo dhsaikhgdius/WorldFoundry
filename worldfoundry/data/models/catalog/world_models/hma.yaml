@@ -58,57 +58,22 @@ catalog_scope: World-model catalog entries. Integrated entries expose in-tree Wo
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 pipeline_binding: hma
 docs:
-  overview: |
-    HMA (liruiw/HMA, 'Heterogeneous Masked Autoregression for Video and Action') is a robot world model that jointly models video and action dynamics with masked autoregression across heterogeneous robot data, enabling fast interactive robot video simulation. Tracked checkpoints are `liruiw/hma-base-cont` (continuous, MAR-style) and `liruiw/hma-base-disc` (discrete, MAGVIT-token) variants; recorded runtime variants are hma-magvit-362m and hma-mar-1b. WorldFoundry registers the official generator route with checkpoints/robot assets runtime-gated.
-
-    Within the WorldFoundry model catalog this entry is tracked as `hma` in the `world_models` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/liruiw/HMA; Hugging Face `liruiw/hma-base-cont`, `liruiw/hma-base-disc`.
-  overview_zh: |
-    HMA（liruiw/HMA，《Heterogeneous Masked Autoregression for Video and Action》）是机器人世界模型：以掩码自回归在异构机器人数据上联合建模视频与动作动力学，实现快速交互式机器人视频仿真。跟踪权重为 `liruiw/hma-base-cont`（连续，MAR 式）与 `liruiw/hma-base-disc`（离散，MAGVIT token）变体；记录的运行时变体为 hma-magvit-362m 与 hma-mar-1b。WorldFoundry 注册官方生成器路线，权重/机器人资产受运行时门控。
-
-    在 WorldFoundry 模型目录中，该条目以 `hma` 收录于 `world_models` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/liruiw/HMA；Hugging Face `liruiw/hma-base-cont`、`liruiw/hma-base-disc`。
-  architecture: |
-    The published design uses masked autoregression over spatiotemporal tokens with per-embodiment action heads ('heterogeneous' across action spaces): the discrete variant predicts MAGVIT visual tokens (362M scale) while the continuous variant uses MAR-style diffusion-free continuous token prediction (1B scale). Video prediction and action-conditioned dynamics share one backbone.
-  architecture_zh: |
-    公开设计在时空 token 上做掩码自回归，配以分具身动作头（跨动作空间『异构』）：离散变体预测 MAGVIT 视觉 token（3.62 亿规模），连续变体用 MAR 式免扩散连续 token 预测（10 亿规模）。视频预测与动作条件动力学共享同一骨干。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `hma` and runtime profile `runtime-profile:hma`.
-    Catalog integration status: `runtime_ported`.
-    Integration notes recorded in the catalog:
-    - HMA official generator route is registered; checkpoints/robot assets are runtime-gated.
-    Recorded variant `hma-magvit-362m`, task `robot-action-video`.
-    Recorded variant `hma-mar-1b`, task `robot-action-video`.
-
-    Embodiment contract:
-    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
-    - Sensors: initial visual context of a robot scene (and optionally text) plus a robot action sequence as conditioning.
-    - Action space: robot action trajectories are the conditioning channel: the model predicts the resulting future observations instead of emitting actions itself.
-    - Dedicated environment: targets the robot-manipulation domains recorded per checkpoint; no simulator ships with this entry.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `hma`，运行时配置为 `runtime-profile:hma`。
-    目录集成状态：运行时已移植（runtime_ported）。
-    目录中记录的集成备注（保留原文）：
-    - HMA official generator route is registered; checkpoints/robot assets are runtime-gated.
-    目录记录：变体 `hma-magvit-362m`，任务 `robot-action-video`。
-    目录记录：变体 `hma-mar-1b`，任务 `robot-action-video`。
-
-    具身接口（embodiment contract）：
-    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
-    - 传感器：机器人场景的初始视觉上下文（可选文本），加机器人动作序列作为条件。
-    - 动作空间：机器人动作轨迹是条件通道：模型预测动作导致的未来观测，而不是自己输出动作。
-    - 是否专用环境：面向各权重记录的机器人操作域；该条目不附带仿真器。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`implemented_checkpoint_pending`.
-    Runner parity notes recorded in the catalog:
-    - resolve_model_zoo_config and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已实现、待权重就绪（implemented_checkpoint_pending）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - resolve_model_zoo_config and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Massachusetts Institute of Technology (MIT)
+  publisher_kind: university
+  publisher_zh: 麻省理工学院（MIT）
+  overview: HMA (Heterogeneous Masked Autoregression) models robot action-video dynamics across heterogeneous embodiments and datasets, fast enough for real-time interaction. Recorded variants cover a MAGVIT-style 362M discrete model and a 1B MAR continuous model. In this catalog the official generator route is registered; checkpoints and robot assets stay runtime-gated.
+  overview_zh: HMA（异构掩码自回归）跨异构机器人形态与数据集建模「动作-视频」动力学，速度足以支撑实时交互。记录的 variant 覆盖 MAGVIT 风格的 362M 离散模型与 1B MAR 连续模型。本 catalog 中官方生成器路径已注册；checkpoint 与机器人资产保持运行时限制。
+  architecture: Per the paper (arXiv 2502.04296), masked autoregression over video tokens handles heterogeneous action spaces through modality-specific heads; discrete (hma-base-disc) and continuous (hma-base-cont) checkpoints are recorded under liruiw (apache-2.0). Source is pinned at a recorded commit.
+  architecture_zh: 按论文（arXiv 2502.04296），对视频 token 的掩码自回归通过按模态划分的输出头处理异构动作空间；记录了 liruiw 下的离散（hma-base-disc）与连续（hma-base-cont）checkpoint（apache-2.0）。源码固定在记录的 commit。
+  usage_notes: Config resolution and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged. Missing assets are reported by the plan and are not treated as catalog blockers.
+  usage_notes_zh: 配置解析与 pipeline 导入预期可通过；在所需 checkpoint/资产就位前，真实生成会输出运行时计划。缺失资产由计划报告，不视为 catalog 阻塞。
+  limitations:
+  - Real generation is checkpoint/robot-asset gated.
+  - 'Research-scale resolution: outputs target dynamics fidelity, not cinematic quality.'
+  limitations_zh:
+  - 真实生成受 checkpoint/机器人资产限制。
+  - 研究规模分辨率：输出以动力学保真为先，而非影视级画质。
   recommended_benchmarks:
-  - ewmbench
+  - id: ewmbench
+    reason: Embodied world-model video prediction quality.
+    reason_zh: 具身世界模型视频预测质量。

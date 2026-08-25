@@ -26,54 +26,22 @@ catalog_category: world_models
 catalog_scope: World-model catalog entries. Integrated entries expose in-tree WorldFoundry runtimes; blocked entries retain
   upstream provenance without runnable backends.
 docs:
-  overview: |
-    Pandora is a diffusion world model tracked for general world generation via text-to-video: recorded modalities are diffusion-world-model, world-generation, and text-to-video. WorldFoundry vendors the runtime source in-tree and exposes a PandoraSynthesis runtime-plan wrapper; full generation remains blocked because the official weights are hidden, so real runs require caller-provided official-compatible checkpoints. No official GitHub repository or Hugging Face checkpoint is recorded in this catalog file.
-
-    Within the WorldFoundry model catalog this entry is tracked as `pandora` in the `world_models` category.
-    The repository does not record an official source link for this entry.
-  overview_zh: |
-    Pandora 是本目录跟踪的扩散世界模型，面向通过文本到视频实现的通用世界生成：记录模态为 diffusion-world-model、world-generation 与 text-to-video。WorldFoundry 在树内内嵌运行时源码并暴露 PandoraSynthesis 运行时计划包装器；由于官方权重未公开，完整生成保持受阻，真实运行需要调用方提供与官方兼容的权重。本目录文件未记录官方 GitHub 仓库或 Hugging Face 权重。
-
-    在 WorldFoundry 模型目录中，该条目以 `pandora` 收录于 `world_models` 分类。
-    仓库未记录该条目的官方来源链接。
-  architecture: |
-    The recorded modality set describes a diffusion-based world generator driven by text prompts. Beyond the vendored runtime source and the hidden-weights gating, the repository does not record architecture details (backbone, parameter count, action interface) for this entry.
-  architecture_zh: |
-    记录的模态组合描述了由文本提示驱动的扩散式世界生成器。除内嵌运行时源码与隐藏权重门控外，仓库未记录该条目的架构细节（骨干、参数量、动作接口）。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `pandora` and runtime profile `runtime-profile:pandora`.
-    Catalog integration status: `planned`.
-    Integration notes recorded in the catalog:
-    - Runtime source is vendored in-tree; full generation remains blocked by hidden official weights.
-
-    Embodiment contract:
-    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
-    - Sensors: conditioning inputs per the recorded modalities (typically an initial image and/or a text prompt); exact tensor contracts are not recorded in this catalog file.
-    - Action space: no explicit action interface is recorded for this entry; controllability is limited to the conditioning inputs.
-    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `pandora`，运行时配置为 `runtime-profile:pandora`。
-    目录集成状态：计划中（planned）。
-    目录中记录的集成备注（保留原文）：
-    - Runtime source is vendored in-tree; full generation remains blocked by hidden official weights.
-
-    具身接口（embodiment contract）：
-    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
-    - 传感器：按记录的模态提供条件输入（通常为初始图像和/或文本提示）；具体张量契约本目录文件未记录。
-    - 动作空间：该条目未记录显式动作接口；可控性仅限于条件输入。
-    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`implemented_hidden_weights_pending`.
-    Runner parity notes recorded in the catalog:
-    - PandoraSynthesis provides an in-tree runtime plan wrapper; real generation requires caller-provided official-compatible checkpoints.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=`implemented_hidden_weights_pending`。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - PandoraSynthesis provides an in-tree runtime plan wrapper; real generation requires caller-provided official-compatible checkpoints.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Maitrix.org (UC San Diego / MBZUAI)
+  publisher_kind: lab
+  publisher_zh: Maitrix.org（加州大学圣迭戈分校 / MBZUAI）
+  overview: 'Pandora is an early general world model with natural-language actions and video states: it simulates world states as video and lets you steer the simulation with free-text actions at any step. In this catalog the model, ChatUniVi, and DynamiCrafter runtime modules are vendored in-tree; full generation stays blocked because the official weights are hidden by data-license constraints.'
+  overview_zh: Pandora 是较早的通用世界模型，采用自然语言动作与视频状态：把世界状态模拟成视频，并允许在任意步骤用自由文本动作操控模拟。本 catalog 中其模型、ChatUniVi 与 DynamiCrafter 运行时模块已内置树内；由于官方权重因数据许可限制未公开，完整生成保持 blocked。
+  architecture: Per the upstream release, an autoregressive LLM backbone (ChatUniVi-family) connects to a video diffusion decoder (DynamiCrafter-family) so language actions steer video-state rollouts. The vendored runtime lives under synthesis/visual_generation/pandora/pandora_runtime.
+  architecture_zh: 按上游发布，自回归 LLM 主干（ChatUniVi 系）连接视频扩散解码器（DynamiCrafter 系），使语言动作操控视频状态滚动。内置运行时位于 synthesis/visual_generation/pandora/pandora_runtime。
+  usage_notes: PandoraSynthesis provides a runtime-plan wrapper; real generation requires caller-provided official-compatible checkpoints, since official weights are hidden or unavailable.
+  usage_notes_zh: PandoraSynthesis 提供运行时计划封装；由于官方权重隐藏或不可得，真实生成需要调用方提供官方兼容的 checkpoint。
+  limitations:
+  - Official weights are hidden by data-license constraints — caller-provided checkpoints required.
+  - 'Research prototype: quality trails newer world models.'
+  limitations_zh:
+  - 官方权重因数据许可限制未公开——需调用方提供 checkpoint。
+  - 研究原型：质量弱于较新的世界模型。
   recommended_benchmarks:
-  - worldmodelbench
-  - vbench
+  - id: worldmodelbench
+    reason: Language-action world-rollout quality.
+    reason_zh: 语言动作世界滚动生成质量。

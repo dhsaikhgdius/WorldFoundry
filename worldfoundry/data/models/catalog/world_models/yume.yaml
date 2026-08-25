@@ -82,62 +82,22 @@ catalog_policy:
   integration_rule: Integrated means in-tree pipeline code is present; runner parity must be backed by generated artifacts
     and visual QA.
 docs:
-  overview: |
-    YUME (stdstu12/YUME, Apache-2.0; Hugging Face `stdstu123/Yume-I2V-540P`, `stdstu123/Yume-5B-720P`) is the interactive world generation model that creates an explorable world from a single image and lets the user travel through it with keyboard-style controls. WorldFoundry exposes in-tree YUME and YUME-1.5 pipelines backed by vendored runtime adapters; both use the shared pipeline runner and unified environment profile, with runner status verified. Recorded variants are yume (image/video-to-world-video) and yume-1p5 (image/video/text-to-world-video).
-
-    Within the WorldFoundry model catalog this entry is tracked as `yume` in the `world_models` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/stdstu12/YUME; Hugging Face `stdstu123/Yume-I2V-540P`, `stdstu123/Yume-5B-720P`.
-  overview_zh: |
-    YUME（stdstu12/YUME，Apache-2.0；Hugging Face `stdstu123/Yume-I2V-540P`、`stdstu123/Yume-5B-720P`）是交互式世界生成模型：从单张图像创建可探索世界，让用户以键盘式控制在其中移动。WorldFoundry 暴露由内嵌运行时适配器支撑的树内 YUME 与 YUME-1.5 管线；两者使用共享管线 runner 与统一环境配置，runner 状态为已验证。记录变体为 yume（图像/视频到世界视频）与 yume-1p5（图像/视频/文本到世界视频）。
-
-    在 WorldFoundry 模型目录中，该条目以 `yume` 收录于 `world_models` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/stdstu12/YUME；Hugging Face `stdstu123/Yume-I2V-540P`、`stdstu123/Yume-5B-720P`。
-  architecture: |
-    Per the public project, YUME is a Wan-lineage video diffusion world generator with masked video diffusion transformer techniques for stable long-horizon exploration and keyboard-driven camera/motion control; released checkpoints cover an I2V 540P route and a 5B 720P route. The 1.5 generation adds text conditioning per the recorded variant task. Further architecture details are not recorded in the repository.
-  architecture_zh: |
-    按公开项目，YUME 是 Wan 谱系的视频扩散世界生成器，采用掩码视频扩散 transformer 技术实现稳定的长时程探索与键盘驱动的相机/运动控制；发布权重覆盖 I2V 540P 路线与 5B 720P 路线。按记录变体任务，1.5 代增加文本条件。更多架构细节仓库未记录。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `yume` and runtime profile `runtime-profile:yume`.
-    Catalog integration status: `integrated`.
-    Integration notes recorded in the catalog:
-    - WorldFoundry exposes in-tree YUME and YUME-1.5 pipelines backed by vendored runtime adapters.
-    - YUME I2V and YUME-1.5 use the shared pipeline runner and unified environment profile; per-run validation evidence is tracked outside the catalog.
-    Recorded variant `yume`, task `image/video-to-world-video`, runner parity `verified`.
-    Recorded variant `yume-1p5`, task `image/video/text-to-world-video`, runner parity `verified`.
-
-    Embodiment contract:
-    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
-    - Sensors: an initial image or context frames plus streaming interaction inputs.
-    - Action space: keyboard-style exploration controls (movement plus camera) drive travel through the generated world.
-    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `yume`，运行时配置为 `runtime-profile:yume`。
-    目录集成状态：已集成（integrated）。
-    目录中记录的集成备注（保留原文）：
-    - WorldFoundry exposes in-tree YUME and YUME-1.5 pipelines backed by vendored runtime adapters.
-    - YUME I2V and YUME-1.5 use the shared pipeline runner and unified environment profile; per-run validation evidence is tracked outside the catalog.
-    目录记录：变体 `yume`，任务 `image/video-to-world-video`，runner 一致性 已验证（verified）。
-    目录记录：变体 `yume-1p5`，任务 `image/video/text-to-world-video`，runner 一致性 已验证（verified）。
-
-    具身接口（embodiment contract）：
-    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
-    - 传感器：初始图像或上下文帧，加流式交互输入。
-    - 动作空间：键盘式探索控制（移动加相机）驱动在生成世界中的移动。
-    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`verified`.
-    Runner parity notes recorded in the catalog:
-    - Both YUME I2V and YUME-1.5 are wired through in-tree runners and the unified environment profile.
-    - Per-run validation evidence is tracked outside the model catalog.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已验证（verified）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - Both YUME I2V and YUME-1.5 are wired through in-tree runners and the unified environment profile.
-    - Per-run validation evidence is tracked outside the model catalog.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Open-source research release (institution not recorded)
+  publisher_kind: lab
+  publisher_zh: 开源研究发布（仓库未记录正式机构）
+  overview: 'YUME is an interactive world-video generator: from an image (and for YUME-1.5, text) it produces explorable first-person world videos that respond to keyboard-style motion input. Both recorded variants are verified in this catalog — YUME I2V on the official Yume-I2V-540P checkpoint and YUME-1.5 on Yume-5B-720P — running through in-tree vendored runtime adapters under Apache-2.0.'
+  overview_zh: YUME 是交互式世界视频生成器：从一张图（YUME-1.5 还支持文本）生成可探索的第一人称世界视频，响应键盘式运动输入。本 catalog 记录的两个变体均为 verified——YUME I2V 使用官方 Yume-I2V-540P checkpoint，YUME-1.5 使用 Yume-5B-720P——经树内内置运行时适配器运行，Apache-2.0 许可。
+  architecture: 'Two checkpoint lines are recorded: Yume-I2V-540P for image-conditioned world video and the 5B-parameter Yume-5B-720P for the 1.5 generation with image/video/text conditioning at 720P. Architecture internals beyond the vendored adapters are not recorded in this repository.'
+  architecture_zh: 仓库记录两条 checkpoint 线：面向图像条件世界视频的 Yume-I2V-540P，与 1.5 世代 5B 参数、支持图/视频/文本条件、720P 输出的 Yume-5B-720P。内置适配器之外的架构内部细节仓库未记录。
+  usage_notes: Both variants share the pipeline runner and unified environment profile; checkpoints stage into WORLDFOUNDRY_CKPT_DIR. Prefer yume-1p5 for text conditioning and 720P output. Per-run visual QA is tracked outside the catalog.
+  usage_notes_zh: 两个变体共享 pipeline runner 与统一环境 profile；checkpoint 就位于 WORLDFOUNDRY_CKPT_DIR。需要文本条件与 720P 输出时优先选 yume-1p5。每次运行的视觉 QA 在 catalog 外跟踪。
+  limitations:
+  - 'First-person exploration focus: not a general text-to-video generator.'
+  - Verified status covers the runner paths; per-run visual QA is tracked outside the catalog.
+  limitations_zh:
+  - 聚焦第一人称探索：并非通用文生视频生成器。
+  - verified 状态覆盖 runner 路径；每次运行的视觉 QA 在 catalog 外跟踪。
   recommended_benchmarks:
-  - iworld-bench
-  - worldscore
+  - id: worldmodelbench
+    reason: Interactive first-person world rollout quality.
+    reason_zh: 交互式第一人称世界滚动生成质量。

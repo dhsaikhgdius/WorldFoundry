@@ -43,56 +43,22 @@ runner_parity:
 catalog_category: world_models
 catalog_scope: world-model/interactive starred models
 docs:
-  overview: |
-    Astra (EternalEvan/Astra; Hugging Face `EvanEternal/Astra`) is a Wan2.1-backed interactive camera-controlled image-to-video world model. WorldFoundry registers the in-tree inference route under `worldfoundry/synthesis/visual_generation/kling/astra_runtime`, with Studio defaults mirroring the official Wan2.1-backed Sekai image rollout; the official garden_1 Sekai demo runs through the in-tree Studio/API path with forward_left camera control, 97 frames, 832x480, and 20 fps output.
-
-    Within the WorldFoundry model catalog this entry is tracked as `astra` in the `world_models` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/EternalEvan/Astra; Hugging Face `EvanEternal/Astra`.
-  overview_zh: |
-    Astra（EternalEvan/Astra；Hugging Face `EvanEternal/Astra`）是基于 Wan2.1 的交互式相机控制图像到视频世界模型。WorldFoundry 在 `worldfoundry/synthesis/visual_generation/kling/astra_runtime` 注册树内推理路线，Studio 默认镜像官方基于 Wan2.1 的 Sekai 图像 rollout；官方 garden_1 Sekai 演示通过树内 Studio/API 路径运行，使用 forward_left 相机控制、97 帧、832x480、20 fps 输出。
-
-    在 WorldFoundry 模型目录中，该条目以 `astra` 收录于 `world_models` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/EternalEvan/Astra；Hugging Face `EvanEternal/Astra`。
-  architecture: |
-    The recorded stack builds on the Wan2.1 video diffusion backbone with camera-direction control conditioning applied to image rollout (Sekai-style world exploration). Beyond the Wan2.1 base and the camera-control contract, the repository does not record architecture details (parameter count, training data) for this entry.
-  architecture_zh: |
-    目录记录的栈基于 Wan2.1 视频扩散骨干，在图像 rollout（Sekai 式世界探索）上施加相机方向控制条件。除 Wan2.1 基座与相机控制契约外，仓库未记录该条目的架构细节（参数量、训练数据等）。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `astra`.
-    Catalog integration status: `integrated`.
-    Integration notes recorded in the catalog:
-    - In-tree Astra inference route is registered under worldfoundry/synthesis/visual_generation/kling/astra_runtime.
-    - Studio defaults mirror the official Wan2.1-backed Sekai image rollout.
-
-    Embodiment contract:
-    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
-    - Sensors: an initial image (and optionally a text prompt) plus a camera trajectory / pose sequence as the control signal.
-    - Action space: discrete camera-direction controls (e.g. forward_left in the recorded demo) drive the world rollout.
-    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `astra`。
-    目录集成状态：已集成（integrated）。
-    目录中记录的集成备注（保留原文）：
-    - In-tree Astra inference route is registered under worldfoundry/synthesis/visual_generation/kling/astra_runtime.
-    - Studio defaults mirror the official Wan2.1-backed Sekai image rollout.
-
-    具身接口（embodiment contract）：
-    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
-    - 传感器：初始图像（可选文本提示）加相机轨迹/位姿序列作为控制信号。
-    - 动作空间：离散相机方向控制（如记录演示中的 forward_left）驱动世界 rollout。
-    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`verified`.
-    Runner parity notes recorded in the catalog:
-    - Official garden_1 Sekai demo runs through the in-tree Studio/API path with forward_left camera control, 97 frames, 832x480, and 20fps output.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已验证（verified）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - Official garden_1 Sekai demo runs through the in-tree Studio/API path with forward_left camera control, 97 frames, 832x480, and 20fps output.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Open-source research release (institution not recorded)
+  publisher_kind: lab
+  publisher_zh: 开源研究发布（仓库未记录正式机构）
+  overview: 'Astra is an interactive world model with camera control built over a Wan2.1 backbone: from a single image it rolls out navigable world video following camera actions. In this catalog it is verified — the official garden_1 Sekai demo runs through the in-tree Studio/API path with forward_left camera control, emitting 97 frames at 832x480 and 20 fps.'
+  overview_zh: Astra 是基于 Wan2.1 基座、带相机控制的交互式世界模型：从单张图出发，跟随相机动作滚动生成可导航的世界视频。本 catalog 中它已验证——官方 garden_1 Sekai demo 通过树内 Studio/API 路径运行，使用 forward_left 相机控制，输出 832x480、20 fps 的 97 帧。
+  architecture: The catalog records a Wan2.1-T2V-1.3B-backed camera-control rollout (checkpoints EvanEternal/Astra plus Wan-AI/Wan2.1-T2V-1.3B, apache-2.0; paper arXiv 2512.08931). The inference-only Astra runtime and Wan-backed camera-control pipeline are vendored in-tree under the Kling namespace.
+  architecture_zh: catalog 记录其为 Wan2.1-T2V-1.3B 支撑的相机控制滚动生成（checkpoint 为 EvanEternal/Astra 加 Wan-AI/Wan2.1-T2V-1.3B，apache-2.0；论文 arXiv 2512.08931）。仅推理的 Astra 运行时与 Wan 支撑的相机控制 pipeline 内置于树内 Kling 命名空间下。
+  usage_notes: Studio defaults mirror the official Wan2.1-backed Sekai image rollout — start from those before customizing camera trajectories. Stage the Astra and Wan2.1 checkpoints locally first.
+  usage_notes_zh: Studio 默认值对齐官方 Wan2.1 支撑的 Sekai 图像滚动生成——自定义相机轨迹前请先从默认配置出发。请先在本地就位 Astra 与 Wan2.1 checkpoint。
+  limitations:
+  - 'Research-scale backbone (Wan2.1 1.3B): visual quality is research-preview level.'
+  - The publishing institution is not recorded in this repository.
+  limitations_zh:
+  - 研究规模基座（Wan2.1 1.3B）：视觉质量属研究预览级。
+  - 发表机构在本仓库中未记录。
   recommended_benchmarks:
-  - camerabench
-  - worldscore
+  - id: camerabench
+    reason: Camera-following accuracy of interactive rollouts.
+    reason_zh: 交互滚动生成的相机跟随精度。

@@ -19,48 +19,18 @@ integration:
 catalog_category: three_d_four_d
 catalog_scope: Official-source manifest for 3D, 4D, and camera-controlled world/model generation projects.
 docs:
-  overview: |
-    D-NeRF (albertpumarola/D-NeRF, CVPR 2021) is one of the earliest dynamic neural radiance field methods: it extends NeRF to monocular videos of non-rigidly deforming scenes by splitting the problem into a canonical static scene and a per-timestep deformation. It remains a common baseline in 4D reconstruction literature. WorldFoundry tracks upstream source metadata only; no runnable in-tree pipeline is registered yet.
-
-    Within the WorldFoundry model catalog this entry is tracked as `d-nerf` in the `three_d_four_d` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/albertpumarola/D-NeRF.
-  overview_zh: |
-    D-NeRF（albertpumarola/D-NeRF，CVPR 2021）是最早的动态神经辐射场方法之一：它将 NeRF 扩展到非刚性形变场景的单目视频，把问题拆分为规范空间静态场景和逐时间步的形变场。它至今仍是 4D 重建文献中的常用基线。WorldFoundry 目前仅跟踪其上游来源元数据，尚未注册可运行的 in-tree 管线。
-
-    在 WorldFoundry 模型目录中，该条目以 `d-nerf` 收录于 `three_d_four_d` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/albertpumarola/D-NeRF。
-  architecture: |
-    The published architecture uses two MLPs: a deformation network mapping a 3D point and time (x, t) to a displacement into the canonical frame, and a canonical NeRF network mapping the displaced point and view direction to density and color. Training is per-scene optimization on synthetic monocular sequences with known poses; there is no feed-forward checkpoint, and the catalog records no weight repositories.
-  architecture_zh: |
-    公开架构使用两个 MLP：形变网络把三维点与时间 (x, t) 映射为指向规范帧的位移；规范 NeRF 网络把位移后的点与视角方向映射为密度与颜色。训练是在已知位姿的合成单目序列上逐场景优化；不存在前向推理 checkpoint，目录中亦未记录权重仓库。
-  usage_notes: |
-    No runner target is registered for this entry; the catalog tracks upstream provenance metadata without a runnable in-tree pipeline.
-    Catalog integration status: `blocked`.
-    Integration notes recorded in the catalog:
-    - WorldFoundry tracks upstream source metadata only; no runnable in-tree pipeline is registered yet.
-
-    Embodiment contract:
-    - Simulator: none — the official workflow is per-scene optimization over recorded data, not a simulator rollout.
-    - Sensors: calibrated multi-view or monocular RGB video with camera poses prepared by upstream preprocessing; no additional sensors are recorded.
-    - Action space: not applicable — the model does not consume an action or control stream.
-    - Dedicated environment: no dedicated environment; the entry is metadata-only (or blocked) in WorldFoundry because the official path is training/reconstruction-first.
-  usage_notes_zh: |
-    该条目未注册 runner target；目录仅跟踪上游来源元数据，暂无可运行的 in-tree 管线。
-    目录集成状态：受阻/仅跟踪元数据（blocked）。
-    目录中记录的集成备注（保留原文）：
-    - WorldFoundry tracks upstream source metadata only; no runnable in-tree pipeline is registered yet.
-
-    具身接口（embodiment contract）：
-    - 仿真器：无——官方流程是基于已录制数据的逐场景优化，不是仿真器 rollout。
-    - 传感器：由上游预处理准备的带相机位姿的标定多视角或单目 RGB 视频；仓库未记录其它传感器。
-    - 动作空间：不适用——该模型不接收动作或控制流输入。
-    - 是否专用环境：无专用环境；由于官方路径以训练/重建为先，该条目在 WorldFoundry 中为仅元数据（或受阻）状态。
-  limitations: |
-    No family-level demo/runner parity status is recorded in this catalog file.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件未记录家族级 demo/runner 一致性状态。
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
-  recommended_benchmarks: []
+  publisher: Universitat Politècnica de Catalunya (IRI, CSIC-UPC)
+  publisher_kind: university
+  publisher_zh: 加泰罗尼亚理工大学（IRI，CSIC-UPC）
+  overview: 'D-NeRF is one of the founding dynamic-NeRF methods (CVPR 2021): it extends neural radiance fields to scenes with moving content by adding time as an input. In this catalog it is upstream metadata only — a historical reference point for the newer dynamic-scene entries, not a runnable route.'
+  overview_zh: D-NeRF 是动态 NeRF 的开山方法之一（CVPR 2021）：通过把时间作为额外输入，将神经辐射场扩展到含运动内容的场景。本 catalog 中它只是上游元数据——作为较新动态场景条目的历史参照，并非可运行路径。
+  architecture: 'Two MLPs: a deformation network maps a point at time t to a canonical space, and a canonical NeRF renders it. Per-scene training is required. Nothing beyond the recorded tasks is stored in this repository.'
+  architecture_zh: 两个 MLP：形变网络把 t 时刻的点映射到规范空间，规范 NeRF 负责渲染。需要逐场景训练。本仓库除已记录任务外未存储更多信息。
+  usage_notes: Blocked; use the upstream repo (albertpumarola/D-NeRF) for the training/rendering scripts.
+  usage_notes_zh: Blocked；训练/渲染脚本请使用上游仓库（albertpumarola/D-NeRF）。
+  limitations:
+  - 'This entry is blocked: WorldFoundry tracks upstream source metadata only, and no runnable in-tree pipeline is registered.'
+  - It records provenance for CLI inspection; the docs site hides blocked 3D/4D entries from the catalog browser.
+  limitations_zh:
+  - 该条目处于 blocked 状态：WorldFoundry 仅跟踪上游源码元数据，没有注册可运行的树内 pipeline。
+  - 它的作用是为 CLI 检查记录溯源；文档站的 catalog 浏览器会隐藏 blocked 的 3D/4D 条目。

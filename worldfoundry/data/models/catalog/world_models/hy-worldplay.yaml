@@ -66,60 +66,27 @@ catalog_policy:
     Hugging Face model page was confirmed. Do not infer checkpoint availability from
     papers, demos, or third-party mirrors.
 docs:
-  overview: |
-    HY-WorldPlay (Tencent-Hunyuan/HY-WorldPlay; Hugging Face `tencent/HY-WorldPlay`) is Tencent's real-time streaming interactive world model with camera-action control: given an image and pose/action stream it generates world video at interactive rates. WorldFoundry exposes the in-tree runtime through a BaseSynthesis subclass supporting the official image-pose-video route with the official 8-GPU execution profile; the runner is verified against the official demo contract, while full benchmark scoring and longer interaction suites remain separate.
-
-    Within the WorldFoundry model catalog this entry is tracked as `hy-worldplay` in the `world_models` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/Tencent-Hunyuan/HY-WorldPlay; Hugging Face `tencent/HY-WorldPlay`.
-  overview_zh: |
-    HY-WorldPlay（Tencent-Hunyuan/HY-WorldPlay；Hugging Face `tencent/HY-WorldPlay`）是腾讯的实时流式交互世界模型，带相机-动作控制：给定图像与位姿/动作流，以交互速率生成世界视频。WorldFoundry 通过 BaseSynthesis 子类暴露树内运行时，支持官方 image-pose-video 路线与官方 8-GPU 执行配置；runner 已按官方演示契约验证，完整基准评分与更长交互套件另行跟踪。
-
-    在 WorldFoundry 模型目录中，该条目以 `hy-worldplay` 收录于 `world_models` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/Tencent-Hunyuan/HY-WorldPlay；Hugging Face `tencent/HY-WorldPlay`。
-  architecture: |
-    The recorded modalities are interactive-world-model, streaming, real-time, and camera-action-control, i.e. a streaming autoregressive world video generator conditioned on camera poses/actions in the Hunyuan world-model family. Beyond the image-pose-video contract and 8-GPU profile, the repository does not record further architecture details for this entry.
-  architecture_zh: |
-    记录模态为 interactive-world-model、streaming、real-time 与 camera-action-control，即 Hunyuan 世界模型家族中以相机位姿/动作为条件的流式自回归世界视频生成器。除 image-pose-video 契约与 8-GPU 配置外，仓库未记录该条目更多架构细节。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `hy-worldplay` and runtime profile `runtime-profile:hy-worldplay`.
-    Catalog integration status: `integrated`.
-    Integration notes recorded in the catalog:
-    - Existing in-tree runtime is now exposed through a BaseSynthesis subclass.
-    - The WorldFoundry runner supports the official image-pose-video route with the official 8-GPU execution profile.
-
-    Embodiment contract:
-    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
-    - Sensors: an initial image or context frames plus streaming interaction inputs.
-    - Action space: streaming camera poses / action inputs drive real-time world video generation.
-    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `hy-worldplay`，运行时配置为 `runtime-profile:hy-worldplay`。
-    目录集成状态：已集成（integrated）。
-    目录中记录的集成备注（保留原文）：
-    - Existing in-tree runtime is now exposed through a BaseSynthesis subclass.
-    - The WorldFoundry runner supports the official image-pose-video route with the official 8-GPU execution profile.
-
-    具身接口（embodiment contract）：
-    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
-    - 传感器：初始图像或上下文帧，加流式交互输入。
-    - 动作空间：流式相机位姿/动作输入驱动实时世界视频生成。
-    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`verified`.
-    Runner parity notes recorded in the catalog:
-    - The in-tree HY-WorldPlay pipeline target is registered and follows the official image-pose-video demo contract.
-    - Full benchmark scoring and longer interaction suites remain separate.
-    - Per-run artifact checks are tracked outside the model catalog.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已验证（verified）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - The in-tree HY-WorldPlay pipeline target is registered and follows the official image-pose-video demo contract.
-    - Full benchmark scoring and longer interaction suites remain separate.
-    - Per-run artifact checks are tracked outside the model catalog.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Tencent (Hunyuan)
+  publisher_kind: company
+  publisher_zh: 腾讯（混元）
+  overview: 'HY-WorldPlay is Tencent''s real-time interactive world video model: starting from an image, it follows pose/action input to roll the world forward — the interactive arm of the Hunyuan world stack. In this catalog the runner is verified for the official image-pose-video route with the official 8-GPU execution profile.'
+  overview_zh: HY-WorldPlay 是腾讯的实时交互世界视频模型：从一张图出发，跟随位姿/动作输入向前滚动世界——混元世界栈的交互分支。本 catalog 中 runner 已按官方 image-pose-video 路径与官方 8 卡执行档案验证。
+  architecture: 'The recorded checkpoint set tells the assembly: tencent/HY-WorldPlay action weights over tencent/HunyuanVideo-1.5 video-model support assets, with Qwen2.5-VL-7B-Instruct, byt5-small, and FLUX.1-Redux-dev as support components. The in-tree pipeline follows the official demo contract.'
+  architecture_zh: 记录的 checkpoint 组合揭示其装配：tencent/HY-WorldPlay 动作权重叠加 tencent/HunyuanVideo-1.5 视频模型支持资产，辅以 Qwen2.5-VL-7B-Instruct、byt5-small 与 FLUX.1-Redux-dev 支持组件。树内 pipeline 遵循官方 demo 契约。
+  usage_notes: The official route uses 8 torchrun ranks — plan for a multi-GPU host and stage all five recorded checkpoint sets. Full benchmark scoring and longer interaction suites remain separate work.
+  usage_notes_zh: 官方路径使用 8 个 torchrun rank——请准备多卡主机并就位全部五套记录的 checkpoint。完整 benchmark 打分与更长交互套件是独立工作。
+  limitations:
+  - Official execution profile needs 8 GPUs.
+  - Five checkpoint sets must be staged before running.
+  - Benchmark scoring and long interaction suites are not yet recorded.
+  limitations_zh:
+  - 官方执行档案需要 8 卡。
+  - 运行前须就位五套 checkpoint。
+  - benchmark 打分与长交互套件尚未记录。
   recommended_benchmarks:
-  - iworld-bench
-  - world-in-world
+  - id: worldmodelbench
+    reason: Interactive world-rollout quality.
+    reason_zh: 交互式世界滚动生成质量。
+  - id: camerabench
+    reason: Pose/camera-following accuracy.
+    reason_zh: 位姿/相机跟随精度。

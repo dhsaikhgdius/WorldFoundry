@@ -21,56 +21,24 @@ runner_parity:
   notes: [In-tree runtime and WRBench camera JSON route are wired; GPU artifact validation requires checkpoints.]
 catalog_category: world_models
 docs:
-  overview: |
-    HyDRA is a camera-controlled video-to-video world model whose official source is vendored in tree at revision 48652becf0030edbaabde4d04f33bb33ad380410. The public repository has no LICENSE file at the pinned revision, so license review remains required. The in-tree runtime and the WRBench camera-JSON route are wired; GPU artifact validation requires checkpoints.
-
-    Within the WorldFoundry model catalog this entry is tracked as `hydra` in the `world_models` category.
-    The repository does not record an official source link for this entry.
-  overview_zh: |
-    HyDRA 是相机控制的视频到视频世界模型，官方源码以 revision 48652becf0030edbaabde4d04f33bb33ad380410 内嵌在树内。公开仓库在锁定 revision 下没有 LICENSE 文件，许可证审查仍属必需。树内运行时与 WRBench 相机 JSON 路线已接通；GPU artifact 验证需要权重。
-
-    在 WorldFoundry 模型目录中，该条目以 `hydra` 收录于 `world_models` 分类。
-    仓库未记录该条目的官方来源链接。
-  architecture: |
-    Recorded modalities are camera-controlled-video, video-to-video, and world-model; the runtime consumes WRBench-style camera JSON trajectories. No official GitHub/Hugging Face source links, parameter counts, or backbone details are recorded in the repository for this entry.
-  architecture_zh: |
-    记录模态为 camera-controlled-video、video-to-video 与 world-model；运行时消费 WRBench 式相机 JSON 轨迹。仓库未记录该条目的官方 GitHub/Hugging Face 来源链接、参数量或骨干细节。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `hydra` and runtime profile `runtime-profile:hydra`.
-    Catalog integration status: `integrated`.
-    Integration notes recorded in the catalog:
-    - Official source is vendored at revision 48652becf0030edbaabde4d04f33bb33ad380410.
-    - The public repository has no LICENSE file in the pinned revision; license review remains required.
-
-    Embodiment contract:
-    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
-    - Sensors: an input video plus a camera trajectory (WRBench camera JSON) as the control signal.
-    - Action space: the action channel is the camera trajectory (extrinsics/pose sequence); the model renders the world consistently along the requested path.
-    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `hydra`，运行时配置为 `runtime-profile:hydra`。
-    目录集成状态：已集成（integrated）。
-    目录中记录的集成备注（保留原文）：
-    - Official source is vendored at revision 48652becf0030edbaabde4d04f33bb33ad380410.
-    - The public repository has no LICENSE file in the pinned revision; license review remains required.
-
-    具身接口（embodiment contract）：
-    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
-    - 传感器：输入视频加相机轨迹（WRBench 相机 JSON）作为控制信号。
-    - 动作空间：动作通道为相机轨迹（外参/位姿序列）；模型沿请求路径一致地渲染世界。
-    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`pending`.
-    Runner parity notes recorded in the catalog:
-    - In-tree runtime and WRBench camera JSON route are wired; GPU artifact validation requires checkpoints.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=待验证（pending）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - In-tree runtime and WRBench camera JSON route are wired; GPU artifact validation requires checkpoints.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Open-source research release (institution not recorded)
+  publisher_kind: lab
+  publisher_zh: 开源研究发布（仓库未记录正式机构）
+  overview: 'HyDRA is a camera-controlled video-to-video world model: it re-renders an input video along new camera behavior described by a camera JSON. In this catalog the official source is vendored at a pinned revision and the in-tree runtime plus WRBench camera JSON route are wired; GPU artifact validation waits on checkpoints.'
+  overview_zh: HyDRA 是相机可控的视频到视频世界模型：按 camera JSON 描述的新相机行为重新渲染输入视频。本 catalog 中官方源码以固定 revision 内置，树内运行时与 WRBench camera JSON 路径已接通；GPU 产物验证待 checkpoint 就位。
+  architecture: Architecture internals are not recorded in this repository. The pinned public revision has no LICENSE file, so license review remains required before downstream use.
+  architecture_zh: 架构内部细节仓库未记录。固定的公开 revision 无 LICENSE 文件，下游使用前必须先做许可审查。
+  usage_notes: Bundled source is mandatory — external source checkouts are rejected. Inputs are prompt, video, and camera_json; stage checkpoints before expecting artifacts.
+  usage_notes_zh: 必须使用内置源码——外部源码检出会被拒绝。输入为提示词、视频与 camera_json；期望得到产物前请先就位 checkpoint。
+  limitations:
+  - 'No LICENSE in the pinned upstream revision: legal review required.'
+  - GPU artifact validation is pending checkpoints.
+  - The publishing institution is not recorded in this repository.
+  limitations_zh:
+  - 固定上游 revision 无 LICENSE：需要法律审查。
+  - GPU 产物验证待 checkpoint。
+  - 发表机构在本仓库中未记录。
   recommended_benchmarks:
-  - wrbench
-  - camerabench
+  - id: camerabench
+    reason: Camera-behavior adherence of re-rendered video.
+    reason_zh: 重渲染视频的相机行为贴合度。

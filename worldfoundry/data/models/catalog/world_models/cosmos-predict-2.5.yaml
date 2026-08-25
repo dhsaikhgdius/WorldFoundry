@@ -105,64 +105,25 @@ catalog_policy:
     Hugging Face model page was confirmed. Do not infer checkpoint availability from
     papers, demos, or third-party mirrors.
 docs:
-  overview: |
-    Cosmos Predict 2.5 (nvidia-cosmos/cosmos-predict2.5, NVIDIA Open Model License) is NVIDIA's world foundation model release for Physical AI, unifying text-to-video, image-to-video, and video-to-video world generation in 2B and 14B sizes with Cosmos-Reason1 language conditioning. WorldFoundry assembles it natively from the canonical denoiser, conditioner, latent initializer, scheduler, decoder, loader, and offload roles without Diffusers; official 2B and 14B EMA transformer structures match 569/569 and 729/729 tensors, Reason1 language weights match 338/338, and the shared Wan VAE matches 194/194. End-to-end full-resolution GPU output parity remains pending.
-
-    Within the WorldFoundry model catalog this entry is tracked as `cosmos-predict-2.5` in the `world_models` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/nvidia-cosmos/cosmos-predict2.5; Hugging Face `nvidia/Cosmos-Predict2.5-2B`, `nvidia/Cosmos-Predict2.5-14B`.
-  overview_zh: |
-    Cosmos Predict 2.5（nvidia-cosmos/cosmos-predict2.5，NVIDIA 开放模型许可）是 NVIDIA 面向 Physical AI 的世界基础模型发布，统一了文本到视频、图像到视频与视频到视频世界生成，含 2B 与 14B 两档，并用 Cosmos-Reason1 做语言条件。WorldFoundry 用规范的去噪器、条件器、隐变量初始化器、调度器、解码器、加载器与卸载角色原生组装，不依赖 Diffusers；官方 2B/14B EMA transformer 结构分别匹配 569/569 与 729/729 张量，Reason1 语言权重匹配 338/338，共享 Wan VAE 匹配 194/194。端到端全分辨率 GPU 输出一致性仍待完成。
-
-    在 WorldFoundry 模型目录中，该条目以 `cosmos-predict-2.5` 收录于 `world_models` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/nvidia-cosmos/cosmos-predict2.5；Hugging Face `nvidia/Cosmos-Predict2.5-2B`、`nvidia/Cosmos-Predict2.5-14B`。
-  architecture: |
-    The published design is a flow-based video diffusion transformer conditioned by the Cosmos-Reason1 vision-language model (replacing the T5 conditioning of Predict 2), sharing the Wan VAE latent space; a single checkpoint covers text/image/video-to-world inference. In tree, image/video conditioning and positive classifier-free guidance are expressed through shared runner contracts rather than a model-specific runtime architecture.
-  architecture_zh: |
-    公开设计为基于 flow 的视频扩散 transformer，由 Cosmos-Reason1 视觉-语言模型做条件（取代 Predict 2 的 T5 条件），共享 Wan VAE 隐空间；单一权重覆盖文本/图像/视频到世界推理。树内的图像/视频条件与正向 CFG 通过共享 runner 契约表达，而非模型特有的运行时架构。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `cosmos-predict-2.5` and runtime profile `runtime-profile:cosmos-predict2.5-2b`.
-    Catalog integration status: `integrated`.
-    Integration notes recorded in the catalog:
-    - Predict 2.5 is assembled from the canonical native denoiser, conditioner, latent initializer, scheduler, decoder, loader, and offload roles without Diffusers.
-    - Official 2B and 14B EMA transformer structures match 569/569 and 729/729 tensors; Reason1 language weights match 338/338 and the shared Wan VAE matches 194/194.
-    - Image/video conditioning and positive classifier-free guidance are expressed through shared runner contracts rather than a model-specific runtime architecture.
-    - End-to-end full-resolution GPU output parity remains pending.
-    Recorded variant `cosmos-predict-2.5-2b`, task `world-generation`, runner parity `pending`, demo parity `structural_validation_passed`.
-    Recorded variant `cosmos-predict-2.5-14b`, task `world-generation`, runner parity `pending`, demo parity `structural_validation_passed`.
-
-    Embodiment contract:
-    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
-    - Sensors: conditioning inputs per the recorded modalities (typically an initial image and/or a text prompt); exact tensor contracts are not recorded in this catalog file.
-    - Action space: no explicit action interface is recorded for this entry; controllability is limited to the conditioning inputs.
-    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `cosmos-predict-2.5`，运行时配置为 `runtime-profile:cosmos-predict2.5-2b`。
-    目录集成状态：已集成（integrated）。
-    目录中记录的集成备注（保留原文）：
-    - Predict 2.5 is assembled from the canonical native denoiser, conditioner, latent initializer, scheduler, decoder, loader, and offload roles without Diffusers.
-    - Official 2B and 14B EMA transformer structures match 569/569 and 729/729 tensors; Reason1 language weights match 338/338 and the shared Wan VAE matches 194/194.
-    - Image/video conditioning and positive classifier-free guidance are expressed through shared runner contracts rather than a model-specific runtime architecture.
-    - End-to-end full-resolution GPU output parity remains pending.
-    目录记录：变体 `cosmos-predict-2.5-2b`，任务 `world-generation`，runner 一致性 待验证（pending），演示一致性 `structural_validation_passed`。
-    目录记录：变体 `cosmos-predict-2.5-14b`，任务 `world-generation`，runner 一致性 待验证（pending），演示一致性 `structural_validation_passed`。
-
-    具身接口（embodiment contract）：
-    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
-    - 传感器：按记录的模态提供条件输入（通常为初始图像和/或文本提示）；具体张量契约本目录文件未记录。
-    - 动作空间：该条目未记录显式动作接口；可控性仅限于条件输入。
-    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`pending`.
-    Runner parity notes recorded in the catalog:
-    - The public CosmosPredict2p5Pipeline directly invokes the native recipes; full output parity remains gated by NVIDIA checkpoint access and GPU validation.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=待验证（pending）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - The public CosmosPredict2p5Pipeline directly invokes the native recipes; full output parity remains gated by NVIDIA checkpoint access and GPU validation.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: NVIDIA
+  publisher_kind: company
+  publisher_zh: 英伟达（NVIDIA）
+  overview: 'Cosmos Predict 2.5 is NVIDIA''s world foundation model for physical AI: text, image, or video in — world video out, with 2B and 14B variants. In this catalog it is assembled natively from WorldFoundry''s canonical denoiser, conditioner, scheduler, decoder, and loader roles without Diffusers; official EMA transformer structures match 569/569 (2B) and 729/729 (14B) tensors, Reason1 language weights match 338/338, and the shared Wan VAE matches 194/194.'
+  overview_zh: Cosmos Predict 2.5 是英伟达面向物理 AI 的世界基础模型：输入文本、图像或视频，输出世界视频，含 2B 与 14B 两个 variant。本 catalog 中它由 WorldFoundry 规范的去噪器、条件器、调度器、解码器与加载器角色原生组装、不依赖 Diffusers；官方 EMA transformer 结构 2B 匹配 569/569、14B 匹配 729/729 张量， Reason1 语言权重匹配 338/338，共享 Wan VAE 匹配 194/194。
+  architecture: Predict 2.5 unifies text/image/video-to-world generation in one flow-based model with a Reason1 language conditioner and shared Wan VAE. Image/video conditioning and positive classifier-free guidance are expressed through shared runner contracts rather than a model-specific runtime.
+  architecture_zh: Predict 2.5 用单一流模型统一文/图/视频到世界生成，配 Reason1 语言条件器与共享 Wan VAE。图像/视频条件与正向 CFG 通过共享 runner 契约表达，而非模型专属运行时。
+  usage_notes: The public CosmosPredict2p5Pipeline invokes the native recipes directly. Structural validation is complete, but end-to-end full-resolution GPU output parity remains pending NVIDIA checkpoint access and GPU validation — do not read tensor matching as output parity.
+  usage_notes_zh: 公开的 CosmosPredict2p5Pipeline 直接调用原生配方。结构校验已完成，但端到端全分辨率 GPU 输出一致性仍待 NVIDIA checkpoint 权限与 GPU 验证——请勿把张量匹配当作输出一致性。
+  limitations:
+  - End-to-end GPU output parity is pending; structural validation is not output validation.
+  - Checkpoint access is gated by NVIDIA.
+  limitations_zh:
+  - 端到端 GPU 输出一致性待验证；结构校验不等于输出校验。
+  - checkpoint 权限由英伟达管控。
   recommended_benchmarks:
-  - worldmodelbench
-  - physical-ai-bench
+  - id: worldmodelbench
+    reason: World-generation quality across conditions.
+    reason_zh: 各条件下世界生成质量评测。
+  - id: physics-iq
+    reason: Physical plausibility of predicted world video.
+    reason_zh: 预测世界视频的物理合理性。

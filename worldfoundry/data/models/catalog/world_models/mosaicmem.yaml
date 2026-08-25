@@ -34,53 +34,22 @@ catalog_scope: World-model catalog entries. Integrated entries expose in-tree Wo
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 pipeline_binding: mosaicmem
 docs:
-  overview: |
-    MosaicMem (AbdelStark/mosaicmem) is a memory-augmented world-generation route: WorldFoundry registers the source route for memory-plan artifacts, with generator assets runtime-gated. resolve_model_zoo_config and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged. The catalog scope notes that request-plan entries expose validated planning surfaces without claiming generated artifacts.
-
-    Within the WorldFoundry model catalog this entry is tracked as `mosaicmem` in the `world_models` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/AbdelStark/mosaicmem.
-  overview_zh: |
-    MosaicMem（AbdelStark/mosaicmem）是记忆增强的世界生成路线：WorldFoundry 为记忆计划 artifact 注册源码路线，生成器资产受运行时门控。resolve_model_zoo_config 与管线导入预期通过；在暂存所需权重/资产之前，真实生成输出运行时计划。目录 scope 注明：request-plan 类条目暴露经验证的规划表面，不声称已生成 artifact。
-
-    在 WorldFoundry 模型目录中，该条目以 `mosaicmem` 收录于 `world_models` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/AbdelStark/mosaicmem。
-  architecture: |
-    Recorded modalities are world-model, memory-augmented-generation, and video-generation. Architecture details (memory mechanism, backbone, parameter count) are not recorded in the repository for this entry.
-  architecture_zh: |
-    记录模态为 world-model、memory-augmented-generation 与 video-generation。该条目的架构细节（记忆机制、骨干、参数量）仓库未记录。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `mosaicmem` and runtime profile `runtime-profile:mosaicmem`.
-    Catalog integration status: `runtime_ported`.
-    Integration notes recorded in the catalog:
-    - MosaicMem source route is registered for memory-plan artifacts; generator assets remain runtime-gated.
-
-    Embodiment contract:
-    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
-    - Sensors: conditioning inputs per the recorded modalities (typically an initial image and/or a text prompt); exact tensor contracts are not recorded in this catalog file.
-    - Action space: no explicit action interface is recorded for this entry; controllability is limited to the conditioning inputs.
-    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `mosaicmem`，运行时配置为 `runtime-profile:mosaicmem`。
-    目录集成状态：运行时已移植（runtime_ported）。
-    目录中记录的集成备注（保留原文）：
-    - MosaicMem source route is registered for memory-plan artifacts; generator assets remain runtime-gated.
-
-    具身接口（embodiment contract）：
-    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
-    - 传感器：按记录的模态提供条件输入（通常为初始图像和/或文本提示）；具体张量契约本目录文件未记录。
-    - 动作空间：该条目未记录显式动作接口；可控性仅限于条件输入。
-    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`implemented_checkpoint_pending`.
-    Runner parity notes recorded in the catalog:
-    - resolve_model_zoo_config and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已实现、待权重就绪（implemented_checkpoint_pending）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - resolve_model_zoo_config and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Open-source research release (institution not recorded)
+  publisher_kind: lab
+  publisher_zh: 开源研究发布（仓库未记录正式机构）
+  overview: 'MosaicMem is a memory-augmented world-model component: it ingests keyframe patches, retrieves target views, summarizes coverage, and composes latent canvases — producing a memory index rather than video. In this catalog the source route is registered for memory-plan artifacts and is exposed through worldfoundry.core.memory; generator assets stay runtime-gated.'
+  overview_zh: MosaicMem 是记忆增强的世界模型组件：摄取关键帧 patch、检索目标视图、汇总覆盖度并组合潜空间画布——产物是记忆索引而非视频。本 catalog 中其源码路径按记忆计划产物注册，并通过 worldfoundry.core.memory 暴露；生成器资产保持运行时限制。
+  architecture: Architecture internals are not recorded in this repository (MIT license); the source is bound at a pinned commit. The recorded artifact type is memory_index.
+  architecture_zh: 架构内部细节仓库未记录（MIT 许可）；源码绑定在固定 commit。记录的产物类型为 memory_index。
+  usage_notes: Config resolution and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged. Missing assets are reported by the plan and are not treated as catalog blockers. Use it as the memory side of a world-model stack, not as a standalone generator.
+  usage_notes_zh: 配置解析与 pipeline 导入预期可通过；在所需 checkpoint/资产就位前，真实生成会输出运行时计划。缺失资产由计划报告，不视为 catalog 阻塞。请把它当作世界模型栈的记忆侧组件使用，而非独立生成器。
+  limitations:
+  - Produces memory indexes, not video artifacts.
+  - The publishing institution is not recorded in this repository.
+  limitations_zh:
+  - 产物是记忆索引，不是视频。
+  - 发表机构在本仓库中未记录。
   recommended_benchmarks:
-  - memobench
+  - id: memobench
+    reason: Long-horizon memory consistency evaluation.
+    reason_zh: 长时程记忆一致性评测。

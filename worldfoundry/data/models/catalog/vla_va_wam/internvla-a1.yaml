@@ -38,55 +38,22 @@ integration:
 catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint metadata, and runtime integration records.
 docs:
-  overview: |
-    InternVLA-A1-3B (InternRobotics/InternVLA-A-series, CC-BY-NC-SA-4.0) is a 3B VLA from Shanghai AI Lab's InternRobotics. WorldFoundry keeps the A1-3B Qwen3-VL/expert graph, Cosmos wrapper, preprocessing, flow sampler, and normalization route in tree; the runtime is local-only and does not use remote checkpoint code or an adjacent source checkout. Released checkpoints are `InternRobotics/InternVLA-A1-3B` and the RoboTwin fine-tune `InternVLA-A1-3B-RoboTwin`.
-
-    Within the WorldFoundry model catalog this entry is tracked as `internvla-a1` in the `vla_va_wam` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/InternRobotics/InternVLA-A-series; Hugging Face `InternRobotics/InternVLA-A1-3B`, `InternRobotics/InternVLA-A1-3B-RoboTwin`.
-  overview_zh: |
-    InternVLA-A1-3B（InternRobotics/InternVLA-A-series，CC-BY-NC-SA-4.0）是上海 AI Lab InternRobotics 的 3B VLA。WorldFoundry 在树内保留 A1-3B 的 Qwen3-VL/专家图、Cosmos 包装器、预处理、flow 采样器与归一化路线；运行时仅限本地，不使用远程权重代码或相邻源码 checkout。已发布权重为 `InternRobotics/InternVLA-A1-3B` 与 RoboTwin 微调版 `InternVLA-A1-3B-RoboTwin`。
-
-    在 WorldFoundry 模型目录中，该条目以 `internvla-a1` 收录于 `vla_va_wam` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/InternRobotics/InternVLA-A-series；Hugging Face `InternRobotics/InternVLA-A1-3B`、`InternRobotics/InternVLA-A1-3B-RoboTwin`。
-  architecture: |
-    The recorded composition is a Qwen3-VL vision-language backbone with an action-expert graph, a Cosmos wrapper module, and a flow-matching action sampler at 3B scale. Layer-level details are not otherwise recorded in the repository.
-  architecture_zh: |
-    目录记录的组成为 Qwen3-VL 视觉-语言骨干加动作专家图、Cosmos 包装模块与 flow-matching 动作采样器，规模 3B。其余层级细节仓库未记录。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `internvla-a1` and runtime profile `runtime-profile:internvla-a1`.
-    Catalog integration status: `in_tree_checkpoint_runtime_static_verified`.
-    Integration notes recorded in the catalog:
-    - The A1-3B Qwen3-VL/expert graph, Cosmos wrapper, preprocessing, flow sampler, and normalization route are in tree.
-    - Runtime is local-only and does not use remote checkpoint code or an adjacent source checkout.
-
-    Embodiment contract:
-    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
-    - Sensors: RGB camera observations plus a language instruction; the exact camera/state contract is not recorded in this catalog file.
-    - Action space: continuous robot end-effector/joint action chunks; the exact action dimensionality is not recorded in this catalog file.
-    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `internvla-a1`，运行时配置为 `runtime-profile:internvla-a1`。
-    目录集成状态：`in_tree_checkpoint_runtime_static_verified`。
-    目录中记录的集成备注（保留原文）：
-    - The A1-3B Qwen3-VL/expert graph, Cosmos wrapper, preprocessing, flow sampler, and normalization route are in tree.
-    - Runtime is local-only and does not use remote checkpoint code or an adjacent source checkout.
-
-    具身接口（embodiment contract）：
-    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
-    - 传感器：RGB 相机观测加语言指令；具体相机/状态契约本目录文件未记录。
-    - 动作空间：连续的机器人末端/关节动作块；具体动作维度本目录文件未记录。
-    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
-  limitations: |
-    No family-level demo/runner parity status is recorded in this catalog file.
-
-    The release is non-commercial (CC-BY-NC-SA-4.0).
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件未记录家族级 demo/runner 一致性状态。
-
-    该发布为非商用（CC-BY-NC-SA-4.0）。
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Shanghai AI Laboratory (InternRobotics)
+  publisher_kind: lab
+  publisher_zh: 上海人工智能实验室（InternRobotics）
+  overview: 'InternVLA-A1-3B is the A1 generation of InternRobotics'' InternVLA series: a 3B policy pairing a Qwen3-VL-2B backbone with an action expert and an NVIDIA Cosmos tokenizer wrapper. Base and RoboTwin checkpoints are confirmed (InternVLA-A1-3B, InternVLA-A1-3B-RoboTwin) under CC-BY-NC-SA-4.0, and the full graph runs in-tree with static verification complete.'
+  overview_zh: InternVLA-A1-3B 是 InternRobotics InternVLA 系列的 A1 世代：3B 策略，Qwen3-VL-2B 骨干搭配动作专家与 NVIDIA Cosmos tokenizer 封装。base 与 RoboTwin 两个 checkpoint 已确认（InternVLA-A1-3B、InternVLA-A1-3B-RoboTwin），CC-BY-NC-SA-4.0 许可，完整计算图在树内运行，静态验证已完成。
+  architecture: The A1-3B graph couples Qwen3-VL-2B vision-language encoding with an expert action head, a Cosmos-Tokenizer-CI8x8 wrapper, flow sampling, and a normalization route — all in-tree, local-only, with no remote checkpoint code.
+  architecture_zh: A1-3B 计算图将 Qwen3-VL-2B 视觉-语言编码与专家动作头、Cosmos-Tokenizer-CI8x8 封装、flow 采样与归一化路由耦合——全部树内、仅本地，无远程 checkpoint 代码。
+  usage_notes: Stage the A1-3B (or RoboTwin) checkpoint plus Qwen3-VL-2B-Instruct and the Cosmos tokenizer locally. Note the non-commercial license.
+  usage_notes_zh: 在本地就位 A1-3B（或 RoboTwin）checkpoint、Qwen3-VL-2B-Instruct 与 Cosmos tokenizer。注意非商用许可。
+  limitations:
+  - 'CC-BY-NC-SA-4.0: non-commercial use only.'
+  - GPU rollout validation is not recorded in this repository (static verification only).
+  limitations_zh:
+  - CC-BY-NC-SA-4.0：仅限非商用。
+  - 仓库未记录 GPU rollout 验证（仅静态验证）。
   recommended_benchmarks:
-  - robotwin
+  - id: robotwin
+    reason: Dedicated InternVLA-A1-3B-RoboTwin checkpoint.
+    reason_zh: 有专门的 InternVLA-A1-3B-RoboTwin checkpoint。

@@ -19,48 +19,18 @@ integration:
 catalog_category: three_d_four_d
 catalog_scope: Official-source manifest for 3D, 4D, and camera-controlled world/model generation projects.
 docs:
-  overview: |
-    SC-GS (CVMI-Lab/SC-GS, CVPR 2024) — Sparse-Controlled Gaussian Splatting — represents dynamic scenes with dense 3D Gaussians whose motion is driven by a much sparser set of control points, enabling high-quality dynamic novel-view synthesis and interactive motion editing. WorldFoundry tracks upstream source metadata only; no runnable in-tree pipeline is registered yet.
-
-    Within the WorldFoundry model catalog this entry is tracked as `sc-gs` in the `three_d_four_d` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/CVMI-Lab/SC-GS.
-  overview_zh: |
-    SC-GS（CVMI-Lab/SC-GS，CVPR 2024）——稀疏控制点高斯 Splatting——用稠密 3D 高斯表示动态场景，其运动由数量少得多的控制点驱动，支持高质量动态新视角合成与交互式运动编辑。WorldFoundry 仅跟踪其上游来源元数据；尚未注册可运行的 in-tree 管线。
-
-    在 WorldFoundry 模型目录中，该条目以 `sc-gs` 收录于 `three_d_four_d` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/CVMI-Lab/SC-GS。
-  architecture: |
-    The published method learns sparse control points paired with time-varying 6-DoF transformations decoded by a deformation MLP; dense Gaussians are deformed via locally-rigid linear blend skinning of neighboring control points, with ARAP-style regularization keeping motion locally rigid. Training is per-scene optimization; no feed-forward checkpoints are recorded.
-  architecture_zh: |
-    公开方法学习稀疏控制点及由形变 MLP 解码的时变 6 自由度变换；稠密高斯经由邻近控制点的局部刚性线性混合蒙皮（LBS）形变，并用 ARAP 式正则保持局部刚性。训练为逐场景优化；未记录前向推理权重。
-  usage_notes: |
-    No runner target is registered for this entry; the catalog tracks upstream provenance metadata without a runnable in-tree pipeline.
-    Catalog integration status: `blocked`.
-    Integration notes recorded in the catalog:
-    - WorldFoundry tracks upstream source metadata only; no runnable in-tree pipeline is registered yet.
-
-    Embodiment contract:
-    - Simulator: none — the official workflow is per-scene optimization over recorded data, not a simulator rollout.
-    - Sensors: calibrated multi-view or monocular RGB video with camera poses prepared by upstream preprocessing; no additional sensors are recorded.
-    - Action space: not applicable — the model does not consume an action or control stream.
-    - Dedicated environment: no dedicated environment; the entry is metadata-only (or blocked) in WorldFoundry because the official path is training/reconstruction-first.
-  usage_notes_zh: |
-    该条目未注册 runner target；目录仅跟踪上游来源元数据，暂无可运行的 in-tree 管线。
-    目录集成状态：受阻/仅跟踪元数据（blocked）。
-    目录中记录的集成备注（保留原文）：
-    - WorldFoundry tracks upstream source metadata only; no runnable in-tree pipeline is registered yet.
-
-    具身接口（embodiment contract）：
-    - 仿真器：无——官方流程是基于已录制数据的逐场景优化，不是仿真器 rollout。
-    - 传感器：由上游预处理准备的带相机位姿的标定多视角或单目 RGB 视频；仓库未记录其它传感器。
-    - 动作空间：不适用——该模型不接收动作或控制流输入。
-    - 是否专用环境：无专用环境；由于官方路径以训练/重建为先，该条目在 WorldFoundry 中为仅元数据（或受阻）状态。
-  limitations: |
-    No family-level demo/runner parity status is recorded in this catalog file.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件未记录家族级 demo/runner 一致性状态。
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
-  recommended_benchmarks: []
+  publisher: The University of Hong Kong (CVMI Lab)
+  publisher_kind: university
+  publisher_zh: 香港大学（CVMI Lab）
+  overview: SC-GS (Sparse-Controlled Gaussian Splatting) drives dynamic 3DGS with a small set of sparse control points, making reconstructed dynamic scenes editable — you can drag the control points to repose motion (CVPR 2024). In this catalog it is upstream metadata only, with no runnable in-tree pipeline.
+  overview_zh: SC-GS（稀疏控制高斯泼溅）用一小组稀疏控制点驱动动态 3DGS，使重建的动态场景可编辑——拖动控制点即可重摆运动（CVPR 2024）。本 catalog 中它仅为上游元数据，没有可运行的树内 pipeline。
+  architecture: Per the publication, sparse control points carry time-varying 6-DoF transforms that are interpolated to dense Gaussians via learned skinning weights. Per-scene optimization is required; no further internals are recorded in this repository.
+  architecture_zh: 按论文，稀疏控制点携带随时间变化的六自由度变换，经学习的蒙皮权重插值到稠密高斯。需要逐场景优化；本仓库未记录更多内部细节。
+  usage_notes: Blocked — consult the upstream repository (CVMI-Lab/SC-GS) for the official optimization and editing scripts.
+  usage_notes_zh: Blocked——官方优化与编辑脚本请查阅上游仓库（CVMI-Lab/SC-GS）。
+  limitations:
+  - 'This entry is blocked: WorldFoundry tracks upstream source metadata only, and no runnable in-tree pipeline is registered.'
+  - It records provenance for CLI inspection; the docs site hides blocked 3D/4D entries from the catalog browser.
+  limitations_zh:
+  - 该条目处于 blocked 状态：WorldFoundry 仅跟踪上游源码元数据，没有注册可运行的树内 pipeline。
+  - 它的作用是为 CLI 检查记录溯源；文档站的 catalog 浏览器会隐藏 blocked 的 3D/4D 条目。

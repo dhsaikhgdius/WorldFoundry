@@ -48,60 +48,20 @@ catalog_policy:
   - api_or_closed
   - unknown
 docs:
-  overview: |
-    4D-GS (4D Gaussian Splatting, hustvl/4DGaussians) is a real-time dynamic-scene rendering method that extends 3D Gaussian Splatting to space-time. Instead of optimizing a separate set of Gaussians per timestep, it keeps one canonical set of 3D Gaussians and learns a deformation field that moves and reshapes them over time, enabling real-time rendering of dynamic scenes at high visual quality. WorldFoundry tracks it as an upstream 4D reconstruction project; release-facing Studio inference is intentionally not exposed because the official workflow is dataset-specific optimization followed by rendering.
-
-    Within the WorldFoundry model catalog this entry is tracked as `4d-gs` in the `three_d_four_d` category.
-    Recorded availability: status=open_source, open_source=True, code=public, weights=not_applicable_or_not_confirmed, license=Apache-2.0.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/hustvl/4DGaussians.
-  overview_zh: |
-    4D-GS（4D Gaussian Splatting，hustvl/4DGaussians）是把 3D Gaussian Splatting 扩展到时空域的实时动态场景渲染方法。它不为每个时间步单独优化一组高斯，而是维护一组规范空间（canonical）3D 高斯，并学习一个形变场随时间移动和改变这些高斯的形态，从而以较高画质实时渲染动态场景。WorldFoundry 将其作为上游 4D 重建项目跟踪；由于官方流程是针对具体数据集先优化再渲染，Studio 侧的发布级推理有意未开放。
-
-    在 WorldFoundry 模型目录中，该条目以 `4d-gs` 收录于 `three_d_four_d` 分类。
-    仓库记录的可用性：状态=open_source，是否开源=True，代码=public，权重=not_applicable_or_not_confirmed，许可证=Apache-2.0。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/hustvl/4DGaussians。
-  architecture: |
-    The published method couples a canonical 3D Gaussian point set with a HexPlane-style decomposed neural voxel encoder and a lightweight MLP deformation decoder: spatial-temporal features are looked up from six factorized planes and decoded into per-Gaussian position, rotation, and scaling offsets at each queried timestamp, after which standard differentiable splatting renders the frame. Training is per-scene optimization over prepared dynamic-scene datasets; there is no feed-forward checkpoint, which is why the catalog records no Hugging Face weights.
-  architecture_zh: |
-    公开方法将规范空间 3D 高斯点集与 HexPlane 式分解神经体素编码器及轻量 MLP 形变解码器组合：在查询时间戳处，从六个因式分解平面查表得到时空特征，解码为每个高斯的位置、旋转与尺度偏移，再用标准可微 splatting 渲染该帧。训练是在准备好的动态场景数据集上逐场景优化；不存在前向推理型 checkpoint，因此目录中没有记录 Hugging Face 权重。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `4d-gs` and runtime profile `runtime-profile:4d-gs`.
-    Catalog integration status: `blocked`.
-    Integration notes recorded in the catalog:
-    - WorldFoundry records 4D-GS upstream metadata only; release-facing Studio inference is not exposed.
-    - The official workflow is training/reconstruction over prepared dynamic-scene datasets, followed by rendering from an optimized model, not a prompt/image infer-only demo.
-    - Hidden from Studio job submission until a real in-tree infer-only artifact path exists.
-
-    Embodiment contract:
-    - Simulator: none — the official workflow is per-scene optimization over recorded data, not a simulator rollout.
-    - Sensors: calibrated multi-view or monocular RGB video with camera poses prepared by upstream preprocessing; no additional sensors are recorded.
-    - Action space: not applicable — the model does not consume an action or control stream.
-    - Dedicated environment: no dedicated environment; the entry is metadata-only (or blocked) in WorldFoundry because the official path is training/reconstruction-first.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `4d-gs`，运行时配置为 `runtime-profile:4d-gs`。
-    目录集成状态：受阻/仅跟踪元数据（blocked）。
-    目录中记录的集成备注（保留原文）：
-    - WorldFoundry records 4D-GS upstream metadata only; release-facing Studio inference is not exposed.
-    - The official workflow is training/reconstruction over prepared dynamic-scene datasets, followed by rendering from an optimized model, not a prompt/image infer-only demo.
-    - Hidden from Studio job submission until a real in-tree infer-only artifact path exists.
-
-    具身接口（embodiment contract）：
-    - 仿真器：无——官方流程是基于已录制数据的逐场景优化，不是仿真器 rollout。
-    - 传感器：由上游预处理准备的带相机位姿的标定多视角或单目 RGB 视频；仓库未记录其它传感器。
-    - 动作空间：不适用——该模型不接收动作或控制流输入。
-    - 是否专用环境：无专用环境；由于官方路径以训练/重建为先，该条目在 WorldFoundry 中为仅元数据（或受阻）状态。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`not_applicable`.
-    Runner parity notes recorded in the catalog:
-    - Blocked for release-facing inference because the official path is training/reconstruction-first.
-    - Do not claim Studio inference parity until an in-tree infer-only runtime materializes a 4D scene artifact.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=不适用（not_applicable）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - Blocked for release-facing inference because the official path is training/reconstruction-first.
-    - Do not claim Studio inference parity until an in-tree infer-only runtime materializes a 4D scene artifact.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
-  recommended_benchmarks: []
+  publisher: Huazhong University of Science and Technology (HUSTVL)
+  publisher_kind: university
+  publisher_zh: 华中科技大学（HUSTVL）
+  overview: '4D-GS (4D Gaussian Splatting) extends Gaussian splatting to dynamic scenes: one set of Gaussians plus a deformation field renders a moving scene in real time. In this catalog it is a provenance-only entry — the official workflow trains per-scene from prepared dynamic-scene datasets, so there is no prompt-in/video-out inference to expose.'
+  overview_zh: 4D-GS（4D 高斯泼溅）把高斯泼溅扩展到动态场景：一组高斯加一个形变场即可实时渲染运动场景。在本 catalog 中它是仅记录溯源的条目——官方工作流需要用准备好的动态场景数据逐场景训练，因此没有可暴露的「输入提示词、输出视频」式推理。
+  architecture: Per the publication (arXiv 2310.08528), 4D-GS couples 3D Gaussians with a HexPlane-inspired deformation field that displaces Gaussians over time, achieving real-time dynamic rendering. This repository records only the upstream metadata and the intended generated_4d_scene artifact type.
+  architecture_zh: 按论文（arXiv 2310.08528），4D-GS 将 3D 高斯与受 HexPlane 启发的形变场耦合，让高斯随时间位移，实现动态场景实时渲染。本仓库仅记录上游元数据与预期的 generated_4d_scene 产物类型。
+  usage_notes: 'Not runnable here: the entry is hidden from Studio job submission until a real in-tree infer-only artifact path exists. Use the upstream repository (hustvl/4DGaussians) directly if you need to train and render dynamic scenes today.'
+  usage_notes_zh: 此处不可运行：在真正的树内仅推理产物路径出现之前，该条目在 Studio 任务提交中隐藏。当下如需训练与渲染动态场景，请直接使用上游仓库（hustvl/4DGaussians）。
+  limitations:
+  - 'This entry is blocked: WorldFoundry tracks upstream source metadata only, and no runnable in-tree pipeline is registered.'
+  - It records provenance for CLI inspection; the docs site hides blocked 3D/4D entries from the catalog browser.
+  - 'The official workflow is reconstruction/training-first: prepared scene data is optimized into a model before rendering, which is why no infer-only Studio route exists.'
+  limitations_zh:
+  - 该条目处于 blocked 状态：WorldFoundry 仅跟踪上游源码元数据，没有注册可运行的树内 pipeline。
+  - 它的作用是为 CLI 检查记录溯源；文档站的 catalog 浏览器会隐藏 blocked 的 3D/4D 条目。
+  - 官方工作流以重建/训练为先：先用准备好的场景数据优化出模型再渲染，因此不存在仅推理的 Studio 路径。

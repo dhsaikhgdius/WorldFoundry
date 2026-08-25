@@ -45,61 +45,26 @@ runner_parity:
   - All three released task weights are staged and manifest-size verified; the strict state-dict architecture is preserved.
   - Numerical and GPU checkpoint parity remain pending.
 docs:
-  overview: |
-    ABot-M0 (amap-cvlab/ABot-Manipulation, Apache-2.0) is a bimanual-capable VLA policy from the AMAP CV Lab. WorldFoundry integrates Qwen3-VL, the AML flow action expert, optional VGGT fusion, released preprocessing, and action de-normalization in tree, accepting the released `config.yaml`, `dataset_statistics.json`, and `steps_*_pytorch_model.pt` layout directly. Released task checkpoints cover LIBERO (`acvlab/ABot-M0-LIBERO`), RoboCasa (`acvlab/ABot-M0-Robocasa`), and RoboTwin 2 (`acvlab/ABot-M0-RoboTwin2`).
-
-    Within the WorldFoundry model catalog this entry is tracked as `abot-m0` in the `vla_va_wam` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/amap-cvlab/ABot-Manipulation; Hugging Face `acvlab/ABot-M0-LIBERO`, `acvlab/ABot-M0-Robocasa`, `acvlab/ABot-M0-RoboTwin2`.
-  overview_zh: |
-    ABot-M0（amap-cvlab/ABot-Manipulation，Apache-2.0）是高德 CV Lab 的支持双臂操作的 VLA 策略。WorldFoundry 在树内集成 Qwen3-VL、AML flow 动作专家、可选 VGGT 融合、官方预处理与动作反归一化，直接接受官方发布的 `config.yaml`、`dataset_statistics.json` 与 `steps_*_pytorch_model.pt` 布局。已发布任务权重覆盖 LIBERO（`acvlab/ABot-M0-LIBERO`）、RoboCasa（`acvlab/ABot-M0-Robocasa`）与 RoboTwin 2（`acvlab/ABot-M0-RoboTwin2`）。
-
-    在 WorldFoundry 模型目录中，该条目以 `abot-m0` 收录于 `vla_va_wam` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/amap-cvlab/ABot-Manipulation；Hugging Face `acvlab/ABot-M0-LIBERO`、`acvlab/ABot-M0-Robocasa`、`acvlab/ABot-M0-RoboTwin2`。
-  architecture: |
-    Per the integration notes, the architecture pairs a Qwen3-VL vision-language backbone with an AML flow-matching action expert and optional VGGT geometric-feature fusion. Only inference components are included in tree; datasets, training, deployment services, and robot SDK code are excluded. Further architecture details are not recorded in the repository.
-  architecture_zh: |
-    按集成备注，架构由 Qwen3-VL 视觉-语言骨干、AML flow-matching 动作专家与可选的 VGGT 几何特征融合组成。树内仅包含推理组件；数据集、训练、部署服务与机器人 SDK 代码被排除。更多架构细节仓库未记录。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `abot-m0` and runtime profile `runtime-profile:abot-m0`.
-    Catalog integration status: `in_tree_checkpoint_runtime_static_verified`.
-    Integration notes recorded in the catalog:
-    - Qwen3-VL, the AML flow action expert, optional VGGT fusion, released preprocessing, and action de-normalization are integrated in tree.
-    - Runtime accepts the released config.yaml, dataset_statistics.json, and steps_*_pytorch_model.pt layout directly.
-    - Only inference components are included; datasets, training, deployment services, and robot SDK code are excluded.
-
-    Embodiment contract:
-    - Simulator: none bundled — released checkpoints target LIBERO, RoboCasa, and RoboTwin 2 benchmark environments; rollouts run through separate benchmark runners.
-    - Sensors: RGB camera observations plus a language instruction; the exact camera/state contract is not recorded in this catalog file.
-    - Action space: continuous manipulation action chunks including bimanual configurations; exact per-checkpoint dimensionality follows the released dataset statistics and is not restated in this catalog file.
-    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `abot-m0`，运行时配置为 `runtime-profile:abot-m0`。
-    目录集成状态：`in_tree_checkpoint_runtime_static_verified`。
-    目录中记录的集成备注（保留原文）：
-    - Qwen3-VL, the AML flow action expert, optional VGGT fusion, released preprocessing, and action de-normalization are integrated in tree.
-    - Runtime accepts the released config.yaml, dataset_statistics.json, and steps_*_pytorch_model.pt layout directly.
-    - Only inference components are included; datasets, training, deployment services, and robot SDK code are excluded.
-
-    具身接口（embodiment contract）：
-    - 仿真器：不内置仿真器——已发布权重面向 LIBERO、RoboCasa 与 RoboTwin 2 基准环境；rollout 由独立 benchmark runner 执行。
-    - 传感器：RGB 相机观测加语言指令；具体相机/状态契约本目录文件未记录。
-    - 动作空间：连续操作动作块，含双臂配置；各权重的具体维度以官方 dataset statistics 为准，本目录文件未另行记录。
-    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`static_runtime_verified_checkpoint_assets_staged`.
-    Runner parity notes recorded in the catalog:
-    - All three released task weights are staged and manifest-size verified; the strict state-dict architecture is preserved.
-    - Numerical and GPU checkpoint parity remain pending.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=`static_runtime_verified_checkpoint_assets_staged`。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - All three released task weights are staged and manifest-size verified; the strict state-dict architecture is preserved.
-    - Numerical and GPU checkpoint parity remain pending.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Amap CV Lab (Alibaba Group)
+  publisher_kind: company
+  publisher_zh: 高德地图 CV 实验室（阿里巴巴集团）
+  overview: ABot-M0 from Amap's CV Lab is a bimanual manipulation VLA built on Qwen3-VL with an AML flow action expert and optional VGGT geometric fusion. Three released task weights are confirmed — ABot-M0-LIBERO, ABot-M0-Robocasa, and ABot-M0-RoboTwin2 — plus a ModelScope pretraining checkpoint, all under Apache-2.0, and all three are staged and manifest-size verified in this catalog.
+  overview_zh: 高德 CV 实验室的 ABot-M0 是基于 Qwen3-VL 的双臂操作 VLA，搭配 AML flow 动作专家与可选的 VGGT 几何融合。三个已发布任务权重均已确认——ABot-M0-LIBERO、ABot-M0-Robocasa、ABot-M0-RoboTwin2——另有 ModelScope 预训练 checkpoint，全部 Apache-2.0 许可；本 catalog 中三个权重均已就位并通过 manifest 大小校验。
+  architecture: Qwen3-VL provides the vision-language backbone; the AML flow action expert decodes actions; optional VGGT fusion injects 3D geometry. The runtime accepts the released config.yaml, dataset_statistics.json, and steps_*_pytorch_model.pt layout directly, preserving the strict state-dict architecture.
+  architecture_zh: Qwen3-VL 提供视觉-语言骨干；AML flow 动作专家解码动作；可选 VGGT 融合注入 3D 几何。运行时直接接受发布的 config.yaml、dataset_statistics.json 与 steps_*_pytorch_model.pt 布局，保持严格的 state-dict 架构。
+  usage_notes: Pick the task weight matching your benchmark (LIBERO, RoboCasa, or RoboTwin2). Only inference components are in-tree; datasets, training, deployment services, and robot SDK code are excluded.
+  usage_notes_zh: 按基准选择任务权重（LIBERO、RoboCasa 或 RoboTwin2）。树内仅含推理组件；数据集、训练、部署服务与机器人 SDK 代码均被排除。
+  limitations:
+  - Numerical and GPU checkpoint parity remain pending despite staged weights.
+  limitations_zh:
+  - 权重虽已就位，数值与 GPU checkpoint parity 仍为 pending。
   recommended_benchmarks:
-  - libero
-  - robocasa
-  - robotwin
+  - id: libero
+    reason: Dedicated ABot-M0-LIBERO task weight.
+    reason_zh: 有专门的 ABot-M0-LIBERO 任务权重。
+  - id: robocasa
+    reason: Dedicated ABot-M0-Robocasa task weight.
+    reason_zh: 有专门的 ABot-M0-Robocasa 任务权重。
+  - id: robotwin
+    reason: Dedicated ABot-M0-RoboTwin2 task weight.
+    reason_zh: 有专门的 ABot-M0-RoboTwin2 任务权重。

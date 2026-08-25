@@ -41,52 +41,22 @@ catalog_scope: World-model catalog entries. Integrated entries expose in-tree Wo
   runtimes; blocked entries retain upstream provenance without runnable backends.
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 docs:
-  overview: |
-    Solaris (solaris-wm/solaris; Hugging Face `nyu-visionx/solaris`) is a multi-agent interactive world video model from NYU's vision group. WorldFoundry packages an in-tree inference-only Solaris runtime under worldfoundry/synthesis/visual_generation/solaris/solaris_runtime; official pretrained weights and evaluation datasets resolve from Hugging Face or a local mirror with the same layout, and the runner status is verified.
-
-    Within the WorldFoundry model catalog this entry is tracked as `solaris` in the `world_models` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/solaris-wm/solaris; Hugging Face `nyu-visionx/solaris`.
-  overview_zh: |
-    Solaris（solaris-wm/solaris；Hugging Face `nyu-visionx/solaris`）是纽约大学视觉组的多智能体交互世界视频模型。WorldFoundry 在 worldfoundry/synthesis/visual_generation/solaris/solaris_runtime 打包树内仅推理 Solaris 运行时；官方预训练权重与评测数据集从 Hugging Face 或同布局本地镜像解析，runner 状态为已验证。
-
-    在 WorldFoundry 模型目录中，该条目以 `solaris` 收录于 `world_models` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/solaris-wm/solaris；Hugging Face `nyu-visionx/solaris`。
-  architecture: |
-    Recorded modalities are video_generation, multi-agent-world-model, and interactive-video-generation: the model generates world video in which multiple agents can act. Beyond the packaged inference runtime and the Hugging Face weight layout, the repository does not record architecture details (backbone, parameter count, per-agent conditioning) for this entry.
-  architecture_zh: |
-    记录模态为 video_generation、multi-agent-world-model 与 interactive-video-generation：模型生成多个智能体可行动的世界视频。除打包的推理运行时与 Hugging Face 权重布局外，仓库未记录该条目的架构细节（骨干、参数量、分智能体条件方式）。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `solaris`.
-    Catalog integration status: `integrated`.
-    Integration notes recorded in the catalog:
-    - In-tree inference-only Solaris runtime is packaged under worldfoundry/synthesis/visual_generation/solaris/solaris_runtime.
-    - Official pretrained weights and eval datasets resolve from Hugging Face or a local mirror with the same layout.
-
-    Embodiment contract:
-    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
-    - Sensors: an initial image or context frames plus streaming interaction inputs.
-    - Action space: multi-agent interaction inputs per the recorded modalities; the exact per-agent action encoding is not recorded in this catalog file.
-    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `solaris`。
-    目录集成状态：已集成（integrated）。
-    目录中记录的集成备注（保留原文）：
-    - In-tree inference-only Solaris runtime is packaged under worldfoundry/synthesis/visual_generation/solaris/solaris_runtime.
-    - Official pretrained weights and eval datasets resolve from Hugging Face or a local mirror with the same layout.
-
-    具身接口（embodiment contract）：
-    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
-    - 传感器：初始图像或上下文帧，加流式交互输入。
-    - 动作空间：按记录模态为多智能体交互输入；每个智能体的具体动作编码本目录文件未记录。
-    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`verified`.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已验证（verified）。
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: New York University (VisionX)
+  publisher_kind: university
+  publisher_zh: 纽约大学（VisionX 实验室）
+  overview: 'Solaris is a multi-agent interactive video world model from NYU''s VisionX group (paper arXiv 2602.22208): multiple agents act inside one generated world. In this catalog the runner is verified — the inference-only runtime is vendored in-tree and consumes the official Orbax checkpoint (nyu-visionx/solaris) and eval datasets from Hugging Face or a local mirror.'
+  overview_zh: Solaris 是纽约大学 VisionX 组的多智能体交互视频世界模型（论文 arXiv 2602.22208）：多个智能体在同一个生成世界中行动。本 catalog 中 runner 已验证——仅推理运行时内置树内，消费官方 Orbax checkpoint（nyu-visionx/solaris）与来自 Hugging Face 或本地镜像的评估数据集。
+  architecture: The runtime is JAX/Orbax-based per the recorded checkpoint format; internals beyond the recorded tasks are not stored here. The upstream license is flagged for manual review.
+  architecture_zh: 按记录的 checkpoint 格式，运行时基于 JAX/Orbax；除已记录任务外的内部细节此处未存。上游许可已标记需人工审查。
+  usage_notes: Inference launches one sample per visible GPU — eval_num_samples must be a multiple of the visible GPU count. Official weights and eval datasets resolve from HF or a same-layout local mirror.
+  usage_notes_zh: 推理按每张可见 GPU 启动一个样本——eval_num_samples 必须是可见 GPU 数的整数倍。官方权重与评估数据集从 HF 或同布局本地镜像解析。
+  limitations:
+  - Upstream license is under manual review.
+  - eval_num_samples must match the GPU-count multiple constraint.
+  limitations_zh:
+  - 上游许可在人工审查中。
+  - eval_num_samples 须满足 GPU 数整数倍约束。
   recommended_benchmarks:
-  - world-in-world
-  - iworld-bench
+  - id: worldmodelbench
+    reason: Multi-agent world-rollout quality.
+    reason_zh: 多智能体世界滚动生成质量。

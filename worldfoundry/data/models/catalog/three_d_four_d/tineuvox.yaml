@@ -19,48 +19,18 @@ integration:
 catalog_category: three_d_four_d
 catalog_scope: Official-source manifest for 3D, 4D, and camera-controlled world/model generation projects.
 docs:
-  overview: |
-    TiNeuVox (hustvl/TiNeuVox, SIGGRAPH Asia 2022) accelerates dynamic radiance fields with time-aware neural voxels: it cuts dynamic NeRF training from days to minutes while keeping competitive rendering quality. WorldFoundry tracks upstream source metadata only; no runnable in-tree pipeline is registered yet.
-
-    Within the WorldFoundry model catalog this entry is tracked as `tineuvox` in the `three_d_four_d` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/hustvl/TiNeuVox.
-  overview_zh: |
-    TiNeuVox（hustvl/TiNeuVox，SIGGRAPH Asia 2022）用时间感知神经体素加速动态辐射场：把动态 NeRF 的训练时间从数天缩短到数分钟，同时保持有竞争力的渲染质量。WorldFoundry 仅跟踪其上游来源元数据；尚未注册可运行的 in-tree 管线。
-
-    在 WorldFoundry 模型目录中，该条目以 `tineuvox` 收录于 `three_d_four_d` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/hustvl/TiNeuVox。
-  architecture: |
-    The published architecture stores optimizable feature voxels, uses a tiny coordinate-deformation network to model motion, and enhances temporal information via multi-distance voxel-feature interpolation before a small radiance MLP decodes density and color. Training is per-scene optimization; no feed-forward checkpoints are recorded.
-  architecture_zh: |
-    公开架构存储可优化特征体素，用一个极小的坐标形变网络建模运动，并在小型辐射 MLP 解码密度与颜色之前，通过多距离体素特征插值增强时间信息。训练为逐场景优化；未记录前向推理权重。
-  usage_notes: |
-    No runner target is registered for this entry; the catalog tracks upstream provenance metadata without a runnable in-tree pipeline.
-    Catalog integration status: `blocked`.
-    Integration notes recorded in the catalog:
-    - WorldFoundry tracks upstream source metadata only; no runnable in-tree pipeline is registered yet.
-
-    Embodiment contract:
-    - Simulator: none — the official workflow is per-scene optimization over recorded data, not a simulator rollout.
-    - Sensors: calibrated multi-view or monocular RGB video with camera poses prepared by upstream preprocessing; no additional sensors are recorded.
-    - Action space: not applicable — the model does not consume an action or control stream.
-    - Dedicated environment: no dedicated environment; the entry is metadata-only (or blocked) in WorldFoundry because the official path is training/reconstruction-first.
-  usage_notes_zh: |
-    该条目未注册 runner target；目录仅跟踪上游来源元数据，暂无可运行的 in-tree 管线。
-    目录集成状态：受阻/仅跟踪元数据（blocked）。
-    目录中记录的集成备注（保留原文）：
-    - WorldFoundry tracks upstream source metadata only; no runnable in-tree pipeline is registered yet.
-
-    具身接口（embodiment contract）：
-    - 仿真器：无——官方流程是基于已录制数据的逐场景优化，不是仿真器 rollout。
-    - 传感器：由上游预处理准备的带相机位姿的标定多视角或单目 RGB 视频；仓库未记录其它传感器。
-    - 动作空间：不适用——该模型不接收动作或控制流输入。
-    - 是否专用环境：无专用环境；由于官方路径以训练/重建为先，该条目在 WorldFoundry 中为仅元数据（或受阻）状态。
-  limitations: |
-    No family-level demo/runner parity status is recorded in this catalog file.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件未记录家族级 demo/runner 一致性状态。
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
-  recommended_benchmarks: []
+  publisher: Huazhong University of Science and Technology (HUSTVL)
+  publisher_kind: university
+  publisher_zh: 华中科技大学（HUSTVL）
+  overview: TiNeuVox accelerates dynamic NeRFs with time-aware neural voxels, cutting per-scene training from days to minutes while keeping radiance-field quality (SIGGRAPH Asia 2022). In this catalog it is upstream metadata only — the per-scene optimization workflow is not exposed as a runnable route.
+  overview_zh: TiNeuVox 用时间感知神经体素加速动态 NeRF，把逐场景训练从数天缩短到数分钟，同时保持辐射场质量（SIGGRAPH Asia 2022）。本 catalog 中它仅为上游元数据——逐场景优化工作流未暴露为可运行路径。
+  architecture: Per the publication, a coordinate-deformation network is paired with time-aware voxel features and a multi-distance interpolation scheme; a small MLP renders density and color. Per-scene optimization is required.
+  architecture_zh: 按论文，坐标形变网络与时间感知体素特征及多距离插值方案配对；小型 MLP 渲染密度与颜色。需要逐场景优化。
+  usage_notes: Blocked — consult the upstream repository (hustvl/TiNeuVox).
+  usage_notes_zh: Blocked——请查阅上游仓库（hustvl/TiNeuVox）。
+  limitations:
+  - 'This entry is blocked: WorldFoundry tracks upstream source metadata only, and no runnable in-tree pipeline is registered.'
+  - It records provenance for CLI inspection; the docs site hides blocked 3D/4D entries from the catalog browser.
+  limitations_zh:
+  - 该条目处于 blocked 状态：WorldFoundry 仅跟踪上游源码元数据，没有注册可运行的树内 pipeline。
+  - 它的作用是为 CLI 检查记录溯源；文档站的 catalog 浏览器会隐藏 blocked 的 3D/4D 条目。

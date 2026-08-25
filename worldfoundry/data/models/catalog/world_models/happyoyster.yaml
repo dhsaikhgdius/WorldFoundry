@@ -28,52 +28,18 @@ catalog_scope: World-model catalog entries. Integrated entries expose in-tree Wo
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 pipeline_binding: happyoyster
 docs:
-  overview: |
-    HappyOyster is an API-product world model tracked in this catalog: WorldFoundry registers an API route whose credentials and endpoint are runtime-gated. No official GitHub repository or Hugging Face checkpoint is recorded for this entry, and real generation emits a runtime plan until the required API access is configured.
-
-    Within the WorldFoundry model catalog this entry is tracked as `happyoyster` in the `world_models` category.
-    The repository does not record an official source link for this entry.
-  overview_zh: |
-    HappyOyster 是本目录跟踪的 API 产品型世界模型：WorldFoundry 注册了 API 路线，凭证与端点受运行时门控。该条目未记录官方 GitHub 仓库或 Hugging Face 权重；在配置所需 API 访问之前，真实生成输出运行时计划。
-
-    在 WorldFoundry 模型目录中，该条目以 `happyoyster` 收录于 `world_models` 分类。
-    仓库未记录该条目的官方来源链接。
-  architecture: |
-    Architecture details are not recorded in the repository; the entry is tracked as a hosted world-generation API surface only.
-  architecture_zh: |
-    仓库未记录该条目的架构细节（骨干网络、参数量、训练数据均未知）；该条目仅作为托管世界生成 API 表面跟踪，凭证与端点受运行时门控。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `happyoyster` and runtime profile `runtime-profile:happyoyster`.
-    Catalog integration status: `runtime_ported`.
-    Integration notes recorded in the catalog:
-    - HappyOyster API route is registered; API credentials/endpoint are runtime-gated.
-
-    Embodiment contract:
-    - Simulator: a hosted API world generator; the underlying simulator/model implementation is not recorded in the repository.
-    - Sensors: conditioning inputs per the recorded modalities (typically an initial image and/or a text prompt); exact tensor contracts are not recorded in this catalog file.
-    - Action space: no explicit action interface is recorded for this entry; controllability is limited to the conditioning inputs.
-    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `happyoyster`，运行时配置为 `runtime-profile:happyoyster`。
-    目录集成状态：运行时已移植（runtime_ported）。
-    目录中记录的集成备注（保留原文）：
-    - HappyOyster API route is registered; API credentials/endpoint are runtime-gated.
-
-    具身接口（embodiment contract）：
-    - 仿真器：托管 API 世界生成器；底层模拟器/模型实现仓库未记录。
-    - 传感器：按记录的模态提供条件输入（通常为初始图像和/或文本提示）；具体张量契约本目录文件未记录。
-    - 动作空间：该条目未记录显式动作接口；可控性仅限于条件输入。
-    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`implemented_checkpoint_pending`.
-    Runner parity notes recorded in the catalog:
-    - resolve_model_zoo_config and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已实现、待权重就绪（implemented_checkpoint_pending）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - resolve_model_zoo_config and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
-  recommended_benchmarks: []
+  publisher: HappyOyster (commercial product)
+  publisher_kind: company
+  publisher_zh: HappyOyster（商业产品，机构主体未记录）
+  overview: HappyOyster is a commercial world-model API product recorded by its product site (happyoyster.cn) rather than a code repository. In this catalog only the API route metadata is registered — WorldFoundry tracks the product for landscape completeness, and no runnable API client or generation pipeline is registered.
+  overview_zh: HappyOyster 是商业世界模型 API 产品，本仓库以产品官网（happyoyster.cn）而非代码仓库记录。本 catalog 中仅注册了 API 路径元数据——WorldFoundry 出于生态完整性跟踪该产品，未注册可运行的 API 客户端或生成 pipeline。
+  architecture: 'This is a hosted commercial product: the vendor has not published its architecture and this repository does not record it. Only the world-model/API-product task tags are recorded.'
+  architecture_zh: 这是托管的商业产品：厂商未公开其架构，本仓库亦未记录。仅记录 world-model/API 产品的任务标签。
+  usage_notes: API credentials and endpoint are runtime-gated. Real usage would require a vendor account; the current entry emits a runtime plan only.
+  usage_notes_zh: API 凭据与端点受运行时限制。真实使用需要厂商账号；当前条目仅输出运行时计划。
+  limitations:
+  - No runnable API client is registered — metadata-only entry.
+  - Vendor architecture, pricing, and quality are not recorded in this repository.
+  limitations_zh:
+  - 未注册可运行的 API 客户端——仅元数据条目。
+  - 厂商架构、定价与质量本仓库未记录。

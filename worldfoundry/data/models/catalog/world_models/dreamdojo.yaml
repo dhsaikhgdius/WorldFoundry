@@ -99,58 +99,22 @@ catalog_policy:
     Hugging Face model page was confirmed. Do not infer checkpoint availability from
     papers, demos, or third-party mirrors.
 docs:
-  overview: |
-    DreamDojo (NVIDIA/DreamDojo, NVIDIA Open Model License) is NVIDIA's robot world model family: action-conditioned video2world generation for humanoid robot data (checkpoints on `nvidia/DreamDojo`, with `nvidia/PhysicalAI-Robotics-GR00T-Teleop-GR1` as the companion dataset), tracked in two variants — a 2B GR-1 action-conditioned model and a distilled real-time interactive variant. WorldFoundry vendors the runtime in tree under `worldfoundry/synthesis/visual_generation/dreamdojo/dreamdojo_runtime`; full GPU parity still requires converted checkpoint artifacts and the official GR-1 evaluation dataset.
-
-    Within the WorldFoundry model catalog this entry is tracked as `dreamdojo` in the `world_models` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/NVIDIA/DreamDojo; Hugging Face `nvidia/DreamDojo`, `nvidia/PhysicalAI-Robotics-GR00T-Teleop-GR1`.
-  overview_zh: |
-    DreamDojo（NVIDIA/DreamDojo，NVIDIA 开放模型许可）是 NVIDIA 的机器人世界模型家族：面向人形机器人数据的动作条件 video2world 生成（权重在 `nvidia/DreamDojo`，配套数据集 `nvidia/PhysicalAI-Robotics-GR00T-Teleop-GR1`），跟踪两个变体——2B GR-1 动作条件模型与蒸馏后的实时交互变体。WorldFoundry 在 `worldfoundry/synthesis/visual_generation/dreamdojo/dreamdojo_runtime` 内嵌运行时；完整 GPU 一致性仍需转换后的权重 artifact 与官方 GR-1 评测数据集。
-
-    在 WorldFoundry 模型目录中，该条目以 `dreamdojo` 收录于 `world_models` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/NVIDIA/DreamDojo；Hugging Face `nvidia/DreamDojo`、`nvidia/PhysicalAI-Robotics-GR00T-Teleop-GR1`。
-  architecture: |
-    The recorded variants are dreamdojo-2b-gr1-action-conditioned (robot-world-generation) and dreamdojo-distilled-gr1-realtime (interactive-robot-world-generation), i.e. a diffusion video2world model conditioned on robot actions with a distilled few-step variant for interactive rates. Long-horizon generation is a recorded modality. Further architecture details are not recorded in the repository.
-  architecture_zh: |
-    记录的变体为 dreamdojo-2b-gr1-action-conditioned（机器人世界生成）与 dreamdojo-distilled-gr1-realtime（交互式机器人世界生成），即以机器人动作为条件的扩散 video2world 模型，及面向交互速率的蒸馏少步变体。长时程生成为记录模态之一。更多架构细节仓库未记录。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `dreamdojo` and runtime profile `runtime-profile:dreamdojo`.
-    Catalog integration status: `planned`.
-    Integration notes recorded in the catalog:
-    - Runtime code is vendored in-tree; checkpoints and datasets remain external assets under the normal hfd/ckpt/data cache.
-    Recorded variant `dreamdojo-2b-gr1-action-conditioned`, task `robot-world-generation`, runner parity `pending`, demo parity `pending_demo`.
-    Recorded variant `dreamdojo-distilled-gr1-realtime`, task `interactive-robot-world-generation`, runner parity `pending`, demo parity `pending_demo`.
-
-    Embodiment contract:
-    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
-    - Sensors: initial visual context of a robot scene (and optionally text) plus a robot action sequence as conditioning.
-    - Action space: robot action trajectories are the conditioning channel: the model predicts the resulting future observations instead of emitting actions itself.
-    - Dedicated environment: targets the robot-manipulation domains recorded per checkpoint; no simulator ships with this entry.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `dreamdojo`，运行时配置为 `runtime-profile:dreamdojo`。
-    目录集成状态：计划中（planned）。
-    目录中记录的集成备注（保留原文）：
-    - Runtime code is vendored in-tree; checkpoints and datasets remain external assets under the normal hfd/ckpt/data cache.
-    目录记录：变体 `dreamdojo-2b-gr1-action-conditioned`，任务 `robot-world-generation`，runner 一致性 待验证（pending），演示一致性 待官方演示验证（pending_demo）。
-    目录记录：变体 `dreamdojo-distilled-gr1-realtime`，任务 `interactive-robot-world-generation`，runner 一致性 待验证（pending），演示一致性 待官方演示验证（pending_demo）。
-
-    具身接口（embodiment contract）：
-    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
-    - 传感器：机器人场景的初始视觉上下文（可选文本），加机器人动作序列作为条件。
-    - 动作空间：机器人动作轨迹是条件通道：模型预测动作导致的未来观测，而不是自己输出动作。
-    - 是否专用环境：面向各权重记录的机器人操作域；该条目不附带仿真器。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`implemented_pending_gpu_parity`.
-    Runner parity notes recorded in the catalog:
-    - WorldFoundry now provides an in-tree DreamDojo runtime wrapper under worldfoundry/synthesis/visual_generation/dreamdojo/dreamdojo_runtime. Full GPU parity still requires converted checkpoint artifacts and the official GR-1 evaluation dataset.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已实现、GPU 一致性待验证（implemented_pending_gpu_parity）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - WorldFoundry now provides an in-tree DreamDojo runtime wrapper under worldfoundry/synthesis/visual_generation/dreamdojo/dreamdojo_runtime. Full GPU parity still requires converted checkpoint artifacts and the official GR-1 evaluation dataset.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: NVIDIA
+  publisher_kind: company
+  publisher_zh: 英伟达（NVIDIA）
+  overview: 'DreamDojo is NVIDIA''s action-conditioned robot world model: given robot actions in a unified 384-dimensional action space (spanning GR-1, G1, YAM, AgiBot, MANO hand, and latent actions), it dreams the resulting robot-view video. In this catalog the runtime wrapper is in-tree with 2B GR-1 action-conditioned and distilled realtime variants recorded; GPU parity is pending converted checkpoints and the GR-1 evaluation dataset.'
+  overview_zh: DreamDojo 是英伟达的动作条件机器人世界模型：给定统一 384 维动作空间中的机器人动作（覆盖 GR-1、G1、YAM、AgiBot、MANO 手部与潜在动作），它「梦出」相应的机器人视角视频。本 catalog 中运行时封装已在树内，记录 2B GR-1 动作条件与蒸馏实时两个 variant；GPU 一致性待转换后的 checkpoint 与 GR-1 评估数据集就位。
+  architecture: DreamDojo builds on an action-conditioned Cosmos Predict runtime with the Groot Dreams dataloader and LAM modules, vendored under synthesis/visual_generation/dreamdojo/dreamdojo_runtime. The recorded action contract maps GR-1 [0,58), G1 [58,101), YAM [101,147), AgiBot [147,169), MANO [220,352), latent actions [352,384).
+  architecture_zh: DreamDojo 基于动作条件的 Cosmos Predict 运行时，配 Groot Dreams 数据加载器与 LAM 模块，内置于 synthesis/visual_generation/dreamdojo/dreamdojo_runtime。记录的动作契约映射为 GR-1 [0,58)、G1 [58,101)、YAM [101,147)、AgiBot [147,169)、MANO [220,352)、潜在动作 [352,384)。
+  usage_notes: nvidia/DreamDojo checkpoints are staged locally including the 2B_GR1_post-train directory, but full parity still requires the converted model_ema_bf16.pt, the official GR-1 evaluation dataset, and a CUDA 12.8-class host. It is intentionally not classified as a VLA policy or plain video generation.
+  usage_notes_zh: nvidia/DreamDojo checkpoint 已本地就位（含 2B_GR1_post-train 目录），但完整一致性仍需转换后的 model_ema_bf16.pt、官方 GR-1 评估数据集与 CUDA 12.8 级主机。它有意不被归类为 VLA 策略或普通视频生成模型。
+  limitations:
+  - GPU parity is pending converted checkpoint artifacts and the GR-1 evaluation dataset.
+  - Requires a CUDA 12.8-class host.
+  limitations_zh:
+  - GPU 一致性待转换后的 checkpoint 产物与 GR-1 评估数据集。
+  - 需要 CUDA 12.8 级主机。
   recommended_benchmarks:
-  - ewmbench
-  - worldmodelbench
+  - id: ewmbench
+    reason: Embodied world-model evaluation for robot video prediction.
+    reason_zh: 机器人视频预测的具身世界模型评测。

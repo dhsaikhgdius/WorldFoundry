@@ -29,53 +29,18 @@ catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance,
   metadata, and runtime-profile planning records. Runner or pipeline targets are present
   only after a complete in-tree WorldFoundry model runtime is registered and validated.
 docs:
-  overview: |
-    TD-MPC (nicklashansen/tdmpc, 'Temporal Difference Learning for Model Predictive Control', ICML 2022) is a model-based reinforcement-learning algorithm rather than a VLA: it learns a task-oriented latent dynamics model (TOLD) and combines short-horizon MPC planning in latent space with a terminal value function learned by temporal-difference learning. Its public evaluations cover DMControl and Meta-World continuous-control suites. WorldFoundry tracks it as a concrete algorithm entry sourced from the official repository (not the LeRobot policy zoo) and routes it through an in-tree action runtime adapter; checkpoint absence is reported by runtime missing_assets and is not a catalog blocker.
-
-    Within the WorldFoundry model catalog this entry is tracked as `tdmpc` in the `vla_va_wam` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/nicklashansen/tdmpc.
-  overview_zh: |
-    TD-MPC（nicklashansen/tdmpc，《Temporal Difference Learning for Model Predictive Control》，ICML 2022）是基于模型的强化学习算法而非 VLA：它学习任务导向的隐空间动力学模型（TOLD），把隐空间短时程 MPC 规划与时间差分学习得到的终端价值函数结合。其公开评测覆盖 DMControl 与 Meta-World 连续控制套件。WorldFoundry 将其作为来自官方仓库的具体算法条目跟踪（不经 LeRobot policy zoo），通过树内动作运行时适配器接入；权重缺失由运行时 missing_assets 报告，不构成目录阻塞。
-
-    在 WorldFoundry 模型目录中，该条目以 `tdmpc` 收录于 `vla_va_wam` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/nicklashansen/tdmpc。
-  architecture: |
-    TOLD consists of an encoder into a latent state, a latent dynamics head, and reward/value/policy heads, all trained jointly; at decision time, MPPI-style sampling plans action sequences over a short latent horizon, with the learned value function bootstrapping beyond the horizon and a learned policy prior accelerating the search. It supports both state and pixel observations.
-  architecture_zh: |
-    TOLD 由隐状态编码器、隐空间动力学头与奖励/价值/策略头组成，联合训练；决策时用 MPPI 式采样在短隐空间时程上规划动作序列，学习到的价值函数在时程外做自举，学习到的策略先验加速搜索。支持状态与像素两种观测。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `tdmpc` and runtime profile `runtime-profile:tdmpc`.
-    Catalog integration status: `runtime_ported`.
-    Integration notes recorded in the catalog:
-    - Concrete algorithm entry sourced from the official TD-MPC repository, not from the generic LeRobot policy zoo.
-    - WorldFoundry routes TD-MPC through an in-tree action runtime adapter against the concrete TD-MPC policy.
-    - Checkpoint absence is reported by runtime missing_assets and is not a catalog blocker.
-
-    Embodiment contract:
-    - Simulator: none bundled — the algorithm is publicly evaluated on DMControl and Meta-World; those simulators are not part of this catalog entry.
-    - Sensors: low-dimensional proprioceptive state or raw pixels, per the trained task configuration; no language input.
-    - Action space: continuous control actions selected by latent-space MPC planning; dimensionality follows the trained environment.
-    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `tdmpc`，运行时配置为 `runtime-profile:tdmpc`。
-    目录集成状态：运行时已移植（runtime_ported）。
-    目录中记录的集成备注（保留原文）：
-    - Concrete algorithm entry sourced from the official TD-MPC repository, not from the generic LeRobot policy zoo.
-    - WorldFoundry routes TD-MPC through an in-tree action runtime adapter against the concrete TD-MPC policy.
-    - Checkpoint absence is reported by runtime missing_assets and is not a catalog blocker.
-
-    具身接口（embodiment contract）：
-    - 仿真器：不内置仿真器——该算法公开评测于 DMControl 与 Meta-World；这些仿真器不属于本目录条目。
-    - 传感器：低维本体状态或原始像素（取决于训练任务配置）；无语言输入。
-    - 动作空间：由隐空间 MPC 规划选择的连续控制动作；维度取决于训练环境。
-    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
-  limitations: |
-    No family-level demo/runner parity status is recorded in this catalog file.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件未记录家族级 demo/runner 一致性状态。
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
-  recommended_benchmarks:
-  - metaworld
+  publisher: Open-source research release (institution not recorded)
+  publisher_kind: lab
+  publisher_zh: 开源研究发布（仓库未记录正式机构）
+  overview: 'TD-MPC (Temporal Difference Model Predictive Control) is a classic model-based RL algorithm: it learns a latent dynamics model and plans actions by combining short-horizon MPC with a learned terminal value function. The catalog sources the concrete official repository — not the generic LeRobot policy zoo — and routes it through an in-tree action runtime adapter.'
+  overview_zh: TD-MPC（时序差分模型预测控制）是经典的基于模型强化学习算法：学习隐式动力学模型，将短程 MPC 与学习到的终端价值函数结合来规划动作。catalog 采用具体官方仓库为源——而非通用 LeRobot 策略库——并经树内动作运行时适配器路由。
+  architecture: A task-oriented latent dynamics model (TOLD) plus value/policy heads; planning combines the cross-entropy method over the latent model with TD-learned values. Further internals are not recorded in this repository.
+  architecture_zh: 任务导向隐式动力学模型（TOLD）加价值/策略头；规划将隐式模型上的交叉熵方法与 TD 学习的价值结合。更多内部细节仓库未记录。
+  usage_notes: Checkpoint absence is reported by runtime missing_assets and is not a catalog blocker; runs emit a runtime plan until weights are staged. Train your own task checkpoint with the official code before running.
+  usage_notes_zh: checkpoint 缺失由运行时 missing_assets 报告，不视为 catalog 阻塞；权重就位前运行输出运行时计划。运行前需用官方代码训练自己的任务 checkpoint。
+  limitations:
+  - No official pretrained checkpoints are recorded.
+  - State-based RL policy — no language or open-vocabulary conditioning.
+  limitations_zh:
+  - 未记录官方预训练 checkpoint。
+  - 基于状态的 RL 策略——无语言或开放词表条件。

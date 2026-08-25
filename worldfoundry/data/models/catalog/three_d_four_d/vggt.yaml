@@ -30,52 +30,18 @@ runner_parity:
 catalog_category: three_d_four_d
 catalog_scope: Official-source manifest for 3D, 4D, and camera-controlled world/model generation projects.
 docs:
-  overview: |
-    VGGT (facebookresearch/vggt, CVPR 2025) — Visual Geometry Grounded Transformer — is a feed-forward network that infers all key 3D attributes of a scene in one pass: camera parameters, depth maps, dense pointmaps, and 3D point tracks, from one to hundreds of views, in seconds. WorldFoundry registers an in-tree VGGT two-stage 3DGS pipeline (distinct from the `vggt-omega` and `vggt-world` catalog entries); the confirmed checkpoint is `facebook/VGGT-1B`.
-
-    Within the WorldFoundry model catalog this entry is tracked as `vggt` in the `three_d_four_d` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/facebookresearch/vggt; Hugging Face `facebook/VGGT-1B`.
-  overview_zh: |
-    VGGT（facebookresearch/vggt，CVPR 2025）——视觉几何接地 Transformer——是前向网络，一次推理即可得到场景的全部关键 3D 属性：相机参数、深度图、稠密 pointmap 与 3D 点轨迹，支持 1 到数百个视角，数秒完成。WorldFoundry 注册了 in-tree 的 VGGT 两阶段 3DGS 管线（区别于 `vggt-omega` 与 `vggt-world` 目录条目）；已确认权重为 `facebook/VGGT-1B`。
-
-    在 WorldFoundry 模型目录中，该条目以 `vggt` 收录于 `three_d_four_d` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/facebookresearch/vggt；Hugging Face `facebook/VGGT-1B`。
-  architecture: |
-    The published architecture is a ~1B-parameter transformer alternating frame-wise and global self-attention over DINO-style patch tokens from all input frames, with a camera head (pose/intrinsics tokens) and DPT-style dense heads for depth, pointmaps, and tracking features; it requires no post-hoc bundle adjustment for strong results and won the CVPR 2025 Best Paper Award.
-  architecture_zh: |
-    公开架构是约 10 亿参数的 transformer，在全部输入帧的 DINO 式 patch token 上交替执行帧内与全局自注意力，配相机输出头（位姿/内参 token）以及 DPT 风格稠密输出头（深度、pointmap、跟踪特征）；无需事后 bundle adjustment 即可取得强结果，获 CVPR 2025 最佳论文奖。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `vggt`.
-    Catalog integration status: `runtime_ported`.
-    Integration notes recorded in the catalog:
-    - In-tree VGGT two-stage 3DGS pipeline is registered; distinct from vggt-omega and vggt-world catalog entries.
-
-    Embodiment contract:
-    - Simulator: none — this is an offline reconstruction model that consumes recorded images or video; it does not drive or require a simulator.
-    - Sensors: monocular or multi-view RGB images/video frames; no additional sensor modalities are recorded in the repository.
-    - Action space: not applicable — the model does not consume an action or control stream.
-    - Dedicated environment: no dedicated environment; it runs through the shared WorldFoundry pipeline runtime described in the integration notes.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `vggt`。
-    目录集成状态：运行时已移植（runtime_ported）。
-    目录中记录的集成备注（保留原文）：
-    - In-tree VGGT two-stage 3DGS pipeline is registered; distinct from vggt-omega and vggt-world catalog entries.
-
-    具身接口（embodiment contract）：
-    - 仿真器：无——这是一个离线重建模型，输入为已录制的图像或视频，不驱动也不依赖仿真器。
-    - 传感器：单目或多视角 RGB 图像/视频帧；仓库未记录其它传感器模态。
-    - 动作空间：不适用——该模型不接收动作或控制流输入。
-    - 是否专用环境：无专用环境；通过集成备注中描述的 WorldFoundry 共享管线运行时执行。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`pending`.
-    Runner parity notes recorded in the catalog:
-    - Per-run validation evidence is tracked outside the model catalog.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=待验证（pending）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - Per-run validation evidence is tracked outside the model catalog.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
-  recommended_benchmarks: []
+  publisher: Meta AI (FAIR) / University of Oxford (VGG)
+  publisher_kind: company
+  publisher_zh: Meta AI（FAIR）/ 牛津大学 VGG 组
+  overview: VGGT (Visual Geometry Grounded Transformer, CVPR 2025) is a feed-forward network that infers cameras, depth maps, point maps, and 3D point tracks from one to hundreds of views in a single pass — no per-scene optimization. In this catalog the in-tree two-stage 3DGS pipeline is registered, distinct from the vggt-omega and vggt-world entries.
+  overview_zh: VGGT（Visual Geometry Grounded Transformer，CVPR 2025）是前馈网络：单次前向即可从一到数百个视图推断相机、深度图、点图与 3D 点轨迹——无需逐场景优化。本 catalog 中已注册树内两段式 3DGS pipeline，与 vggt-omega、vggt-world 条目相互独立。
+  architecture: Per the CVPR 2025 paper, a large transformer alternates frame-wise and global attention over image tokens, with task-specific heads for cameras, depth, pointmaps, and tracking. Weights are apache-2.0 (facebookresearch/vggt); the recorded route builds 3DGS from VGGT geometry in two stages.
+  architecture_zh: 按 CVPR 2025 论文，大型 Transformer 在图像 token 上交替执行帧内与全局注意力，任务头分别输出相机、深度、点图与跟踪。权重为 apache-2.0（facebookresearch/vggt）；记录路径分两段从 VGGT 几何构建 3DGS。
+  usage_notes: Integration is runtime_ported with runner parity pending. For the verified scene-export route use vggt-omega; use this entry when you want the two-stage 3DGS pipeline over base VGGT geometry.
+  usage_notes_zh: 集成为 runtime_ported，runner parity 待验证。需要已验证的场景导出路径请用 vggt-omega；需要基于基础 VGGT 几何的两段式 3DGS pipeline 时用本条目。
+  limitations:
+  - Runner parity is pending in this workspace.
+  - Feed-forward inference on hundreds of views needs substantial GPU memory.
+  limitations_zh:
+  - 本工作区中 runner parity 待验证。
+  - 数百视图的前馈推理需要可观的 GPU 显存。

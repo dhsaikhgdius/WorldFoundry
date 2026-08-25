@@ -67,59 +67,25 @@ catalog_policy:
   integration_rule: Closed, API-only, or unknown releases stay blocked or planned until an official integration surface is available.
   open_source_rule: Only mark open_source when an official GitHub repository or official model page was confirmed.
 docs:
-  overview: |
-    Kairos Sensenova (kairos-agi/kairos-sensenova, Apache-2.0) is an embodied world model family in the SenseNova lineage covering text/image-to-video generation and action prediction, with released checkpoints `kairos-sensenova-4B-480P-pretrained`, `kairos-sensenova-robot-4B-480P-distilled`, and `kairos-sensenova-4B-720P`. WorldFoundry uses the in-tree Apache-2.0 official torchrun runtime under `worldfoundry/synthesis/visual_generation/kairos/kairos_runtime`; the default runnable variant follows the official robot 4B 480P distilled recipe (kairos_4b_config_DMD.py, 81 frames, 480x640, cfg 5, tiled VAE decode, no CFG-parallel) and the default 480P DMD text-to-video recipe is Workspace-verified with 8 torchrun ranks.
-
-    Within the WorldFoundry model catalog this entry is tracked as `kairos-sensenova` in the `world_models` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/kairos-agi/kairos-sensenova; Hugging Face `kairos-agi/kairos-sensenova-4B-480P-pretrained`, `kairos-agi/kairos-sensenova-robot-4B-480P-distilled`, `kairos-agi/kairos-sensenova-4B-720P`.
-  overview_zh: |
-    Kairos Sensenova（kairos-agi/kairos-sensenova，Apache-2.0）是商汤 SenseNova 谱系的具身世界模型家族，覆盖文本/图像到视频生成与动作预测，发布权重 `kairos-sensenova-4B-480P-pretrained`、`kairos-sensenova-robot-4B-480P-distilled` 与 `kairos-sensenova-4B-720P`。WorldFoundry 使用 `worldfoundry/synthesis/visual_generation/kairos/kairos_runtime` 下树内 Apache-2.0 官方 torchrun 运行时；默认可运行变体遵循官方 robot 4B 480P 蒸馏方案（kairos_4b_config_DMD.py、81 帧、480x640、cfg 5、tiled VAE 解码、无 CFG 并行），默认 480P DMD 文本到视频方案已经 Workspace 以 8 个 torchrun rank 验证。
-
-    在 WorldFoundry 模型目录中，该条目以 `kairos-sensenova` 收录于 `world_models` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/kairos-agi/kairos-sensenova；Hugging Face `kairos-agi/kairos-sensenova-4B-480P-pretrained`、`kairos-agi/kairos-sensenova-robot-4B-480P-distilled`、`kairos-agi/kairos-sensenova-4B-720P`。
-  architecture: |
-    The recorded model layout requires Kairos, Qwen, and Wan2.1-T2V-14B subdirectories matching the official config (set via WORLDFOUNDRY_KAIROS_MODELS_ROOT or models_root), indicating a 4B world generator distilled (DMD) from the Wan2.1-T2V-14B teacher with Qwen-based text conditioning. 720P and non-distilled variants require corresponding checkpoint paths and config overrides. Further architecture details are not recorded in the repository.
-  architecture_zh: |
-    记录的模型布局需要与官方配置一致的 Kairos、Qwen 与 Wan2.1-T2V-14B 子目录（经 WORLDFOUNDRY_KAIROS_MODELS_ROOT 或 models_root 设置），表明这是从 Wan2.1-T2V-14B 教师蒸馏（DMD）的 4B 世界生成器，文本条件基于 Qwen。720P 与未蒸馏变体需对应权重路径与配置覆盖。更多架构细节仓库未记录。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `kairos-sensenova` and runtime profile `runtime-profile:kairos-sensenova`.
-    Catalog integration status: `verified`.
-    Integration notes recorded in the catalog:
-    - Uses the in-tree Apache-2.0 official torchrun runtime under worldfoundry/synthesis/visual_generation/kairos/kairos_runtime.
-    - The default runnable variant follows the official robot 4B 480P distilled recipe with kairos_4b_config_DMD.py, 81 frames, 480x640 resolution, cfg_scale 5, tiled VAE decode, and no CFG-parallel.
-    - Set WORLDFOUNDRY_KAIROS_MODELS_ROOT or models_root to a directory containing Kairos, Qwen, and Wan2.1-T2V-14B subdirectories matching the official config layout.
-
-    Embodiment contract:
-    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
-    - Sensors: initial visual context of a robot scene (and optionally text) plus a robot action sequence as conditioning.
-    - Action space: robot action trajectories are the conditioning channel: the model predicts the resulting future observations instead of emitting actions itself.
-    - Dedicated environment: targets the robot-manipulation domains recorded per checkpoint; no simulator ships with this entry.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `kairos-sensenova`，运行时配置为 `runtime-profile:kairos-sensenova`。
-    目录集成状态：已验证（verified）。
-    目录中记录的集成备注（保留原文）：
-    - Uses the in-tree Apache-2.0 official torchrun runtime under worldfoundry/synthesis/visual_generation/kairos/kairos_runtime.
-    - The default runnable variant follows the official robot 4B 480P distilled recipe with kairos_4b_config_DMD.py, 81 frames, 480x640 resolution, cfg_scale 5, tiled VAE decode, and no CFG-parallel.
-    - Set WORLDFOUNDRY_KAIROS_MODELS_ROOT or models_root to a directory containing Kairos, Qwen, and Wan2.1-T2V-14B subdirectories matching the official config layout.
-
-    具身接口（embodiment contract）：
-    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
-    - 传感器：机器人场景的初始视觉上下文（可选文本），加机器人动作序列作为条件。
-    - 动作空间：机器人动作轨迹是条件通道：模型预测动作导致的未来观测，而不是自己输出动作。
-    - 是否专用环境：面向各权重记录的机器人操作域；该条目不附带仿真器。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`verified`.
-    Runner parity notes recorded in the catalog:
-    - Default 480P DMD text-to-video recipe is integrated through the in-tree runtime and verified through the Workspace infer path with 8 torchrun ranks.
-    - 720P and non-distilled variants require the corresponding checkpoint paths and config override.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已验证（verified）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - Default 480P DMD text-to-video recipe is integrated through the in-tree runtime and verified through the Workspace infer path with 8 torchrun ranks.
-    - 720P and non-distilled variants require the corresponding checkpoint paths and config override.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: SenseTime (SenseNova)
+  publisher_kind: company
+  publisher_zh: 商汤科技（日日新 SenseNova）
+  overview: 'Kairos Sensenova is SenseTime''s embodied world-model video generator: a 4B model covering text-, image-, and text+image-to-video with a robot-oriented distilled recipe. In this catalog both integration and runner are verified — the default robot 4B 480P DMD text-to-video recipe runs through the in-tree Apache-2.0 torchrun runtime with 8 ranks.'
+  overview_zh: Kairos Sensenova 是商汤的具身世界模型视频生成器：4B 模型覆盖文生、图生与文+图生视频，并有面向机器人的蒸馏配方。本 catalog 中集成与 runner 均已验证——默认的 robot 4B 480P DMD 文生视频配方经树内 Apache-2.0 torchrun 运行时以 8 rank 运行。
+  architecture: 'The default runnable variant follows the official robot 4B 480P distilled recipe (kairos_4b_config_DMD.py): 81 frames, 480x640, cfg_scale 5, tiled VAE decode, no CFG-parallel. Recorded checkpoints cover the robot 480P distilled, 480P pretrained, and 720P variants; the config layout expects Kairos, Qwen, and Wan2.1-T2V-14B subdirectories.'
+  architecture_zh: 默认可运行 variant 遵循官方 robot 4B 480P 蒸馏配方（kairos_4b_config_DMD.py）：81 帧、 480x640、cfg_scale 5、分块 VAE 解码、无 CFG 并行。记录的 checkpoint 覆盖 robot 480P 蒸馏、480P 预训练与 720P 三个 variant；配置布局要求 Kairos、Qwen 与 Wan2.1-T2V-14B 子目录。
+  usage_notes: Set WORLDFOUNDRY_KAIROS_MODELS_ROOT (or models_root) to a directory matching the official config layout. 720P and non-distilled variants need the corresponding checkpoint paths and config override.
+  usage_notes_zh: 将 WORLDFOUNDRY_KAIROS_MODELS_ROOT（或 models_root）指向符合官方配置布局的目录。720P 与非蒸馏 variant 需要对应的 checkpoint 路径与配置覆盖。
+  limitations:
+  - The verified recipe uses 8 torchrun ranks — plan for a multi-GPU host.
+  - '480P robot-distilled default: quality-oriented 720P runs need overrides.'
+  limitations_zh:
+  - 已验证配方使用 8 个 torchrun rank——请准备多卡主机。
+  - 默认是 480P 机器人蒸馏配方：追求画质的 720P 运行需要覆盖配置。
   recommended_benchmarks:
-  - ewmbench
+  - id: vbench
+    reason: Video quality for text/image-to-video output.
+    reason_zh: 文/图生视频输出的质量评测。
+  - id: ewmbench
+    reason: Embodied world-model prediction quality.
+    reason_zh: 具身世界模型预测质量。

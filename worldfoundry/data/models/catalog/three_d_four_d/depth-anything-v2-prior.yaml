@@ -37,58 +37,18 @@ catalog_scope: Independent geometric prior integrations used by 3D and world-mod
   runtimes.
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 docs:
-  overview: |
-    Depth Anything V2 is the second-generation monocular depth foundation model in the Depth Anything line, retrained to produce much finer and more robust depth than V1 by replacing noisy real labeled data with high-quality synthetic labels and scaling pseudo-labeled real data. WorldFoundry integrates it as an independent depth prior at `worldfoundry/base_models/three_dimensions/depth/depth_anything/depth_anything_v2`; the shared priors factory and the video-depth prior reuse this implementation.
-
-    Within the WorldFoundry model catalog this entry is tracked as `depth-anything-v2-prior` in the `three_d_four_d` category.
-    The repository does not record an official source link for this entry.
-  overview_zh: |
-    Depth Anything V2 是 Depth Anything 系列的第二代单目深度基础模型：以高质量合成标注替换噪声较大的真实标注，并扩大伪标签真实数据规模，从而获得比 V1 更精细、更稳健的深度输出。WorldFoundry 将其作为独立深度先验集成于 `worldfoundry/base_models/three_dimensions/depth/depth_anything/depth_anything_v2`；共享先验工厂与视频深度先验复用同一实现。
-
-    在 WorldFoundry 模型目录中，该条目以 `depth-anything-v2-prior` 收录于 `three_d_four_d` 分类。
-    仓库未记录该条目的官方来源链接。
-  architecture: |
-    The published recipe trains a large DINOv2-ViT teacher purely on synthetic labeled images, then distills student models (ViT-S through ViT-G) on 62M+ pseudo-labeled real images, keeping the DPT-style decoder head. Fine-grained detail comes from the synthetic-label supervision; robustness comes from the massive pseudo-labeled real distribution. Metric variants fine-tuned on indoor/outdoor metric datasets exist upstream; the catalog exposes this entry as the metric/relative depth prior used by WorldFoundry runtimes.
-  architecture_zh: |
-    公开训练配方先在纯合成标注图像上训练大型 DINOv2-ViT 教师模型，再在 6200 万以上伪标签真实图像上蒸馏出 ViT-S 到 ViT-G 的学生模型，保留 DPT 风格解码头。细粒度细节来自合成标注监督，稳健性来自大规模伪标签真实分布。上游存在针对室内/室外公制数据微调的 metric 变体；目录中该条目作为 WorldFoundry 运行时使用的深度先验暴露。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` and runtime profile `runtime-profile:depth-anything-v2-prior`.
-    Catalog integration status: `integrated`.
-    Integration notes recorded in the catalog:
-    - Integrated as an independent depth prior at worldfoundry/base_models/three_dimensions/depth/depth_anything/depth_anything_v2.
-    - The shared priors factory and video-depth prior reuse this implementation; it is not a VIPE-owned subtree.
-    - Exposed through the shared WorldFoundry geometry-prior pipeline/operator contract.
-
-    Embodiment contract:
-    - Simulator: none — this entry is an offline geometric prior invoked by other WorldFoundry pipelines, not a simulator-driven model.
-    - Sensors: monocular RGB images (or video frames for temporal variants); no additional sensor modalities are recorded in the repository.
-    - Action space: not applicable — priors are pure perception modules without an action interface.
-    - Dedicated environment: no dedicated environment; it is exposed through the shared WorldFoundry geometry-prior pipeline/operator contract.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，运行时配置为 `runtime-profile:depth-anything-v2-prior`。
-    目录集成状态：已集成（integrated）。
-    目录中记录的集成备注（保留原文）：
-    - Integrated as an independent depth prior at worldfoundry/base_models/three_dimensions/depth/depth_anything/depth_anything_v2.
-    - The shared priors factory and video-depth prior reuse this implementation; it is not a VIPE-owned subtree.
-    - Exposed through the shared WorldFoundry geometry-prior pipeline/operator contract.
-
-    具身接口（embodiment contract）：
-    - 仿真器：无——该条目是被其它 WorldFoundry 管线调用的离线几何先验，不涉及仿真器。
-    - 传感器：单目 RGB 图像（时序变体为视频帧）；仓库未记录其它传感器模态。
-    - 动作空间：不适用——先验模块为纯感知组件，没有动作接口。
-    - 是否专用环境：无专用环境；通过 WorldFoundry 共享几何先验 pipeline/operator 契约暴露。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`verified`.
-    Runner parity notes recorded in the catalog:
-    - Checkpoint-backed inference is implemented through the shared geometry-prior pipeline/operator contract.
-    - Per-run validation evidence is tracked outside the model catalog so this file remains stable release metadata.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已验证（verified）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - Checkpoint-backed inference is implemented through the shared geometry-prior pipeline/operator contract.
-    - Per-run validation evidence is tracked outside the model catalog so this file remains stable release metadata.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
-  recommended_benchmarks: []
+  publisher: TikTok / The University of Hong Kong
+  publisher_kind: company
+  publisher_zh: TikTok / 香港大学
+  overview: Depth Anything V2 is the sharper, synthetic-data-trained successor to V1, integrated here as a metric/monocular depth prior with verified runner status. The recorded checkpoint is depth-anything/Depth-Anything-V2-Large; the shared priors factory and the video-depth prior reuse this implementation.
+  overview_zh: Depth Anything V2 是 V1 的后继者，用合成数据训练、细节更锐利，此处作为米制/单目深度先验集成，runner 状态已验证。记录的 checkpoint 为 depth-anything/Depth-Anything-V2-Large；共享先验工厂与视频深度先验复用同一实现。
+  architecture: Same DINOv2+DPT family as V1 but trained on precise synthetic labels with pseudo-labeled real images, improving edges and thin structures (per the publication). Registered at base_models/three_dimensions/depth/depth_anything/depth_anything_v2.
+  architecture_zh: 与 V1 同为 DINOv2+DPT 家族，但用精确合成标注加伪标注真实图像训练，边缘与细结构更好（见论文）。注册于 base_models/three_dimensions/depth/depth_anything/depth_anything_v2。
+  usage_notes: It is integrated as an independent geometry prior under worldfoundry/base_models and exposed through the shared geometry-prior pipeline/operator contract. Higher-level pipelines (e.g. ViPE) import it from this canonical owner instead of keeping private copies. Runner parity is verified through the shared contract.
+  usage_notes_zh: 它作为独立几何先验集成在 worldfoundry/base_models 下，通过共享的 geometry-prior pipeline/operator 契约对外暴露。上层管线（如 ViPE）从这一规范位置导入它，而不是各自保留私有副本。runner parity 已通过共享契约验证。
+  limitations:
+  - Metric accuracy varies by domain; indoor/outdoor calibration differs.
+  - Single-image prior; temporal stability on video is not its job.
+  limitations_zh:
+  - 米制精度随领域变化；室内/室外标定不同。
+  - 单帧先验；视频时序稳定性不在其职责内。

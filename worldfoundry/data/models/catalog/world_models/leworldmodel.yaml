@@ -38,56 +38,18 @@ catalog_category: world_models
 catalog_scope: World-model catalog entries. Integrated entries expose in-tree WorldFoundry runtimes; blocked
   entries retain upstream provenance without runnable backends.
 docs:
-  overview: |
-    LeWorldModel (lucas-maes/le-wm; Hugging Face `eren23/lewm-models`) is a minimal research codebase for latent world models, spanning JEPA-style, latent, and pixel world-model variants with evaluation through the stable-worldmodel PushT setup. WorldFoundry exposes an infer-only wrapper for the official eval route under `synthesis/visual_generation/world_model/le_wm`, with eval configs packaged in tree; the route matches the official eval.py config flow and reports missing stable-worldmodel packages, task datasets, or non-random policy checkpoints before execution. Official PushT evaluation parity remains pending.
-
-    Within the WorldFoundry model catalog this entry is tracked as `leworldmodel` in the `world_models` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/lucas-maes/le-wm; Hugging Face `eren23/lewm-models`.
-  overview_zh: |
-    LeWorldModel（lucas-maes/le-wm；Hugging Face `eren23/lewm-models`）是极简的隐世界模型研究代码库，覆盖 JEPA 式、隐空间与像素世界模型变体，通过 stable-worldmodel 的 PushT 设置评测。WorldFoundry 在 `synthesis/visual_generation/world_model/le_wm` 暴露官方评测路线的仅推理包装器，评测配置打包在树内；路线匹配官方 eval.py 配置流，并在执行前报告缺失的 stable-worldmodel 包、任务数据集或非随机策略权重。官方 PushT 评测一致性待完成。
-
-    在 WorldFoundry 模型目录中，该条目以 `leworldmodel` 收录于 `world_models` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/lucas-maes/le-wm；Hugging Face `eren23/lewm-models`。
-  architecture: |
-    Recorded modalities are latent-world-model, jepa-world-model, and pixel-world-model: the codebase compares encoder+latent-dynamics designs (including JEPA-style predictive embeddings) against pixel-space world models under a common planning/eval harness. Further architecture details are not recorded in the repository.
-  architecture_zh: |
-    记录模态为 latent-world-model、jepa-world-model 与 pixel-world-model：该代码库在统一规划/评测框架下比较编码器加隐动力学设计（含 JEPA 式预测嵌入）与像素空间世界模型。更多架构细节仓库未记录。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `leworldmodel` and runtime profile `runtime-profile:leworldmodel`.
-    Catalog integration status: `runtime_ported`.
-    Integration notes recorded in the catalog:
-    - WorldFoundry exposes an infer-only wrapper for the official LeWorldModel eval route under synthesis/visual_generation/world_model/le_wm.
-    - Runtime eval configs live under data/models/runtime/configs/le_wm/config/eval; train configs are not required for inference.
-
-    Embodiment contract:
-    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
-    - Sensors: task observations from the stable-worldmodel evaluation environments (e.g. PushT images/state).
-    - Action space: low-dimensional continuous task actions consumed during world-model evaluation/planning.
-    - Dedicated environment: evaluation is dedicated to the stable-worldmodel task suite (PushT recorded); those packages are runtime dependencies, not bundled.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `leworldmodel`，运行时配置为 `runtime-profile:leworldmodel`。
-    目录集成状态：运行时已移植（runtime_ported）。
-    目录中记录的集成备注（保留原文）：
-    - WorldFoundry exposes an infer-only wrapper for the official LeWorldModel eval route under synthesis/visual_generation/world_model/le_wm.
-    - Runtime eval configs live under data/models/runtime/configs/le_wm/config/eval; train configs are not required for inference.
-
-    具身接口（embodiment contract）：
-    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
-    - 传感器：stable-worldmodel 评测环境的任务观测（如 PushT 图像/状态）。
-    - 动作空间：世界模型评测/规划期间消费的低维连续任务动作。
-    - 是否专用环境：评测专用于 stable-worldmodel 任务套件（记录了 PushT）；相关包为运行时依赖，不随条目附带。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`pending`.
-    Runner parity notes recorded in the catalog:
-    - The route matches the official eval.py config flow and reports missing stable-worldmodel packages, task datasets, or non-random policy checkpoints before execution.
-    - Official PushT evaluation parity remains pending; per-run validation evidence is tracked outside the model catalog.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=待验证（pending）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - The route matches the official eval.py config flow and reports missing stable-worldmodel packages, task datasets, or non-random policy checkpoints before execution.
-    - Official PushT evaluation parity remains pending; per-run validation evidence is tracked outside the model catalog.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
-  recommended_benchmarks: []
+  publisher: Mila – Quebec AI Institute / Université de Montréal
+  publisher_kind: university
+  publisher_zh: Mila 魁北克人工智能研究所 / 蒙特利尔大学
+  overview: 'LeWorldModel (le-wm) studies latent world models: JEPA-style and pixel-space world models trained and evaluated on control tasks such as PushT. In this catalog an infer-only wrapper for the official eval route is registered; execution needs stable-worldmodel packages, task datasets, and policy checkpoints when the policy is not random.'
+  overview_zh: LeWorldModel（le-wm）研究潜空间世界模型：在 PushT 等控制任务上训练与评估 JEPA 式及像素空间世界模型。本 catalog 中已注册官方 eval 路径的仅推理封装；执行需要 stable-worldmodel 包、任务数据集，以及当策略非随机时的策略 checkpoint。
+  architecture: The recorded structure spans latent (JEPA) and pixel world-model variants (checkpoints at eren23/lewm-models). Runtime eval configs live under data/models/runtime/configs/le_wm/config/eval; train configs are not required for inference.
+  architecture_zh: 记录的结构覆盖潜空间（JEPA）与像素两类世界模型 variant（checkpoint 位于 eren23/lewm-models）。运行时 eval 配置位于 data/models/runtime/configs/le_wm/config/eval；推理不需要训练配置。
+  usage_notes: The route matches the official eval.py config flow and reports missing stable-worldmodel packages, task datasets, or non-random policy checkpoints before execution. Official PushT evaluation parity remains pending.
+  usage_notes_zh: 路径匹配官方 eval.py 配置流程，并在执行前报告缺失的 stable-worldmodel 包、任务数据集或非随机策略 checkpoint。官方 PushT 评估一致性仍待验证。
+  limitations:
+  - 'Evaluation-oriented world model: it scores dynamics, it does not render showcase video.'
+  - Official PushT evaluation parity is pending.
+  limitations_zh:
+  - 面向评估的世界模型：用于评价动力学，不渲染演示视频。
+  - 官方 PushT 评估一致性待验证。

@@ -126,71 +126,26 @@ runner_parity:
 catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint metadata, and runtime-profile planning records.
 docs:
-  overview: |
-    Xiaomi-Robotics-0 (XiaomiRobotics/Xiaomi-Robotics-0, Apache-2.0) is Xiaomi's open MiBoT VLA action-chunk policy with six released checkpoints spanning LIBERO, CALVIN ABCD/ABC, SimplerEnv Google-Robot and WidowX, plus a pretrain base. WorldFoundry vendors the official checkpoint-side MiBoT configuration, model, and processor code flat under `worldfoundry/synthesis/action_generation/xiaomi_robotics_0`, loads with trust_remote_code disabled, and never reads the external GitHub checkout. All six released checkpoints passed strict restoration and finite real inference on an A100; the pretrain checkpoint used the explicit DROID camera/state contract.
-
-    Within the WorldFoundry model catalog this entry is tracked as `xiaomi-robotics-0` in the `vla_va_wam` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/XiaomiRobotics/Xiaomi-Robotics-0; Hugging Face `XiaomiRobotics/Xiaomi-Robotics-0-LIBERO`, `XiaomiRobotics/Xiaomi-Robotics-0-Calvin-ABCD_D`, `XiaomiRobotics/Xiaomi-Robotics-0-Calvin-ABC_D`, `XiaomiRobotics/Xiaomi-Robotics-0-SimplerEnv-Google-Robot`, `XiaomiRobotics/Xiaomi-Robotics-0-SimplerEnv-WidowX`, `XiaomiRobotics/Xiaomi-Robotics-0-Pretrain`.
-  overview_zh: |
-    Xiaomi-Robotics-0（XiaomiRobotics/Xiaomi-Robotics-0，Apache-2.0）是小米开源的 MiBoT VLA 动作块策略，发布六个权重，覆盖 LIBERO、CALVIN ABCD/ABC、SimplerEnv Google-Robot 与 WidowX，外加预训练基座。WorldFoundry 将官方权重侧 MiBoT 配置、模型与处理器代码扁平内嵌于 `worldfoundry/synthesis/action_generation/xiaomi_robotics_0`，加载时禁用 trust_remote_code，从不读取外部 GitHub checkout。六个发布权重全部在 A100 上通过严格恢复与有限值真实推理；预训练权重使用显式 DROID 相机/状态契约。
-
-    在 WorldFoundry 模型目录中，该条目以 `xiaomi-robotics-0` 收录于 `vla_va_wam` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/XiaomiRobotics/Xiaomi-Robotics-0；Hugging Face `XiaomiRobotics/Xiaomi-Robotics-0-LIBERO`、`XiaomiRobotics/Xiaomi-Robotics-0-Calvin-ABCD_D`、`XiaomiRobotics/Xiaomi-Robotics-0-Calvin-ABC_D`、`XiaomiRobotics/Xiaomi-Robotics-0-SimplerEnv-Google-Robot`、`XiaomiRobotics/Xiaomi-Robotics-0-SimplerEnv-WidowX`、`XiaomiRobotics/Xiaomi-Robotics-0-Pretrain`。
-  architecture: |
-    The catalog records the MiBoT model/processor stack with per-embodiment robot_type contracts: libero_all (base + left-wrist RGB, 10-step chunks), calvin_abcd_orig / calvin_abc_orig (base + left-wrist RGB, 10-step chunks), fractal_delta (one ego RGB view, 4-step chunks), bridge_delta (one base RGB view, 4-step chunks); base weights require explicit robot_type, camera_keys, view_labels, and a matching embodiment state schema, with 15- or 30-step action horizons depending on robot_type. Backbone identity and parameter count are not recorded in the repository.
-  architecture_zh: |
-    目录记录了 MiBoT 模型/处理器栈及分具身 robot_type 契约：libero_all（基座加左腕 RGB，10 步块）、calvin_abcd_orig / calvin_abc_orig（基座加左腕 RGB，10 步块）、fractal_delta（单路第一视角 RGB，4 步块）、bridge_delta（单路基座 RGB，4 步块）；基座权重需显式指定 robot_type、camera_keys、view_labels 与匹配的具身状态 schema，动作时程按 robot_type 为 15 或 30 步。骨干与参数量仓库未记录。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `xiaomi-robotics-0` and runtime profile `runtime-profile:xiaomi-robotics-0`.
-    Catalog integration status: `all_released_checkpoints_gpu_validated`.
-    Integration notes recorded in the catalog:
-    - The official checkpoint-side MiBoT configuration, model, and processor code is vendored flat under worldfoundry/synthesis/action_generation/xiaomi_robotics_0.
-    - Runtime loading uses explicit in-tree classes with trust_remote_code disabled and never imports or reads the external GitHub checkout.
-    - This is a VLA action-chunk policy, so action_generation is the correct synthesis family; it is not a visual/video world generator.
-    Recorded variant `xiaomi-robotics-0-libero`, task `vla.policy_rollout`.
-    Recorded variant `xiaomi-robotics-0-calvin-abcd`, task `vla.policy_rollout`.
-    Recorded variant `xiaomi-robotics-0-calvin-abc`, task `vla.policy_rollout`.
-    Recorded variant `xiaomi-robotics-0-simplerenv-google`, task `vla.policy_rollout`.
-    Recorded variant `xiaomi-robotics-0-simplerenv-widowx`, task `vla.policy_rollout`.
-    Recorded variant `xiaomi-robotics-0-pretrain`, task `vla.action_prediction`.
-
-    Embodiment contract:
-    - Simulator: none bundled — released checkpoints target LIBERO, CALVIN, and SimplerEnv environments; rollouts run through separate benchmark runners.
-    - Sensors: per-checkpoint RGB camera sets (base plus left-wrist for LIBERO/CALVIN, single ego or base view for SimplerEnv) plus an embodiment state schema selected by robot_type.
-    - Action space: action chunks whose horizon depends on robot_type: 10 steps for LIBERO/CALVIN, 4 steps for SimplerEnv, 15 or 30 steps for pretrain contracts.
-    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `xiaomi-robotics-0`，运行时配置为 `runtime-profile:xiaomi-robotics-0`。
-    目录集成状态：`all_released_checkpoints_gpu_validated`。
-    目录中记录的集成备注（保留原文）：
-    - The official checkpoint-side MiBoT configuration, model, and processor code is vendored flat under worldfoundry/synthesis/action_generation/xiaomi_robotics_0.
-    - Runtime loading uses explicit in-tree classes with trust_remote_code disabled and never imports or reads the external GitHub checkout.
-    - This is a VLA action-chunk policy, so action_generation is the correct synthesis family; it is not a visual/video world generator.
-    目录记录：变体 `xiaomi-robotics-0-libero`，任务 `vla.policy_rollout`。
-    目录记录：变体 `xiaomi-robotics-0-calvin-abcd`，任务 `vla.policy_rollout`。
-    目录记录：变体 `xiaomi-robotics-0-calvin-abc`，任务 `vla.policy_rollout`。
-    目录记录：变体 `xiaomi-robotics-0-simplerenv-google`，任务 `vla.policy_rollout`。
-    目录记录：变体 `xiaomi-robotics-0-simplerenv-widowx`，任务 `vla.policy_rollout`。
-    目录记录：变体 `xiaomi-robotics-0-pretrain`，任务 `vla.action_prediction`。
-
-    具身接口（embodiment contract）：
-    - 仿真器：不内置仿真器——发布权重面向 LIBERO、CALVIN 与 SimplerEnv 环境；rollout 由独立 benchmark runner 执行。
-    - 传感器：按权重配置的 RGB 相机组（LIBERO/CALVIN 为基座加左腕，SimplerEnv 为单路第一视角或基座视角），加由 robot_type 选择的具身状态 schema。
-    - 动作空间：动作块时程随 robot_type 而变：LIBERO/CALVIN 为 10 步，SimplerEnv 为 4 步，预训练契约为 15 或 30 步。
-    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`all_released_checkpoints_gpu_validated`.
-    Runner parity notes recorded in the catalog:
-    - All six released checkpoints passed strict restoration and finite real Workspace inference on A100; pretrain used the explicit DROID camera/state contract.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=`all_released_checkpoints_gpu_validated`。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - All six released checkpoints passed strict restoration and finite real Workspace inference on A100; pretrain used the explicit DROID camera/state contract.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Xiaomi Robotics
+  publisher_kind: company
+  publisher_zh: 小米机器人（Xiaomi Robotics）
+  overview: 'Xiaomi-Robotics-0 is Xiaomi''s open VLA policy line with an unusually complete Apache-2.0 benchmark zoo: confirmed checkpoints for LIBERO, CALVIN ABCD-D, CALVIN ABC-D, SimplerEnv Google Robot, and SimplerEnv WidowX, all revision-pinned. The LIBERO checkpoint is the catalog default.'
+  overview_zh: Xiaomi-Robotics-0 是小米的开放 VLA 策略线，Apache-2.0 基准阵容非常完整：LIBERO、 CALVIN ABCD-D、CALVIN ABC-D、SimplerEnv Google Robot 与 SimplerEnv WidowX 的 checkpoint 均已确认并锁定 revision。catalog 默认为 LIBERO checkpoint。
+  architecture: Architecture internals are not recorded in this repository beyond the official repository pointer (XiaomiRobotics/Xiaomi-Robotics-0); the released checkpoints share one policy design fine-tuned per benchmark.
+  architecture_zh: 除官方仓库指针（XiaomiRobotics/Xiaomi-Robotics-0）外，架构内部细节仓库未记录；发布的 checkpoint 共享同一策略设计，按基准分别微调。
+  usage_notes: 'Pick the checkpoint matching your benchmark: LIBERO, either CALVIN split, or the SimplerEnv embodiments. For the newer generation see xiaomi-robotics-1.'
+  usage_notes_zh: 按基准选择 checkpoint：LIBERO、任一 CALVIN 划分或 SimplerEnv 本体。更新一代请见 xiaomi-robotics-1。
+  limitations:
+  - GPU rollout validation is not recorded in this repository.
+  limitations_zh:
+  - 仓库未记录 GPU rollout 验证。
   recommended_benchmarks:
-  - libero
-  - calvin
-  - simpler-env
+  - id: libero
+    reason: Dedicated LIBERO policy checkpoint.
+    reason_zh: 有专门的 LIBERO 策略 checkpoint。
+  - id: calvin
+    reason: Dedicated CALVIN ABCD-D and ABC-D checkpoints.
+    reason_zh: 有专门的 CALVIN ABCD-D 与 ABC-D checkpoint。
+  - id: simpler-env
+    reason: Dedicated Google Robot and WidowX checkpoints.
+    reason_zh: 有专门的 Google Robot 与 WidowX checkpoint。

@@ -54,57 +54,22 @@ catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance,
   metadata, and runtime-profile planning records. Runner or pipeline targets are present
   only after a complete in-tree WorldFoundry model runtime is registered and validated.
 docs:
-  overview: |
-    SmolVLA (huggingface/lerobot) is Hugging Face's compact open VLA (about 450M parameters) designed to run on consumer hardware and trained entirely on community-contributed LeRobot datasets. WorldFoundry's in-tree runtime preserves the official flow-matching architecture, preprocessing, and strict checkpoint structure, with local-only loading and no external source checkout. The LIBERO task checkpoint (`HuggingFaceVLA/smolvla_libero`) is the rollout default; the multi-robot foundation checkpoint (`lerobot/smolvla_base`) lacks canonical state statistics and remains a non-default fine-tuning asset.
-
-    Within the WorldFoundry model catalog this entry is tracked as `smolvla` in the `vla_va_wam` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/huggingface/lerobot; Hugging Face `HuggingFaceVLA/smolvla_libero`, `lerobot/smolvla_base`, `HuggingFaceTB/SmolVLM2-500M-Video-Instruct`.
-  overview_zh: |
-    SmolVLA（huggingface/lerobot）是 Hugging Face 的紧凑型开源 VLA（约 4.5 亿参数），面向消费级硬件设计，完全在社区贡献的 LeRobot 数据集上训练。WorldFoundry 树内运行时保留官方 flow-matching 架构、预处理与严格权重结构，仅本地加载、不导入外部源码 checkout。LIBERO 任务权重（`HuggingFaceVLA/smolvla_libero`）为 rollout 默认；多机器人基础权重（`lerobot/smolvla_base`）缺少规范状态统计，仅作为非默认微调资产。
-
-    在 WorldFoundry 模型目录中，该条目以 `smolvla` 收录于 `vla_va_wam` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/huggingface/lerobot；Hugging Face `HuggingFaceVLA/smolvla_libero`、`lerobot/smolvla_base`、`HuggingFaceTB/SmolVLM2-500M-Video-Instruct`。
-  architecture: |
-    The published architecture pairs a trimmed SmolVLM2 backbone (SigLIP vision encoder plus a small language model, with early-exit layer skipping) with a flow-matching action expert that alternates cross-attention and self-attention layers to decode continuous action chunks from visual features, sensorimotor state, and the instruction; asynchronous inference decouples action prediction from execution.
-  architecture_zh: |
-    公开架构将裁剪过的 SmolVLM2 骨干（SigLIP 视觉编码器加小型语言模型，带提前退出的层跳过）与 flow-matching 动作专家配对：动作专家交替使用交叉注意力与自注意力层，从视觉特征、感知运动状态与指令解码连续动作块；异步推理将动作预测与执行解耦。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `smolvla` and runtime profile `runtime-profile:smolvla`.
-    Catalog integration status: `runtime_ported`.
-    Integration notes recorded in the catalog:
-    - The in-tree runtime preserves the official flow-matching architecture, preprocessing, and strict checkpoint structure.
-    - Runtime loading is local-only and does not import an external source checkout.
-    - The LIBERO task checkpoint is the rollout default; the multi-robot foundation checkpoint lacks canonical state statistics and remains a non-default fine-tuning asset.
-    Recorded variant `smolvla-libero`, task `vla.policy_rollout`.
-    Recorded variant `smolvla-base`, task `vla.pretraining`.
-
-    Embodiment contract:
-    - Simulator: none bundled — the default rollout checkpoint targets the LIBERO benchmark environments; rollouts run through separate benchmark runners.
-    - Sensors: multi-view RGB observations plus sensorimotor state and a language instruction, per the official LeRobot preprocessing.
-    - Action space: continuous action chunks from the flow-matching expert; dimensionality follows the trained checkpoint (LIBERO manipulation for the default).
-    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `smolvla`，运行时配置为 `runtime-profile:smolvla`。
-    目录集成状态：运行时已移植（runtime_ported）。
-    目录中记录的集成备注（保留原文）：
-    - The in-tree runtime preserves the official flow-matching architecture, preprocessing, and strict checkpoint structure.
-    - Runtime loading is local-only and does not import an external source checkout.
-    - The LIBERO task checkpoint is the rollout default; the multi-robot foundation checkpoint lacks canonical state statistics and remains a non-default fine-tuning asset.
-    目录记录：变体 `smolvla-libero`，任务 `vla.policy_rollout`。
-    目录记录：变体 `smolvla-base`，任务 `vla.pretraining`。
-
-    具身接口（embodiment contract）：
-    - 仿真器：不内置仿真器——默认 rollout 权重面向 LIBERO 基准环境；rollout 由独立 benchmark runner 执行。
-    - 传感器：多视角 RGB 观测加感知运动状态与语言指令，遵循官方 LeRobot 预处理。
-    - 动作空间：flow-matching 专家输出的连续动作块；维度取决于所训练权重（默认权重为 LIBERO 操作）。
-    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
-  limitations: |
-    No family-level demo/runner parity status is recorded in this catalog file.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件未记录家族级 demo/runner 一致性状态。
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Hugging Face (LeRobot)
+  publisher_kind: company
+  publisher_zh: Hugging Face（LeRobot）
+  overview: 'SmolVLA is Hugging Face''s compact community VLA: a SmolVLM2-500M vision-language backbone with a flow-matching action expert, small enough for consumer hardware. The catalog records the HuggingFaceVLA/smolvla_libero task checkpoint (manifest and normalization schema validated) as the rollout default, with lerobot/smolvla_base as a fine-tuning asset.'
+  overview_zh: SmolVLA 是 Hugging Face 的紧凑社区 VLA：SmolVLM2-500M 视觉-语言骨干配 flow-matching 动作专家，小到可在消费级硬件运行。catalog 记录 HuggingFaceVLA/smolvla_libero 任务 checkpoint （manifest 与归一化 schema 已验证）为 rollout 默认，lerobot/smolvla_base 为微调资产。
+  architecture: 'The official flow-matching architecture is preserved in-tree with strict checkpoint structure: SmolVLM2-500M-Video-Instruct as the pinned vision-language backbone plus the flow action expert. Runtime loading is local-only with no external source checkout.'
+  architecture_zh: 官方 flow-matching 架构以严格 checkpoint 结构保留在树内：锁定的 SmolVLM2-500M-Video-Instruct 视觉-语言骨干加 flow 动作专家。运行时仅本地加载，无外部源码 checkout。
+  usage_notes: Use smolvla_libero for rollouts; the multi-robot base checkpoint lacks canonical state statistics and remains a non-default fine-tuning asset.
+  usage_notes_zh: rollout 用 smolvla_libero；多机器人 base checkpoint 缺少规范状态统计，仅作为非默认微调资产。
+  limitations:
+  - The base checkpoint is not rollout-ready (missing canonical state statistics).
+  - No license is recorded in this repository.
+  limitations_zh:
+  - base checkpoint 不可直接 rollout（缺少规范状态统计）。
+  - 仓库未记录许可证。
   recommended_benchmarks:
-  - libero
+  - id: libero
+    reason: The validated rollout default is the LIBERO task checkpoint.
+    reason_zh: 已验证的 rollout 默认为 LIBERO 任务 checkpoint。

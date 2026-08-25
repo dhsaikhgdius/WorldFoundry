@@ -32,53 +32,22 @@ catalog_scope: World-model catalog entries. Integrated entries expose in-tree Wo
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 pipeline_binding: vggt-world
 docs:
-  overview: |
-    VGGT-World (SimonSun0810/VGGT-World) is a world-model route combining video generation with 3D scene understanding: recorded modalities are world-model, 3d-scene-understanding, and video-generation, and the name indicates it builds on the VGGT feed-forward 3D geometry transformer lineage. WorldFoundry registers the official source route; checkpoints and assets are runtime-gated, so real generation emits a runtime plan until required assets are staged.
-
-    Within the WorldFoundry model catalog this entry is tracked as `vggt-world` in the `world_models` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/SimonSun0810/VGGT-World.
-  overview_zh: |
-    VGGT-World（SimonSun0810/VGGT-World）是将视频生成与 3D 场景理解结合的世界模型路线：记录模态为 world-model、3d-scene-understanding 与 video-generation，命名表明它构建于 VGGT 前馈 3D 几何 transformer 谱系。WorldFoundry 注册官方源码路线；权重与资产受运行时门控，在暂存所需资产之前，真实生成输出运行时计划。
-
-    在 WorldFoundry 模型目录中，该条目以 `vggt-world` 收录于 `world_models` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/SimonSun0810/VGGT-World。
-  architecture: |
-    Beyond the modality tags (world model with 3D scene understanding plus video generation) and the registered source route, the repository does not record architecture details (how VGGT geometry features couple to the generator, backbone, parameter count) for this entry.
-  architecture_zh: |
-    除模态标签（带 3D 场景理解与视频生成的世界模型）与已注册源码路线外，仓库未记录该条目的架构细节（VGGT 几何特征如何与生成器耦合、骨干、参数量）。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `vggt-world` and runtime profile `runtime-profile:vggt-world`.
-    Catalog integration status: `runtime_ported`.
-    Integration notes recorded in the catalog:
-    - VGGT-World official source route is registered; checkpoints/assets are runtime-gated.
-
-    Embodiment contract:
-    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
-    - Sensors: conditioning inputs per the recorded modalities (typically an initial image and/or a text prompt); exact tensor contracts are not recorded in this catalog file.
-    - Action space: no explicit action interface is recorded for this entry; controllability is limited to the conditioning inputs.
-    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `vggt-world`，运行时配置为 `runtime-profile:vggt-world`。
-    目录集成状态：运行时已移植（runtime_ported）。
-    目录中记录的集成备注（保留原文）：
-    - VGGT-World official source route is registered; checkpoints/assets are runtime-gated.
-
-    具身接口（embodiment contract）：
-    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
-    - 传感器：按记录的模态提供条件输入（通常为初始图像和/或文本提示）；具体张量契约本目录文件未记录。
-    - 动作空间：该条目未记录显式动作接口；可控性仅限于条件输入。
-    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`implemented_checkpoint_pending`.
-    Runner parity notes recorded in the catalog:
-    - resolve_model_zoo_config and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已实现、待权重就绪（implemented_checkpoint_pending）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - resolve_model_zoo_config and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Open-source research release (institution not recorded)
+  publisher_kind: lab
+  publisher_zh: 开源研究发布（仓库未记录正式机构）
+  overview: 'VGGT-World builds a world model on top of VGGT-style 3D scene understanding: it couples geometry-grounded scene perception with video generation so rollouts stay consistent with the underlying 3D structure. WorldFoundry registers the official source route in-tree (paper: arXiv 2603.12655); checkpoints and assets are runtime-gated.'
+  overview_zh: VGGT-World 在 VGGT 式 3D 场景理解之上构建世界模型：将几何锚定的场景感知与视频生成耦合，使滚动生成与底层 3D 结构保持一致。WorldFoundry 树内注册了官方源码路由（论文：arXiv 2603.12655）； checkpoint 与资产为运行时门控。
+  architecture: Beyond the recorded official repository (SimonSun0810/VGGT-World, pinned head c90f5ee2) and the arXiv paper pointer, architecture internals are not recorded in this repository.
+  architecture_zh: 除记录的官方仓库（SimonSun0810/VGGT-World，锁定 head c90f5ee2）与 arXiv 论文指针外，架构内部细节仓库未记录。
+  usage_notes: Config resolution and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged. Missing assets are reported by the plan and are not treated as catalog blockers.
+  usage_notes_zh: 配置解析与 pipeline 导入预期可通过；在所需 checkpoint/资产就位前，真实生成会输出运行时计划。缺失资产由计划报告，不视为 catalog 阻塞。
+  limitations:
+  - Root license is under manual review (missing root license upstream).
+  - Checkpoints/assets are runtime-gated; no GPU validation is recorded in this repository.
+  limitations_zh:
+  - 根许可证处于人工审查状态（上游缺失根 LICENSE）。
+  - checkpoint/资产为运行时门控；仓库未记录 GPU 验证。
   recommended_benchmarks:
-  - worldscore
+  - id: worldscore
+    reason: Unified world-generation quality across 3D-grounded rollouts.
+    reason_zh: 3D 锚定滚动生成的统一世界生成质量。

@@ -48,55 +48,20 @@ catalog_policy:
     Hugging Face model page was confirmed. Do not infer checkpoint availability from
     papers, demos, or third-party mirrors.
 docs:
-  overview: |
-    InSpatio-WorldFM (inspatio/worldfm; Hugging Face `inspatio/WorldFM`, Apache-2.0) is InSpatio's 3D world foundation model for spatial intelligence and frame generation. The WorldFoundry runner supports the official meta.json demo in the unified environment profile with local WorldFM assets, and the in-tree runner emits the official video and panorama artifact structure; both integration and runner status are verified.
-
-    Within the WorldFoundry model catalog this entry is tracked as `worldfm` in the `world_models` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/inspatio/worldfm; Hugging Face `inspatio/WorldFM`.
-  overview_zh: |
-    InSpatio-WorldFM（inspatio/worldfm；Hugging Face `inspatio/WorldFM`，Apache-2.0）是 InSpatio 面向空间智能与帧生成的 3D 世界基础模型。WorldFoundry runner 在统一环境配置中以本地 WorldFM 资产支持官方 meta.json 演示，树内 runner 输出官方的视频与全景 artifact 结构；集成与 runner 状态均为已验证。
-
-    在 WorldFoundry 模型目录中，该条目以 `worldfm` 收录于 `world_models` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/inspatio/worldfm；Hugging Face `inspatio/WorldFM`。
-  architecture: |
-    Recorded modalities are 3d-world-model, spatial-intelligence, and frame-generation, and the recorded artifact structure covers both video and panorama outputs driven by a meta.json job description. Beyond this contract, the repository does not record architecture details (backbone, parameter count, training data) for this entry.
-  architecture_zh: |
-    记录模态为 3d-world-model、spatial-intelligence 与 frame-generation，记录的 artifact 结构覆盖由 meta.json 作业描述驱动的视频与全景两类输出。除该契约外，仓库未记录该条目的架构细节（骨干、参数量、训练数据）。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `worldfm` and runtime profile `runtime-profile:worldfm`.
-    Catalog integration status: `verified`.
-    Integration notes recorded in the catalog:
-    - The WorldFoundry runner supports the official meta.json demo in the unified environment profile with local WorldFM assets.
-
-    Embodiment contract:
-    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
-    - Sensors: conditioning inputs per the recorded modalities (typically an initial image and/or a text prompt); exact tensor contracts are not recorded in this catalog file.
-    - Action space: no explicit action interface is recorded for this entry; controllability is limited to the conditioning inputs.
-    - Dedicated environment: outputs follow the official video-plus-panorama artifact structure; no dedicated external environment is required.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `worldfm`，运行时配置为 `runtime-profile:worldfm`。
-    目录集成状态：已验证（verified）。
-    目录中记录的集成备注（保留原文）：
-    - The WorldFoundry runner supports the official meta.json demo in the unified environment profile with local WorldFM assets.
-
-    具身接口（embodiment contract）：
-    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
-    - 传感器：按记录的模态提供条件输入（通常为初始图像和/或文本提示）；具体张量契约本目录文件未记录。
-    - 动作空间：该条目未记录显式动作接口；可控性仅限于条件输入。
-    - 是否专用环境：输出遵循官方视频加全景 artifact 结构；不需要专用外部环境。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`verified`.
-    Runner parity notes recorded in the catalog:
-    - The in-tree WorldFM runner emits the official video and panorama artifact structure.
-    - Per-run artifact checks are tracked outside the model catalog.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已验证（verified）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - The in-tree WorldFM runner emits the official video and panorama artifact structure.
-    - Per-run artifact checks are tracked outside the model catalog.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: InSpatio
+  publisher_kind: company
+  publisher_zh: InSpatio
+  overview: 'InSpatio-WorldFM is a 3D world foundation model for spatial intelligence and frame generation, released with confirmed code and weights (inspatio/WorldFM on Hugging Face, Apache-2.0). In this catalog the integration is verified: the WorldFoundry runner supports the official meta.json demo in the unified environment profile with local WorldFM assets, and emits the official video and panorama artifact structure.'
+  overview_zh: InSpatio-WorldFM 是面向空间智能与帧生成的 3D 世界基础模型，代码与权重均已确认发布（Hugging Face 上的 inspatio/WorldFM，Apache-2.0）。本 catalog 中集成状态为 verified：WorldFoundry runner 支持统一环境 profile 下官方 meta.json demo 与本地 WorldFM 资产，并输出官方的视频与全景图产物结构。
+  architecture: Outputs cover both video and panorama artifacts, reflecting a world-generation design that renders beyond a single fixed viewport. Architecture internals beyond the official repository and checkpoint pointers are not recorded in this repository.
+  architecture_zh: 输出同时覆盖视频与全景图产物，体现其超越单一固定视口的世界生成设计。官方仓库与 checkpoint 指针之外的架构内部细节仓库未记录。
+  usage_notes: Drive runs through the official meta.json demo format with local WorldFM assets staged. Per-run artifact checks are tracked outside the model catalog.
+  usage_notes_zh: 通过官方 meta.json demo 格式驱动运行，并就位本地 WorldFM 资产。每次运行的产物检查在模型 catalog 外跟踪。
+  limitations:
+  - Per-run visual QA is tracked outside the catalog; verified status covers the runner path, not output quality.
+  limitations_zh:
+  - 每次运行的视觉 QA 在 catalog 外跟踪；verified 状态覆盖 runner 路径，不代表输出质量评级。
   recommended_benchmarks:
-  - worldscore
+  - id: worldscore
+    reason: Unified world-generation quality for 3D world output.
+    reason_zh: 3D 世界输出的统一世界生成质量。

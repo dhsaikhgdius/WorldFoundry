@@ -36,56 +36,18 @@ catalog_scope: Independent geometric prior integrations used by 3D and world-mod
   runtimes.
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 docs:
-  overview: |
-    Video Depth Anything is the temporally consistent video-depth extension of Depth Anything V2: it targets arbitrarily long videos with stable depth across frames, without sacrificing per-frame quality or speed. WorldFoundry integrates it as an independent temporal depth prior at `worldfoundry/base_models/three_dimensions/depth/videodepthanything`; VIPE pipeline profiles can choose this prior through shared runtime config without owning the code.
-
-    Within the WorldFoundry model catalog this entry is tracked as `video-depth-anything-prior` in the `three_d_four_d` category.
-    The repository does not record an official source link for this entry.
-  overview_zh: |
-    Video Depth Anything 是 Depth Anything V2 的时序一致视频深度扩展：面向任意长度视频输出跨帧稳定的深度，同时不牺牲单帧质量与速度。WorldFoundry 将其作为独立时序深度先验集成于 `worldfoundry/base_models/three_dimensions/depth/videodepthanything`；VIPE 管线配置可经共享运行时配置选择该先验，而无需持有其代码。
-
-    在 WorldFoundry 模型目录中，该条目以 `video-depth-anything-prior` 收录于 `three_d_four_d` 分类。
-    仓库未记录该条目的官方来源链接。
-  architecture: |
-    The published design keeps the Depth Anything V2 encoder and replaces the head with a spatiotemporal module that applies temporal attention over a sliding window of frames, trained with a temporal-gradient consistency loss on video data; a keyframe-based overlap strategy stitches windows so arbitrarily long videos stay consistent without accumulating drift.
-  architecture_zh: |
-    公开设计保留 Depth Anything V2 编码器，把输出头替换为时空模块——在滑动帧窗口上做时间注意力，用时间梯度一致性损失在视频数据上训练；基于关键帧的重叠拼接策略使任意长度视频保持一致且不累计漂移。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` and runtime profile `runtime-profile:video-depth-anything-prior`.
-    Catalog integration status: `integrated`.
-    Integration notes recorded in the catalog:
-    - Integrated as an independent temporal depth prior at worldfoundry/base_models/three_dimensions/depth/videodepthanything.
-    - VIPE pipeline profiles can choose this prior through shared runtime config without owning the code.
-    - Exposed through the shared WorldFoundry geometry-prior pipeline/operator contract.
-
-    Embodiment contract:
-    - Simulator: none — this entry is an offline geometric prior invoked by other WorldFoundry pipelines, not a simulator-driven model.
-    - Sensors: monocular RGB video; no additional sensor modalities are recorded in the repository.
-    - Action space: not applicable — priors are pure perception modules without an action interface.
-    - Dedicated environment: no dedicated environment; it is exposed through the shared WorldFoundry geometry-prior pipeline/operator contract.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，运行时配置为 `runtime-profile:video-depth-anything-prior`。
-    目录集成状态：已集成（integrated）。
-    目录中记录的集成备注（保留原文）：
-    - Integrated as an independent temporal depth prior at worldfoundry/base_models/three_dimensions/depth/videodepthanything.
-    - VIPE pipeline profiles can choose this prior through shared runtime config without owning the code.
-    - Exposed through the shared WorldFoundry geometry-prior pipeline/operator contract.
-
-    具身接口（embodiment contract）：
-    - 仿真器：无——该条目是被其它 WorldFoundry 管线调用的离线几何先验，不涉及仿真器。
-    - 传感器：单目 RGB 视频；仓库未记录其它传感器模态。
-    - 动作空间：不适用——先验模块为纯感知组件，没有动作接口。
-    - 是否专用环境：无专用环境；通过 WorldFoundry 共享几何先验 pipeline/operator 契约暴露。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`implemented_checkpoint_pending`.
-    Runner parity notes recorded in the catalog:
-    - resolve_model_zoo_config and pipeline/operator import are expected to pass; real prior inference remains gated by checkpoints/assets.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已实现、待权重就绪（implemented_checkpoint_pending）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - resolve_model_zoo_config and pipeline/operator import are expected to pass; real prior inference remains gated by checkpoints/assets.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
-  recommended_benchmarks: []
+  publisher: ByteDance
+  publisher_kind: company
+  publisher_zh: 字节跳动
+  overview: 'Video Depth Anything brings temporal consistency to the Depth Anything family: it estimates depth over arbitrarily long videos without the flicker of frame-by-frame estimation. In this catalog it is an independent temporal depth prior that VIPE pipeline profiles can select through shared runtime config without owning the code.'
+  overview_zh: Video Depth Anything 为 Depth Anything 家族带来时序一致性：在任意长度的视频上估计深度，避免逐帧估计的闪烁。本 catalog 中它是独立的时序深度先验，VIPE pipeline 档案可通过共享运行时配置选用它，而无需持有其代码。
+  architecture: Per the upstream release, a spatiotemporal head with a temporal-gradient consistency objective extends Depth Anything V2 to video, plus a keyframe strategy for long sequences. The recorded checkpoint is depth-anything/Video-Depth-Anything-Large (apache-2.0); registered at base_models/three_dimensions/depth/videodepthanything.
+  architecture_zh: 按上游发布，时空头加时间梯度一致性目标把 Depth Anything V2 扩展到视频，并用关键帧策略处理长序列。记录的 checkpoint 为 depth-anything/Video-Depth-Anything-Large（apache-2.0）；注册于 base_models/three_dimensions/depth/videodepthanything。
+  usage_notes: It is integrated as an independent geometry prior under worldfoundry/base_models and exposed through the shared geometry-prior pipeline/operator contract. Higher-level pipelines (e.g. ViPE) import it from this canonical owner instead of keeping private copies. Config resolution and pipeline/operator import are expected to pass; real prior inference remains checkpoint-gated.
+  usage_notes_zh: 它作为独立几何先验集成在 worldfoundry/base_models 下，通过共享的 geometry-prior pipeline/operator 契约对外暴露。上层管线（如 ViPE）从这一规范位置导入它，而不是各自保留私有副本。配置解析与 pipeline/operator 导入预期可通过；真实先验推理仍受 checkpoint 限制。
+  limitations:
+  - 'Checkpoint-gated: real inference needs the staged Video-Depth-Anything-Large weights.'
+  - Relative depth focus — pair with a metric prior when metric scale is required.
+  limitations_zh:
+  - 受 checkpoint 限制：真实推理需要就位的 Video-Depth-Anything-Large 权重。
+  - 以相对深度为主——需要米制尺度时请与米制先验配合。

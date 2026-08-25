@@ -48,58 +48,22 @@ catalog_policy:
     Hugging Face model page was confirmed. Do not infer checkpoint availability from
     papers, demos, or third-party mirrors.
 docs:
-  overview: |
-    CameraCtrl (hehao13/CameraCtrl, MIT) is the widely used plug-and-play camera-pose control module for video diffusion: it trains a camera encoder over Plücker-embedded pose sequences and injects the features into a frozen text-to-video generator, enabling accurate, generalizable viewpoint control. WorldFoundry provides an in-tree synthesis backend under `worldfoundry/synthesis/visual_generation/cameractrl/cameractrl_runtime` following the official demo trajectory contract; checkpoints remain external assets under the normal hfd/ckpt cache, and the official trajectory text-to-video demo is supported in the unified environment profile.
-
-    Within the WorldFoundry model catalog this entry is tracked as `cameractrl` in the `world_models` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/hehao13/CameraCtrl; Hugging Face `hehao13/CameraCtrl`.
-  overview_zh: |
-    CameraCtrl（hehao13/CameraCtrl，MIT）是广泛使用的即插即用视频扩散相机位姿控制模块：在 Plücker 嵌入的位姿序列上训练相机编码器，并把特征注入冻结的文本到视频生成器，实现精确、可泛化的视角控制。WorldFoundry 在 `worldfoundry/synthesis/visual_generation/cameractrl/cameractrl_runtime` 提供树内合成后端，遵循官方演示轨迹契约；权重保留为常规 hfd/ckpt 缓存下的外部资产，官方轨迹文本到视频演示在统一环境配置中受支持。
-
-    在 WorldFoundry 模型目录中，该条目以 `cameractrl` 收录于 `world_models` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/hehao13/CameraCtrl；Hugging Face `hehao13/CameraCtrl`。
-  architecture: |
-    The published architecture keeps the base video diffusion model (originally AnimateDiff/SVD variants) frozen and adds a camera encoder that turns per-frame Plücker embeddings of camera extrinsics into multi-scale features, injected into the temporal attention layers. Only the camera modules are trained, which is what makes the module plug-and-play across compatible backbones.
-  architecture_zh: |
-    公开架构冻结基座视频扩散模型（最初为 AnimateDiff/SVD 变体），增加相机编码器：把逐帧相机外参的 Plücker 嵌入转为多尺度特征并注入时间注意力层。仅训练相机模块，因此可在兼容骨干间即插即用。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `cameractrl` and runtime profile `runtime-profile:cameractrl`.
-    Catalog integration status: `verified`.
-    Integration notes recorded in the catalog:
-    - Runtime code is vendored in-tree; checkpoints remain external assets under the normal hfd/ckpt cache.
-    - The WorldFoundry runner supports the official trajectory text-to-video demo in the unified environment profile.
-
-    Embodiment contract:
-    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
-    - Sensors: an initial image (and optionally a text prompt) plus a camera trajectory / pose sequence as the control signal.
-    - Action space: the action channel is the camera trajectory (extrinsics/pose sequence); the model renders the world consistently along the requested path.
-    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `cameractrl`，运行时配置为 `runtime-profile:cameractrl`。
-    目录集成状态：已验证（verified）。
-    目录中记录的集成备注（保留原文）：
-    - Runtime code is vendored in-tree; checkpoints remain external assets under the normal hfd/ckpt cache.
-    - The WorldFoundry runner supports the official trajectory text-to-video demo in the unified environment profile.
-
-    具身接口（embodiment contract）：
-    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
-    - 传感器：初始图像（可选文本提示）加相机轨迹/位姿序列作为控制信号。
-    - 动作空间：动作通道为相机轨迹（外参/位姿序列）；模型沿请求路径一致地渲染世界。
-    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`verified`.
-    Runner parity notes recorded in the catalog:
-    - WorldFoundry now provides an in-tree CameraCtrl synthesis backend under worldfoundry/synthesis/visual_generation/cameractrl/cameractrl_runtime. The runner follows the official demo trajectory contract.
-    - Per-run artifact checks are tracked outside the model catalog.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已验证（verified）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - WorldFoundry now provides an in-tree CameraCtrl synthesis backend under worldfoundry/synthesis/visual_generation/cameractrl/cameractrl_runtime. The runner follows the official demo trajectory contract.
-    - Per-run artifact checks are tracked outside the model catalog.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: The Chinese University of Hong Kong / Shanghai AI Laboratory
+  publisher_kind: university
+  publisher_zh: 香港中文大学 / 上海人工智能实验室
+  overview: 'CameraCtrl pioneered plug-and-play camera control for text-to-video diffusion: it trains a camera encoder over Plücker embeddings so trajectories can steer generation without retraining the base model. In this catalog both integration and runner are verified — the in-tree synthesis backend follows the official trajectory text-to-video demo contract in the unified environment profile.'
+  overview_zh: CameraCtrl 开创了文生视频扩散的即插即用相机控制：基于 Plücker 嵌入训练相机编码器，让轨迹无需重训基座即可操控生成。本 catalog 中集成与 runner 均已验证——树内合成后端在统一环境档案中遵循官方轨迹文生视频 demo 契约。
+  architecture: Per the publication (arXiv 2404.02101), camera poses are encoded as Plücker embeddings and injected through a trainable camera encoder attached to a frozen video diffusion base (AnimateDiff in the official release). WorldFoundry vendors the runtime under synthesis/visual_generation/cameractrl/cameractrl_runtime; checkpoints stay in the normal hfd/ckpt cache.
+  architecture_zh: 按论文（arXiv 2404.02101），相机位姿编码为 Plücker 嵌入，通过可训练的相机编码器注入冻结的视频扩散基座（官方版基于 AnimateDiff）。WorldFoundry 将运行时内置于 synthesis/visual_generation/cameractrl/cameractrl_runtime；checkpoint 保存在常规 hfd/ckpt 缓存。
+  usage_notes: The runner follows the official demo trajectory contract — supply a camera trajectory file and a text prompt. Per-run artifact checks are tracked outside the catalog.
+  usage_notes_zh: runner 遵循官方 demo 轨迹契约——提供相机轨迹文件与文本提示词即可。每次运行的产物检查在 catalog 外跟踪。
+  limitations:
+  - 'Built over an AnimateDiff-era base: visual quality trails newer DiT video models.'
+  - Camera control fidelity depends on trajectories similar to the RealEstate10K training distribution.
+  limitations_zh:
+  - 基于 AnimateDiff 时代的基座：画质弱于较新的 DiT 视频模型。
+  - 相机控制保真度依赖与 RealEstate10K 训练分布相近的轨迹。
   recommended_benchmarks:
-  - wrbench
-  - camerabench
+  - id: camerabench
+    reason: The standard camera-trajectory adherence evaluation.
+    reason_zh: 相机轨迹贴合度的标准评测。

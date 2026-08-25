@@ -16,54 +16,22 @@ integration:
 runner_parity: {status: pending, notes: [Dedicated 14B camera checkpoint route is wired.]}
 catalog_category: world_models
 docs:
-  overview: |
-    Wan2.1-Fun V1.1 14B Control Camera is the 14B camera-control checkpoint of Alibaba PAI's VideoX-Fun project: an image-to-video generator on the Wan2.1 14B backbone conditioned on camera pose sequences. WorldFoundry vendors the VideoX-Fun source at revision 403f1f7b78dcafccc4f6606dda4ec28e16e667dc and wires a dedicated 14B camera checkpoint route; runner parity is pending, while the sibling 1.3B route has already passed real A100 inference, giving the family a validated code path.
-
-    Within the WorldFoundry model catalog this entry is tracked as `wan21-fun-14b-cam` in the `world_models` category.
-    The repository does not record an official source link for this entry.
-  overview_zh: |
-    Wan2.1-Fun V1.1 14B Control Camera 是阿里 PAI VideoX-Fun 项目的 14B 相机控制权重：基于 Wan2.1 14B 骨干、以相机位姿序列为条件的图像到视频生成器。WorldFoundry 以修订号 403f1f7b78dcafccc4f6606dda4ec28e16e667dc 内嵌 VideoX-Fun 源码并接通专用 14B 相机权重路线；runner 一致性待验证，而同族 1.3B 路线已通过真实 A100 推理，说明该家族代码路径已被验证。
-
-    在 WorldFoundry 模型目录中，该条目以 `wan21-fun-14b-cam` 收录于 `world_models` 分类。
-    仓库未记录该条目的官方来源链接。
-  architecture: |
-    The VideoX-Fun Control-Camera design augments the Wan2.1 image-to-video diffusion transformer with camera-pose conditioning so the generated clip follows the requested viewpoint path; this entry is the 14B-parameter variant. Beyond the vendored source revision and the checkpoint route, the repository does not record further architecture details for this entry.
-  architecture_zh: |
-    VideoX-Fun Control-Camera 设计在 Wan2.1 图像到视频扩散 transformer 上增加相机位姿条件，使生成片段跟随请求视角路径；该条目为 14B 参数变体。除内嵌源码修订号与权重路线外，仓库未记录该条目更多架构细节。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `wan21-fun-14b-cam` and runtime profile `runtime-profile:wan21-fun-14b-cam`.
-    Catalog integration status: `integrated`.
-    Integration notes recorded in the catalog:
-    - VideoX-Fun source is vendored at revision 403f1f7b78dcafccc4f6606dda4ec28e16e667dc.
-
-    Embodiment contract:
-    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
-    - Sensors: an initial image (and optionally a text prompt) plus a camera trajectory / pose sequence as the control signal.
-    - Action space: the action channel is the camera trajectory (extrinsics/pose sequence); the model renders the world consistently along the requested path.
-    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `wan21-fun-14b-cam`，运行时配置为 `runtime-profile:wan21-fun-14b-cam`。
-    目录集成状态：已集成（integrated）。
-    目录中记录的集成备注（保留原文）：
-    - VideoX-Fun source is vendored at revision 403f1f7b78dcafccc4f6606dda4ec28e16e667dc.
-
-    具身接口（embodiment contract）：
-    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
-    - 传感器：初始图像（可选文本提示）加相机轨迹/位姿序列作为控制信号。
-    - 动作空间：动作通道为相机轨迹（外参/位姿序列）；模型沿请求路径一致地渲染世界。
-    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`pending`.
-    Runner parity notes recorded in the catalog:
-    - Dedicated 14B camera checkpoint route is wired.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=待验证（pending）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - Dedicated 14B camera checkpoint route is wired.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Alibaba PAI (VideoX-Fun)
+  publisher_kind: company
+  publisher_zh: 阿里云 PAI（VideoX-Fun）
+  overview: 'Wan2.1-Fun V1.1 14B Control Camera is Alibaba PAI''s largest Wan2.1-generation camera-control checkpoint in the VideoX-Fun family: image-to-video generation steered by explicit camera pose sequences. WorldFoundry vendors VideoX-Fun in-tree (revision 403f1f7b) and wires a dedicated route for the alibaba-pai/Wan2.1-Fun-V1.1-14B-Control-Camera checkpoint under Apache-2.0.'
+  overview_zh: Wan2.1-Fun V1.1 14B Control Camera 是阿里云 PAI 在 VideoX-Fun 家族中 Wan2.1 世代最大的相机控制 checkpoint：由显式相机位姿序列操控的图生视频。WorldFoundry 将 VideoX-Fun 内置树内（revision 403f1f7b），并为 alibaba-pai/Wan2.1-Fun-V1.1-14B-Control-Camera checkpoint 接通专用路由， Apache-2.0 许可。
+  architecture: 'A 14B-parameter Wan2.1 diffusion transformer with the VideoX-Fun Control-Camera conditioning pathway: camera extrinsics are injected as control signals alongside the image condition. Further internals are not recorded in this repository.'
+  architecture_zh: 14B 参数的 Wan2.1 扩散 Transformer，叠加 VideoX-Fun Control-Camera 条件通路：相机外参作为控制信号与图像条件一同注入。更多内部细节仓库未记录。
+  usage_notes: Use the sibling wan21-fun-1p3b-cam entry for a GPU-validated reference of the same route at 1.3B scale; the 14B route itself is wired but parity is pending. Camera pose sequences must be supplied explicitly.
+  usage_notes_zh: 同路由的 1.3B 版本（wan21-fun-1p3b-cam）已有 GPU 验证可作参照；14B 路由本身已接通但 parity 仍为 pending。相机位姿序列需显式提供。
+  limitations:
+  - Runner parity is pending for the 14B checkpoint; the 1.3B sibling is the validated reference.
+  - 14B scale implies materially higher VRAM needs than the 1.3B variant.
+  limitations_zh:
+  - 14B checkpoint 的 runner parity 为 pending；1.3B 同门版本是已验证参照。
+  - 14B 规模意味着显存需求远高于 1.3B 变体。
   recommended_benchmarks:
-  - wrbench
-  - camerabench
+  - id: camerabench
+    reason: Camera-pose adherence for controlled i2v generation.
+    reason_zh: 受控图生视频的相机位姿跟随。

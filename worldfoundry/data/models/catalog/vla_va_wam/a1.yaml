@@ -35,53 +35,22 @@ runtime_profile: runtime-profile:a1
 catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries with executable in-tree inference runtimes.
 docs:
-  overview: |
-    A1 (ATeam-Research/A1) is a vision-language-action policy catalogued for policy rollout. WorldFoundry runs AffordVLA, Molmo, CLIP ViT, the L1/DiT/flow action heads, preprocessing, and safe local checkpoint loading fully in tree; the runtime derives action dimensions from checkpoint tensors and validates every action-token boundary. Tokenizer and checkpoint assets are local-only, and checkpoint Python is never executed. Confirmed Hugging Face repos are `spatialtemporal-ai/a1-libero` and `spatialtemporal-ai/a1-pretrain`.
-
-    Within the WorldFoundry model catalog this entry is tracked as `a1` in the `vla_va_wam` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/ATeam-Research/A1; Hugging Face `spatialtemporal-ai/a1-libero`, `spatialtemporal-ai/a1-pretrain`.
-  overview_zh: |
-    A1（ATeam-Research/A1）是登记为策略 rollout 的视觉-语言-动作（VLA）模型。WorldFoundry 在树内完整运行 AffordVLA、Molmo、CLIP ViT、L1/DiT/flow 动作头、预处理与安全的本地权重加载；运行时从权重张量推导动作维度，并校验每个 action-token 边界。分词器与权重资产仅限本地，且从不执行权重携带的 Python。已确认的 Hugging Face 仓库为 `spatialtemporal-ai/a1-libero` 与 `spatialtemporal-ai/a1-pretrain`。
-
-    在 WorldFoundry 模型目录中，该条目以 `a1` 收录于 `vla_va_wam` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/ATeam-Research/A1；Hugging Face `spatialtemporal-ai/a1-libero`、`spatialtemporal-ai/a1-pretrain`。
-  architecture: |
-    Per the integration notes, the model composes an affordance-oriented VLA stack (AffordVLA) with a Molmo vision-language backbone, a CLIP ViT visual encoder, and interchangeable L1/DiT/flow action heads. Beyond that composition, the repository does not record architecture details (parameter count, training data) for this entry.
-  architecture_zh: |
-    按集成备注，该模型由面向可供性（affordance）的 VLA 栈（AffordVLA）、Molmo 视觉-语言骨干、CLIP ViT 视觉编码器以及可互换的 L1/DiT/flow 动作头组成。除此组成外，仓库未记录该条目的架构细节（参数量、训练数据等）。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `a1` and runtime profile `runtime-profile:a1`.
-    Catalog integration status: `runtime_ported`.
-    Integration notes recorded in the catalog:
-    - AffordVLA, Molmo, CLIP ViT, L1/DiT/flow action heads, preprocessing, and safe local checkpoint loading run in tree.
-    - The runtime derives action dimensions from checkpoint tensors and validates every action-token boundary.
-    - Tokenizer and checkpoint assets are local-only; checkpoint Python is never executed.
-
-    Embodiment contract:
-    - Simulator: none bundled — the `a1-libero` checkpoint targets the LIBERO benchmark environments, but rollouts are executed by separate benchmark runners.
-    - Sensors: RGB camera observations plus a language instruction; the exact camera/state contract is not recorded in this catalog file.
-    - Action space: continuous robot end-effector/joint action chunks; the exact action dimensionality is not recorded in this catalog file.
-    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `a1`，运行时配置为 `runtime-profile:a1`。
-    目录集成状态：运行时已移植（runtime_ported）。
-    目录中记录的集成备注（保留原文）：
-    - AffordVLA, Molmo, CLIP ViT, L1/DiT/flow action heads, preprocessing, and safe local checkpoint loading run in tree.
-    - The runtime derives action dimensions from checkpoint tensors and validates every action-token boundary.
-    - Tokenizer and checkpoint assets are local-only; checkpoint Python is never executed.
-
-    具身接口（embodiment contract）：
-    - 仿真器：不内置仿真器——`a1-libero` 权重面向 LIBERO 基准环境，但 rollout 由独立 benchmark runner 执行。
-    - 传感器：RGB 相机观测加语言指令；具体相机/状态契约本目录文件未记录。
-    - 动作空间：连续的机器人末端/关节动作块；具体动作维度本目录文件未记录。
-    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
-  limitations: |
-    No family-level demo/runner parity status is recorded in this catalog file.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件未记录家族级 demo/runner 一致性状态。
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Open-source research release (institution not recorded)
+  publisher_kind: lab
+  publisher_zh: 开源研究发布（仓库未记录正式机构）
+  overview: 'A1 (AffordVLA) is an affordance-guided vision-language-action policy: it grounds manipulation in visual affordances before predicting robot actions. WorldFoundry runs AffordVLA fully in-tree — Molmo and CLIP ViT encoders, L1/DiT/flow action heads, and preprocessing — with two confirmed checkpoints: spatialtemporal-ai/a1-libero for tasks and a1-pretrain as the pretrained policy.'
+  overview_zh: A1（AffordVLA）是可供性（affordance）引导的视觉-语言-动作策略：先将操作任务锚定到视觉可供性，再预测机器人动作。WorldFoundry 将 AffordVLA 完整内置树内——Molmo 与 CLIP ViT 编码器、 L1/DiT/flow 动作头与预处理——并确认两个 checkpoint：任务用 spatialtemporal-ai/a1-libero，预训练策略 a1-pretrain。
+  architecture: The stack couples Molmo (VLM) and CLIP ViT visual encoding with selectable action heads (L1 regression, DiT, or flow). The runtime derives action dimensions from checkpoint tensors and validates every action-token boundary, so mismatched checkpoints fail fast.
+  architecture_zh: 该栈将 Molmo（VLM）与 CLIP ViT 视觉编码同可选动作头（L1 回归、DiT 或 flow）耦合。运行时从 checkpoint 张量推导动作维度并校验每个动作 token 边界，不匹配的 checkpoint 会快速失败。
+  usage_notes: Stage tokenizer and checkpoint assets locally before running. Assets are local-only and checkpoint-provided Python is never executed; runtime loading uses strict key matching.
+  usage_notes_zh: 运行前需在本地就位 tokenizer 与 checkpoint 资产。资产仅从本地加载，绝不执行 checkpoint 携带的 Python；运行时加载采用严格键匹配。
+  limitations:
+  - Output is an action_trace artifact, not video.
+  - No GPU rollout validation is recorded in this repository.
+  limitations_zh:
+  - 输出为 action_trace 产物，而非视频。
+  - 仓库未记录 GPU rollout 验证。
   recommended_benchmarks:
-  - libero
+  - id: libero
+    reason: The a1-libero checkpoint targets LIBERO manipulation tasks.
+    reason_zh: a1-libero checkpoint 面向 LIBERO 操作任务。

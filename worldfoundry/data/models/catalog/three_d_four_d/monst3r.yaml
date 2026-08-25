@@ -45,58 +45,18 @@ catalog_policy:
   - api_or_closed
   - unknown
 docs:
-  overview: |
-    MonST3R (Junyi42/monst3r) extends the DUSt3R pointmap paradigm to dynamic scenes: it estimates per-timestep pointmaps from monocular video, recovering camera trajectory, per-frame depth, and dynamic-region geometry without a pre-built SfM pipeline. WorldFoundry vendors the infer-time components in-tree; Studio/API run the in-tree `demo.py` subprocess adapter and materialize a GLB scene artifact. The catalog records verified runner parity: a CUDA Studio job produced a valid GLB v2 scene with 51 geometries and finite point data on 2026-07-10.
-
-    Within the WorldFoundry model catalog this entry is tracked as `monst3r` in the `three_d_four_d` category.
-    Recorded availability: status=source_available, open_source=False, code=public, weights=linked_from_repo, license=CC-BY-NC-SA-4.0.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/Junyi42/monst3r.
-  overview_zh: |
-    MonST3R（Junyi42/monst3r）把 DUSt3R 的 pointmap 范式扩展到动态场景：从单目视频逐时间步估计 pointmap，在不依赖预先构建 SfM 管线的情况下恢复相机轨迹、逐帧深度与动态区域几何。WorldFoundry 将推理期组件内置 in-tree；Studio/API 运行 in-tree 的 `demo.py` 子进程适配器并产出 GLB 场景 artifact。目录记录 runner 一致性已验证：2026-07-10 的 CUDA Studio 任务产出了包含 51 个几何体、点数据有限值的合法 GLB v2 场景。
-
-    在 WorldFoundry 模型目录中，该条目以 `monst3r` 收录于 `three_d_four_d` 分类。
-    仓库记录的可用性：状态=source_available，是否开源=False，代码=public，权重=linked_from_repo，许可证=CC-BY-NC-SA-4.0。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/Junyi42/monst3r。
-  architecture: |
-    The published model keeps DUSt3R's ViT encoder/twin-decoder pointmap regression but fine-tunes on dynamic data so pointmaps are estimated per timestep; sliding-window pairwise inference plus lightweight global optimization (optionally with optical-flow objectives) yields temporally consistent geometry and poses. The Studio default disables the optional flow loss; full official dynamic-mask parity still needs the RAFT2/SAM2 assets configured for MonST3R. Upstream weights are linked from the repo under CC-BY-NC-SA-4.0.
-  architecture_zh: |
-    公开模型保留 DUSt3R 的 ViT 编码器/孪生解码器 pointmap 回归，但在动态数据上微调，使 pointmap 可逐时间步估计；滑窗成对推理加轻量全局优化（可选光流目标）得到时间一致的几何与位姿。Studio 默认关闭可选的光流损失；完整的官方动态掩码一致性仍需为 MonST3R 配置 RAFT2/SAM2 资产。上游权重从官方仓库链接获取，许可证为 CC-BY-NC-SA-4.0。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `monst3r` and runtime profile `runtime-profile:monst3r`.
-    Catalog integration status: `verified`.
-    Integration notes recorded in the catalog:
-    - WorldFoundry vendors the MonST3R infer-time components in-tree.
-    - Studio/API run the in-tree demo.py subprocess adapter and materialize a GLB scene artifact.
-    - The Studio default disables optional flow loss; full official dynamic-mask parity still needs the RAFT2/SAM2 assets configured for MonST3R.
-
-    Embodiment contract:
-    - Simulator: none — this is an offline reconstruction model that consumes recorded images or video; it does not drive or require a simulator.
-    - Sensors: monocular or multi-view RGB images/video frames; no additional sensor modalities are recorded in the repository.
-    - Action space: not applicable — the model does not consume an action or control stream.
-    - Dedicated environment: no dedicated environment; it runs through the shared WorldFoundry pipeline runtime described in the integration notes.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `monst3r`，运行时配置为 `runtime-profile:monst3r`。
-    目录集成状态：已验证（verified）。
-    目录中记录的集成备注（保留原文）：
-    - WorldFoundry vendors the MonST3R infer-time components in-tree.
-    - Studio/API run the in-tree demo.py subprocess adapter and materialize a GLB scene artifact.
-    - The Studio default disables optional flow loss; full official dynamic-mask parity still needs the RAFT2/SAM2 assets configured for MonST3R.
-
-    具身接口（embodiment contract）：
-    - 仿真器：无——这是一个离线重建模型，输入为已录制的图像或视频，不驱动也不依赖仿真器。
-    - 传感器：单目或多视角 RGB 图像/视频帧；仓库未记录其它传感器模态。
-    - 动作空间：不适用——该模型不接收动作或控制流输入。
-    - 是否专用环境：无专用环境；通过集成备注中描述的 WorldFoundry 共享管线运行时执行。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`verified`.
-    Runner parity notes recorded in the catalog:
-    - The CUDA Studio job produced a valid GLB v2 scene with 51 geometries and finite point data on 2026-07-10.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已验证（verified）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - The CUDA Studio job produced a valid GLB v2 scene with 51 geometries and finite point data on 2026-07-10.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
-  recommended_benchmarks: []
+  publisher: Google DeepMind / UC Berkeley
+  publisher_kind: company
+  publisher_zh: Google DeepMind / 加州大学伯克利分校
+  overview: 'MonST3R extends the DUSt3R pointmap approach to dynamic scenes: it estimates per-timestep geometry directly from video, recovering shape and motion without a static-scene assumption. In this catalog it is fully verified — the CUDA Studio job produced a valid GLB v2 scene with 51 geometries and finite point data on 2026-07-10 through the in-tree demo.py subprocess adapter.'
+  overview_zh: MonST3R 把 DUSt3R 的点图方法扩展到动态场景：直接从视频逐时刻估计几何，在不假设静态场景的前提下同时恢复形状与运动。本 catalog 中它已完整验证——CUDA Studio 任务于 2026-07-10 通过树内 demo.py 子进程适配器产出含 51 个几何体、点数据有限的合法 GLB v2 场景。
+  architecture: Per the upstream publication, MonST3R fine-tunes the DUSt3R pointmap regressor on dynamic data so that pointmaps are estimated per timestep; downstream optimization aligns them into a 4D scene. WorldFoundry vendors the infer-time components in-tree and materializes a GLB scene artifact.
+  architecture_zh: 按上游论文，MonST3R 在动态数据上微调 DUSt3R 的点图回归器，使点图按时刻估计；下游优化将其对齐为 4D 场景。WorldFoundry 将推理组件内置树内，并生成 GLB 场景产物。
+  usage_notes: The Studio default disables the optional flow loss so missing RAFT2/SAM2 assets do not block preview output. For full official dynamic-mask parity, configure the MonST3R, RAFT, and SAM2 assets in the runtime environment.
+  usage_notes_zh: Studio 默认关闭可选的光流损失，因此 RAFT2/SAM2 资产缺失不会阻塞预览输出。若要完整对齐官方动态掩码效果，请在运行时环境中配置 MonST3R、RAFT 与 SAM2 资产。
+  limitations:
+  - Full official dynamic-mask parity needs RAFT2/SAM2 assets beyond the Studio default path.
+  - Optimization-based alignment makes long videos slow compared with feed-forward reconstructors.
+  limitations_zh:
+  - 完整的官方动态掩码效果需要 Studio 默认路径之外的 RAFT2/SAM2 资产。
+  - 基于优化的对齐使长视频处理速度慢于前馈式重建器。

@@ -39,52 +39,18 @@ runtime_profile: runtime-profile:giga-world-policy-0.5
 catalog_category: vla_va_wam
 schema_version: 2
 docs:
-  overview: |
-    GigaWorld-Policy-0.5 (open-gigaai/giga-world-policy, Apache-2.0) is a world-action VLA whose exact released action-centered Mixture-of-Transformers and official action-only diffusion loop execute in process in WorldFoundry. The released transformer (`open-gigaai/Giga-World-Policy-0.5`, over a `Wan-AI/Wan2.2-TI2V-5B-Diffusers` backbone) is a pretrained initialization: task deployment additionally requires local post-training statistics and, when applicable, a task-finetuned transformer directory. All Hub assets must be staged locally before construction; runtime network access and custom remote code are disabled.
-
-    Within the WorldFoundry model catalog this entry is tracked as `giga-world-policy-0.5` in the `vla_va_wam` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/open-gigaai/giga-world-policy; Hugging Face `open-gigaai/Giga-World-Policy-0.5`, `Wan-AI/Wan2.2-TI2V-5B-Diffusers`.
-  overview_zh: |
-    GigaWorld-Policy-0.5（open-gigaai/giga-world-policy，Apache-2.0）是世界-动作 VLA，其官方发布的动作中心 Mixture-of-Transformers 与官方 action-only 扩散循环在 WorldFoundry 进程内执行。发布的 transformer（`open-gigaai/Giga-World-Policy-0.5`，基于 `Wan-AI/Wan2.2-TI2V-5B-Diffusers` 骨干）是预训练初始化：任务部署还需本地后训练统计，及（如适用）任务微调 transformer 目录。所有 Hub 资产须在构造前本地暂存；运行时网络访问与自定义远程代码被禁用。
-
-    在 WorldFoundry 模型目录中，该条目以 `giga-world-policy-0.5` 收录于 `vla_va_wam` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/open-gigaai/giga-world-policy；Hugging Face `open-gigaai/Giga-World-Policy-0.5`、`Wan-AI/Wan2.2-TI2V-5B-Diffusers`。
-  architecture: |
-    The recorded architecture is an action-centered Mixture-of-Transformers over the Wan2.2-TI2V-5B video-diffusion backbone, run with an action-only diffusion loop at inference (world decoding is not required for action output). Further details are not recorded in the repository.
-  architecture_zh: |
-    目录记录的架构是基于 Wan2.2-TI2V-5B 视频扩散骨干的动作中心 Mixture-of-Transformers，推理时运行 action-only 扩散循环（输出动作不需要世界解码）。更多细节仓库未记录。
-  usage_notes: |
-    No runner target is registered for this entry; the catalog tracks upstream provenance metadata without a runnable in-tree pipeline.
-    Catalog integration status: `in_tree_checkpoint_gated_runtime`.
-    Integration notes recorded in the catalog:
-    - Exact released action-centered Mixture-of-Transformers and official action-only diffusion loop execute in process.
-    - The released transformer is a pretrained initialization; task deployment additionally requires local post-training statistics and, when applicable, a task-finetuned transformer directory.
-    - All Hub assets must be staged locally before construction; runtime network access and custom remote code are disabled.
-
-    Embodiment contract:
-    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
-    - Sensors: RGB camera observations plus a language instruction; the exact camera/state contract is not recorded in this catalog file.
-    - Action space: continuous robot end-effector/joint action chunks; the exact action dimensionality is not recorded in this catalog file.
-    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
-  usage_notes_zh: |
-    该条目未注册 runner target；目录仅跟踪上游来源元数据，暂无可运行的 in-tree 管线。
-    目录集成状态：`in_tree_checkpoint_gated_runtime`。
-    目录中记录的集成备注（保留原文）：
-    - Exact released action-centered Mixture-of-Transformers and official action-only diffusion loop execute in process.
-    - The released transformer is a pretrained initialization; task deployment additionally requires local post-training statistics and, when applicable, a task-finetuned transformer directory.
-    - All Hub assets must be staged locally before construction; runtime network access and custom remote code are disabled.
-
-    具身接口（embodiment contract）：
-    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
-    - 传感器：RGB 相机观测加语言指令；具体相机/状态契约本目录文件未记录。
-    - 动作空间：连续的机器人末端/关节动作块；具体动作维度本目录文件未记录。
-    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
-  limitations: |
-    No family-level demo/runner parity status is recorded in this catalog file.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件未记录家族级 demo/runner 一致性状态。
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
-  recommended_benchmarks: []
+  publisher: GigaAI
+  publisher_kind: company
+  publisher_zh: 极佳科技（GigaAI）
+  overview: 'GigaWorld-Policy-0.5 is GigaAI''s world-action policy: an action-centered Mixture-of-Transformers released as a pretrained initialization (Apache-2.0), riding on Wan2.2-TI2V-5B components for VAE, text encoder, and tokenizer. WorldFoundry executes the exact released MoT and the official action-only diffusion loop in process.'
+  overview_zh: GigaWorld-Policy-0.5 是极佳科技（GigaAI）的世界-动作策略：以动作为中心的 Mixture-of-Transformers，作为预训练初始化发布（Apache-2.0），VAE、文本编码器与 tokenizer 复用 Wan2.2-TI2V-5B 组件。WorldFoundry 在进程内执行精确的已发布 MoT 与官方仅动作扩散环路。
+  architecture: 'An action-centered Mixture-of-Transformers over a Wan2.2-TI2V-5B base: the released sharded-safetensors transformer initializes the policy, and diffusion runs on the action stream only.'
+  architecture_zh: Wan2.2-TI2V-5B 基座上的动作中心 Mixture-of-Transformers：发布的分片 safetensors transformer 用于策略初始化，扩散只在动作流上进行。
+  usage_notes: 'The released transformer is a pretrained initialization: task deployment additionally requires local post-training statistics (task-specific norm_stats_delta.json) and, when applicable, a task-finetuned transformer directory. All Hub assets must be staged locally; runtime network access is disabled.'
+  usage_notes_zh: 发布的 transformer 是预训练初始化：任务部署还需本地后训练统计（任务专用 norm_stats_delta.json），以及适用时的任务微调 transformer 目录。所有 Hub 资产需本地就位；运行时禁用网络访问。
+  limitations:
+  - Pretrained initialization only — task use requires your own post-training statistics/fine-tune.
+  - No GPU rollout validation is recorded in this repository.
+  limitations_zh:
+  - 仅为预训练初始化——任务使用需自备后训练统计/微调。
+  - 仓库未记录 GPU rollout 验证。

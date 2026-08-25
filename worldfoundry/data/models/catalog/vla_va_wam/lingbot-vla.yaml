@@ -63,63 +63,20 @@ runner_parity:
 catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint metadata, and runtime-profile planning records.
 docs:
-  overview: |
-    LingBot-VLA (Robbyant/lingbot-vla, Apache-2.0) is the first-generation LingBot VLA with a 4B pretraining checkpoint plus RoboTwin post-train variants (including a depth-augmented one). WorldFoundry integrates the official policy/model, feature transforms, robot mapping, and normalization assets directly in-tree, reusing shared core device selection, compile dispatch, Hugging Face snapshot coordination, and streaming safetensors loading.
-
-    Within the WorldFoundry model catalog this entry is tracked as `lingbot-vla` in the `vla_va_wam` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/Robbyant/lingbot-vla; Hugging Face `robbyant/lingbot-vla-4b`, `robbyant/lingbot-vla-4b-posttrain-robotwin`, `robbyant/lingbot-vla-4b-depth-posttrain-robotwin`.
-  overview_zh: |
-    LingBot-VLA（Robbyant/lingbot-vla，Apache-2.0）是第一代 LingBot VLA，含 4B 预训练权重及 RoboTwin 后训练变体（包括深度增强版）。WorldFoundry 将官方策略/模型、特征变换、机器人映射与归一化资产直接集成树内，复用共享的设备选择、编译分发、Hugging Face 快照协调与流式 safetensors 加载。
-
-    在 WorldFoundry 模型目录中，该条目以 `lingbot-vla` 收录于 `vla_va_wam` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/Robbyant/lingbot-vla；Hugging Face `robbyant/lingbot-vla-4b`、`robbyant/lingbot-vla-4b-posttrain-robotwin`、`robbyant/lingbot-vla-4b-depth-posttrain-robotwin`。
-  architecture: |
-    The recorded stack is a 4B vision-language policy (the runner notes reference Qwen2.5-VL processor assets) with post-training on RoboTwin data; the depth post-train variant consumes depth-teacher distillation at training time only. The WebSocket transport, training stack, and depth teacher repositories are not needed for direct policy inference.
-  architecture_zh: |
-    目录记录的栈为 4B 视觉-语言策略（runner 备注提及 Qwen2.5-VL processor 资产），在 RoboTwin 数据上后训练；深度后训练变体仅在训练期消费深度教师蒸馏。WebSocket 传输、训练栈与深度教师仓库对直接策略推理均非必需。
-  usage_notes: |
-    No runner target is registered for this entry; the catalog tracks upstream provenance metadata without a runnable in-tree pipeline.
-    Catalog integration status: `in_tree_in_process_checkpoint_runtime`.
-    Integration notes recorded in the catalog:
-    - Official policy/model, feature transforms, robot mapping, and normalization assets are integrated directly in-tree.
-    - Runtime uses shared WorldFoundry core device selection, compile dispatch, Hugging Face snapshot coordination, and streaming safetensors loading.
-    Recorded variant `lingbot-vla-4b`, task `vla.pretraining`.
-    Recorded variant `lingbot-vla-4b-posttrain-robotwin`, task `vla.policy_rollout`.
-    Recorded variant `lingbot-vla-4b-depth-posttrain-robotwin`, task `vla.policy_rollout`.
-
-    Embodiment contract:
-    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
-    - Sensors: RGB camera observations plus a language instruction; the exact camera/state contract is not recorded in this catalog file.
-    - Action space: continuous robot end-effector/joint action chunks; the exact action dimensionality is not recorded in this catalog file.
-    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
-  usage_notes_zh: |
-    该条目未注册 runner target；目录仅跟踪上游来源元数据，暂无可运行的 in-tree 管线。
-    目录集成状态：`in_tree_in_process_checkpoint_runtime`。
-    目录中记录的集成备注（保留原文）：
-    - Official policy/model, feature transforms, robot mapping, and normalization assets are integrated directly in-tree.
-    - Runtime uses shared WorldFoundry core device selection, compile dispatch, Hugging Face snapshot coordination, and streaming safetensors loading.
-    目录记录：变体 `lingbot-vla-4b`，任务 `vla.pretraining`。
-    目录记录：变体 `lingbot-vla-4b-posttrain-robotwin`，任务 `vla.policy_rollout`。
-    目录记录：变体 `lingbot-vla-4b-depth-posttrain-robotwin`，任务 `vla.policy_rollout`。
-
-    具身接口（embodiment contract）：
-    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
-    - 传感器：RGB 相机观测加语言指令；具体相机/状态契约本目录文件未记录。
-    - 动作空间：连续的机器人末端/关节动作块；具体动作维度本目录文件未记录。
-    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`official_in_process_runtime_static_checkpoint_validation_complete`.
-    Runner parity notes recorded in the catalog:
-    - The WebSocket transport, training stack, and depth teacher repositories are not needed for direct policy inference.
-    - Full demo parity requires staging the public checkpoint and its Qwen2.5-VL processor assets.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=`official_in_process_runtime_static_checkpoint_validation_complete`。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - The WebSocket transport, training stack, and depth teacher repositories are not needed for direct policy inference.
-    - Full demo parity requires staging the public checkpoint and its Qwen2.5-VL processor assets.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Robbyant (Ant Group)
+  publisher_kind: company
+  publisher_zh: 蚂蚁灵波科技（Robbyant，蚂蚁集团）
+  overview: 'LingBot-VLA is Robbyant''s 4B vision-language-action policy line: a pretrained base plus RoboTwin post-trained and depth-enhanced RoboTwin variants, all Apache-2.0 with pinned revisions on Hugging Face and ModelScope. WorldFoundry integrates the official policy, feature transforms, robot mapping, and normalization assets directly in-tree as an in-process runtime.'
+  overview_zh: LingBot-VLA 是蚂蚁灵波科技（Robbyant）的 4B 视觉-语言-动作策略线：预训练 base，加 RoboTwin 后训练与深度增强 RoboTwin 变体，全部 Apache-2.0，并在 Hugging Face 与 ModelScope 锁定 revision。WorldFoundry 将官方策略、特征变换、机器人映射与归一化资产直接内置树内，作为进程内运行时。
+  architecture: A 4B policy backbone with feature transforms and per-robot mappings; the runtime uses shared WorldFoundry core device selection, compile dispatch, Hugging Face snapshot coordination, and streaming safetensors loading. Further internals are not recorded in this repository.
+  architecture_zh: 4B 策略骨干，配特征变换与按机器人映射；运行时使用共享的 WorldFoundry 核心设备选择、编译调度、Hugging Face 快照协调与流式 safetensors 加载。更多内部细节仓库未记录。
+  usage_notes: Use the RoboTwin post-train for simulator benchmarks (the depth variant adds depth input) and the base for fine-tuning. For the newer 6B generation see lingbot-vla-v2.
+  usage_notes_zh: 模拟器基准用 RoboTwin 后训练版（depth 变体增加深度输入），微调用 base。更新的 6B 世代请见 lingbot-vla-v2。
+  limitations:
+  - GPU rollout validation is not recorded for this entry.
+  limitations_zh:
+  - 此条目仓库未记录 GPU rollout 验证。
   recommended_benchmarks:
-  - robotwin
+  - id: robotwin
+    reason: Dedicated RoboTwin post-trained checkpoints.
+    reason_zh: 有专门的 RoboTwin 后训练 checkpoint。

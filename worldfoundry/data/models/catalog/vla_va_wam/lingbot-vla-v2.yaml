@@ -41,58 +41,16 @@ runner_parity:
 catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint metadata, and runtime-profile planning records.
 docs:
-  overview: |
-    LingBot-VLA 2.0 (Robbyant/lingbot-vla-v2, Apache-2.0) is the second-generation LingBot VLA, released as a 6B checkpoint (`robbyant/lingbot-vla-v2-6b`). WorldFoundry integrates Qwen3-VL/MoE policy inference, official batching, feature transforms, robot mappings, and normalization assets directly in-tree; training-only perception teachers are excluded, with inference consuming their distilled representations from the trained policy weights.
-
-    Within the WorldFoundry model catalog this entry is tracked as `lingbot-vla-v2` in the `vla_va_wam` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/Robbyant/lingbot-vla-v2; Hugging Face `robbyant/lingbot-vla-v2-6b`.
-  overview_zh: |
-    LingBot-VLA 2.0（Robbyant/lingbot-vla-v2，Apache-2.0）是第二代 LingBot VLA，发布 6B 权重（`robbyant/lingbot-vla-v2-6b`）。WorldFoundry 将 Qwen3-VL/MoE 策略推理、官方批处理、特征变换、机器人映射与归一化资产直接集成树内；仅训练用的感知教师被排除，推理从训练好的策略权重中消费其蒸馏表示。
-
-    在 WorldFoundry 模型目录中，该条目以 `lingbot-vla-v2` 收录于 `vla_va_wam` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/Robbyant/lingbot-vla-v2；Hugging Face `robbyant/lingbot-vla-v2-6b`。
-  architecture: |
-    The recorded architecture is a Qwen3-VL mixture-of-experts policy at 6B scale, retaining batched inference, `image_grid_thw` handling, a 55D internal representation, denoising-based action decoding, and optional `torch.compile` paths. The public 6B checkpoint uses the bundled official-derived inference config; robot-specific downstream checkpoints may override it with their own `lingbotvla_cli.yaml`.
-  architecture_zh: |
-    目录记录的架构是 6B 规模的 Qwen3-VL 混合专家（MoE）策略，保留批量推理、`image_grid_thw` 处理、55 维内部表示、基于去噪的动作解码与可选 `torch.compile` 路径。公开 6B 权重使用随附的官方派生推理配置；面向具体机器人的下游权重可用各自的 `lingbotvla_cli.yaml` 覆盖。
-  usage_notes: |
-    No runner target is registered for this entry; the catalog tracks upstream provenance metadata without a runnable in-tree pipeline.
-    Catalog integration status: `in_tree_in_process_checkpoint_runtime`.
-    Integration notes recorded in the catalog:
-    - Qwen3-VL/MoE policy inference, official batching, feature transforms, robot mappings, and normalization assets are integrated directly in-tree.
-    - Training-only perception teachers are excluded; inference consumes their distilled representations from the trained policy weights.
-    Recorded variant `lingbot-vla-v2-6b`, task `vla.action_prediction`.
-
-    Embodiment contract:
-    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
-    - Sensors: RGB camera observations plus a language instruction; the exact camera/state contract is not recorded in this catalog file.
-    - Action space: denoising-decoded continuous action chunks over a 55D internal representation; the executable robot mapping follows per-robot configuration.
-    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
-  usage_notes_zh: |
-    该条目未注册 runner target；目录仅跟踪上游来源元数据，暂无可运行的 in-tree 管线。
-    目录集成状态：`in_tree_in_process_checkpoint_runtime`。
-    目录中记录的集成备注（保留原文）：
-    - Qwen3-VL/MoE policy inference, official batching, feature transforms, robot mappings, and normalization assets are integrated directly in-tree.
-    - Training-only perception teachers are excluded; inference consumes their distilled representations from the trained policy weights.
-    目录记录：变体 `lingbot-vla-v2-6b`，任务 `vla.action_prediction`。
-
-    具身接口（embodiment contract）：
-    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
-    - 传感器：RGB 相机观测加语言指令；具体相机/状态契约本目录文件未记录。
-    - 动作空间：在 55 维内部表示上经去噪解码的连续动作块；可执行的机器人映射按各机器人配置决定。
-    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`official_in_process_runtime_static_checkpoint_validation_complete`.
-    Runner parity notes recorded in the catalog:
-    - Batched inference, image_grid_thw, 55D internal representation, denoising, and optional torch.compile paths are retained.
-    - The public 6B checkpoint uses the bundled official-derived inference config; robot-specific downstream checkpoints may override it with their own lingbotvla_cli.yaml.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=`official_in_process_runtime_static_checkpoint_validation_complete`。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - Batched inference, image_grid_thw, 55D internal representation, denoising, and optional torch.compile paths are retained.
-    - The public 6B checkpoint uses the bundled official-derived inference config; robot-specific downstream checkpoints may override it with their own lingbotvla_cli.yaml.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
-  recommended_benchmarks: []
+  publisher: Robbyant (Ant Group)
+  publisher_kind: company
+  publisher_zh: 蚂蚁灵波科技（Robbyant，蚂蚁集团）
+  overview: LingBot-VLA 2.0 is Robbyant's 6B second-generation VLA built on a Qwen3-VL mixture-of-experts policy, released as robbyant/lingbot-vla-v2-6b under Apache-2.0. WorldFoundry runs official policy inference in-process and in-tree — batching, feature transforms, robot mappings, and normalization included — with static checkpoint validation complete.
+  overview_zh: LingBot-VLA 2.0 是蚂蚁灵波科技（Robbyant）的 6B 第二代 VLA，基于 Qwen3-VL 专家混合策略，以 robbyant/lingbot-vla-v2-6b 发布，Apache-2.0 许可。WorldFoundry 在树内进程内运行官方策略推理——包含批处理、特征变换、机器人映射与归一化——静态 checkpoint 验证已完成。
+  architecture: A Qwen3-VL/MoE policy with a 55-dimensional internal representation, denoising action decoding, image_grid_thw handling, and optional torch.compile paths. Training-only perception teachers are excluded; inference consumes their distilled representations from the trained weights.
+  architecture_zh: Qwen3-VL/MoE 策略，55 维内部表征、去噪动作解码、image_grid_thw 处理与可选 torch.compile 路径。仅训练用的感知教师被排除；推理消费其蒸馏进权重的表征。
+  usage_notes: The public 6B checkpoint uses the bundled official-derived inference config; robot-specific downstream checkpoints may override it with their own lingbotvla_cli.yaml.
+  usage_notes_zh: 公开 6B checkpoint 使用捆绑的官方派生推理配置；机器人专用下游 checkpoint 可用自己的 lingbotvla_cli.yaml 覆盖。
+  limitations:
+  - GPU rollout validation is not recorded in this repository (static checkpoint validation only).
+  limitations_zh:
+  - 仓库未记录 GPU rollout 验证（仅静态 checkpoint 验证）。

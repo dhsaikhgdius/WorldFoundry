@@ -79,55 +79,22 @@ catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance,
   metadata, and runtime-profile planning records. Runner or pipeline targets are present
   only after a complete in-tree WorldFoundry model runtime is registered and validated.
 docs:
-  overview: |
-    GigaBrain-0 (open-gigaai/giga-brain-0, Apache-2.0) is a 3.5B-parameter VLA foundation model publicly notable for being trained largely on world-model-generated data. WorldFoundry's in-tree GigaBrain-0.1 runtime emitted a checkpoint-backed CUDA action trace using converted LeRobot RobotWin stats; official task-score parity remains separate because official task norm_stats/delta_mask assets are gated/not staged. Recorded checkpoints include `open-gigaai/GigaBrain-0-3.5B-Base` and `open-gigaai/GigaBrain-0.1-3.5B-Base`, with `google/paligemma-3b-pt-224` and `physical-intelligence/fast` as referenced assets.
-
-    Within the WorldFoundry model catalog this entry is tracked as `giga-brain-0` in the `vla_va_wam` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/open-gigaai/giga-brain-0; Hugging Face `open-gigaai/GigaBrain-0-3.5B-Base`, `open-gigaai/GigaBrain-0.1-3.5B-Base`, `google/paligemma-3b-pt-224`, `physical-intelligence/fast`.
-  overview_zh: |
-    GigaBrain-0（open-gigaai/giga-brain-0，Apache-2.0）是 35 亿参数的 VLA 基础模型，公开特色是大量使用世界模型生成的数据训练。WorldFoundry 树内 GigaBrain-0.1 运行时使用转换后的 LeRobot RobotWin 统计输出了权重支撑的 CUDA action trace；由于官方任务 norm_stats/delta_mask 资产受限/未暂存，官方任务分数一致性另行跟踪。记录的权重包括 `open-gigaai/GigaBrain-0-3.5B-Base` 与 `open-gigaai/GigaBrain-0.1-3.5B-Base`，并引用 `google/paligemma-3b-pt-224` 与 `physical-intelligence/fast` 资产。
-
-    在 WorldFoundry 模型目录中，该条目以 `giga-brain-0` 收录于 `vla_va_wam` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/open-gigaai/giga-brain-0；Hugging Face `open-gigaai/GigaBrain-0-3.5B-Base`、`open-gigaai/GigaBrain-0.1-3.5B-Base`、`google/paligemma-3b-pt-224`、`physical-intelligence/fast`。
-  architecture: |
-    The referenced assets indicate a PaliGemma-3B-class vision-language backbone with FAST action tokenization in the pipeline, plus subtask prediction among its recorded modalities; the 3.5B scale is recorded in the checkpoint names. Layer-level architecture details are not otherwise recorded in the repository.
-  architecture_zh: |
-    引用资产显示其管线包含 PaliGemma-3B 级视觉-语言骨干与 FAST 动作分词，记录模态中还包括子任务预测；3.5B 规模见于权重名。其余层级架构细节仓库未记录。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `giga-brain-0` and runtime profile `runtime-profile:giga-brain-0`.
-    Catalog integration status: `integrated`.
-    Integration notes recorded in the catalog:
-    - WorldFoundry in-tree GigaBrain-0.1 runtime emitted a checkpoint-backed CUDA action_trace using converted LeRobot RobotWin stats.
-    - Official task-score parity remains separate because official task norm_stats/delta_mask assets are gated/not staged.
-    Recorded variant `giga-brain-0-3.5b-base`, task `vla.action_prediction`.
-    Recorded variant `giga-brain-0.1-3.5b-base`, task `vla.policy_rollout`.
-
-    Embodiment contract:
-    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
-    - Sensors: RGB camera observations plus a language instruction; the exact camera/state contract is not recorded in this catalog file.
-    - Action space: continuous robot end-effector/joint action chunks; the exact action dimensionality is not recorded in this catalog file.
-    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `giga-brain-0`，运行时配置为 `runtime-profile:giga-brain-0`。
-    目录集成状态：已集成（integrated）。
-    目录中记录的集成备注（保留原文）：
-    - WorldFoundry in-tree GigaBrain-0.1 runtime emitted a checkpoint-backed CUDA action_trace using converted LeRobot RobotWin stats.
-    - Official task-score parity remains separate because official task norm_stats/delta_mask assets are gated/not staged.
-    目录记录：变体 `giga-brain-0-3.5b-base`，任务 `vla.action_prediction`。
-    目录记录：变体 `giga-brain-0.1-3.5b-base`，任务 `vla.policy_rollout`。
-
-    具身接口（embodiment contract）：
-    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
-    - 传感器：RGB 相机观测加语言指令；具体相机/状态契约本目录文件未记录。
-    - 动作空间：连续的机器人末端/关节动作块；具体动作维度本目录文件未记录。
-    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`verified`.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已验证（verified）。
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: GigaAI
+  publisher_kind: company
+  publisher_zh: 极佳科技（GigaAI）
+  overview: GigaBrain-0 is GigaAI's 3.5B VLA foundation policy with subtask prediction, released as GigaBrain-0-3.5B-Base and the 0.1 refresh under Apache-2.0. In this catalog the in-tree GigaBrain-0.1 runtime emitted a checkpoint-backed CUDA action_trace using converted LeRobot RoboTwin statistics, with PaliGemma tokenizer and the physical-intelligence FAST tokenizer staged.
+  overview_zh: GigaBrain-0 是极佳科技（GigaAI）的 3.5B VLA 基础策略，支持子任务预测，发布 GigaBrain-0-3.5B-Base 与 0.1 更新版，Apache-2.0 许可。本 catalog 中树内 GigaBrain-0.1 运行时使用转换的 LeRobot RoboTwin 统计输出了 checkpoint 驱动的 CUDA action_trace，PaliGemma tokenizer 与 physical-intelligence FAST tokenizer 均已就位。
+  architecture: A 3.5B policy on a PaliGemma tokenizer base using the FAST action tokenizer for discrete action encoding, plus subtask prediction heads. Architecture internals beyond the official repository pointer are not recorded in this repository.
+  architecture_zh: 3.5B 策略，PaliGemma tokenizer 基座，用 FAST 动作 tokenizer 做离散动作编码，另有子任务预测头。官方仓库指针之外的架构内部细节仓库未记录。
+  usage_notes: The PaliGemma tokenizer model is gated (manual review) and requires Hugging Face auth. Official task-score parity remains separate because official task norm_stats/delta_mask assets are gated or not staged.
+  usage_notes_zh: PaliGemma tokenizer 模型为门控（需人工审查），需要 Hugging Face 认证。由于官方任务 norm_stats/delta_mask 资产门控或未就位，官方任务分数 parity 单独跟踪。
+  limitations:
+  - Gated PaliGemma dependency requires auth.
+  - Official task-score parity is pending gated normalization assets.
+  limitations_zh:
+  - 门控的 PaliGemma 依赖需要认证。
+  - 官方任务分数 parity 因门控归一化资产而待定。
   recommended_benchmarks:
-  - robotwin
+  - id: robotwin
+    reason: CUDA action trace was produced with converted RoboTwin statistics.
+    reason_zh: CUDA 动作轨迹以转换的 RoboTwin 统计产出。

@@ -38,58 +38,18 @@ catalog_scope: Independent geometric prior integrations used by 3D and world-mod
   runtimes.
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 docs:
-  overview: |
-    Metric3D is a monocular metric-depth (and surface normal) estimation model line that resolves metric ambiguity across cameras with a canonical camera-space transformation, trained on thousands of camera models and millions of images. WorldFoundry integrates it as an independent metric-depth prior at `worldfoundry/base_models/three_dimensions/depth/metric3d`; the VIPE SLAM defaults reference this prior by model name through the shared priors factory.
-
-    Within the WorldFoundry model catalog this entry is tracked as `metric3d-prior` in the `three_d_four_d` category.
-    The repository does not record an official source link for this entry.
-  overview_zh: |
-    Metric3D 是单目公制深度（及表面法线）估计模型系列，通过规范相机空间变换解决跨相机的公制歧义，训练覆盖数千种相机型号与数百万张图像。WorldFoundry 将其作为独立公制深度先验集成于 `worldfoundry/base_models/three_dimensions/depth/metric3d`；VIPE SLAM 默认配置通过共享先验工厂按模型名引用该先验。
-
-    在 WorldFoundry 模型目录中，该条目以 `metric3d-prior` 收录于 `three_d_four_d` 分类。
-    仓库未记录该条目的官方来源链接。
-  architecture: |
-    The published approach (Metric3D / Metric3D v2) maps inputs into a canonical camera space to remove focal-length ambiguity, then regresses metric depth with a ViT (or ConvNeXt) encoder plus dense decoder; v2 adds joint surface-normal estimation with depth-normal consistency. Zero-shot metric transfer across cameras is the model's defining capability.
-  architecture_zh: |
-    公开方法（Metric3D / Metric3D v2）先把输入映射到规范相机空间以消除焦距歧义，再用 ViT（或 ConvNeXt）编码器加稠密解码器回归公制深度；v2 增加了联合表面法线估计与深度-法线一致性约束。跨相机的零样本公制迁移是该模型的标志性能力。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` and runtime profile `runtime-profile:metric3d-prior`.
-    Catalog integration status: `integrated`.
-    Integration notes recorded in the catalog:
-    - Integrated as an independent metric-depth prior at worldfoundry/base_models/three_dimensions/depth/metric3d.
-    - The VIPE SLAM defaults reference this prior by model name through the shared priors factory.
-    - Exposed through the shared WorldFoundry geometry-prior pipeline/operator contract.
-
-    Embodiment contract:
-    - Simulator: none — this entry is an offline geometric prior invoked by other WorldFoundry pipelines, not a simulator-driven model.
-    - Sensors: monocular RGB images (or video frames for temporal variants); no additional sensor modalities are recorded in the repository.
-    - Action space: not applicable — priors are pure perception modules without an action interface.
-    - Dedicated environment: no dedicated environment; it is exposed through the shared WorldFoundry geometry-prior pipeline/operator contract.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，运行时配置为 `runtime-profile:metric3d-prior`。
-    目录集成状态：已集成（integrated）。
-    目录中记录的集成备注（保留原文）：
-    - Integrated as an independent metric-depth prior at worldfoundry/base_models/three_dimensions/depth/metric3d.
-    - The VIPE SLAM defaults reference this prior by model name through the shared priors factory.
-    - Exposed through the shared WorldFoundry geometry-prior pipeline/operator contract.
-
-    具身接口（embodiment contract）：
-    - 仿真器：无——该条目是被其它 WorldFoundry 管线调用的离线几何先验，不涉及仿真器。
-    - 传感器：单目 RGB 图像（时序变体为视频帧）；仓库未记录其它传感器模态。
-    - 动作空间：不适用——先验模块为纯感知组件，没有动作接口。
-    - 是否专用环境：无专用环境；通过 WorldFoundry 共享几何先验 pipeline/operator 契约暴露。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`verified`.
-    Runner parity notes recorded in the catalog:
-    - Checkpoint-backed inference is implemented through the shared geometry-prior pipeline/operator contract.
-    - Per-run validation evidence is tracked outside the model catalog so this file remains stable release metadata.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已验证（verified）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - Checkpoint-backed inference is implemented through the shared geometry-prior pipeline/operator contract.
-    - Per-run validation evidence is tracked outside the model catalog so this file remains stable release metadata.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
-  recommended_benchmarks: []
+  publisher: DJI / Zhejiang University
+  publisher_kind: company
+  publisher_zh: 大疆创新 / 浙江大学
+  overview: 'Metric3D recovers metric-scale depth from a single image by normalizing images into a canonical camera space, which lets one model generalize across cameras. In this catalog it is a verified metric-depth prior: the VIPE SLAM defaults reference it by name through the shared priors factory, and checkpoint-backed inference runs through the geometry-prior contract.'
+  overview_zh: Metric3D 通过把图像归一化到规范相机空间，从单张图像恢复米制尺度深度，使单一模型能够跨相机泛化。本 catalog 中它是已验证的米制深度先验：VIPE SLAM 默认配置通过共享先验工厂按名称引用它，checkpoint 加载推理经 geometry-prior 契约运行。
+  architecture: Per the upstream publication (ICCV 2023), a canonical-camera transformation resolves the metric ambiguity of single-image depth, and the recorded checkpoint is JUGGHM/Metric3D under a bsd-2-clause license. Registered at base_models/three_dimensions/depth/metric3d.
+  architecture_zh: 按上游论文（ICCV 2023），规范相机变换消解了单图深度的米制歧义；记录的 checkpoint 为 JUGGHM/Metric3D，许可 bsd-2-clause。注册于 base_models/three_dimensions/depth/metric3d。
+  usage_notes: It is integrated as an independent geometry prior under worldfoundry/base_models and exposed through the shared geometry-prior pipeline/operator contract. Higher-level pipelines (e.g. ViPE) import it from this canonical owner instead of keeping private copies. Runner parity is verified through the shared contract; it is the default metric-depth choice in the VIPE SLAM configuration.
+  usage_notes_zh: 它作为独立几何先验集成在 worldfoundry/base_models 下，通过共享的 geometry-prior pipeline/operator 契约对外暴露。上层管线（如 ViPE）从这一规范位置导入它，而不是各自保留私有副本。runner parity 已通过共享契约验证；它是 VIPE SLAM 配置中的默认米制深度选择。
+  limitations:
+  - Metric accuracy depends on camera-intrinsics quality; wrong intrinsics degrade the scale.
+  - Single-image prior; temporal stability on video is out of scope.
+  limitations_zh:
+  - 米制精度依赖相机内参质量；内参错误会破坏尺度。
+  - 单帧先验；视频时序稳定性不在其范围内。

@@ -32,50 +32,16 @@ catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance,
   metadata, and runtime-profile planning records. Runner or pipeline targets are present
   only after a complete in-tree WorldFoundry model runtime is registered and validated.
 docs:
-  overview: |
-    LaST-R1 (CHEN-H01/LaST-R1, MIT) is a VLA/reinforcement-learning policy entry. WorldFoundry routes it through the in-tree official-policy runtime adapter; checkpoint absence (`chenhao01/LaST-R1`) is reported by runtime `missing_assets` and is not a catalog blocker. The repository records modalities (vla, reinforcement_learning, policy_rollout) and sources only.
-
-    Within the WorldFoundry model catalog this entry is tracked as `last-r1` in the `vla_va_wam` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/CHEN-H01/LaST-R1; Hugging Face `chenhao01/LaST-R1`.
-  overview_zh: |
-    LaST-R1（CHEN-H01/LaST-R1，MIT）是 VLA/强化学习策略条目。WorldFoundry 通过树内官方策略运行时适配器接入；权重（`chenhao01/LaST-R1`）缺失由运行时 `missing_assets` 报告，不构成目录阻塞。仓库仅记录模态（vla、reinforcement_learning、policy_rollout）与来源。
-
-    在 WorldFoundry 模型目录中，该条目以 `last-r1` 收录于 `vla_va_wam` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/CHEN-H01/LaST-R1；Hugging Face `chenhao01/LaST-R1`。
-  architecture: |
-    The repository does not record architecture details for this entry beyond the modalities and official sources quoted above.
-  architecture_zh: |
-    除上述引用的模态与官方来源外，仓库未记录该条目的架构细节；骨干网络、参数量、训练数据与动作头设计均未知，按「仓库未记录」处理。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `last-r1` and runtime profile `runtime-profile:last-r1`.
-    Catalog integration status: `runtime_ported`.
-    Integration notes recorded in the catalog:
-    - WorldFoundry routes LaST-R1 through the in-tree official-policy runtime adapter.
-    - Checkpoint absence is reported by runtime missing_assets and is not a catalog blocker.
-
-    Embodiment contract:
-    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
-    - Sensors: RGB camera observations plus a language instruction; the exact camera/state contract is not recorded in this catalog file.
-    - Action space: continuous robot end-effector/joint action chunks; the exact action dimensionality is not recorded in this catalog file.
-    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `last-r1`，运行时配置为 `runtime-profile:last-r1`。
-    目录集成状态：运行时已移植（runtime_ported）。
-    目录中记录的集成备注（保留原文）：
-    - WorldFoundry routes LaST-R1 through the in-tree official-policy runtime adapter.
-    - Checkpoint absence is reported by runtime missing_assets and is not a catalog blocker.
-
-    具身接口（embodiment contract）：
-    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
-    - 传感器：RGB 相机观测加语言指令；具体相机/状态契约本目录文件未记录。
-    - 动作空间：连续的机器人末端/关节动作块；具体动作维度本目录文件未记录。
-    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
-  limitations: |
-    No family-level demo/runner parity status is recorded in this catalog file.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件未记录家族级 demo/runner 一致性状态。
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
-  recommended_benchmarks: []
+  publisher: Open-source research release (institution not recorded)
+  publisher_kind: lab
+  publisher_zh: 开源研究发布（仓库未记录正式机构）
+  overview: LaST-R1 is an MIT-licensed VLA policy trained with reinforcement learning, recorded against the confirmed chenhao01/LaST-R1 checkpoint. WorldFoundry routes it through the in-tree official-policy runtime adapter; weights are not yet staged, so runs emit a runtime plan.
+  overview_zh: LaST-R1 是 MIT 许可、以强化学习训练的 VLA 策略，对应已确认的 chenhao01/LaST-R1 checkpoint。WorldFoundry 通过树内官方策略运行时适配器路由；权重尚未就位，运行输出运行时计划。
+  architecture: Task tags record a VLA plus reinforcement-learning design. Architecture internals beyond the official repository pointer (CHEN-H01/LaST-R1, pinned head ba4e9396) are not recorded in this repository.
+  architecture_zh: 任务标签记录其为 VLA 加强化学习设计。官方仓库指针（CHEN-H01/LaST-R1，锁定 head ba4e9396）之外的架构内部细节仓库未记录。
+  usage_notes: Checkpoint absence is reported by runtime missing_assets and is not a catalog blocker; runs emit a runtime plan until weights are staged.
+  usage_notes_zh: checkpoint 缺失由运行时 missing_assets 报告，不视为 catalog 阻塞；权重就位前运行输出运行时计划。
+  limitations:
+  - No GPU validation is recorded in this repository.
+  limitations_zh:
+  - 仓库未记录 GPU 验证。

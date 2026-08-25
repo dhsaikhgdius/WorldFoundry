@@ -29,50 +29,18 @@ catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint
   metadata, and runtime-profile planning records.
 docs:
-  overview: |
-    Being-H0.7 (BeingBeyond/Being-H) is catalogued as a latent world-action model (VLA + WAM). WorldFoundry routes it through the in-tree official-policy action runtime; checkpoint absence is reported by the runtime `missing_assets` plan and is not a catalog blocker. No Hugging Face checkpoint repositories are recorded for this entry yet.
-
-    Within the WorldFoundry model catalog this entry is tracked as `being-h07` in the `vla_va_wam` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/BeingBeyond/Being-H.
-  overview_zh: |
-    Being-H0.7（BeingBeyond/Being-H）在目录中登记为隐式世界-动作模型（VLA + WAM）。WorldFoundry 通过树内官方策略动作运行时接入；权重缺失由运行时 `missing_assets` 计划报告，不构成目录阻塞。该条目暂未记录 Hugging Face 权重仓库。
-
-    在 WorldFoundry 模型目录中，该条目以 `being-h07` 收录于 `vla_va_wam` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/BeingBeyond/Being-H。
-  architecture: |
-    The repository records the modalities (vla, wam, latent_world_action_model, robot_policy) and the shared Being-H official source. Architecture details for the 0.7 generation are not recorded in the repository.
-  architecture_zh: |
-    仓库记录了模态（vla、wam、latent_world_action_model、robot_policy）与共享的 Being-H 官方来源。0.7 代的架构细节仓库未记录。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `being-h07` and runtime profile `runtime-profile:being-h07`.
-    Catalog integration status: `runtime_ported`.
-    Integration notes recorded in the catalog:
-    - WorldFoundry routes Being-H0.7 through the in-tree official-policy action runtime.
-    - Checkpoint absence is reported by the runtime missing_assets plan and is not a catalog blocker.
-
-    Embodiment contract:
-    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
-    - Sensors: RGB camera observations plus a language instruction; the exact camera/state contract is not recorded in this catalog file.
-    - Action space: continuous robot end-effector/joint action chunks; the exact action dimensionality is not recorded in this catalog file.
-    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `being-h07`，运行时配置为 `runtime-profile:being-h07`。
-    目录集成状态：运行时已移植（runtime_ported）。
-    目录中记录的集成备注（保留原文）：
-    - WorldFoundry routes Being-H0.7 through the in-tree official-policy action runtime.
-    - Checkpoint absence is reported by the runtime missing_assets plan and is not a catalog blocker.
-
-    具身接口（embodiment contract）：
-    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
-    - 传感器：RGB 相机观测加语言指令；具体相机/状态契约本目录文件未记录。
-    - 动作空间：连续的机器人末端/关节动作块；具体动作维度本目录文件未记录。
-    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
-  limitations: |
-    No family-level demo/runner parity status is recorded in this catalog file.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件未记录家族级 demo/runner 一致性状态。
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
-  recommended_benchmarks: []
+  publisher: BeingBeyond
+  publisher_kind: company
+  publisher_zh: BeingBeyond（北京智在无界）
+  overview: Being-H0.7 is the successor line in BeingBeyond's Being-H family, recorded here as a latent world-action model (WAM) plus robot policy. WorldFoundry routes it through the in-tree official-policy action runtime from the Being-H07 subdirectory of the official repository; checkpoints are not yet recorded.
+  overview_zh: Being-H0.7 是 BeingBeyond Being-H 家族的后继线，在本 catalog 中记录为隐式世界-动作模型（WAM）加机器人策略。WorldFoundry 经树内官方策略动作运行时路由，源码来自官方仓库的 Being-H07 子目录；尚未记录 checkpoint。
+  architecture: Task tags record a latent world-action-model design — the policy predicts in a learned latent world space rather than raw pixels. Architecture internals beyond the official repository subdirectory pointer are not recorded in this repository.
+  architecture_zh: 任务标签记录其为隐式世界-动作模型设计——策略在学习到的隐式世界空间而非原始像素中预测。官方仓库子目录指针之外的架构内部细节仓库未记录。
+  usage_notes: Checkpoint absence is reported by the runtime missing_assets plan and is not a catalog blocker; stage weights once BeingBeyond releases them, or use the GPU-validated being-h05 entry meanwhile.
+  usage_notes_zh: checkpoint 缺失由运行时 missing_assets 计划报告，不视为 catalog 阻塞；待 BeingBeyond 发布权重后就位即可，期间可先用 GPU 已验证的 being-h05 条目。
+  limitations:
+  - No checkpoints are recorded yet; runs emit a runtime plan only.
+  - No license is recorded in this repository.
+  limitations_zh:
+  - 尚未记录任何 checkpoint；运行仅输出运行时计划。
+  - 仓库未记录许可证。

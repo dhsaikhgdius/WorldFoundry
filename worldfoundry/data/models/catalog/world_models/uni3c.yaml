@@ -53,60 +53,22 @@ output_artifacts:
 catalog_category: world_models
 catalog_scope: World-model catalog entries with in-tree inference runtimes.
 docs:
-  overview: |
-    Uni3C (alibaba-damo-academy/Uni3C; Hugging Face `ewrfcas/Uni3C`, `theFoxofSky/RealisDance-DiT`, Apache-2.0) is Alibaba DAMO Academy's unified 3D-enhanced control framework for video generation: one framework controls both camera trajectories and human motion by lifting conditions into 3D (point-cloud renders for camera, SMPL-X-style motion for humans). WorldFoundry vendors the official camera-only and unified camera-plus-human stage-two inference paths in tree; pre-rendered control bundles stay explicit runtime inputs and preprocessing is never silently substituted.
-
-    Within the WorldFoundry model catalog this entry is tracked as `uni3c` in the `world_models` category.
-    Recorded availability: status=open_source, open_source=True, code=public_reference_implementation, weights=public_huggingface, license=Apache-2.0.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/alibaba-damo-academy/Uni3C; Hugging Face `ewrfcas/Uni3C`, `theFoxofSky/RealisDance-DiT`.
-  overview_zh: |
-    Uni3C（alibaba-damo-academy/Uni3C；Hugging Face `ewrfcas/Uni3C`、`theFoxofSky/RealisDance-DiT`，Apache-2.0）是阿里达摩院面向视频生成的统一 3D 增强控制框架：通过把条件提升到 3D（相机用点云渲染、人体用 SMPL-X 式动作），一个框架同时控制相机轨迹与人体运动。WorldFoundry 在树内内嵌官方仅相机与统一相机加人体的第二阶段推理路径；预渲染控制包保持为显式运行时输入，预处理不会被静默替换。
-
-    在 WorldFoundry 模型目录中，该条目以 `uni3c` 收录于 `world_models` 分类。
-    仓库记录的可用性：状态=open_source，是否开源=True，代码=public_reference_implementation，权重=public_huggingface，许可证=Apache-2.0。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/alibaba-damo-academy/Uni3C；Hugging Face `ewrfcas/Uni3C`、`theFoxofSky/RealisDance-DiT`。
-  architecture: |
-    Per the public project, Uni3C trains a plug-in control branch (PCDController) over a frozen Wan-family video diffusion backbone: camera control is injected via point-cloud renders of the scene along the requested trajectory, and human motion control via 3D body-motion conditions, unified at inference in a shared 3D world guidance. The in-tree route covers static compilation, route resolution, local asset wiring, and offline command planning; full GPU parity awaits staged 14B checkpoints and a CUDA 12.4 run.
-  architecture_zh: |
-    按公开项目，Uni3C 在冻结的 Wan 系视频扩散骨干上训练插件控制分支（PCDController）：相机控制通过沿请求轨迹的场景点云渲染注入，人体运动控制通过 3D 身体动作条件注入，推理时统一到共享 3D 世界引导中。树内路线覆盖静态编译、路线解析、本地资产接线与离线命令规划；完整 GPU 一致性待暂存 14B 权重与 CUDA 12.4 运行。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `uni3c` and runtime profile `runtime-profile:uni3c`.
-    Catalog integration status: `runtime_ported`.
-    Integration notes recorded in the catalog:
-    - The official camera-only and unified camera-plus-human stage-two inference paths are vendored in-tree.
-    - Pre-rendered control bundles stay explicit runtime inputs; preprocessing is not silently substituted.
-
-    Embodiment contract:
-    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
-    - Sensors: an initial image plus a pre-rendered control bundle: point-cloud renders for camera control and optional 3D human-motion conditions.
-    - Action space: camera trajectories and/or human-motion sequences are the control channels; both are supplied as explicit pre-rendered bundles.
-    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `uni3c`，运行时配置为 `runtime-profile:uni3c`。
-    目录集成状态：运行时已移植（runtime_ported）。
-    目录中记录的集成备注（保留原文）：
-    - The official camera-only and unified camera-plus-human stage-two inference paths are vendored in-tree.
-    - Pre-rendered control bundles stay explicit runtime inputs; preprocessing is not silently substituted.
-
-    具身接口（embodiment contract）：
-    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
-    - 传感器：初始图像加预渲染控制包：相机控制用点云渲染，人体运动条件可选。
-    - 动作空间：相机轨迹与/或人体运动序列是控制通道；两者都以显式预渲染包提供。
-    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`implemented_checkpoint_pending`.
-    Runner parity notes recorded in the catalog:
-    - Static compilation, route resolution, local asset wiring, and offline command planning are covered locally.
-    - Full GPU artifact parity remains pending staged 14B checkpoints and a CUDA 12.4 inference run.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已实现、待权重就绪（implemented_checkpoint_pending）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - Static compilation, route resolution, local asset wiring, and offline command planning are covered locally.
-    - Full GPU artifact parity remains pending staged 14B checkpoints and a CUDA 12.4 inference run.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Alibaba DAMO Academy
+  publisher_kind: company
+  publisher_zh: 阿里巴巴达摩院
+  overview: 'Uni3C from Alibaba DAMO Academy unifies camera control and human-motion control for image-to-video generation: the PCDController stage steers the camera while the unified stage combines camera plus human motion (RealisDance-DiT). WorldFoundry vendors both official stage-two inference paths in-tree, with public Apache-2.0 checkpoints (ewrfcas/Uni3C, theFoxofSky/RealisDance-DiT) on top of the Wan2.1-I2V-14B-720P base.'
+  overview_zh: 阿里巴巴达摩院的 Uni3C 将相机控制与人体动作控制统一到图生视频中：PCDController 阶段负责相机操控，统一阶段结合相机与人体动作（RealisDance-DiT）。WorldFoundry 已将两条官方第二阶段推理路径内置树内，公开 Apache-2.0 checkpoint（ewrfcas/Uni3C、theFoxofSky/RealisDance-DiT）构建在 Wan2.1-I2V-14B-720P 基座之上。
+  architecture: 'Three checkpoint roles are recorded: ewrfcas/Uni3C as pcd_controller, Wan-AI/Wan2.1-I2V-14B-720P-Diffusers as camera_base, and theFoxofSky/RealisDance-DiT as the unified camera-plus-human model. Pre-rendered control bundles stay explicit runtime inputs; preprocessing is not silently substituted.'
+  architecture_zh: 仓库记录三个 checkpoint 角色：ewrfcas/Uni3C 为 pcd_controller、 Wan-AI/Wan2.1-I2V-14B-720P-Diffusers 为 camera_base、theFoxofSky/RealisDance-DiT 为相机+人体统一模型。预渲染控制包保持为显式运行时输入；预处理不会被隐式替换。
+  usage_notes: Choose the camera-only or unified camera-plus-human route and provide the matching pre-rendered control bundle. Static compilation, route resolution, and offline command planning are covered locally; full GPU parity awaits staged 14B checkpoints on a CUDA 12.4 host.
+  usage_notes_zh: 按需选择仅相机或相机+人体统一路由，并提供匹配的预渲染控制包。静态编译、路由解析与离线命令规划已在本地覆盖；完整 GPU parity 需在 CUDA 12.4 主机上就位 14B checkpoint 后完成。
+  limitations:
+  - Full GPU artifact parity is pending staged 14B checkpoints and a CUDA 12.4 inference run.
+  - Control bundles must be pre-rendered; the pipeline does not generate them.
+  limitations_zh:
+  - 完整 GPU 产物 parity 尚待 14B checkpoint 就位与 CUDA 12.4 推理运行。
+  - 控制包需预先渲染；pipeline 不代为生成。
   recommended_benchmarks:
-  - wrbench
-  - camerabench
+  - id: camerabench
+    reason: Camera-trajectory adherence under explicit control.
+    reason_zh: 显式控制下的相机轨迹跟随。

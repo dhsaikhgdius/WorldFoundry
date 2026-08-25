@@ -30,52 +30,18 @@ catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance,
   metadata, and runtime-profile planning records. Runner or pipeline targets are present
   only after a complete in-tree WorldFoundry model runtime is registered and validated.
 docs:
-  overview: |
-    pi0-FAST is Physical Intelligence's autoregressive variant of pi0, tracked as a concrete algorithm entry backed by the openpi repository. Its contribution is FAST (Frequency-space Action Sequence Tokenization): action chunks are compressed with a DCT-based tokenizer so a VLA can be trained with plain autoregressive next-token prediction instead of a diffusion/flow head, converging roughly 5x faster in the published results. WorldFoundry reuses the flattened in-tree OpenPI runtime with the pi0_fast_droid configuration and pi0-FAST checkpoint resolution; FAST token decoding is treated as algorithm-specific runtime behavior rather than a LeRobot policy-zoo variant.
-
-    Within the WorldFoundry model catalog this entry is tracked as `pi0-fast` in the `vla_va_wam` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/Physical-Intelligence/openpi.
-  overview_zh: |
-    pi0-FAST 是 Physical Intelligence 对 pi0 的自回归变体，作为由 openpi 仓库支撑的具体算法条目跟踪。其核心贡献是 FAST（频域动作序列分词）：用基于 DCT 的分词器压缩动作块，使 VLA 可以用普通自回归下一 token 预测训练，而无需扩散/flow 头，公开结果中收敛约快 5 倍。WorldFoundry 复用扁平化树内 OpenPI 运行时，采用 pi0_fast_droid 配置与 pi0-FAST 权重解析；FAST 动作 token 解码作为算法特有的运行时行为处理，而非 LeRobot policy-zoo 变体。
-
-    在 WorldFoundry 模型目录中，该条目以 `pi0-fast` 收录于 `vla_va_wam` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/Physical-Intelligence/openpi。
-  architecture: |
-    The backbone matches pi0 (a PaliGemma-derived vision-language transformer), but the flow-matching action expert is replaced by FAST action tokenization: continuous action chunks are DCT-transformed, quantized, and byte-pair encoded into discrete tokens that the VLM predicts autoregressively. The recorded in-tree configuration is pi0_fast_droid (the DROID-trained release). Further architecture details are not recorded in the repository.
-  architecture_zh: |
-    骨干与 pi0 相同（PaliGemma 派生的视觉-语言 transformer），但用 FAST 动作分词替代 flow-matching 动作专家：连续动作块经 DCT 变换、量化与字节对编码为离散 token，由 VLM 自回归预测。目录记录的树内配置为 pi0_fast_droid（DROID 训练的发布版）。更多架构细节仓库未记录。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `pi0-fast` and runtime profile `runtime-profile:pi0-fast`.
-    Catalog integration status: `runtime_ported`.
-    Integration notes recorded in the catalog:
-    - Concrete pi0-FAST algorithm entry backed by Physical Intelligence openpi.
-    - FAST action-token decoding should be integrated as algorithm-specific runtime behavior, not as a LeRobot policy-zoo variant.
-    - WorldFoundry reuses the in-tree OpenPI runtime with pi0_fast_droid configuration and pi0-FAST checkpoint resolution.
-
-    Embodiment contract:
-    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
-    - Sensors: RGB camera observations plus a language instruction; the exact camera/state contract is not recorded in this catalog file.
-    - Action space: action chunks reconstructed from FAST discrete action tokens (inverse DCT); the recorded configuration targets the DROID manipulation setup.
-    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `pi0-fast`，运行时配置为 `runtime-profile:pi0-fast`。
-    目录集成状态：运行时已移植（runtime_ported）。
-    目录中记录的集成备注（保留原文）：
-    - Concrete pi0-FAST algorithm entry backed by Physical Intelligence openpi.
-    - FAST action-token decoding should be integrated as algorithm-specific runtime behavior, not as a LeRobot policy-zoo variant.
-    - WorldFoundry reuses the in-tree OpenPI runtime with pi0_fast_droid configuration and pi0-FAST checkpoint resolution.
-
-    具身接口（embodiment contract）：
-    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
-    - 传感器：RGB 相机观测加语言指令；具体相机/状态契约本目录文件未记录。
-    - 动作空间：由 FAST 离散动作 token 重建（逆 DCT）的动作块；目录记录的配置面向 DROID 操作平台。
-    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
-  limitations: |
-    No family-level demo/runner parity status is recorded in this catalog file.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件未记录家族级 demo/runner 一致性状态。
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
-  recommended_benchmarks: []
+  publisher: Physical Intelligence
+  publisher_kind: company
+  publisher_zh: Physical Intelligence（PI）
+  overview: 'pi0-FAST is the autoregressive variant of pi0: instead of flow matching it uses the FAST action tokenizer to decode actions as discrete tokens, trading some smoothness for faster, simpler decoding. WorldFoundry reuses the in-tree OpenPI runtime with the pi0_fast_droid configuration and pi0-FAST checkpoint resolution.'
+  overview_zh: pi0-FAST 是 pi0 的自回归变体：不用 flow matching，而以 FAST 动作 tokenizer 将动作解码为离散 token，以少量平滑性换取更快更简单的解码。WorldFoundry 复用树内 OpenPI 运行时，采用 pi0_fast_droid 配置与 pi0-FAST checkpoint 解析。
+  architecture: The same PaliGemma backbone as pi0 but with FAST (frequency-space action sequence tokenization) discrete action decoding. FAST decoding is integrated as algorithm-specific runtime behavior, not as a LeRobot policy-zoo variant.
+  architecture_zh: 与 pi0 相同的 PaliGemma 骨干，但采用 FAST（频域动作序列 token 化）离散动作解码。 FAST 解码作为算法专属运行时行为集成，而非 LeRobot 策略库变体。
+  usage_notes: The default configuration targets DROID (pi0_fast_droid). Stage GCS checkpoints with gsutil/gcloud; runs emit a runtime plan until assets are staged.
+  usage_notes_zh: 默认配置面向 DROID（pi0_fast_droid）。用 gsutil/gcloud 就位 GCS checkpoint；资产就位前运行输出运行时计划。
+  limitations:
+  - Discrete FAST tokens can be less smooth than pi0's flow-matching actions.
+  - No license is recorded on this entry (see the openpi entry, Apache-2.0).
+  limitations_zh:
+  - 离散 FAST token 的动作可能不如 pi0 flow-matching 平滑。
+  - 本条目未记录许可证（参见 openpi 条目，Apache-2.0）。

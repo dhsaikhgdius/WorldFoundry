@@ -33,52 +33,18 @@ catalog_scope: World-model catalog entries. Integrated entries expose in-tree Wo
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 pipeline_binding: motionbricks
 docs:
-  overview: |
-    MotionBricks is tracked against NVlabs/GR00T-WholeBodyControl: a human/humanoid motion-generation route in the world-model catalog (recorded modalities: human-action-generation, motion-generation, world-model). WorldFoundry registers the official source route with motion/robot assets runtime-gated; real generation emits a runtime plan until required checkpoints/assets are staged.
-
-    Within the WorldFoundry model catalog this entry is tracked as `motionbricks` in the `world_models` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/NVlabs/GR00T-WholeBodyControl.
-  overview_zh: |
-    MotionBricks 跟踪 NVlabs/GR00T-WholeBodyControl：世界模型目录中的人体/人形运动生成路线（记录模态：human-action-generation、motion-generation、world-model）。WorldFoundry 注册官方源码路线，运动/机器人资产受运行时门控；在暂存所需权重/资产之前，真实生成输出运行时计划。
-
-    在 WorldFoundry 模型目录中，该条目以 `motionbricks` 收录于 `world_models` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/NVlabs/GR00T-WholeBodyControl。
-  architecture: |
-    The upstream GR00T-WholeBodyControl project targets whole-body control/motion generation for humanoid robots in the NVIDIA GR00T ecosystem. Architecture details for the MotionBricks route (model type, parameter count, training data) are not recorded in the repository.
-  architecture_zh: |
-    上游 GR00T-WholeBodyControl 项目面向 NVIDIA GR00T 生态中人形机器人的全身控制/运动生成。MotionBricks 路线的架构细节（模型类型、参数量、训练数据）仓库未记录。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `motionbricks` and runtime profile `runtime-profile:motionbricks`.
-    Catalog integration status: `runtime_ported`.
-    Integration notes recorded in the catalog:
-    - MotionBricks official source route is registered; motion/robot assets are runtime-gated.
-
-    Embodiment contract:
-    - Simulator: a motion-generation route rather than a video world simulator; outputs are motion/action sequences per the recorded modalities.
-    - Sensors: conditioning inputs per the recorded modalities (typically an initial image and/or a text prompt); exact tensor contracts are not recorded in this catalog file.
-    - Action space: generates whole-body humanoid motion/actions as output; the exact parameterization is not recorded in this catalog file.
-    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `motionbricks`，运行时配置为 `runtime-profile:motionbricks`。
-    目录集成状态：运行时已移植（runtime_ported）。
-    目录中记录的集成备注（保留原文）：
-    - MotionBricks official source route is registered; motion/robot assets are runtime-gated.
-
-    具身接口（embodiment contract）：
-    - 仿真器：运动生成路线而非视频世界模拟器；按记录模态输出运动/动作序列。
-    - 传感器：按记录的模态提供条件输入（通常为初始图像和/或文本提示）；具体张量契约本目录文件未记录。
-    - 动作空间：输出全身人形运动/动作；具体参数化本目录文件未记录。
-    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`implemented_checkpoint_pending`.
-    Runner parity notes recorded in the catalog:
-    - resolve_model_zoo_config and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已实现、待权重就绪（implemented_checkpoint_pending）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - resolve_model_zoo_config and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
-  recommended_benchmarks: []
+  publisher: NVIDIA
+  publisher_kind: company
+  publisher_zh: 英伟达（NVIDIA）
+  overview: 'MotionBricks is part of NVIDIA''s GR00T-WholeBodyControl stack: it generates humanoid whole-body motion — the action side of embodied world modeling, emitting action traces rather than video (paper arXiv 2604.24833). In this catalog the official source route is registered; motion/robot assets stay runtime-gated.'
+  overview_zh: MotionBricks 属于英伟达 GR00T-WholeBodyControl 栈：生成人形机器人全身运动——具身世界建模的动作侧，产物是动作轨迹而非视频（论文 arXiv 2604.24833）。本 catalog 中官方源码路径已注册；运动/机器人资产保持运行时限制。
+  architecture: Architecture internals beyond the recorded tasks are not stored in this repository (apache-2.0); the source is bound from the GR00T-WholeBodyControl repository at a pinned commit. The recorded artifact type is action_trace.
+  architecture_zh: 除已记录任务外的架构内部细节仓库未存（apache-2.0）；源码从 GR00T-WholeBodyControl 仓库以固定 commit 绑定。记录的产物类型为 action_trace。
+  usage_notes: Config resolution and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged. Missing assets are reported by the plan and are not treated as catalog blockers.
+  usage_notes_zh: 配置解析与 pipeline 导入预期可通过；在所需 checkpoint/资产就位前，真实生成会输出运行时计划。缺失资产由计划报告，不视为 catalog 阻塞。
+  limitations:
+  - Emits action traces, not video artifacts.
+  - Real generation is checkpoint/robot-asset gated.
+  limitations_zh:
+  - 产物是动作轨迹，不是视频。
+  - 真实生成受 checkpoint/机器人资产限制。

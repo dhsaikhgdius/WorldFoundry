@@ -56,58 +56,18 @@ catalog_policy:
     Hugging Face model page was confirmed. Do not infer checkpoint availability from
     papers, demos, or third-party mirrors.
 docs:
-  overview: |
-    HunyuanWorld-Mirror (Tencent-Hunyuan/HunyuanWorld-Mirror; Hugging Face `tencent/HunyuanWorld-Mirror`) is Tencent's universal feed-forward 3D reconstruction model: from images or video (optionally with priors such as poses or intrinsics) it predicts point clouds, multi-view depth, camera parameters, surface normals, and 3D Gaussians in one pass. WorldFoundry exposes framework inference through the in-tree HunyuanMirrorPipeline with vendored inference-only WorldMirror model code; GPU inference is validated with local assets, producing point-cloud PLY, Gaussian-splat PLY, depth maps, normal maps, and scene.rrd.
-
-    Within the WorldFoundry model catalog this entry is tracked as `hunyuanworld-mirror` in the `world_models` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/Tencent-Hunyuan/HunyuanWorld-Mirror; Hugging Face `tencent/HunyuanWorld-Mirror`.
-  overview_zh: |
-    HunyuanWorld-Mirror（Tencent-Hunyuan/HunyuanWorld-Mirror；Hugging Face `tencent/HunyuanWorld-Mirror`）是腾讯的通用前馈 3D 重建模型：从图像或视频（可选位姿/内参等先验）单次前向预测点云、多视深度、相机参数、表面法线与 3D 高斯。WorldFoundry 通过树内 HunyuanMirrorPipeline 暴露框架推理，内嵌仅推理的 WorldMirror 模型代码；GPU 推理已用本地资产验证，产出点云 PLY、高斯泼溅 PLY、深度图、法线图与 scene.rrd。
-
-    在 WorldFoundry 模型目录中，该条目以 `hunyuanworld-mirror` 收录于 `world_models` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/Tencent-Hunyuan/HunyuanWorld-Mirror；Hugging Face `tencent/HunyuanWorld-Mirror`。
-  architecture: |
-    The published design is a multi-modal prior-conditioned transformer: arbitrary combinations of geometric priors are injected as tokens, and multiple task heads decode the full set of 3D representations simultaneously (any-prior-in, any-representation-out). Third-party packages such as onnxruntime, pycolmap, open3d, and gsplat are runtime environment dependencies, not catalog blockers.
-  architecture_zh: |
-    公开设计为多模态先验条件 transformer：任意几何先验组合以 token 注入，多任务头同时解码全套 3D 表征（任意先验输入、任意表征输出）。onnxruntime、pycolmap、open3d、gsplat 等第三方包是运行时环境依赖，不构成目录阻塞。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `hunyuanworld-mirror` and runtime profile `runtime-profile:hunyuanworld-mirror`.
-    Catalog integration status: `integrated`.
-    Integration notes recorded in the catalog:
-    - WorldFoundry exposes framework inference through the in-tree HunyuanMirrorPipeline and vendored inference-only WorldMirror model code.
-    - The official repository is used as provenance for parity checks, not as a runtime dependency.
-    - Third-party packages such as onnxruntime, pycolmap, open3d, and gsplat are runtime environment dependencies, not catalog blockers.
-
-    Embodiment contract:
-    - Simulator: a feed-forward 3D reconstruction model, not a generative simulator: it recovers the 3D structure of observed scenes.
-    - Sensors: input images or video frames, optionally with camera pose/intrinsics/depth priors.
-    - Action space: no action interface; outputs are 3D reconstructions (points, depth, normals, cameras, Gaussians).
-    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `hunyuanworld-mirror`，运行时配置为 `runtime-profile:hunyuanworld-mirror`。
-    目录集成状态：已集成（integrated）。
-    目录中记录的集成备注（保留原文）：
-    - WorldFoundry exposes framework inference through the in-tree HunyuanMirrorPipeline and vendored inference-only WorldMirror model code.
-    - The official repository is used as provenance for parity checks, not as a runtime dependency.
-    - Third-party packages such as onnxruntime, pycolmap, open3d, and gsplat are runtime environment dependencies, not catalog blockers.
-
-    具身接口（embodiment contract）：
-    - 仿真器：前馈 3D 重建模型而非生成式模拟器：恢复被观测场景的 3D 结构。
-    - 传感器：输入图像或视频帧，可选相机位姿/内参/深度先验。
-    - 动作空间：无动作接口；输出为 3D 重建结果（点云、深度、法线、相机、高斯）。
-    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`verified`.
-    Runner parity notes recorded in the catalog:
-    - Standard Studio/WorldFoundry pipeline invocation is wired to canonical model id hunyuanworld-mirror, with hunyuan-mirror retained as an alias.
-    - GPU inference has been validated with local tencent/HunyuanWorld-Mirror assets, producing point-cloud PLY, Gaussian-splat PLY, depth maps, normal maps, and scene.rrd.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已验证（verified）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - Standard Studio/WorldFoundry pipeline invocation is wired to canonical model id hunyuanworld-mirror, with hunyuan-mirror retained as an alias.
-    - GPU inference has been validated with local tencent/HunyuanWorld-Mirror assets, producing point-cloud PLY, Gaussian-splat PLY, depth maps, normal maps, and scene.rrd.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
-  recommended_benchmarks: []
+  publisher: Tencent (Hunyuan)
+  publisher_kind: company
+  publisher_zh: 腾讯（混元）
+  overview: 'HunyuanWorld-Mirror is Tencent''s universal 3D reconstruction model: feed it images and it returns point clouds, Gaussian splats, depth, normals, and camera parameters in one pass. In this catalog it is verified — GPU inference with local tencent/HunyuanWorld-Mirror assets produced point-cloud PLY, Gaussian-splat PLY, depth maps, normal maps, and a scene.rrd.'
+  overview_zh: HunyuanWorld-Mirror 是腾讯的通用 3D 重建模型：输入图像，一次前向返回点云、高斯泼溅、深度、法线与相机参数。本 catalog 中它已验证——使用本地 tencent/HunyuanWorld-Mirror 资产的 GPU 推理产出点云 PLY、高斯泼溅 PLY、深度图、法线图与 scene.rrd。
+  architecture: WorldFoundry routes inference through the in-tree HunyuanMirrorPipeline and vendored inference-only WorldMirror model code; the official repository serves as provenance for parity checks, not a runtime dependency. Third-party packages (onnxruntime, pycolmap, open3d, gsplat) are environment dependencies, not catalog blockers.
+  architecture_zh: WorldFoundry 通过树内 HunyuanMirrorPipeline 与内置的仅推理 WorldMirror 模型代码执行推理；官方仓库仅作一致性核对的溯源，不是运行时依赖。第三方包（onnxruntime、pycolmap、open3d、gsplat）是环境依赖，不是 catalog 阻塞。
+  usage_notes: HunyuanMirrorPipeline accepts image, input, images, or image_path payloads from the standard pipeline runner and writes reconstruction artifacts to the sample output directory. Real inference needs the configured Python environment, local checkpoints, and GPU-compatible torch/gsplat.
+  usage_notes_zh: HunyuanMirrorPipeline 接受标准 pipeline runner 传入的 image、input、images 或 image_path 负载，并把重建产物写入样例输出目录。真实推理需要配置好的 Python 环境、本地 checkpoint 与 GPU 兼容的 torch/gsplat。
+  limitations:
+  - Requires GPU-compatible torch/gsplat packages in the runtime environment.
+  - 'Reconstruction-oriented: it does not generate new content, it reconstructs what it sees.'
+  limitations_zh:
+  - 运行环境需要 GPU 兼容的 torch/gsplat 包。
+  - 面向重建：它不生成新内容，只重建所见。

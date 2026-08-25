@@ -60,60 +60,22 @@ catalog_policy:
   integration_rule: Closed, API-only, or unknown releases stay blocked or planned until an official integration surface is available.
   open_source_rule: Only mark open_source when an official GitHub repository or official model page was confirmed.
 docs:
-  overview: |
-    AC3D (snap-research/ac3d, Snap non-commercial research license) is Snap Research's study 'AC3D: Analyzing and Improving 3D Camera Control in Video Diffusion Transformers': it analyzes where camera-motion information lives inside a video DiT and attaches a deliberately small camera ControlNet to CogVideoX, achieving precise camera control with minimal extra parameters. WorldFoundry vendors the official inference runtime under `worldfoundry/synthesis/visual_generation/ac3d/ac3d_runtime`; the RealEstate10K camera-control demo is verified through the Workspace infer path with local CogVideoX-2B and AC3D ControlNet weights.
-
-    Within the WorldFoundry model catalog this entry is tracked as `ac3d` in the `world_models` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/snap-research/ac3d.
-  overview_zh: |
-    AC3D（snap-research/ac3d，Snap 非商用研究许可）是 Snap Research 的研究《AC3D: Analyzing and Improving 3D Camera Control in Video Diffusion Transformers》：分析相机运动信息在视频 DiT 内部的分布规律，并在 CogVideoX 上外挂刻意精简的相机 ControlNet，用极少的附加参数实现精确相机控制。WorldFoundry 在 `worldfoundry/synthesis/visual_generation/ac3d/ac3d_runtime` 内嵌官方推理运行时；RealEstate10K 相机控制演示已通过 Workspace 推理路径以本地 CogVideoX-2B 与 AC3D ControlNet 权重验证。
-
-    在 WorldFoundry 模型目录中，该条目以 `ac3d` 收录于 `world_models` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/snap-research/ac3d。
-  architecture: |
-    The published design conditions a CogVideoX video diffusion transformer with a lightweight ControlNet branch fed by camera-pose embeddings, with the key insight that camera information is concentrated in early layers and low-frequency components, so control is injected only where effective. The adapter preserves the official inference/cli_demo_camera.py generation path and AC3D 2B ControlNet shape settings; staged checkpoints cover AC3D ControlNet plus CogVideoX-2B/5B bases.
-  architecture_zh: |
-    公开设计在 CogVideoX 视频扩散 transformer 上加轻量 ControlNet 分支，输入相机位姿嵌入；关键洞察是相机信息集中在早期层与低频分量，因此仅在有效处注入控制。适配器保留官方 inference/cli_demo_camera.py 生成路径与 AC3D 2B ControlNet 形状设置；暂存权重覆盖 AC3D ControlNet 与 CogVideoX-2B/5B 基座。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `ac3d` and runtime profile `runtime-profile:ac3d`.
-    Catalog integration status: `integrated`.
-    Integration notes recorded in the catalog:
-    - WorldFoundry vendors the official AC3D inference runtime under worldfoundry/synthesis/visual_generation/ac3d/ac3d_runtime; WorldFoundry owns path resolution, command construction, output loading, and pipeline/catalog exposure.
-    - The local workspace has staged AC3D ControlNet checkpoints under ${WORLDFOUNDRY_CKPT_DIR}/ac3d and CogVideoX base checkpoints under ${WORLDFOUNDRY_CKPT_DIR}/CogVideoX-{2b,5b}.
-    - WRBench direct-video requests are materialized as a temporary one-sample RealEstate10K layout; the official dataset and CogVideoX-ControlNet inference path remain unchanged.
-
-    Embodiment contract:
-    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
-    - Sensors: an initial image (and optionally a text prompt) plus a camera trajectory / pose sequence as the control signal.
-    - Action space: the action channel is the camera trajectory (extrinsics/pose sequence); the model renders the world consistently along the requested path.
-    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `ac3d`，运行时配置为 `runtime-profile:ac3d`。
-    目录集成状态：已集成（integrated）。
-    目录中记录的集成备注（保留原文）：
-    - WorldFoundry vendors the official AC3D inference runtime under worldfoundry/synthesis/visual_generation/ac3d/ac3d_runtime; WorldFoundry owns path resolution, command construction, output loading, and pipeline/catalog exposure.
-    - The local workspace has staged AC3D ControlNet checkpoints under ${WORLDFOUNDRY_CKPT_DIR}/ac3d and CogVideoX base checkpoints under ${WORLDFOUNDRY_CKPT_DIR}/CogVideoX-{2b,5b}.
-    - WRBench direct-video requests are materialized as a temporary one-sample RealEstate10K layout; the official dataset and CogVideoX-ControlNet inference path remain unchanged.
-
-    具身接口（embodiment contract）：
-    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
-    - 传感器：初始图像（可选文本提示）加相机轨迹/位姿序列作为控制信号。
-    - 动作空间：动作通道为相机轨迹（外参/位姿序列）；模型沿请求路径一致地渲染世界。
-    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`verified`.
-    Runner parity notes recorded in the catalog:
-    - The adapter preserves the official inference/cli_demo_camera.py generation path and AC3D 2B ControlNet shape settings.
-    - The RealEstate10K camera-control demo is verified through the Workspace infer path with local CogVideoX-2B and AC3D ControlNet weights.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已验证（verified）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - The adapter preserves the official inference/cli_demo_camera.py generation path and AC3D 2B ControlNet shape settings.
-    - The RealEstate10K camera-control demo is verified through the Workspace infer path with local CogVideoX-2B and AC3D ControlNet weights.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Snap Inc. (Snap Research)
+  publisher_kind: company
+  publisher_zh: Snap 公司（Snap Research）
+  overview: 'AC3D analyzes and improves camera control in video diffusion: it is a ControlNet-style plugin that gives CogVideoX precise 3D camera control. In this catalog the runner is verified — the RealEstate10K camera-control demo runs through the Workspace infer path with local CogVideoX-2B and AC3D ControlNet weights, preserving the official inference/cli_demo_camera.py generation path.'
+  overview_zh: AC3D 分析并改进视频扩散中的相机控制：它是 ControlNet 风格的插件，为 CogVideoX 提供精确的 3D 相机控制。本 catalog 中 runner 已验证——RealEstate10K 相机控制 demo 通过 Workspace 推理路径运行，使用本地 CogVideoX-2B 与 AC3D ControlNet 权重，并保留官方 inference/cli_demo_camera.py 生成路径。
+  architecture: Per the paper (arXiv 2411.18673), AC3D locates camera-motion information in low-frequency early-timestep components and conditions only a subset of layers, improving control precision and visual quality. Both 2B and 5B ControlNet checkpoints are recorded; the adapter preserves official 2B ControlNet shape settings.
+  architecture_zh: 按论文（arXiv 2411.18673），AC3D 发现相机运动信息集中在低频、早期时间步分量，因此仅对部分层做条件注入，同时提升控制精度与画质。catalog 记录 2B 与 5B 两个 ControlNet checkpoint；适配器保留官方 2B ControlNet 形状设置。
+  usage_notes: AC3D stays in its dedicated environment because the official torch 2.4/CUDA 12.4 stack is not ABI-compatible with the unified environment. Inputs accept either a RealEstate10K-style root or a direct source video plus 19-column camera pose rows.
+  usage_notes_zh: AC3D 保留在专属环境中，因为官方 torch 2.4/CUDA 12.4 栈与统一环境的 ABI 不兼容。输入接受 RealEstate10K 风格的数据根目录，或「源视频 + 19 列相机位姿行」的直接输入。
+  limitations:
+  - Dedicated environment required (torch 2.4/CUDA 12.4); not part of the unified profile.
+  - Camera-pose input follows the RealEstate10K 19-column convention — other formats need conversion.
+  limitations_zh:
+  - 需要专属环境（torch 2.4/CUDA 12.4），不在统一环境档案内。
+  - 相机位姿输入遵循 RealEstate10K 的 19 列约定——其它格式需先转换。
   recommended_benchmarks:
-  - wrbench
-  - camerabench
+  - id: camerabench
+    reason: Directly measures camera-control precision in generated video.
+    reason_zh: 直接衡量生成视频中的相机控制精度。

@@ -114,62 +114,25 @@ variants:
   runtime_profile: cosmos3-super
   task: world-generation
 docs:
-  overview: |
-    Cosmos3 (NVIDIA/cosmos, OpenMDW-1.1) is the third-generation NVIDIA Cosmos release tracked here in Nano and Super sizes: a joint-modality world foundation model whose recorded modalities span text-to-image/video, image/video-to-video, action-policy, and forward/inverse dynamics, with audio via an inference-only AVAE sound decoder. WorldFoundry runs it through the shared loader, joint-modality runner, core attention, native Karras flow-UniPC scheduler, and shared Wan VAE38; Nano structural checks match 814 transformer, 196 VAE, and 182 AVAE checkpoint tensors, and the 35-step schedule matches the official scheduler numerically. End-to-end GPU output parity must be rerun for the native path.
-
-    Within the WorldFoundry model catalog this entry is tracked as `cosmos3` in the `world_models` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/NVIDIA/cosmos; Hugging Face `nvidia/Cosmos3-Nano`, `nvidia/Cosmos3-Super`.
-  overview_zh: |
-    Cosmos3（NVIDIA/cosmos，OpenMDW-1.1）是本目录跟踪的第三代 NVIDIA Cosmos 发布，含 Nano 与 Super 两档：联合模态世界基础模型，记录模态覆盖文本到图像/视频、图像/视频到视频、动作策略与正向/逆向动力学，音频由仅推理的 AVAE 声音解码器提供。WorldFoundry 通过共享加载器、联合模态 runner、核心注意力、原生 Karras flow-UniPC 调度器与共享 Wan VAE38 运行；Nano 结构检查匹配 814 个 transformer、196 个 VAE 与 182 个 AVAE 权重张量，35 步调度与官方调度器数值一致。原生路径的端到端 GPU 输出一致性需重新运行。
-
-    在 WorldFoundry 模型目录中，该条目以 `cosmos3` 收录于 `world_models` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/NVIDIA/cosmos；Hugging Face `nvidia/Cosmos3-Nano`、`nvidia/Cosmos3-Super`。
-  architecture: |
-    The recorded architecture is a joint-modality diffusion transformer over the Wan VAE38 latent space with an auxiliary AVAE audio decoder, exposing world generation, action-policy, and dynamics (forward/inverse) heads from one checkpoint family. Guardrails and reasoner/serving stacks are orchestration extensions, not dependencies of the infer-only recipe; current-revision evidence requires the exact variant SHA via the prepare script's pinned snapshot model-ref.
-  architecture_zh: |
-    记录的架构为 Wan VAE38 隐空间上的联合模态扩散 transformer，附带 AVAE 音频解码器，同一权重家族暴露世界生成、动作策略与（正/逆向）动力学头。Guardrail 与 reasoner/serving 栈是编排扩展，不是仅推理 recipe 的依赖；当前 revision 证据需要通过 prepare 脚本的锁定快照 model-ref 提供精确变体 SHA。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `cosmos3` and runtime profile `runtime-profile:cosmos3`.
-    Catalog integration status: `integrated`.
-    Integration notes recorded in the catalog:
-    - Cosmos3 uses the shared loader, joint-modality runner, core attention, native Karras flow-UniPC scheduler, shared Wan VAE38, and an inference-only AVAE sound decoder.
-    - Nano structural checks match 814 transformer, 196 VAE, and 182 AVAE checkpoint tensors. The 35-step schedule and solver trajectory match the official scheduler numerically.
-    - The previous backend runtime's Workspace evidence is retained as historical context only; end-to-end GPU output parity must be rerun for this native path.
-    - Current-revision evidence requires the exact variant SHA. The prepare script emits a structured checkpoint report and an explicit pinned snapshot model-ref so an older local directory is not silently described as current.
-    - Guardrails and reasoner/serving stacks are orchestration extensions, not dependencies of this infer-only model recipe.
-    Recorded variant `cosmos3-nano`, task `world-generation`, runner parity `pending`, demo parity `structural_validation_passed`.
-    Recorded variant `cosmos3-super`, task `world-generation`, runner parity `pending`, demo parity `pending_native_gpu`.
-
-    Embodiment contract:
-    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
-    - Sensors: conditioning inputs per the recorded modalities (typically an initial image and/or a text prompt); exact tensor contracts are not recorded in this catalog file.
-    - Action space: no explicit action interface is recorded for this entry; controllability is limited to the conditioning inputs.
-    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `cosmos3`，运行时配置为 `runtime-profile:cosmos3`。
-    目录集成状态：已集成（integrated）。
-    目录中记录的集成备注（保留原文）：
-    - Cosmos3 uses the shared loader, joint-modality runner, core attention, native Karras flow-UniPC scheduler, shared Wan VAE38, and an inference-only AVAE sound decoder.
-    - Nano structural checks match 814 transformer, 196 VAE, and 182 AVAE checkpoint tensors. The 35-step schedule and solver trajectory match the official scheduler numerically.
-    - The previous backend runtime's Workspace evidence is retained as historical context only; end-to-end GPU output parity must be rerun for this native path.
-    - Current-revision evidence requires the exact variant SHA. The prepare script emits a structured checkpoint report and an explicit pinned snapshot model-ref so an older local directory is not silently described as current.
-    - Guardrails and reasoner/serving stacks are orchestration extensions, not dependencies of this infer-only model recipe.
-    目录记录：变体 `cosmos3-nano`，任务 `world-generation`，runner 一致性 待验证（pending），演示一致性 `structural_validation_passed`。
-    目录记录：变体 `cosmos3-super`，任务 `world-generation`，runner 一致性 待验证（pending），演示一致性 `pending_native_gpu`。
-
-    具身接口（embodiment contract）：
-    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
-    - 传感器：按记录的模态提供条件输入（通常为初始图像和/或文本提示）；具体张量契约本目录文件未记录。
-    - 动作空间：该条目未记录显式动作接口；可控性仅限于条件输入。
-    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`pending`.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=待验证（pending）。
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: NVIDIA
+  publisher_kind: company
+  publisher_zh: 英伟达（NVIDIA）
+  overview: 'Cosmos3 is the newest, broadest Cosmos generation recorded here: one joint-modality model covering text-to-image/video, image/video-to-video, synchronized sound, and structured action inference (policy, forward and inverse dynamics), in Nano and Super variants. In this catalog it runs through the shared loader, joint-modality runner, native Karras flow-UniPC scheduler, shared Wan VAE38, and an inference-only AVAE sound decoder.'
+  overview_zh: Cosmos3 是此处记录的最新、覆盖面最广的 Cosmos 世代：单一联合模态模型覆盖文生图/视频、图/视频到视频、同步声音，以及结构化动作推断（策略、正向与逆向动力学），含 Nano 与 Super 两个 variant。本 catalog 中它经共享加载器、联合模态 runner、原生 Karras flow-UniPC 调度器、共享 Wan VAE38 与仅推理的 AVAE 声音解码器运行。
+  architecture: Nano structural checks match 814 transformer, 196 VAE, and 182 AVAE checkpoint tensors, and the 35-step schedule matches the official scheduler numerically. Guardrails and reasoner/serving stacks are orchestration extensions, intentionally outside this infer-only recipe.
+  architecture_zh: Nano 结构检查匹配 814 个 transformer、196 个 VAE 与 182 个 AVAE checkpoint 张量， 35 步调度与官方调度器数值一致。Guardrail 与 reasoner/serving 栈是编排扩展，有意置于本仅推理配方之外。
+  usage_notes: Base selection routes to Nano; pick the cosmos3-super variant for the Super checkpoint. Current-revision evidence requires the exact variant SHA — the prepare script emits a structured checkpoint report and pinned snapshot model-ref so an older local directory is not silently described as current. End-to-end GPU output parity must be rerun for this native path.
+  usage_notes_zh: 基础选择路由到 Nano；需要 Super checkpoint 请选 cosmos3-super variant。当前版本证据要求确切的 variant SHA——准备脚本输出结构化 checkpoint 报告与固定 snapshot model-ref，避免把旧的本地目录误当作当前版本。端到端 GPU 输出一致性需要在此原生路径上重跑。
+  limitations:
+  - End-to-end GPU output parity is pending for the native path; earlier backend evidence is historical only.
+  - Reasoner, training, and vLLM serving workflows are outside this infer-only integration.
+  limitations_zh:
+  - 原生路径的端到端 GPU 输出一致性待验证；早期后端证据仅具历史意义。
+  - Reasoner、训练与 vLLM serving 工作流不在本仅推理集成范围内。
   recommended_benchmarks:
-  - worldmodelbench
-  - physical-ai-bench
+  - id: worldmodelbench
+    reason: World-generation quality across conditions.
+    reason_zh: 各条件下世界生成质量评测。
+  - id: physics-iq
+    reason: Physical plausibility of generated world video.
+    reason_zh: 生成世界视频的物理合理性。

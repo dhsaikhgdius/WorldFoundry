@@ -89,64 +89,25 @@ catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance,
   metadata, and runtime-profile planning records. Runner or pipeline targets are present
   only after a complete in-tree WorldFoundry model runtime is registered and validated.
 docs:
-  overview: |
-    Being-H0.5 (BeingBeyond/Being-H) is a 2B-parameter cross-embodiment VLA policy. WorldFoundry keeps the inference-only architecture and policy runtime directly under `worldfoundry/synthesis/action_generation/being_h05`. The catalog records that the LIBERO checkpoint passed public-pipeline checkpoint-backed GPU `get_action` validation and emitted an `action_trace` artifact. Released checkpoints include the 2B base plus LIBERO, RoboCasa, and combined LIBERO+RoboCasa fine-tunes.
-
-    Within the WorldFoundry model catalog this entry is tracked as `being-h05` in the `vla_va_wam` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/BeingBeyond/Being-H; Hugging Face `BeingBeyond/Being-H05-2B`, `BeingBeyond/Being-H05-2B_libero`, `BeingBeyond/Being-H05-2B_robocasa`, `BeingBeyond/Being-H05-2B_libero_robocasa`.
-  overview_zh: |
-    Being-H0.5（BeingBeyond/Being-H）是 20 亿参数的跨具身 VLA 策略。WorldFoundry 将仅推理的架构与策略运行时直接置于 `worldfoundry/synthesis/action_generation/being_h05`。目录记录其 LIBERO 权重已通过公开管线的权重支撑 GPU `get_action` 验证并产出 `action_trace` artifact。已发布权重包括 2B 基座及 LIBERO、RoboCasa 与 LIBERO+RoboCasa 联合微调版本。
-
-    在 WorldFoundry 模型目录中，该条目以 `being-h05` 收录于 `vla_va_wam` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/BeingBeyond/Being-H；Hugging Face `BeingBeyond/Being-H05-2B`、`BeingBeyond/Being-H05-2B_libero`、`BeingBeyond/Being-H05-2B_robocasa`、`BeingBeyond/Being-H05-2B_libero_robocasa`。
-  architecture: |
-    The upstream Being-H project publicly pretrains VLA models on large-scale human hand-motion video (learning dexterous priors from human videos) before robot fine-tuning; the catalog records the 2B parameter scale and a strict safetensors inference path. Detailed layer-level architecture is not recorded in the repository.
-  architecture_zh: |
-    上游 Being-H 项目的公开做法是在大规模人手运动视频上预训练 VLA（从人类视频学习灵巧先验），再做机器人微调；目录记录了 2B 参数规模与严格 safetensors 推理路径。层级架构细节仓库未记录。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `being-h05` and runtime profile `runtime-profile:being-h05`.
-    Catalog integration status: `integrated`.
-    Integration notes recorded in the catalog:
-    - WorldFoundry keeps the inference-only Being-H0.5 architecture and policy runtime directly under worldfoundry/synthesis/action_generation/being_h05.
-    - The Being-H05 LIBERO checkpoint passed public pipeline checkpoint-backed GPU get_action validation and emitted an action_trace artifact.
-    Recorded variant `being-h05-2b`, task `vla.policy_rollout`.
-    Recorded variant `being-h05-2b-libero`, task `vla.policy_rollout`.
-    Recorded variant `being-h05-2b-robocasa`, task `vla.policy_rollout`.
-    Recorded variant `being-h05-2b-libero-robocasa`, task `vla.policy_rollout`.
-
-    Embodiment contract:
-    - Simulator: none bundled — released fine-tunes target LIBERO and RoboCasa environments; rollouts run through separate benchmark runners.
-    - Sensors: RGB camera observations plus a language instruction; the exact camera/state contract is not recorded in this catalog file.
-    - Action space: continuous robot end-effector/joint action chunks; the exact action dimensionality is not recorded in this catalog file.
-    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `being-h05`，运行时配置为 `runtime-profile:being-h05`。
-    目录集成状态：已集成（integrated）。
-    目录中记录的集成备注（保留原文）：
-    - WorldFoundry keeps the inference-only Being-H0.5 architecture and policy runtime directly under worldfoundry/synthesis/action_generation/being_h05.
-    - The Being-H05 LIBERO checkpoint passed public pipeline checkpoint-backed GPU get_action validation and emitted an action_trace artifact.
-    目录记录：变体 `being-h05-2b`，任务 `vla.policy_rollout`。
-    目录记录：变体 `being-h05-2b-libero`，任务 `vla.policy_rollout`。
-    目录记录：变体 `being-h05-2b-robocasa`，任务 `vla.policy_rollout`。
-    目录记录：变体 `being-h05-2b-libero-robocasa`，任务 `vla.policy_rollout`。
-
-    具身接口（embodiment contract）：
-    - 仿真器：不内置仿真器——已发布微调权重面向 LIBERO 与 RoboCasa 环境；rollout 由独立 benchmark runner 执行。
-    - 传感器：RGB 相机观测加语言指令；具体相机/状态契约本目录文件未记录。
-    - 动作空间：连续的机器人末端/关节动作块；具体动作维度本目录文件未记录。
-    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`verified`.
-
-    The catalog records that the combined LIBERO+RoboCasa checkpoint's tensor GPU probe passed but a real get_action exceeded a single 80GB GPU memory budget; variant-specific CUDA validation for the base and RoboCasa checkpoints is still pending.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已验证（verified）。
-
-    目录记录：LIBERO+RoboCasa 联合权重的张量 GPU 探针通过，但真实 get_action 超出单张 80GB GPU 显存预算；基座与 RoboCasa 权重的变体级 CUDA 验证仍待完成。
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: BeingBeyond
+  publisher_kind: company
+  publisher_zh: BeingBeyond（北京智在无界）
+  overview: 'Being-H0.5 is BeingBeyond''s 2B-parameter cross-embodiment VLA policy. In this catalog it is a GPU-validated entry: the LIBERO checkpoint passed public pipeline checkpoint-backed GPU get_action validation and emitted an action_trace artifact. Four checkpoint lines are recorded — base, LIBERO, RoboCasa, and a combined LIBERO+RoboCasa variant — with the inference-only runtime kept directly in-tree.'
+  overview_zh: Being-H0.5 是 BeingBeyond 的 2B 参数跨本体 VLA 策略。本 catalog 中它是 GPU 已验证条目： LIBERO checkpoint 通过了公开 pipeline 的 checkpoint 驱动 GPU get_action 验证并输出 action_trace 产物。仓库记录四条 checkpoint 线——base、LIBERO、RoboCasa 与 LIBERO+RoboCasa 合并变体——推理专用运行时直接内置树内。
+  architecture: The inference-only Being-H0.5 architecture and policy runtime live under worldfoundry/synthesis/action_generation/being_h05, using efficient SDPA attention for the validated LIBERO path. Architecture internals beyond the official repository pointer are not recorded in this repository.
+  architecture_zh: 推理专用的 Being-H0.5 架构与策略运行时位于 worldfoundry/synthesis/action_generation/being_h05，已验证的 LIBERO 路径使用高效 SDPA 注意力。官方仓库指针之外的架构内部细节仓库未记录。
+  usage_notes: Start with the GPU-verified Being-H05-2B_libero checkpoint. Note all Being-H05 Hugging Face repos carry manual_review:missing_hf_license — confirm licensing before production use.
+  usage_notes_zh: 建议从 GPU 已验证的 Being-H05-2B_libero checkpoint 起步。注意所有 Being-H05 Hugging Face 仓库均为 manual_review:missing_hf_license——生产使用前请确认许可。
+  limitations:
+  - Upstream Hugging Face repos have no recorded license (manual review required).
+  - Only the LIBERO checkpoint has full get_action GPU validation; others have probe-level checks.
+  limitations_zh:
+  - 上游 Hugging Face 仓库未记录许可证（需人工审查）。
+  - 仅 LIBERO checkpoint 有完整 get_action GPU 验证；其余为探针级检查。
   recommended_benchmarks:
-  - libero
-  - robocasa
+  - id: libero
+    reason: GPU-validated LIBERO policy checkpoint.
+    reason_zh: GPU 已验证的 LIBERO 策略 checkpoint。
+  - id: robocasa
+    reason: Dedicated RoboCasa checkpoint line.
+    reason_zh: 有专门的 RoboCasa checkpoint 线。

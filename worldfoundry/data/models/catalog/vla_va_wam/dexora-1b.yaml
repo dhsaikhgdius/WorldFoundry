@@ -36,62 +36,18 @@ runner_parity:
 catalog_category: vla_va_wam
 catalog_scope: In-tree inference runtime and checkpoint metadata for embodied policies.
 docs:
-  overview: |
-    Dexora 1B (dexoravla/Dexora, MIT) is a 1B-parameter RDT-based policy for bimanual dexterous manipulation with a 36-DoF action contract. WorldFoundry keeps the 1B RDT policy, SigLIP/T5 encoders, strict checkpoint loader, and diffusion sampler in-tree. The authors publish data and training code but no official policy weight repository, so the runtime requires a locally trained Stage-1 or Stage-3 checkpoint.
-
-    Within the WorldFoundry model catalog this entry is tracked as `dexora-1b` in the `vla_va_wam` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/dexoravla/Dexora.
-  overview_zh: |
-    Dexora 1B（dexoravla/Dexora，MIT）是基于 RDT 的 10 亿参数双臂灵巧操作策略，动作契约为 36 自由度。WorldFoundry 在树内保留 1B RDT 策略、SigLIP/T5 编码器、严格权重加载器与扩散采样器。作者公开了数据与训练代码但没有官方策略权重仓库，因此运行时需要本地训练的 Stage-1 或 Stage-3 权重。
-
-    在 WorldFoundry 模型目录中，该条目以 `dexora-1b` 收录于 `vla_va_wam` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/dexoravla/Dexora。
-  architecture: |
-    Per the integration notes, the architecture is an RDT-style (Robotics Diffusion Transformer) 1B policy with SigLIP vision and T5 language encoders and a diffusion action sampler over a 36-DoF bimanual dexterous action space. Training, datasets, teleoperation, ZMQ services, robot SDKs, and simulator code are excluded from the in-tree runtime.
-  architecture_zh: |
-    按集成备注，架构为 RDT 式（Robotics Diffusion Transformer）1B 策略，配 SigLIP 视觉与 T5 语言编码器，在 36 自由度双臂灵巧动作空间上做扩散采样。训练、数据集、遥操作、ZMQ 服务、机器人 SDK 与仿真器代码被排除在树内运行时之外。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `dexora-1b` and runtime profile `runtime-profile:dexora-1b`.
-    Catalog integration status: `in_tree_checkpoint_runtime`.
-    Integration notes recorded in the catalog:
-    - The 1B RDT policy, SigLIP/T5 encoders, strict checkpoint loader, diffusion sampler, and 36-DoF action contract are in-tree.
-    - The authors publish data and training code but no official policy weight repository; runtime therefore requires a locally trained Stage-1 or Stage-3 checkpoint.
-    - Training, datasets, teleoperation, ZMQ services, robot SDKs, and simulator code are excluded.
-
-    Embodiment contract:
-    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
-    - Sensors: RGB camera observations plus a language instruction; the exact camera/state contract is not recorded in this catalog file.
-    - Action space: a 36-DoF bimanual dexterous action vector per step, per the recorded in-tree action contract.
-    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `dexora-1b`，运行时配置为 `runtime-profile:dexora-1b`。
-    目录集成状态：`in_tree_checkpoint_runtime`。
-    目录中记录的集成备注（保留原文）：
-    - The 1B RDT policy, SigLIP/T5 encoders, strict checkpoint loader, diffusion sampler, and 36-DoF action contract are in-tree.
-    - The authors publish data and training code but no official policy weight repository; runtime therefore requires a locally trained Stage-1 or Stage-3 checkpoint.
-    - Training, datasets, teleoperation, ZMQ services, robot SDKs, and simulator code are excluded.
-
-    具身接口（embodiment contract）：
-    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
-    - 传感器：RGB 相机观测加语言指令；具体相机/状态契约本目录文件未记录。
-    - 动作空间：每步 36 自由度的双臂灵巧动作向量（按目录记录的树内动作契约）。
-    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`static_runtime_verified`.
-    Runner parity notes recorded in the catalog:
-    - Source-level checkpoint and inference contracts match the official 1B configuration.
-    - Checkpoint numerical parity remains pending because no official model weights are released.
-
-    Checkpoint numerical parity remains pending because no official model weights are released.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=`static_runtime_verified`。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - Source-level checkpoint and inference contracts match the official 1B configuration.
-    - Checkpoint numerical parity remains pending because no official model weights are released.
-
-    由于官方未发布模型权重，权重数值一致性验证仍待完成。
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
-  recommended_benchmarks: []
+  publisher: Open-source research release (institution not recorded)
+  publisher_kind: lab
+  publisher_zh: 开源研究发布（仓库未记录正式机构）
+  overview: 'Dexora 1B is a dexterous bimanual manipulation VLA built on a 1B RDT policy backbone (paper: arXiv 2605.18722, MIT license). WorldFoundry keeps the full inference stack in-tree — SigLIP/T5 encoders, strict checkpoint loader, diffusion sampler, and a 36-DoF action contract — but the authors publish data and training code without official policy weights.'
+  overview_zh: Dexora 1B 是灵巧双臂操作 VLA，基于 1B RDT 策略骨干（论文：arXiv 2605.18722，MIT 许可）。 WorldFoundry 将完整推理栈内置树内——SigLIP/T5 编码器、严格 checkpoint 加载器、扩散采样器与 36 自由度动作契约——但作者只发布了数据与训练代码，无官方策略权重。
+  architecture: A 1B-parameter RDT (robotics diffusion transformer) policy with SigLIP vision and T5 language encoding, sampling 36-DoF bimanual dexterous actions through a diffusion sampler. Source-level checkpoint and inference contracts match the official 1B configuration.
+  architecture_zh: 1B 参数的 RDT（机器人扩散 transformer）策略，SigLIP 视觉与 T5 语言编码，经扩散采样器输出 36 自由度双臂灵巧动作。源码级 checkpoint 与推理契约与官方 1B 配置一致。
+  usage_notes: You must train your own Stage-1 or Stage-3 checkpoint with the official pipeline before the runtime can execute; training, datasets, teleoperation, ZMQ services, robot SDKs, and simulator code are excluded from the tree.
+  usage_notes_zh: 需先用官方流程训练自己的 Stage-1 或 Stage-3 checkpoint，运行时才能执行；训练、数据集、遥操作、ZMQ 服务、机器人 SDK 与模拟器代码均不在树内。
+  limitations:
+  - No official policy weights are released; checkpoint numerical parity is pending.
+  - 36-DoF dexterous action space requires matching hardware or simulation.
+  limitations_zh:
+  - 官方未发布策略权重；checkpoint 数值 parity 待定。
+  - 36 自由度灵巧动作空间需匹配的硬件或仿真。

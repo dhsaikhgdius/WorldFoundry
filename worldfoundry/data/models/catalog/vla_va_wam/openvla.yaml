@@ -76,65 +76,23 @@ catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance,
   metadata, and runtime-profile planning records. Runner or pipeline targets are present
   only after a complete in-tree WorldFoundry model runtime is registered and validated.
 docs:
-  overview: |
-    OpenVLA (openvla/openvla, MIT) is the Stanford/Berkeley-led 7B open-source vision-language-action model, trained on 970k robot episodes from Open X-Embodiment; it was the reference open VLA baseline of its generation and remains the base model for many derivatives (OFT, Spatial-Forcing, and others tracked in this catalog). WorldFoundry registers an in-tree OpenVLA HF runtime through the pipeline binding: the local openvla-7b route uses backend `worldfoundry.openvla.in_tree_runtime.predict_action` with the vendored Prismatic/OpenVLA architecture code, verified with locally staged checkpoints.
-
-    Within the WorldFoundry model catalog this entry is tracked as `openvla` in the `vla_va_wam` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/openvla/openvla; Hugging Face `openvla/openvla-7b`, `openvla/openvla-7b-finetuned-libero-10`.
-  overview_zh: |
-    OpenVLA（openvla/openvla，MIT）是斯坦福/伯克利主导的 70 亿参数开源视觉-语言-动作模型，在 Open X-Embodiment 的 97 万条机器人轨迹上训练；它是同代开源 VLA 的参考基线，也是本目录中多个衍生模型（OFT、Spatial-Forcing 等）的基座。WorldFoundry 通过 pipeline 绑定注册树内 OpenVLA HF 运行时：本地 openvla-7b 路线使用后端 `worldfoundry.openvla.in_tree_runtime.predict_action`，采用树内内嵌的 Prismatic/OpenVLA 架构代码，并以本地暂存权重验证。
-
-    在 WorldFoundry 模型目录中，该条目以 `openvla` 收录于 `vla_va_wam` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/openvla/openvla；Hugging Face `openvla/openvla-7b`、`openvla/openvla-7b-finetuned-libero-10`。
-  architecture: |
-    The published architecture is a Prismatic-7B VLM: a Llama-2-7B language backbone consuming visual tokens from fused SigLIP and DINOv2 encoders; robot actions are emitted as 256-bin discretized action tokens overwriting the least-used tokens of the Llama vocabulary, decoded autoregressively and de-normalized with a per-dataset unnorm_key (the base checkpoint route records unnorm_key=bridge_orig; the LIBERO-10 fine-tune uses unnorm_key=libero_10).
-  architecture_zh: |
-    公开架构为 Prismatic-7B VLM：Llama-2-7B 语言骨干接收 SigLIP 与 DINOv2 融合编码器的视觉 token；机器人动作以 256 桶离散动作 token 形式输出（占用 Llama 词表中最少使用的 token），自回归解码后按数据集 unnorm_key 反归一化（基座权重路线记录 unnorm_key=bridge_orig；LIBERO-10 微调用 unnorm_key=libero_10）。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `openvla` and runtime profile `runtime-profile:openvla`.
-    Catalog integration status: `integrated`.
-    Integration notes recorded in the catalog:
-    - In-tree OpenVLA HF runtime is registered through the WorldFoundry pipeline binding.
-    - The local openvla-7b route uses backend worldfoundry.openvla.in_tree_runtime.predict_action and emits the configured action trace schema.
-    Recorded variant `openvla-7b`, task `vla.action_prediction`, runner parity `verified`.
-    Recorded variant `openvla-libero-10`, task `vla.policy_rollout`.
-
-    Embodiment contract:
-    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
-    - Sensors: a single third-person RGB image plus a natural-language instruction, following the official predict_action contract.
-    - Action space: 7-DoF end-effector deltas (position, orientation, gripper) decoded from discretized action tokens, one step per forward pass.
-    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `openvla`，运行时配置为 `runtime-profile:openvla`。
-    目录集成状态：已集成（integrated）。
-    目录中记录的集成备注（保留原文）：
-    - In-tree OpenVLA HF runtime is registered through the WorldFoundry pipeline binding.
-    - The local openvla-7b route uses backend worldfoundry.openvla.in_tree_runtime.predict_action and emits the configured action trace schema.
-    目录记录：变体 `openvla-7b`，任务 `vla.action_prediction`，runner 一致性 已验证（verified）。
-    目录记录：变体 `openvla-libero-10`，任务 `vla.policy_rollout`。
-
-    具身接口（embodiment contract）：
-    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
-    - 传感器：单张第三人称 RGB 图像加自然语言指令，遵循官方 predict_action 契约。
-    - 动作空间：由离散动作 token 解码的 7 自由度末端增量（位置、姿态、夹爪），每次前向输出一步。
-    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`verified`.
-    Runner parity notes recorded in the catalog:
-    - Verified through OpenVLASynthesis using the in-tree vendored Prismatic/OpenVLA HF architecture code and local staged HuggingFace checkpoints.
-    - The default model-zoo runner uses the base checkpoint; pass unnorm_key=libero_10 to select the staged LIBERO-10 checkpoint.
-    - Per-run action trace evidence is tracked outside the model catalog.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已验证（verified）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - Verified through OpenVLASynthesis using the in-tree vendored Prismatic/OpenVLA HF architecture code and local staged HuggingFace checkpoints.
-    - The default model-zoo runner uses the base checkpoint; pass unnorm_key=libero_10 to select the staged LIBERO-10 checkpoint.
-    - Per-run action trace evidence is tracked outside the model catalog.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Open-source research release (institution not recorded)
+  publisher_kind: lab
+  publisher_zh: 开源研究发布（仓库未记录正式机构）
+  overview: 'OpenVLA is the widely used open 7B vision-language-action model (MIT license): a Prismatic-based VLM fine-tuned on Open X-Embodiment robot demonstrations to predict discretized actions. Both openvla-7b and the LIBERO-10 fine-tune are confirmed with pinned revisions, and the in-tree WorldFoundry runner is verified on the base route with unnorm_key=bridge_orig.'
+  overview_zh: OpenVLA 是广泛使用的开放 7B 视觉-语言-动作模型（MIT 许可）：基于 Prismatic 的 VLM 在 Open X-Embodiment 机器人示范上微调，预测离散化动作。openvla-7b 与 LIBERO-10 微调版均已确认并锁定 revision，树内 WorldFoundry runner 在 base 路由上以 unnorm_key=bridge_orig 验证。
+  architecture: A 7B Prismatic VLM (fused SigLIP/DINOv2 vision, Llama-2 language) that emits action tokens de-tokenized into continuous 7-DoF actions using dataset-specific normalization keys.
+  architecture_zh: 7B Prismatic VLM（SigLIP/DINOv2 融合视觉，Llama-2 语言），输出动作 token 并按数据集专用归一化键反解为连续 7 自由度动作。
+  usage_notes: Set unnorm_key to match your data distribution (bridge_orig is the verified default). Use the LIBERO-10 fine-tune for LIBERO evaluation, and openvla-oft for the faster fine-tuned line.
+  usage_notes_zh: unnorm_key 需匹配数据分布（已验证默认为 bridge_orig）。LIBERO 评测用 LIBERO-10 微调版；更快的微调线请见 openvla-oft。
+  limitations:
+  - Discretized action tokens cap control precision compared to continuous heads.
+  limitations_zh:
+  - 离散化动作 token 的控制精度低于连续动作头。
   recommended_benchmarks:
-  - libero
-  - simpler-env
-  - bridgedata-v2
+  - id: bridgedata-v2
+    reason: Verified route uses bridge_orig normalization.
+    reason_zh: 已验证路由使用 bridge_orig 归一化。
+  - id: libero
+    reason: Dedicated LIBERO-10 fine-tuned checkpoint.
+    reason_zh: 有专门的 LIBERO-10 微调 checkpoint。

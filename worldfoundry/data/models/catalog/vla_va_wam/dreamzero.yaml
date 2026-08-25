@@ -60,56 +60,22 @@ catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance,
   metadata, and runtime-profile planning records. Runner or pipeline targets are present
   only after a complete in-tree WorldFoundry model runtime is registered and validated.
 docs:
-  overview: |
-    NVIDIA DreamZero (dreamzero0/dreamzero, Apache-2.0; checkpoints under GEAR-Dreams) is a world-action model (WAM): one generative model jointly predicts future video and robot actions. WorldFoundry keeps the inference-only model, preprocessing, distributed server, WebSocket client, and a pickle-free NumPy msgpack protocol under `worldfoundry/synthesis/action_generation/dreamzero`; checkpoint-controlled Hydra targets are rewritten to and allowlisted within in-tree inference modules. DROID and AgiBot checkpoints are staged under `${WORLDFOUNDRY_HFD_ROOT}`; the default 14B server uses two CUDA ranks while the Wan2.2 5B entrypoint can use one.
-
-    Within the WorldFoundry model catalog this entry is tracked as `dreamzero` in the `vla_va_wam` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/dreamzero0/dreamzero; Hugging Face `GEAR-Dreams/DreamZero-DROID`, `GEAR-Dreams/DreamZero-AgiBot`.
-  overview_zh: |
-    NVIDIA DreamZero（dreamzero0/dreamzero，Apache-2.0；权重位于 GEAR-Dreams 组织）是世界-动作模型（WAM）：单个生成模型联合预测未来视频与机器人动作。WorldFoundry 将仅推理模型、预处理、分布式服务器、WebSocket 客户端与无 pickle 的 NumPy msgpack 协议置于 `worldfoundry/synthesis/action_generation/dreamzero`；权重控制的 Hydra target 被重写并限制在树内推理模块白名单内。DROID 与 AgiBot 权重暂存于 `${WORLDFOUNDRY_HFD_ROOT}`；默认 14B 服务器使用两个 CUDA rank，Wan2.2 5B 入口可单卡。
-
-    在 WorldFoundry 模型目录中，该条目以 `dreamzero` 收录于 `vla_va_wam` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/dreamzero0/dreamzero；Hugging Face `GEAR-Dreams/DreamZero-DROID`、`GEAR-Dreams/DreamZero-AgiBot`。
-  architecture: |
-    The catalog records a Wan-family video-diffusion backbone (a default 14B configuration and a Wan2.2 5B entrypoint) extended for world-action modeling: the model rolls out future video conditioned on observations and instructions while emitting action outputs. The official default demo is the distributed server plus `test_client_AR.py` with debug_image videos. Layer-level details are not recorded in the repository.
-  architecture_zh: |
-    目录记录其骨干为 Wan 系视频扩散（默认 14B 配置及 Wan2.2 5B 入口），扩展用于世界-动作建模：模型以观测与指令为条件推演未来视频并同时输出动作。官方默认演示为分布式服务器加 `test_client_AR.py`（带 debug_image 视频）。层级细节仓库未记录。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `dreamzero` and runtime profile `runtime-profile:dreamzero`.
-    Catalog integration status: `integrated`.
-    Integration notes recorded in the catalog:
-    - DreamZero DROID and AgiBot checkpoints are staged under ${WORLDFOUNDRY_HFD_ROOT}; the default 14B server uses two CUDA ranks, while the Wan2.2 5B entrypoint can use one.
-    - The inference-only model, preprocessing, distributed server, WebSocket client, and pickle-free NumPy msgpack protocol live directly under worldfoundry/synthesis/action_generation/dreamzero.
-    - Checkpoint-controlled Hydra targets are rewritten to and allowlisted within the in-tree inference modules. Assets are local-only and checkpoint Python is never executed.
-    Recorded variant `dreamzero-droid`, task `wam.world_action_modeling`.
-    Recorded variant `dreamzero-agibot`, task `wam.post_training_base`.
-
-    Embodiment contract:
-    - Simulator: none bundled — checkpoints are post-trained on DROID (real-robot data) and AgiBot; the catalog records no simulator dependency for inference.
-    - Sensors: RGB camera observations plus a language instruction; the exact camera/state contract is not recorded in this catalog file.
-    - Action space: robot action chunks emitted jointly with predicted future video (world-action modeling); exact dimensionality is not recorded in this catalog file.
-    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `dreamzero`，运行时配置为 `runtime-profile:dreamzero`。
-    目录集成状态：已集成（integrated）。
-    目录中记录的集成备注（保留原文）：
-    - DreamZero DROID and AgiBot checkpoints are staged under ${WORLDFOUNDRY_HFD_ROOT}; the default 14B server uses two CUDA ranks, while the Wan2.2 5B entrypoint can use one.
-    - The inference-only model, preprocessing, distributed server, WebSocket client, and pickle-free NumPy msgpack protocol live directly under worldfoundry/synthesis/action_generation/dreamzero.
-    - Checkpoint-controlled Hydra targets are rewritten to and allowlisted within the in-tree inference modules. Assets are local-only and checkpoint Python is never executed.
-    目录记录：变体 `dreamzero-droid`，任务 `wam.world_action_modeling`。
-    目录记录：变体 `dreamzero-agibot`，任务 `wam.post_training_base`。
-
-    具身接口（embodiment contract）：
-    - 仿真器：不内置仿真器——权重在 DROID（真实机器人数据）与 AgiBot 上后训练；目录未记录推理侧的仿真器依赖。
-    - 传感器：RGB 相机观测加语言指令；具体相机/状态契约本目录文件未记录。
-    - 动作空间：与预测未来视频联合输出的机器人动作块（世界-动作建模）；具体维度本目录文件未记录。
-    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
-  limitations: |
-    No family-level demo/runner parity status is recorded in this catalog file.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件未记录家族级 demo/runner 一致性状态。
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
-  recommended_benchmarks: []
+  publisher: NVIDIA (GEAR Lab)
+  publisher_kind: company
+  publisher_zh: 英伟达（GEAR 实验室）
+  overview: 'NVIDIA DreamZero is a world-action model (WAM) that couples video prediction with robot control: DROID and AgiBot checkpoints are released under Apache-2.0 (GEAR-Dreams org). WorldFoundry keeps the inference-only model, preprocessing, distributed server, WebSocket client, and a pickle-free NumPy msgpack protocol in-tree; both checkpoints passed GPU probes on a CUDA 12.9 runtime.'
+  overview_zh: 英伟达 DreamZero 是将视频预测与机器人控制耦合的世界-动作模型（WAM）：DROID 与 AgiBot checkpoint 以 Apache-2.0 发布（GEAR-Dreams 组织）。WorldFoundry 将推理专用模型、预处理、分布式服务、 WebSocket 客户端与无 pickle 的 NumPy msgpack 协议内置树内；两个 checkpoint 均在 CUDA 12.9 运行时通过 GPU 探针。
+  architecture: The default 14B server uses two CUDA ranks while the Wan2.2 5B entrypoint can run on one. Checkpoint-controlled Hydra targets are rewritten to and allowlisted within in-tree inference modules, so checkpoint Python is never executed.
+  architecture_zh: 默认 14B 服务使用两个 CUDA rank，Wan2.2 5B 入口可单 rank 运行。checkpoint 控制的 Hydra target 被重写并限定在树内推理模块白名单内，绝不执行 checkpoint Python。
+  usage_notes: Stage DreamZero-DROID or DreamZero-AgiBot under WORLDFOUNDRY_HFD_ROOT; a CUDA 12.9 runtime is required. Choose DROID for real-robot arm data distribution and AgiBot for the AgiBot embodiment.
+  usage_notes_zh: 将 DreamZero-DROID 或 DreamZero-AgiBot 就位于 WORLDFOUNDRY_HFD_ROOT；需要 CUDA 12.9 运行时。DROID 面向真实机械臂数据分布，AgiBot 面向 AgiBot 本体。
+  limitations:
+  - Requires CUDA 12.9; the 14B default needs two GPU ranks.
+  - GPU probes are verified, but full rollout parity is not recorded in this repository.
+  limitations_zh:
+  - 需要 CUDA 12.9；14B 默认配置需两个 GPU rank。
+  - GPU 探针已验证，但完整 rollout parity 仓库未记录。
+  recommended_benchmarks:
+  - id: ewmbench
+    reason: World-action modeling quality for embodied control.
+    reason_zh: 具身控制的世界-动作建模质量。

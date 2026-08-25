@@ -40,59 +40,24 @@ runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipel
 pipeline_binding: mira
 catalog_category: world_models
 docs:
-  overview: |
-    MIRA (mira-wm/mira) is an action-conditioned multiplayer game world model: it models a shared game world that multiple players' actions influence simultaneously, evaluated on the Rocket Science dataset. WorldFoundry vendors the inference-only upstream source under `synthesis/visual_generation/world_model/mira_wm`; Workspace accepts a local MIRA checkpoint and Rocket Science dataset split (no training entrypoint is integrated), and full artifact parity remains pending until an official-compatible checkpoint and split are staged. The recorded variant is local-checkpoint (rocket-science-rollout).
-
-    Within the WorldFoundry model catalog this entry is tracked as `mira` in the `world_models` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/mira-wm/mira.
-  overview_zh: |
-    MIRA（mira-wm/mira）是动作条件的多人游戏世界模型：建模一个由多名玩家动作同时影响的共享游戏世界，在 Rocket Science 数据集上评测。WorldFoundry 在 `synthesis/visual_generation/world_model/mira_wm` 内嵌仅推理上游源码；Workspace 接受本地 MIRA 权重与 Rocket Science 数据集切分（未集成训练入口），在暂存官方兼容权重与切分之前完整 artifact 一致性待完成。记录变体为 local-checkpoint（rocket-science-rollout）。
-
-    在 WorldFoundry 模型目录中，该条目以 `mira` 收录于 `world_models` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/mira-wm/mira。
-  architecture: |
-    Recorded modalities are action-conditioned-world-model and multiplayer-game-world-model: a world video generator conditioned on per-player action streams over the Rocket Science multiplayer domain. Workspace discovery, argument routing, and command generation are covered without loading model weights. Further architecture details are not recorded in the repository.
-  architecture_zh: |
-    记录模态为 action-conditioned-world-model 与 multiplayer-game-world-model：以每位玩家的动作流为条件、面向 Rocket Science 多人域的世界视频生成器。Workspace 发现、参数路由与命令生成在不加载模型权重的情况下已覆盖。更多架构细节仓库未记录。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `mira` and runtime profile `runtime-profile:mira`.
-    Catalog integration status: `integrated`.
-    Integration notes recorded in the catalog:
-    - Inference-only upstream source is vendored under synthesis/visual_generation/world_model/mira_wm.
-    - Workspace accepts a local MIRA checkpoint and Rocket Science dataset split; no training entrypoint is integrated.
-    Recorded variant `local-checkpoint`, task `rocket-science-rollout`.
-
-    Embodiment contract:
-    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
-    - Sensors: an initial image or context frames plus streaming interaction inputs.
-    - Action space: per-player action streams of the multiplayer Rocket Science domain condition the shared world rollout.
-    - Dedicated environment: dedicated to the Rocket Science multiplayer game domain per the recorded variant.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `mira`，运行时配置为 `runtime-profile:mira`。
-    目录集成状态：已集成（integrated）。
-    目录中记录的集成备注（保留原文）：
-    - Inference-only upstream source is vendored under synthesis/visual_generation/world_model/mira_wm.
-    - Workspace accepts a local MIRA checkpoint and Rocket Science dataset split; no training entrypoint is integrated.
-    目录记录：变体 `local-checkpoint`，任务 `rocket-science-rollout`。
-
-    具身接口（embodiment contract）：
-    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
-    - 传感器：初始图像或上下文帧，加流式交互输入。
-    - 动作空间：多人 Rocket Science 域中每位玩家的动作流作为共享世界 rollout 的条件。
-    - 是否专用环境：按记录变体专用于 Rocket Science 多人游戏域。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`implemented_checkpoint_pending`.
-    Runner parity notes recorded in the catalog:
-    - Workspace discovery, argument routing, and command generation are covered without loading model weights.
-    - Full artifact parity remains pending until an official-compatible checkpoint and Rocket Science split are staged.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已实现、待权重就绪（implemented_checkpoint_pending）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - Workspace discovery, argument routing, and command generation are covered without loading model weights.
-    - Full artifact parity remains pending until an official-compatible checkpoint and Rocket Science split are staged.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Open-source research release (institution not recorded)
+  publisher_kind: lab
+  publisher_zh: 开源研究发布（仓库未记录正式机构）
+  overview: 'MIRA is a multiplayer interactive world model: several players act in one shared, action-conditioned generated world (paper arXiv 2607.05352). In this catalog the inference-only upstream source is vendored in-tree; execution needs a compatible local checkpoint and a local Rocket Science dataset split containing index.json.'
+  overview_zh: MIRA 是多人交互世界模型：多名玩家在同一个动作条件生成世界中行动（论文 arXiv 2607.05352）。本 catalog 中仅推理的上游源码已内置树内；执行需要兼容的本地 checkpoint 与包含 index.json 的本地 Rocket Science 数据集切分。
+  architecture: Architecture internals beyond the recorded tasks are not stored in this repository (apache-2.0). Workspace discovery, argument routing, and command generation are covered without loading model weights; a local-checkpoint variant records the Rocket Science rollout task.
+  architecture_zh: 除已记录任务外的架构内部细节仓库未存（apache-2.0）。Workspace 发现、参数路由与命令生成的覆盖不需加载模型权重；local-checkpoint variant 记录 Rocket Science 滚动生成任务。
+  usage_notes: The public Rocket Science dataset is about 29.24 TB — it is pinned but intentionally never downloaded automatically. Video decoding falls back to PyAV when TorchCodec is ABI-incompatible; output uses the shared WorldFoundry video backend. Training and metric entrypoints are intentionally omitted.
+  usage_notes_zh: 公开的 Rocket Science 数据集约 29.24 TB——已固定但有意不自动下载。TorchCodec ABI 不兼容时视频解码回退到 PyAV；输出使用共享的 WorldFoundry 视频后端。训练与指标入口有意省略。
+  limitations:
+  - Full artifact parity waits on an official-compatible checkpoint and Rocket Science split.
+  - The public dataset is ~29.24 TB — plan storage before staging.
+  - The publishing institution is not recorded in this repository.
+  limitations_zh:
+  - 完整产物一致性待官方兼容 checkpoint 与 Rocket Science 切分就位。
+  - 公开数据集约 29.24 TB——就位前请规划存储。
+  - 发表机构在本仓库中未记录。
   recommended_benchmarks:
-  - iworld-bench
+  - id: worldmodelbench
+    reason: Multiplayer world-rollout quality.
+    reason_zh: 多人世界滚动生成质量。

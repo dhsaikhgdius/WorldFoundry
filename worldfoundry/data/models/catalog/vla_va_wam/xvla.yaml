@@ -44,63 +44,20 @@ catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance,
   metadata, and runtime-profile planning records. Runner or pipeline targets are present
   only after a complete in-tree WorldFoundry model runtime is registered and validated.
 docs:
-  overview: |
-    X-VLA (2toinf/X-VLA, Apache-2.0) is a cross-embodiment VLA built around soft-prompt domain conditioning: a compact set of learnable per-embodiment prompt tokens lets one shared transformer serve many robot platforms, selected at inference by an explicit domain ID. WorldFoundry keeps the Florence-2 backbone, X-VLA processor, soft-prompted transformer, and action transforms source-complete in tree; execution never imports a source checkout or checkpoint-provided Python and forces trust_remote_code=false. All nine released embodiment checkpoints were restored strictly with zero missing/unexpected/mismatched tensors and produced finite 30x20 actions through real A100 inference; a deterministic reduced-shape comparison against upstream measured max absolute difference below 5e-7.
-
-    Within the WorldFoundry model catalog this entry is tracked as `xvla` in the `vla_va_wam` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/2toinf/X-VLA; Hugging Face `2toINF/X-VLA-WidowX`.
-  overview_zh: |
-    X-VLA（2toinf/X-VLA，Apache-2.0）是围绕软提示（soft-prompt）域条件构建的跨具身 VLA：一小组可学习的分具身提示 token 让单个共享 transformer 服务多种机器人平台，推理时通过显式 domain ID 选择。WorldFoundry 在树内源码完整地保留 Florence-2 骨干、X-VLA 处理器、软提示 transformer 与动作变换；执行从不导入源码 checkout 或权重携带的 Python，并强制 trust_remote_code=false。九个已发布具身权重全部严格恢复、零缺失/多余/不匹配张量，并在真实 A100 推理中产出有限 30x20 动作；与上游的确定性缩形对比最大绝对误差低于 5e-7。
-
-    在 WorldFoundry 模型目录中，该条目以 `xvla` 收录于 `vla_va_wam` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/2toinf/X-VLA；Hugging Face `2toINF/X-VLA-WidowX`。
-  architecture: |
-    The published design uses a Florence-2 vision-language backbone feeding a soft-prompted flow-matching transformer: per-embodiment soft prompts absorb cross-platform variation in camera layouts and action formats, so the shared weights stay embodiment-agnostic. The in-tree action head has exactly the same 300 state keys, tensor shapes, and parameter count as upstream. Output is a 30-step chunk of 20-dimensional actions covering the padded cross-embodiment action layout; the recorded Hub checkpoint `2toINF/X-VLA-WidowX` targets the WidowX/BridgeData embodiment.
-  architecture_zh: |
-    公开设计用 Florence-2 视觉-语言骨干接软提示 flow-matching transformer：分具身软提示吸收相机布局与动作格式的跨平台差异，使共享权重保持具身无关。树内动作头与上游具有完全相同的 300 个 state key、张量形状与参数量。输出为 30 步 20 维动作块（覆盖填充后的跨具身动作布局）；目录记录的 Hub 权重 `2toINF/X-VLA-WidowX` 面向 WidowX/BridgeData 具身。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `xvla` and runtime profile `runtime-profile:xvla`.
-    Catalog integration status: `all_released_checkpoints_gpu_validated`.
-    Integration notes recorded in the catalog:
-    - The Florence-2 backbone, X-VLA processor, soft-prompted transformer, and action transforms are source-complete in-tree.
-    - Runtime execution never imports a source checkout or checkpoint-provided Python and forces trust_remote_code=false.
-    - Training, datasets, FastAPI/uvicorn serving, simulator clients, and robot drivers are excluded.
-    - All nine released checkpoints were restored strictly and produced finite 30-by-20 actions through real A100 Workspace inference with explicit domain IDs.
-
-    Embodiment contract:
-    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
-    - Sensors: RGB camera views plus proprioceptive state with an explicit per-embodiment domain ID; the exact camera set follows the selected embodiment checkpoint.
-    - Action space: 30-step chunks of 20-dimensional actions (30x20) in the padded cross-embodiment layout, transformed to the target platform by the recorded action transforms.
-    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `xvla`，运行时配置为 `runtime-profile:xvla`。
-    目录集成状态：`all_released_checkpoints_gpu_validated`。
-    目录中记录的集成备注（保留原文）：
-    - The Florence-2 backbone, X-VLA processor, soft-prompted transformer, and action transforms are source-complete in-tree.
-    - Runtime execution never imports a source checkout or checkpoint-provided Python and forces trust_remote_code=false.
-    - Training, datasets, FastAPI/uvicorn serving, simulator clients, and robot drivers are excluded.
-    - All nine released checkpoints were restored strictly and produced finite 30-by-20 actions through real A100 Workspace inference with explicit domain IDs.
-
-    具身接口（embodiment contract）：
-    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
-    - 传感器：RGB 相机视角加本体状态，并需显式的分具身 domain ID；具体相机组随所选具身权重而定。
-    - 动作空间：填充跨具身布局下的 30 步 20 维动作块（30x20），经记录的动作变换映射到目标平台。
-    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`all_released_checkpoints_gpu_validated`.
-    Runner parity notes recorded in the catalog:
-    - The in-tree action head has exactly the same 300 state keys, tensor shapes, and parameter count as upstream.
-    - A deterministic reduced-shape comparison against upstream measured max absolute difference below 5e-7.
-    - All released embodiment checkpoints have zero missing, unexpected, or mismatched tensors and passed real GPU action inference.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=`all_released_checkpoints_gpu_validated`。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - The in-tree action head has exactly the same 300 state keys, tensor shapes, and parameter count as upstream.
-    - A deterministic reduced-shape comparison against upstream measured max absolute difference below 5e-7.
-    - All released embodiment checkpoints have zero missing, unexpected, or mismatched tensors and passed real GPU action inference.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Tsinghua University (AIR)
+  publisher_kind: university
+  publisher_zh: 清华大学智能产业研究院（AIR）
+  overview: 'X-VLA is a cross-embodiment VLA built on a Florence-2 backbone with soft-prompt domain conditioning (paper: arXiv 2510.10274, Apache-2.0). It is one of the most thoroughly validated entries in this catalog: all nine released checkpoints restored strictly and produced finite 30x20 actions through real A100 inference with explicit domain IDs, and the in-tree action head matches upstream within 5e-7.'
+  overview_zh: X-VLA 是跨本体 VLA，基于 Florence-2 骨干与软提示域条件（论文：arXiv 2510.10274， Apache-2.0）。它是本 catalog 验证最充分的条目之一：九个已发布 checkpoint 全部严格恢复，并以显式域 ID 经真实 A100 推理产出有限的 30x20 动作，树内动作头与上游最大绝对差低于 5e-7。
+  architecture: A Florence-2 vision-language backbone, the X-VLA processor, and a soft-prompted transformer whose domain-specific soft prompts switch embodiments; the in-tree action head has exactly the same 300 state keys, tensor shapes, and parameter count as upstream.
+  architecture_zh: Florence-2 视觉-语言骨干、X-VLA processor 与软提示 transformer——域专用软提示切换本体；树内动作头与上游拥有完全相同的 300 个状态键、张量形状与参数量。
+  usage_notes: Always pass the explicit domain ID matching your embodiment/checkpoint. Runtime forces trust_remote_code=false and never imports a source checkout; training, FastAPI serving, simulator clients, and robot drivers are excluded.
+  usage_notes_zh: 务必传入与本体/checkpoint 匹配的显式域 ID。运行时强制 trust_remote_code=false 且绝不导入源码 checkout；训练、FastAPI 服务、模拟器客户端与机器人驱动被排除。
+  limitations:
+  - Domain IDs must be supplied explicitly; a wrong ID silently changes the embodiment prior.
+  limitations_zh:
+  - 域 ID 需显式提供；错误 ID 会悄然改变本体先验。
   recommended_benchmarks:
-  - simpler-env
+  - id: bridgedata-v2
+    reason: The confirmed X-VLA-WidowX checkpoint targets Bridge-style WidowX data.
+    reason_zh: 已确认的 X-VLA-WidowX checkpoint 面向 Bridge 式 WidowX 数据。

@@ -53,62 +53,25 @@ catalog_policy:
     Hugging Face model page was confirmed. Do not infer checkpoint availability from
     papers, demos, or third-party mirrors.
 docs:
-  overview: |
-    Matrix-Game 3.0 (SkyworkAI/Matrix-Game; Hugging Face `Skywork/Matrix-Game-3.0`, Apache-2.0) is Skywork's third-generation streaming, long-horizon interactive game world model. WorldFoundry vendors the runtime under `worldfoundry/synthesis/visual_generation/matrix_game/matrix_game_3_runtime` — including the infer-only video writer needed by the official process_video call — with no external checkout required at runtime; checkpoint_dir remains an external asset path. The runner is verified with the official cityscape image-conditioned demo (actions forward + camera_r, num_iterations=12, num_inference_steps=3, size 704x1280, use_int8=true, compile_vae=true, vae_type=mg_lightvae).
-
-    Within the WorldFoundry model catalog this entry is tracked as `matrix-game-3` in the `world_models` category.
-    Official sources recorded in this catalog file: official GitHub repository https://github.com/SkyworkAI/Matrix-Game; Hugging Face `Skywork/Matrix-Game-3.0`.
-  overview_zh: |
-    Matrix-Game 3.0（SkyworkAI/Matrix-Game；Hugging Face `Skywork/Matrix-Game-3.0`，Apache-2.0）是 Skywork 第三代流式、长时程交互游戏世界模型。WorldFoundry 在 `worldfoundry/synthesis/visual_generation/matrix_game/matrix_game_3_runtime` 内嵌运行时——包括官方 process_video 调用所需的仅推理视频写入器——运行时无需外部 checkout；checkpoint_dir 保留为外部资产路径。runner 已用官方 cityscape 图像条件演示验证（动作 forward + camera_r、num_iterations=12、num_inference_steps=3、尺寸 704x1280、use_int8=true、compile_vae=true、vae_type=mg_lightvae）。
-
-    在 WorldFoundry 模型目录中，该条目以 `matrix-game-3` 收录于 `world_models` 分类。
-    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/SkyworkAI/Matrix-Game；Hugging Face `Skywork/Matrix-Game-3.0`。
-  architecture: |
-    The recorded configuration shows a few-step (3 inference steps per iteration) streaming autoregressive diffusion world model with int8 execution, a compiled lightweight VAE (mg_lightvae), and iterative block generation (12 iterations in the demo) for long-horizon rollouts; actions combine movement (forward) and camera (camera_r) channels. The in-tree runtime includes the Dynamo alias compatibility needed by the official process_video path. Further architecture details are not recorded in the repository.
-  architecture_zh: |
-    记录配置显示这是少步（每迭代 3 个推理步）流式自回归扩散世界模型，采用 int8 执行、编译的轻量 VAE（mg_lightvae）与迭代块生成（演示中 12 次迭代）实现长时程 rollout；动作组合移动（forward）与相机（camera_r）通道。树内运行时包含官方 process_video 路径所需的 Dynamo 别名兼容。更多架构细节仓库未记录。
-  usage_notes: |
-    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `matrix-game-3` and runtime profile `runtime-profile:matrix-game-3`.
-    Catalog integration status: `integrated`.
-    Integration notes recorded in the catalog:
-    - Matrix-Game 3 runtime is vendored under worldfoundry/synthesis/visual_generation/matrix_game/matrix_game_3_runtime.
-    - The wrapper and runner now default to the package runtime root and no longer resolve external repo_root; checkpoint_dir remains an external asset path.
-    - In-tree runtime includes the infer-only video writer needed by the official process_video call; no external Matrix-Game checkout is required at runtime.
-
-    Embodiment contract:
-    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
-    - Sensors: an initial image or context frames plus streaming interaction inputs.
-    - Action space: keyboard/mouse-style or discrete navigation actions (plus optional camera controls) drive frame-by-frame world evolution.
-    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
-  usage_notes_zh: |
-    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `matrix-game-3`，运行时配置为 `runtime-profile:matrix-game-3`。
-    目录集成状态：已集成（integrated）。
-    目录中记录的集成备注（保留原文）：
-    - Matrix-Game 3 runtime is vendored under worldfoundry/synthesis/visual_generation/matrix_game/matrix_game_3_runtime.
-    - The wrapper and runner now default to the package runtime root and no longer resolve external repo_root; checkpoint_dir remains an external asset path.
-    - In-tree runtime includes the infer-only video writer needed by the official process_video call; no external Matrix-Game checkout is required at runtime.
-
-    具身接口（embodiment contract）：
-    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
-    - 传感器：初始图像或上下文帧，加流式交互输入。
-    - 动作空间：键鼠式或离散导航动作（可选相机控制）驱动逐帧世界演化。
-    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
-  limitations: |
-    Parity fields recorded in this catalog file: runner_parity=`verified`.
-    Runner parity notes recorded in the catalog:
-    - The official cityscape image-conditioned demo configuration is represented with actions forward + camera_r, num_iterations=12, num_inference_steps=3, size=704*1280, use_int8=true, compile_vae=true, and vae_type=mg_lightvae.
-    - The in-tree runtime includes the Dynamo alias compatibility needed by the official process_video path.
-    - Per-run visual QA and artifact checks are tracked outside the catalog.
-
-    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
-  limitations_zh: |
-    本目录文件记录的一致性字段：runner_parity=已验证（verified）。
-    目录中记录的 runner 一致性备注（保留原文）：
-    - The official cityscape image-conditioned demo configuration is represented with actions forward + camera_r, num_iterations=12, num_inference_steps=3, size=704*1280, use_int8=true, compile_vae=true, and vae_type=mg_lightvae.
-    - The in-tree runtime includes the Dynamo alias compatibility needed by the official process_video path.
-    - Per-run visual QA and artifact checks are tracked outside the catalog.
-
-    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  publisher: Skywork AI (Kunlun Tech)
+  publisher_kind: company
+  publisher_zh: 昆仑万维（Skywork AI）
+  overview: Matrix-Game 3.0 is the third Skywork generation, pushing interactive world video to higher resolution with few-step inference. In this catalog the runner is verified — the official cityscape image-conditioned demo runs with actions forward + camera_r, 12 iterations, 3 inference steps, 704x1280, int8 quantization, compiled VAE, and the mg_lightvae decoder.
+  overview_zh: Matrix-Game 3.0 是昆仑万维的第三代，以少步推理把交互式世界视频推到更高分辨率。本 catalog 中 runner 已验证——官方 cityscape 图像条件 demo 以「forward + camera_r」动作、12 次迭代、3 步推理、 704x1280、int8 量化、编译 VAE 与 mg_lightvae 解码器运行。
+  architecture: The runtime is vendored under synthesis/visual_generation/matrix_game/matrix_game_3_runtime including the infer-only video writer needed by the official process_video call and Dynamo alias compatibility; checkpoint_dir remains an external asset path.
+  architecture_zh: 运行时内置于 synthesis/visual_generation/matrix_game/matrix_game_3_runtime，包含官方 process_video 调用所需的仅推理视频写出器与 Dynamo 别名兼容；checkpoint_dir 保持为外部资产路径。
+  usage_notes: No external Matrix-Game checkout is required at runtime. The verified demo uses int8 plus a compiled light VAE for speed — switch these off if you need maximum fidelity and have GPU headroom.
+  usage_notes_zh: 运行时不需要外部 Matrix-Game 检出。已验证 demo 为提速使用 int8 与编译的轻量 VAE——若追求最高保真且 GPU 余量充足，可关闭这些选项。
+  limitations:
+  - The verified route uses int8 quantization and a light VAE — a speed/fidelity trade-off.
+  - Per-run visual QA is tracked outside the catalog.
+  limitations_zh:
+  - 已验证路径使用 int8 量化与轻量 VAE——速度与保真的权衡。
+  - 每次运行的视觉 QA 在 catalog 外跟踪。
   recommended_benchmarks:
-  - iworld-bench
-  - world-in-world
+  - id: worldmodelbench
+    reason: Action-conditioned game-world rollout quality.
+    reason_zh: 动作条件游戏世界滚动生成质量。
+  - id: camerabench
+    reason: Camera-action following accuracy.
+    reason_zh: 相机动作跟随精度。
