@@ -147,6 +147,51 @@ export type ModelRecipeRuntime = ModelRecipeRuntimeSummary & {
   notes: string[];
 };
 
+/**
+ * Benchmark referenced from a model homepage. `source: 'docs'` means the
+ * catalog manifest recommends it explicitly via the optional `docs:` block;
+ * `source: 'manifest'` means the benchmark name appears in the manifest's
+ * recorded evidence notes.
+ */
+export type ModelRecipeBenchmarkRef = {
+  id: string;
+  name: string;
+  category: string;
+  categoryZh: string;
+  summary: string;
+  summaryZh: string;
+  href: string;
+  source: 'docs' | 'manifest';
+  reason: string;
+  reasonZh: string;
+};
+
+/**
+ * Narrative block for the model homepage. Populated from the optional
+ * curated `docs:` / `homepage:` block in the catalog manifest when present
+ * (`curated: true`), otherwise synthesized deterministically from recorded
+ * catalog, runtime, binding, and evidence fields by
+ * scripts/generate-model-recipes.py.
+ */
+export type ModelRecipeDocs = {
+  curated: boolean;
+  overview: string[];
+  overviewZh: string[];
+  highlights: string[];
+  highlightsZh: string[];
+  modalities: { inputs: string[]; outputs: string[] };
+  useCases: string[];
+  useCasesZh: string[];
+  hardware: {
+    minVramGb: number | null;
+    recommended: string | null;
+    notes: string[];
+  };
+  benchmarks: ModelRecipeBenchmarkRef[];
+  limitations: string[];
+  limitationsZh: string[];
+};
+
 export type ModelRecipe = Omit<ModelRecipeIndexEntry, 'runtime' | 'checkpoint'> & {
   runtime: ModelRecipeRuntime;
   sources: ModelRecipeSource[];
@@ -156,6 +201,7 @@ export type ModelRecipe = Omit<ModelRecipeIndexEntry, 'runtime' | 'checkpoint'> 
   inputContract: ModelRecipeContractField[];
   artifacts: ModelRecipeArtifact[];
   notes: string[];
+  docs: ModelRecipeDocs;
   commands: {
     prepare: string;
     install: string;

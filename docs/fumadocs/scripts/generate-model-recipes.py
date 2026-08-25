@@ -4,6 +4,56 @@
 The generated JSON deliberately keeps catalog support, runtime integration,
 environment compatibility, checkpoint provenance, and runner evidence separate.
 Missing data stays missing instead of being inferred into a stronger claim.
+
+Optional per-model ``docs:`` block
+----------------------------------
+
+A catalog manifest MAY carry a curated documentation block. When present it
+overrides the synthesized narrative on the model homepage; when absent the
+generator composes an equivalent narrative from the recorded catalog, runtime,
+binding, and evidence fields, so every model page stays detailed either way.
+``homepage:`` is accepted as an alias of ``docs:`` (``docs:`` wins on
+conflicts). All keys are optional. Schema::
+
+    docs:
+      # 2-5 plain-language sentences: what the model is, what it takes in,
+      # what it produces. English required if the block is used; the *_zh
+      # mirror keeps the Chinese page in sync.
+      overview: >-
+        ...
+      overview_zh: >-
+        ...
+      # Short capability bullets rendered under "What this model is".
+      highlights: [ ... ]
+      highlights_zh: [ ... ]
+      # Free-form modality tokens, e.g. text / image / video / action.
+      # Derived from task ids (``text-to-video`` => text -> video) if absent.
+      modalities:
+        inputs: [text, image]
+        outputs: [video]
+      # Typical scenarios; rendered as a bullet list when present.
+      use_cases: [ ... ]
+      use_cases_zh: [ ... ]
+      # Hardware guidance. min_vram_gb is also auto-discovered from any
+      # recorded ``min_vram_gb`` field elsewhere in the manifest.
+      hardware:
+        min_vram_gb: 24
+        recommended: "1x A100 80GB"
+        notes: [ ... ]
+      # Benchmarks that make sense for this model. ``id`` must be a
+      # benchmark id under worldfoundry/data/benchmarks/catalog (same ids
+      # as /docs/evaluation/benchmark-hub/<id>). Benchmarks whose names
+      # appear in this manifest's evidence notes are additionally surfaced
+      # automatically with source="manifest".
+      recommended_benchmarks:
+        - id: vbench
+          reason: ...
+          reason_zh: ...
+      # Honest constraints. Synthesized from parity records when absent —
+      # never write marketing claims here; unverified GPU evidence must
+      # stay "Not recorded".
+      limitations: [ ... ]
+      limitations_zh: [ ... ]
 """
 
 from __future__ import annotations
@@ -31,6 +81,7 @@ CATALOG_ROOT = ROOT / "worldfoundry/data/models/catalog"
 PROFILE_ROOT = ROOT / "worldfoundry/data/models/runtime/profiles"
 ENVIRONMENT_ROOT = ROOT / "worldfoundry/data/models/runtime/environments"
 BINDING_ROOT = ROOT / "worldfoundry/data/models/bindings/pipelines"
+BENCH_STATUS_PATH = DOCS_ROOT / "lib" / "benchmark-catalog-status.json"
 
 CATEGORY_META = {
     "video": {
@@ -783,6 +834,635 @@ def recipe_notes(item: dict[str, Any], profile: dict[str, Any] | None) -> list[s
     )
 
 
+# ---------------------------------------------------------------------------
+# Model homepage docs block: curated ``docs:`` override + synthesized fallback
+# ---------------------------------------------------------------------------
+
+DOCS_CATEGORY_NOUNS = {
+    "video": ("video generation model", "视频生成模型"),
+    "world_models": ("world model", "世界模型"),
+    "three_d_four_d": ("3D/4D reconstruction and generation model", "3D/4D 重建与生成模型"),
+    "vla_va_wam": ("embodied vision-language-action model", "具身智能（视觉-语言-动作）模型"),
+    "hosted_api": ("hosted, provider-backed model", "托管 API 模型"),
+}
+
+TASK_PHRASES_ZH = {
+    "text-to-video": "文生视频",
+    "image-to-video": "图生视频",
+    "video-to-video": "视频到视频转换",
+    "text-to-image": "文生图",
+    "image-to-image": "图像编辑",
+    "text-image-to-video": "图文联合生成视频",
+    "reference-to-video": "参考图生成视频",
+    "reference-video-to-video": "参考视频转换",
+    "audio-video-generation": "音视频联合生成",
+    "video-generation": "视频生成",
+    "long-video-generation": "长视频生成",
+    "autoregressive-video-generation": "自回归视频生成",
+    "interactive-video-generation": "交互式视频生成",
+    "camera-controlled-video": "相机可控视频生成",
+    "camera-control": "相机控制",
+    "camera_control": "相机控制",
+    "depth-controlled-video": "深度可控视频生成",
+    "trajectory-controlled-video": "轨迹可控视频生成",
+    "action-conditioned-video": "动作条件视频生成",
+    "interactive-world-model": "交互式世界模型",
+    "world-model": "世界模型",
+    "world_model": "世界模型",
+    "world": "世界模型",
+    "world-generation": "世界生成",
+    "3d-world-generation": "3D 世界生成",
+    "image-to-3d-world": "图像生成 3D 世界",
+    "robot-world-model": "机器人世界模型",
+    "robotics-world-model": "机器人世界模型",
+    "game-world-model": "游戏世界模型",
+    "minecraft-world-model": "Minecraft 世界模型",
+    "multi-agent-world-model": "多智能体世界模型",
+    "embodied-world-model": "具身世界模型",
+    "diffusion-world-model": "扩散世界模型",
+    "vla": "视觉-语言-动作（VLA）",
+    "vla.policy_rollout": "VLA 策略执行",
+    "vla.action_prediction": "VLA 动作预测",
+    "robot_policy": "机器人策略",
+    "policy_rollout": "策略执行",
+    "embodied_policy": "具身策略",
+    "embodied_benchmark": "具身评测",
+    "wam": "世界-动作模型（WAM）",
+    "wam.world_action_modeling": "世界-动作建模",
+    "3d-reconstruction": "3D 重建",
+    "geometry-prior": "几何先验",
+    "geometry": "几何估计",
+    "novel-view-synthesis": "新视角合成",
+    "gaussian-splatting": "高斯泼溅（Gaussian Splatting）",
+    "point-cloud": "点云",
+    "metric-depth-estimation": "米制深度估计",
+    "monocular-depth-estimation": "单目深度估计",
+    "panoramic-depth-estimation": "全景深度估计",
+    "depth": "深度估计",
+    "trajectory": "轨迹预测",
+    "navigation": "导航",
+    "memory-research": "记忆机制研究",
+    "multimodal-reasoning": "多模态推理",
+    "image-question-answering": "图像问答",
+    "video-question-answering": "视频问答",
+    "hosted-api": "托管 API 推理",
+    "video": "视频生成",
+}
+
+MODALITY_TOKEN_MAP = {
+    "text": "text",
+    "prompt": "text",
+    "image": "image",
+    "images": "image",
+    "reference": "image",
+    "video": "video",
+    "audio": "audio",
+    "action": "action",
+    "actions": "action",
+    "depth": "depth",
+    "trajectory": "trajectory",
+    "camera": "camera pose",
+    "3d": "3D scene",
+    "4d": "4D scene",
+    "world": "world state",
+    "mesh": "mesh",
+    "pointcloud": "point cloud",
+    "point-cloud": "point cloud",
+}
+
+MODALITY_LABELS_ZH = {
+    "text": "文本",
+    "image": "图像",
+    "video": "视频",
+    "audio": "音频",
+    "action": "动作",
+    "depth": "深度",
+    "trajectory": "轨迹",
+    "camera pose": "相机位姿",
+    "3D scene": "3D 场景",
+    "4D scene": "4D 场景",
+    "world state": "世界状态",
+    "mesh": "网格",
+    "point cloud": "点云",
+}
+
+
+def load_benchmark_status() -> dict[str, dict[str, Any]]:
+    if not BENCH_STATUS_PATH.exists():
+        return {}
+    data = json.loads(BENCH_STATUS_PATH.read_text())
+    return data if isinstance(data, dict) else {}
+
+
+BENCH_STATUS = load_benchmark_status()
+
+
+def bench_scan_patterns() -> list[tuple[str, "re.Pattern[str]"]]:
+    """One conservative word-boundary pattern per benchmark id.
+
+    Short names without digits stay case-sensitive so generic words
+    (e.g. a benchmark literally named "MinD") cannot match prose.
+    """
+    patterns: list[tuple[str, re.Pattern[str]]] = []
+    for bench_id, entry in BENCH_STATUS.items():
+        names = unique_strings([entry.get("name"), *as_list(entry.get("aliases"))])
+        for candidate in names:
+            if len(candidate) < 4:
+                continue
+            flags = 0 if len(candidate) < 6 and not any(ch.isdigit() for ch in candidate) else re.IGNORECASE
+            pattern = re.compile(rf"(?<![A-Za-z0-9]){re.escape(candidate)}(?![A-Za-z0-9])", flags)
+            patterns.append((bench_id, pattern))
+    return patterns
+
+
+BENCH_SCAN_PATTERNS = bench_scan_patterns()
+
+
+def docs_override(item: dict[str, Any]) -> dict[str, Any]:
+    """Merge the optional curated ``docs:`` / ``homepage:`` blocks."""
+    merged: dict[str, Any] = {}
+    for key in ("homepage", "docs"):
+        block = item.get(key)
+        if isinstance(block, dict):
+            merged.update(block)
+    return merged
+
+
+def evidence_texts(item: dict[str, Any]) -> list[str]:
+    """Evidence-adjacent strings a benchmark name may legitimately appear in."""
+    texts: list[str] = []
+
+    def collect(record: Any) -> None:
+        if isinstance(record, dict):
+            for value in as_list(record.get("notes")):
+                candidate = text(value)
+                if candidate:
+                    texts.append(candidate)
+
+    for value in as_list(item.get("notes")):
+        candidate = text(value)
+        if candidate:
+            texts.append(candidate)
+    for key in ("integration", "runner_parity", "demo_parity"):
+        collect(item.get(key))
+    for variant in as_list(item.get("variants")):
+        if isinstance(variant, dict):
+            for value in as_list(variant.get("notes")):
+                candidate = text(value)
+                if candidate:
+                    texts.append(candidate)
+            for key in ("integration", "runner_parity", "demo_parity"):
+                collect(variant.get(key))
+    return texts
+
+
+def parity_note_quotes(item: dict[str, Any], limit: int = 4) -> list[str]:
+    quotes: list[str] = []
+    for key in ("runner_parity", "demo_parity"):
+        record = item.get(key)
+        if isinstance(record, dict):
+            quotes.extend(as_list(record.get("notes")))
+    for variant in as_list(item.get("variants")):
+        if isinstance(variant, dict):
+            for key in ("runner_parity", "demo_parity"):
+                record = variant.get(key)
+                if isinstance(record, dict):
+                    quotes.extend(as_list(record.get("notes")))
+    return unique_strings(quotes, limit=limit)
+
+
+def benchmark_refs(item: dict[str, Any], docs: dict[str, Any]) -> list[dict[str, Any]]:
+    refs: list[dict[str, Any]] = []
+    seen: set[str] = set()
+
+    def add(bench_id: str, source: str, reason: str | None, reason_zh: str | None) -> None:
+        entry = BENCH_STATUS.get(bench_id)
+        if entry is None or bench_id in seen:
+            if entry is None and source == "docs":
+                print(f"warning: docs.recommended_benchmarks references unknown benchmark id '{bench_id}'", file=sys.stderr)
+            return
+        seen.add(bench_id)
+        refs.append(
+            {
+                "id": bench_id,
+                "name": entry.get("name") or bench_id,
+                "category": entry.get("category") or "",
+                "categoryZh": entry.get("categoryZh") or entry.get("category") or "",
+                "summary": entry.get("summary") or "",
+                "summaryZh": entry.get("summaryZh") or entry.get("summary") or "",
+                "href": f"/docs/evaluation/benchmark-hub/{bench_id}",
+                "source": source,
+                "reason": reason or "Recommended in this model's catalog manifest.",
+                "reasonZh": reason_zh or reason or "模型 catalog manifest 中推荐的评测。",
+            }
+        )
+
+    for record in as_list(docs.get("recommended_benchmarks")):
+        if isinstance(record, dict):
+            bench_id = text(record.get("id"))
+            if bench_id:
+                add(bench_id, "docs", compact_text(record.get("reason")), compact_text(record.get("reason_zh")))
+        elif text(record):
+            add(str(text(record)), "docs", None, None)
+
+    corpus = "\n".join(evidence_texts(item))
+    if corpus:
+        for bench_id, pattern in BENCH_SCAN_PATTERNS:
+            if bench_id in seen:
+                continue
+            if pattern.search(corpus):
+                add(
+                    bench_id,
+                    "manifest",
+                    "Referenced in this model's manifest evidence notes.",
+                    "该模型 manifest 的证据记录中提到了这一评测。",
+                )
+    return refs[:6]
+
+
+def find_min_vram(value: Any) -> int | None:
+    if isinstance(value, dict):
+        for key, nested in value.items():
+            if key == "min_vram_gb":
+                try:
+                    return int(nested)
+                except (TypeError, ValueError):
+                    continue
+            found = find_min_vram(nested)
+            if found is not None:
+                return found
+    elif isinstance(value, list):
+        for nested in value:
+            found = find_min_vram(nested)
+            if found is not None:
+                return found
+    return None
+
+
+def hardware_data(item: dict[str, Any], docs: dict[str, Any]) -> dict[str, Any]:
+    block = docs.get("hardware") if isinstance(docs.get("hardware"), dict) else {}
+    min_vram = None
+    if block.get("min_vram_gb") is not None:
+        try:
+            min_vram = int(block["min_vram_gb"])
+        except (TypeError, ValueError):
+            min_vram = None
+    if min_vram is None:
+        min_vram = find_min_vram(item)
+    return {
+        "minVramGb": min_vram,
+        "recommended": compact_text(block.get("recommended")),
+        "notes": unique_strings(as_list(block.get("notes")), limit=4),
+    }
+
+
+def modality_data(tasks: list[str], docs: dict[str, Any]) -> dict[str, list[str]]:
+    block = docs.get("modalities") if isinstance(docs.get("modalities"), dict) else {}
+    curated_inputs = unique_strings(as_list(block.get("inputs")))
+    curated_outputs = unique_strings(as_list(block.get("outputs")))
+    if curated_inputs or curated_outputs:
+        return {"inputs": curated_inputs, "outputs": curated_outputs}
+
+    inputs: list[str] = []
+    outputs: list[str] = []
+
+    def push(collection: list[str], token: str) -> None:
+        label = MODALITY_TOKEN_MAP.get(token)
+        if label and label not in collection:
+            collection.append(label)
+
+    for task in tasks:
+        normalized = task.lower().replace("_", "-")
+        if "-to-" in normalized:
+            left, _, right = normalized.partition("-to-")
+            for token in left.split("-"):
+                push(inputs, token)
+            for token in right.split("-"):
+                push(outputs, token)
+        elif normalized.endswith("video-generation") or normalized in {"video", "video-generation"}:
+            push(outputs, "video")
+        elif "depth" in normalized:
+            push(inputs, "image")
+            push(outputs, "depth")
+        elif "point-cloud" in normalized or "pointcloud" in normalized:
+            push(outputs, "point-cloud")
+    return {"inputs": inputs, "outputs": outputs}
+
+
+def task_phrase_en(task: str) -> str:
+    # Keep hyphenated task ids readable ("text-to-video"), only soften
+    # underscores and namespace dots ("vla.policy_rollout" -> "vla policy rollout").
+    return task.replace("_", " ").replace(".", " ").strip().lower()
+
+
+def task_phrase_zh(task: str) -> str:
+    # Unmapped task ids stay as the recorded identifier: an accurate English
+    # term reads better in a Chinese sentence than a fabricated translation.
+    return TASK_PHRASES_ZH.get(task) or TASK_PHRASES_ZH.get(task.lower()) or task
+
+
+def join_en(items: list[str]) -> str:
+    if len(items) <= 1:
+        return items[0] if items else ""
+    if len(items) == 2:
+        return f"{items[0]} and {items[1]}"
+    return ", ".join(items[:-1]) + f", and {items[-1]}"
+
+
+def join_zh(items: list[str]) -> str:
+    return "、".join(items)
+
+
+def runnable_variant_ids(variant_records: list[dict[str, Any]]) -> list[str]:
+    unavailable = ("not_recorded", "planned", "profile", "blocked", "unavailable", "missing")
+    output = []
+    for record in variant_records:
+        status = str(record.get("status") or "").lower().replace("-", "_")
+        if record.get("pipelineTarget") and not any(marker in status for marker in unavailable):
+            output.append(record["id"])
+    return output
+
+
+def synthesize_overview(
+    item: dict[str, Any],
+    category_id: str,
+    name: str,
+    provider: str,
+    tasks: list[str],
+    aliases: list[str],
+    status: dict[str, str],
+    runtime: dict[str, Any],
+    checkpoints: list[dict[str, Any]],
+    variant_records: list[dict[str, Any]],
+) -> tuple[list[str], list[str]]:
+    """Compose the EN and ZH homepage narrative from recorded facts only."""
+    noun_en, noun_zh = DOCS_CATEGORY_NOUNS.get(category_id, ("model", "模型"))
+    en: list[str] = []
+    zh: list[str] = []
+
+    # Identity and recorded capabilities.
+    identity_en = f"{name} is a {noun_en} from {provider}."
+    identity_zh = f"{name} 是来自 {provider} 的{noun_zh}。"
+    if tasks:
+        task_list_en = join_en([task_phrase_en(task) for task in tasks[:4]])
+        task_list_zh = join_zh([task_phrase_zh(task) for task in tasks[:4]])
+        identity_en += f" The catalog records it for {task_list_en}."
+        identity_zh += f"Catalog 将它记录为{task_list_zh}任务。"
+    if aliases:
+        identity_en += f" It is also cataloged under the alias{'es' if len(aliases) > 1 else ''} {join_en(aliases[:3])}."
+        identity_zh += f"它还有别名 {join_zh(aliases[:3])}。"
+    en.append(identity_en)
+    zh.append(identity_zh)
+
+    # WorldFoundry integration route.
+    runnable_ids = runnable_variant_ids(variant_records)
+    pipeline_target = runtime.get("pipelineTarget")
+    runner = runtime.get("runner") or runtime.get("runnerTarget")
+    if runnable_ids:
+        route_en = (
+            f"WorldFoundry serves it through {len(runnable_ids)} recorded runnable "
+            f"variant{'s' if len(runnable_ids) > 1 else ''} ({join_en(runnable_ids[:4])})."
+        )
+        route_zh = f"WorldFoundry 通过 {len(runnable_ids)} 个已记录的可运行 variant（{join_zh(runnable_ids[:4])}）来运行它。"
+        if pipeline_target:
+            route_en += f" The default route binds to the {pipeline_target} pipeline."
+            route_zh += f"默认路径绑定到 {pipeline_target} pipeline。"
+        en.append(route_en)
+        zh.append(route_zh)
+    elif pipeline_target and status["group"] not in {"planned", "profile", "blocked"}:
+        route_en = f"WorldFoundry binds it to the {pipeline_target} pipeline"
+        route_zh = f"WorldFoundry 将它绑定到 {pipeline_target} pipeline"
+        if runner:
+            route_en += f" via {runner}"
+            route_zh += f"（runner：{runner}）"
+        en.append(route_en + ".")
+        zh.append(route_zh + "。")
+    else:
+        en.append(
+            "No runnable WorldFoundry pipeline is bound to this entry yet; "
+            "this page records upstream provenance and readiness state only."
+        )
+        zh.append("该条目目前尚未绑定可运行的 WorldFoundry pipeline；本页只记录上游来源与就绪状态。")
+
+    # Environment.
+    env_name = runtime.get("environmentName")
+    if env_name:
+        env_kind = runtime.get("environmentKind")
+        kind_en = "dedicated" if env_kind == "dedicated" else "shared unified"
+        kind_zh = "独立" if env_kind == "dedicated" else "统一"
+        env_en = f"It runs in the {kind_en} environment {env_name}"
+        env_zh = f"它运行在{kind_zh}环境 {env_name} 中"
+        details_en = []
+        details_zh = []
+        if runtime.get("python"):
+            details_en.append(f"Python {runtime['python']}")
+            details_zh.append(f"Python {runtime['python']}")
+        if runtime.get("cudaLabel"):
+            details_en.append(str(runtime["cudaLabel"]))
+            details_zh.append(str(runtime["cudaLabel"]))
+        torch_pin = runtime.get("packageVersions", {}).get("torch")
+        if torch_pin and torch_pin != "torch":
+            details_en.append(torch_pin)
+            details_zh.append(torch_pin)
+        if details_en:
+            env_en += f" ({', '.join(details_en)})"
+            env_zh += f"（{'，'.join(details_zh)}）"
+        en.append(env_en + ".")
+        zh.append(env_zh + "。")
+
+    # Weights.
+    if checkpoints:
+        first = checkpoints[0]
+        weight_en = f"Weights are pulled from the Hugging Face repository {first['id']}"
+        weight_zh = f"权重来自 Hugging Face 仓库 {first['id']}"
+        if first.get("revision"):
+            weight_en += f", pinned to revision {first['revision'][:9]}"
+            weight_zh += f"，固定在 revision {first['revision'][:9]}"
+        if first.get("license"):
+            weight_en += f" (license: {first['license']})"
+            weight_zh += f"（license：{first['license']}）"
+        if len(checkpoints) > 1:
+            weight_en += f", plus {len(checkpoints) - 1} more recorded repositor{'ies' if len(checkpoints) > 2 else 'y'}"
+            weight_zh += f"，另有 {len(checkpoints) - 1} 个已记录仓库"
+        gated = [checkpoint["id"] for checkpoint in checkpoints if checkpoint.get("gated")]
+        weight_en += "."
+        weight_zh += "。"
+        if gated:
+            weight_en += f" Access to {join_en(gated[:2])} is gated and requires accepting the upstream terms."
+            weight_zh += f"其中 {join_zh(gated[:2])} 为 gated 仓库，需要先在上游接受使用条款。"
+        en.append(weight_en)
+        zh.append(weight_zh)
+
+    # Evidence honesty.
+    runner_status = status.get("runner", "not_recorded")
+    demo_status = status.get("demo", "not_recorded")
+    if runner_status.lower().replace("-", "_") in {"verified", "validated", "passed"}:
+        en.append("A WorldFoundry runner-parity artifact is recorded for this route.")
+        zh.append("该路径已记录 WorldFoundry runner parity 产物。")
+    elif runner_status != "not_recorded" or demo_status != "not_recorded":
+        en.append(
+            f"Runner parity is currently \u201c{humanize(runner_status)}\u201d and native-demo parity is "
+            f"\u201c{humanize(demo_status)}\u201d; treat end-to-end GPU evidence as not yet recorded."
+        )
+        zh.append(
+            f"当前 runner parity 为“{humanize(runner_status)}”，原生 demo parity 为“{humanize(demo_status)}”；"
+            "端到端 GPU 证据应视为尚未记录。"
+        )
+    else:
+        en.append(
+            "No runner or native-demo evidence is recorded; a catalog entry alone is not proof of a successful GPU run."
+        )
+        zh.append("尚未记录任何 runner 或原生 demo 证据；仅有 catalog 条目并不代表 GPU 已成功跑通。")
+
+    return en, zh
+
+
+def synthesize_highlights(
+    category_id: str,
+    tasks: list[str],
+    status: dict[str, str],
+    runtime: dict[str, Any],
+    checkpoints: list[dict[str, Any]],
+    variant_records: list[dict[str, Any]],
+) -> tuple[list[str], list[str]]:
+    en: list[str] = []
+    zh: list[str] = []
+    for task in tasks[:3]:
+        en.append(humanize(task))
+        zh.append(task_phrase_zh(task))
+    runnable_ids = runnable_variant_ids(variant_records)
+    if runnable_ids:
+        en.append(f"{len(runnable_ids)} runnable WorldFoundry variant{'s' if len(runnable_ids) > 1 else ''}")
+        zh.append(f"{len(runnable_ids)} 个可运行的 WorldFoundry variant")
+    if runtime.get("environmentName"):
+        kind = "Dedicated env" if runtime.get("environmentKind") == "dedicated" else "Unified env"
+        kind_zh = "独立环境" if runtime.get("environmentKind") == "dedicated" else "统一环境"
+        detail = " · ".join(
+            part for part in (f"Python {runtime['python']}" if runtime.get("python") else None, runtime.get("cudaLabel")) if part
+        )
+        en.append(f"{kind}{f' · {detail}' if detail else ''}")
+        zh.append(f"{kind_zh}{f' · {detail}' if detail else ''}")
+    if checkpoints:
+        public = all(not checkpoint.get("gated") and not checkpoint.get("private") for checkpoint in checkpoints)
+        en.append("Public Hugging Face weights" if public else "Gated or private weights — check access first")
+        zh.append("公开的 Hugging Face 权重" if public else "权重为 gated/私有——请先确认访问权限")
+    return en[:6], zh[:6]
+
+
+def synthesize_limitations(
+    item: dict[str, Any],
+    status: dict[str, str],
+    checkpoints: list[dict[str, Any]],
+) -> tuple[list[str], list[str]]:
+    en: list[str] = []
+    zh: list[str] = []
+    group = status["group"]
+    if group == "blocked":
+        en.append("This entry is currently blocked; see the manifest notes below for the recorded blocker.")
+        zh.append("该条目当前处于 blocked 状态；具体 blocker 见下方 manifest 记录。")
+    elif group in {"planned", "profile"}:
+        en.append(
+            "No runnable WorldFoundry route exists yet. The entry records provenance and readiness only; "
+            "run commands are intentionally omitted."
+        )
+        zh.append("尚无可运行的 WorldFoundry 路径。该条目只记录来源与就绪状态，因此有意省略了运行命令。")
+    runner_status = status.get("runner", "not_recorded").lower().replace("-", "_")
+    if runner_status not in {"verified", "validated", "passed"}:
+        if runner_status == "not_recorded":
+            en.append("Runner evidence: Not recorded. No verified end-to-end WorldFoundry GPU artifact exists for this model.")
+            zh.append("Runner 证据：未记录。该模型还没有经过验证的 WorldFoundry 端到端 GPU 产物。")
+        else:
+            en.append(
+                f"Runner evidence is \u201c{humanize(status['runner'])}\u201d — not a verified end-to-end GPU run. "
+                "Do not treat this page as proof the route is fully validated."
+            )
+            zh.append(
+                f"Runner 证据为“{humanize(status['runner'])}”——这不是经过验证的端到端 GPU 运行结果，"
+                "请勿将本页视为该路径已被完整验证的证明。"
+            )
+    demo_status = status.get("demo", "not_recorded").lower().replace("-", "_")
+    if demo_status == "not_recorded":
+        en.append("Native demo evidence: Not recorded.")
+        zh.append("原生 Demo 证据：未记录。")
+    gated = [checkpoint["id"] for checkpoint in checkpoints if checkpoint.get("gated")]
+    if gated:
+        en.append(f"Checkpoint access is gated for {join_en(gated[:3])}; accept the upstream terms before downloading.")
+        zh.append(f"Checkpoint {join_zh(gated[:3])} 为 gated 仓库，下载前需要先在上游接受条款。")
+    private = [checkpoint["id"] for checkpoint in checkpoints if checkpoint.get("private")]
+    if private:
+        en.append(f"Recorded checkpoint repositories are private: {join_en(private[:3])}.")
+        zh.append(f"以下 checkpoint 仓库为私有：{join_zh(private[:3])}。")
+    quotes = parity_note_quotes(item)
+    en.extend(quotes)
+    zh.extend(quotes)
+    return en[:8], zh[:8]
+
+
+def docs_data(
+    item: dict[str, Any],
+    category_id: str,
+    name: str,
+    provider: str,
+    tasks: list[str],
+    aliases: list[str],
+    status: dict[str, str],
+    runtime: dict[str, Any],
+    checkpoints: list[dict[str, Any]],
+    variant_records: list[dict[str, Any]],
+) -> dict[str, Any]:
+    docs = docs_override(item)
+    curated = bool(docs)
+
+    def paragraphs(value: Any) -> list[str]:
+        if isinstance(value, list):
+            return unique_strings(value, limit=6)
+        normalized = compact_text(value, 1200)
+        if not normalized:
+            return []
+        return [part.strip() for part in re.split(r"\n\s*\n", str(value).strip()) if part.strip()] or [normalized]
+
+    overview = paragraphs(docs.get("overview"))
+    overview_zh = paragraphs(docs.get("overview_zh"))
+    synthesized_en, synthesized_zh = synthesize_overview(
+        item, category_id, name, provider, tasks, aliases, status, runtime, checkpoints, variant_records
+    )
+    if not overview:
+        overview = synthesized_en
+    if not overview_zh:
+        overview_zh = overview if curated and paragraphs(docs.get("overview")) else synthesized_zh
+
+    highlights = unique_strings(as_list(docs.get("highlights")), limit=6)
+    highlights_zh = unique_strings(as_list(docs.get("highlights_zh")), limit=6)
+    if not highlights or not highlights_zh:
+        synthesized_h_en, synthesized_h_zh = synthesize_highlights(
+            category_id, tasks, status, runtime, checkpoints, variant_records
+        )
+        highlights = highlights or synthesized_h_en
+        highlights_zh = highlights_zh or synthesized_h_zh
+
+    limitations = unique_strings(as_list(docs.get("limitations")), limit=8)
+    limitations_zh = unique_strings(as_list(docs.get("limitations_zh")), limit=8)
+    if not limitations or not limitations_zh:
+        synthesized_l_en, synthesized_l_zh = synthesize_limitations(item, status, checkpoints)
+        limitations = limitations or synthesized_l_en
+        limitations_zh = limitations_zh or synthesized_l_zh
+
+    return {
+        "curated": curated,
+        "overview": overview,
+        "overviewZh": overview_zh,
+        "highlights": highlights,
+        "highlightsZh": highlights_zh,
+        "modalities": modality_data(tasks, docs),
+        "useCases": unique_strings(as_list(docs.get("use_cases")), limit=6),
+        "useCasesZh": unique_strings(as_list(docs.get("use_cases_zh")), limit=6),
+        "hardware": hardware_data(item, docs),
+        "benchmarks": benchmark_refs(item, docs),
+        "limitations": limitations,
+        "limitationsZh": limitations_zh,
+    }
+
+
 def summary_for(item: dict[str, Any], tasks: list[str], notes: list[str]) -> str:
     for candidate in [item.get("description"), item.get("summary")]:
         normalized = compact_text(candidate, 240)
@@ -888,6 +1568,23 @@ def main() -> None:
                 inference_tasks = inference_task_data(item, profile, variant_records)
                 runtime_model_id = variant_records[0]["id"] if variant_records else model_id
                 aliases = unique_strings(as_list(item.get("aliases")))
+                provider = provider_name(item, links, checkpoints)
+                runtime = runtime_data(item, profile_id, profile, env_id, environment, binding_id, binding)
+                docs = docs_data(
+                    item,
+                    category_id,
+                    name,
+                    provider,
+                    tasks,
+                    aliases,
+                    status,
+                    runtime,
+                    checkpoints,
+                    variant_records,
+                )
+                summary = summary_for(item, tasks, notes)
+                if docs["curated"] and docs["overview"]:
+                    summary = compact_text(docs["overview"][0], 240) or summary
 
                 recipe = {
                     "id": model_id,
@@ -895,12 +1592,12 @@ def main() -> None:
                     "category": category_id,
                     "categoryLabel": category["label"],
                     "categoryLabelZh": category["label_zh"],
-                    "provider": provider_name(item, links, checkpoints),
-                    "summary": summary_for(item, tasks, notes),
+                    "provider": provider,
+                    "summary": summary,
                     "aliases": aliases,
                     "tasks": tasks,
                     "status": status,
-                    "runtime": runtime_data(item, profile_id, profile, env_id, environment, binding_id, binding),
+                    "runtime": runtime,
                     "sources": links,
                     "checkpoints": checkpoints,
                     "variants": variant_records,
@@ -908,6 +1605,7 @@ def main() -> None:
                     "inputContract": input_contract(profile),
                     "artifacts": artifact_data(item, profile),
                     "notes": notes,
+                    "docs": docs,
                     "commands": command_data(model_id, runtime_model_id, inference_tasks[0]),
                     "catalogPath": str(path.relative_to(ROOT)),
                 }
