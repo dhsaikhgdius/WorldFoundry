@@ -14,6 +14,7 @@ from typing import Any, Mapping
 from worldfoundry.base_models.capabilities import get_base_model_capability
 from worldfoundry.base_models.llm_mllm_core.mllm.videophy2_autoeval import runtime_root as autoeval_runtime_root
 from worldfoundry.evaluation.tasks.execution.framework.official_runner import default_benchmark_timeout
+from worldfoundry.evaluation.tasks.execution.runners.runner_common import resolve_env_path
 from worldfoundry.evaluation.tasks.execution.runners.videophy2.videophy2_prompts import (
     load_prompt_records,
     official_video_filename_for_record,
@@ -38,11 +39,6 @@ class VideoPhy2JudgeConfig:
     num_frames: int = 32
     python_executable: str = sys.executable
     strict: bool = False
-
-
-def _env_path(name: str) -> Path | None:
-    value = os.environ.get(name)
-    return Path(value).expanduser().resolve() if value else None
 
 
 def judge_config_from_env(
@@ -78,8 +74,8 @@ def judge_config_from_env(
     return VideoPhy2JudgeConfig(
         backend=backend,
         runtime_root=autoeval_runtime_root(),
-        checkpoint=checkpoint or _env_path("WORLDFOUNDRY_VIDEOPHY2_AUTOEVAL_CKPT"),
-        lora_checkpoint=lora_checkpoint or _env_path("WORLDFOUNDRY_VIDEOPHY2_AUTOEVAL_LORA_CKPT"),
+        checkpoint=checkpoint or resolve_env_path("WORLDFOUNDRY_VIDEOPHY2_AUTOEVAL_CKPT"),
+        lora_checkpoint=lora_checkpoint or resolve_env_path("WORLDFOUNDRY_VIDEOPHY2_AUTOEVAL_LORA_CKPT"),
         prompts_json_path=prompts_json_path,
         batch_size=resolved_batch_size,
         num_frames=resolved_num_frames,

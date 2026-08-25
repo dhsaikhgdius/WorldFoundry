@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from worldfoundry.evaluation.tasks.execution.framework.io import utc_now_iso, write_json, write_jsonl
+from worldfoundry.evaluation.tasks.execution.runners.runner_common import resolve_env_path
 
 BENCHMARK_ID = "apple-pi"
 SCORECARD_SCHEMA_VERSION = "worldfoundry-scorecard"
@@ -56,11 +57,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--strict", action="store_true", help="Require all five subtracks and all three rollouts.")
     parser.add_argument("--json", action="store_true")
     return parser.parse_args(argv)
-
-
-def _env_path(name: str) -> Path | None:
-    value = os.environ.get(name)
-    return Path(value).expanduser().resolve() if value else None
 
 
 def _number(value: Any) -> float | None:
@@ -223,7 +219,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.run_official:
             if args.gt_dir is None or args.pred_dir is None:
                 raise ValueError("--run-official requires --gt-dir and --pred-dir")
-            from worldfoundry.evaluation.tasks.execution.runners.apple_pi.apple_pi_runtime import evaluate_native_apple_pi
+            from worldfoundry.evaluation.tasks.execution.runners.apple_pi.apple_pi_runtime import (
+                evaluate_native_apple_pi,
+            )
             result_path = args.output_dir / "apple_pi_results.json"
             evaluate_native_apple_pi(
                 gt_root=args.gt_dir.expanduser().resolve(), prediction_root=args.pred_dir.expanduser().resolve(), output_path=result_path,
@@ -232,7 +230,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             native_runtime = {"kind": "worldfoundry_in_tree", "runner": "apple_pi_runtime", "judge_backend": args.judge_backend, "foundation_models": not args.no_foundation_models}
         else:
-            result_path = args.official_results_path or _env_path("WORLDFOUNDRY_APPLE_PI_RESULTS_PATH")
+            result_path = args.official_results_path or resolve_env_path("WORLDFOUNDRY_APPLE_PI_RESULTS_PATH")
             if result_path is None:
                 raise ValueError("--official-results-path or WORLDFOUNDRY_APPLE_PI_RESULTS_PATH is required")
         result_path = _result_path(result_path)

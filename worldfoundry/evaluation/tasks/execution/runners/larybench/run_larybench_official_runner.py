@@ -14,6 +14,7 @@ from typing import Any, Mapping, Sequence
 from worldfoundry.core.io.paths import project_root
 from worldfoundry.evaluation.tasks.execution.framework.benchmark_assets import bundled_benchmark_asset
 from worldfoundry.evaluation.tasks.execution.framework.io import utc_now_iso, write_json, write_jsonl
+from worldfoundry.evaluation.tasks.execution.runners.runner_common import resolve_env_path
 from worldfoundry.runtime.jobs import run_bounded_command
 
 SCORECARD_SCHEMA_VERSION = "worldfoundry-scorecard"
@@ -64,22 +65,17 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def _env_path(name: str) -> Path | None:
-    value = os.environ.get(name)
-    return Path(value).expanduser().resolve() if value else None
-
-
 def _resolved_layout(args: argparse.Namespace) -> dict[str, Path]:
     output_dir = args.output_dir.expanduser().resolve()
     return {
         "output_dir": output_dir,
-        "metadata_root": (args.metadata_root or _env_path("LARY_METADATA_DIR") or output_dir / "metadata")
+        "metadata_root": (args.metadata_root or resolve_env_path("LARY_METADATA_DIR") or output_dir / "metadata")
         .expanduser()
         .resolve(),
-        "latent_action_root": (args.latent_action_root or _env_path("LARY_LA_DIR") or output_dir / "latent_actions")
+        "latent_action_root": (args.latent_action_root or resolve_env_path("LARY_LA_DIR") or output_dir / "latent_actions")
         .expanduser()
         .resolve(),
-        "model_root": (args.model_root or _env_path("MODEL_DIR") or output_dir / "models").expanduser().resolve(),
+        "model_root": (args.model_root or resolve_env_path("MODEL_DIR") or output_dir / "models").expanduser().resolve(),
         "log_root": output_dir / "larybench_runtime",
     }
 
@@ -96,7 +92,7 @@ def _runtime_env(args: argparse.Namespace, layout: Mapping[str, Path]) -> dict[s
             "CUDA_VISIBLE_DEVICES": args.gpus,
         }
     )
-    dataset_root = args.dataset_root or _env_path("DATA_DIR")
+    dataset_root = args.dataset_root or resolve_env_path("DATA_DIR")
     if dataset_root is not None:
         env["DATA_DIR"] = str(dataset_root.expanduser().resolve())
     return env
@@ -515,7 +511,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.run_official:
         result_path, runtime_summary = _run_official(args, layout)
     else:
-        result_path = args.official_results_path or _env_path("WORLDFOUNDRY_LARYBENCH_RESULTS_PATH")
+        result_path = args.official_results_path or resolve_env_path("WORLDFOUNDRY_LARYBENCH_RESULTS_PATH")
         if result_path is None:
             raise ValueError(
                 "--official-results-path, WORLDFOUNDRY_LARYBENCH_RESULTS_PATH, or --run-official is required"

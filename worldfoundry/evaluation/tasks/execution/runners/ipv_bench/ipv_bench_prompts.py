@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +11,7 @@ from worldfoundry.evaluation.tasks.execution.framework.benchmark_assets import (
     bundled_benchmark_asset,
     bundled_benchmark_assets_root,
 )
+from worldfoundry.evaluation.tasks.execution.runners.runner_common import resolve_env_path
 
 BENCHMARK_ID = "ipv-bench"
 PROMPT_SUITE_REL = Path("ipv_txt_prompt_suite.json")
@@ -26,15 +26,10 @@ CANONICAL_PROMPT_COUNT = 260
 VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 
 
-def _env_path(name: str) -> Path | None:
-    value = os.environ.get(name)
-    return Path(value).expanduser().resolve() if value else None
-
-
 def resolve_ipv_bench_root(explicit: Path | None = None) -> Path | None:
     for candidate in (
         explicit,
-        _env_path("WORLDFOUNDRY_IPV_BENCH_ROOT"),
+        resolve_env_path("WORLDFOUNDRY_IPV_BENCH_ROOT"),
         bundled_benchmark_assets_root(BENCHMARK_ID),
     ):
         if candidate is not None and candidate.is_dir():
@@ -52,7 +47,7 @@ def resolve_prompt_suite_path(
         if not path.is_file():
             raise FileNotFoundError(f"IPV prompt suite not found: {path}")
         return path
-    env_manifest = _env_path("WORLDFOUNDRY_IPV_BENCH_PROMPT_MANIFEST")
+    env_manifest = resolve_env_path("WORLDFOUNDRY_IPV_BENCH_PROMPT_MANIFEST")
     if env_manifest is not None:
         if not env_manifest.is_file():
             raise FileNotFoundError(f"IPV prompt suite not found: {env_manifest}")

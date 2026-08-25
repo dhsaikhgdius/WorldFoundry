@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 from typing import Any
 
@@ -11,21 +10,17 @@ from worldfoundry.evaluation.tasks.execution.framework.benchmark_assets import (
     bundled_benchmark_asset,
     bundled_benchmark_assets_root,
 )
+from worldfoundry.evaluation.tasks.execution.runners.runner_common import resolve_env_path
 
 BENCHMARK_ID = "ewmbench"
 IN_TREE_EWMBENCH_ROOT = Path(__file__).resolve().parent / "runtime" / "ewmbench"
 TASK_MANIFEST_REL = Path("task_manifest.json")
 
 
-def _env_path(name: str) -> Path | None:
-    value = os.environ.get(name)
-    return Path(value).expanduser().resolve() if value else None
-
-
 def resolve_ewmbench_root(explicit: Path | None = None) -> Path | None:
     for candidate in (
         explicit,
-        _env_path("WORLDFOUNDRY_EWMBENCH_ROOT"),
+        resolve_env_path("WORLDFOUNDRY_EWMBENCH_ROOT"),
         IN_TREE_EWMBENCH_ROOT,
         bundled_benchmark_assets_root(BENCHMARK_ID),
     ):
@@ -45,7 +40,7 @@ def resolve_task_manifest_path(
             raise FileNotFoundError(f"EWMBench task manifest not found: {path}")
         return path
     for env_name in ("WORLDFOUNDRY_EWMBENCH_TASK_MANIFEST", "WORLDFOUNDRY_EWMBENCH_PROMPT_MANIFEST"):
-        env_manifest = _env_path(env_name)
+        env_manifest = resolve_env_path(env_name)
         if env_manifest is not None:
             if not env_manifest.is_file():
                 raise FileNotFoundError(f"EWMBench task manifest not found: {env_manifest}")

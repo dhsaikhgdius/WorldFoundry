@@ -27,10 +27,14 @@ from worldfoundry.evaluation.tasks.execution.runners.phyground.phyground_runtime
     judge_config_from_env,
     run_phyground_judge,
 )
+from worldfoundry.evaluation.tasks.execution.runners.runner_common import (
+    build_import_metric_rows,
+    build_video_coverage,
+    resolve_env_path,
+)
 from worldfoundry.evaluation.utils import benchmark_task_sample_path
 
 SCORECARD_SCHEMA_VERSION = "worldfoundry-scorecard"
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -56,65 +60,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--strict", action="store_true")
     parser.add_argument("--json", action="store_true")
     return parser.parse_args(argv)
-
-
-def _env_path(name: str) -> Path | None:
-    value = os.environ.get(name)
-    return Path(value).expanduser().resolve() if value else None
-
-
-def _metric_rows(
-    *,
-    computed: Mapping[str, Any],
-    source_path: Path,
-    imported_via_run_official: bool,
-) -> list[dict[str, Any]]:
-    direct_metrics = computed.get("metrics") if isinstance(computed.get("metrics"), Mapping) else {}
-    components = computed.get("components") if isinstance(computed.get("components"), Mapping) else {}
-    rows: list[dict[str, Any]] = []
-    for metric_id in METRIC_ORDER:
-        spec = METRIC_SPECS[metric_id]
-        score = direct_metrics.get(metric_id)
-        rows.append(
-            {
-                "metric_id": metric_id,
-                "name": spec["name"],
-                "available": score is not None,
-                "raw_score": score,
-                "normalized_score": score,
-                "score": score,
-                "higher_is_better": spec["higher_is_better"],
-                "group": spec["group"],
-                "source": "phyground_imported_results",
-                "source_path": str(source_path),
-                "evidence_scope": "result_artifact_import_only",
-                "imported_via_run_official": imported_via_run_official,
-                "components": components,
-                "reason": None if score is not None else "score_not_available_in_phyground_results",
-            }
-        )
-    return rows
-
-
-def _coverage(expected_ids: set[str], generated_dir: Path | None) -> dict[str, Any]:
-    actual_names: set[str] = set()
-    if generated_dir is not None and generated_dir.exists():
-        for path in generated_dir.iterdir():
-            if path.is_file() and path.suffix.lower() in VIDEO_SUFFIXES:
-                actual_names.add(path.stem)
-    missing = sorted(expected_ids - actual_names)
-    unexpected = sorted(actual_names - expected_ids)
-    matched = sorted(expected_ids & actual_names)
-    return {
-        "expected_count": len(expected_ids),
-        "actual_count": len(actual_names),
-        "matched_count": len(matched),
-        "missing_count": len(missing),
-        "unexpected_count": len(unexpected),
-        "complete": bool(expected_ids) and not missing,
-        "missing_ids": missing[:50],
-        "unexpected_ids": unexpected[:50],
-    }
 
 
 def _scorecard(
@@ -220,8 +165,8 @@ def normalize_phyground_results(
 ) -> dict[str, Any]:
     output_dir = args.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
-    generated_dir = args.generated_artifact_dir or _env_path("WORLDFOUNDRY_GENERATED_ARTIFACT_DIR")
-    official_results_path = args.official_results_path or _env_path("WORLDFOUNDRY_PHYGROUND_RESULTS_PATH")
+    generated_dir = args.generated_artifact_dir or resolve_env_path("WORLDFOUNDRY_GENERATED_ARTIFACT_DIR")
+    official_results_path = args.official_results_path or resolve_env_path("WORLDFOUNDRY_PHYGROUND_RESULTS_PATH")
     if official_results_path is None:
         raise ValueError(
             "--official-results-path, WORLDFOUNDRY_PHYGROUND_RESULTS_PATH, or --run-official is required"
@@ -242,12 +187,19 @@ def normalize_phyground_results(
             raise
     result_rows = load_results_rows(Path(official_results_path))
     computed = compute_phyground_metrics(rows=result_rows, results_path=Path(official_results_path))
-    metric_rows = _metric_rows(
+    metric_rows = build_import_metric_rows(
         computed=computed,
         source_path=Path(official_results_path),
-        imported_via_run_official=official_runtime_executed,
+        metric_order=METRIC_ORDER,
+        metric_specs=METRIC_SPECS,
+        source="phyground_imported_results",
+        unavailable_reason="score_not_available_in_phyground_results",
+        extra_fields={
+            "evidence_scope": "result_artifact_import_only",
+            "imported_via_run_official": official_runtime_executed,
+        },
     )
-    video_coverage = _coverage({record["prompt_id"] for record in prompt_records}, generated_dir)
+    video_coverage = build_video_coverage({record["prompt_id"] for record in prompt_records}, generated_dir)
     scorecard = _scorecard(
         benchmark_id=args.benchmark_id,
         output_dir=output_dir,
@@ -299,7 +251,7 @@ def normalize_phyground_results(
 def run_official_phyground(args: argparse.Namespace) -> dict[str, Any]:
     output_dir = args.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
-    generated_dir = args.generated_artifact_dir or _env_path("WORLDFOUNDRY_GENERATED_ARTIFACT_DIR")
+    generated_dir = args.generated_artifact_dir or resolve_env_path("WORLDFOUNDRY_GENERATED_ARTIFACT_DIR")
     if generated_dir is None:
         raise ValueError("--generated-artifact-dir or WORLDFOUNDRY_GENERATED_ARTIFACT_DIR is required for --run-official")
     prompts_path = resolve_prompts_json_path(

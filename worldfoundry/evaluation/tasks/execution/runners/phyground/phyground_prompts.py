@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +12,7 @@ from worldfoundry.evaluation.tasks.execution.framework.benchmark_assets import (
     bundled_benchmark_asset,
     bundled_benchmark_assets_root,
 )
+from worldfoundry.evaluation.tasks.execution.runners.runner_common import resolve_env_path
 from worldfoundry.evaluation.utils import write_jsonl
 
 BENCHMARK_ID = "phyground"
@@ -26,15 +26,10 @@ CANONICAL_PROMPT_COUNT = 250
 VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 
 
-def _env_path(name: str) -> Path | None:
-    value = os.environ.get(name)
-    return Path(value).expanduser().resolve() if value else None
-
-
 def resolve_phyground_root(explicit: Path | None = None) -> Path | None:
     for candidate in (
         explicit,
-        _env_path("WORLDFOUNDRY_PHYGROUND_ROOT"),
+        resolve_env_path("WORLDFOUNDRY_PHYGROUND_ROOT"),
         IN_TREE_PHYGROUND_ROOT,
         bundled_benchmark_assets_root(BENCHMARK_ID),
     ):
@@ -46,8 +41,8 @@ def resolve_phyground_root(explicit: Path | None = None) -> Path | None:
 def resolve_data_root(explicit: Path | None = None) -> Path | None:
     for candidate in (
         explicit,
-        _env_path("WORLDFOUNDRY_PHYGROUND_DATA_ROOT"),
-        _env_path("WORLDFOUNDRY_BENCHMARK_DATA_ROOT"),
+        resolve_env_path("WORLDFOUNDRY_PHYGROUND_DATA_ROOT"),
+        resolve_env_path("WORLDFOUNDRY_BENCHMARK_DATA_ROOT"),
         bundled_benchmark_assets_root(BENCHMARK_ID),
     ):
         if candidate is not None and candidate.is_dir():
@@ -66,7 +61,7 @@ def resolve_prompts_json_path(
         if not path.is_file():
             raise FileNotFoundError(f"PhyGround prompts JSON not found: {path}")
         return path
-    env_manifest = _env_path("WORLDFOUNDRY_PHYGROUND_PROMPT_MANIFEST")
+    env_manifest = resolve_env_path("WORLDFOUNDRY_PHYGROUND_PROMPT_MANIFEST")
     if env_manifest is not None:
         if not env_manifest.is_file():
             raise FileNotFoundError(f"PhyGround prompts JSON not found: {env_manifest}")
@@ -105,7 +100,7 @@ def resolve_first_images_dir(
     if explicit is not None:
         path = explicit.expanduser().resolve()
         return path if path.is_dir() else None
-    env_dir = _env_path("WORLDFOUNDRY_PHYGROUND_FIRST_IMAGES_DIR")
+    env_dir = resolve_env_path("WORLDFOUNDRY_PHYGROUND_FIRST_IMAGES_DIR")
     if env_dir is not None and env_dir.is_dir():
         return env_dir
     root = data_root or resolve_data_root()

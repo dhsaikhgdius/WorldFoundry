@@ -50,6 +50,7 @@ from worldfoundry.evaluation.tasks.execution.runners.likephys.likephys_scenarios
     OFFICIAL_SCENARIO_SWEEP,
     SCENARIO_ORDER,
 )
+from worldfoundry.evaluation.tasks.execution.runners.runner_common import resolve_env_path
 from worldfoundry.evaluation.utils import REPO_ROOT, benchmark_task_sample_path
 
 SCORECARD_SCHEMA_VERSION = "worldfoundry-scorecard"
@@ -131,11 +132,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def _env_path(name: str) -> Path | None:
-    value = os.environ.get(name)
-    return Path(value).expanduser().resolve() if value else None
-
-
 def _strict_enabled(args: argparse.Namespace) -> bool:
     return args.strict or os.environ.get("WORLDFOUNDRY_LIKEPHYS_STRICT", "").strip().lower() in {
         "1",
@@ -148,9 +144,9 @@ def _strict_enabled(args: argparse.Namespace) -> bool:
 def _resolve_results_path(args: argparse.Namespace) -> Path | None:
     candidates = [
         args.official_results_path,
-        _env_path("WORLDFOUNDRY_LIKEPHYS_RESULTS_PATH"),
+        resolve_env_path("WORLDFOUNDRY_LIKEPHYS_RESULTS_PATH"),
         args.generated_artifact_dir,
-        _env_path("WORLDFOUNDRY_GENERATED_ARTIFACT_DIR"),
+        resolve_env_path("WORLDFOUNDRY_GENERATED_ARTIFACT_DIR"),
     ]
     for candidate in candidates:
         if candidate is not None and Path(candidate).exists():

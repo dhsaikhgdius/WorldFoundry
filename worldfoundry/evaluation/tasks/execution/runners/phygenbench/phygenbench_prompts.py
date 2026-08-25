@@ -13,6 +13,7 @@ from worldfoundry.evaluation.tasks.execution.framework.benchmark_assets import (
     bundled_benchmark_asset,
     bundled_benchmark_assets_root,
 )
+from worldfoundry.evaluation.tasks.execution.runners.runner_common import resolve_env_path
 from worldfoundry.evaluation.utils import write_jsonl
 
 BENCHMARK_ID = "phygenbench"
@@ -24,15 +25,10 @@ CANONICAL_PROMPT_COUNT = 160
 VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 
 
-def _env_path(name: str) -> Path | None:
-    value = os.environ.get(name)
-    return Path(value).expanduser().resolve() if value else None
-
-
 def resolve_phygenbench_root(explicit: Path | None = None) -> Path | None:
     for candidate in (
         explicit,
-        _env_path("WORLDFOUNDRY_PHYGENBENCH_ROOT"),
+        resolve_env_path("WORLDFOUNDRY_PHYGENBENCH_ROOT"),
         IN_TREE_PHYGENBENCH_ROOT,
         bundled_benchmark_assets_root(BENCHMARK_ID),
     ):
@@ -52,7 +48,7 @@ def resolve_prompts_json_path(
         if not path.is_file():
             raise FileNotFoundError(f"PhyGenBench prompts JSON not found: {path}")
         return path
-    env_manifest = _env_path("WORLDFOUNDRY_PHYGENBENCH_PROMPT_MANIFEST")
+    env_manifest = resolve_env_path("WORLDFOUNDRY_PHYGENBENCH_PROMPT_MANIFEST")
     if env_manifest is not None:
         if not env_manifest.is_file():
             raise FileNotFoundError(f"PhyGenBench prompts JSON not found: {env_manifest}")

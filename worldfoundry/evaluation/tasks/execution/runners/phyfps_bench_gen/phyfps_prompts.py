@@ -12,6 +12,7 @@ from worldfoundry.evaluation.tasks.execution.framework.benchmark_assets import (
     bundled_benchmark_asset,
     bundled_benchmark_assets_root,
 )
+from worldfoundry.evaluation.tasks.execution.runners.runner_common import resolve_env_path
 from worldfoundry.evaluation.utils import write_jsonl
 
 BENCHMARK_ID = "phyfps-bench-gen"
@@ -19,15 +20,8 @@ CANONICAL_PROMPT_COUNT = 100
 PROMPT_MANIFEST_REL = Path("prompts.txt")
 
 
-def _env_path(name: str) -> Path | None:
-    import os
-
-    value = os.environ.get(name)
-    return Path(value).expanduser().resolve() if value else None
-
-
 def _default_prompt_manifest() -> Path | None:
-    env_root = _env_path("WORLDFOUNDRY_PHYFPS_BENCH_GEN_ROOT")
+    env_root = resolve_env_path("WORLDFOUNDRY_PHYFPS_BENCH_GEN_ROOT")
     if env_root is not None and env_root.is_dir():
         manifest = env_root / PROMPT_MANIFEST_REL
         if manifest.is_file():
@@ -46,7 +40,7 @@ def _default_prompt_manifest() -> Path | None:
 def resolve_prompt_manifest_path(explicit: Path | None = None) -> Path:
     if explicit is not None:
         return explicit.expanduser().resolve()
-    env_path = _env_path("WORLDFOUNDRY_PHYFPS_BENCH_GEN_PROMPT_MANIFEST")
+    env_path = resolve_env_path("WORLDFOUNDRY_PHYFPS_BENCH_GEN_PROMPT_MANIFEST")
     if env_path is not None:
         return env_path
     default = _default_prompt_manifest()

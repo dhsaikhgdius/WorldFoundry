@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -13,16 +12,12 @@ from worldfoundry.evaluation.tasks.execution.framework.benchmark_assets import (
     bundled_benchmark_assets_root,
 )
 from worldfoundry.evaluation.tasks.execution.framework.io import write_json
+from worldfoundry.evaluation.tasks.execution.runners.runner_common import resolve_env_path
 
 BENCHMARK_ID = "vmbench"
 PROMPT_SUITE_REL = Path("prompts/prompts.json")
 CANONICAL_PROMPT_COUNT = 1050
 VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
-
-
-def _env_path(name: str) -> Path | None:
-    value = os.environ.get(name)
-    return Path(value).expanduser().resolve() if value else None
 
 
 def resolve_vmbench_root(explicit: Path | None = None) -> Path | None:
@@ -45,7 +40,7 @@ def resolve_prompt_suite_path(
         if not path.is_file():
             raise FileNotFoundError(f"VMBench prompt suite not found: {path}")
         return path
-    env_manifest = _env_path("WORLDFOUNDRY_VMBENCH_PROMPT_MANIFEST")
+    env_manifest = resolve_env_path("WORLDFOUNDRY_VMBENCH_PROMPT_MANIFEST")
     if env_manifest is not None:
         if not env_manifest.is_file():
             raise FileNotFoundError(f"VMBench prompt suite not found: {env_manifest}")

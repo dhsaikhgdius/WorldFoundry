@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import shutil
 import sys
 from pathlib import Path
@@ -27,6 +26,7 @@ from worldfoundry.evaluation.tasks.execution.runners.genai_bench.genai_bench_run
 from worldfoundry.evaluation.tasks.execution.runners.genai_bench.genai_bench_video_quality_contract import (
     GENAI_TASK_METRICS,
 )
+from worldfoundry.evaluation.tasks.execution.runners.runner_common import resolve_env_path
 from worldfoundry.evaluation.utils import benchmark_task_sample_path
 
 BENCHMARK_ID = "genai-bench"
@@ -46,11 +46,6 @@ CONFIG = ors.build_runner_config_from_contract(
         "genai_bench_average": "aggregate",
     },
 )
-
-
-def _env_path(name: str) -> Path | None:
-    value = os.environ.get(name)
-    return Path(value).expanduser().resolve() if value else None
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -128,7 +123,7 @@ def _resolve_results_path(args: argparse.Namespace, scorer_summary: dict[str, An
         return Path(str(scorer_summary["results_path"]))
     if args.results_path is not None:
         return args.results_path.expanduser().resolve()
-    env_path = _env_path("WORLDFOUNDRY_GENAI_BENCH_RESULTS_PATH")
+    env_path = resolve_env_path("WORLDFOUNDRY_GENAI_BENCH_RESULTS_PATH")
     if env_path is not None:
         return env_path
     raise ValueError(
@@ -155,7 +150,7 @@ def normalize_genai_bench_results(
         duration_seconds=None,
         returncode=0,
         repo_root=resolve_genai_bench_assets_root(),
-        generated_video_dir=args.generated_artifact_dir or _env_path("WORLDFOUNDRY_GENERATED_ARTIFACT_DIR"),
+        generated_video_dir=args.generated_artifact_dir or resolve_env_path("WORLDFOUNDRY_GENERATED_ARTIFACT_DIR"),
     )
     if official_runtime_executed and scorer_summary is not None:
         scorecard.setdefault("run", {})["scorer_summary"] = scorer_summary

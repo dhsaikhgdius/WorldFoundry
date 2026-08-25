@@ -32,6 +32,7 @@ from worldfoundry.evaluation.tasks.execution.runners.evalcrafter.evalcrafter_run
     run_evalcrafter_scorer,
     validate_official_inputs,
 )
+from worldfoundry.evaluation.tasks.execution.runners.runner_common import resolve_env_path
 from worldfoundry.evaluation.utils import benchmark_task_sample_path
 
 SCORECARD_SCHEMA_VERSION = "worldfoundry-scorecard"
@@ -39,11 +40,6 @@ BENCHMARK_ID = "evalcrafter"
 DISPLAY_NAME = "EvalCrafter"
 INPUT_KEYS = ("generated_video_dir", "prompt700_txt", "official_results_path")
 OUTPUT_KEYS = ("scorecard", "raw_metric_table", "per_sample_metrics", "benchmark_contract")
-
-
-def _env_path(name: str) -> Path | None:
-    value = os.environ.get(name)
-    return Path(value).expanduser().resolve() if value else None
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -357,8 +353,8 @@ def normalize_evalcrafter_results(
     output_dir = args.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
     evalcrafter_root = args.evalcrafter_root or resolve_evalcrafter_root()
-    videos_dir = args.videos_dir or _env_path("WORLDFOUNDRY_GENERATED_ARTIFACT_DIR")
-    results_dir = args.results_dir or _env_path("WORLDFOUNDRY_EVALCRAFTER_RESULTS_PATH")
+    videos_dir = args.videos_dir or resolve_env_path("WORLDFOUNDRY_GENERATED_ARTIFACT_DIR")
+    results_dir = args.results_dir or resolve_env_path("WORLDFOUNDRY_EVALCRAFTER_RESULTS_PATH")
     if results_dir is None and scorer_summary is not None:
         results_dir = Path(str(scorer_summary.get("results_path") or output_dir / "final_result.txt"))
     if results_dir is None:
@@ -421,7 +417,7 @@ def normalize_evalcrafter_results(
 def run_official_evalcrafter(args: argparse.Namespace) -> dict[str, Any]:
     output_dir = args.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
-    videos_dir = args.videos_dir or _env_path("WORLDFOUNDRY_GENERATED_ARTIFACT_DIR")
+    videos_dir = args.videos_dir or resolve_env_path("WORLDFOUNDRY_GENERATED_ARTIFACT_DIR")
     if videos_dir is None:
         raise ValueError("--videos-dir or WORLDFOUNDRY_GENERATED_ARTIFACT_DIR is required for --run-official")
     evalcrafter_root = args.evalcrafter_root or resolve_evalcrafter_root()

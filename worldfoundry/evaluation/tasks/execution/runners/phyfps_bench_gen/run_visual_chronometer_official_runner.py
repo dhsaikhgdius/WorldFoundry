@@ -25,6 +25,7 @@ from worldfoundry.evaluation.tasks.execution.runners.phyfps_bench_gen.visual_chr
     VIDEO_SUFFIXES,
     resolve_chronometer_root,
 )
+from worldfoundry.evaluation.tasks.execution.runners.runner_common import resolve_env_path
 
 SCORECARD_SCHEMA_VERSION = "worldfoundry-scorecard"
 
@@ -46,11 +47,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--strict", action="store_true")
     parser.add_argument("--json", action="store_true")
     return parser.parse_args(argv)
-
-
-def _env_path(name: str) -> Path | None:
-    value = os.environ.get(name)
-    return Path(value).expanduser().resolve() if value else None
 
 
 def _resolve_predict_backend() -> str:
@@ -170,8 +166,8 @@ def normalize_visual_chronometer_results(
 ) -> dict[str, Any]:
     output_dir = args.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
-    generated_dir = args.generated_artifact_dir or _env_path("WORLDFOUNDRY_GENERATED_ARTIFACT_DIR")
-    official_results_path = args.official_results_path or _env_path("WORLDFOUNDRY_VISUAL_CHRONOMETER_RESULTS_PATH")
+    generated_dir = args.generated_artifact_dir or resolve_env_path("WORLDFOUNDRY_GENERATED_ARTIFACT_DIR")
+    official_results_path = args.official_results_path or resolve_env_path("WORLDFOUNDRY_VISUAL_CHRONOMETER_RESULTS_PATH")
     if official_results_path is None:
         raise ValueError(
             "--official-results-path, WORLDFOUNDRY_VISUAL_CHRONOMETER_RESULTS_PATH, "
@@ -231,7 +227,7 @@ def normalize_visual_chronometer_results(
 def run_official_visual_chronometer(args: argparse.Namespace) -> dict[str, Any]:
     output_dir = args.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
-    generated_artifact_dir = args.generated_artifact_dir or _env_path("WORLDFOUNDRY_GENERATED_ARTIFACT_DIR")
+    generated_artifact_dir = args.generated_artifact_dir or resolve_env_path("WORLDFOUNDRY_GENERATED_ARTIFACT_DIR")
     if generated_artifact_dir is None:
         raise ValueError("--generated-artifact-dir or WORLDFOUNDRY_GENERATED_ARTIFACT_DIR is required for --run-official")
 

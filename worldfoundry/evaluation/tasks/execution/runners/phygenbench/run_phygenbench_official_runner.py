@@ -27,6 +27,10 @@ from worldfoundry.evaluation.tasks.execution.runners.phygenbench.phygenbench_run
     judge_config_from_env,
     run_phygenbench_judge,
 )
+from worldfoundry.evaluation.tasks.execution.runners.runner_common import (
+    build_import_metric_rows,
+    resolve_env_path,
+)
 from worldfoundry.evaluation.utils import benchmark_task_sample_path
 
 SCORECARD_SCHEMA_VERSION = "worldfoundry-scorecard"
@@ -56,46 +60,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--strict", action="store_true")
     parser.add_argument("--json", action="store_true")
     return parser.parse_args(argv)
-
-
-def _env_path(name: str) -> Path | None:
-    value = os.environ.get(name)
-    return Path(value).expanduser().resolve() if value else None
-
-
-def _metric_rows(
-    *,
-    computed: Mapping[str, Any],
-    source_path: Path,
-    official_component_executed: bool,
-) -> list[dict[str, Any]]:
-    direct_metrics = computed.get("metrics") if isinstance(computed.get("metrics"), Mapping) else {}
-    components = computed.get("components") if isinstance(computed.get("components"), Mapping) else {}
-    rows: list[dict[str, Any]] = []
-    for metric_id in METRIC_ORDER:
-        spec = METRIC_SPECS[metric_id]
-        score = direct_metrics.get(metric_id)
-        rows.append(
-            {
-                "metric_id": metric_id,
-                "name": spec["name"],
-                "available": score is not None,
-                "raw_score": score,
-                "normalized_score": score,
-                "score": score,
-                "higher_is_better": spec["higher_is_better"],
-                "group": spec["group"],
-                "source": (
-                    "phygenbench_official_overall_aggregation"
-                    if official_component_executed
-                    else "phygenbench_results_file"
-                ),
-                "source_path": str(source_path),
-                "components": components,
-                "reason": None if score is not None else "score_not_available_in_phygenbench_results",
-            }
-        )
-    return rows
 
 
 def _coverage(expected_ids: set[str], generated_dir: Path | None) -> dict[str, Any]:
@@ -253,8 +217,8 @@ def normalize_phygenbench_results(
 ) -> dict[str, Any]:
     output_dir = args.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
-    generated_dir = args.generated_artifact_dir or _env_path("WORLDFOUNDRY_GENERATED_ARTIFACT_DIR")
-    official_results_path = args.official_results_path or _env_path("WORLDFOUNDRY_PHYGENBENCH_RESULTS_PATH")
+    generated_dir = args.generated_artifact_dir or resolve_env_path("WORLDFOUNDRY_GENERATED_ARTIFACT_DIR")
+    official_results_path = args.official_results_path or resolve_env_path("WORLDFOUNDRY_PHYGENBENCH_RESULTS_PATH")
     if official_results_path is None:
         raise ValueError(
             "--official-results-path, WORLDFOUNDRY_PHYGENBENCH_RESULTS_PATH, or --run-official is required"
@@ -278,10 +242,13 @@ def normalize_phygenbench_results(
         official_runtime_executed=official_runtime_executed,
         judge_summary=judge_summary,
     )
-    metric_rows = _metric_rows(
+    metric_rows = build_import_metric_rows(
         computed=computed,
         source_path=Path(official_results_path),
-        official_component_executed=official_component_executed,
+        metric_order=METRIC_ORDER,
+        metric_specs=METRIC_SPECS,
+        source="phygenbench_official_overall_aggregation" if official_component_executed else "phygenbench_results_file",
+        unavailable_reason="score_not_available_in_phygenbench_results",
     )
     video_coverage = _coverage({record["prompt_id"] for record in prompt_records}, generated_dir)
     scorecard = _scorecard(
@@ -337,7 +304,7 @@ def normalize_phygenbench_results(
 def run_official_phygenbench(args: argparse.Namespace) -> dict[str, Any]:
     output_dir = args.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
-    generated_dir = args.generated_artifact_dir or _env_path("WORLDFOUNDRY_GENERATED_ARTIFACT_DIR")
+    generated_dir = args.generated_artifact_dir or resolve_env_path("WORLDFOUNDRY_GENERATED_ARTIFACT_DIR")
     if generated_dir is None:
         raise ValueError("--generated-artifact-dir or WORLDFOUNDRY_GENERATED_ARTIFACT_DIR is required for --run-official")
     prompts_path = resolve_prompts_json_path(
