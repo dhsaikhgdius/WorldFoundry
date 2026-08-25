@@ -1,0 +1,365 @@
+WorldFoundry 基础设施优化计划（第 2 轮）
+========================================
+日期：2026-08-25
+性质：建议修改（本文件只记录计划，不直接改代码）
+承接：plan/infra_optimization_plan.txt（第 1 轮：Docker / CI / 安装 / GPU 集群）
+方法：主会话编排 + 4 个云端子代理并行评审（模型 claude-fable-5-thinking-xhigh）
+  - Git/LFS/submodule、sdist/wheel 卫生、vendored 体积
+  - catalog / runtime profile / preflight 作为配置基建
+  - 评测编排、generation cache、scorecard、existing-results
+  - 日志/文档站/分布式启动/native kernels/MCP 冷启动
+
+本轮明确不重复第 1 轮已写过的：Docker host network、CI job 拆分、conda lockfile、
+DLC 硬编码、device_pool、jobs 持久化、gradio pin、评测 :latest digest。
+交叉处只保留一行指针。
+
+
+0. 现状一句话
+--------------
+第 1 轮解决的是「怎么装、怎么跑、怎么进 CI」；第 2 轮解决的是「装完之后
+仓库/包/配置/评测结果是否可发布、可复现、可治理」。当前最大缺口：
+pip wheel 把 200MB+ 无关资产打进去、catalog 引用校验空转、reproduce CLI
+没有 profile、official-run 会被旧 results.json 静默短路。
+
+
+1. 不建议改的地方
+------------------
+- 不要把 thirdparty/gsplat、kairos_fla、SageAttention 改成 submodule 集合：它们带本地补丁，应做的是不进 sdist。
+- 不要靠继续加 packages.find.exclude 来瘦 wheel：实测 include-package-data + setuptools-scm file-finder 会打穿包排除；收口点是 exclude-package-data / MANIFEST.in。
+- 不要现在 git rm test_cases 存量文件：不缩小 .git 历史，还会弄坏 CPU 测试引用。外置必须和 history rewrite 一起做。
+- 不要给 native-kernels 套 setuptools-scm：子目录 scm 根会指到仓库根；硬编码版本 + extra 约束更稳。
+- 不要软化 native loader 的 torch 版本等值匹配与 poison 语义。
+- 不要外置 13MB in-tree official runner 运行时：离线可复现优先于包体积。
+- 不要动 core/io/serialization.py 原子写、run_logged_subprocess 进程组终止、training/distributed/parallel.py（torchrun own-or-validate）。
+- 不要动 generate-python-api.py 的 ast-only 设计（docs 构建零 worldfoundry 依赖）。
+- 不要动 schema.py 别名归一化表（兼容层）；冻结新增、清洗数据后再收缩。
+- 不要改 catalog→runtime profile 的覆盖合并方向。
+- 不要把 readme-demos / cover_4x4_hero.mp4 改回 LFS（GitHub README 原生渲染需要原始文件）。
+- 第 1 轮已划的边界继续有效（ruff 0.12.7、allenai 官方镜像、不要一次 xfail eval-core）。
+
+
+2. 优先级实施顺序（接第 1 轮 P0 之后或可并行）
+------------------------------------------------
+P0 正确性（本轮新发现）
+  1) official-run 禁止因 data_root 里残留 results.json 而零秒「成功」
+  2) 提交 reproduction_profiles 或让 reproduce 子命令明确降级，而不是 KeyError
+  3) catalog pipeline_binding / runtime_profile / runner_target 引用校验（今天 runtime-registry-check 对 15 条悬空引用报 0 issue）
+  4) 管道别名：bindings/aliases 目录不存在，validate_pipeline_aliases_against_bindings 校验空集
+
+P1 发布与可复现
+  5) pre-commit check-added-large-files + .lfsconfig fetchexclude docs 演示视频
+  6) 删除 .gitmodules 孤儿 flash-attention 条目
+  7) setuptools-scm fallback_version + 打第一个 tag
+  8) exclude-package-data / MANIFEST.in 瘦 wheel（Eigen、tests、world_explorer C++、plan/、thirdparty 漏网）
+  9) generation cache：WAL + dirty 内容哈希入键；禁止 dirty=True 布尔导致旧代码命中
+ 10) sequence_parallel logger 不要在 import 时把 root 打到 stdout（MCP stdio / --json 污染）
+ 11) metric_sync SLURM 分支 MASTER_ADDR 不要写成本机 HOSTNAME
+ 12) docs 三个已提交 JSON 生成脚本加 --check 进 CI
+
+P2 治理
+ 13) preflight 解析 environment_id、docker 块、实际 python 解释器来源
+ 14) cache GC / single-flight / artifact 相对路径
+ 15) logging_setup 按 logger 名收编，切断 configure_logging → 全量 torch
+ 16) native-kernels CPU CI job；MCP max_jobs 与退出收尾
+ 17) CODEOWNERS / SECURITY.md / dependabot（与第 1 轮 C-07 合并）
+
+P3 清扫
+ 18) py.typed、.gitignore 死规则、logo package-data 悬空、调试 PNG、build.sh --skip-bootstrap 死代码
+ 19) probes.py PYTHONPATH 尾部冒号、REPO_ROOT 对 wheel 安装失效
+ 20) 内嵌 base64 MP4 fixture 外置
+
+
+3. Git / LFS / 打包 / 仓卫生
+----------------------------
+现状（第 2 轮子代理实测 python -m build）
+  工作树约 586 MB，其中 data/test_cases 338 MB；.git pack 约 460 MB。
+  普通 blob 媒体约 423 MB / 1380 文件（不走 LFS）；LFS 109 个对象约 4.4 GB，全在 docs/fumadocs/public/。
+  sdist 约 82 MB（含 plan/、三套测试树、docs、thirdparty/gsplat 等）；wheel 约 73 MB 压缩 / 203 MB 解压。
+  packages.find.exclude 排掉的 *_runtime 仍以 package-data 进 wheel（34 个 __init__.py 可 import）。
+  .gitmodules 声明 thirdparty/flash-attention，HEAD 无 gitlink，submodule update 失败。
+  git tag 为空，setuptools-scm 版本恒为 0.1.devN；无 fallback_version 时无 .git 的 tarball 安装失败。
+
+建议修改
+
+[P-01] P1 大文件闸门与 LFS 错配
+  文件：.pre-commit-config.yaml 、 .gitattributes 、 新增 .lfsconfig
+  现状：*.bin/*.pt/*.pth 等 LFS 规则匹配 0 文件；真实大文件是 pkl/json/npy/exr；
+        docs 演示 mp4 走 LFS 共 4.4 GB，无 fetchexclude。
+  改法：pre-commit-hooks 加 check-added-large-files --maxkb=2048；
+        .lfsconfig：[lfs] fetchexclude = docs/fumadocs/public/demos/** ；
+        LFS 规则改为按路径圈定 docs 演示，而不是按扩展名全仓拦截。
+  中期：demo 视频迁 GitHub Release / CDN；test_cases 迁 HF dataset + 下载清单，再 filter-repo。
+
+[P-02] P2 孤儿 submodule
+  文件：.gitmodules 、 thirdparty/README.md
+  改法：删除 flash-attention 条目（文件可整删）；README 改为说明 flash-attn 走 pip。
+
+[P-03] P1 wheel/sdist 膨胀
+  文件：pyproject.toml [tool.setuptools.exclude-package-data] 、 MANIFEST.in
+  改法：exclude 增加 **/eigen/** 、 **/tests/** 、 yolo_world/data/** ；
+        world_explorer package-data 收窄为 *.py 入口，不要 native/world_explorer/**/* ；
+        MANIFEST prune plan tests test test_stream docs packages ，并补 prune thirdparty/{gsplat,kairos_fla,SageAttention}。
+  验收：重新 python -m build，wheel 目标 <20 MB 量级（核心 CLI 用户不该下载 Eigen 与 35 MB lvis json）。
+
+[P-04] P2 悬空 logo 与 ignore 陷阱
+  文件：pyproject.toml package-data 、 .gitignore 、 worldfoundry/cli/tui_brand.py
+  现状：package-data 声明 openenvision_logo.png，但 .gitignore 忽略 worldfoundry/cli/assets/*.png，git 未追踪。
+  改法：git add -f 提交并加 negate 规则，或删 package-data 行并让 TUI 优雅降级。
+
+[P-05] P2 setuptools-scm
+  文件：pyproject.toml [tool.setuptools_scm]
+  改法：fallback_version = "0.0.0.dev0"；打第一个 tag（如 v0.1.0a1）。
+
+[P-06] P2 许可证声明缺口
+  若 Eigen/nlohmann json/stb 仍进 wheel：THIRD-PARTY-NOTICES 补 MPL-2.0 / MIT 条目。优先按 P-03 移出 wheel。
+
+[P-07] P3 治理文件
+  新增 .github/CODEOWNERS 、 SECURITY.md ；ISSUE_TEMPLATE/config.yml blank_issues_enabled: false。
+  dependabot 与第 1 轮 C-07 合并，不要写两份。
+
+[P-08] P3 .gitignore 死规则
+  删已被追踪的 AGENTS.md ignore、根级不存在的 data/ 规则、过时的 robot_pouring.jsonl 注释规则。
+  robot_pouring.jsonl 引用同目录 mp4/txt 均未追踪：补外部下载清单或删孤立 jsonl。
+
+[P-09] P3 py.typed 与 native extra
+  添加 worldfoundry/py.typed；主包 extra native 声明 worldfoundry-native-kernels 兼容范围。
+
+
+4. Catalog / preflight / 配置即基建
+------------------------------------
+现状
+  模型 catalog 约 274 文件 / 283 条目；benchmark 三件套 72:72:72 严格对齐（本仓治理最健康的部分）。
+  runtime-registry-check 只校验 runtime profile 的 execution 引用，不看 catalog 的 pipeline_binding。
+  data/models/bindings/aliases 目录不存在，别名校验永远空集。
+  hosted_api/video_world_apis.yaml 10 条 + three_d_four_d 5 条 pipeline_binding 指向不存在的 binding。
+  72 个 benchmark profile 的 environment_id 是自由文本（conda 名、docker: 前缀、一句话占位符混用）。
+  官方 profile 内嵌 66 处 tmp/ 证据路径，新 clone 上全部不存在。
+  docs 的 catalog-coverage-data.json 已与 catalog 漂移（70 vs 72）；generate-model-recipes.py 无 --check。
+
+建议修改
+
+[K-01] P0 catalog 引用校验
+  文件：worldfoundry/evaluation/models/runtime/validate.py 、 Makefile runtime-registry-check
+        worldfoundry/data/models/catalog/hosted_api/video_world_apis.yaml
+        worldfoundry/data/models/catalog 下 three_d_four_d 相关条目
+  改法：validate_catalog_references() 扫 pipeline_binding（经 binding registry）、runtime_profile、runner_target；
+        hosted_api 10 条改为不声明 pipeline_binding 或引入 hosted-api binding 种类；3D 5 条补 bindings/pipelines。
+  注意：第 1 轮已指出 lint 链 ruff 失败会挡住后续 data-check；修 ruff 是本项在 CI 生效的前置。
+
+[K-02] P0 别名事实来源
+  文件：worldfoundry/evaluation/models/pipelines/aliases.py
+  改法：二选一——把 RUNTIME_VIDEO_ALIASES 落成 data/models/bindings/aliases/video.yaml 让校验复活；
+        或删除 data-backed 通道，承认代码表是唯一事实。禁止继续校验空集。
+
+[K-03] P1 preflight 三个盲区
+  文件：worldfoundry/evaluation/tasks/execution/orchestration/runtime_preflight.py
+  改法：(a) environment_id 对照 environments 的 env_name 或 docker.python_env；
+        (b) 声明了 docker: 的 profile 至少查 image 字段语法（digest 策略见第 1 轮 D-01）；
+        (c) 报告 python.source（env var vs PATH fallback），PATH fallback 降级 warning；
+        (d) 顶层键白名单，未知键报 issue。
+  Makefile：PREFLIGHT_OUTPUT ?= $(or $(WORLDFOUNDRY_PREFLIGHT_OUTPUT),tmp/preflight)；
+  内嵌 preflight_command 的输出目录与此统一。
+
+[K-04] P1 官方 profile 死指针
+  文件：worldfoundry/data/benchmarks/runtime_profiles/official/*.yaml
+  改法：66 处 tmp/ 证据移出 required_assets，改 evidence: 非校验字段，或指向 git 内 docs/plan 记录。
+
+[K-05] P1 docs 生成物漂移
+  文件：docs/fumadocs/scripts/generate-catalog-coverage.py 、 generate-model-recipes.py 、
+        generate-upstream-acknowledgements.py 、 make docs-check / deploy-docs.yml
+  改法：照 generate-python-api.py 加 --check（diff 则非 0）；CI/docs-check 三条都跑；
+        先重新生成已漂移的 catalog-coverage-data.json 并提交。
+
+[K-06] P1 环境 YAML pin
+  文件：worldfoundry/data/models/runtime/environments/_unified.yaml 等
+  改法：torch/xfuser 至少下界 pin；runtime-registry-check 弱校验 validation_imports ⊆ pip/conda packages。
+  （与第 1 轮 I-12 xfuser 漂移是同一根因，本轮补校验入口。）
+
+[K-07] P2 前缀解析分裂
+  文件：worldfoundry/evaluation/models/pipelines/bindings.py 、 worldfoundry/cli/model_run.py
+  改法：runtime-profile: 剥前缀只留一处（大小写语义统一），CLI 改为导入。
+
+[K-08] P2 catalog 样板与 status 词汇
+  catalog_scope/catalog_policy 上移到分类目录 _manifest.yaml；
+  status 词汇表逐步数据化，冻结 schema.py 新增 alias。
+  长驻 Studio/MCP：给 YAML registry 一个显式 reload，不要给短命 CLI 加 mtime。
+
+[K-09] P3
+  EXCLUDED_BENCHMARK_IDS 从代码移到数据；runtime/configs 里 infinite_world.yaml 与目录并存、sea_raft parser.py 混进数据树——随手整理。
+  三件套完整性校验今天只活在 test_benchmark_zoo_task_manifests.py，可再挂一条轻量 make 目标（不要并进 eval-core 大红套件）。
+
+
+5. 评测编排 / cache / scorecard
+--------------------------------
+现状
+  编排分层清晰：CLI 意图 → service → evaluate → contract/existing_results → cache。
+  缓存键含 git commit + dirty 布尔 + 模型指纹，方向正确；SQLite 无 WAL、无 GC、get_many 读路径含写 hits。
+  DEFAULT_REPRODUCTION_PROFILE_ROOT 指向不存在的 worldfoundry/data/benchmarks/reproduction_profiles/。
+  _run_official：只要 runtime_spec.results_path 文件存在就 status=official_results_import、returncode=0、不跑命令——官方跑也会被 data_root 里旧 results.json 短路（scorecard 里 official_benchmark_verified=False，但仍是「成功」）。
+
+建议修改
+
+[E-01] P0 reproduce 开箱即死
+  新建 worldfoundry/data/benchmarks/reproduction_profiles/ 并提交至少一个真实 profile；
+  或 reproduction_profile_summaries 对缺失根打 WARN，CLI help 写明当前无内置 recipe。禁止静默空元组再 KeyError。
+
+[E-02] P0 official-run 探测短路
+  文件：worldfoundry/evaluation/tasks/execution/orchestration/benchmark_runner.py _run_official
+  改法：mode == official-run 且 results_path_source == "benchmark_data_root" 时不得 import 短路；
+        import 仅接受显式 --official-results-path；scorecard run.status 保持 official_results_import 显著标记。
+
+[E-03] P1 SQLite 并发
+  文件：worldfoundry/evaluation/tasks/execution/orchestration/cache.py
+  改法：PRAGMA journal_mode=WAL; busy_timeout=30000; synchronous=NORMAL；
+        get_many 的 hits 更新改为尽力而为，失败不影响读。
+
+[E-04] P1 缓存键正确性
+  文件：worldfoundry/evaluation/utils.py git_metadata / build_version_context
+  改法：dirty 时加入 git diff 内容哈希（dirty_diff_sha256），不要只用 dirty=True 布尔；
+        从键中移除 python.executable（换 venv 不应全量 miss）。
+  注意：与 E-07 一起 bump version_context schema，一次性失效旧缓存。
+
+[E-05] P1 无 GC / 惊群
+  cache.py 增加 prune(max_age_days / max_rows / max_bytes)，CLI worldfoundry-eval cache prune；
+  audit.jsonl 轮转或采样；miss 后按 key_hash 文件锁 single-flight，拿不到锁则等待再二次查找。
+
+[E-06] P2 路径可移植
+  落库前 artifact URI 转成相对 artifact_base_dir；existing_results._artifact_refs 增加 base_dir（默认结果文件所在目录）。
+  scorecard artifacts 不要全部 resolve() 成绝对路径。
+
+[E-07] P2 两条路径缓存键分裂
+  contract.py run_contract 把 metrics 指纹从生成缓存 version_context 拆出（只进 run_fingerprint）；
+  与 evaluate.py 的跨基准复用语义对齐。改 schema 版本号。
+
+[E-08] P2 官方子进程默认超时
+  文件：benchmark_runner.py
+  改法：env WORLDFOUNDRY_BENCHMARK_TIMEOUT_SECONDS，缺省若干小时；终止语义向 core/process.run_logged_subprocess 收敛。
+
+[E-09] P2 cache schema 读侧校验
+  扁平字符串 schema 改为带数字；读取时校验，不匹配则视为 miss 而非错误解码。
+
+[E-10] P3
+  model_benchmark.py 内嵌 _CONTRACT_FIXTURE_MP4_B64 外置到 data/benchmarks/assets/contract_fixture.mp4。
+
+
+6. 日志 / 文档站 / 分布式启动 / native kernels / MCP
+----------------------------------------------------
+现状
+  logging_setup 脱敏与 opt-in 设计扎实；但 sequence_parallel/logger.py 模块级 dictConfig 打 stdout DEBUG。
+  configure_logging 为收编 distributed_logger 而 import worldfoundry.core.distributed.__init__（急切拖入 torch）。
+  分布式三条启动路径互不复用：multiprocess_launch（硬 NCCL、不设 RANK env）、runtime_setup（无条件 set_device）、
+  training/distributed/parallel.py（最好的一条，向它收敛）。
+  metric_sync.init_distributed 的 SLURM 分支把 MASTER_ADDR 设成本机 HOSTNAME。
+  native-kernels ABI sidecar 设计优秀，但 CI 零构建，checks/ 不在 pytest testpaths。
+  MCP：worldfoundry-mcp 与 worldfoundry-eval mcp 日志行为不一致；不传 max_jobs；退出不收尾作业。
+
+建议修改
+
+[O-01] P1 sp logger 接管 stdout
+  文件：worldfoundry/core/distributed/sequence_parallel/logger.py
+        worldfoundry/mcp/__init__.py 或 mcp/server.py
+  改法：DEFAULT_LOGGING_CONFIG stream 改 ext://sys.stderr；root 级别跟 TRAINER_LOGGING_LEVEL；
+        模块级 _configure_trainer_root_logger() 收进 init_logger 惰性调用。
+        MCP stdio 入口无条件 setdefault TRAINER_CONFIGURE_LOGGING=0 并 configure_logging。
+
+[O-02] P1 SLURM MASTER_ADDR
+  文件：worldfoundry/core/distributed/metric_sync.py
+  改法：未设 MASTER_ADDR 时从 SLURM_JOB_NODELIST 头节点解析，或强制要求外部预设并报错；
+        绝不写入本机 HOSTNAME。MASTER_PORT 可用 SLURM_JOB_ID 派生偏移；gpu 用 SLURM_LOCALID。
+
+[O-03] P1 native-kernels CI
+  文件：.github/workflows/ci.yml 、 pytest.ini 或该包自己的收集路径
+  改法：CPU torch + python -m build --wheel --no-isolation packages/worldfoundry-native-kernels ；
+        安装后 pytest packages/worldfoundry-native-kernels/checks/ 。
+  发布约定：local version label 带 torch/CUDA（如 0.1.0+torch2.6cu124）；
+        SKBUILD_CMAKE_DEFINE=WORLDFOUNDRY_SOURCE_REVISION=$(git rev-parse HEAD)。
+
+[O-04] P2 logging 冷启动
+  文件：worldfoundry/core/logging_setup.py _apply_distributed_logger
+  改法：按名 logging.getLogger("worldfoundry_distributed") 收编，不要 import core.distributed 包。
+        DistributedLogger.get_logger：root 已配置则不自装 handler。
+
+[O-05] P2 multiprocess_launch 契约
+  文件：worldfoundry/core/distributed/multiprocess_launch.py
+  改法：子进程 setdefault RANK/LOCAL_RANK/WORLD_SIZE；init_process_group 加 timeout；
+        finally destroy_process_group。长期向 parallel.py 收敛，本项只补契约。
+
+[O-06] P2 MCP 生命周期
+  文件：worldfoundry/mcp/tools/context.py 、 server.py
+  改法：max_jobs 默认（如 200，WORLDFOUNDRY_MCP_MAX_JOBS 可覆盖）；
+        run_server finally 对 running 作业写 JSONL 终态；明确孤儿化或终止策略。
+  （与第 1 轮 R-03 作业落盘是同一主题在 MCP 入口的落地。）
+
+[O-07] P2 日志级别双轨
+  WORLDFOUNDRY_LOG_LEVEL 与 TRAINER_LOGGING_LEVEL 互相同步或文档化单一来源。
+
+[O-08] P3 docs 构建卫生
+  删除 scripts/docs/build.sh 45–47 行 --skip-bootstrap 空操作（第 1 轮 C-08 已点名，本轮确认仍是死代码）；
+  ci.yml setup-node 锁 node-version: "24"；
+  删除 docs/fumadocs/ 根目录被追踪的调试截图（docs-fixed.png、intro-*.png）。
+
+[O-09] P3 probes.py
+  PYTHONPATH 拼接 .rstrip(os.pathsep)；REPO_ROOT 改为可注入，默认才 parents[2]（wheel 安装时 parents[2] 会落到 site-packages）。
+
+[O-10] P3 runtime_setup.py
+  无条件 torch.cuda.set_device、被注释的 world_size 守卫：标注为 Wan vendored、不要当一等公共 API；
+  新代码走 parallel.py。
+
+
+7. 建议的文件级改动总表（本轮）
+--------------------------------
+第一批（正确性，可与第 1 轮 ruff/gradio 并行）
+  benchmark_runner.py                         official-run 禁止 data_root 探测短路
+  data/benchmarks/reproduction_profiles/      新建或 CLI 降级提示
+  evaluation/models/runtime/validate.py       catalog 引用校验
+  data/models/catalog/hosted_api/*.yaml       去掉悬空 pipeline_binding
+  evaluation/models/pipelines/aliases.py      别名通道二选一
+  sequence_parallel/logger.py                 stderr + 惰性配置
+  metric_sync.py                              SLURM MASTER_ADDR
+
+第二批（发布面）
+  .pre-commit-config.yaml / .lfsconfig / .gitmodules
+  pyproject.toml exclude-package-data + setuptools_scm fallback
+  MANIFEST.in prune
+  cache.py WAL + prune 接口
+  evaluation/utils.py dirty 内容哈希
+  docs/fumadocs/scripts/generate-*.py --check
+  ci.yml native-kernels job + node 24
+
+第三批
+  runtime_preflight.py 盲区
+  logging_setup.py 按名收编
+  multiprocess_launch.py rank env
+  mcp context max_jobs
+  official profile tmp/ 死指针
+  CODEOWNERS / SECURITY.md
+  py.typed / logo / .gitignore 死规则
+
+
+8. 验收标准（本轮落地时）
+--------------------------
+- python -m build 产出的 wheel 解压后不含 mega_sam Eigen 双份拷贝、不含 plan/、不含 35 MB lvis json。
+- git clone 默认不再 smudge docs/fumadocs/public/demos/**（.lfsconfig）。
+- git submodule update --init 不再因 pathspec flash-attention 失败。
+- make runtime-registry-check 对 hosted_api 悬空 pipeline_binding 必须非 0。
+- worldfoundry-eval reproduce --help 或实际调用不再因缺目录 KeyError。
+- official-run 在 data_root 仅有旧 results.json、未传 --official-results-path 时必须真正跑命令或明确失败，不得 duration=0 成功。
+- import sequence_parallel 之后，python -c 打印到 stdout 的 JSON CLI 不被 DEBUG 日志打断。
+- 多节点 SLURM 下 metric_sync.init_distributed 的 MASTER_ADDR 对所有 rank 相同且为头节点。
+- generate-catalog-coverage.py --check 在 catalog 增条目后于 CI 失败。
+
+
+9. 与第 1 轮的衔接
+------------------
+第 1 轮 P0（lint 变绿、[ui] pin、CI 依赖、torch constraint、DLC 去硬编码）仍是总顺序最前。
+本轮 P0（official-run 短路、reproduce、catalog 校验、logger stdout）与安装无关，可并行开 PR。
+dependabot / node 24 / --skip-bootstrap / MCP max_jobs / 作业落盘：两轮都提到，各做一次即可，不要重复 PR。
+xfuser / _unified.yaml pin：第 1 轮 I-12 + 本轮 K-06，同一 PR。
+
+
+10. 子代理产出索引
+------------------
+  包装/LFS     wheel 203 MB 解压、scm file-finder 打穿 exclude、LFS 4.4 GB demo、孤儿 submodule
+  Catalog      15 条悬空 binding、空 aliases 目录、preflight 盲区、coverage JSON 漂移
+  评测编排     reproduce 无 profile、official-run 短路、cache dirty 布尔、无 WAL/GC
+  横切         sp logger stdout、SLURM HOSTNAME、logging→torch、native-kernels 零 CI
