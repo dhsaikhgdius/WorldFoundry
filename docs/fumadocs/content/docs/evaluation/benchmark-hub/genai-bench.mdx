@@ -140,3 +140,11 @@ For local wiring without GPU scoring, set `WORLDFOUNDRY_GENAI_BENCH_SCORER_BACKE
 | `genai_bench_average` | Mean of available task-level preference accuracies; primary metric. |
 
 All metrics are normalized to `[0, 1]`, and higher is better.
+
+## What this cannot claim
+
+- The catalog records `official_benchmark_verified: false` and `leaderboard_valid: false`: a local scorecard is not an official leaderboard submission, and full numerical parity with the upstream evaluator has not been demonstrated in this checkout.
+- The scorer backend defaults to `mock` when `WORLDFOUNDRY_GENAI_BENCH_SCORER_BACKEND` (or `WORLDFOUNDRY_T2V_METRICS_BACKEND`) is unset. Mock preference predictions are deterministic placeholders; set the backend to `vqascore` for real scoring and never report mock numbers.
+- Full leaderboard validation requires official human preference labels or judge outputs plus generated artifacts for the official pairwise prompt/task suite.
+
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

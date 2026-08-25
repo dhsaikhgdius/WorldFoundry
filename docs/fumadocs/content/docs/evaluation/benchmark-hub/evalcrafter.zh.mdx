@@ -132,4 +132,13 @@ from worldfoundry.evaluation.tasks.execution.runners.evalcrafter.evalcrafter_off
 
 主要指标是 `visual_quality`、`text_video_alignment`、`motion_quality`、`temporal_consistency`、`evalcrafter_total`。组件指标包括 `vqa_aesthetic`、`vqa_technical`、`inception_score`、`clip_temp_score`、`warping_error`、`face_consistency_score`、`action_score`、`motion_ac_score`、`flow_score`、`clip_score`、`blip_bleu`、`sd_score`、`detection_score`、`color_score`、`count_score`、`ocr_error`、`celebrity_id_error`。
 
+scorecard 主键：`evalcrafter_total`。
+
+## 不能声称的边界
+
+- catalog 中记录 `official_benchmark_verified: false` 与 `leaderboard_valid: false`：本地 scorecard 不是官方 leaderboard 提交，本 checkout 也未验证与上游评测器的完整数值对齐。
+- 默认的树内运行只覆盖 CLIP 系列分数与人脸一致性；完整 17 指标套件仍依赖隔离环境中的 DOVER、OCR、动作识别、BLIP2、SDXL 与名人 ID 栈。
+- 在全部 700 个官方视频上跑通 17 个原始指标与 5 个聚合之前，完整 EvalCrafter 与 leaderboard 用途仍处于受阻状态。
+- 本页只给出可运行的命令，不声称这些 GPU 运行已在此环境中执行过。
+
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

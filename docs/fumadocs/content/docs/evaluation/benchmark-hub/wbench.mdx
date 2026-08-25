@@ -40,14 +40,15 @@ work_dirs/<model_name>/
 
 `<id>` is the case JSON id, not the case filename. A full multi-turn clip is stored as one `case_<id>_combined.mp4` file. If a model emits turns with unequal frame counts, prepare `turns.json` for leaderboard submission so per-turn metrics can split the combined video correctly.
 
-| Dimension | Metrics |
-| --- | --- |
-| Quality | `aesthetic_quality`, `imaging_quality`, `temporal_flickering`, `dynamic_degree`, `motion_smoothness`, `hpsv3_quality` |
-| Setting | `scene_adherence`, `subject_adherence` |
-| Interaction | `navigation_trajectory`, `event_edit_adherence`, `subject_action_adherence`, `perspective_switch_adherence` |
-| Consistency | `background_consistency`, `segment_continuity`, `perspective_consistency`, `subject_consistency`, `geometric_consistency`, `photometric_consistency`, `spatial_consistency`, `gated_spatial_consistency` |
-| Physical | `visual_plausibility`, `causal_fidelity` |
-| Primary | `wbench_average`, computed from the five dimension scores when available |
+| Dimension | Aggregate metric id | Per-metric ids |
+| --- | --- | --- |
+| Quality | `quality_score` | `aesthetic_quality`, `imaging_quality`, `temporal_flickering`, `dynamic_degree`, `motion_smoothness`, `hpsv3_quality` |
+| Setting | `setting_score` | `scene_adherence`, `subject_adherence` |
+| Interaction | `interaction_score` | `navigation_trajectory`, `event_edit_adherence`, `subject_action_adherence`, `perspective_switch_adherence` |
+| Consistency | `consistency_score` | `background_consistency`, `segment_continuity`, `perspective_consistency`, `subject_consistency`, `geometric_consistency`, `photometric_consistency`, `spatial_consistency`, `gated_spatial_consistency` |
+| Physical | `physical_score` | `visual_plausibility`, `causal_fidelity` |
+
+All metrics are higher-is-better. Each `<dimension>_score` aggregate is the mean of its per-metric ids and is only emitted when every metric in the group is available. The primary key `wbench_average` is the mean of the five dimension scores when all five are present.
 
 ## WorldFoundry integration
 
@@ -186,5 +187,12 @@ For leaderboard submission, the official package is:
 ```
 
 The official WBench process accepts either self-evaluated scores plus videos, or videos only for the WBench team to evaluate. WorldFoundry does not run or host your model for that process; it prepares local scorecards and artifacts from the assets you provide.
+
+## What this cannot claim
+
+- The catalog records `official_benchmark_verified: false` and `leaderboard_valid: false`: a local scorecard is not an official leaderboard submission, and full numerical parity with the upstream evaluator has not been demonstrated in this checkout.
+- The official VLM metrics call a hosted VLM API and require `VLM_API_KEY`; local visual-plausibility scoring additionally needs the PAVRM model directory.
+- Leaderboard-valid scores require a complete official report over the full split; WorldFoundry does not run or host your model for the official WBench submission process.
+- This page documents runnable commands; it does not claim those GPU runs were executed in this environment.
 
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

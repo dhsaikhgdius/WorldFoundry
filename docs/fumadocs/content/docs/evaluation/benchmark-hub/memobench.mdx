@@ -101,6 +101,8 @@ Frames should be PNG files with zero-padded numeric filenames. The upstream eval
 
 `memobench_average` is the WorldFoundry aggregate over available normalized component metrics. It is useful for local validation, but leaderboard claims still require full MemoBench evidence coverage.
 
+Primary scorecard key: `memobench_average`.
+
 ## Run evaluation
 
 ### Step 1: automated metrics through WorldFoundry
@@ -263,5 +265,12 @@ WorldFoundry can import the generated leaderboard CSV, but local comparisons are
 - `raw_metric_table.jsonl`
 - `per_sample_scores.jsonl`
 - Upstream Step 1 `eval_*.csv` when `--run-official` is used
+
+## What this cannot claim
+
+- The catalog records `official_benchmark_verified: false` and `leaderboard_valid: false`: a local scorecard is not an official leaderboard submission, and full numerical parity with the upstream evaluator has not been demonstrated in this checkout.
+- Step 1 official execution requires the complete MemoBench dataset assets; Object Revisit Score requires SAM-3 assets; VQA requires Gemini or compatible VLM credentials, which is a hosted API call.
+- Leaderboard parity requires generated frames for the complete synthetic and real suites plus Step 1, ORS, VQA, and leaderboard evidence.
+- This page documents runnable commands; it does not claim those GPU runs were executed in this environment.
 
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

@@ -81,11 +81,10 @@ Start from the WorldFoundry repository root:
 
 ```bash
 cd /path/to/WorldFoundry
-export WORLDFOUNDRY_T2VWORLDBENCH_RUNTIME="$PWD/worldfoundry/evaluation/tasks/execution/runners/t2vworldbench/runtime/t2vworldbench"
-export WORLDFOUNDRY_T2VWORLDBENCH_ASSETS="$PWD/worldfoundry/data/benchmarks/assets/t2vworldbench"
-export WORLDFOUNDRY_T2VWORLDBENCH_PROMPT_CSV="$WORLDFOUNDRY_T2VWORLDBENCH_ASSETS/prompt/prompt.csv"
-export WORLDFOUNDRY_T2VWORLDBENCH_PROMPT_FILE="$WORLDFOUNDRY_T2VWORLDBENCH_ASSETS/data/meta_data/meta_data.json"
+export WORLDFOUNDRY_T2VWORLDBENCH_PROMPT_FILE="$PWD/worldfoundry/data/benchmarks/assets/t2vworldbench/data/meta_data/meta_data.json"
 ```
+
+`WORLDFOUNDRY_T2VWORLDBENCH_PROMPT_FILE` is the only prompt-related environment variable the runner reads; the vendored official runtime lives at `worldfoundry/evaluation/tasks/execution/runners/t2vworldbench/runtime/t2vworldbench` and the bundled prompt CSV at `worldfoundry/data/benchmarks/assets/t2vworldbench/prompt/prompt.csv`.
 
 Download or prepare the official metadata JSON. The repository includes a tiny example at:
 
@@ -176,5 +175,12 @@ The run writes:
 - `per_sample_scores.jsonl`: per-video rows when the CSV exposes sample-level scores.
 - `upstream_stdout.log` and `upstream_stderr.log`: logs from the in-tree official runtime.
 - `upstream/`: raw evaluator output directory for `--run-official`.
+
+## What this cannot claim
+
+- The catalog records `official_benchmark_verified: false` and `leaderboard_valid: false`: a local scorecard is not an official leaderboard submission, and full numerical parity with the upstream evaluator has not been demonstrated in this checkout.
+- The bundled `meta_data.json` is only a tiny in-tree example; full validation requires generated videos plus the manually staged official Drive metadata and sample assets.
+- Leaderboard parity requires the upstream VLM runtime (a LLaVA-compatible checkpoint) and normalized official result files.
+- This page documents runnable commands; it does not claim those GPU runs were executed in this environment.
 
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

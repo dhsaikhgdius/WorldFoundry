@@ -152,4 +152,11 @@ worldfoundry-eval zoo benchmark-run \
 - `per_sample_scores.jsonl`: 当结果文件暴露 sample-level values 时写出逐视频结果。
 - `upstream_scorer/`: 使用 `--run-official` 时 materialized meta CSV、extracted frames 和 official scorer outputs。
 
+## 不能声称的边界
+
+- catalog 中记录 `official_benchmark_verified: false` 与 `leaderboard_valid: false`：本地 scorecard 不是官方 leaderboard 提交，本 checkout 也未验证与上游评测器的完整数值对齐。
+- `WORLDFOUNDRY_MIRABENCH_SCORER_BACKEND=mock` 只为接线运行写入确定性的占位指标值；绝不要把 mock 数值当作基准结果报告。
+- 完整验证需要官方 150 条 prompt 套件的生成视频与已就位的 scorer checkpoint；leaderboard 对齐还需要官方评审/checkpoint 资产与归一化的上游结果文件。
+- 本页只给出可运行的命令，不声称这些 GPU 运行已在此环境中执行过。
+
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

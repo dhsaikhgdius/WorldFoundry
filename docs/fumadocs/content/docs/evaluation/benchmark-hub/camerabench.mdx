@@ -128,6 +128,8 @@ Use this path when you already have the JSON output from a prior CameraBench eva
 | `camera_caption_score` | Caption agreement score from prepared CameraBench caption outputs. |
 | `camerabench_average` | Mean over the available CameraBench metric families. |
 
+Primary scorecard key: `camerabench_average`.
+
 ## Outputs
 
 The runner writes:
@@ -139,5 +141,12 @@ The runner writes:
 - `upstream_stderr.log`
 
 For a leaderboard-quality reproduction, make sure the local dataset root covers the full test split and the score directory contains all metric families you intend to report.
+
+## What this cannot claim
+
+- The catalog records `official_benchmark_verified: false` and `leaderboard_valid: false`: a local scorecard is not an official leaderboard submission, and full numerical parity with the upstream evaluator has not been demonstrated in this checkout.
+- The public surface imports official result files or aggregates a prepared score directory; it does not generate VLM/SfM predictions. Producing official CameraBench score files still requires the upstream score-generation stack.
+- Caption GPT judging is optional and only runs when explicitly enabled with an `OPENAI_API_KEY`; no hosted judging is executed by default.
+- Full leaderboard validation still requires source-audited score generation over the complete test split and the upstream submission protocol.
 
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

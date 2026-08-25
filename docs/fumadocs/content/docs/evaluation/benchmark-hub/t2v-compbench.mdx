@@ -229,4 +229,11 @@ The upstream paper evaluates 17 open-source and 6 commercial T2V systems across 
 
 WorldFoundry's `t2v_compbench_average` is the mean of the category scores available in the local scorecard. Treat the live leaderboard as authoritative for current rankings.
 
+## What this cannot claim
+
+- The catalog records `official_benchmark_verified: false` and `leaderboard_valid: false`: a local scorecard is not an official leaderboard submission, and full numerical parity with the upstream evaluator has not been demonstrated in this checkout.
+- Only the `generative_numeracy` component has been executed as a bounded one-video official run in this repository; that is not full-suite evidence.
+- The four MLLM-based categories still require a compatible LLaVA runtime and checkpoint; `motion_binding` requires DOT, and the detection paths require their category-specific Depth-Anything/SAM assets.
+- Full-suite verification requires all 1,400 generated videos (200 per category); full official benchmark and leaderboard parity have not been executed.
+
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

@@ -148,4 +148,15 @@ For a custom prompt file, add:
 | `open_qa_score` | Imported open-ended QA score or exact-match score when answer/prediction fields are supplied. |
 | `ipv_bench_average` | Mean of available IPV-Bench component metrics unless an imported result file supplies the aggregate directly. |
 
+Primary scorecard key: `ipv_bench_average`.
+
 All metrics are normalized to `[0, 1]`, and higher is better.
+
+## What this cannot claim
+
+- The catalog records `official_benchmark_verified: false` and `leaderboard_valid: false`: a local scorecard is not an official leaderboard submission, and full numerical parity with the upstream evaluator has not been demonstrated in this checkout.
+- The in-tree surface normalizes official annotations, judge scores, or understanding predictions; it does not run the official judges itself.
+- Full leaderboard validation still requires official annotations or judge outputs plus generated videos for the official suite.
+- This page documents runnable commands; it does not claim those GPU runs were executed in this environment.
+
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

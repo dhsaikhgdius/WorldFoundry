@@ -123,4 +123,13 @@ The output directory contains:
 
 Metrics emitted by the runner are `qa_accuracy`, `event_coverage`, `temporal_causality`, `world_knowledge_consistency`, `static_scene_consistency`, `dynamic_event_consistency`, and `videoverse_average`. Higher is better for all seven metrics.
 
+Primary scorecard key: `videoverse_average`.
+
+## What this cannot claim
+
+- The catalog records `official_benchmark_verified: false` and `leaderboard_valid: false`: a local scorecard is not an official leaderboard submission, and full numerical parity with the upstream evaluator has not been demonstrated in this checkout.
+- The default judge backend is the hosted Gemini API (`gemini`, default model `gemini-2.5-pro`) and requires an API key; judging is a paid external call, not a local computation.
+- `WORLDFOUNDRY_VIDEOVERSE_JUDGE_BACKEND=mock` exists for wiring tests only; never report mock judgments as benchmark results.
+- Full leaderboard parity requires the complete official assets, generated artifacts, and verified scorecard evidence.
+
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

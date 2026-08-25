@@ -34,6 +34,8 @@ WorldFoundry aggregates variant results into:
 - `vbench_plus_plus_trustworthiness_average`
 - `vbench_plus_plus_average`
 
+Primary scorecard key: `vbench_plus_plus_average`.
+
 ## Assets and generated outputs
 
 Prompt and metadata assets are checked in:
@@ -164,5 +166,12 @@ Each run writes:
 - `upstream/*_eval_results.json`: official runtime output when metrics are computed.
 - `upstream_stdout.log` and `upstream_stderr.log`: logs from the in-tree runtime.
 - `vbenchpp_long_presplit_manifest.json`: long-video split preparation metadata when `long_custom_input` is used.
+
+## What this cannot claim
+
+- The catalog records `official_benchmark_verified: false` and `leaderboard_valid: false`: a local scorecard is not an official leaderboard submission, and full numerical parity with the upstream evaluator has not been demonstrated in this checkout.
+- Bounded official GPU validation covers the long-video variant only; full I2V, long-video, and trustworthiness suite coverage is still pending.
+- Leaderboard parity requires the complete official variant suites and generated artifacts.
+- This page documents runnable commands; it does not claim those GPU runs were executed in this environment.
 
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

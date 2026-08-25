@@ -81,11 +81,10 @@ worldfoundry/data/benchmarks/assets/t2vworldbench/prompt/prompt.csv
 
 ```bash
 cd /path/to/WorldFoundry
-export WORLDFOUNDRY_T2VWORLDBENCH_RUNTIME="$PWD/worldfoundry/evaluation/tasks/execution/runners/t2vworldbench/runtime/t2vworldbench"
-export WORLDFOUNDRY_T2VWORLDBENCH_ASSETS="$PWD/worldfoundry/data/benchmarks/assets/t2vworldbench"
-export WORLDFOUNDRY_T2VWORLDBENCH_PROMPT_CSV="$WORLDFOUNDRY_T2VWORLDBENCH_ASSETS/prompt/prompt.csv"
-export WORLDFOUNDRY_T2VWORLDBENCH_PROMPT_FILE="$WORLDFOUNDRY_T2VWORLDBENCH_ASSETS/data/meta_data/meta_data.json"
+export WORLDFOUNDRY_T2VWORLDBENCH_PROMPT_FILE="$PWD/worldfoundry/data/benchmarks/assets/t2vworldbench/data/meta_data/meta_data.json"
 ```
+
+`WORLDFOUNDRY_T2VWORLDBENCH_PROMPT_FILE` 是 runner 读取的唯一 prompt 相关环境变量；官方 runtime 的树内位置为 `worldfoundry/evaluation/tasks/execution/runners/t2vworldbench/runtime/t2vworldbench`，随仓库捆绑的 prompt CSV 位于 `worldfoundry/data/benchmarks/assets/t2vworldbench/prompt/prompt.csv`。
 
 下载或准备官方 metadata JSON。仓内有一个极小示例：
 
@@ -176,5 +175,12 @@ worldfoundry-eval zoo benchmark-run \
 - `per_sample_scores.jsonl`: 当 CSV 暴露 sample-level 分数时写出逐视频结果。
 - `upstream_stdout.log` and `upstream_stderr.log`: 仓内 official runtime 日志。
 - `upstream/`: 使用 `--run-official` 时的原始 evaluator 输出目录。
+
+## 不能声称的边界
+
+- catalog 中记录 `official_benchmark_verified: false` 与 `leaderboard_valid: false`：本地 scorecard 不是官方 leaderboard 提交，本 checkout 也未验证与上游评测器的完整数值对齐。
+- 随仓库捆绑的 `meta_data.json` 只是一个很小的树内示例；完整验证需要生成视频，以及手工准备的官方 Drive 元数据与样例资产。
+- leaderboard 对齐需要上游 VLM runtime（LLaVA 兼容 checkpoint）与归一化的官方结果文件。
+- 本页只给出可运行的命令，不声称这些 GPU 运行已在此环境中执行过。
 
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

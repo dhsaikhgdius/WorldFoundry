@@ -101,6 +101,8 @@ Frame 应为 PNG，并使用 zero-padded 数字文件名。上游脚本按字典
 
 `memobench_average` 是 WorldFoundry 对可用归一化组件指标的平均值。它适合本地验证；leaderboard 结论仍需要完整 MemoBench evidence coverage。
 
+scorecard 主键：`memobench_average`。
+
 ## 运行评测
 
 ### 通过 WorldFoundry 跑 Step 1 自动指标
@@ -263,5 +265,12 @@ WorldFoundry 可以导入生成的 leaderboard CSV；只有完整 evidence packa
 - `raw_metric_table.jsonl`
 - `per_sample_scores.jsonl`
 - 使用 `--run-official` 时生成的上游 Step 1 `eval_*.csv`
+
+## 不能声称的边界
+
+- catalog 中记录 `official_benchmark_verified: false` 与 `leaderboard_valid: false`：本地 scorecard 不是官方 leaderboard 提交，本 checkout 也未验证与上游评测器的完整数值对齐。
+- Step 1 官方执行需要完整的 MemoBench 数据集资产；Object Revisit Score 需要 SAM-3 资产；VQA 需要 Gemini 或兼容 VLM 凭据，属于 hosted API 调用。
+- leaderboard 对齐需要完整合成与真实套件的生成帧，以及 Step 1、ORS、VQA 与 leaderboard 证据。
+- 本页只给出可运行的命令，不声称这些 GPU 运行已在此环境中执行过。
 
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

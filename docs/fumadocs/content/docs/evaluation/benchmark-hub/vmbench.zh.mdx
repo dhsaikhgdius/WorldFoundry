@@ -42,6 +42,8 @@ WorldFoundry 把 manifest 打包在 `worldfoundry/data/benchmarks/assets/vmbench
 | `motion_smoothness_score` | MSS | 运动是否平滑，而不是抖动 |
 | `vmbench_average` | Avg | 可用 PAS/OIS/TCS/CAS/MSS 分数的均值 |
 
+scorecard 主键：`vmbench_average`。
+
 所有主要分数都是越高越好。WorldFoundry 在 scorecard 中把它们归一化到 0–1。
 
 ## 数据与产物
@@ -207,5 +209,12 @@ tmp/vmbench/direct-official-run/
 上游 README 还报告：在 1,050 段 CogVideoX-5B 视频（49 帧、8 FPS）上跑完五个指标约需 **6 小时 45 分钟** GPU 时间，其中 TCS 与 MSS 最慢。
 
 WorldFoundry scorecard 只是本地证据。要达到 leaderboard parity，需要恰好 `0001.mp4` 到 `1050.mp4` 且与 bundled prompt 顺序对齐。
+
+## 不能声称的边界
+
+- catalog 中记录 `official_benchmark_verified: false` 与 `leaderboard_valid: false`：本地 scorecard 不是官方 leaderboard 提交，本 checkout 也未验证与上游评测器的完整数值对齐。
+- 所有指标都基于本地 checkpoint 运行（无 hosted 评审），但完整重算需要 CUDA 指标栈：GroundingDINO、SAM/SAM2、CoTracker、Q-Align 与 VMBench CAS checkpoint。
+- 集成时 `AMAP-ML/VMBench` 的 Hugging Face 数据集端点并未公开；prompt 套件已捆绑在树内 `worldfoundry/data/benchmarks/assets/vmbench` 下。生成视频必须遵循官方 `0001.mp4` … `1050.mp4` 命名。
+- 本页只给出可运行的命令，不声称这些 GPU 运行已在此环境中执行过。
 
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

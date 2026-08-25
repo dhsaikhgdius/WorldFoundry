@@ -159,4 +159,13 @@ VideoScore-Bench 聚合约 **7,000** 个视频，来源包括 [VideoFeedback](ht
 
 WorldFoundry 会把五个 1–4 aspect 分数归一化到 0–1，并报告 `videoscore_average`。benchmark 级证据请使用完整 frame-tree 评测；bounded sample 路径只用于本地验证。
 
+scorecard 主键：`videoscore_average`。
+
+## 不能声称的边界
+
+- catalog 中记录 `official_benchmark_verified: false` 与 `leaderboard_valid: false`：本地 scorecard 不是官方 leaderboard 提交，本 checkout 也未验证与上游评测器的完整数值对齐。
+- catalog 中记录过针对 `video_feedback` 的有界 VideoScore scorer GPU 验证，但那不是 leaderboard 提交。
+- 全套件 SPCC/成对 leaderboard 协议仍需完整的上游生成帧目录树与 VideoScore scorer 模型权重。
+- 本页只给出可运行的命令，不声称这些 GPU 运行已在此环境中执行过。
+
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

@@ -229,4 +229,11 @@ T2V-CompBench 在 [Kaiyue/T2V-CompBench_Leaderboard](https://huggingface.co/spac
 
 WorldFoundry 的 `t2v_compbench_average` 是本地 scorecard 中可用 category 分数的均值。当前排名请以 live leaderboard 为准。
 
+## 不能声称的边界
+
+- catalog 中记录 `official_benchmark_verified: false` 与 `leaderboard_valid: false`：本地 scorecard 不是官方 leaderboard 提交，本 checkout 也未验证与上游评测器的完整数值对齐。
+- 本仓库只以有界的单视频官方运行执行过 `generative_numeracy` 组件；这不构成全套件证据。
+- 四个基于 MLLM 的类别仍需兼容的 LLaVA runtime 与 checkpoint；`motion_binding` 依赖 DOT，检测类路径还需要各自类别的 Depth-Anything/SAM 资产。
+- 全套件验证需要全部 1,400 条生成视频（每类 200 条）；完整官方基准与 leaderboard 对齐均未执行过。
+
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)
