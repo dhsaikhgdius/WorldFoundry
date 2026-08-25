@@ -80,3 +80,26 @@ catalog_policy:
   open_source_rule: Only mark open_source when an official GitHub repository or official
     Hugging Face model page was confirmed. Do not infer checkpoint availability from
     papers, demos, or third-party mirrors.
+docs:
+  publisher: NVIDIA
+  publisher_kind: company
+  publisher_zh: 英伟达（NVIDIA）
+  overview: 'Cosmos Transfer 2.5 does controlled world-to-world translation: it takes structured control inputs (e.g. edge maps or simulation renders) and generates photoreal world video that follows them — the sim-to-real arm of the Cosmos family. In this catalog it reuses the same native runner, Reason1 conditioner, flow-UniPC scheduler, and Wan VAE as Predict 2.5, adding only the checkpoint-shaped VACE control branch.'
+  overview_zh: Cosmos Transfer 2.5 做受控的世界到世界转换：接受结构化控制输入（如边缘图或仿真渲染），生成遵循这些控制的写实世界视频——是 Cosmos 家族的 sim-to-real 分支。本 catalog 中它复用与 Predict 2.5 相同的原生 runner、Reason1 条件器、flow-UniPC 调度器与 Wan VAE，仅新增按 checkpoint 形状实现的 VACE 控制分支。
+  architecture: The native VACE network adds a four-block control branch at base layers 0/7/14/21 plus an 8-modality control embedder over the 28-layer base; control and conditional video encoding reuse the same framework-owned Wan VAE instance. No Diffusers, ControlNet backend, or model-specific runner is retained.
+  architecture_zh: 原生 VACE 网络在 28 层基座的第 0/7/14/21 层添加四块控制分支，外加 8 模态控制嵌入器；控制与条件视频编码复用同一个框架自有 Wan VAE 实例。不保留 Diffusers、ControlNet 后端或模型专属 runner。
+  usage_notes: A tiny native control forward passes, but the general/edge checkpoint could not be materialized in this workspace — exact weight structure and end-to-end GPU parity remain pending until it is staged.
+  usage_notes_zh: 小规模原生控制前向已通过，但 general/edge checkpoint 未能在本工作区就位——确切权重结构与端到端 GPU 一致性在其就位前保持 pending。
+  limitations:
+  - The general/edge checkpoint is not staged; weight-structure and GPU parity are pending.
+  - Only the 2B controlled-video variant is recorded.
+  limitations_zh:
+  - general/edge checkpoint 未就位；权重结构与 GPU 一致性待验证。
+  - 仅记录 2B 受控视频 variant。
+  recommended_benchmarks:
+  - id: worldmodelbench
+    reason: World-generation quality under control conditions.
+    reason_zh: 控制条件下的世界生成质量。
+  - id: physics-iq
+    reason: Physical plausibility of transferred world video.
+    reason_zh: 转换后世界视频的物理合理性。

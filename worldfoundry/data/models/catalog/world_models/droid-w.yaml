@@ -30,3 +30,23 @@ catalog_scope: World-model catalog entries. Integrated entries expose in-tree Wo
   runtimes; blocked entries retain upstream provenance without runnable backends.
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 pipeline_binding: droid-w
+docs:
+  publisher: Open-source research release (institution not recorded)
+  publisher_kind: lab
+  publisher_zh: 开源研究发布（仓库未记录正式机构）
+  overview: 'DROID-W is a robot world model oriented around the DROID robot-manipulation data ecosystem: it generates robot-view video for evaluation on DROID-style tasks. In this catalog the official source route is registered with the source pinned at a recorded commit; checkpoints and data remain runtime-gated.'
+  overview_zh: DROID-W 是围绕 DROID 机器人操作数据生态的机器人世界模型：为 DROID 风格任务生成机器人视角视频用于评估。本 catalog 中官方源码路径已注册、源码固定在记录的 commit；checkpoint 与数据保持运行时限制。
+  architecture: 'Architecture internals are not recorded in this repository (upstream: MoyangLi00/DROID-W, apache-2.0). The official source is bound from ${WORLDFOUNDRY_MODEL_SOURCE_DIR}/DROID-W at commit c3414af6.'
+  architecture_zh: 架构内部细节仓库未记录（上游：MoyangLi00/DROID-W，apache-2.0）。官方源码从 ${WORLDFOUNDRY_MODEL_SOURCE_DIR}/DROID-W 绑定，commit 为 c3414af6。
+  usage_notes: Config resolution and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged. Missing assets are reported by the plan, not treated as catalog blockers.
+  usage_notes_zh: 配置解析与 pipeline 导入预期可通过；在所需 checkpoint/资产就位前，真实生成会输出运行时计划。缺失资产由计划报告，不视为 catalog 阻塞。
+  limitations:
+  - Real generation is checkpoint/asset gated.
+  - The publishing institution is not recorded in this repository.
+  limitations_zh:
+  - 真实生成受 checkpoint/资产限制。
+  - 发表机构在本仓库中未记录。
+  recommended_benchmarks:
+  - id: ewmbench
+    reason: Embodied world-model evaluation for robot video prediction.
+    reason_zh: 机器人视频预测的具身世界模型评测。

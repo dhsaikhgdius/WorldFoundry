@@ -28,3 +28,19 @@ runtime_profile: runtime-profile:adaworld
 catalog_category: world_models
 catalog_scope: World-model catalog entries. Integrated entries expose in-tree WorldFoundry runtimes; blocked entries retain
   upstream provenance without runnable backends.
+docs:
+  publisher: The Hong Kong University of Science and Technology / MIT
+  publisher_kind: university
+  publisher_zh: 香港科技大学 / 麻省理工学院
+  overview: 'AdaWorld learns adaptable world models with latent actions: by extracting actions from unlabeled videos it can transfer control across domains with minimal finetuning. In this catalog it is retained as open-source provenance/source-only metadata and hidden from the formal Studio infer catalog.'
+  overview_zh: AdaWorld 用潜在动作学习可适配的世界模型：从无标注视频中提取动作，使控制能力以极少微调迁移到新领域。本 catalog 中它作为开源溯源/仅源码元数据保留，并在正式的 Studio 推理 catalog 中隐藏。
+  architecture: Per the upstream project, a latent action autoencoder extracts transferable action representations that condition an autoregressive world model. The official source is vendored in-tree under synthesis/visual_generation/world_model/adaworld; public checkpoints exist upstream.
+  architecture_zh: 按上游项目，潜在动作自编码器提取可迁移的动作表示，用于条件化自回归世界模型。官方源码已内置于 synthesis/visual_generation/world_model/adaworld；上游存在公开 checkpoint。
+  usage_notes: 'Blocked for release-facing inference: the official runner still requires AdaWorld-specific dependencies and task/demo video assets that are not reproducibly available in the unified Studio environment. Use the upstream repository directly until parity is restored.'
+  usage_notes_zh: 面向发布的推理被 blocked：官方 runner 仍需要 AdaWorld 专属依赖与任务/demo 视频资产，而这些在统一 Studio 环境中无法可复现地获得。在一致性恢复之前请直接使用上游仓库。
+  limitations:
+  - Hidden from Studio inference until official environment and asset parity is reproducible.
+  - No release-facing WorldFoundry infer runner is advertised for this entry.
+  limitations_zh:
+  - 在官方环境与资产一致性可复现之前，对 Studio 推理隐藏。
+  - 该条目不对外宣传任何面向发布的 WorldFoundry 推理 runner。

@@ -58,3 +58,23 @@ availability:
   code: native_worldfoundry
   weights: unreleased_by_upstream
   license: cc-by-4.0
+docs:
+  publisher: JD.com (Joy Future Academy)
+  publisher_kind: company
+  publisher_zh: 京东（Joy Future Academy）
+  overview: 'Echo-Memory SSM Ctx5 Every4 Hint81 is one identity in JD''s Echo-Memory family — a controlled study of how memory mechanisms affect interactive, action-conditioned world models. This identity is permanently bound to the ssm_ablation_ctx5_every4_hint81/epoch-0.safetensors checkpoint in the research-ablation release tier: it ablates the SSM design with context 5, state updates every 4 frames, and 81 hint frames. In this catalog it is blocked because the pinned checkpoint is not available upstream; CPU contract tests still cover sampler layout, frozen-context relocking, target-only CFG, model identity, frame retrieval, and checkpoint architecture validation.'
+  overview_zh: Echo-Memory SSM Ctx5 Every4 Hint81 消融是京东 Echo-Memory 家族中的一个身份——该家族对「记忆机制如何影响交互式动作条件世界模型」做受控研究。此身份永久绑定 research_ablation 发布层级的 ssm_ablation_ctx5_every4_hint81/epoch-0.safetensors checkpoint：它以「上下文 5、每 4 帧更新状态、81 提示帧」的设置消融 SSM 设计。在本 catalog 中它处于 blocked，因为绑定的 checkpoint 在上游不可得；CPU 契约测试仍覆盖采样器布局、frozen-context 重锁、仅目标 CFG、模型身份、帧检索与 checkpoint 架构校验。
+  architecture: 'Per the Echo-Memory release (arXiv 2606.09803), every variant is a Wan2.1-T2V-1.3B-based interactive world model that differs only in its memory mechanism. In WorldFoundry each variant is an independent model identity pinned to one checkpoint: the recipe is assembled by NativeDiffusionPipeline from shared Wan components plus the framework-owned frozen-context strategy — no external backend. The sampler uses target-noise plus clean-context suffix, target-only CFG, context relocking after every solver step, and target-only decode.'
+  architecture_zh: 按 Echo-Memory 发布（arXiv 2606.09803），所有 variant 都是基于 Wan2.1-T2V-1.3B 的交互式世界模型，差异只在记忆机制。在 WorldFoundry 中，每个 variant 是绑定单一 checkpoint 的独立模型身份：配方由 NativeDiffusionPipeline 从共享 Wan 组件加框架自有的 frozen-context 策略组装——不使用外部后端。采样器采用「目标噪声+干净上下文后缀」、仅目标 CFG、每个求解步后重锁上下文、仅解码目标帧。
+  usage_notes: The pinned checkpoint is marked unreleased in the official Hugging Face history and is absent from the current main branch, so this identity is blocked. The native runtime remains usable with a researcher-supplied local checkpoint that passes strict architecture validation. Users do not select a memory method at runtime — each method is its own catalog identity.
+  usage_notes_zh: 绑定的 checkpoint 在官方 Hugging Face 历史中标记为未发布、当前 main 分支中不存在，因此该身份处于 blocked。原生运行时仍可使用研究者自备、并通过严格架构校验的本地 checkpoint。运行时用户不选择记忆方法——每种方法都是独立的 catalog 身份。
+  limitations:
+  - 'Blocked: exact checkpoint and CUDA artifact validation wait on an upstream weight release or a researcher-supplied local checkpoint.'
+  - 'Research-scale backbone (Wan2.1 1.3B): expect research-preview visual quality, not production output.'
+  limitations_zh:
+  - Blocked：确切 checkpoint 与 CUDA 产物验证有待上游发布权重，或由研究者自备本地 checkpoint。
+  - 研究规模基座（Wan2.1 1.3B）：视觉质量属研究预览级，而非生产级输出。
+  recommended_benchmarks:
+  - id: memobench
+    reason: Purpose-built for evaluating long-horizon memory in interactive world models.
+    reason_zh: 专为评估交互式世界模型的长时程记忆而设。
