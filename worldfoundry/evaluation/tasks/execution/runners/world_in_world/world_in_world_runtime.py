@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from worldfoundry.core.io import materialize_file
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import VIDEO_SUFFIXES
 from worldfoundry.evaluation.tasks.execution.runners.world_in_world.world_in_world_official_runtime import (
     run_official_world_in_world_runtime,
 )
@@ -188,7 +189,3 @@ def run_world_in_world_evaluator(
         f"{config.backend!r}. Use 'artifact' to import metrics produced by the "
         "WorldFoundry evaluation pipeline."
     )
-
-
-from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
-

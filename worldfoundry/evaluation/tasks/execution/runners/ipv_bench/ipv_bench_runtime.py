@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from worldfoundry.core.io import materialize_file
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import VIDEO_SUFFIXES
 from worldfoundry.evaluation.tasks.execution.runners.ipv_bench.ipv_bench_metrics import (
     METRIC_ORDER,
 )
@@ -138,7 +139,3 @@ def run_ipv_bench_evaluator(
         "prompt_count": len(prompt_records),
         "metric_ids": list(METRIC_ORDER),
     }
-
-
-from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
-

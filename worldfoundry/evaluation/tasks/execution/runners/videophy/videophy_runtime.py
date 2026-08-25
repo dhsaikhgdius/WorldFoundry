@@ -18,6 +18,7 @@ from worldfoundry.base_models.llm_mllm_core.mllm.videocon_physics.constants impo
     PROMPT_VTA,
 )
 from worldfoundry.evaluation.tasks.execution.framework.official_runner import default_benchmark_timeout
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import VIDEO_SUFFIXES
 from worldfoundry.evaluation.tasks.execution.runners.videophy.videophy_prompts import (
     load_prompt_records,
     official_video_filename_for_record,
@@ -363,7 +364,3 @@ def run_videophy_judge(
         "sa_threshold": config.sa_threshold,
         "pc_threshold": config.pc_threshold,
     }
-
-
-from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
-

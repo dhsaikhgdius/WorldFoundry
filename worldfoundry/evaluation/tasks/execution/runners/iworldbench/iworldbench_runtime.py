@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import VIDEO_SUFFIXES
 from worldfoundry.evaluation.tasks.execution.runners.iworldbench.iworldbench_metrics import METRIC_ORDER
 from worldfoundry.evaluation.tasks.execution.runners.iworldbench.iworldbench_prompts import (
     resolve_iworldbench_root,
@@ -261,7 +262,3 @@ def run_iworldbench_evaluator(
         "metric": config.metric,
         "upstream_command": command,
     }
-
-
-from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
-

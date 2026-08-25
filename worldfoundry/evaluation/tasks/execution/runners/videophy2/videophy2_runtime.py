@@ -14,6 +14,7 @@ from typing import Any, Mapping
 from worldfoundry.base_models.capabilities import get_base_model_capability
 from worldfoundry.base_models.llm_mllm_core.mllm.videophy2_autoeval import runtime_root as autoeval_runtime_root
 from worldfoundry.evaluation.tasks.execution.framework.official_runner import default_benchmark_timeout
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import VIDEO_SUFFIXES
 from worldfoundry.evaluation.tasks.execution.runners.videophy2.videophy2_prompts import (
     load_prompt_records,
     official_video_filename_for_record,
@@ -399,7 +400,3 @@ def run_videophy2_judge(
         "batch_size": config.batch_size,
         "num_frames": config.num_frames,
     }
-
-
-from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
-

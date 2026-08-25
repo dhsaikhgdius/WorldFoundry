@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from worldfoundry.evaluation.tasks.execution.framework.io import env_path, utc_now_iso, write_json, write_jsonl
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION
 
 from .runtime.physical_ai_bench.conditional_generation import (
     CONDITIONAL_METRICS,
@@ -476,7 +477,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
-
-from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
-

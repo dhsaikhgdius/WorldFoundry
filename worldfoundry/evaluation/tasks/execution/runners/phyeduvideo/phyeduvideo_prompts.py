@@ -13,6 +13,7 @@ from worldfoundry.evaluation.tasks.execution.framework.benchmark_assets import (
     bundled_benchmark_asset,
     bundled_benchmark_assets_root,
 )
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import VIDEO_SUFFIXES
 from worldfoundry.evaluation.utils import write_jsonl
 
 BENCHMARK_ID = "phyeduvideo"
@@ -286,7 +287,3 @@ def attach_generation_results(
             )
         )
     return tuple(results)
-
-
-from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
-

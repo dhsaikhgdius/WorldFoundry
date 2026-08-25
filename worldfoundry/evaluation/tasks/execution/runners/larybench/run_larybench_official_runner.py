@@ -14,6 +14,7 @@ from typing import Any, Mapping, Sequence
 from worldfoundry.core.io.paths import project_root
 from worldfoundry.evaluation.tasks.execution.framework.benchmark_assets import bundled_benchmark_asset
 from worldfoundry.evaluation.tasks.execution.framework.io import utc_now_iso, write_json, write_jsonl
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION
 from worldfoundry.runtime.jobs import run_bounded_command
 
 RUNNER_ROOT = Path(__file__).resolve().parent
@@ -538,7 +539,3 @@ if __name__ == "__main__":
     except (FileNotFoundError, RuntimeError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         raise SystemExit(1)
-
-
-from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
-

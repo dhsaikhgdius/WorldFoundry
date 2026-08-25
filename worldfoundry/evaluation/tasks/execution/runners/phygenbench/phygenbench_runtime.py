@@ -12,6 +12,7 @@ from typing import Any, Mapping
 
 from worldfoundry.core.io.file_utils import materialize_file
 from worldfoundry.evaluation.tasks.execution.framework.official_runner import default_benchmark_timeout
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import VIDEO_SUFFIXES
 from worldfoundry.evaluation.tasks.execution.runners.phygenbench.phygenbench_prompts import (
     load_prompt_records,
     official_video_filename_for_record,
@@ -278,7 +279,3 @@ def run_phygenbench_judge(
         "model_name": config.model_name,
         "prompts_json_path": str(prompts_path.resolve()),
     }
-
-
-from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
-

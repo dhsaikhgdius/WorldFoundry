@@ -13,6 +13,7 @@ from worldfoundry.evaluation.tasks.execution.framework.benchmark_assets import (
     bundled_benchmark_assets_root,
 )
 from worldfoundry.evaluation.tasks.execution.framework.io import write_json
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import VIDEO_SUFFIXES
 
 BENCHMARK_ID = "vmbench"
 PROMPT_SUITE_REL = Path("prompts/prompts.json")
@@ -201,7 +202,3 @@ def materialize_vmbench_meta_info(
         )
     write_json(output_path, rows)
     return rows
-
-
-from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
-

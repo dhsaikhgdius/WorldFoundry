@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
 
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import VIDEO_SUFFIXES
 from worldfoundry.evaluation.tasks.execution.runners.phyfps_bench_gen.phyfps_metrics import VideoPhyFPSRecord
 from worldfoundry.evaluation.tasks.execution.runners.phyfps_bench_gen.visual_chronometer_runtime import (
     predict_video_directory,
@@ -237,7 +238,3 @@ def load_meta_fps_map(
             mapping.setdefault(video_name, float(default_meta_fps))
             mapping.setdefault(Path(video_name).stem, float(default_meta_fps))
     return mapping
-
-
-from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
-

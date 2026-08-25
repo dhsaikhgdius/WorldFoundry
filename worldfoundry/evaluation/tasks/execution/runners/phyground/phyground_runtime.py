@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from worldfoundry.core.io import materialize_file
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import VIDEO_SUFFIXES
 from worldfoundry.evaluation.tasks.execution.runners.phyground.phyground_prompts import (
     load_prompt_records,
     resolve_phyground_root,
@@ -128,7 +129,3 @@ def run_phyground_judge(
         "prompt_count": len(prompt_records),
         "prompts_json_path": str(prompts_path.resolve()),
     }
-
-
-from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
-

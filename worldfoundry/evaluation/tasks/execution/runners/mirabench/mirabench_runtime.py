@@ -12,6 +12,7 @@ from typing import Any, Mapping
 
 from worldfoundry.core.io import materialize_file
 from worldfoundry.core.process import read_text_tail, run_logged_subprocess
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import VIDEO_SUFFIXES
 from worldfoundry.evaluation.tasks.execution.runners.mirabench.mirabench_metrics import METRIC_ORDER, METRIC_SPECS
 from worldfoundry.evaluation.tasks.execution.runners.mirabench.mirabench_prompts import (
     load_prompt_records,
@@ -277,7 +278,3 @@ def run_mirabench_scorer(
         "prompt_count": len(prompt_records),
         "meta_csv_path": str(meta_path.resolve()),
     }
-
-
-from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
-
