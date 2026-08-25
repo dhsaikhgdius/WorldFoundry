@@ -48,3 +48,19 @@ pipeline_binding: diamond
 catalog_category: world_models
 catalog_scope: World-model catalog entries. Integrated entries expose in-tree WorldFoundry runtimes; blocked
   entries retain upstream provenance without runnable backends.
+docs:
+  publisher: University of Geneva / University of Edinburgh / Microsoft Research
+  publisher_kind: university
+  publisher_zh: 日内瓦大学 / 爱丁堡大学 / 微软研究院
+  overview: DIAMOND (DIffusion As a Model Of eNvironment Dreams) trains reinforcement-learning agents entirely inside a diffusion world model — its Atari agents and playable CS:GO world model made diffusion world models famous (NeurIPS 2024). In this catalog the official play/inference stack is vendored in-tree with diamond-atari and diamond-csgo variants.
+  overview_zh: DIAMOND（DIffusion As a Model Of eNvironment Dreams）让强化学习智能体完全在扩散世界模型内训练——其 Atari 智能体与可游玩的 CS:GO 世界模型让扩散世界模型声名大噪（NeurIPS 2024）。本 catalog 中官方 play/推理栈已内置树内，含 diamond-atari 与 diamond-csgo 两个 variant。
+  architecture: Per the publication, frame prediction uses an EDM-style diffusion model over recent frames and actions, keeping visual detail that latent world models lose. Runtime configs are packaged under data/models/runtime/configs/diamond/config; the MIT-licensed upstream downloads Atari assets on demand (disabled here — runtime network downloads are off).
+  architecture_zh: 按论文，帧预测使用基于近期帧与动作的 EDM 式扩散模型，保留了潜空间世界模型会丢失的视觉细节。运行时配置打包于 data/models/runtime/configs/diamond/config；MIT 许可的上游按需下载 Atari 资产（此处已禁用——运行时网络下载关闭）。
+  usage_notes: Jobs run with a local checkpoint or pretrained=true plus a non-interactive pretrained_game value from the pinned local snapshot. Full generation parity requires staged Atari assets/checkpoints.
+  usage_notes_zh: 任务可用本地 checkpoint 运行，或用 pretrained=true 加固定本地 snapshot 中的非交互 pretrained_game 值。完整生成一致性需要就位 Atari 资产/checkpoint。
+  limitations:
+  - Full parity requires staged game assets/checkpoints; runtime downloads are disabled.
+  - 'Game-domain world model: not a general-purpose video generator.'
+  limitations_zh:
+  - 完整一致性需要就位游戏资产/checkpoint；运行时下载已禁用。
+  - 游戏领域世界模型：不是通用视频生成器。

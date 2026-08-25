@@ -29,3 +29,19 @@ catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint
   metadata, and runtime-profile planning records. Runner or pipeline targets are present
   only after a complete in-tree WorldFoundry model runtime is registered and validated.
+docs:
+  publisher: Open-source research release (institution not recorded)
+  publisher_kind: lab
+  publisher_zh: 开源研究发布（仓库未记录正式机构）
+  overview: EO-1 (Embodied One) is an embodied VLA policy from the EO-Robotics project. WorldFoundry routes it through an in-tree Transformers processor.select_action runtime adapter sourced from the official EO repository; checkpoints are not yet recorded, so runs emit a runtime plan.
+  overview_zh: EO-1（Embodied One）是 EO-Robotics 项目的具身 VLA 策略。WorldFoundry 通过树内 Transformers processor.select_action 运行时适配器路由，源码来自官方 EO 仓库；尚未记录 checkpoint，运行输出运行时计划。
+  architecture: The runtime contract is a Hugging Face Transformers processor with a select_action interface. Architecture internals beyond the official repository pointer (EO-Robotics/EO, pinned head 451c363d) are not recorded in this repository.
+  architecture_zh: 运行时契约为带 select_action 接口的 Hugging Face Transformers processor。官方仓库指针（EO-Robotics/EO，锁定 head 451c363d）之外的架构内部细节仓库未记录。
+  usage_notes: Checkpoint absence is reported by runtime missing_assets and is not a catalog blocker; stage official weights when available.
+  usage_notes_zh: checkpoint 缺失由运行时 missing_assets 报告，不视为 catalog 阻塞；官方权重可用后就位即可。
+  limitations:
+  - No checkpoints are recorded yet; runs emit a runtime plan only.
+  - No license is recorded in this repository.
+  limitations_zh:
+  - 尚未记录任何 checkpoint；运行仅输出运行时计划。
+  - 仓库未记录许可证。

@@ -30,3 +30,25 @@ runner_parity:
 catalog_category: world_models
 catalog_scope: World-model catalog entries. Integrated entries expose in-tree WorldFoundry
   runtimes; blocked entries retain upstream provenance without runnable backends.
+docs:
+  publisher: Open-source research release (institution not recorded)
+  publisher_kind: lab
+  publisher_zh: 开源研究发布（仓库未记录正式机构）
+  overview: 'MultiWorld ("It Takes Two") is a multi-agent interactive video generator: two players'' actions drive one shared generated game world. In this catalog the in-tree ItTakesTwo wrapper is registered as the model-zoo entry; full generation remains dependency/checkpoint gated.'
+  overview_zh: MultiWorld（「It Takes Two」）是多智能体交互视频生成器：两名玩家的动作驱动同一个共享生成游戏世界。本 catalog 中树内 ItTakesTwo 封装注册为 model-zoo 条目；完整生成仍受依赖/checkpoint 限制。
+  architecture: Architecture internals beyond the recorded tasks are not stored in this repository. The upstream license is custom and flagged for manual review.
+  architecture_zh: 除已记录任务外的架构内部细节仓库未存。上游许可为自定义条款，已标记需人工审查。
+  usage_notes: Full generation is dependency/checkpoint gated — treat this entry as planned until assets and environment parity are staged. Review the custom upstream license first.
+  usage_notes_zh: 完整生成受依赖/checkpoint 限制——在资产与环境一致性就位前请视其为 planned。请先审查上游自定义许可。
+  limitations:
+  - Custom upstream license flagged for manual review.
+  - Full generation is dependency/checkpoint gated.
+  - The publishing institution is not recorded in this repository.
+  limitations_zh:
+  - 上游自定义许可需人工审查。
+  - 完整生成受依赖/checkpoint 限制。
+  - 发表机构在本仓库中未记录。
+  recommended_benchmarks:
+  - id: worldmodelbench
+    reason: Multi-agent world-rollout quality.
+    reason_zh: 多智能体世界滚动生成质量。

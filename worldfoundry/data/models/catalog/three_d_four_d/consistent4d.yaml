@@ -18,3 +18,19 @@ integration:
   - WorldFoundry tracks upstream source metadata only; no runnable in-tree pipeline is registered yet.
 catalog_category: three_d_four_d
 catalog_scope: Official-source manifest for 3D, 4D, and camera-controlled world/model generation projects.
+docs:
+  publisher: Chinese Academy of Sciences (CASIA)
+  publisher_kind: lab
+  publisher_zh: 中国科学院自动化研究所（CASIA）
+  overview: Consistent4D generates 360° dynamic objects from a single monocular video — a video-to-4D method that optimizes a dynamic representation per input. In this catalog it is tracked as upstream source metadata only; the per-input optimization workflow does not map onto a runnable infer-only pipeline.
+  overview_zh: Consistent4D 从单目视频生成 360° 动态物体——一种针对每个输入做优化的视频转 4D 方法。本 catalog 仅跟踪其上游源码元数据；逐输入优化的工作流无法映射为可运行的仅推理 pipeline。
+  architecture: Consistent4D optimizes a cascade dynamic NeRF/3DGS representation supervised by a multi-view diffusion prior, per the upstream publication. Architecture internals beyond the recorded tasks (dynamic-scene-generation, 4d-reconstruction, dynamic-3dgs) are not recorded in this repository.
+  architecture_zh: 按上游论文，Consistent4D 在多视角扩散先验监督下优化级联动态 NeRF/3DGS 表示。除已记录任务（动态场景生成、4D 重建、动态 3DGS）外的架构细节仓库未记录。
+  usage_notes: Blocked — no runnable in-tree pipeline. Consult the upstream repo (yanqinJiang/Consistent4D) for the official optimization scripts.
+  usage_notes_zh: Blocked——无可运行的树内 pipeline。官方优化脚本请查阅上游仓库（yanqinJiang/Consistent4D）。
+  limitations:
+  - 'This entry is blocked: WorldFoundry tracks upstream source metadata only, and no runnable in-tree pipeline is registered.'
+  - It records provenance for CLI inspection; the docs site hides blocked 3D/4D entries from the catalog browser.
+  limitations_zh:
+  - 该条目处于 blocked 状态：WorldFoundry 仅跟踪上游源码元数据，没有注册可运行的树内 pipeline。
+  - 它的作用是为 CLI 检查记录溯源；文档站的 catalog 浏览器会隐藏 blocked 的 3D/4D 条目。

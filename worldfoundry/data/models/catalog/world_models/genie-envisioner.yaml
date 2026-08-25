@@ -42,3 +42,24 @@ runner_parity:
 catalog_category: world_models
 catalog_scope: World-model catalog entries. Integrated entries expose in-tree WorldFoundry runtimes; blocked entries retain
   upstream provenance without runnable backends.
+docs:
+  publisher: AgiBot
+  publisher_kind: company
+  publisher_zh: 智元机器人（AgiBot）
+  overview: 'Genie Envisioner is AgiBot''s robotics world model platform: a video-generative backbone that predicts action-conditioned robot manipulation futures, usable for policy learning and evaluation. In this catalog the official WorldArena-listed source is vendored in-tree; execution waits on the Genie-Envisioner and LTX-Video checkpoints plus robot task assets.'
+  overview_zh: Genie Envisioner 是智元机器人的机器人世界模型平台：以视频生成为骨干，预测动作条件下的机器人操作未来，可用于策略学习与评估。本 catalog 中其官方（WorldArena 收录的）源码已内置树内；执行待 Genie-Envisioner 与 LTX-Video checkpoint 及机器人任务资产就位。
+  architecture: The recorded checkpoints reveal an LTX-Video-based video backbone (Lightricks/LTX-Video) with AgiBot's own world-model weights (agibot-world/Genie-Envisioner). The runtime is vendored under synthesis/visual_generation/genie_envisioner/genie_envisioner_runtime.
+  architecture_zh: 记录的 checkpoint 显示其视频骨干基于 LTX-Video（Lightricks/LTX-Video），加上智元自有的世界模型权重（agibot-world/Genie-Envisioner）。运行时内置于 synthesis/visual_generation/genie_envisioner/genie_envisioner_runtime。
+  usage_notes: The pipeline resolves the vendored inference entrypoint and returns blocked runtime diagnostics until checkpoints and task assets are staged. Stage both recorded checkpoint sets before submitting jobs.
+  usage_notes_zh: pipeline 解析内置推理入口，在 checkpoint 与任务资产就位前返回 blocked 运行时诊断。提交任务前请就位两套记录的 checkpoint。
+  limitations:
+  - Execution is checkpoint and robot-task gated.
+  limitations_zh:
+  - 执行受 checkpoint 与机器人任务资产限制。
+  recommended_benchmarks:
+  - id: worldarena
+    reason: The entry is listed on WorldArena for robot world-model evaluation.
+    reason_zh: 该条目已收录于 WorldArena 的机器人世界模型评测。
+  - id: ewmbench
+    reason: Embodied world-model video prediction quality.
+    reason_zh: 具身世界模型视频预测质量。

@@ -51,3 +51,26 @@ catalog_policy:
   open_source_rule: Only mark open_source when an official GitHub repository or official
     Hugging Face model page was confirmed. Do not infer checkpoint availability from
     papers, demos, or third-party mirrors.
+docs:
+  publisher: Tencent (Hunyuan)
+  publisher_kind: company
+  publisher_zh: 腾讯（混元）
+  overview: HunyuanWorld-Voyager generates world-consistent RGB-D video along user-defined camera paths — walk a camera through the scene implied by one image and get aligned color and depth for 3D reconstruction. In this catalog the runner is verified against the official case1 conditioned-video demo with the upstream single-GPU command shape.
+  overview_zh: HunyuanWorld-Voyager 沿用户定义的相机路径生成世界一致的 RGB-D 视频——让相机在一张图所暗示的场景中游走，得到对齐的彩色与深度，可用于 3D 重建。本 catalog 中 runner 已按官方 case1 条件视频 demo 与上游单卡命令形状验证。
+  architecture: 'Per the upstream release, Voyager combines a HunyuanVideo-based generator with joint RGB-D output and a world-cache mechanism for long-range consistency. The official case1 defaults are recorded in the runtime profile: num_frames=49, infer_steps=50, flow_shift=7.0, embedded_cfg_scale=6.0, i2v_stability=true.'
+  architecture_zh: 按上游发布，Voyager 将基于 HunyuanVideo 的生成器与 RGB-D 联合输出及世界缓存机制结合，实现长程一致性。运行时档案记录官方 case1 默认值：num_frames=49、infer_steps=50、flow_shift=7.0、 embedded_cfg_scale=6.0、i2v_stability=true。
+  usage_notes: HunyuanWorldVoyagerPipeline wraps the in-tree runtime — no external checkout at import or inference time. Per-run visual QA is tracked outside the catalog.
+  usage_notes_zh: HunyuanWorldVoyagerPipeline 封装树内运行时——导入与推理时都不需要外部检出。每次运行的视觉 QA 在 catalog 外跟踪。
+  limitations:
+  - '49-frame default clips: longer voyages need iterative extension.'
+  - Depth quality is generative, not sensor-grade — validate before metric use.
+  limitations_zh:
+  - 默认 49 帧片段：更长的游走需要迭代扩展。
+  - 深度是生成式的、非传感器级——用于米制用途前请先验证。
+  recommended_benchmarks:
+  - id: worldscore
+    reason: Scoring for camera-navigable generated worlds.
+    reason_zh: 相机可游走生成世界的评分。
+  - id: camerabench
+    reason: Camera-path adherence evaluation.
+    reason_zh: 相机路径贴合度评测。

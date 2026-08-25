@@ -19,3 +19,19 @@ integration:
   - A related public repository also exists at https://github.com/NJU-3DV/Gaussian-Flow.
 catalog_category: three_d_four_d
 catalog_scope: Official-source manifest for 3D, 4D, and camera-controlled world/model generation projects.
+docs:
+  publisher: Open-source research release (institution not recorded)
+  publisher_kind: lab
+  publisher_zh: 开源研究发布（仓库未记录正式机构）
+  overview: 'GaussianFlow is a dynamic-3DGS method for 4D content creation: it connects Gaussian dynamics with optical flow supervision to reconstruct or generate moving scenes. In this catalog it is upstream metadata only, with a note that a related public repository also exists at NJU-3DV/Gaussian-Flow.'
+  overview_zh: GaussianFlow 是面向 4D 内容创作的动态 3DGS 方法：将高斯动力学与光流监督相连，用于重建或生成运动场景。本 catalog 中它仅为上游元数据，并注明另有相关公开仓库 NJU-3DV/Gaussian-Flow。
+  architecture: Per the upstream description, Gaussian motions are supervised by matching their splatted flow to optical flow (its GaussianFlow concept). No further internals are recorded in this repository.
+  architecture_zh: 按上游描述，通过让高斯投影后的运动与光流对齐来监督高斯动力学（即 GaussianFlow 概念）。本仓库未记录更多内部细节。
+  usage_notes: Blocked — no runnable in-tree pipeline. Consult the upstream repository directly.
+  usage_notes_zh: Blocked——无可运行的树内 pipeline。请直接查阅上游仓库。
+  limitations:
+  - 'This entry is blocked: WorldFoundry tracks upstream source metadata only, and no runnable in-tree pipeline is registered.'
+  - It records provenance for CLI inspection; the docs site hides blocked 3D/4D entries from the catalog browser.
+  limitations_zh:
+  - 该条目处于 blocked 状态：WorldFoundry 仅跟踪上游源码元数据，没有注册可运行的树内 pipeline。
+  - 它的作用是为 CLI 检查记录溯源；文档站的 catalog 浏览器会隐藏 blocked 的 3D/4D 条目。

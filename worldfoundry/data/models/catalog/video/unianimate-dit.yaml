@@ -33,3 +33,21 @@ runtime_profile: runtime-profile:unianimate-dit
 catalog_category: video
 catalog_scope: Video-generation and video-token catalog entries. Integrated entries expose WorldFoundry pipeline targets;
   metadata-only entries retain upstream provenance without runnable WorldFoundry backends.
+docs:
+  publisher: Alibaba (Tongyi Lab)
+  publisher_kind: company
+  publisher_zh: 阿里巴巴（通义实验室）
+  overview: 'UniAnimate-DiT is Alibaba ali-vilab''s human image animation model built on Wan2.1-I2V: it animates a person photo to follow a driving pose sequence. The in-tree route is wired with local checkpoint assets and exposes max_frames, resolution, step count, and seed controls.'
+  overview_zh: UniAnimate-DiT 是阿里 ali-vilab 基于 Wan2.1-I2V 的人物图像动画模型：让人物照片按驱动姿态序列动起来。树内路径已配好本地 checkpoint 资产，暴露 max_frames、分辨率、步数与 seed 控制。
+  architecture: 'Built on the Wan2.1 image-to-video diffusion transformer with pose-sequence conditioning for human animation (checkpoint: ZheWang123/UniAnimate-DiT). Deeper conditioning internals are not recorded in this repository.'
+  architecture_zh: 构建在 Wan2.1 图生视频扩散 Transformer 之上，以姿态序列为条件驱动人物动画（checkpoint： ZheWang123/UniAnimate-DiT）。更深的条件机制细节仓库未记录。
+  usage_notes: Runner parity is pending; per-run artifact checks live outside the catalog. Prepare a clean subject photo and a driving pose sequence for best results.
+  usage_notes_zh: Runner parity 为 pending；每次运行的产物检查在 catalog 外跟踪。为获得最佳效果，请准备干净的人物照片与驱动姿态序列。
+  limitations:
+  - 'Runner parity is recorded as pending: the WorldFoundry route is wired, but a checkpoint-backed GPU artifact has not been verified in this workspace, so do not treat this page as proof of a validated end-to-end run.'
+  - Checkpoints are external assets — missing weights are reported at runtime rather than downloaded automatically.
+  - Specialized for human subjects — not a general I2V model.
+  limitations_zh:
+  - Runner parity 记录为 pending：WorldFoundry 路径已接好，但本工作区尚未完成 checkpoint 加载的 GPU 产物验证，请勿把本页当作端到端跑通的证明。
+  - Checkpoint 属于外部资产——权重缺失时会在运行时报告，而不会自动下载。
+  - 专精人物主体——不是通用图生视频模型。

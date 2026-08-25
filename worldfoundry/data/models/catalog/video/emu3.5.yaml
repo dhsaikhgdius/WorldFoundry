@@ -28,3 +28,19 @@ runner_parity:
 catalog_category: video
 catalog_scope: Video-generation and video-token catalog entries. Integrated entries expose WorldFoundry pipeline targets;
   metadata-only entries retain upstream provenance without runnable WorldFoundry backends.
+docs:
+  publisher: Beijing Academy of Artificial Intelligence (BAAI)
+  publisher_kind: lab
+  publisher_zh: 北京智源人工智能研究院（BAAI）
+  overview: 'Emu3.5 is BAAI''s native multimodal generation model: a single autoregressive model that reads and writes interleaved text and images. The catalog records it for multimodal generation, image generation, and VLA-style reasoning. The WorldFoundry route is complete and reports missing checkpoint/assets at runtime; outputs land as model_response artifacts rather than video files.'
+  overview_zh: Emu3.5 是北京智源（BAAI）的原生多模态生成模型：单一自回归模型即可读写交错的文本与图像。 catalog 将其记录为多模态生成、图像生成与 VLA 式推理任务。WorldFoundry 路径已完备，缺失的 checkpoint/资产会在运行时报告；输出以 model_response 产物落盘，而非视频文件。
+  architecture: The Emu series treats images and text as one token stream for next-token prediction — no separate diffusion decoder in the loop, per BAAI's public releases. This repository records the prompt+image input contract and the model_response artifact; parameter counts and internals of the 3.5 revision are not recorded here.
+  architecture_zh: Emu 系列把图像与文本统一为一个 token 流做下一个 token 预测——按 BAAI 的公开发布，推理环节没有独立的扩散解码器。本仓库记录了 prompt+image 输入契约与 model_response 产物；3.5 版的参数规模与内部细节仓库未记录。
+  usage_notes: Runner parity is pending — checkpoint-backed artifact parity has not been run in this workspace. Stage the BAAI/Emu3.5 weights first; the route fails informatively when assets are missing. Expect text/image responses, not video.
+  usage_notes_zh: Runner parity 为 pending——本工作区尚未做过 checkpoint 加载的产物一致性验证。先就位 BAAI/Emu3.5 权重；资产缺失时路径会给出明确报错。预期输出是文本/图像响应，而不是视频。
+  limitations:
+  - 'Runner parity is recorded as pending: the WorldFoundry route is wired, but a checkpoint-backed GPU artifact has not been verified in this workspace, so do not treat this page as proof of a validated end-to-end run.'
+  - Checkpoints are external assets — missing weights are reported at runtime rather than downloaded automatically.
+  limitations_zh:
+  - Runner parity 记录为 pending：WorldFoundry 路径已接好，但本工作区尚未完成 checkpoint 加载的 GPU 产物验证，请勿把本页当作端到端跑通的证明。
+  - Checkpoint 属于外部资产——权重缺失时会在运行时报告，而不会自动下载。

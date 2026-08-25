@@ -57,3 +57,23 @@ catalog_policy:
   - unknown
 output_artifacts:
 - generated_world
+docs:
+  publisher: Stanford University / MIT
+  publisher_kind: university
+  publisher_zh: 斯坦福大学 / 麻省理工学院
+  overview: WonderWorld generates an interactive 3D world from a single image fast enough for a live loop — the user picks where to extend the scene and new content appears in seconds. In this catalog the in-tree run.py/example_config flow runs through the shared 3D/4D subprocess adapter; runner parity is pending runtime assets.
+  overview_zh: WonderWorld 从单张图像生成可交互的 3D 世界，速度快到支持实时循环——用户指定扩展方向，新内容数秒内出现。本 catalog 中树内 run.py/example_config 流程经共享 3D/4D 子进程适配器运行；runner parity 待运行时资产就位。
+  architecture: Per the paper (arXiv 2406.09394), the key representation is FLAGS (Fast LAyered Gaussian Surfels), generated from a single view with a guided depth-diffusion scheme — under 10 seconds per scene on the reported hardware. Direct execution requires WonderWorld checkpoints plus local PyTorch3D-compatible extensions.
+  architecture_zh: 按论文（arXiv 2406.09394），核心表示是 FLAGS（快速分层高斯面元），配合引导式深度扩散从单视图生成——在论文硬件上每场景不足 10 秒。直接运行需要 WonderWorld checkpoint 与本地兼容 PyTorch3D 的扩展。
+  usage_notes: Missing source, inpainting, segmentation, depth/normal, or 3DGS assets are reported at inference time. Stage the full asset set and compile the PyTorch3D-compatible extensions before expecting real scene output.
+  usage_notes_zh: 源码、修复、分割、深度/法线或 3DGS 资产缺失会在推理时报告。期望得到真实场景输出前，请就位全套资产并编译兼容 PyTorch3D 的扩展。
+  limitations:
+  - Runner parity is pending staged runtime assets and local extensions.
+  - 'Single-image origin: scene fidelity beyond the visible content is generative guesswork.'
+  limitations_zh:
+  - runner parity 待运行时资产与本地扩展就位。
+  - 以单图为源：可见内容之外的场景保真度依赖生成式推测。
+  recommended_benchmarks:
+  - id: worldscore
+    reason: Standard scoring for interactive generated 3D worlds.
+    reason_zh: 交互式生成 3D 世界的标准评分。

@@ -66,3 +66,21 @@ runner_parity:
     emits a runtime plan until required checkpoints/assets are staged.
 output_artifacts:
 - generated_video
+docs:
+  publisher: Open-source research release (institution not recorded)
+  publisher_kind: lab
+  publisher_zh: 开源研究发布（仓库未记录正式机构）
+  overview: 'ViewCrafter is a novel-view-synthesis world model: from one or a few input images it synthesizes high-fidelity videos along new camera trajectories, using point-cloud priors from DUSt3R to anchor geometry. Four official Apache-2.0 checkpoints are confirmed on Hugging Face (ViewCrafter_25, _25_sparse, _16, _25_512) plus an official demo Space; WorldFoundry registers the official source route in-tree.'
+  overview_zh: ViewCrafter 是新视角合成方向的世界模型：从单张或少量输入图像出发，沿新的相机轨迹合成高保真视频，并用 DUSt3R 点云先验锚定几何。Hugging Face 上确认了四个官方 Apache-2.0 checkpoint（ViewCrafter_25、_25_sparse、_16、_25_512）与官方演示 Space；WorldFoundry 树内注册了官方源码路由。
+  architecture: 'The design couples a point-cloud reconstruction prior (DUSt3R) with a video diffusion renderer: reconstructed geometry is re-projected along the target trajectory and the diffusion model fills in photoreal detail. Checkpoint variants cover 25-frame, sparse-view, 16-frame, and 512-resolution configurations.'
+  architecture_zh: 设计将点云重建先验（DUSt3R）与视频扩散渲染器耦合：沿目标轨迹重投影重建几何，再由扩散模型补全照片级细节。checkpoint 变体覆盖 25 帧、稀疏视角、16 帧与 512 分辨率配置。
+  usage_notes: Pick the checkpoint variant matching your frame count and resolution needs; DUSt3R and view assets are runtime-gated alongside the checkpoints. Config resolution and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged. Missing assets are reported by the plan and are not treated as catalog blockers.
+  usage_notes_zh: 按帧数与分辨率需求选择 checkpoint 变体；DUSt3R 与视角资产同 checkpoint 一样为运行时门控。配置解析与 pipeline 导入预期可通过；在所需 checkpoint/资产就位前，真实生成会输出运行时计划。缺失资产由计划报告，不视为 catalog 阻塞。
+  limitations:
+  - Checkpoints and DUSt3R/view assets are runtime-gated; no GPU validation is recorded in this repository.
+  limitations_zh:
+  - checkpoint 与 DUSt3R/视角资产为运行时门控；仓库未记录 GPU 验证。
+  recommended_benchmarks:
+  - id: camerabench
+    reason: Novel-view trajectory adherence and view quality.
+    reason_zh: 新视角轨迹跟随与视图质量。

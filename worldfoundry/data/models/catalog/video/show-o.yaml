@@ -34,3 +34,19 @@ catalog_category: video
 catalog_scope: Video-generation and video-token catalog entries. Integrated entries
   expose WorldFoundry pipeline targets; metadata-only entries retain upstream provenance
   without runnable WorldFoundry backends.
+docs:
+  publisher: National University of Singapore (Show Lab)
+  publisher_kind: university
+  publisher_zh: 新加坡国立大学（Show Lab）
+  overview: Show-o is NUS Show Lab's unified multimodal transformer that mixes autoregressive text modeling with discrete-diffusion image generation in one model. In this catalog the runnable route is text-to-image; MMU (understanding), inpainting, and extrapolation modes exist upstream but are not wired yet. Runner parity for the T2I wrapper is verified.
+  overview_zh: Show-o 是新加坡国立大学 Show Lab 的统一多模态 Transformer：在一个模型中融合自回归文本建模与离散扩散图像生成。本 catalog 中可运行的路径是文生图；上游的 MMU（理解）、补全与外推模式尚未接线。T2I 封装的 runner parity 已验证。
+  architecture: 'One transformer handles both modalities: text tokens are generated autoregressively while image tokens are produced by discrete denoising diffusion within the same weights (per the publication). The in-tree runtime lives under synthesis/visual_generation/show_o with the mode/prompt/image contract.'
+  architecture_zh: 同一个 Transformer 处理两种模态：文本 token 自回归生成，图像 token 在同一套权重内以离散去噪扩散产出（见论文）。树内运行时位于 synthesis/visual_generation/show_o，契约为 mode/prompt/image。
+  usage_notes: The verified route is T2I only — set mode accordingly and expect a generated_image artifact. Weights are MIT at showlab/show-o. If you need image understanding or editing modes, wait for the wiring recorded as future work.
+  usage_notes_zh: 已验证路径仅 T2I——请相应设置 mode，预期产物为 generated_image。权重为 MIT，位于 showlab/show-o。若需要图像理解或编辑模式，需等待记录为后续工作的接线。
+  limitations:
+  - Only text-to-image is wired; MMU, inpainting, and extrapolation remain future work.
+  - This entry produces images, not video.
+  limitations_zh:
+  - 仅接通文生图；MMU、补全与外推是后续工作。
+  - 该条目产出图像，不是视频。

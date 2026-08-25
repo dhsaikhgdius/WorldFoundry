@@ -33,3 +33,19 @@ catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint
   metadata, and runtime-profile planning records. Runner or pipeline targets are present
   only after a complete in-tree WorldFoundry model runtime is registered and validated.
+docs:
+  publisher: Tencent Hunyuan
+  publisher_kind: company
+  publisher_zh: 腾讯混元
+  overview: HY-Embodied is Tencent Hunyuan's embodied policy line, recorded here against the confirmed tencent/HY-Embodied-0.5 checkpoint. WorldFoundry routes it through an in-tree official Transformers image-text runtime adapter; weights are not yet staged, so runs emit a runtime plan.
+  overview_zh: HY-Embodied 是腾讯混元的具身策略线，本条目对应已确认的 tencent/HY-Embodied-0.5 checkpoint。WorldFoundry 通过树内官方 Transformers 图文运行时适配器路由；权重尚未就位，运行输出运行时计划。
+  architecture: The runtime contract is a Transformers image-text interface over the HY-Embodied-0.5 checkpoint. Architecture internals beyond the official repository pointer (Tencent-Hunyuan/HY-Embodied, pinned head c9b3530e) are not recorded in this repository.
+  architecture_zh: 运行时契约是基于 HY-Embodied-0.5 checkpoint 的 Transformers 图文接口。官方仓库指针（Tencent-Hunyuan/HY-Embodied，锁定 head c9b3530e）之外的架构内部细节仓库未记录。
+  usage_notes: Checkpoint absence is reported by runtime missing_assets and is not a catalog blocker; runs emit a runtime plan until weights are staged. For a GPU-validated Hunyuan policy, see the sibling hy-embodied-vla entry.
+  usage_notes_zh: checkpoint 缺失由运行时 missing_assets 报告，不视为 catalog 阻塞；权重就位前运行输出运行时计划。如需 GPU 已验证的混元策略，请见同门条目 hy-embodied-vla。
+  limitations:
+  - License is the Tencent Hunyuan community license — review before commercial use.
+  - No GPU validation is recorded for this entry.
+  limitations_zh:
+  - 许可为腾讯混元社区许可——商用前请审查。
+  - 此条目仓库未记录 GPU 验证。

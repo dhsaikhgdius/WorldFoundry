@@ -29,3 +29,23 @@ runner_parity:
   status: pending
   notes: [In-tree import and camera-track compilation are verified; full GPU artifact parity requires staged weights.]
 catalog_category: world_models
+docs:
+  publisher: ByteDance
+  publisher_kind: company
+  publisher_zh: 字节跳动
+  overview: 'ATI (Any Trajectory Instruction) turns trajectory drawing into video control: draw point trajectories over an input image and the Wan2.1-14B-based model animates objects, camera, or both along them. In this catalog only ATI''s official inference delta is vendored — the unchanged Wan2.1 implementation is reused from worldfoundry/base_models.'
+  overview_zh: ATI（Any Trajectory Instruction）把「画轨迹」变成视频控制：在输入图上画出点轨迹，基于 Wan2.1-14B 的模型就让物体、相机或两者沿轨迹运动。本 catalog 中仅内置 ATI 的官方推理增量——未改动的 Wan2.1 实现从 worldfoundry/base_models 复用。
+  architecture: Per the upstream release, ATI injects dense point-track conditioning into the Wan2.1 I2V backbone through a trajectory instruction module. Runtime checkpoint loading builds a read-only union of ATI weights (bytedance-research/ATI) and locally staged Wan2.1 I2V 480P base components.
+  architecture_zh: 按上游发布，ATI 通过轨迹指令模块把稠密点轨迹条件注入 Wan2.1 I2V 基座。运行时 checkpoint 加载构建 ATI 权重（bytedance-research/ATI）与本地就位的 Wan2.1 I2V 480P 基座组件的只读并集。
+  usage_notes: In-tree import and camera-track compilation are verified; full GPU artifact parity requires staged weights. No source checkout or runtime download is permitted — only locally staged checkpoints are resolved. Input schema is prompt, image, and dense point tracks.
+  usage_notes_zh: 树内导入与相机轨迹编译已验证；完整 GPU 产物一致性需要就位权重。不允许源码检出或运行时下载——仅解析本地就位的 checkpoint。输入为提示词、图像与稠密点轨迹。
+  limitations:
+  - Full GPU artifact parity is pending staged ATI plus Wan2.1 I2V weights.
+  - '14B backbone: needs high-memory GPUs for practical inference.'
+  limitations_zh:
+  - 完整 GPU 产物一致性待 ATI 与 Wan2.1 I2V 权重就位。
+  - 14B 基座：实际推理需要大显存 GPU。
+  recommended_benchmarks:
+  - id: camerabench
+    reason: Evaluates trajectory/camera-motion adherence.
+    reason_zh: 评估轨迹/相机运动的贴合度。

@@ -18,3 +18,19 @@ integration:
   - WorldFoundry tracks upstream source metadata only; no runnable in-tree pipeline is registered yet.
 catalog_category: three_d_four_d
 catalog_scope: Official-source manifest for 3D, 4D, and camera-controlled world/model generation projects.
+docs:
+  publisher: University of Michigan
+  publisher_kind: university
+  publisher_zh: 密歇根大学
+  overview: HexPlane represents dynamic scenes with six feature planes — an explicit, fast alternative to dynamic NeRFs (CVPR 2023). In this catalog it is upstream metadata only, kept as the reference for the plane-factorized design that 4D-GS and others build on.
+  overview_zh: HexPlane 用六个特征平面表示动态场景——动态 NeRF 的显式、高速替代方案（CVPR 2023）。本 catalog 中它仅为上游元数据，作为 4D-GS 等方法所依赖的平面分解设计的参考。
+  architecture: Space-time is factorized into six planes (three space, three space-time); features are fused by an MLP to produce density and color. Per-scene optimization is required.
+  architecture_zh: 时空被分解为六个平面（三个空间、三个时空）；特征经 MLP 融合得到密度与颜色。需要逐场景优化。
+  usage_notes: Blocked — consult the upstream repository (Caoang327/HexPlane).
+  usage_notes_zh: Blocked——请查阅上游仓库（Caoang327/HexPlane）。
+  limitations:
+  - 'This entry is blocked: WorldFoundry tracks upstream source metadata only, and no runnable in-tree pipeline is registered.'
+  - It records provenance for CLI inspection; the docs site hides blocked 3D/4D entries from the catalog browser.
+  limitations_zh:
+  - 该条目处于 blocked 状态：WorldFoundry 仅跟踪上游源码元数据，没有注册可运行的树内 pipeline。
+  - 它的作用是为 CLI 检查记录溯源；文档站的 catalog 浏览器会隐藏 blocked 的 3D/4D 条目。

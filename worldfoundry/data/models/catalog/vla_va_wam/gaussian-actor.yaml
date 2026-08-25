@@ -27,3 +27,19 @@ catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint
   metadata, and runtime-profile planning records. Runner or pipeline targets are present
   only after a complete in-tree WorldFoundry model runtime is registered and validated.
+docs:
+  publisher: Hugging Face (LeRobot reference)
+  publisher_kind: company
+  publisher_zh: Hugging Face（LeRobot 参考实现）
+  overview: Gaussian Actor is a reinforcement-learning actor policy recorded against the concrete LeRobot gaussian_actor implementation — no separate official repository was identified upstream. WorldFoundry routes it through an in-tree action runtime adapter; checkpoints are not recorded, so runs emit a runtime plan.
+  overview_zh: Gaussian Actor 是强化学习 actor 策略，以 LeRobot 中具体的 gaussian_actor 实现为参考记录——上游未识别到独立官方仓库。WorldFoundry 通过树内动作运行时适配器路由；未记录 checkpoint，运行输出运行时计划。
+  architecture: 'A Gaussian policy head for continuous control: the actor outputs mean and variance of an action distribution, following the LeRobot reference implementation. Further internals are not recorded in this repository.'
+  architecture_zh: 面向连续控制的高斯策略头：actor 输出动作分布的均值与方差，遵循 LeRobot 参考实现。更多内部细节仓库未记录。
+  usage_notes: Checkpoint absence is reported by runtime missing_assets and is not a catalog blocker; stage a trained actor checkpoint to run real predictions.
+  usage_notes_zh: checkpoint 缺失由运行时 missing_assets 报告，不视为 catalog 阻塞；就位训练好的 actor checkpoint 即可运行真实预测。
+  limitations:
+  - 'Reference-implementation entry: no official standalone repository or weights.'
+  - No license is recorded in this repository.
+  limitations_zh:
+  - 参考实现条目：无独立官方仓库或权重。
+  - 仓库未记录许可证。

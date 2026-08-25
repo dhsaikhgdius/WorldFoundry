@@ -18,3 +18,19 @@ integration:
   - WorldFoundry tracks upstream source metadata only; no runnable in-tree pipeline is registered yet.
 catalog_category: world_models
 catalog_scope: World-model catalog entries. Integrated entries expose in-tree WorldFoundry runtimes; blocked entries retain upstream provenance without runnable backends.
+docs:
+  publisher: University of Geneva
+  publisher_kind: university
+  publisher_zh: 日内瓦大学
+  overview: 'IRIS showed that transformers are sample-efficient world models (ICLR 2023): an agent learns inside a discrete-token world model and reaches strong Atari results with only two hours of gameplay experience. In this catalog it is upstream metadata only — a historical reference for the autoregressive-world-model lineage, with no runnable in-tree pipeline.'
+  overview_zh: IRIS 证明了 Transformer 是高样本效率的世界模型（ICLR 2023）：智能体在离散 token 世界模型内学习，仅用两小时游戏经验就在 Atari 上取得强结果。本 catalog 中它仅为上游元数据——自回归世界模型谱系的历史参照，没有可运行的树内 pipeline。
+  architecture: Per the publication, a VQ tokenizer discretizes frames and a GPT-style transformer predicts next tokens conditioned on actions; the policy trains purely in imagination. No further internals are recorded here.
+  architecture_zh: 按论文，VQ tokenizer 将帧离散化，GPT 式 Transformer 在动作条件下预测下一批 token；策略完全在「想象」中训练。此处未记录更多内部细节。
+  usage_notes: Blocked — consult the upstream repository (eloialonso/iris) for training and evaluation.
+  usage_notes_zh: Blocked——训练与评估请查阅上游仓库（eloialonso/iris）。
+  limitations:
+  - 'This entry is blocked: WorldFoundry tracks upstream source metadata only, with no runnable in-tree pipeline.'
+  - RL research world model at Atari resolution — not a video generator.
+  limitations_zh:
+  - 该条目处于 blocked 状态：WorldFoundry 仅跟踪上游源码元数据，没有可运行的树内 pipeline。
+  - Atari 分辨率的强化学习研究世界模型——不是视频生成器。

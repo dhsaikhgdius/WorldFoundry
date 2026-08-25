@@ -28,3 +28,19 @@ catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint
   metadata, and runtime-profile planning records. Runner or pipeline targets are present
   only after a complete in-tree WorldFoundry model runtime is registered and validated.
+docs:
+  publisher: Open-source research release (institution not recorded)
+  publisher_kind: lab
+  publisher_zh: 开源研究发布（仓库未记录正式机构）
+  overview: 'TD-MPC (Temporal Difference Model Predictive Control) is a classic model-based RL algorithm: it learns a latent dynamics model and plans actions by combining short-horizon MPC with a learned terminal value function. The catalog sources the concrete official repository — not the generic LeRobot policy zoo — and routes it through an in-tree action runtime adapter.'
+  overview_zh: TD-MPC（时序差分模型预测控制）是经典的基于模型强化学习算法：学习隐式动力学模型，将短程 MPC 与学习到的终端价值函数结合来规划动作。catalog 采用具体官方仓库为源——而非通用 LeRobot 策略库——并经树内动作运行时适配器路由。
+  architecture: A task-oriented latent dynamics model (TOLD) plus value/policy heads; planning combines the cross-entropy method over the latent model with TD-learned values. Further internals are not recorded in this repository.
+  architecture_zh: 任务导向隐式动力学模型（TOLD）加价值/策略头；规划将隐式模型上的交叉熵方法与 TD 学习的价值结合。更多内部细节仓库未记录。
+  usage_notes: Checkpoint absence is reported by runtime missing_assets and is not a catalog blocker; runs emit a runtime plan until weights are staged. Train your own task checkpoint with the official code before running.
+  usage_notes_zh: checkpoint 缺失由运行时 missing_assets 报告，不视为 catalog 阻塞；权重就位前运行输出运行时计划。运行前需用官方代码训练自己的任务 checkpoint。
+  limitations:
+  - No official pretrained checkpoints are recorded.
+  - State-based RL policy — no language or open-vocabulary conditioning.
+  limitations_zh:
+  - 未记录官方预训练 checkpoint。
+  - 基于状态的 RL 策略——无语言或开放词表条件。

@@ -17,3 +17,19 @@ integration:
   - WorldFoundry tracks upstream source metadata only; no runnable in-tree pipeline is registered yet.
 catalog_category: three_d_four_d
 catalog_scope: Official-source manifest for 3D, 4D, and camera-controlled world/model generation projects.
+docs:
+  publisher: Huazhong University of Science and Technology / Huawei
+  publisher_kind: university
+  publisher_zh: 华中科技大学 / 华为
+  overview: GaussianObject reconstructs high-quality object-level 3DGS from as few as four views, using diffusion-based repair to fill unobserved regions. In this catalog it is upstream metadata only — the per-object optimization workflow is not exposed as a runnable route.
+  overview_zh: GaussianObject 只需四张视图即可重建高质量的物体级 3DGS，并用扩散修复补全未观测区域。本 catalog 中它仅为上游元数据——逐物体优化的工作流未暴露为可运行路径。
+  architecture: Per the publication, visual-hull initialization plus 3DGS optimization, with a diffusion-model repair stage for sparse-view gaps. No further internals are recorded here.
+  architecture_zh: 按论文：视觉外壳初始化加 3DGS 优化，并用扩散模型修复稀疏视图缺口。此处未记录更多内部细节。
+  usage_notes: Blocked — use the upstream repository (GaussianObject/GaussianObject) directly.
+  usage_notes_zh: Blocked——请直接使用上游仓库（GaussianObject/GaussianObject）。
+  limitations:
+  - 'This entry is blocked: WorldFoundry tracks upstream source metadata only, and no runnable in-tree pipeline is registered.'
+  - It records provenance for CLI inspection; the docs site hides blocked 3D/4D entries from the catalog browser.
+  limitations_zh:
+  - 该条目处于 blocked 状态：WorldFoundry 仅跟踪上游源码元数据，没有注册可运行的树内 pipeline。
+  - 它的作用是为 CLI 检查记录溯源；文档站的 catalog 浏览器会隐藏 blocked 的 3D/4D 条目。

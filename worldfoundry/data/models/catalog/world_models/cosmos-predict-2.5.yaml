@@ -104,3 +104,26 @@ catalog_policy:
   open_source_rule: Only mark open_source when an official GitHub repository or official
     Hugging Face model page was confirmed. Do not infer checkpoint availability from
     papers, demos, or third-party mirrors.
+docs:
+  publisher: NVIDIA
+  publisher_kind: company
+  publisher_zh: 英伟达（NVIDIA）
+  overview: 'Cosmos Predict 2.5 is NVIDIA''s world foundation model for physical AI: text, image, or video in — world video out, with 2B and 14B variants. In this catalog it is assembled natively from WorldFoundry''s canonical denoiser, conditioner, scheduler, decoder, and loader roles without Diffusers; official EMA transformer structures match 569/569 (2B) and 729/729 (14B) tensors, Reason1 language weights match 338/338, and the shared Wan VAE matches 194/194.'
+  overview_zh: Cosmos Predict 2.5 是英伟达面向物理 AI 的世界基础模型：输入文本、图像或视频，输出世界视频，含 2B 与 14B 两个 variant。本 catalog 中它由 WorldFoundry 规范的去噪器、条件器、调度器、解码器与加载器角色原生组装、不依赖 Diffusers；官方 EMA transformer 结构 2B 匹配 569/569、14B 匹配 729/729 张量， Reason1 语言权重匹配 338/338，共享 Wan VAE 匹配 194/194。
+  architecture: Predict 2.5 unifies text/image/video-to-world generation in one flow-based model with a Reason1 language conditioner and shared Wan VAE. Image/video conditioning and positive classifier-free guidance are expressed through shared runner contracts rather than a model-specific runtime.
+  architecture_zh: Predict 2.5 用单一流模型统一文/图/视频到世界生成，配 Reason1 语言条件器与共享 Wan VAE。图像/视频条件与正向 CFG 通过共享 runner 契约表达，而非模型专属运行时。
+  usage_notes: The public CosmosPredict2p5Pipeline invokes the native recipes directly. Structural validation is complete, but end-to-end full-resolution GPU output parity remains pending NVIDIA checkpoint access and GPU validation — do not read tensor matching as output parity.
+  usage_notes_zh: 公开的 CosmosPredict2p5Pipeline 直接调用原生配方。结构校验已完成，但端到端全分辨率 GPU 输出一致性仍待 NVIDIA checkpoint 权限与 GPU 验证——请勿把张量匹配当作输出一致性。
+  limitations:
+  - End-to-end GPU output parity is pending; structural validation is not output validation.
+  - Checkpoint access is gated by NVIDIA.
+  limitations_zh:
+  - 端到端 GPU 输出一致性待验证；结构校验不等于输出校验。
+  - checkpoint 权限由英伟达管控。
+  recommended_benchmarks:
+  - id: worldmodelbench
+    reason: World-generation quality across conditions.
+    reason_zh: 各条件下世界生成质量评测。
+  - id: physics-iq
+    reason: Physical plausibility of predicted world video.
+    reason_zh: 预测世界视频的物理合理性。

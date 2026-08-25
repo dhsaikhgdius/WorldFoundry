@@ -34,3 +34,19 @@ catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint
   metadata, and runtime-profile planning records. Runner or pipeline targets are present
   only after a complete in-tree WorldFoundry model runtime is registered and validated.
+docs:
+  publisher: Exla AI
+  publisher_kind: company
+  publisher_zh: Exla AI
+  overview: OpenPIE 0.6 is Exla AI's open-weights pi-0.6-style policy, tracked as its own catalog entry separate from OpenPI pi0/pi0.5. The exla-ai/openpie-0.6 checkpoint is confirmed on Hugging Face; WorldFoundry routes it through the in-tree official-policy runtime using the FLA policy factory.
+  overview_zh: OpenPIE 0.6 是 Exla AI 的开放权重 pi-0.6 风格策略，作为独立 catalog 条目跟踪，与 OpenPI pi0/pi0.5 分开。exla-ai/openpie-0.6 checkpoint 已在 Hugging Face 确认；WorldFoundry 通过树内官方策略运行时以 FLA 策略工厂路由。
+  architecture: The runtime contract is the FLA policy factory from the exla-ai/fla repository (pinned head 1ac45102). Architecture internals are not recorded in this repository.
+  architecture_zh: 运行时契约为 exla-ai/fla 仓库的 FLA 策略工厂（锁定 head 1ac45102）。架构内部细节仓库未记录。
+  usage_notes: Checkpoint absence is reported by runtime missing_assets and is not a catalog blocker; runs emit a runtime plan until weights are staged.
+  usage_notes_zh: checkpoint 缺失由运行时 missing_assets 报告，不视为 catalog 阻塞；权重就位前运行输出运行时计划。
+  limitations:
+  - Open weights only — availability status is open_weights, not full open source.
+  - No license is recorded in this repository.
+  limitations_zh:
+  - 仅开放权重——可用性状态为 open_weights 而非完整开源。
+  - 仓库未记录许可证。

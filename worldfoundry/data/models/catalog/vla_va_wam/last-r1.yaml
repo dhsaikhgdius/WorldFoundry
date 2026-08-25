@@ -31,3 +31,17 @@ catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint
   metadata, and runtime-profile planning records. Runner or pipeline targets are present
   only after a complete in-tree WorldFoundry model runtime is registered and validated.
+docs:
+  publisher: Open-source research release (institution not recorded)
+  publisher_kind: lab
+  publisher_zh: 开源研究发布（仓库未记录正式机构）
+  overview: LaST-R1 is an MIT-licensed VLA policy trained with reinforcement learning, recorded against the confirmed chenhao01/LaST-R1 checkpoint. WorldFoundry routes it through the in-tree official-policy runtime adapter; weights are not yet staged, so runs emit a runtime plan.
+  overview_zh: LaST-R1 是 MIT 许可、以强化学习训练的 VLA 策略，对应已确认的 chenhao01/LaST-R1 checkpoint。WorldFoundry 通过树内官方策略运行时适配器路由；权重尚未就位，运行输出运行时计划。
+  architecture: Task tags record a VLA plus reinforcement-learning design. Architecture internals beyond the official repository pointer (CHEN-H01/LaST-R1, pinned head ba4e9396) are not recorded in this repository.
+  architecture_zh: 任务标签记录其为 VLA 加强化学习设计。官方仓库指针（CHEN-H01/LaST-R1，锁定 head ba4e9396）之外的架构内部细节仓库未记录。
+  usage_notes: Checkpoint absence is reported by runtime missing_assets and is not a catalog blocker; runs emit a runtime plan until weights are staged.
+  usage_notes_zh: checkpoint 缺失由运行时 missing_assets 报告，不视为 catalog 阻塞；权重就位前运行输出运行时计划。
+  limitations:
+  - No GPU validation is recorded in this repository.
+  limitations_zh:
+  - 仓库未记录 GPU 验证。

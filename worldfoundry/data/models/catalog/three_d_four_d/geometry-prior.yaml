@@ -21,3 +21,17 @@ runner_parity:
   - This entry records the shared contract; per-prior parity evidence lives on the specific prior catalog entries.
 catalog_category: three_d_four_d
 catalog_scope: Independent geometric prior integrations used by 3D and world-model runtimes.
+docs:
+  publisher: WorldFoundry (this repository)
+  publisher_kind: lab
+  publisher_zh: WorldFoundry（本仓库）
+  overview: Geometry is not an upstream model — it is WorldFoundry's shared geometry-prior contract surface. Individual priors (DUSt3R, Depth Anything, Metric3D, GeoCalib, UniDepth, and others) register as separate catalog entries with their own provenance, and all of them are consumed through the pipeline/ operator contract this entry documents.
+  overview_zh: Geometry 不是上游模型——它是 WorldFoundry 的共享几何先验契约面。各个先验（DUSt3R、 Depth Anything、Metric3D、GeoCalib、UniDepth 等）以独立 catalog 条目注册并各自携带溯源，全部通过本条目所描述的 pipeline/operator 契约被调用。
+  architecture: 'A contract, not a network: it defines how geometry priors are constructed, invoked, and how their artifacts are exported, so that higher-level pipelines can swap priors through configuration alone.'
+  architecture_zh: 这是契约而非网络：定义几何先验如何构造、如何调用、产物如何导出，使上层管线仅靠配置即可更换先验。
+  usage_notes: Do not run this entry directly; pick a concrete prior entry instead. Per-prior parity evidence lives on the specific prior catalog entries.
+  usage_notes_zh: 不要直接运行本条目；请选择具体的先验条目。每个先验的一致性证据都在其各自的 catalog 条目上。
+  limitations:
+  - A contract surface only — it has no weights and produces no artifacts by itself.
+  limitations_zh:
+  - 仅为契约面——本身没有权重，也不直接产出产物。

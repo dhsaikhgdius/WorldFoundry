@@ -66,3 +66,17 @@ runner_parity:
   - MolmoSpaces simulator, real robot clients, training code, W&B/SPoC paths, and benchmark assets are excluded.
 catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint metadata, and runtime-profile planning records.
+docs:
+  publisher: Allen Institute for AI (AI2)
+  publisher_kind: lab
+  publisher_zh: 艾伦人工智能研究所（AI2）
+  overview: MolmoBot is AI2's robot policy family around the Molmo VLM, with Apache-2.0 checkpoints for Franka DROID, image-conditioned DROID, RBY1 multitask, and a Pi0-based DROID variant. WorldFoundry records the OLMo/MolmoBot-Pi0 action inference contracts and calls a flattened in-tree inference wrapper.
+  overview_zh: MolmoBot 是 AI2 围绕 Molmo VLM 的机器人策略家族，Apache-2.0 checkpoint 覆盖 Franka DROID、图像条件 DROID、RBY1 多任务与基于 Pi0 的 DROID 变体。WorldFoundry 记录 OLMo/MolmoBot-Pi0 动作推理契约，并调用扁平化树内推理封装。
+  architecture: 'Two inference contracts are recorded: an OLMo-based MolmoBot path and a MolmoBot-Pi0 path. Resolver, runtime import, and compileall checks pass without an external checkout; further internals are not recorded in this repository.'
+  architecture_zh: 仓库记录两个推理契约：基于 OLMo 的 MolmoBot 路径与 MolmoBot-Pi0 路径。解析器、运行时导入与 compileall 检查无需外部 checkout 即通过；更多内部细节仓库未记录。
+  usage_notes: Checkpoint-backed action-chunk validation remains required before demo parity is claimed. Choose MolmoBot-DROID for Franka, RBY1Multitask for the RBY1 humanoid platform.
+  usage_notes_zh: 在声称 demo parity 前仍需 checkpoint 驱动的动作块验证。Franka 用 MolmoBot-DROID，RBY1 人形平台用 RBY1Multitask。
+  limitations:
+  - Import verification is in progress; demo parity is not yet claimed.
+  limitations_zh:
+  - 导入验证进行中；尚未声称 demo parity。

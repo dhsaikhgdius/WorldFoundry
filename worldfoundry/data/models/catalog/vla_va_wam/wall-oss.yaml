@@ -41,3 +41,19 @@ catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint metadata,
   and runtime-profile planning records. Runner or pipeline targets are present only after a complete in-tree
   WorldFoundry model runtime is registered and validated.
+docs:
+  publisher: X Square Robot
+  publisher_kind: company
+  publisher_zh: 自变量机器人（X Square Robot）
+  overview: 'Wall-OSS is X Square Robot''s open-source embodied foundation policy from the Wall-X line, with two confirmed checkpoints: wall-oss-flow (flow-matching action decoding) and wall-oss-fast (FAST-token decoding). WorldFoundry routes it through an in-tree action runtime adapter against the concrete Wall-X policy; checkpoint-backed parity remains asset-gated.'
+  overview_zh: Wall-OSS 是自变量机器人（X Square Robot）Wall-X 线的开源具身基础策略，确认两个 checkpoint：wall-oss-flow（flow-matching 动作解码）与 wall-oss-fast（FAST token 解码）。WorldFoundry 针对具体 Wall-X 策略经树内动作运行时适配器路由；checkpoint 驱动 parity 仍受资产门控。
+  architecture: 'Two decoding variants of one foundation policy: a flow-matching head (wall-oss-flow) and a FAST discrete-token head (wall-oss-fast). Architecture internals beyond the official repository pointer are not recorded in this repository.'
+  architecture_zh: 同一基础策略的两种解码变体：flow-matching 头（wall-oss-flow）与 FAST 离散 token 头（wall-oss-fast）。官方仓库指针之外的架构内部细节仓库未记录。
+  usage_notes: Checkpoint absence is reported by runtime missing_assets and is not a catalog blocker; runs emit a runtime plan until weights are staged. Choose flow for smooth continuous control, fast for lower-latency decoding.
+  usage_notes_zh: checkpoint 缺失由运行时 missing_assets 报告，不视为 catalog 阻塞；权重就位前运行输出运行时计划。平滑连续控制选 flow，低延迟解码选 fast。
+  limitations:
+  - Checkpoint-backed parity is not yet validated.
+  - No license is recorded in this repository.
+  limitations_zh:
+  - checkpoint 驱动 parity 尚未验证。
+  - 仓库未记录许可证。

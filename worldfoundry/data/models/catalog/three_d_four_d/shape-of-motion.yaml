@@ -44,3 +44,19 @@ catalog_policy:
   - open_weights_restricted
   - api_or_closed
   - unknown
+docs:
+  publisher: UC Berkeley
+  publisher_kind: university
+  publisher_zh: 加州大学伯克利分校（UC Berkeley）
+  overview: 'Shape of Motion reconstructs a full 4D scene — geometry plus long-range 3D motion — from a single casually captured monocular video. WorldFoundry vendors its source components in-tree, but the official project is reconstruction/training-first: preprocessing and optimization produce a checkpoint that rendering scripts consume, so no release-ready infer-only Studio runtime is exposed.'
+  overview_zh: Shape of Motion 从一段随手拍摄的单目视频重建完整 4D 场景——几何加上长程 3D 运动。 WorldFoundry 已将其源码组件内置树内，但官方项目以重建/训练为先：预处理与优化产出 checkpoint，再由渲染脚本消费，因此未暴露可发布的仅推理 Studio 运行时。
+  architecture: Per the paper (arXiv 2407.13764), scene motion is represented by a compact set of SE(3) motion bases; each dynamic Gaussian's trajectory is a weighted combination of them, supervised with long-range tracking and monocular depth priors. Per-video optimization is required.
+  architecture_zh: 按论文（arXiv 2407.13764），场景运动由一组紧凑的 SE(3) 运动基表示；每个动态高斯的轨迹是这些基的加权组合，并以长程跟踪与单目深度先验监督。需要逐视频优化。
+  usage_notes: Hidden from Studio job submission until an in-tree infer-only path can materialize a 4D scene artifact without training-oriented setup. Use the upstream repository (vye16/shape-of-motion) for the official preprocessing/optimization workflow today.
+  usage_notes_zh: 在树内仅推理路径能够不经训练式准备直接产出 4D 场景产物之前，该条目在 Studio 任务提交中隐藏。当下请使用上游仓库（vye16/shape-of-motion）的官方预处理/优化工作流。
+  limitations:
+  - 'Blocked for release-facing inference: the official path is preprocessing plus optimization first.'
+  - Do not claim Studio inference parity until an in-tree infer-only runtime materializes a 4D artifact.
+  limitations_zh:
+  - 面向发布的推理被 blocked：官方路径以预处理加优化为先。
+  - 在树内仅推理运行时能产出 4D 产物之前，不应声称 Studio 推理一致性。

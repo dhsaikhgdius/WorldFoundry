@@ -133,3 +133,23 @@ integration:
   status: integrated
   notes:
     - WorldFoundry wraps the in-tree Wan2.2 TI2V runtime.
+docs:
+  publisher: Alibaba (Tongyi Lab)
+  publisher_kind: company
+  publisher_zh: 阿里巴巴（通义实验室）
+  overview: Wan2.2 is the next Wan generation, tracked separately from Wan2.1 because upstream versions code and checkpoints separately. The recorded runnable surface is the TI2V 5B variant — a compact text+image-to-video model. WorldFoundry wraps the in-tree Wan2.2 TI2V runtime.
+  overview_zh: Wan2.2 是 Wan 的下一代，因上游代码与 checkpoint 独立版本化而与 Wan2.1 分开跟踪。记录的可运行面是 TI2V 5B variant——紧凑的图文生视频模型。WorldFoundry 封装了树内 Wan2.2 TI2V 运行时。
+  architecture: 'Upstream Wan2.2 introduces MoE denoising in its larger variants and a high-compression VAE in the TI2V 5B; this catalog''s recorded route is the 5B dense TI2V model. Contract: prompt/image/video/ actions in, generated_video out.'
+  architecture_zh: 上游 Wan2.2 在大 variant 中引入 MoE 去噪、在 TI2V 5B 中使用高压缩 VAE；本 catalog 记录的路径是 5B 稠密 TI2V 模型。契约：输入 prompt/image/video/actions，输出 generated_video。
+  usage_notes: 'Runner status is pending_demo: the pipeline target is registered, artifact parity needs the staged checkpoint/runtime environment, and official 121-frame parity is pending. The 5B scale makes it a practical single-GPU TI2V choice once staged.'
+  usage_notes_zh: runner 状态为 pending_demo：pipeline target 已注册，产物一致性需要就位的 checkpoint/运行时环境，官方 121 帧一致性待验证。资产就位后，5B 规模使它成为实用的单卡图文生视频选择。
+  limitations:
+  - Official 121-frame parity remains pending.
+  - Only the TI2V 5B variant is recorded; larger Wan2.2 variants are not routes here.
+  limitations_zh:
+  - 官方 121 帧一致性仍在等待。
+  - 仅记录 TI2V 5B variant；更大的 Wan2.2 variant 不在此路径中。
+  recommended_benchmarks:
+  - id: vbench
+    reason: Standard quality suite.
+    reason_zh: 标准质量评测。

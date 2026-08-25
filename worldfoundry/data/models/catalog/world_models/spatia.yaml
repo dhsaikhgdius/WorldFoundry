@@ -17,3 +17,23 @@ runner_parity:
   status: pending
   notes: [In-tree Spatia inference and dense W2C trajectory route are wired.]
 catalog_category: world_models
+docs:
+  publisher: Open-source research release (institution not recorded)
+  publisher_kind: lab
+  publisher_zh: 开源研究发布（仓库未记录正式机构）
+  overview: 'Spatia is a camera-controlled video-to-video world model: given source video and a target camera trajectory it re-renders the scene along the new viewpoint path. WorldFoundry vendors the official source in-tree (revision f75b10c9) and exposes it through the shared pipeline runner with the Jinjing713/Spatia checkpoint reference, released under Apache-2.0.'
+  overview_zh: Spatia 是相机控制的 video-to-video 世界模型：给定源视频与目标相机轨迹，沿新视角路径重新渲染场景。WorldFoundry 已将官方源码内置树内（revision f75b10c9），通过共享 pipeline runner 暴露， checkpoint 引用为 Jinjing713/Spatia，以 Apache-2.0 许可发布。
+  architecture: 'The in-tree route wires Spatia inference with a dense world-to-camera (W2C) trajectory input: per-frame camera extrinsics drive the re-rendering. Architecture internals beyond the vendored source are not recorded in this repository.'
+  architecture_zh: 树内路由接入 Spatia 推理与稠密 world-to-camera（W2C）轨迹输入：逐帧相机外参驱动重渲染。除内置源码外的架构内部细节仓库未记录。
+  usage_notes: Provide source video plus a dense per-frame W2C camera trajectory; the in-tree route validates both before execution. Runner parity is pending, so treat outputs as unverified until a parity run is recorded.
+  usage_notes_zh: 需提供源视频与逐帧稠密 W2C 相机轨迹；树内路由在执行前会校验二者。runner parity 仍为 pending，在记录 parity 运行前请将输出视为未验证。
+  limitations:
+  - Runner parity is pending; no GPU validation is recorded in this repository.
+  - Requires dense per-frame camera trajectories, not sparse keyframe poses.
+  limitations_zh:
+  - runner parity 为 pending；仓库未记录 GPU 验证。
+  - 需要逐帧稠密相机轨迹，而非稀疏关键帧位姿。
+  recommended_benchmarks:
+  - id: camerabench
+    reason: Camera-trajectory adherence for controlled re-rendering.
+    reason_zh: 相机轨迹跟随与受控重渲染质量。
