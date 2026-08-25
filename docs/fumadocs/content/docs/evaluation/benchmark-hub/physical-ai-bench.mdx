@@ -1,40 +1,104 @@
 ---
-title: Physical AI Bench
-description: Run PAI-Bench-G and PAI-Bench-C evaluation fully in tree.
+title: Physical AI Bench (PAI-Bench)
+description: CVPR 2026 multi-track Physical AI benchmark: generation, conditional generation, and VQA over 2,808 real-world cases.
 ---
 
-## Integration
+## About
 
-WorldFoundry contains independent inference-only integrations of SHI-Labs PAI-Bench-G and PAI-Bench-C.
+**Publisher:** SHI Labs, Georgia Tech & CMU (with NVIDIA Research support)
 
-| Track | Runtime |
-| --- | --- |
-| PAI-Bench-G | Reuses the in-tree VBench and VBench++ I2V evaluators; binary VQA uses predictions or a Qwen-compatible judge. |
-| PAI-Bench-C | Implements Canny, blur SSIM, depth SI-RMSE, segmentation matching, and aggregation; reuses shared DOVER, LPIPS, Video-Depth-Anything, GroundingDINO, and SAM2. |
+PAI-Bench (Physical AI Bench, CVPR 2026 Oral) evaluates perception and prediction for Physical AI across three tracks: PAI-Bench-G (video generation, scored with VBench/VBench++-style perception metrics plus VQA judging), PAI-Bench-C (conditional generation, scored with control-fidelity metrics — canny F1, depth si-RMSE, segmentation mIoU, blur SSIM, LPIPS diversity), and PAI-Bench-U (video understanding). The suite comprises 2,808 real-world cases with task-aligned metrics for physical plausibility and domain-specific reasoning.
 
-No upstream repository, vendored `third_party` directory, or `SOURCE.json` is needed at runtime. Configuration, prompt templates, and provenance are under `worldfoundry/data/benchmarks/assets/physical-ai-bench`.
+WorldFoundry implements a multi-track in-tree evaluator that stages the official Hugging Face datasets per track and reuses shared model stacks (VBench, VBench++, Qwen-VL, DOVER, LPIPS, Video-Depth-Anything, Grounding-DINO, SAM2).
 
-## Run
+Official references:
 
-```bash
-python -m worldfoundry.evaluation.tasks.execution.runners.physical_ai_bench.run_physical_ai_bench_official_runner \
-  --track conditional-generation --run-official \
-  --dataset-root /path/to/physical-ai-bench-conditional-generation \
-  --generated-video-dir /path/to/generated/videos \
-  --allow-trusted-pickle \
-  --output-dir outputs/physical-ai-bench-c --json
+- Paper: [arxiv.org/abs/2512.01989](https://arxiv.org/abs/2512.01989)
+- Official repository: [SHI-Labs/physical-ai-bench](https://github.com/SHI-Labs/physical-ai-bench)
+
+## Evaluation protocol
+
+Select the track with `--track` (or `WORLDFOUNDRY_PHYSICAL_AI_BENCH_TRACK`) and restrict metrics with `--metrics`. Generation tracks need `--generated-video-dir`; conditional metrics take model checkpoints (`--depth-checkpoint`, `--grounding-checkpoint`, `--sam2-checkpoint`, `--dover-checkpoint`) or prediction directories (`--pred-depth-dir`, `--pred-segmentation-dir`); generation VQA needs a prediction manifest or a configured Qwen-compatible judge (`--judge-backend`, `--judge-model`, `--judge-base-url`).
+
+Primary metric: `aesthetic_quality`.
+
+| Metric | Meaning | Direction |
+| --- | --- | --- |
+| `aesthetic_quality` | VBench-style aesthetic quality over generated frames. | Higher is better |
+| `background_consistency` | VBench-style background consistency across frames. | Higher is better |
+| `imaging_quality` | VBench-style imaging quality of generated frames. | Higher is better |
+| `motion_smoothness` | VBench-style motion smoothness. | Higher is better |
+| `overall_consistency` | VBench-style overall text-video consistency. | Higher is better |
+| `subject_consistency` | VBench-style subject identity consistency. | Higher is better |
+| `i2v_background` | VBench++ image-to-video background preservation. | Higher is better |
+| `i2v_subject` | VBench++ image-to-video subject preservation. | Higher is better |
+| `vqa_accuracy` | Judge-scored VQA accuracy over physical-plausibility questions. | Higher is better |
+| `dover_tech_score` | DOVER technical video-quality score. | Higher is better |
+| `blur_ssim` | SSIM between blur-conditioned output and reference (conditional track). | Higher is better |
+| `canny_f1_score` | F1 of Canny edges vs. the conditioning edges (conditional track). | Higher is better |
+| `canny_precision` | Precision of Canny edges vs. the conditioning edges. | Higher is better |
+| `canny_recall` | Recall of Canny edges vs. the conditioning edges. | Higher is better |
+| `depth_si_rmse` | Scale-invariant RMSE between predicted and conditioning depth. | Lower is better |
+| `seg_m_iou` | Mean IoU between predicted and conditioning segmentation. | Higher is better |
+| `seg_recall` | Recall of the conditioning segmentation in the generated video. | Higher is better |
+| `lpips_diversity` | LPIPS diversity across generations from the same condition. | Higher is better |
+
+## Data and artifact layout
+
+In-tree paths:
+
+```text
+worldfoundry/data/benchmarks/tasks/external/physical-ai-bench.yaml
 ```
 
-Use `--track generation` for PAI-Bench-G. Its binary VQA accepts `--prediction-manifest`; it can alternatively use `--judge-backend local-qwen` or `--judge-backend openai-compatible`. The official conditional-generation masks are pickle files, so loading them requires the explicit `--allow-trusted-pickle` opt-in shown above.
+One official Hugging Face dataset per track:
 
-## Environment
+```text
+shi-labs/physical-ai-bench-generation               # PAI-Bench-G
+shi-labs/physical-ai-bench-conditional-generation   # PAI-Bench-C (~273 GB)
+shi-labs/physical-ai-bench-understanding            # PAI-Bench-U
+```
 
-The benchmark runtime uses `worldfoundry-unified-cu128`. CPU metrics and result normalization need no additional environment. A 72B Qwen judge may be served by vLLM in a separate serving environment when it does not fit the unified process; pass the server through `--judge-base-url`. Only the model server is external to the unified process—the benchmark implementation and scoring remain in tree.
+Stage the selected track under `WORLDFOUNDRY_PHYSICAL_AI_BENCH_DATASET_ROOT`; evaluator wiring lives at `worldfoundry/data/benchmarks/assets/physical-ai-bench/evaluator.yaml` with provenance recorded next to it.
 
-## Official references
+## Run the benchmark
 
-- [SHI-Labs/physical-ai-bench](https://github.com/SHI-Labs/physical-ai-bench)
-- [Generation dataset](https://huggingface.co/datasets/shi-labs/physical-ai-bench-generation)
-- [Conditional-generation dataset](https://huggingface.co/datasets/shi-labs/physical-ai-bench-conditional-generation)
+Score the generation track over staged data and generated videos:
 
-Local scorecards are not official SHI-Labs leaderboard submissions. Full-dataset parity, especially on the large conditional-generation dataset, remains to be audited.
+```bash
+${WORLDFOUNDRY_UNIFIED_PYTHON} \
+  worldfoundry/evaluation/tasks/execution/runners/physical_ai_bench/run_physical_ai_bench_official_runner.py \
+  --run-official \
+  --track generation \
+  --dataset-root "${WORLDFOUNDRY_PHYSICAL_AI_BENCH_DATASET_ROOT}" \
+  --generated-video-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
+  --output-dir tmp/physical_ai_bench/generation \
+  --json
+```
+
+## Checkpoints and environment variables
+
+- `WORLDFOUNDRY_PHYSICAL_AI_BENCH_DATASET_ROOT`: Local root of the staged official track dataset.
+- `WORLDFOUNDRY_PHYSICAL_AI_BENCH_TRACK`: Default track when --track is not passed.
+- `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR`: Directory of candidate generated videos.
+
+This benchmark reuses the shared base-model dependency stack: `vbench`, `vbench-plus-plus`, `qwen-vl`, `dover`, `lpips`, `video-depth-anything`, `grounding-dino`, `sam2`.
+
+## Outputs
+
+The run writes into `--output-dir`:
+
+- `scorecard.json`: WorldFoundry scorecard with the metric values recorded above.
+- `raw_metric_table.jsonl`: Metric rows backing the scorecard.
+- `per_sample_scores.jsonl`: Per-sample rows when the result source exposes sample-level values.
+- `official_results.json`
+
+Scorecard primary key: `aesthetic_quality` (leaderboard key `aesthetic_quality`), stored in `scorecard.json`.
+
+## Limitations
+
+- Full-dataset numerical parity has not been audited on the ~273 GB conditional-generation dataset.
+- Local scorecards are not official SHI-Labs leaderboard submissions; the leaderboard runs its own protocol.
+- Metric subsets selected via `--metrics` are development signals, not track totals.
+
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

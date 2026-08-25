@@ -26,18 +26,18 @@ runner 可导入官方指标 CSV 导出（`--official-results-path`），或导�
 
 | Metric | 含义 | 方向 |
 | --- | --- | --- |
-| `mse_first` | AIGCBench MSE between the condition image and first generated frame; lower is better. | 越低越好 |
-| `ssim_first` | AIGCBench SSIM between the condition image and first generated frame. | 越高越好 |
-| `image_genvideo_clip` | AIGCBench CLIP similarity between condition image and generated video. | 越高越好 |
-| `genvideo_text_clip` | AIGCBench CLIP similarity between generated video and text prompt. | 越高越好 |
-| `genvideo_refvideo_clip_keyframes` | AIGCBench CLIP similarity between generated and reference video keyframes. | 越高越好 |
-| `flow_square_mean` | AIGCBench optical-flow square mean for generated video motion effects. | 越高越好 |
-| `genvideo_refvideo_clip_corresponding_frames` | AIGCBench CLIP similarity for generated and reference corresponding frames. | 越高越好 |
-| `genvideo_clip_adjacent_frames` | AIGCBench adjacent-frame CLIP similarity for temporal consistency. | 越高越好 |
-| `frame_count` | AIGCBench generated video frame count. | 越高越好 |
-| `dover` | AIGCBench DOVER video quality score. | 越高越好 |
-| `genvideo_refvideo_ssim` | AIGCBench SSIM between generated and reference videos. | 越高越好 |
-| `aigcbench_average` | AIGCBench official aggregate when supplied by the official scorer or normalized output. | 越高越好 |
+| `mse_first` | AIGCBench：条件图像与生成首帧间的 MSE；越低越好。 | 越低越好 |
+| `ssim_first` | AIGCBench：条件图像与生成首帧间的 SSIM。 | 越高越好 |
+| `image_genvideo_clip` | AIGCBench：条件图像与生成视频间的 CLIP 相似度。 | 越高越好 |
+| `genvideo_text_clip` | AIGCBench：生成视频与文本 prompt 间的 CLIP 相似度。 | 越高越好 |
+| `genvideo_refvideo_clip_keyframes` | AIGCBench：生成视频与参考视频关键帧间的 CLIP 相似度。 | 越高越好 |
+| `flow_square_mean` | AIGCBench：生成视频运动效果的光流平方均值。 | 越高越好 |
+| `genvideo_refvideo_clip_corresponding_frames` | AIGCBench：生成视频与参考视频对应帧间的 CLIP 相似度。 | 越高越好 |
+| `genvideo_clip_adjacent_frames` | AIGCBench：相邻帧 CLIP 相似度（时序一致性）。 | 越高越好 |
+| `frame_count` | AIGCBench：生成视频帧数。 | 越高越好 |
+| `dover` | AIGCBench：DOVER 视频质量分。 | 越高越好 |
+| `genvideo_refvideo_ssim` | AIGCBench：生成视频与参考视频间的 SSIM。 | 越高越好 |
+| `aigcbench_average` | AIGCBench：由官方 scorer 或归一化输出提供的官方聚合分。 | 越高越好 |
 
 ## 数据与产物布局
 

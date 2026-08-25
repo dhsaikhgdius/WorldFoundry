@@ -1,174 +1,100 @@
 ---
-title: VideoPhy-2
-description: Action-centric physical commonsense evaluation for generated videos, with in-tree prompts, AutoEval runtime, and runnable commands.
+title: VideoPhy2
+description: Action-centric successor to VideoPhy: harder physical-commonsense prompts with rule-level physical-law judgments.
 ---
 
 ## About
 
-VideoPhy-2 is an action-centric benchmark for physical commonsense in text-to-video generation. Instead of only asking whether a video looks plausible, it asks whether a generated action follows the requested caption and the physical rules implied by the scene. The official release contains 200 diverse actions, detailed synthesis prompts, human evaluation annotations, and VideoPhy-2-AutoEval for automatic scoring.
+**Publisher:** UCLA & Google DeepMind
 
-WorldFoundry integrates the prompt materialization, metric computation, and AutoEval inference path in tree. The official repository is a protocol reference; benchmark execution here uses `worldfoundry/evaluation/tasks/execution/runners/videophy2` and `worldfoundry/base_models/llm_mllm_core/mllm/videophy2_autoeval`.
+VideoPhy2 is the action-centric successor to VideoPhy. Its prompt suite focuses on physical activities and object interactions that are systematically harder for current generators, and its judging adds rule-level analysis: for each video the AutoEval judge determines which candidate physical rules apply and whether each is followed or violated, yielding `rule_followed_rate` alongside Semantic Adherence, Physical Commonsense, and the primary Joint Score.
+
+WorldFoundry bundles the official prompt list and drives the in-tree VideoPhy2 AutoEval judge through the shared runner, including LoRA-adapter checkpoint loading.
 
 Official references:
 
+- Paper: [arxiv.org/abs/2503.06800](https://arxiv.org/abs/2503.06800)
 - Project page: [videophy2.github.io](https://videophy2.github.io/)
-- Paper: [arXiv:2503.06800](https://arxiv.org/abs/2503.06800)
-- Test dataset: [videophysics/videophy2_test](https://huggingface.co/datasets/videophysics/videophy2_test)
-- Train dataset: [videophysics/videophy2_train](https://huggingface.co/datasets/videophysics/videophy2_train)
-- AutoEval weights: [videophysics/videophy_2_auto](https://huggingface.co/videophysics/videophy_2_auto)
-- In-tree runner: `worldfoundry/evaluation/tasks/execution/runners/videophy2/run_videophy2_official_runner.py`
-
-
-## Official references
-
-| Resource | Link |
-| --- | --- |
-| Project page | [videophy2.github.io](https://videophy2.github.io/) |
-| Paper | [arXiv:2503.06800](https://arxiv.org/abs/2503.06800) |
-| GitHub | [github.com/Hritikbansal/videophy](https://github.com/Hritikbansal/videophy) |
-| HF test dataset | [videophysics/videophy2_test](https://huggingface.co/datasets/videophysics/videophy2_test) |
-| AutoEval weights | [videophysics/videophy_2_auto](https://huggingface.co/videophysics/videophy_2_auto) |
-| In-tree runner | `worldfoundry/evaluation/tasks/execution/runners/videophy2/run_videophy2_official_runner.py` |
+- Official repository: [Hritikbansal/videophy](https://github.com/Hritikbansal/videophy)
 
 ## Evaluation protocol
 
-WorldFoundry uses the bundled prompt manifest at `worldfoundry/data/benchmarks/assets/videophy2/prompts.json`. It contains the 200 prompt IDs, captions, and physical-rule metadata needed to reproduce the VideoPhy-2 test protocol.
+`official-validation` normalizes an official result export. `--run-official` executes the in-tree VideoPhy2 AutoEval judge with `--autoeval-checkpoint` plus optional `--autoeval-lora-checkpoint`, sampling `--num-frames` frames per video. Joint Score is the primary scorecard key; rule-level determinations feed `rule_followed_rate`.
 
-Each candidate model must generate one video per prompt. The expected filename is:
+Primary metric: `joint_score`.
 
-```text
-<prompt_id>.mp4
-```
+| Metric | Meaning | Direction |
+| --- | --- | --- |
+| `semantic_adherence` | Semantic Adherence normalized benchmark score. | Higher is better |
+| `physical_commonsense` | Physical Commonsense normalized benchmark score. | Higher is better |
+| `joint_score` | Joint Score normalized benchmark score. | Higher is better |
+| `rule_followed_rate` | Fraction of determined physical rules judged as followed rather than violated. | Higher is better |
 
-For the full official suite, the generated artifact directory should contain `1.mp4` through `200.mp4`.
+## Data and artifact layout
 
-Primary metric: `videophy2_average`.
-
-| Metric | Meaning |
-| --- | --- |
-| `semantic_adherence` | Mean 1-5 rating for whether the video depicts the requested action, objects, and scene. |
-| `physical_commonsense` | Mean 1-5 rating for whether the action and material interaction are physically plausible. |
-| `joint_score` | Fraction of prompts where semantic adherence and physical commonsense are both at least 4/5. |
-| `rule_classification_accuracy` | Accuracy for classifying whether the listed physical rule is followed or violated. |
-| `videophy2_average` | Primary aggregate used by the WorldFoundry scorecard. |
-
-The official AutoEval model runs three tasks internally: `sa` for semantic adherence, `pc` for physical commonsense, and `rule` for physical-rule grounding.
-
-## Data and checkpoint preparation
-
-The prompt manifest is already checked in:
-
-```bash
-cd "$WORLDFOUNDRY_REPO_ROOT"
-export WORLDFOUNDRY_VIDEOPHY2_PROMPT_MANIFEST="$PWD/worldfoundry/data/benchmarks/assets/videophy2/prompts.json"
-```
-
-Download the AutoEval checkpoint through Hugging Face:
-
-```bash
-export WORLDFOUNDRY_VIDEOPHY2_AUTOEVAL_CKPT=/path/to/checkpoints/videophy_2_auto
-hf download videophysics/videophy_2_auto \
-  --local-dir "${WORLDFOUNDRY_VIDEOPHY2_AUTOEVAL_CKPT}"
-```
-
-If you want to compare against the official released test assets or annotations, download the dataset separately:
-
-```bash
-hf download videophysics/videophy2_test \
-  --repo-type dataset \
-  --local-dir /path/to/datasets/videophy2_test
-```
-
-The benchmark reproduction path does not require training the AutoEval model. The official training dataset is public, but WorldFoundry only vendors the AutoEval inference runtime needed for scoring. If you retrain or fine-tune an evaluator, pass the resulting checkpoint directory with `--autoeval-checkpoint`.
-
-## Generate candidate videos
-
-Run your candidate text-to-video model on the 200 prompts in `WORLDFOUNDRY_VIDEOPHY2_PROMPT_MANIFEST`, then write the videos into one directory using the official names:
+In-tree paths:
 
 ```text
-/path/to/videophy2/generated_videos/
-  1.mp4
-  2.mp4
-  ...
-  200.mp4
+worldfoundry/data/benchmarks/tasks/external/videophy2.yaml
+worldfoundry/evaluation/tasks/execution/runners/videophy2
 ```
 
-Set the artifact directory before scoring:
-
-```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/videophy2/generated_videos
+```text
+worldfoundry/data/benchmarks/assets/videophy2/prompts.json   # official prompt list
+${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}/                      # candidate videos named per prompt id
 ```
 
-Candidate model training and inference are model-specific. For WorldFoundry-integrated generators, use the model's synthesis page or package entrypoint, then copy or export the final video for each prompt ID into the layout above.
+AutoEval judge weights (base + optional LoRA) are caller-supplied.
 
-## Run AutoEval scoring
+## Run the benchmark
 
-Run the in-tree VideoPhy-2 AutoEval path:
-
-```bash
-cd "$WORLDFOUNDRY_REPO_ROOT"
-
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-  worldfoundry/evaluation/tasks/execution/runners/videophy2/run_videophy2_official_runner.py \
-  --run-official \
-  --prompt-manifest "${WORLDFOUNDRY_VIDEOPHY2_PROMPT_MANIFEST}" \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --autoeval-checkpoint "${WORLDFOUNDRY_VIDEOPHY2_AUTOEVAL_CKPT}" \
-  --batch-size "${WORLDFOUNDRY_VIDEOPHY2_BATCH_SIZE:-1}" \
-  --num-frames "${WORLDFOUNDRY_VIDEOPHY2_NUM_FRAMES:-32}" \
-  --output-dir tmp/videophy2/official-run \
-  --strict \
-  --json
-```
-
-Use `--strict` for leaderboard reproduction. It fails if the 200 expected videos are not all present. For a partial research run, remove `--strict`; the scorecard will still report video coverage.
-
-Useful runtime variables:
-
-```bash
-export WORLDFOUNDRY_VIDEOPHY2_BATCH_SIZE=1
-export WORLDFOUNDRY_VIDEOPHY2_NUM_FRAMES=32
-export WORLDFOUNDRY_VIDEOPHY2_AUTOEVAL_PYTHON="${WORLDFOUNDRY_UNIFIED_PYTHON:-python}"
-```
-
-## Import existing results
-
-If AutoEval has already produced a VideoPhy-2 result file, import it through the same runner:
-
-```bash
-cd "$WORLDFOUNDRY_REPO_ROOT"
-
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-  worldfoundry/evaluation/tasks/execution/runners/videophy2/run_videophy2_official_runner.py \
-  --official-results-path /path/to/videophy2_results.json \
-  --prompt-manifest "${WORLDFOUNDRY_VIDEOPHY2_PROMPT_MANIFEST}" \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/videophy2/imported \
-  --json
-```
-
-The unified benchmark entry can also import an existing result:
+Catalog-recorded validation command:
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id videophy2 \
   --mode official-validation \
-  --official-results-path /path/to/videophy2_results.json \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/videophy2/official-validation \
+  --official-results-path <official_results.json> \
+  --generated-artifact-dir <generated_videos> \
+  --output-dir <out> \
   --json
 ```
 
+Execute the in-tree VideoPhy2 AutoEval judge:
+
+```bash
+${WORLDFOUNDRY_UNIFIED_PYTHON} \
+  worldfoundry/evaluation/tasks/execution/runners/videophy2/run_videophy2_official_runner.py \
+  --run-official \
+  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
+  --autoeval-checkpoint /path/to/videophy2_autoeval \
+  --output-dir tmp/videophy2/official \
+  --json
+```
+
+## Checkpoints and environment variables
+
+- `WORLDFOUNDRY_VIDEOPHY2_ROOT`: Optional override pointing at a local benchmark runtime/repository root.
+- `WORLDFOUNDRY_VIDEOPHY2_JUDGE_BACKEND`: Selects the judge backend for --run-official.
+- `WORLDFOUNDRY_VIDEOPHY2_RESULTS_PATH`: Default path the importer reads official result exports from when `--official-results-path` is not passed.
+- `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR`: Directory containing the candidate generated artifacts to score or import against.
+
+This benchmark reuses the shared base-model dependency stack: `videophy2_dataset_assets`.
+
 ## Outputs
 
-The run writes:
+The run writes into `--output-dir`:
 
-- `scorecard.json`: WorldFoundry scorecard with `semantic_adherence`, `physical_commonsense`, `joint_score`, `rule_classification_accuracy`, and `videophy2_average`.
-- `videophy2_results.json`: merged AutoEval per-prompt result JSON when `--run-official` is used.
-- `raw_metric_table.jsonl`: metric rows used by the scorecard.
-- `per_sample_scores.jsonl`: per-prompt SA/PC/joint/rule rows.
-- `videophy2_autoeval_inputs/`: generated CSV inputs for `sa`, `pc`, and `rule`.
-- `videophy2_autoeval_outputs/`: raw AutoEval CSV outputs.
-- `logs/`: AutoEval stdout/stderr logs.
+- `scorecard.json`: WorldFoundry scorecard with the metric values recorded above.
+- `benchmark_contract.json`: Benchmark contract record for the run (inputs, mode, provenance).
+- `raw_metric_table.jsonl`: Metric rows backing the scorecard.
+
+Scorecard primary key: `joint_score` (leaderboard key `joint_score`), stored in `scorecard.json`.
+
+## Limitations
+
+- The full official runtime remains upstream; the in-tree fixture records expected input/output shape only.
+- Leaderboard parity requires official AutoEval checkpoints (including LoRA adapters), the full prompt suite, and upstream result normalization.
+- Rule-level judgments from non-official checkpoints are not comparable to published VideoPhy2 numbers.
 
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

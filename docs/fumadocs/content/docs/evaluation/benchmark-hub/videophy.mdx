@@ -1,183 +1,98 @@
 ---
 title: VideoPhy
-description: Physical commonsense evaluation for text-to-video generation, with in-tree prompts, VideoCon-Physics runtime, and runnable commands.
+description: Physical-commonsense benchmark for T2V with VideoCon-Physics judged semantic adherence, physical commonsense, and joint score.
 ---
 
 ## About
 
-VideoPhy evaluates whether text-to-video models can generate videos that both follow the input caption and obey everyday physical commonsense. The benchmark contains 688 captions covering real-world material interactions such as solid-solid, solid-fluid, and fluid-fluid behavior. The original paper reports that even strong text-to-video systems often fail because they miss the requested action, violate intuitive physics, or do both at the same time.
+**Publisher:** UCLA & Google Research
 
-WorldFoundry integrates the VideoPhy evaluation path in tree. The prompt manifest, metric normalization, VideoCon-Physics invocation, scorecard writing, and result import are all implemented under `worldfoundry/evaluation/tasks/execution/runners/videophy`, while the reusable VideoCon-Physics inference code lives under `worldfoundry/base_models/llm_mllm_core/mllm/videocon_physics`.
+VideoPhy tests whether text-to-video models generate videos that follow real-world physical commonsense in material interactions (solid-solid, solid-fluid, fluid-fluid). Each prompt describes a physical interaction; generated videos are judged for Semantic Adherence (does the video match the prompt) and Physical Commonsense (does the motion obey physics), combined into a Joint Score. The official judge is VideoCon-Physics, a fine-tuned video-language model released by the authors.
+
+WorldFoundry bundles the official prompt list and hosts the runner with two paths: normalizing caller-provided official result files, and executing the in-tree VideoCon-Physics AutoEvaluator judge via `--run-official`.
 
 Official references:
 
+- Paper: [arxiv.org/abs/2406.03520](https://arxiv.org/abs/2406.03520)
 - Project page: [videophy.github.io](https://videophy.github.io/)
-- Paper: [arXiv:2406.03520](https://arxiv.org/abs/2406.03520)
-- Test dataset: [videophysics/videophy_test_public](https://huggingface.co/datasets/videophysics/videophy_test_public)
-- Train dataset: [videophysics/videophy_train_public](https://huggingface.co/datasets/videophysics/videophy_train_public)
-- VideoCon-Physics weights: [videophysics/videocon_physics](https://huggingface.co/videophysics/videocon_physics)
-- In-tree runner: `worldfoundry/evaluation/tasks/execution/runners/videophy/run_videophy_official_runner.py`
-
-
-## Official references
-
-| Resource | Link |
-| --- | --- |
-| Project page | [videophy.github.io](https://videophy.github.io/) |
-| Paper | [arXiv:2406.03520](https://arxiv.org/abs/2406.03520) |
-| GitHub | [github.com/Hritikbansal/videophy](https://github.com/Hritikbansal/videophy) |
-| HF test dataset | [videophysics/videophy_test_public](https://huggingface.co/datasets/videophysics/videophy_test_public) |
-| VideoCon-Physics | [videophysics/videocon_physics](https://huggingface.co/videophysics/videocon_physics) |
-| In-tree runner | `worldfoundry/evaluation/tasks/execution/runners/videophy/run_videophy_official_runner.py` |
+- Official repository: [Hritikbansal/videophy](https://github.com/Hritikbansal/videophy)
 
 ## Evaluation protocol
 
-WorldFoundry uses the bundled prompt manifest:
-
-```text
-worldfoundry/data/benchmarks/assets/videophy/prompts.json
-```
-
-The manifest contains the 688 official captions and prompt IDs used for generation and coverage accounting. Each candidate model must generate one video per prompt. The expected filename is:
-
-```text
-<prompt_id>.mp4
-```
-
-For the full benchmark suite, the generated artifact directory should contain `1.mp4` through `688.mp4`.
+`official-validation` normalizes an official result export. `--run-official` drives the VideoCon-Physics judge over candidate videos: key flags include `--videocon-checkpoint` (judge weights), `--num-frames`, `--batch-size`, and the binarization thresholds `--sa-threshold` / `--pc-threshold` used to convert judge probabilities into per-video adherence decisions before aggregation.
 
 Primary metric: `videophy_average`.
 
-| Metric | Meaning |
-| --- | --- |
-| `semantic_adherence` | Fraction of prompts where the evaluator judges the generated video as aligned with the input caption (`SA=1`). |
-| `physical_commonsense` | Fraction of prompts where the video is judged physically plausible (`PC=1`). |
-| `joint_score` | Fraction of prompts that pass both semantic adherence and physical commonsense. |
-| `videophy_average` | Mean of the semantic-adherence and physical-commonsense rates. |
+| Metric | Meaning | Direction |
+| --- | --- | --- |
+| `semantic_adherence` | Semantic Adherence normalized benchmark score. | Higher is better |
+| `physical_commonsense` | Physical Commonsense normalized benchmark score. | Higher is better |
+| `joint_score` | Joint Score normalized benchmark score. | Higher is better |
+| `videophy_average` | VideoPhy Average normalized benchmark score. | Higher is better |
 
-VideoCon-Physics runs two entailment-style passes internally: one for semantic adherence and one for physical commonsense. The runner merges those per-video predictions into the metrics above.
+## Data and artifact layout
 
-## Data and checkpoint preparation
-
-Start from the WorldFoundry repository root:
-
-```bash
-cd "$WORLDFOUNDRY_REPO_ROOT"
-export WORLDFOUNDRY_VIDEOPHY_PROMPT_MANIFEST="$PWD/worldfoundry/data/benchmarks/assets/videophy/prompts.json"
-```
-
-Download the VideoCon-Physics checkpoint through Hugging Face:
-
-```bash
-export WORLDFOUNDRY_VIDEOPHY_VIDEOCON_CKPT=/path/to/checkpoints/videocon_physics
-hf download videophysics/videocon_physics \
-  --local-dir "${WORLDFOUNDRY_VIDEOPHY_VIDEOCON_CKPT}"
-```
-
-If you need to compare with the released test videos, annotations, or train split, download them as datasets:
-
-```bash
-hf download videophysics/videophy_test_public \
-  --repo-type dataset \
-  --local-dir /path/to/datasets/videophy_test_public
-
-hf download videophysics/videophy_train_public \
-  --repo-type dataset \
-  --local-dir /path/to/datasets/videophy_train_public
-```
-
-Leaderboard reproduction only needs the 688 prompts, candidate generated videos, and the VideoCon-Physics checkpoint. Training VideoCon-Physics is optional research work; if you train or fine-tune a replacement evaluator, pass that checkpoint directory with `--videocon-checkpoint`.
-
-## Generate candidate videos
-
-Run your text-to-video model on the captions in `WORLDFOUNDRY_VIDEOPHY_PROMPT_MANIFEST`, then stage the outputs in one directory:
+In-tree paths:
 
 ```text
-/path/to/videophy/generated_videos/
-  1.mp4
-  2.mp4
-  ...
-  688.mp4
+worldfoundry/data/benchmarks/tasks/external/videophy.yaml
+worldfoundry/evaluation/tasks/execution/runners/videophy
 ```
 
-Set the artifact directory before scoring:
-
-```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/videophy/generated_videos
+```text
+worldfoundry/data/benchmarks/assets/videophy/prompts.json    # official prompt list
+${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}/                      # candidate videos named per prompt id
 ```
 
-Candidate model inference is model-specific. For a WorldFoundry-integrated generator, run the model's synthesis entrypoint or model page workflow, then export the final video for each prompt ID into the layout above.
+The VideoCon-Physics judge checkpoint is caller-supplied (`--videocon-checkpoint`); it is not vendored in tree.
 
-## Run VideoCon-Physics scoring
+## Run the benchmark
 
-Run the in-tree VideoPhy official path:
-
-```bash
-cd "$WORLDFOUNDRY_REPO_ROOT"
-
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-  worldfoundry/evaluation/tasks/execution/runners/videophy/run_videophy_official_runner.py \
-  --run-official \
-  --prompt-manifest "${WORLDFOUNDRY_VIDEOPHY_PROMPT_MANIFEST}" \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --videocon-checkpoint "${WORLDFOUNDRY_VIDEOPHY_VIDEOCON_CKPT}" \
-  --batch-size "${WORLDFOUNDRY_VIDEOPHY_BATCH_SIZE:-1}" \
-  --num-frames "${WORLDFOUNDRY_VIDEOPHY_NUM_FRAMES:-32}" \
-  --output-dir tmp/videophy/official-run \
-  --strict \
-  --json
-```
-
-Keep `--strict` when reproducing the official leaderboard-style suite. It fails if any of the 688 expected videos are missing. For partial research runs, remove `--strict`; the scorecard will still report video coverage.
-
-Useful runtime variables:
-
-```bash
-export WORLDFOUNDRY_VIDEOPHY_BATCH_SIZE=1
-export WORLDFOUNDRY_VIDEOPHY_NUM_FRAMES=32
-export WORLDFOUNDRY_VIDEOPHY_VIDEOCON_PYTHON="${WORLDFOUNDRY_UNIFIED_PYTHON:-python}"
-export WORLDFOUNDRY_VIDEOPHY_SA_THRESHOLD=0.5
-export WORLDFOUNDRY_VIDEOPHY_PC_THRESHOLD=0.5
-```
-
-## Import existing results
-
-If you already have a VideoPhy result JSON or CSV with per-sample `sa` and `pc` fields, or a summary CSV with metric IDs and scores, import it through the same runner:
-
-```bash
-cd "$WORLDFOUNDRY_REPO_ROOT"
-
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-  worldfoundry/evaluation/tasks/execution/runners/videophy/run_videophy_official_runner.py \
-  --official-results-path /path/to/videophy_results.json \
-  --prompt-manifest "${WORLDFOUNDRY_VIDEOPHY_PROMPT_MANIFEST}" \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/videophy/imported \
-  --json
-```
-
-The unified benchmark entry can also import an existing result:
+Catalog-recorded validation command:
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id videophy \
   --mode official-validation \
-  --official-results-path /path/to/videophy_results.json \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/videophy/official-validation \
+  --official-results-path <official_results.json> \
+  --generated-artifact-dir <generated_videos> \
+  --output-dir <out> \
   --json
 ```
 
+Execute the in-tree VideoCon-Physics judge over candidate videos:
+
+```bash
+${WORLDFOUNDRY_UNIFIED_PYTHON} \
+  worldfoundry/evaluation/tasks/execution/runners/videophy/run_videophy_official_runner.py \
+  --run-official \
+  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
+  --videocon-checkpoint /path/to/videocon_physics \
+  --output-dir tmp/videophy/official \
+  --json
+```
+
+## Checkpoints and environment variables
+
+- `WORLDFOUNDRY_VIDEOPHY_ROOT`: Optional override pointing at a local benchmark runtime/repository root.
+- `WORLDFOUNDRY_VIDEOPHY_JUDGE_BACKEND`: Selects the judge backend for --run-official.
+- `WORLDFOUNDRY_VIDEOPHY_RESULTS_PATH`: Default path the importer reads official result exports from when `--official-results-path` is not passed.
+- `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR`: Directory containing the candidate generated artifacts to score or import against.
+
 ## Outputs
 
-The run writes:
+The run writes into `--output-dir`:
 
-- `scorecard.json`: WorldFoundry scorecard with `semantic_adherence`, `physical_commonsense`, `joint_score`, and `videophy_average`.
-- `videophy_results.json`: merged per-prompt VideoCon-Physics result JSON when `--run-official` is used.
-- `raw_metric_table.jsonl`: metric rows used by the scorecard.
-- `per_sample_scores.jsonl`: per-prompt SA/PC/joint rows.
-- `videocon_physics_inputs/`: generated CSV inputs for semantic-adherence and physical-commonsense passes.
-- `videocon_physics_outputs/`: raw VideoCon-Physics CSV outputs.
-- `logs/`: VideoCon-Physics stdout/stderr logs.
+- `scorecard.json`: WorldFoundry scorecard with the metric values recorded above.
+- `benchmark_contract.json`: Benchmark contract record for the run (inputs, mode, provenance).
+- `raw_metric_table.jsonl`: Metric rows backing the scorecard.
+
+Scorecard primary key: `videophy_average` (leaderboard key `videophy_average`), stored in `scorecard.json`.
+
+## Limitations
+
+- The full official runtime remains upstream; the in-tree contract fixture records input/output shape only.
+- Leaderboard parity requires the official VideoCon-Physics checkpoint, the full official prompt suite, and normalized upstream result files.
+- Local judge runs over partial prompt sets are development signals, not official VideoPhy numbers.
 
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

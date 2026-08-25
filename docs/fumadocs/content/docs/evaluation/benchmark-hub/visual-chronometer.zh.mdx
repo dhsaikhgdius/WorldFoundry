@@ -1,133 +1,87 @@
 ---
 title: Visual Chronometer
-description: Visual Chronometer — 指标、依赖与运行命令。
+description: 对任意视频预测 PhyFPS：测量视觉运动隐含的物理帧率，与容器元数据无关。
 ---
 
 ## 简介
 
-Visual Chronometer external benchmark task manifest for in-tree PhyFPS prediction.
+**发表机构：** TACO Group（Texas A&M University，德州农工大学）
 
-**WorldFoundry 评测路径:** 使用仓内 official metric runtime，对 caller 提供的生成产物运行官方指标栈（本地 checkpoint / evaluator）。 候选模型输出从 generated-artifact 目录读取。
+Visual Chronometer 预测视频的物理帧率（PhyFPS）——由视觉动态隐含的真实时间刻度——从而绕开不可靠的容器元数据。它通过受控时间重采样训练，并加入物理化增广（运动模糊、卷帘快门），能暴露真实与生成视频中的时间不稳定性。作为 WorldFoundry benchmark，它对一个视频目录输出平均 PhyFPS 以及片段内/片段间变异系数；数值越低表示时间行为越平稳一致。
 
-## 集成状态
+WorldFoundry 通过与 PhyFPS-Bench-Gen 共享的入库 runtime 包装器在进程内运行 PhyFPS 预测。
 
-| 项目 | 当前状态 |
-| --- | --- |
-| Catalog integration | `integrated` |
-| Runner verification | `official_runtime_ready` |
-| Leaderboard | 暂不可用于 leaderboard 声明 |
+官方参考：
 
-## 指标
+- 官方仓库: [taco-group/Visual_Chronometer](https://github.com/taco-group/Visual_Chronometer)
 
-### Task YAML
+## 评测协议
 
-`worldfoundry/data/benchmarks/tasks/external/visual-chronometer.yaml`
+把 `--generated-artifact-dir` 指向任意视频目录；runner 在每个片段上滑窗预测逐窗 PhyFPS 并聚合。`WORLDFOUNDRY_VISUAL_CHRONOMETER_PREDICT_BACKEND` 选择本地预测后端。`official-validation` 模式改为归一化已有的 `results.csv` 而不重新预测。
 
-### Primary
+主指标是 `visual_chronometer_average`。
 
-- `visual_chronometer_average`
+| Metric | 含义 | 方向 |
+| --- | --- | --- |
+| `mean_phyfps` | 受评视频的平均 PhyFPS 均值。 | 越低越好 |
+| `inter_video_cv` | 逐视频平均 PhyFPS 的跨视频变异系数。 | 越低越好 |
+| `intra_video_cv` | 滑动窗口片段上视频内变异系数的均值。 | 越低越好 |
+| `visual_chronometer_average` | 可用 Visual Chronometer 一致性得分族的均值。 | 越低越好 |
 
-| Metric | 关注点 |
-| --- | --- |
-| `mean_phyfps` | Mean average PhyFPS across evaluated videos. |
-| `inter_video_cv` | Cross-video coefficient of variation over average PhyFPS. |
-| `intra_video_cv` | Mean within-video coefficient of variation over sliding-window clips. |
-| `visual_chronometer_average` | Visual Chronometer 时间感知 probe 的时序一致性 score 族平均值（越低越好）。 |
+## 数据与产物布局
 
-## 环境准备
+WorldFoundry 仓内路径：
 
-### 运行环境
-
-- **Conda 环境：** `worldfoundry-unified-cu128`。
-- **单独配置：** 默认复用 WorldFoundry 统一环境（`needs_new_env: false`），通常不需要额外 benchmark-only conda env。
-- WorldFoundry runs Visual Chronometer PhyFPS prediction in-process and normalizes results.csv into the Visual Chronometer metric surface.
-- Use WORLDFOUNDRY_VISUAL_CHRONOMETER_PREDICT_BACKEND to select the local prediction backend.
-
-### 测评数据
-
-- 待测模型输出目录：设置 `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR` 指向生成视频或 rollout artifact 根目录。
-- `worldfoundry/evaluation/tasks/execution/runners/phyfps_bench_gen/runtime/visual_chronometer`
-- `worldfoundry/data/benchmarks/tasks/external/visual-chronometer.yaml`
-
-### Checkpoint 与资产
-
-- Base-model / metric 依赖：`visual_chronometer_fps_predictor`。
-- Metric / evaluator checkpoint 默认路径与覆盖变量见 [local assets 指南](/zh/docs/guides/local-assets)。
-
-### 关键环境变量
-
-- `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR`
-- `WORLDFOUNDRY_VISUAL_CHRONOMETER_ROOT`
-- `WORLDFOUNDRY_VISUAL_CHRONOMETER_PREDICT_BACKEND`
-- `WORLDFOUNDRY_VISUAL_CHRONOMETER_RESULTS_PATH`
-- `WORLDFOUNDRY_VISUAL_CHRONOMETER_STRICT`
-
-### 环境检查
-
-```bash
-PYTHONPATH=. ${WORLDFOUNDRY_UNIFIED_PYTHON:-python} -m worldfoundry.evaluation.tasks.execution.orchestration.runtime_preflight --profile visual-chronometer --manifest worldfoundry/data/benchmarks/runtime_profiles/official/visual-chronometer.yaml --output-dir tmp/worldfoundry_preflight/visual-chronometer --json
+```text
+worldfoundry/data/benchmarks/tasks/external/visual-chronometer.yaml
+worldfoundry/evaluation/tasks/execution/runners/phyfps_bench_gen/runtime/visual_chronometer
 ```
+
+```text
+.../runners/phyfps_bench_gen/runtime/visual_chronometer/   # 共享仓内 runtime
+${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}/*.mp4               # 待评测视频
+<out>/results.csv                                          # 逐片段 PhyFPS 预测
+```
+
+真实预测需要 VC-Common 权重（`xiangbog/Visual_Chronometer`，适用 10-60 FPS）。
 
 ## 运行评测
 
-准备好该 benchmark 页面列出的资产和候选产物后，使用下面的公开运行入口。
-
-### 设置候选产物目录
-
-```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/generated/artifacts
-```
-
-### 导入已有官方结果
+目录 manifest 记录的 validation 命令：
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id visual-chronometer \
-  --mode normalizer \
-  --official-results-path /path/to/official/results-or-report \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/visual-chronometer/normalizer \
+  --mode official-validation \
+  --official-results-path <results.csv> \
+  --generated-artifact-dir <generated_videos> \
+  --output-dir <out> \
   --json
 ```
 
-### 从生成产物重新打分
+## 权重与环境变量
 
-```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id visual-chronometer \
-  --mode official-run \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/visual-chronometer/official-run \
-  --json
-```
+- `WORLDFOUNDRY_VISUAL_CHRONOMETER_ROOT`: 可选覆盖项，指向外部 runtime checkout。
+- `WORLDFOUNDRY_VISUAL_CHRONOMETER_RESULTS_PATH`: 未显式传 `--official-results-path` 时，导入器默认从该路径读取官方结果导出文件。
+- `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR`: 存放待评测生成产物（候选视频/rollout）的目录。
+- `WORLDFOUNDRY_VISUAL_CHRONOMETER_PREDICT_BACKEND`: 选择本地 PhyFPS 预测后端。
 
-### 直接调用仓内 runner
+## 输出文件
 
-```bash
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" worldfoundry/evaluation/tasks/execution/runners/phyfps_bench_gen/run_visual_chronometer_official_runner.py --run-official --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" --output-dir "${WORLDFOUNDRY_BENCHMARK_OUTPUT_DIR}" --json
-```
+运行会在 `--output-dir` 下写出：
 
-## 依赖与产物
-
-### Inputs
-
-- WORLDFOUNDRY_GENERATED_ARTIFACT_DIR
-- Visual Chronometer checkpoint assets for full official prediction
-
-### Environment
-
-- `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR`
-
-### Outputs
-
-- `scorecard.json`
-- `benchmark_contract.json`
-- `raw_metric_table.jsonl`
+- `scorecard.json`: WorldFoundry 统一 scorecard，记录上表中的指标值。
+- `benchmark_contract.json`: 本次运行的 benchmark contract 记录（输入、模式、来源信息）。
+- `raw_metric_table.jsonl`: 支撑 scorecard 的原始 metric 行。
 - `results.csv`
-- `per_sample_scores.jsonl`
+- `per_sample_scores.jsonl`: 当结果源包含逐样本数值时写出的逐样本行。
 
-## 官方资料
+Scorecard 主键：`visual_chronometer_average`（leaderboard key `visual_chronometer_average`），写入 `scorecard.json`。
 
-- [GitHub](https://github.com/taco-group/Visual_Chronometer)
+## 边界与限制
+
+- 完整 leaderboard 对齐需要全部官方权重资产与经验证的 scorecard 证据。
+- 官方发布的 VC-Common 权重覆盖 10-60 FPS，并非作者最强内部模型。
+- mock 预测后端仅用于接线检查，绝不构成 benchmark 证据。
 
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

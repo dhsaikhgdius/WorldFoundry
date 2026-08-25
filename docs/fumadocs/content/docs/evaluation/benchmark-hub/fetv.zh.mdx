@@ -27,15 +27,15 @@ runner 路径：用 `--official-results-path` 导入官方结果 CSV 或 FETV-EV
 
 | Metric | 含义 | 方向 |
 | --- | --- | --- |
-| `static_quality` | FETV manual static-quality score. | 越高越好 |
-| `temporal_quality` | FETV manual temporal-quality score. | 越高越好 |
-| `overall_alignment` | FETV overall text-video alignment score. | 越高越好 |
-| `fine_grained_alignment` | FETV fine-grained prompt-aspect alignment score. | 越高越好 |
-| `clip_score` | FETV automatic CLIPScore component. | 越高越好 |
-| `blip_score` | FETV automatic BLIPScore component. | 越高越好 |
-| `fid` | FETV Fréchet Inception Distance component. | 越低越好 |
-| `fvd` | FETV Fréchet Video Distance component. | 越低越好 |
-| `fetv_average` | Mean emitted only when every declared FETV component score is available. | 越高越好 |
+| `static_quality` | FETV 人工静态质量得分。 | 越高越好 |
+| `temporal_quality` | FETV 人工时序质量得分。 | 越高越好 |
+| `overall_alignment` | FETV 整体文本-视频对齐得分。 | 越高越好 |
+| `fine_grained_alignment` | FETV 细粒度 prompt 侧面对齐得分。 | 越高越好 |
+| `clip_score` | FETV 自动 CLIPScore 组件。 | 越高越好 |
+| `blip_score` | FETV 自动 BLIPScore 组件。 | 越高越好 |
+| `fid` | FETV 的 Fréchet Inception Distance 组件；越低越好。 | 越低越好 |
+| `fvd` | FETV 的 Fréchet Video Distance 组件；越低越好。 | 越低越好 |
+| `fetv_average` | 仅当所有声明的 FETV 组件分齐备时输出的均值。 | 越高越好 |
 
 ## 数据与产物布局
 

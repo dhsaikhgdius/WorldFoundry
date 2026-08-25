@@ -27,10 +27,10 @@ Primary metric: `physics_iq_score`.
 | --- | --- | --- |
 | `physics_iq_score` | Original global-aggregation score (official final_score_orig). | Higher is better |
 | `physics_iq_stable_score` | Component-clipped stable score emitted by the current official implementation. | Higher is better |
-| `physics_iq_spatiotemporal` |  | Higher is better |
-| `physics_iq_spatial` |  | Higher is better |
-| `physics_iq_weighted_spatial` |  | Higher is better |
-| `physics_iq_mse_penalty` |  | Lower is better |
+| `physics_iq_spatiotemporal` | Spatiotemporal IoU: where and when motion happens vs. the real continuation. | Higher is better |
+| `physics_iq_spatial` | Spatial IoU: where action happens, regardless of timing. | Higher is better |
+| `physics_iq_weighted_spatial` | Weighted spatial IoU: where and how much action happens. | Higher is better |
+| `physics_iq_mse_penalty` | Pixel-wise MSE penalty against the real continuation. | Lower is better |
 
 ## Data and artifact layout
 

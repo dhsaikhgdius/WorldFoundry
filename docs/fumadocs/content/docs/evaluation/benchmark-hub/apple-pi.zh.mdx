@@ -1,0 +1,98 @@
+---
+title: Apple-PI
+description: 定律锚定的物理智能评测：在 400 视频 Orchard 力学数据集上考察 Perception → Formulation → Deduction 三阶段。
+---
+
+## 简介
+
+**发表机构：** S-Lab（南洋理工大学）与香港中文大学
+
+Apple-PI（Apple-π）把视频模型评测显式锚定在物理定律上。它基于 Orchard 数据集——400 段经典力学视频，来源包括 Isaac Sim 仿真、实验室自录与互联网片段——通过 chain-of-frames 提示执行三阶段科学推理协议：Perception（读取物理量 / 物体定位）、Formulation（选择支配定律 / 预测目标时刻状态）、Deduction（生成完整的、符合定律的轨迹）。Perception 与 Formulation 各分文本与图形两个子赛道，共五个子赛道。评分为混合式：Gemini 主观评审加物理锚定的客观指标（SAM3 分割/跟踪、MoGe 深度、轨迹重叠、速度误差）。
+
+WorldFoundry 以 model-backed 仓内 runner 集成 Apple-PI：读取上游格式的 GT 与预测目录，客观指标复用现有 SAM3 / MoGe 能力路径。
+
+官方参考：
+
+- Paper: [arxiv.org/abs/2607.16401](https://arxiv.org/abs/2607.16401)
+- 项目主页: [21yrm.github.io/Apple-PI-homepage](https://21yrm.github.io/Apple-PI-homepage/)
+- 官方仓库: [21yrm/Apple-PI](https://github.com/21yrm/Apple-PI)
+- License: `{'status': 'apache-2.0', 'notes': 'Apple-PI source repository is Apache-2.0; GT data availability follows the upstream release.'}`
+
+## 评测协议
+
+预测需遵循上游契约：每个 case、每个子赛道提交三次独立 rollout，第 0 帧为条件帧。runner 用 `--subtrack` 选择子赛道（`perception_text`、`perception_graphic`、`formulation_text`、`formulation_graphic`、`deduction`），用 `--protocol` 选择协议。主观评审用 Gemini（`--gemini-model`、`--judge-backend`）；客观指标加载 SAM3 与 MoGe-2 权重。`--no-foundation-models` 可跳过模型支撑的客观指标，仅做接线检查。
+
+主指标是 `deduction`。
+
+| Metric | 含义 | 方向 |
+| --- | --- | --- |
+| `perception_text` | 末帧文字标注产物得分。 | 越高越好 |
+| `perception_graphic` | 末帧纯物体定位产物得分。 | 越高越好 |
+| `formulation_text` | 支配定律与公式作答得分。 | 越高越好 |
+| `formulation_graphic` | 目标时刻状态、速度箭头与标注得分。 | 越高越好 |
+| `deduction` | 结合上游主观与客观评审的完整动力学轨迹得分。 | 越高越好 |
+| `apple_pi_average` | 可用 Apple-PI 子赛道均值的算术平均。 | 越高越好 |
+
+## 数据与产物布局
+
+WorldFoundry 仓内路径：
+
+```text
+worldfoundry/data/benchmarks/tasks/external/apple-pi.yaml
+```
+
+GT 与预测目录遵循上游格式文档（[GT_FORMAT.md](https://github.com/21yrm/Apple-PI/blob/main/docs/GT_FORMAT.md)、[PREDICTION_FORMAT.md](https://github.com/21yrm/Apple-PI/blob/main/docs/PREDICTION_FORMAT.md)）：
+
+```text
+${WORLDFOUNDRY_APPLE_PI_GT_DIR}/            # 上游 GT 数据集布局
+${WORLDFOUNDRY_APPLE_PI_PREDICTION_DIR}/    # 每个 case/子赛道 3 次 rollout
+```
+
+## 运行评测
+
+对已就位的 GT 目录评测 deduction 子赛道：
+
+```bash
+${WORLDFOUNDRY_UNIFIED_PYTHON} \
+  worldfoundry/evaluation/tasks/execution/runners/apple_pi/run_apple_pi_official_runner.py \
+  --run-official \
+  --gt-dir "${WORLDFOUNDRY_APPLE_PI_GT_DIR}" \
+  --pred-dir "${WORLDFOUNDRY_APPLE_PI_PREDICTION_DIR}" \
+  --subtrack deduction \
+  --output-dir tmp/apple_pi/deduction \
+  --json
+```
+
+## 权重与环境变量
+
+完整评测需要 Gemini API key 用于主观评审；SAM3 与 MoGe-2 权重走现有 WorldFoundry 能力路径。
+
+- `WORLDFOUNDRY_APPLE_PI_RESULTS_PATH`: 未显式传 `--official-results-path` 时，导入器默认从该路径读取官方结果导出文件。
+- `WORLDFOUNDRY_APPLE_PI_GT_DIR`
+- `WORLDFOUNDRY_APPLE_PI_PREDICTION_DIR`
+- `WORLDFOUNDRY_APPLE_PI_JUDGE_BACKEND`
+- `WORLDFOUNDRY_APPLE_PI_SAM3_CHECKPOINT`
+- `WORLDFOUNDRY_APPLE_PI_MOGE_CHECKPOINT`
+
+共享 checkpoint 资产：`sam3`, `moge_v2_vitl_normal`。
+
+该 benchmark 复用共享 base-model 依赖栈：`sam3`, `moge_v2_vitl_normal`。
+
+## 输出文件
+
+运行会在 `--output-dir` 下写出：
+
+- `scorecard.json`: WorldFoundry 统一 scorecard，记录上表中的指标值。
+- `raw_metric_table.jsonl`: 支撑 scorecard 的原始 metric 行。
+- `per_sample_scores.jsonl`: 当结果源包含逐样本数值时写出的逐样本行。
+- `benchmark_contract.json`: 本次运行的 benchmark contract 记录（输入、模式、来源信息）。
+
+Scorecard 主键：`deduction`（leaderboard key `deduction`），写入 `scorecard.json`。
+
+## 边界与限制
+
+- 上游 GT 数据集有文档但集成时尚未公开；完整套件的官方执行与 leaderboard 对齐在本工作区未验证。
+- SAM3 与 MoGe-2 客观指标需要对应权重与兼容环境。
+- 带 `--no-foundation-models` 或 mock judge 的接线运行不构成 benchmark 证据。
+
+[← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

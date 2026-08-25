@@ -25,11 +25,11 @@ WorldFoundry 通过与 Physics-IQ 相同的仓内 runner 运行它（`--protocol
 
 | Metric | 含义 | 方向 |
 | --- | --- | --- |
-| `physics_iq_verified_score` | Arithmetic mean after per-scenario, per-view physical-variance normalization. | 越高越好 |
-| `physics_iq_verified_spatiotemporal` |  | 越高越好 |
-| `physics_iq_verified_spatial` |  | 越高越好 |
-| `physics_iq_verified_weighted_spatial` |  | 越高越好 |
-| `physics_iq_verified_mse` |  | 越高越好 |
+| `physics_iq_verified_score` | 按场景、按视角做物理方差归一化后的算术平均。 | 越高越好 |
+| `physics_iq_verified_spatiotemporal` | 时空 IoU：运动发生的位置与时间与 verified 真实续写的重合度。 | 越高越好 |
+| `physics_iq_verified_spatial` | 空间 IoU：动作发生的位置（不考虑时间）。 | 越高越好 |
+| `physics_iq_verified_weighted_spatial` | 加权空间 IoU：动作发生的位置与幅度。 | 越高越好 |
+| `physics_iq_verified_mse` | 相对 verified 真实续写的逐像素 MSE。 | 越高越好 |
 
 ## 数据与产物布局
 

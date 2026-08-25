@@ -26,10 +26,10 @@ Primary metric: `physics_iq_verified_score`.
 | Metric | Meaning | Direction |
 | --- | --- | --- |
 | `physics_iq_verified_score` | Arithmetic mean after per-scenario, per-view physical-variance normalization. | Higher is better |
-| `physics_iq_verified_spatiotemporal` |  | Higher is better |
-| `physics_iq_verified_spatial` |  | Higher is better |
-| `physics_iq_verified_weighted_spatial` |  | Higher is better |
-| `physics_iq_verified_mse` |  | Higher is better |
+| `physics_iq_verified_spatiotemporal` | Spatiotemporal IoU: where and when motion happens vs. the verified real continuation. | Higher is better |
+| `physics_iq_verified_spatial` | Spatial IoU: where action happens, regardless of timing. | Higher is better |
+| `physics_iq_verified_weighted_spatial` | Weighted spatial IoU: where and how much action happens. | Higher is better |
+| `physics_iq_verified_mse` | Pixel-wise MSE against the verified real continuation. | Higher is better |
 
 ## Data and artifact layout
 
