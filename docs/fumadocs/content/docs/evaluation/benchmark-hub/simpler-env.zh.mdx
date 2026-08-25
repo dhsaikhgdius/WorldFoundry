@@ -1,131 +1,103 @@
 ---
 title: SimplerEnv
-description: SimplerEnv — 指标、依赖与运行命令。
+description: 真机策略的仿真评测代理，仓内提供闭环仿真接线与官方结果归一化。
 ---
 
-## 简介
+## 关于
 
+SimplerEnv 提供追踪真机基准表现的仿真评测环境。它构建在 ManiSkill2/SAPIEN 上，在仿真中复现 Google Robot 与 WidowX/Bridge 的评测设置，使 RT-1、Octo 等策略无需物理机器人即可比较，其成功率被设计为与真机评测相关。
 
+WorldFoundry 通过仓内闭环仿真适配器 `worldfoundry/evaluation/tasks/embodied/simulators/simpler/`（别名 `simpler`、`simplerenv`、`simpler_env`）以及共享官方结果归一化器集成 SimplerEnv。catalog 校验状态为 `normalizer_only`。
 
-SimplerEnv 提供基于仿真的 embodied evaluation，用于 real-to-sim 策略测试与 task-success mapping。
+官方来源：
 
+- 论文：[OpenReview LZh48DTg71](https://openreview.net/forum?id=LZh48DTg71)
+- 项目主页：[simpler-env.github.io](https://simpler-env.github.io/)
+- 官方仓库：[simpler-env/SimplerEnv](https://github.com/simpler-env/SimplerEnv)（固定 `06accaca`）
+- 许可：MIT
 
+## 仓内路径
+
+- Catalog：`worldfoundry/data/benchmarks/catalog/embodied/simpler-env.yaml`
+- 任务清单：`worldfoundry/data/benchmarks/tasks/external/simpler-env.yaml`
+- 运行时 profile：`worldfoundry/data/benchmarks/runtime_profiles/official/simpler-env.yaml`
+- 仿真适配器：`worldfoundry/evaluation/tasks/embodied/simulators/simpler/`
+- 闭环 eval config：`worldfoundry/data/benchmarks/eval_configs/embodied/simpler-env/{google_robot,widowx}.yaml`
+- 结果归一化器：`worldfoundry.evaluation.tasks.embodied.normalizer`（track `vla`）
+
+## 评测协议与数据布局
+
+结果导入侧，embodied normalizer 接受 JSON、JSONL、CSV、TSV 及 `result.txt` 风格日志。行记录按 `success`、`success_rate`、`task_success`、`episode_success`、`reward` 等数值字段匹配；布尔值与百分比字符串会被强制转换为 [0,1] 浮点数。
+
+内置 `google_robot.yaml` config 串联六个 Google Robot 任务（`google_robot_pick_coke_can`、`google_robot_pick_object`、`google_robot_move_near`、`google_robot_open_drawer`、`google_robot_close_drawer`、`google_robot_place_in_closed_drawer`），每任务 24 个 episode，由 `ws://localhost:8000` 上的外部 policy server 驱动；`widowx.yaml` 覆盖 WidowX/Bridge 本体。
 
 ## 指标
 
-SimplerEnv external benchmark task manifest for simulator-backed VLA policy rollouts.
+主指标（scorecard 主键）：`success_rate`。
 
-### Task YAML
-
-`worldfoundry/data/benchmarks/tasks/external/simpler-env.yaml`
-
-### Primary
-
-- `success_rate`
-
-| Metric | 关注点 |
+| 指标 | 含义 |
 | --- | --- |
-| `success_rate` | episode / task 是否成功完成的比例或成功率。 |
-| `task_success` | episode / task 是否成功完成的比例或成功率。 |
-| `episode_success` | episode / task 是否成功完成的比例或成功率。 |
-| `reward` | SimplerEnv 视觉匹配操作评估 episode 上的 real-to-sim bridge reward。 |
+| `success_rate` | 成功完成的 rollout 占比；leaderboard 主值。 |
+| `task_success` | 按任务聚合的成功率。 |
+| `episode_success` | 单 episode 的二值成功。 |
+| `reward` | episode 累计奖励。 |
 
+成功类指标经共享 registry 的 `percent_or_fraction_to_unit` 归一化；不涉及视频生成类指标。
 
-
-## 环境准备
-
-### 运行环境
-
-- **Conda 环境：** `giga-world-policy-py311`。
-- **单独配置：** 默认复用 WorldFoundry 统一环境（`needs_new_env: false`），通常不需要额外 benchmark-only conda env。
-- SimplerEnv source/runtime import 可见；完整状态需要 embodiment assets、policy wrapper 和 rollout 结果。
-
-### 测评数据
-
-- SimplerEnv evaluates policy rollouts in simulator; generated result files and rollout logs are normalized by WorldFoundry.
-- 待测模型输出目录：设置 `WORLDFOUNDRY_SIMPLERENV_RESULTS_PATH` 指向生成视频或 rollout artifact 根目录。
-- `${WORLDFOUNDRY_CACHE_DIR}/repos/simpler-env--SimplerEnv`
-
-### Checkpoint 与资产
-
-- 该 benchmark 以官方结果归一化或仿真 rollout 为主；policy / simulator checkpoint 见 catalog `requires` 与 task YAML。
-
-### 关键环境变量
-
-- `WORLDFOUNDRY_SIMPLERENV_ROOT`
-- `WORLDFOUNDRY_SIMPLERENV_RESULTS_PATH`
-
-### 环境检查
+## 准备命令与环境变量
 
 ```bash
-PYTHONPATH=${WORLDFOUNDRY_CACHE_DIR}/repos/simpler-env--SimplerEnv:src ${WORLDFOUNDRY_CONDA_ENVS_ROOT}/worldfoundry-giga-world-policy-py311/bin/python -m worldfoundry.evaluation.tasks.execution.orchestration.runtime_preflight --profile simpler-env --manifest worldfoundry/data/benchmarks/runtime_profiles/official/simpler-env.yaml --output-dir tmp/worldfoundry_preflight/simpler-env --json
+cd /path/to/WorldFoundry
+export WORLDFOUNDRY_SIMPLERENV_RESULTS_PATH=/path/to/simpler_env_results.json
 ```
 
+闭环 rollout 需要官方 SimplerEnv 仓库 checkout（缓存于 `cache/vla_va_wam/repos/simpler-env--SimplerEnv`）、ManiSkill2/SAPIEN 仿真栈、所选机器人本体 assets，以及通过 WebSocket 提供动作的策略 checkpoint（catalog `requires`）。
 
-
-## 运行评测
-
-
-
-准备好该 benchmark 页面列出的资产和候选产物后，使用下面的公开运行入口。
-
-### 设置候选产物目录
+校验运行时接线：
 
 ```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/generated/artifacts
+python -m worldfoundry.evaluation.tasks.execution.orchestration.runtime_preflight \
+  --profile simpler-env \
+  --manifest worldfoundry/data/benchmarks/runtime_profiles/official/simpler-env.yaml \
+  --output-dir tmp/worldfoundry_preflight/simpler-env \
+  --json
 ```
 
-### 导入已有官方结果
+## 导入官方结果（official-validation）
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id simpler-env \
-  --mode normalizer \
-  --official-results-path /path/to/official/results-or-report \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/simpler-env/normalizer \
+  --mode official-validation \
+  --official-results-path "${WORLDFOUNDRY_SIMPLERENV_RESULTS_PATH}" \
+  --output-dir tmp/simpler-env/official-validation \
   --json
 ```
 
-### 从生成产物重新打分
+该路径在进程内走 embodied `vla` track normalizer，不执行任何仿真代码。
+
+## 闭环 rollout（原生仿真器）
 
 ```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id simpler-env \
-  --mode official-run \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/simpler-env/official-run \
+worldfoundry-eval embodied run \
+  --config worldfoundry/data/benchmarks/eval_configs/embodied/simpler-env/google_robot.yaml \
+  --output-dir tmp/simpler-env/embodied-run \
   --json
 ```
 
-### 直接调用仓内 runner
+WidowX/Bridge 本体换用 `widowx.yaml`。支持 `--server-url`、`--shard-id`/`--num-shards`、`--no-docker`。
 
-```bash
-worldfoundry-eval zoo benchmark-run --benchmark-id simpler-env --mode official-validation --official-results-path <official_results.json> --output-dir <out> --json
-```
+## 输出
 
+- `scorecard.json`：WorldFoundry scorecard；leaderboard 块以 `success_rate` 为主键。
+- `raw_results.jsonl`：提取的原始结果行。
+- `evaluation/summary.json`：按指标聚合的统计。
+- `evaluation/per_sample_metrics.jsonl`：归一化后的逐 episode 行。
 
+## 不能声称的边界
 
-## 依赖与产物
+- catalog 状态为 `normalizer_only`，`leaderboard_valid: false`、`official_benchmark_verified: false`。导入的数字是调用方结果的归一化副本，不是官方复现的 leaderboard 值。
+- ManiSkill2/SAPIEN 栈、本体 assets、策略 checkpoint 均未随仓库分发；闭环 rollout 需要外部部署并运行 policy server。本页不声称任何本地 GPU rollout 证据。
+- catalog blocker：官方 SimplerEnv 仿真 rollout、policy wrapper 与结果导入映射验证完成之前，不达到 integrated 状态。
 
-
-
-### Inputs
-
-- Official SimplerEnv repository checkout
-- ManiSkill2/SAPIEN simulator stack
-- Selected robot embodiment assets
-- Benchmark-specific policy checkpoint
-
-### Environment
-
-- `WORLDFOUNDRY_SIMPLERENV_RESULTS_PATH`
-
-### Outputs
-
-- `scorecard.json`
-- `raw_results.jsonl`
-
-
-
-[← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

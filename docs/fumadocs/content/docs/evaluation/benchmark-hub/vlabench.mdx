@@ -1,126 +1,103 @@
 ---
 title: VLABench
-description: VLABench — metrics, requirements, and run commands.
+description: Language-conditioned long-horizon manipulation benchmark on MuJoCo/SAPIEN assets with in-tree closed-loop wiring and official result normalization.
 ---
 
 ## About
 
+VLABench is a large-scale benchmark for language-conditioned robot manipulation, emphasizing tasks that require world knowledge and reasoning — selecting the right fruit, toy, drink, book, or painting from distractors based on the language instruction — rather than pure motor skill. It provides standardized primitive and composite task families with success predicates for vision-language-action evaluation.
 
+WorldFoundry integrates VLABench with an in-tree closed-loop simulator adapter at `worldfoundry/evaluation/tasks/embodied/simulators/vlabench/` (aliases `vla-bench`, `vla_bench`) plus the shared official result normalizer for caller-provided rollout dumps. The catalog verification status is `normalizer_only`.
 
-VLABench external benchmark manifest for language-conditioned manipulation policy rollouts.
+Official references:
 
+- Paper: [arXiv:2502.09858](https://arxiv.org/abs/2502.09858) (catalog `paper_url`)
+- Official source reference: [OpenMOSS/VLABench](https://github.com/OpenMOSS/VLABench)
+- License: upstream terms (see repository)
 
+## In-tree integration
+
+- Catalog: `worldfoundry/data/benchmarks/catalog/embodied/vlabench.yaml`
+- Task manifest: `worldfoundry/data/benchmarks/tasks/external/vlabench.yaml`
+- Runtime profile: `worldfoundry/data/benchmarks/runtime_profiles/official/vlabench.yaml`
+- Simulator adapter: `worldfoundry/evaluation/tasks/embodied/simulators/vlabench/`
+- Closed-loop eval config: `worldfoundry/data/benchmarks/eval_configs/embodied/vlabench/eval.yaml`
+- Result normalizer: `worldfoundry.evaluation.tasks.embodied.normalizer` (track `vla`)
+
+## Evaluation protocol and result layout
+
+For result import, the embodied normalizer accepts JSON, JSONL, CSV, TSV, and `result.txt`-style logs. Rows are matched on numeric fields such as `success`, `success_rate`, `task_success`, `episode_success`, and `reward`; booleans and percent strings are coerced to unit-interval floats.
+
+The bundled eval config rolls out five selection tasks (`select_fruit`, `select_toy`, `select_drink`, `select_book`, `select_painting`) with a Franka robot, 200 max steps, and 20 episodes per task, against an external policy server at `ws://localhost:8000`.
 
 ## Metrics
 
-VLABench external benchmark manifest for language-conditioned manipulation policy rollouts.
+Primary metric (scorecard key): `success_rate`.
 
-### Task YAML
-
-`worldfoundry/data/benchmarks/tasks/external/vlabench.yaml`
-
-### Primary
-
-- `success_rate`
-
-| Metric | Focus |
+| Metric | Meaning |
 | --- | --- |
-| `success_rate` | Share of episodes or tasks that complete successfully. |
-| `task_success` | Share of episodes or tasks that complete successfully. |
-| `episode_success` | Share of episodes or tasks that complete successfully. |
-| `reward` | Cumulative reward on VLABench language-conditioned tabletop manipulation rollouts. |
+| `success_rate` | Share of rollouts completed successfully; primary leaderboard value. |
+| `task_success` | Per-task success aggregated across episodes. |
+| `episode_success` | Per-episode binary success. |
+| `reward` | Cumulative episode reward. |
 
+Success metrics are normalized via the shared registry (`percent_or_fraction_to_unit`). No video-generation metrics apply.
 
-
-## Environment setup
-
-### Runtime environment
-
-- **Conda env:** `vlabench-runtime`.
-- **Separate setup:** this benchmark expects a dedicated conda env rather than the unified runtime.
-- WorldFoundry provides contract and official result normalization for caller-provided VLABench outputs.
-
-### Evaluation data
-
-- Candidate model outputs: set `WORLDFOUNDRY_VLABENCH_RESULTS_PATH` to the generated-video or rollout artifact root.
-- `${WORLDFOUNDRY_DATA_DIR}/datasets/vlabench`
-- `${WORLDFOUNDRY_CACHE_DIR}/repos/OpenMOSS--VLABench`
-
-### Checkpoints & assets
-
-- This benchmark is primarily rollout- or official-result-driven; see catalog `requires` and the task YAML for policy/simulator checkpoints.
-
-### Key environment variables
-
-- `WORLDFOUNDRY_VLABENCH_ROOT`
-- `WORLDFOUNDRY_VLABENCH_RESULTS_PATH`
-
-
-
-## Run evaluation
-
-
-
-After preparing the assets and candidate artifacts listed on this page, use the public run entry points below.
-
-### Set candidate artifacts
+## Preparation and environment
 
 ```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/generated/artifacts
+cd /path/to/WorldFoundry
+export WORLDFOUNDRY_VLABENCH_ROOT=/path/to/VLABench
+export WORLDFOUNDRY_VLABENCH_RESULTS_PATH=/path/to/vlabench_results.json
 ```
 
-### Import official results
+The runtime profile flags `needs_new_env: true`. Closed-loop rollouts require the VLABench runtime, its simulator assets, and a policy checkpoint served over WebSocket (catalog `required_assets`).
+
+Verify runtime wiring:
+
+```bash
+python -m worldfoundry.evaluation.tasks.execution.orchestration.runtime_preflight \
+  --profile vlabench \
+  --manifest worldfoundry/data/benchmarks/runtime_profiles/official/vlabench.yaml \
+  --output-dir tmp/worldfoundry_preflight/vlabench \
+  --json
+```
+
+## Import official results (official-validation)
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id vlabench \
-  --mode normalizer \
-  --official-results-path /path/to/official/results-or-report \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/vlabench/normalizer \
+  --mode official-validation \
+  --official-results-path "${WORLDFOUNDRY_VLABENCH_RESULTS_PATH}" \
+  --output-dir tmp/vlabench/official-validation \
   --json
 ```
 
-### Score generated artifacts
+This routes through the embodied `vla`-track normalizer in-process; no simulator code is executed.
+
+## Closed-loop rollouts (native simulator)
 
 ```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id vlabench \
-  --mode official-run \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/vlabench/official-run \
+worldfoundry-eval embodied run \
+  --config worldfoundry/data/benchmarks/eval_configs/embodied/vlabench/eval.yaml \
+  --output-dir tmp/vlabench/embodied-run \
   --json
 ```
 
-### Direct in-tree runner
+`--server-url`, `--shard-id`/`--num-shards`, and `--no-docker` are supported by the `embodied run` entry point.
 
-```bash
-worldfoundry-eval zoo benchmark-run --benchmark-id vlabench --mode official-validation --official-results-path <official_results.json> --output-dir <out> --json
-```
+## Outputs
 
+- `scorecard.json`: WorldFoundry scorecard; leaderboard block keyed by `success_rate`.
+- `raw_results.jsonl`: extracted raw result rows.
+- `evaluation/summary.json`: aggregated per-metric statistics.
+- `evaluation/per_sample_metrics.jsonl`: normalized per-episode rows.
 
+## What this page does not claim
 
-## Requirements
-
-
-
-### Inputs
-
-- Official simulator runtime
-- benchmark assets
-- policy checkpoint
-- official result dump
-
-### Environment
-
-- `WORLDFOUNDRY_VLABENCH_RESULTS_PATH`
-
-### Outputs
-
-- `scorecard.json`
-- `raw_results.jsonl`
-- `evaluation/summary.json`
-
-
+- Catalog status is `normalizer_only` with `leaderboard_valid: false` and `official_benchmark_verified: false`. Imported numbers are normalized copies of caller-provided results, not officially reproduced leaderboard values.
+- The VLABench runtime, simulator assets, and policy checkpoints are not bundled; closed-loop rollouts require an external environment (`needs_new_env: true`) and a policy server. No local GPU rollout evidence is claimed.
+- Full leaderboard parity is not claimed until official rollouts are executed and imported (catalog blocker).
 
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

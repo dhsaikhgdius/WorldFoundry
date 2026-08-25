@@ -1,127 +1,104 @@
 ---
 title: RoboMME
-description: RoboMME — metrics, requirements, and run commands.
+description: Memory-probing manipulation benchmark across counting, permanence, reference, and imitation families, with in-tree closed-loop wiring and result normalization.
 ---
 
 ## About
 
+RoboMME evaluates memory capabilities of robot manipulation policies across four task families: counting (repeat an action a specified number of times), object permanence (track objects hidden or swapped out of view), reference (act on targets designated earlier, e.g. by video or highlight), and imitation (reproduce a demonstrated motion pattern). Each family has per-family success metrics so memory failures are attributable.
 
+WorldFoundry integrates RoboMME with an in-tree closed-loop simulator adapter at `worldfoundry/evaluation/tasks/embodied/simulators/robomme/` (alias `robo-mme`) plus the shared official result normalizer for caller-provided rollout dumps. The catalog verification status is `normalizer_only`.
 
-RoboMME external benchmark manifest for memory and multimodal embodied policy evaluation.
+Official references:
 
+- Paper: [arXiv:2603.04639](https://arxiv.org/abs/2603.04639) (catalog `paper_url`)
+- Official source reference: [RoboMME/robomme_policy_learning](https://github.com/RoboMME/robomme_policy_learning)
+- License: upstream terms (see repository)
 
+## In-tree integration
+
+- Catalog: `worldfoundry/data/benchmarks/catalog/embodied/robomme.yaml`
+- Task manifest: `worldfoundry/data/benchmarks/tasks/external/robomme.yaml`
+- Runtime profile: `worldfoundry/data/benchmarks/runtime_profiles/official/robomme.yaml`
+- Simulator adapter: `worldfoundry/evaluation/tasks/embodied/simulators/robomme/`
+- Closed-loop eval config: `worldfoundry/data/benchmarks/eval_configs/embodied/robomme/eval.yaml`
+- Result normalizer: `worldfoundry.evaluation.tasks.embodied.normalizer` (track `vla`)
+
+## Evaluation protocol and result layout
+
+For result import, the embodied normalizer accepts JSON, JSONL, CSV, TSV, and `result.txt`-style logs. Rows are matched on numeric fields such as `success`, `success_rate`, and `task_success`; booleans and percent strings are coerced to unit-interval floats.
+
+The bundled eval config chains all four families against an external policy server at `ws://localhost:8000` with `joint_angle` action space, a 1300-step cap, and 50 episodes per task: counting (`BinFill`, `PickXtimes`, `SwingXtimes`, `StopCube`), permanence (`VideoUnmask`, `VideoUnmaskSwap`, `ButtonUnmask`, `ButtonUnmaskSwap`), reference (`PickHighlight`, `VideoRepick`, `VideoPlaceButton`, `VideoPlaceOrder`), and imitation (`MoveCube`, `InsertPeg`, `PatternLock`, `RouteStick`).
 
 ## Metrics
 
-RoboMME external benchmark manifest for memory and multimodal embodied policy evaluation.
+Primary metric (scorecard key): `success_rate`.
 
-### Task YAML
-
-`worldfoundry/data/benchmarks/tasks/external/robomme.yaml`
-
-### Primary
-
-- `success_rate`
-
-| Metric | Focus |
+| Metric | Meaning |
 | --- | --- |
-| `success_rate` | Share of episodes or tasks that complete successfully. |
-| `counting_success_rate` | Share of episodes or tasks that complete successfully. |
-| `permanence_success_rate` | Share of episodes or tasks that complete successfully. |
-| `reference_success_rate` | Share of episodes or tasks that complete successfully. |
-| `imitation_success_rate` | Share of episodes or tasks that complete successfully. |
+| `success_rate` | Overall rollout success across families; primary leaderboard value. |
+| `counting_success_rate` | Success on the counting family. |
+| `permanence_success_rate` | Success on the object-permanence family. |
+| `reference_success_rate` | Success on the reference family. |
+| `imitation_success_rate` | Success on the imitation family. |
 
+Success metrics are normalized via the shared registry (`percent_or_fraction_to_unit`). No video-generation metrics apply.
 
-
-## Environment setup
-
-### Runtime environment
-
-- **Conda env:** `worldfoundry-unified-cu128`.
-- **Separate setup:** defaults to the unified WorldFoundry env (`needs_new_env: false`); a benchmark-only conda env is usually not required.
-- WorldFoundry provides contract and official result normalization for caller-provided RoboMME outputs.
-
-### Evaluation data
-
-- Candidate model outputs: set `WORLDFOUNDRY_ROBOMME_RESULTS_PATH` to the generated-video or rollout artifact root.
-- `${WORLDFOUNDRY_DATA_DIR}/datasets/robomme`
-- `${WORLDFOUNDRY_CACHE_DIR}/repos/RoboMME--robomme_policy_learning`
-
-### Checkpoints & assets
-
-- This benchmark is primarily rollout- or official-result-driven; see catalog `requires` and the task YAML for policy/simulator checkpoints.
-
-### Key environment variables
-
-- `WORLDFOUNDRY_ROBOMME_ROOT`
-- `WORLDFOUNDRY_ROBOMME_RESULTS_PATH`
-
-
-
-## Run evaluation
-
-
-
-After preparing the assets and candidate artifacts listed on this page, use the public run entry points below.
-
-### Set candidate artifacts
+## Preparation and environment
 
 ```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/generated/artifacts
+cd /path/to/WorldFoundry
+export WORLDFOUNDRY_ROBOMME_ROOT=/path/to/robomme
+export WORLDFOUNDRY_ROBOMME_RESULTS_PATH=/path/to/robomme_results.json
 ```
 
-### Import official results
+Closed-loop rollouts require the RoboMME runtime, memory task assets, and a policy checkpoint served over WebSocket (catalog `required_assets`).
+
+Verify runtime wiring:
+
+```bash
+python -m worldfoundry.evaluation.tasks.execution.orchestration.runtime_preflight \
+  --profile robomme \
+  --manifest worldfoundry/data/benchmarks/runtime_profiles/official/robomme.yaml \
+  --output-dir tmp/worldfoundry_preflight/robomme \
+  --json
+```
+
+## Import official results (official-validation)
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id robomme \
-  --mode normalizer \
-  --official-results-path /path/to/official/results-or-report \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/robomme/normalizer \
+  --mode official-validation \
+  --official-results-path "${WORLDFOUNDRY_ROBOMME_RESULTS_PATH}" \
+  --output-dir tmp/robomme/official-validation \
   --json
 ```
 
-### Score generated artifacts
+This routes through the embodied `vla`-track normalizer in-process; no simulator code is executed.
+
+## Closed-loop rollouts (native simulator)
 
 ```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id robomme \
-  --mode official-run \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/robomme/official-run \
+worldfoundry-eval embodied run \
+  --config worldfoundry/data/benchmarks/eval_configs/embodied/robomme/eval.yaml \
+  --output-dir tmp/robomme/embodied-run \
   --json
 ```
 
-### Direct in-tree runner
+`--server-url`, `--shard-id`/`--num-shards`, and `--no-docker` are supported by the `embodied run` entry point.
 
-```bash
-worldfoundry-eval zoo benchmark-run --benchmark-id robomme --mode official-validation --official-results-path <official_results.json> --output-dir <out> --json
-```
+## Outputs
 
+- `scorecard.json`: WorldFoundry scorecard; leaderboard block keyed by `success_rate`.
+- `raw_results.jsonl`: extracted raw result rows.
+- `evaluation/summary.json`: aggregated per-metric statistics.
+- `evaluation/per_sample_metrics.jsonl`: normalized per-episode rows.
 
+## What this page does not claim
 
-## Requirements
-
-
-
-### Inputs
-
-- Official simulator runtime
-- benchmark assets
-- policy checkpoint
-- official result dump
-
-### Environment
-
-- `WORLDFOUNDRY_ROBOMME_RESULTS_PATH`
-
-### Outputs
-
-- `scorecard.json`
-- `raw_results.jsonl`
-- `evaluation/summary.json`
-
-
+- Catalog status is `normalizer_only` with `leaderboard_valid: false` and `official_benchmark_verified: false`. Imported numbers are normalized copies of caller-provided results, not officially reproduced leaderboard values.
+- The RoboMME runtime, memory task assets, and policy checkpoints are not bundled; closed-loop rollouts require external staging plus a policy server. No local GPU rollout evidence is claimed.
+- Full leaderboard parity is not claimed until official rollouts are executed and imported (catalog blocker).
 
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)
