@@ -33,3 +33,49 @@ catalog_category: video
 catalog_scope: Video-generation and video-token catalog entries. Integrated entries
   expose WorldFoundry pipeline targets; metadata-only entries retain upstream provenance
   without runnable WorldFoundry backends.
+docs:
+  overview: |
+    VideoCrafter2 T2V is the second-generation text-to-video route of the
+    open-source VideoCrafter project (official GitHub
+    VideoCrafter/VideoCrafter, Apache-2.0). Given a text prompt it generates
+    a video. The in-tree infer-only runtime wraps the official VideoCrafter2
+    text-to-video path; checkpoint provenance (VideoCrafter/VideoCrafter2,
+    Apache-2.0) is tracked on the top-level videocrafter catalog entry to
+    avoid duplicate HF repo aliases. VideoCrafter2 also serves as the base
+    model for the t2v_turbo_t2v entry in this catalog.
+  overview_zh: |
+    VideoCrafter2 T2V 是开源 VideoCrafter 项目（官方 GitHub
+    VideoCrafter/VideoCrafter，Apache-2.0）的第二代文生视频路线。给定
+    文本提示词，生成视频。树内仅推理运行时封装官方 VideoCrafter2 文生
+    视频路径；检查点 provenance（VideoCrafter/VideoCrafter2，
+    Apache-2.0）在顶层 videocrafter 目录条目中跟踪，以避免重复的 HF
+    仓库别名。VideoCrafter2 同时是本目录中 t2v_turbo_t2v 条目的基础模型。
+  architecture: |
+    Training, dataset, and download scripts are intentionally not packaged in
+    the vendored runtime. Network architecture and parameter counts are not
+    recorded in this repository; the sibling t2v_turbo_t2v entry records the
+    lineage as an LVDM-style UNet architecture (lvdm-videocrafter2). Consult
+    the upstream README for full details.
+  architecture_zh: |
+    训练、数据集与下载脚本被有意排除在 vendored 运行时之外。网络架构与
+    参数量仓库未记录；兄弟条目 t2v_turbo_t2v 将其系谱记录为 LVDM 风格的
+    UNet 架构（lvdm-videocrafter2）。完整细节请参考上游 README。
+  usage_notes: |
+    Runs through WorldFoundryPipelineRunner with runtime profile and pipeline
+    binding videocrafter2-t2v, exposing local checkpoint, fps, frame count,
+    and seed controls. Alias videocrafter2_t2v resolves here.
+  usage_notes_zh: |
+    通过 WorldFoundryPipelineRunner 运行，运行时 profile 与 pipeline
+    binding 均为 videocrafter2-t2v，暴露本地检查点、fps、帧数与 seed
+    控制。别名 videocrafter2_t2v 解析到本条目。
+  limitations: |
+    Runner parity is pending, and per-run artifact checks are tracked outside
+    the model catalog. GPU/VRAM requirements and default generation
+    configuration are not recorded here.
+  limitations_zh: |
+    runner parity 为 pending，逐次运行的产物检查在目录之外跟踪。GPU/显存
+    需求与默认生成配置此处未记录。与官方上游输出的完整一致性验证属于更长
+    的验证阶段，尚未在本 manifest 中记录证据。
+  recommended_benchmarks:
+    - vbench
+    - evalcrafter

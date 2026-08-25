@@ -34,3 +34,49 @@ catalog_category: video
 catalog_scope: Video-generation and video-token catalog entries. Integrated entries
   expose WorldFoundry pipeline targets; metadata-only entries retain upstream provenance
   without runnable WorldFoundry backends.
+docs:
+  overview: |
+    Open-MAGVIT2 is TencentARC's open-source (Apache-2.0) visual tokenizer
+    and autoregressive generation project, cataloged from the official
+    TencentARC/Open-MAGVIT2 GitHub repository with a pinned checkpoint
+    revision. Recorded tasks are video-tokenization,
+    class-conditional-image-generation, and autoregressive-generation. The
+    verified WorldFoundry route is class-conditional image generation:
+    given an ImageNet class id it produces a 256x256 PNG.
+  overview_zh: |
+    Open-MAGVIT2 是腾讯 ARC 的开源（Apache-2.0）视觉 tokenizer 与自回归
+    生成项目，条目来源于官方 TencentARC/Open-MAGVIT2 GitHub 仓库，检查点
+    版本已固定。记录的任务为视频 token 化、类别条件图像生成与自回归生
+    成。已验证的 WorldFoundry 路线是类别条件图像生成：给定 ImageNet 类别
+    id，输出 256x256 PNG。
+  architecture: |
+    The runtime source is vendored in-tree with a CUDA generation wrapper
+    (OpenMAGVIT2Synthesis). Generation uses 256 tokens per sample at the
+    official 256x256 output size. Tokenizer design details and parameter
+    counts are not recorded in this repository; consult the upstream README.
+  architecture_zh: |
+    运行时源码 vendored 到树内，带 CUDA 生成封装
+    （OpenMAGVIT2Synthesis）。生成按官方 256x256 输出尺寸、每样本 256 个
+    token 进行。tokenizer 设计细节与参数量仓库未记录，请参考上游 README。
+  usage_notes: |
+    Runs through WorldFoundryPipelineRunner with runtime profile and pipeline
+    binding open-magvit2. Aliases open_magvit2 and openmagvit2 resolve here.
+    Full 256-token class-conditional generation passed checkpoint-backed GPU
+    validation, and ImageNet class 207 passed semantic visual QA.
+  usage_notes_zh: |
+    通过 WorldFoundryPipelineRunner 运行，运行时 profile 与 pipeline
+    binding 均为 open-magvit2。别名 open_magvit2、openmagvit2 解析到本条
+    目。完整 256-token 类别条件生成通过了有检查点支撑的 GPU 验证，
+    ImageNet 类别 207 通过语义视觉 QA。
+  limitations: |
+    Only the class-conditional image generation route carries verification
+    evidence; the video-tokenization task label has no separately verified
+    WorldFoundry route recorded here. Outputs are 256x256 PNG images, not
+    video artifacts. GPU/VRAM requirements are not recorded, and no video
+    benchmark from this repository's catalog applies to a tokenizer entry.
+  limitations_zh: |
+    仅类别条件图像生成路线有验证证据；视频 token 化任务标签此处没有单独
+    验证过的 WorldFoundry 路线。输出为 256x256 PNG 图像，不是视频产物。
+    GPU/显存需求未记录，本仓库基准目录中也没有适用于 tokenizer 条目的
+    视频基准。
+  recommended_benchmarks: []

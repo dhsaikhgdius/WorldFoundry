@@ -35,3 +35,51 @@ runtime_profile: runtime-profile:skyreels-v3
 catalog_category: video
 catalog_scope: Video-generation and video-token catalog entries. Integrated entries expose WorldFoundry pipeline targets;
   metadata-only entries retain upstream provenance without runnable WorldFoundry backends.
+docs:
+  overview: |
+    SkyReels V3 is SkyworkAI's third-generation open-source video model,
+    cataloged from the official SkyworkAI/SkyReels-V3 GitHub repository with
+    the confirmed Skywork/SkyReels-V3-R2V-14B Hugging Face checkpoint (R2V =
+    reference-to-video; 14B from the checkpoint name). Recorded tasks are
+    reference-to-video, audio-guided-video, video-to-video, and general
+    video-generation. Given reference images and guidance inputs it generates
+    a video.
+  overview_zh: |
+    SkyReels V3 是 SkyworkAI 第三代开源视频模型，条目来源于官方
+    SkyworkAI/SkyReels-V3 GitHub 仓库，已确认的 Hugging Face 检查点为
+    Skywork/SkyReels-V3-R2V-14B（R2V 即参考图生视频；14B 来自检查点名
+    称）。记录的任务为参考图生视频、音频引导视频、视频生视频与通用视频
+    生成。给定参考图与引导输入，生成视频。
+  architecture: |
+    WorldFoundry loads the SkyReels V3 checkpoint into the shared native Wan
+    graph and framework-owned diffusion runner - no Diffusers and no
+    model-owned subprocess runtime. Reference-image latent concatenation and
+    dual text/image guidance are implemented as reusable initializer and
+    execution-strategy capabilities. Transformer, UMT5, and VAE checkpoint
+    schemas map exactly to the native graphs.
+  architecture_zh: |
+    WorldFoundry 将 SkyReels V3 检查点加载进共享原生 Wan 图与框架持有的
+    扩散 runner——不使用 Diffusers，也没有模型自有的子进程运行时。参考图
+    latent 拼接与文本/图像双引导实现为可复用的 initializer 与执行策略
+    能力。Transformer、UMT5 与 VAE 检查点 schema 与原生图完全对应。
+  usage_notes: |
+    Runs through WorldFoundryPipelineRunner with runtime profile and pipeline
+    binding skyreels-v3, using the local SkyReels-V3-R2V-14B checkpoint. The
+    checkpoint is an external Hugging Face asset and must be staged locally.
+  usage_notes_zh: |
+    通过 WorldFoundryPipelineRunner 运行，运行时 profile 与 pipeline
+    binding 均为 skyreels-v3，使用本地 SkyReels-V3-R2V-14B 检查点。检查
+    点为外部 Hugging Face 资产，需在本地就位。
+  limitations: |
+    Runner parity is partial: checkpoint schemas map exactly, and a prior
+    official-runtime visual artifact is documented, but native visual parity
+    is pending a GPU inference run. No license metadata is recorded for the
+    checkpoint in this manifest. The audio-guided and V2V task labels have no
+    separately validated routes recorded here, and this repository's
+    benchmark catalog has no reference-to-video benchmark to recommend.
+  limitations_zh: |
+    runner parity 为 partial：检查点 schema 完全对应，且此前的官方运行时
+    视觉产物有文档记录，但原生视觉一致性尚待 GPU 推理运行。manifest 未
+    记录该检查点的许可证元数据。音频引导与 V2V 任务标签此处没有单独验证
+    的路线，本仓库基准目录中也没有可推荐的参考图生视频基准。
+  recommended_benchmarks: []

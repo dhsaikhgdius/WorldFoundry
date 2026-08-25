@@ -34,3 +34,56 @@ runtime_profile: runtime-profile:bernini
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 pipeline_binding: bernini
 catalog_category: video
+docs:
+  overview: |
+    Bernini is ByteDance's open-source unified visual generation model,
+    cataloged here from the official bytedance/Bernini GitHub repository and
+    the self-contained ByteDance/Bernini-Diffusers Hugging Face checkpoint
+    (Apache-2.0). The entry covers a wide task surface recorded in the
+    manifest: text-to-image, image-to-image, text-to-video, video-to-video,
+    reference-to-video, and reference-video-to-video. Outputs are generated
+    images or generated videos. A project page (bernini-ai.github.io) and an
+    arXiv paper (2605.22344) are recorded as official sources.
+  overview_zh: |
+    Bernini 是字节跳动开源的统一视觉生成模型，本条目来源于官方
+    bytedance/Bernini GitHub 仓库与自包含的 ByteDance/Bernini-Diffusers
+    Hugging Face 检查点（Apache-2.0）。manifest 记录的任务面很宽：文生图、
+    图生图、文生视频、视频生视频、参考图生视频、参考视频生视频。输出为
+    生成的图像或视频。官方来源还包括项目主页（bernini-ai.github.io）与
+    arXiv 论文（2605.22344）。
+  architecture: |
+    The official inference source is vendored in-tree at the pinned GitHub
+    revision 82d573e9a553dccb1405dde4cb0f26466f9df6c5 and loaded from the
+    self-contained Diffusers-format checkpoint. The runner implements the
+    official single-request 8-GPU Ulysses dispatch. Parameter counts and
+    network internals are not recorded in this repository; sibling entries
+    bernini-r-1.3b and bernini-r-14b track the renderer variants whose sizes
+    appear in their checkpoint names.
+  architecture_zh: |
+    官方推理源码按固定 GitHub 版本
+    82d573e9a553dccb1405dde4cb0f26466f9df6c5 vendored 到树内，并从自包含的
+    Diffusers 格式检查点加载。runner 实现了官方单请求 8 卡 Ulysses 分发。
+    参数量与网络内部结构仓库未记录；兄弟条目 bernini-r-1.3b 与
+    bernini-r-14b 跟踪渲染器变体，其规模体现在检查点名称中。
+  usage_notes: |
+    Runs through WorldFoundryPipelineRunner with runtime profile bernini and
+    pipeline binding bernini (schema_version 2 manifest). No external Bernini
+    checkout is used at inference time. Aliases bernini-diffusers and
+    bernini-7b-14b resolve here. Checkpoints are external Hugging Face assets.
+  usage_notes_zh: |
+    通过 WorldFoundryPipelineRunner 运行，运行时 profile 为 bernini，
+    pipeline binding 为 bernini（schema_version 2 manifest）。推理时不需要
+    外部 Bernini 检出。别名 bernini-diffusers、bernini-7b-14b 解析到本条目。
+    检查点为外部 Hugging Face 资产。
+  limitations: |
+    Runner parity status is pending_gpu_validation: artifact parity still
+    requires staged weights and H100-class GPUs per the manifest note. No
+    parity artifacts or benchmark results are recorded in this repository, and
+    per-task quality claims should not be made until GPU validation lands.
+  limitations_zh: |
+    runner parity 状态为 pending_gpu_validation：按 manifest 说明，产物
+    一致性验证仍需要就位的权重与 H100 级 GPU。仓库未记录 parity 产物或
+    benchmark 结果，在 GPU 验证完成前不应做单任务质量断言。
+  recommended_benchmarks:
+    - vbench
+    - evalcrafter

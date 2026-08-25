@@ -25,3 +25,46 @@ runner_parity:
 catalog_category: video
 catalog_scope: Video-generation and video-token catalog entries. Integrated entries expose WorldFoundry pipeline targets;
   metadata-only entries retain upstream provenance without runnable WorldFoundry backends.
+docs:
+  overview: |
+    ThinkSound is FunAudioLLM's open-source audio generation model, cataloged
+    from its Hugging Face repository FunAudioLLM/ThinkSound. In this catalog
+    it is tagged for video-to-audio and audio-generation: given a video it
+    synthesizes a matching audio track. The entry was originally exposed by
+    the WorldFoundry-native-3D integration.
+  overview_zh: |
+    ThinkSound 是 FunAudioLLM 的开源音频生成模型，条目来源于其 Hugging
+    Face 仓库 FunAudioLLM/ThinkSound。本目录中任务标注为视频生音频与通用
+    音频生成：给定视频，合成匹配的音轨。该条目最初由
+    WorldFoundry-native-3D 集成暴露。
+  architecture: |
+    This repository records only provenance and wiring (runtime profile
+    thinksound, pipeline binding thinksound). The diffusion checkpoint file
+    thinksound.ckpt is a required runtime asset that is currently missing.
+    Network architecture and license details are not recorded here; consult
+    the upstream model card.
+  architecture_zh: |
+    本仓库仅记录 provenance 与接线（运行时 profile 为 thinksound，
+    pipeline binding 为 thinksound）。扩散检查点文件 thinksound.ckpt 是
+    必需的运行时资产，目前缺失。网络架构与许可证细节此处未记录，请查阅
+    上游模型卡。
+  usage_notes: |
+    Integration status is metadata_only: the entry is hidden from Studio
+    until both the infer-only runtime and the ThinkSound diffusion checkpoint
+    are available in-tree or in the Hugging Face cache. Alias
+    FunAudioLLM/ThinkSound resolves here.
+  usage_notes_zh: |
+    集成状态为 metadata_only：在仅推理运行时与 ThinkSound 扩散检查点同时
+    在树内或 Hugging Face 缓存可用之前，该条目对 Studio 隐藏。别名
+    FunAudioLLM/ThinkSound 解析到本条目。
+  limitations: |
+    Not currently runnable: runner parity is blocked by the missing
+    thinksound.ckpt diffusion checkpoint, and the integration is
+    metadata-only. No license metadata or GPU requirements are recorded.
+    This repository's benchmark catalog has no audio benchmark, so no
+    recommended benchmarks are listed.
+  limitations_zh: |
+    当前不可运行：runner parity 被缺失的 thinksound.ckpt 扩散检查点阻
+    塞，集成为 metadata-only。未记录许可证元数据或 GPU 需求。本仓库基准
+    目录中没有音频类基准，故不列推荐基准。
+  recommended_benchmarks: []

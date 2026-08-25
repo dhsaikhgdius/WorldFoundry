@@ -78,3 +78,60 @@ runner_parity:
   notes:
     - The fix uses the official V5.1 Flow scheduler, InP checkpoint, and height/width to sample_size mapping.
     - Per-run visual QA and artifact checks are tracked outside the model catalog.
+docs:
+  overview: |
+    EasyAnimate is Alibaba PAI's open-weight video generation project,
+    cataloged from the official aigc-apps/EasyAnimate GitHub repository with
+    checkpoints under the alibaba-pai Hugging Face org. It covers
+    text-to-video, image-to-video, and video-to-video. Confirmed public
+    checkpoints span V4 through V5.1: EasyAnimateV5-12b-zh (license 'other'),
+    EasyAnimateV5.1-12b-zh, EasyAnimateV5.1-7b-zh-InP, EasyAnimateV5.1-7b-zh
+    (all Apache-2.0), and EasyAnimateV4-XL-2-InP (license 'other'). The
+    WorldFoundry route is wired for the V5.1 I2V path with the official InP
+    checkpoint.
+  overview_zh: |
+    EasyAnimate 是阿里 PAI 的开源权重视频生成项目，条目来源于官方
+    aigc-apps/EasyAnimate GitHub 仓库，检查点位于 alibaba-pai Hugging Face
+    组织下。任务覆盖文生视频、图生视频、视频生视频。确认的公开检查点跨越
+    V4 至 V5.1：EasyAnimateV5-12b-zh（许可证 'other'）、
+    EasyAnimateV5.1-12b-zh、EasyAnimateV5.1-7b-zh-InP、EasyAnimateV5.1-7b-zh
+    （均为 Apache-2.0）以及 EasyAnimateV4-XL-2-InP（许可证 'other'）。
+    WorldFoundry 路线接入 V5.1 I2V 路径，使用官方 InP 检查点。
+  architecture: |
+    Model sizes (7B / 12B) come from the official checkpoint names; the "-zh"
+    suffix marks the bilingual/Chinese-prompt releases and "InP" marks the
+    inpainting-conditioned I2V checkpoints. The wired route uses the official
+    V5.1 Flow scheduler and maps height/width to the runtime's sample_size.
+    Further architecture internals are not recorded in this repository.
+  architecture_zh: |
+    模型规模（7B / 12B）来自官方检查点名称；“-zh” 后缀表示支持中文提示词
+    的版本，“InP” 表示以 inpainting 条件化的 I2V 检查点。已接入的路线使用
+    官方 V5.1 Flow 调度器，并将 height/width 映射到运行时的 sample_size。
+    更多架构内部细节仓库未记录。
+  usage_notes: |
+    Runs through WorldFoundryPipelineRunner wrapping the in-tree EasyAnimate
+    I2V runtime, with runtime profile easyanimate-i2v. Aliases
+    easyanimate_i2v and easyanimate-i2v resolve here. Checkpoints are not
+    tracked in git; local validation may download the listed repos under
+    cache/hfd. The EasyAnimateV3 candidate returned 401 and is not listed.
+  usage_notes_zh: |
+    通过 WorldFoundryPipelineRunner 运行，封装树内 EasyAnimate I2V 运行
+    时，运行时 profile 为 easyanimate-i2v。别名 easyanimate_i2v、
+    easyanimate-i2v 解析到本条目。检查点不入 git，本地验证可能将列出的
+    仓库下载到 cache/hfd。EasyAnimateV3 候选返回 401，未列入。
+  limitations: |
+    Demo parity and runner parity are pending: the V5.1 I2V route is wired
+    but full official benchmark parity has not been demonstrated. The V5-12b
+    and V4-XL checkpoints carry license 'other' and need review before
+    redistribution. T2V and V2V task labels describe upstream capability, not
+    currently validated WorldFoundry routes. GPU/VRAM requirements are not
+    recorded here.
+  limitations_zh: |
+    demo parity 与 runner parity 均为 pending：V5.1 I2V 路线已接入，但
+    完整官方基准一致性尚未验证。V5-12b 与 V4-XL 检查点许可证为 'other'，
+    再分发前需审查。T2V 与 V2V 任务标签描述的是上游能力，并非当前已验证
+    的 WorldFoundry 路线。GPU/显存需求未记录。
+  recommended_benchmarks:
+    - vbench
+    - evalcrafter
+    - aigcbench

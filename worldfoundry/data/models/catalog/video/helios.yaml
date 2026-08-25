@@ -81,3 +81,60 @@ runner_parity:
   - Full 240-request-frame visual parity requires the dedicated Helios environment and GPU execution.
 catalog_category: video
 catalog_scope: Official open-source video-generation integrations exposed through WorldFoundry pipelines.
+docs:
+  overview: |
+    Helios is PKU-YuanGroup's open-source (Apache-2.0) video generation
+    project covering text-to-video, image-to-video, video-to-video, and
+    long-video generation. It is cataloged from the official
+    PKU-YuanGroup/Helios GitHub repository at a pinned revision, with three
+    confirmed Hugging Face checkpoints under BestWishYsh: Helios-Base (best
+    quality), Helios-Mid (intermediate), and Helios-Distilled (default
+    efficient checkpoint). WorldFoundry's default route uses Helios-Distilled
+    and supports T2V, I2V, and V2V through one shared runtime profile.
+  overview_zh: |
+    Helios 是北大 PKU-YuanGroup 的开源（Apache-2.0）视频生成项目，覆盖
+    文生视频、图生视频、视频生视频与长视频生成。条目来源于官方
+    PKU-YuanGroup/Helios GitHub 仓库的固定版本，并确认了 BestWishYsh 组织
+    下三个 Hugging Face 检查点：Helios-Base（最佳质量）、Helios-Mid
+    （中间档）与 Helios-Distilled（默认高效检查点）。WorldFoundry 默认
+    路线使用 Helios-Distilled，通过同一运行时 profile 支持 T2V、I2V、V2V。
+  architecture: |
+    The inference implementation is vendored in-tree at the pinned source
+    revision 8f2a2faab3298c8a7630a2c73aea37c01b5bab01. Resident Distilled
+    sessions keep native 9-latent/33-frame history state, and group
+    offloading plus multi-GPU context parallelism are exposed as runtime
+    options. Checkpoint roles distinguish quality tiers (Base/Mid/Distilled)
+    rather than task variants. Parameter counts and network internals are not
+    recorded in this repository.
+  architecture_zh: |
+    推理实现按固定源码版本 8f2a2faab3298c8a7630a2c73aea37c01b5bab01
+    vendored 到树内。常驻 Distilled 会话保留原生 9-latent/33 帧历史状态，
+    并将分组 offload 与多卡上下文并行作为运行时选项暴露。检查点角色区分
+    质量档位（Base/Mid/Distilled）而非任务变体。参数量与网络内部细节仓库
+    未记录。
+  usage_notes: |
+    All three variants (helios-distilled, helios-base, helios-mid) share
+    runtime profile helios and pipeline binding helios under
+    WorldFoundryPipelineRunner. Prompt changes in resident sessions are
+    allowed only between segments - no keyboard-control claim is made.
+    Import-light command and asset preflight are covered by unit tests. The
+    project page is pku-yuangroup.github.io/Helios-Page.
+  usage_notes_zh: |
+    三个变体（helios-distilled、helios-base、helios-mid）共享运行时
+    profile helios 与 pipeline binding helios，经
+    WorldFoundryPipelineRunner 运行。常驻会话中仅允许在片段之间更换提示
+    词——不做键盘实时控制的声明。轻量导入的命令与资产预检已由单元测试
+    覆盖。项目主页为 pku-yuangroup.github.io/Helios-Page。
+  limitations: |
+    Runner parity is pending_visual_qa: full 240-request-frame visual parity
+    requires the dedicated Helios environment and GPU execution. No paper URL
+    is recorded in the manifest. GPU/VRAM requirements and per-variant
+    quality comparisons are not recorded in this repository.
+  limitations_zh: |
+    runner parity 为 pending_visual_qa：完整的 240 请求帧视觉一致性验证
+    需要专用 Helios 环境与 GPU 执行。manifest 未记录论文链接。GPU/显存
+    需求与各变体质量对比仓库未记录。
+  recommended_benchmarks:
+    - vbench
+    - evalcrafter
+    - aigcbench

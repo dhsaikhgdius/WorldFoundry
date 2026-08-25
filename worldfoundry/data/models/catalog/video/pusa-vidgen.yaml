@@ -52,3 +52,54 @@ catalog_category: video
 catalog_scope: Video-generation and video-token catalog entries. Integrated entries
   expose WorldFoundry pipeline targets; metadata-only entries retain upstream provenance
   without runnable WorldFoundry backends.
+docs:
+  overview: |
+    Pusa VidGen (Pusa V1) is an open-source video generation adapter from
+    the official Yaofang-Liu/Pusa-VidGen GitHub repository, with project page
+    pusav1.org. It is distributed as a LoRA checkpoint
+    (RaphaelLiu/Pusa-Wan2.2-V1) that runs on top of the Wan2.2 T2V A14B base
+    model. Recorded tasks are image-to-video, text-to-video, and
+    video-extension; the output artifact is a generated video.
+  overview_zh: |
+    Pusa VidGen（Pusa V1）是官方 Yaofang-Liu/Pusa-VidGen GitHub 仓库的
+    开源视频生成适配器，项目主页为 pusav1.org。它以 LoRA 检查点
+    （RaphaelLiu/Pusa-Wan2.2-V1）形式分发，运行在 Wan2.2 T2V A14B 基础
+    模型之上。记录的任务为图生视频、文生视频与视频扩展；输出产物为生成
+    视频。
+  architecture: |
+    WorldFoundry assembles Pusa V1 from the canonical Wan2.2 denoisers,
+    conditioner, VAE, checkpoint loaders, and shared staged runner; no
+    external runtime checkout or alternate diffusion backend is required at
+    inference time. Required runtime dependencies are the
+    RaphaelLiu/Pusa-Wan2.2-V1 LoRA and the Wan-AI/Wan2.2-T2V-A14B base;
+    lightx2v/Wan2.2-Lightning is an optional acceleration checkpoint.
+  architecture_zh: |
+    WorldFoundry 由规范 Wan2.2 去噪器、conditioner、VAE、检查点加载器与
+    共享 staged runner 装配 Pusa V1；推理时不需要外部运行时检出或替代
+    扩散后端。必需的运行时依赖为 RaphaelLiu/Pusa-Wan2.2-V1 LoRA 与
+    Wan-AI/Wan2.2-T2V-A14B 基础模型；lightx2v/Wan2.2-Lightning 为可选
+    加速检查点。
+  usage_notes: |
+    Runs through WorldFoundryPipelineRunner with runtime profile and pipeline
+    binding pusa-vidgen. The model-specific pipeline exposes generated_video
+    through execute=True and no longer emits request-plan artifacts on
+    default calls. Aliases pusa-v1 and pusa-wan2.2-v1 resolve here. Both the
+    LoRA and the Wan2.2 base checkpoint must be staged locally.
+  usage_notes_zh: |
+    通过 WorldFoundryPipelineRunner 运行，运行时 profile 与 pipeline
+    binding 均为 pusa-vidgen。模型专属 pipeline 在 execute=True 时输出
+    generated_video，默认调用不再产出 request-plan 产物。别名 pusa-v1、
+    pusa-wan2.2-v1 解析到本条目。LoRA 与 Wan2.2 基础检查点都需在本地
+    就位。
+  limitations: |
+    Runner parity status is 'configured': per-run visual QA and artifact
+    checks are tracked in the validation reference, not in this catalog. No
+    license metadata is recorded for the Pusa LoRA checkpoint in this
+    manifest. GPU/VRAM requirements are not recorded here.
+  limitations_zh: |
+    runner parity 状态为 'configured'：逐次运行的视觉 QA 与产物检查在
+    validation reference 中跟踪，不在本目录。manifest 未记录 Pusa LoRA
+    检查点的许可证元数据。GPU/显存需求未记录。
+  recommended_benchmarks:
+    - vbench
+    - aigcbench

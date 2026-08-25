@@ -45,3 +45,54 @@ catalog_policy:
     id, sha, private, gated, license, and selected task tags only.
   parity: This manifest does not claim WorldFoundry runtime parity unless an explicit
     parity run and expected artifact are recorded.
+docs:
+  overview: |
+    I2VGen-XL is Alibaba ali-vilab's open-source video generation model,
+    cataloged from the official ali-vilab/i2vgen-xl GitHub repository and the
+    MIT-licensed ali-vilab/i2vgen-xl Hugging Face checkpoint. It is tagged
+    for image-to-video (its primary route) and text-to-video. Input is a
+    conditioning image (and prompt controls exposed by the runtime); output
+    is a generated video. The WorldFoundry route is wired for
+    image-conditioned generation.
+  overview_zh: |
+    I2VGen-XL 是阿里 ali-vilab 的开源视频生成模型，条目来源于官方
+    ali-vilab/i2vgen-xl GitHub 仓库与 MIT 许可证的 ali-vilab/i2vgen-xl
+    Hugging Face 检查点。任务标注为图生视频（主路线）与文生视频。输入为
+    条件图像（以及运行时暴露的提示词控制），输出为生成视频。WorldFoundry
+    路线已接入图像条件生成。
+  architecture: |
+    This repository records provenance only: the GitHub source at pinned HEAD
+    SHA 1e77740b6e3f4e61410dd2d6cec75e4b2077d360 and the HF checkpoint at
+    revision 39e1979ea27be737b0278c06755e321f2b4360d5. Network architecture,
+    conditioning design, and parameter counts are not recorded here; consult
+    the upstream README at the pinned revision.
+  architecture_zh: |
+    本仓库仅记录 provenance：GitHub 源码固定 HEAD SHA
+    1e77740b6e3f4e61410dd2d6cec75e4b2077d360，HF 检查点固定 revision
+    39e1979ea27be737b0278c06755e321f2b4360d5。网络架构、条件化设计与参数量
+    此处未记录，请参考固定版本的上游 README。
+  usage_notes: |
+    Runs through WorldFoundryPipelineRunner with runtime profile i2vgen-xl.
+    Missing checkpoint/assets are reported at runtime. Checkpoints are not
+    tracked in git; local validation may download the listed repo under
+    cache/hfd. Both the official GitHub repo and the ali-vilab HF repo were
+    reachable at verification time.
+  usage_notes_zh: |
+    通过 WorldFoundryPipelineRunner 运行，运行时 profile 为 i2vgen-xl。
+    检查点/资产缺失会在运行时报告。检查点不入 git，本地验证可能将列出的
+    仓库下载到 cache/hfd。校验时官方 GitHub 仓库与 ali-vilab HF 仓库均可
+    访问。
+  limitations: |
+    Demo parity is pending: the route is wired but official long-config
+    parity has not been demonstrated, and no expected artifacts are recorded.
+    The text-to-video task label reflects upstream capability metadata rather
+    than a separately validated WorldFoundry route. GPU/VRAM requirements are
+    not recorded in this repository.
+  limitations_zh: |
+    demo parity 为 pending：路线已接入，但官方长配置一致性尚未验证，也未
+    记录预期产物。text-to-video 任务标签反映上游能力元数据，并非单独验证
+    过的 WorldFoundry 路线。GPU/显存需求仓库未记录。
+  recommended_benchmarks:
+    - aigcbench
+    - vbench
+    - physics-iq

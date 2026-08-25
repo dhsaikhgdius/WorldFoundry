@@ -125,3 +125,65 @@ catalog_policy:
   github: Validate with git ls-remote and record the official default branch revision.
   huggingface: Record official repo id, revision, access state, license metadata, and task tags.
   parity: A pre-cutover official-runtime artifact does not establish NativeDiffusionPipeline parity.
+docs:
+  overview: |
+    HunyuanVideo is Tencent's open-weight video generation model, cataloged
+    from the official Tencent-Hunyuan/HunyuanVideo GitHub repository with two
+    confirmed public Hugging Face checkpoints: tencent/HunyuanVideo
+    (text-to-video) and tencent/HunyuanVideo-I2V (image-to-video). Inputs are
+    a text prompt (plus a conditioning image for I2V) and the output is a
+    generated video. In WorldFoundry both tasks are declarative recipes
+    assembled by the shared native diffusion runner - the former upstream CLI
+    runtime is not used as a backend.
+  overview_zh: |
+    HunyuanVideo（混元视频）是腾讯的开源权重视频生成模型，条目来源于官方
+    Tencent-Hunyuan/HunyuanVideo GitHub 仓库，并确认两个公开 Hugging Face
+    检查点：tencent/HunyuanVideo（文生视频）与 tencent/HunyuanVideo-I2V
+    （图生视频）。输入为文本提示词（I2V 需附条件图像），输出为生成视频。
+    在 WorldFoundry 中两个任务均为由共享原生扩散 runner 装配的声明式
+    recipe——原上游 CLI 运行时不再作为后端。
+  architecture: |
+    The native integration owns the canonical PyTorch network, prompt
+    encoders, a causal 3D VAE, scheduler, and loaders in role-based
+    diffusion_model packages. Recipes compose conditioner, latent
+    initializer, scheduler, denoiser, latent encoder, and decoder components.
+    Checkpoint structure validation passed with zero missing/unexpected keys
+    and zero shape mismatches (T2V: 856 source keys converted to 976 model
+    keys; I2V: 856 keys; VAE: 248 keys), using local checkpoint mmap
+    key-and-shape comparison on meta-constructed native modules.
+  architecture_zh: |
+    原生集成在角色化的 diffusion_model 包中持有规范 PyTorch 网络、提示词
+    编码器、因果 3D VAE、调度器与加载器。recipe 由 conditioner、latent
+    initializer、scheduler、denoiser、latent encoder、decoder 组件构成。
+    检查点结构校验通过，无缺失/多余键、无形状不匹配（T2V：856 个源键转换
+    为 976 个模型键；I2V：856 键；VAE：248 键），方法为对 meta 构造的原生
+    模块做本地检查点 mmap 键与形状对比。
+  usage_notes: |
+    Variants hunyuanvideo-t2v and hunyuanvideo-i2v run through
+    WorldFoundryPipelineRunner with matching runtime profiles and pipeline
+    bindings; the family default profile is hunyuanvideo-t2v. Checkpoints are
+    external assets downloaded from Hugging Face; HF cardData reports the
+    license as 'other', so review upstream terms before redistribution.
+  usage_notes_zh: |
+    变体 hunyuanvideo-t2v 与 hunyuanvideo-i2v 通过
+    WorldFoundryPipelineRunner 运行，各自有对应的运行时 profile 与
+    pipeline binding；家族默认 profile 为 hunyuanvideo-t2v。检查点为外部
+    Hugging Face 资产；HF cardData 报告许可证为 'other'，再分发前请审查
+    上游条款。
+  limitations: |
+    Demo parity and runner parity are pending for both variants: registry
+    assembly and checkpoint structure are verified, but end-to-end CUDA
+    artifact parity must be repeated through NativeDiffusionPipeline after
+    the native cutover. The earlier 129-frame official-runtime artifact is
+    historical evidence only and does not establish parity for the new native
+    path. GPU/VRAM requirements are not recorded here.
+  limitations_zh: |
+    两个变体的 demo parity 与 runner parity 均为 pending：注册装配与检查
+    点结构已验证，但原生切换后端到端 CUDA 产物一致性需通过
+    NativeDiffusionPipeline 重新验证。早期的 129 帧官方运行时产物仅作历史
+    证据，不能证明新原生路径的一致性。GPU/显存需求未记录。
+  recommended_benchmarks:
+    - vbench
+    - evalcrafter
+    - t2v-compbench
+    - aigcbench

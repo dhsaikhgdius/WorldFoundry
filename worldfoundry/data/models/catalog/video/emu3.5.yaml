@@ -28,3 +28,47 @@ runner_parity:
 catalog_category: video
 catalog_scope: Video-generation and video-token catalog entries. Integrated entries expose WorldFoundry pipeline targets;
   metadata-only entries retain upstream provenance without runnable WorldFoundry backends.
+docs:
+  overview: |
+    Emu3.5 is BAAI's open-source multimodal generation model, cataloged from
+    its official Hugging Face repository BAAI/Emu3.5. In this catalog it is
+    tagged for multimodal-generation, image-generation, and vla.reasoning.
+    The entry was originally exposed by the WorldFoundry-native-VLA
+    integration and is served through the shared WorldFoundry pipeline runner
+    with pipeline binding emu3.5.
+  overview_zh: |
+    Emu3.5 是北京智源（BAAI）的开源多模态生成模型，条目来源于其官方
+    Hugging Face 仓库 BAAI/Emu3.5。在本目录中它被标注为
+    multimodal-generation、image-generation 与 vla.reasoning。该条目最初由
+    WorldFoundry-native-VLA 集成暴露，通过共享 WorldFoundry pipeline
+    runner 提供服务，pipeline binding 为 emu3.5。
+  architecture: |
+    This repository records only the provenance (official HF repo BAAI/Emu3.5,
+    provider worldfoundry_native) and the runtime wiring (runtime profile
+    emu3.5). Network architecture, tokenizer, and parameter details are not
+    recorded here; consult the upstream Hugging Face model card.
+  architecture_zh: |
+    本仓库仅记录 provenance（官方 HF 仓库 BAAI/Emu3.5，provider 为
+    worldfoundry_native）与运行时接线（运行时 profile 为 emu3.5）。网络
+    架构、tokenizer 与参数细节此处未记录，请查阅上游 Hugging Face 模型卡。
+  usage_notes: |
+    Runs through WorldFoundryPipelineRunner with runtime profile emu3.5.
+    Aliases emu3p5, emu3_5, and BAAI/Emu3.5 resolve here. The WorldFoundry
+    route is complete; if checkpoint or asset files are missing they are
+    reported at runtime rather than at catalog load time.
+  usage_notes_zh: |
+    通过 WorldFoundryPipelineRunner 运行，运行时 profile 为 emu3.5。别名
+    emu3p5、emu3_5、BAAI/Emu3.5 解析到本条目。WorldFoundry 路线已完成；
+    若检查点或资产缺失，将在运行时报告，而非目录加载时。
+  limitations: |
+    Runner parity is pending: checkpoint-backed artifact parity has not been
+    run in this workspace. No GitHub source repo, license metadata, or
+    GPU/VRAM requirements are recorded in this repository. The manifest makes
+    no claim about video generation despite the video catalog placement; its
+    recorded tasks are multimodal/image generation and VLA reasoning.
+  limitations_zh: |
+    runner parity 为 pending：本工作区尚未运行有检查点支撑的产物一致性
+    验证。仓库未记录 GitHub 源码仓库、许可证元数据或 GPU/显存需求。尽管
+    位于 video 目录，manifest 并未声称视频生成能力；其记录的任务为多模态/
+    图像生成与 VLA 推理。
+  recommended_benchmarks: []

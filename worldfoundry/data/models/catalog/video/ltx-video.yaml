@@ -95,3 +95,62 @@ variants:
       notes:
         - The native LTX-Video I2V route is wired; per-run artifact checks are
           tracked outside the model catalog.
+docs:
+  overview: |
+    LTX-Video is Lightricks' first-generation open-weight video model family,
+    cataloged from the official Lightricks/LTX-Video GitHub repository.
+    Confirmed public Hugging Face checkpoints include Lightricks/LTX-Video,
+    LTX-Video-0.9.5, LTX-Video-0.9.7-dev, and the
+    LTX-Video-0.9.8-13B-distilled release. The runnable WorldFoundry route is
+    the 0.9.8 distilled image-to-video path: given a reference image it
+    generates a video through a two-stage denoising process with the official
+    spatial upscaler in between.
+  overview_zh: |
+    LTX-Video 是 Lightricks 第一代开源权重视频模型家族，条目来源于官方
+    Lightricks/LTX-Video GitHub 仓库。确认的公开 Hugging Face 检查点包括
+    Lightricks/LTX-Video、LTX-Video-0.9.5、LTX-Video-0.9.7-dev 与
+    LTX-Video-0.9.8-13B-distilled。可运行的 WorldFoundry 路线是 0.9.8
+    蒸馏版图生视频路径：给定参考图像，经两阶段去噪生成视频，中间使用官方
+    空间上采样器。
+  architecture: |
+    The 13B parameter scale of the 0.9.8 distilled release comes from its
+    checkpoint name. WorldFoundry implements it with the same native
+    transformer, VAE, scheduler, loader, and joint-state runner used by
+    LTX-2.x; Transformers supplies the T5 architecture only, and Diffusers is
+    not used as an inference backend. The spatial upscaler runs automatically
+    between the first and second denoising stages.
+  architecture_zh: |
+    0.9.8 蒸馏版的 13B 参数规模来自其检查点名称。WorldFoundry 使用与
+    LTX-2.x 相同的原生 transformer、VAE、调度器、加载器与联合状态 runner
+    实现该模型；Transformers 仅提供 T5 架构，Diffusers 不作为推理后端。
+    空间上采样器在第一、二去噪阶段之间自动运行。
+  usage_notes: |
+    The runnable variant is ltx-video-i2v with reference image, fps,
+    guidance_scale, resolution, frame count, step count, and seed controls,
+    running through WorldFoundryPipelineRunner with runtime profile
+    ltx-video-i2v. Several similarly named HF repos were 401 or non-official
+    mirrors and are excluded. Checkpoints are not tracked in git; local
+    validation may download the listed repos under cache/hfd.
+  usage_notes_zh: |
+    可运行变体为 ltx-video-i2v，提供参考图、fps、guidance_scale、分辨
+    率、帧数、步数与 seed 控制，通过 WorldFoundryPipelineRunner 运行，
+    运行时 profile 为 ltx-video-i2v。若干同名相近的 HF 仓库为 401 或非
+    官方镜像，已排除。检查点不入 git，本地验证可能将列出的仓库下载到
+    cache/hfd。
+  limitations: |
+    Family-level text-to-video labels are upstream capability metadata, not a
+    current local route. License is reported as 'other' in the official HF
+    cards - review before redistribution. Demo parity and runner parity are
+    pending; full checkpoint-backed parity with the upstream LTX-Video
+    pipeline has not been demonstrated. The spatial upscaler is not exposed
+    as a separate Studio refiner switch. GPU/VRAM requirements are not
+    recorded.
+  limitations_zh: |
+    家族级文生视频标签为上游能力元数据，不是当前本地路线。官方 HF 卡片
+    报告许可证为 'other'——再分发前需审查。demo parity 与 runner parity
+    均为 pending；与上游 LTX-Video pipeline 的完整检查点级一致性尚未验
+    证。空间上采样器不作为独立的 Studio refiner 开关暴露。GPU/显存需求
+    未记录。
+  recommended_benchmarks:
+    - aigcbench
+    - vbench

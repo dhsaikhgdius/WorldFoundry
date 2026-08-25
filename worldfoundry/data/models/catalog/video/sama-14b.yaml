@@ -33,3 +33,47 @@ runtime_profile: runtime-profile:sama-14b
 catalog_category: video
 catalog_scope: Video-generation and video-token catalog entries. Integrated entries expose WorldFoundry pipeline targets;
   metadata-only entries retain upstream provenance without runnable WorldFoundry backends.
+docs:
+  overview: |
+    SAMA 14B is an open-source (Apache-2.0) video editing model, cataloged
+    from the official Cynthiazxy123/SAMA GitHub repository and the confirmed
+    syxbb/SAMA-14B Hugging Face checkpoint (the 14B size comes from the
+    checkpoint name). Recorded tasks are video-editing,
+    reference-guided-video, and mask-conditioned-video: it edits or
+    regenerates video content guided by reference inputs and masks.
+  overview_zh: |
+    SAMA 14B 是开源（Apache-2.0）视频编辑模型，条目来源于官方
+    Cynthiazxy123/SAMA GitHub 仓库与已确认的 syxbb/SAMA-14B Hugging Face
+    检查点（14B 规模来自检查点名称）。记录的任务为视频编辑、参考引导视频
+    与掩码条件视频：在参考输入与掩码引导下编辑或重生成视频内容。
+  architecture: |
+    This repository records provenance and wiring only: GitHub source,
+    Hugging Face checkpoint, Apache-2.0 license, runtime profile sama-14b,
+    and pipeline binding sama-14b. Network architecture, conditioning
+    design, and base-model lineage are not recorded here; consult the
+    upstream README.
+  architecture_zh: |
+    本仓库仅记录 provenance 与接线：GitHub 源码、Hugging Face 检查点、
+    Apache-2.0 许可证、运行时 profile sama-14b 与 pipeline binding
+    sama-14b。网络架构、条件化设计与基础模型系谱此处未记录，请参考上游
+    README。
+  usage_notes: |
+    Runs through WorldFoundryPipelineRunner with runtime profile and pipeline
+    binding sama-14b. The WorldFoundry route is complete; missing
+    checkpoint/assets are reported at runtime. The checkpoint is an external
+    Hugging Face asset.
+  usage_notes_zh: |
+    通过 WorldFoundryPipelineRunner 运行，运行时 profile 与 pipeline
+    binding 均为 sama-14b。WorldFoundry 路线已完成；检查点/资产缺失在
+    运行时报告。检查点为外部 Hugging Face 资产。
+  limitations: |
+    Runner parity is pending: output parity has not been demonstrated until a
+    checkpoint-backed run is performed. Input contract details (mask format,
+    reference format) and GPU/VRAM requirements are not recorded in this
+    repository, and this repository's benchmark catalog has no
+    video-editing benchmark to recommend.
+  limitations_zh: |
+    runner parity 为 pending：在完成有检查点支撑的运行之前，输出一致性
+    尚未验证。输入契约细节（掩码格式、参考格式）与 GPU/显存需求仓库未
+    记录，本仓库基准目录中也没有可推荐的视频编辑类基准。
+  recommended_benchmarks: []

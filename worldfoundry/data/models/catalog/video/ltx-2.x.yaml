@@ -184,3 +184,69 @@ runner_parity:
     - WorldFoundry LTX-2.3 I2V pipeline target is registered and produced the
       nonblank Studio demo artifact recorded above.
     - T2V/V2V variants still need scoped wrappers and checkpoint-backed validation.
+docs:
+  overview: |
+    LTX-2.x is Lightricks' second-generation LTX video model family, tracked
+    separately from LTX-Video 0.9.x because upstream publishes it under
+    distinct Hugging Face repository ids (Lightricks/LTX-2 and
+    Lightricks/LTX-2.3). Upstream capability labels cover text-to-video,
+    image-to-video, video-to-video, and audio-video generation. The native
+    WorldFoundry integration currently implements the distilled LTX-2 and
+    LTX-2.3 image-to-video paths, using the official spatial upscaler between
+    two denoising stages; T2V and V2V remain upstream-only profiles.
+  overview_zh: |
+    LTX-2.x 是 Lightricks 第二代 LTX 视频模型家族，因上游以独立 Hugging
+    Face 仓库 id（Lightricks/LTX-2 与 Lightricks/LTX-2.3）发布而与
+    LTX-Video 0.9.x 分开跟踪。上游能力标签覆盖文生视频、图生视频、视频生
+    视频与音视频生成。WorldFoundry 原生集成目前实现蒸馏版 LTX-2 与
+    LTX-2.3 的图生视频路径，在两个去噪阶段之间使用官方空间上采样器；T2V
+    与 V2V 仍为仅上游的 profile。
+  architecture: |
+    The I2V route is built from native components and the generic joint
+    multi-stage runner - no Diffusers pipeline, copied upstream pipeline, or
+    per-model loader. The official Spatial Upscaler forms the boundary
+    between the two denoising stages and is loaded automatically from
+    spatial_upsampler_path (not a separate Studio refiner toggle). The
+    current native distilled schedule is 8 first-stage steps plus 3
+    second-stage steps (11 total); upstream's DistilledPipeline docs record 8
+    plus 4, and this difference is explicitly tracked as unreconciled.
+  architecture_zh: |
+    I2V 路线由原生组件与通用联合多阶段 runner 构建——不使用 Diffusers
+    pipeline、复制的上游 pipeline 或按模型加载器。官方 Spatial Upscaler
+    是两个去噪阶段的边界，从 spatial_upsampler_path 自动加载（不是独立的
+    Studio refiner 开关）。当前原生蒸馏调度为第一阶段 8 步加第二阶段 3 步
+    （共 11 步）；上游 DistilledPipeline 文档记录为 8 加 4，该差异被明确
+    标记为尚未对账。
+  usage_notes: |
+    Runnable variants are ltx-2-i2v and ltx-2.3-i2v, with reference image,
+    fps, guidance_scale, resolution, frame count, step count, and seed
+    controls; the family default runtime profile is ltx-2.3-i2v. Variants
+    ltx-2-t2v, ltx-2-v2v, ltx-2.3-t2v, and ltx-2.3-v2v are planned/
+    profile-only. Both HF checkpoints are public and non-gated with license
+    'other'; gated LoRA or community variants are not included. Official docs
+    live under the LTX-2 GitHub repo's ltx-pipelines docs tree.
+  usage_notes_zh: |
+    可运行变体为 ltx-2-i2v 与 ltx-2.3-i2v，提供参考图、fps、
+    guidance_scale、分辨率、帧数、步数与 seed 控制；家族默认运行时
+    profile 为 ltx-2.3-i2v。ltx-2-t2v、ltx-2-v2v、ltx-2.3-t2v、
+    ltx-2.3-v2v 为 planned/仅 profile。两个 HF 检查点公开、非 gated，
+    许可证为 'other'；gated LoRA 与社区变体未收录。官方文档位于 LTX-2
+    GitHub 仓库的 ltx-pipelines docs 目录。
+  limitations: |
+    The family-level T2V/V2V/audio-video labels describe upstream models, not
+    currently runnable WorldFoundry variants. Because of the 11-vs-12 step
+    schedule difference, this integration must not be described as exact
+    upstream pipeline parity until reconciled and checkpoint-validated.
+    Runner parity is partial (Studio visual validation only); full upstream
+    parity is pending. License is 'other' - review upstream terms before
+    redistribution. GPU/VRAM requirements are not recorded.
+  limitations_zh: |
+    家族级 T2V/V2V/音视频标签描述的是上游模型，而非当前可运行的
+    WorldFoundry 变体。由于 11 步对 12 步的调度差异，在对账并完成检查点
+    验证之前，不得将该集成描述为与上游 pipeline 完全一致。runner parity
+    为部分验证（仅 Studio 视觉验证）；完整上游一致性待定。许可证为
+    'other'——再分发前审查上游条款。GPU/显存需求未记录。
+  recommended_benchmarks:
+    - vbench
+    - evalcrafter
+    - aigcbench

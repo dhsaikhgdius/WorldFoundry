@@ -48,3 +48,53 @@ catalog_policy:
     id, sha, private, gated, license, and selected task tags only.
   parity: This manifest does not claim WorldFoundry runtime parity unless an explicit
     parity run and expected artifact are recorded.
+docs:
+  overview: |
+    MAGI-1 is SandAI's open-weight video generation model, cataloged from the
+    official SandAI-org/MAGI-1 GitHub repository and the Apache-2.0
+    sand-ai/MAGI-1 Hugging Face checkpoint. It is tagged for image-to-video
+    and general video-generation: given a conditioning image and sampling
+    controls it produces a generated video. It was added as a high-priority
+    open video generation candidate because of its permissive Apache-2.0 HF
+    metadata.
+  overview_zh: |
+    MAGI-1 是 SandAI 的开源权重视频生成模型，条目来源于官方
+    SandAI-org/MAGI-1 GitHub 仓库与 Apache-2.0 许可证的 sand-ai/MAGI-1
+    Hugging Face 检查点。任务标注为图生视频与通用视频生成：给定条件图像
+    与采样控制，产出生成视频。因其宽松的 Apache-2.0 HF 元数据，它被列为
+    高优先级开源视频生成候选。
+  architecture: |
+    The wired WorldFoundry route uses the official example image/config
+    assets, the local sand-ai/MAGI-1 checkpoint, and the 4.5B distill
+    profile, exposing sampling controls, fps, and seed. Beyond the 4.5B
+    distill profile name, network architecture and full-size variant details
+    are not recorded in this repository; consult the upstream README at the
+    pinned HEAD SHA (6ff822e74ded50611e81e1d0e115146b5c4dd2a5).
+  architecture_zh: |
+    已接入的 WorldFoundry 路线使用官方示例图像/配置资产、本地
+    sand-ai/MAGI-1 检查点与 4.5B 蒸馏 profile，暴露采样控制、fps 与
+    seed。除 4.5B 蒸馏 profile 名称外，网络架构与全尺寸变体细节仓库未记
+    录，请参考固定 HEAD SHA（6ff822e74ded50611e81e1d0e115146b5c4dd2a5）
+    的上游 README。
+  usage_notes: |
+    Runs through WorldFoundryPipelineRunner with runtime profile magi-1.
+    Missing checkpoint/assets are reported at runtime. Checkpoints are not
+    tracked in git; local validation may download the listed repo under
+    cache/hfd.
+  usage_notes_zh: |
+    通过 WorldFoundryPipelineRunner 运行，运行时 profile 为 magi-1。检查
+    点/资产缺失会在运行时报告。检查点不入 git，本地验证可能将列出的仓库
+    下载到 cache/hfd。
+  limitations: |
+    Demo parity is pending: the I2V route is wired but full official
+    long-config parity has not been demonstrated, and per-run artifact checks
+    are tracked outside the model catalog. Only the 4.5B distill profile is
+    wired; other upstream sizes are not represented here. GPU/VRAM
+    requirements are not recorded.
+  limitations_zh: |
+    demo parity 为 pending：I2V 路线已接入，但完整官方长配置一致性尚未
+    验证，逐次运行的产物检查在目录之外跟踪。仅接入 4.5B 蒸馏 profile；
+    上游其他规模未在此表示。GPU/显存需求未记录。
+  recommended_benchmarks:
+    - aigcbench
+    - physics-iq

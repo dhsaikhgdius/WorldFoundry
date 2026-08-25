@@ -80,3 +80,63 @@ catalog_category: video
 catalog_scope: Video-generation and video-token catalog entries. Integrated entries
   expose WorldFoundry pipeline targets; metadata-only entries retain upstream provenance
   without runnable WorldFoundry backends.
+docs:
+  overview: |
+    Warp-as-History is an open-source (Apache-2.0) camera-controlled
+    image-to-video system, cataloged from the official yyfz/Warp-as-History
+    GitHub repository with project page yyfz.github.io/warp-as-history. It
+    generates camera-controlled video from an input image by combining three
+    checkpoints: the Helios-Distilled base model (BestWishYsh org), the
+    Warp-as-History LoRA (yyfz233/warp-as-history, file
+    visible_lora_state_step1000.safetensors), and the Pi3X geometry model
+    (yyfz233/Pi3X) used for camera-pose-to-warp rendering.
+  overview_zh: |
+    Warp-as-History 是开源（Apache-2.0）的相机控制图生视频系统，条目来源
+    于官方 yyfz/Warp-as-History GitHub 仓库，项目主页
+    yyfz.github.io/warp-as-history。它组合三个检查点从输入图像生成相机
+    控制视频：Helios-Distilled 基础模型（BestWishYsh 组织）、
+    Warp-as-History LoRA（yyfz233/warp-as-history，文件
+    visible_lora_state_step1000.safetensors），以及用于相机位姿到 warp
+    渲染的 Pi3X 几何模型（yyfz233/Pi3X）。
+  architecture: |
+    Official Warp-as-History source, the Helios diffusers runtime, Pi3
+    submodule code, CLI scripts, and demo assets are vendored under
+    worldfoundry.synthesis.visual_generation.warp_as_history.warp_as_history_runtime.
+    Large checkpoints remain external local-cache assets injected through
+    model_path/lora_path/pi3x_ckpt_path or the WAH_HELIOS_DISTILLED_PATH /
+    WAH_LORA_PATH / WAH_PI3X_CKPT_PATH environment variables. Network
+    internals are not recorded in this repository.
+  architecture_zh: |
+    官方 Warp-as-History 源码、Helios diffusers 运行时、Pi3 子模块代码、
+    CLI 脚本与演示资产 vendored 于
+    worldfoundry.synthesis.visual_generation.warp_as_history.warp_as_history_runtime。
+    大体积检查点保持为外部本地缓存资产，通过
+    model_path/lora_path/pi3x_ckpt_path 或环境变量
+    WAH_HELIOS_DISTILLED_PATH / WAH_LORA_PATH / WAH_PI3X_CKPT_PATH 注入。
+    网络内部细节仓库未记录。
+  usage_notes: |
+    Runs through WorldFoundryPipelineRunner with runtime profile and pipeline
+    binding warp-as-history. The vendored official BMX/graffiti warp-video
+    demo uses the dedicated warp-as-history conda environment. GPU parity
+    passed with staged Helios-Distilled and LoRA checkpoints; Pi3X is only
+    needed for camera-pose-to-warp rendering. Aliases wah, warp_as_history,
+    and yyfz233/warp-as-history resolve here.
+  usage_notes_zh: |
+    通过 WorldFoundryPipelineRunner 运行，运行时 profile 与 pipeline
+    binding 均为 warp-as-history。vendored 的官方 BMX/涂鸦 warp 视频
+    demo 使用专用 warp-as-history conda 环境。GPU parity 已在就位的
+    Helios-Distilled 与 LoRA 检查点上通过；Pi3X 仅在相机位姿到 warp
+    渲染时需要。别名 wah、warp_as_history、yyfz233/warp-as-history 解析
+    到本条目。
+  limitations: |
+    Integration and runner parity are verified, but per-run visual QA and
+    artifact checks are tracked outside the model catalog. The dedicated
+    conda environment is required for the vendored demo (not the unified
+    profile). GPU/VRAM requirements are not recorded in this repository.
+  limitations_zh: |
+    集成与 runner parity 已验证，但逐次运行的视觉 QA 与产物检查在目录
+    之外跟踪。vendored demo 需要专用 conda 环境（并非统一 profile）。
+    GPU/显存需求仓库未记录。
+  recommended_benchmarks:
+    - worldscore
+    - aigcbench

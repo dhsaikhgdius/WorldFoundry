@@ -26,3 +26,47 @@ runner_parity:
 catalog_category: video
 catalog_scope: Video-generation and video-token catalog entries. Integrated entries expose WorldFoundry pipeline targets;
   metadata-only entries retain upstream provenance without runnable WorldFoundry backends.
+docs:
+  overview: |
+    MMAudio is hkchengrex's open-source audio generation model, cataloged
+    from the official github.com/hkchengrex/MMAudio repository. In this
+    catalog it is tagged for text-to-audio, video-to-audio, and general
+    audio-generation: given a text prompt or a video it synthesizes a
+    matching audio track. The entry was originally exposed by the
+    WorldFoundry-native-3D integration and is served through the shared
+    WorldFoundry pipeline runner with pipeline binding mmaudio.
+  overview_zh: |
+    MMAudio 是 hkchengrex 的开源音频生成模型，条目来源于官方
+    github.com/hkchengrex/MMAudio 仓库。本目录中任务标注为文本生音频、
+    视频生音频与通用音频生成：给定文本提示词或视频，合成匹配的音轨。该
+    条目最初由 WorldFoundry-native-3D 集成暴露，通过共享 WorldFoundry
+    pipeline runner 提供服务，pipeline binding 为 mmaudio。
+  architecture: |
+    This repository records only provenance (official GitHub repo, provider
+    worldfoundry_native) and runtime wiring (runtime profile mmaudio).
+    Network architecture, audio codec details, and checkpoint repositories
+    are not recorded here; consult the upstream README.
+  architecture_zh: |
+    本仓库仅记录 provenance（官方 GitHub 仓库，provider 为
+    worldfoundry_native）与运行时接线（运行时 profile 为 mmaudio）。网络
+    架构、音频编解码细节与检查点仓库此处未记录，请参考上游 README。
+  usage_notes: |
+    Runs through WorldFoundryPipelineRunner with runtime profile mmaudio.
+    Alias hkchengrex/MMAudio resolves here. The WorldFoundry route is
+    complete; missing checkpoint/assets are reported at runtime rather than
+    at catalog load time.
+  usage_notes_zh: |
+    通过 WorldFoundryPipelineRunner 运行，运行时 profile 为 mmaudio。别名
+    hkchengrex/MMAudio 解析到本条目。WorldFoundry 路线已完成；检查点/资产
+    缺失在运行时报告，而非目录加载时。
+  limitations: |
+    Runner parity is pending: checkpoint-backed artifact parity has not been
+    run in this workspace. No Hugging Face checkpoint repos, license
+    metadata, or GPU requirements are recorded in this manifest. This
+    repository's benchmark catalog has no audio-generation benchmark, so no
+    recommended benchmarks are listed.
+  limitations_zh: |
+    runner parity 为 pending：本工作区尚未运行有检查点支撑的产物一致性
+    验证。manifest 未记录 Hugging Face 检查点仓库、许可证元数据或 GPU
+    需求。本仓库的 benchmark 目录中没有音频生成类基准，故不列推荐基准。
+  recommended_benchmarks: []

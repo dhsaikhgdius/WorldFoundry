@@ -38,3 +38,50 @@ runtime_profile: runtime-profile:krea-realtime-video
 catalog_category: video
 catalog_scope: Video-generation and video-token catalog entries. Integrated entries expose WorldFoundry pipeline targets;
   metadata-only entries retain upstream provenance without runnable WorldFoundry backends.
+docs:
+  overview: |
+    Krea Realtime Video 14B is Krea AI's open-source (Apache-2.0) realtime
+    video generation model, cataloged from the official krea-ai/realtime-video
+    GitHub repository and the confirmed krea/krea-realtime-video Hugging Face
+    checkpoint. The 14B size comes from the entry name. Tasks recorded here
+    are realtime-video-generation, text-to-video, video-to-video, and
+    streaming-video; output is a generated video stream/clip.
+  overview_zh: |
+    Krea Realtime Video 14B 是 Krea AI 的开源（Apache-2.0）实时视频生成
+    模型，条目来源于官方 krea-ai/realtime-video GitHub 仓库与已确认的
+    krea/krea-realtime-video Hugging Face 检查点。14B 规模来自条目名称。
+    记录的任务为实时视频生成、文生视频、视频生视频与流式视频；输出为
+    生成的视频流/片段。
+  architecture: |
+    The in-tree realtime-video runtime lives under
+    worldfoundry/synthesis/visual_generation/krea_realtime/krea_runtime. The
+    route exposes num_blocks, resolution, fps, and seed controls, which
+    reflect the block-wise streaming generation style of the upstream
+    project. Network internals and parameter breakdowns beyond the 14B name
+    are not recorded in this repository.
+  architecture_zh: |
+    树内 realtime-video 运行时位于
+    worldfoundry/synthesis/visual_generation/krea_realtime/krea_runtime。
+    路线暴露 num_blocks、分辨率、fps 与 seed 控制项，对应上游项目按块
+    流式生成的方式。除名称中的 14B 外，网络内部细节与参数拆分仓库未记录。
+  usage_notes: |
+    Runs through WorldFoundryPipelineRunner with runtime profile
+    krea-realtime-video and pipeline binding krea-realtime-video. Alias
+    krea-rt-14b resolves here. Missing checkpoint/assets are reported at
+    runtime; the checkpoint is an external Hugging Face asset.
+  usage_notes_zh: |
+    通过 WorldFoundryPipelineRunner 运行，运行时 profile 与 pipeline
+    binding 均为 krea-realtime-video。别名 krea-rt-14b 解析到本条目。检查
+    点/资产缺失会在运行时报告；检查点为外部 Hugging Face 资产。
+  limitations: |
+    Runner parity is pending: official longer realtime-video parity has not
+    been demonstrated, and per-run artifact checks are tracked outside the
+    model catalog. Latency/throughput figures, GPU requirements, and
+    realtime interactivity guarantees are not recorded in this repository.
+  limitations_zh: |
+    runner parity 为 pending：官方较长实时视频一致性尚未验证，逐次运行的
+    产物检查在目录之外跟踪。延迟/吞吐指标、GPU 需求与实时交互性保证仓库
+    均未记录。
+  recommended_benchmarks:
+    - vbench
+    - evalcrafter

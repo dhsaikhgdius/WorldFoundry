@@ -27,3 +27,47 @@ runner_parity:
 catalog_category: video
 catalog_scope: Video-generation and video-token catalog entries. Integrated entries expose WorldFoundry pipeline targets;
   metadata-only entries retain upstream provenance without runnable WorldFoundry backends.
+docs:
+  overview: |
+    OmniVinci is NVIDIA's multimodal reasoning model, cataloged from its
+    Hugging Face repository nvidia/omnivinci. In this catalog it is tagged
+    for multimodal-reasoning, audio-reasoning, image-question-answering, and
+    video-question-answering - it answers questions about and reasons over
+    audio, image, and video inputs rather than generating video. The entry
+    was originally exposed by the WorldFoundry-native-3D integration.
+  overview_zh: |
+    OmniVinci 是 NVIDIA 的多模态推理模型，条目来源于其 Hugging Face 仓库
+    nvidia/omnivinci。本目录中任务标注为多模态推理、音频推理、图像问答与
+    视频问答——它对音频、图像、视频输入进行问答与推理，而非生成视频。
+    该条目最初由 WorldFoundry-native-3D 集成暴露。
+  architecture: |
+    This repository records only provenance and wiring: source status is
+    'unknown' with the official repo URL pointing at the Hugging Face model
+    page, provider is worldfoundry_native, and the runtime profile is
+    omnivinci. Architecture, parameter count, and license details are not
+    recorded here; consult the upstream model card.
+  architecture_zh: |
+    本仓库仅记录 provenance 与接线：source status 为 'unknown'，官方仓库
+    URL 指向 Hugging Face 模型页，provider 为 worldfoundry_native，运行时
+    profile 为 omnivinci。架构、参数量与许可证细节此处未记录，请查阅上游
+    模型卡。
+  usage_notes: |
+    Runs through WorldFoundryPipelineRunner with pipeline binding omnivinci.
+    Alias nvidia/omnivinci resolves here. The WorldFoundry route is complete;
+    missing checkpoint/assets are reported at runtime.
+  usage_notes_zh: |
+    通过 WorldFoundryPipelineRunner 运行，pipeline binding 为 omnivinci。
+    别名 nvidia/omnivinci 解析到本条目。WorldFoundry 路线已完成；检查点/
+    资产缺失在运行时报告。
+  limitations: |
+    Source status is 'unknown' - no GitHub source repository or license
+    metadata is recorded. Runner parity is pending: checkpoint-backed
+    artifact parity has not been run in this workspace. This is a
+    reasoning/QA model; no video-generation capability is claimed, and no
+    matching benchmark from this repository's catalog is recommended.
+  limitations_zh: |
+    source status 为 'unknown'——未记录 GitHub 源码仓库或许可证元数据。
+    runner parity 为 pending：本工作区尚未运行有检查点支撑的产物一致性
+    验证。这是推理/问答模型，不声称视频生成能力，也没有本仓库基准目录中
+    合适的推荐基准。
+  recommended_benchmarks: []

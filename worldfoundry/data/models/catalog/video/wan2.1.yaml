@@ -218,3 +218,70 @@ integration:
   status: integrated
   notes:
     - WorldFoundry wraps the in-tree Wan2.1 T2V/I2V runtimes.
+docs:
+  overview: |
+    Wan2.1 is the Wan-Video team's open-weight (Apache-2.0) video generation
+    family, cataloged from the official Wan-Video/Wan2.1 GitHub repository.
+    Four public Hugging Face checkpoints are confirmed under Wan-AI:
+    Wan2.1-T2V-1.3B, Wan2.1-T2V-14B, Wan2.1-I2V-14B-480P, and
+    Wan2.1-I2V-14B-720P. Inputs are a text prompt (plus a conditioning image
+    for I2V); outputs are generated videos. The T2V-1.3B route is fully
+    verified: both the official demo and the WorldFoundry runner reproduce
+    an 832x480, 81-frame, 16-fps artifact with seed 42.
+  overview_zh: |
+    Wan2.1 是 Wan-Video 团队的开源权重（Apache-2.0）视频生成家族，条目
+    来源于官方 Wan-Video/Wan2.1 GitHub 仓库。Wan-AI 组织下确认四个公开
+    Hugging Face 检查点：Wan2.1-T2V-1.3B、Wan2.1-T2V-14B、
+    Wan2.1-I2V-14B-480P 与 Wan2.1-I2V-14B-720P。输入为文本提示词（I2V 需
+    附条件图像），输出为生成视频。T2V-1.3B 路线已完整验证：官方 demo 与
+    WorldFoundry runner 均复现 832x480、81 帧、16 fps、seed 42 的产物。
+  architecture: |
+    Model sizes (1.3B/14B) and I2V resolution tiers (480P/720P) come from the
+    official checkpoint names. The Wan2.1 T2V 1.3B variant has an independent
+    canonical native diffusion recipe composed of conditioner, latent
+    initializer, scheduler, denoiser, and decoder; its checkpoint key
+    validation counts are DiT 825, text encoder 242, and VAE 194. The native
+    recipe no longer imports DiffSynth, Diffusers, or the legacy image/video
+    packages.
+  architecture_zh: |
+    模型规模（1.3B/14B）与 I2V 分辨率档位（480P/720P）来自官方检查点
+    名称。Wan2.1 T2V 1.3B 变体拥有独立的规范原生扩散 recipe，由
+    conditioner、latent initializer、scheduler、denoiser、decoder 组成；
+    其检查点键校验计数为 DiT 825、文本编码器 242、VAE 194。原生 recipe
+    不再引入 DiffSynth、Diffusers 或旧的图像/视频包。
+  usage_notes: |
+    Four runnable variants exist: wan2.1-t2v-1.3b (runtime profile
+    wan2.1-t2v-1.3b-832x480-81f, min_vram_gb 8 at family level, demo and
+    runner parity verified), wan2.1-t2v-14b, wan2.1-i2v-14b-480p, and
+    wan2.1-i2v-14b-720p (integrated, parity pending). The official demo is
+    scripts/model_zoo/run_wan21_t2v_1p3b_official_demo.sh and the runner demo
+    is scripts/model_zoo/run_wan21_t2v_1p3b_worldfoundry_runner_demo.py,
+    both pinned to the same prompt, seed, checkpoint, resolution, frame
+    count, shift, and CFG scale. Checkpoints download under cache/hfd.
+  usage_notes_zh: |
+    共四个可运行变体：wan2.1-t2v-1.3b（运行时 profile
+    wan2.1-t2v-1.3b-832x480-81f，家族级 min_vram_gb 为 8，demo 与 runner
+    parity 已验证）、wan2.1-t2v-14b、wan2.1-i2v-14b-480p、
+    wan2.1-i2v-14b-720p（已集成，parity 待定）。官方 demo 为
+    scripts/model_zoo/run_wan21_t2v_1p3b_official_demo.sh，runner demo 为
+    scripts/model_zoo/run_wan21_t2v_1p3b_worldfoundry_runner_demo.py，两者
+    固定相同的提示词、seed、检查点、分辨率、帧数、shift 与 CFG scale。
+    检查点下载到 cache/hfd。
+  limitations: |
+    Family-level integration status stays planned-leaning because only
+    T2V-1.3B has passed checkpoint, official demo, and WorldFoundry runner
+    parity; the T2V-14B and both I2V variants remain pending. The 1.3B
+    native diffusion recipe still needs public CUDA artifact parity before
+    it can replace the existing catalog pipeline binding. Only official
+    Wan-Video GitHub and Wan-AI HF repos are listed.
+  limitations_zh: |
+    家族级集成状态偏 planned：仅 T2V-1.3B 通过了检查点、官方 demo 与
+    WorldFoundry runner parity；T2V-14B 与两个 I2V 变体仍为 pending。
+    1.3B 原生扩散 recipe 在替换现有目录 pipeline binding 之前仍需公开
+    CUDA 产物一致性。仅列出官方 Wan-Video GitHub 与 Wan-AI HF 仓库。
+  recommended_benchmarks:
+    - vbench
+    - evalcrafter
+    - t2v-compbench
+    - aigcbench
+    - physics-iq

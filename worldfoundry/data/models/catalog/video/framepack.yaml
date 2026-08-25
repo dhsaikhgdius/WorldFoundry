@@ -54,3 +54,59 @@ catalog_policy:
     task tags only.
   parity: This manifest does not claim WorldFoundry runtime parity unless an explicit parity run and expected artifact are
     recorded.
+docs:
+  overview: |
+    FramePack is lllyasviel's open-source image-to-video system aimed at
+    low-memory and long-video workflows, cataloged from the official
+    lllyasviel/FramePack GitHub repository. Given a conditioning image it
+    generates extended video sequences. Two public, non-gated Hugging Face
+    checkpoints are confirmed: lllyasviel/FramePackI2V_HY and the newer
+    lllyasviel/FramePack_F1_I2V_HY_20250503. WorldFoundry vendors a minimal
+    infer-only FramePack runtime in-tree and exposes it through the shared
+    pipeline contract.
+  overview_zh: |
+    FramePack 是 lllyasviel 面向低显存与长视频工作流的开源图生视频系统，
+    条目来源于官方 lllyasviel/FramePack GitHub 仓库。给定条件图像，它生成
+    较长的视频序列。确认了两个公开、非 gated 的 Hugging Face 检查点：
+    lllyasviel/FramePackI2V_HY 与较新的
+    lllyasviel/FramePack_F1_I2V_HY_20250503。WorldFoundry 将最小化的
+    仅推理 FramePack 运行时 vendored 到树内，通过共享 pipeline 契约暴露。
+  architecture: |
+    The "_HY" suffix in both checkpoint names indicates the HunyuanVideo-based
+    lineage recorded upstream; the F1 checkpoint is a later 2025-05-03
+    release. This repository records provenance and wiring only; block
+    scheduling, context-packing design, and parameter counts are not recorded
+    here - consult the upstream README at the pinned HEAD SHA
+    (97fe5dbe06ac1f337ece08935b1076a35eefeeb9).
+  architecture_zh: |
+    两个检查点名称中的 “_HY” 后缀对应上游记录的 HunyuanVideo 系谱；F1
+    检查点是 2025-05-03 的较新发布。本仓库仅记录 provenance 与接线；块
+    调度、上下文打包设计与参数量此处未记录，请参考固定 HEAD SHA
+    （97fe5dbe06ac1f337ece08935b1076a35eefeeb9）的上游 README。
+  usage_notes: |
+    Runs through WorldFoundryPipelineRunner with runtime profile framepack.
+    The I2V route is wired for image-conditioned generation; missing
+    checkpoint/assets are reported at runtime. The in-tree route materializes
+    official outputs through the shared pipeline contract. Checkpoints are
+    not tracked in git; local validation may download the listed repos under
+    cache/hfd.
+  usage_notes_zh: |
+    通过 WorldFoundryPipelineRunner 运行，运行时 profile 为 framepack。
+    I2V 路线已接入图像条件生成；检查点/资产缺失会在运行时报告。树内路线
+    通过共享 pipeline 契约产出官方风格输出。检查点不入 git，本地验证可能
+    将列出的仓库下载到 cache/hfd。
+  limitations: |
+    Both HF repos expose no license in cardData (license_status pending);
+    license review is required before promotion or redistribution. Demo
+    parity and runner parity are pending - official long-video parity has
+    not been demonstrated, and per-run artifact checks are tracked outside
+    the model catalog. GPU/VRAM requirements are not recorded here despite
+    the project's low-memory focus.
+  limitations_zh: |
+    两个 HF 仓库的 cardData 均未暴露许可证（license_status 为 pending）；
+    在推广或再分发前需完成许可证审查。demo parity 与 runner parity 均为
+    pending——官方长视频一致性尚未验证，逐次运行的产物检查在目录之外
+    跟踪。尽管该项目主打低显存，GPU/显存需求此处仍未记录。
+  recommended_benchmarks:
+    - aigcbench
+    - physics-iq

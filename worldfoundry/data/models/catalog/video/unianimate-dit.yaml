@@ -33,3 +33,48 @@ runtime_profile: runtime-profile:unianimate-dit
 catalog_category: video
 catalog_scope: Video-generation and video-token catalog entries. Integrated entries expose WorldFoundry pipeline targets;
   metadata-only entries retain upstream provenance without runnable WorldFoundry backends.
+docs:
+  overview: |
+    UniAnimate-DiT is Alibaba ali-vilab's open-source human image animation
+    model, cataloged from the official ali-vilab/unianimate-dit GitHub
+    repository and the confirmed ZheWang123/UniAnimate-DiT Hugging Face
+    checkpoint. Recorded tasks are human-image-animation, image-to-video,
+    and video-generation: given a human image (and the controls exposed by
+    the runtime) it generates an animated video. The manifest notes it is a
+    human animation candidate built on Wan2.1-I2V.
+  overview_zh: |
+    UniAnimate-DiT 是阿里 ali-vilab 的开源人物图像动画模型，条目来源于
+    官方 ali-vilab/unianimate-dit GitHub 仓库与已确认的
+    ZheWang123/UniAnimate-DiT Hugging Face 检查点。记录的任务为人物图像
+    动画、图生视频与视频生成：给定人物图像（以及运行时暴露的控制项），
+    生成动画视频。manifest 注明它是构建在 Wan2.1-I2V 之上的人物动画候
+    选。
+  architecture: |
+    Built on the Wan2.1-I2V base per the integration note; the in-tree route
+    exposes max_frames, resolution, step count, and seed controls. DiT
+    adapter design, pose conditioning details, and parameter counts are not
+    recorded in this repository; consult the upstream README.
+  architecture_zh: |
+    按集成说明构建于 Wan2.1-I2V 基础之上；树内路线暴露 max_frames、分辨
+    率、步数与 seed 控制。DiT 适配器设计、姿态条件化细节与参数量仓库未
+    记录，请参考上游 README。
+  usage_notes: |
+    Runs through WorldFoundryPipelineRunner with runtime profile and pipeline
+    binding unianimate-dit, using local checkpoint assets. Missing
+    checkpoint/assets are reported at runtime. The checkpoint is an external
+    Hugging Face asset.
+  usage_notes_zh: |
+    通过 WorldFoundryPipelineRunner 运行，运行时 profile 与 pipeline
+    binding 均为 unianimate-dit，使用本地检查点资产。检查点/资产缺失在
+    运行时报告。检查点为外部 Hugging Face 资产。
+  limitations: |
+    Runner parity is pending, and per-run artifact checks are tracked outside
+    the model catalog. No license metadata is recorded for the checkpoint in
+    this manifest. Pose/driving-signal input format and GPU/VRAM requirements
+    are not recorded here.
+  limitations_zh: |
+    runner parity 为 pending，逐次运行的产物检查在目录之外跟踪。manifest
+    未记录该检查点的许可证元数据。姿态/驱动信号输入格式与 GPU/显存需求
+    此处未记录。
+  recommended_benchmarks:
+    - aigcbench

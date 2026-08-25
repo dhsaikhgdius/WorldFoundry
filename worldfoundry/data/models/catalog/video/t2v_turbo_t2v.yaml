@@ -44,3 +44,56 @@ native_diffusion:
   - ordered LoRA merger
 catalog_category: video
 catalog_scope: Video-generation and video-token catalog entries. Integrated entries expose WorldFoundry pipeline targets; metadata-only entries retain upstream provenance without runnable WorldFoundry backends.
+docs:
+  overview: |
+    T2V-Turbo is an open-source (Apache-2.0) fast text-to-video model,
+    cataloged from the official Ji4chenLi/t2v-turbo GitHub repository with
+    paper arXiv 2405.18750 and project page t2v-turbo.github.io. The VC2
+    variant tracked here applies the jiachenli-ucsb/T2V-Turbo-VC2 LoRA on top
+    of the VideoCrafter/VideoCrafter2 base model. Input is a text prompt;
+    output is a generated video.
+  overview_zh: |
+    T2V-Turbo 是开源（Apache-2.0）的快速文生视频模型，条目来源于官方
+    Ji4chenLi/t2v-turbo GitHub 仓库，论文为 arXiv 2405.18750，项目主页为
+    t2v-turbo.github.io。此处跟踪的 VC2 变体将 jiachenli-ucsb/T2V-Turbo-VC2
+    LoRA 应用于 VideoCrafter/VideoCrafter2 基础模型。输入为文本提示词，
+    输出为生成视频。
+  architecture: |
+    The native diffusion recipe is t2v_turbo_t2v with architecture
+    lvdm-videocrafter2 on the worldfoundry-native-diffusion backend. Shared
+    components are the native checkpoint loader, a native LCM scheduler, the
+    LVDM UNet and autoencoder, and an ordered LoRA merger. The VideoCrafter2
+    base model and the ordered T2V-Turbo LoRA remain separate declarative
+    checkpoint inputs.
+  architecture_zh: |
+    原生扩散 recipe 为 t2v_turbo_t2v，架构 lvdm-videocrafter2，后端为
+    worldfoundry-native-diffusion。共享组件包括原生检查点加载器、原生
+    LCM 调度器、LVDM UNet 与自编码器，以及有序 LoRA 合并器。
+    VideoCrafter2 基础模型与有序 T2V-Turbo LoRA 保持为独立的声明式检查点
+    输入。
+  usage_notes: |
+    Runs through WorldFoundryPipelineRunner with pipeline binding
+    t2v_turbo_t2v (note the underscore id; aliases t2v-turbo-t2v and
+    t2v-turbo also resolve here). Uses the shared WorldFoundry native
+    diffusion assembler, runner, checkpoint loader, offload policy, and LVDM
+    components. Both the VideoCrafter2 base and the T2V-Turbo VC2 LoRA must
+    be staged locally.
+  usage_notes_zh: |
+    通过 WorldFoundryPipelineRunner 运行，pipeline binding 为
+    t2v_turbo_t2v（注意下划线 id；别名 t2v-turbo-t2v、t2v-turbo 同样解析
+    到本条目）。使用共享 WorldFoundry 原生扩散装配器、runner、检查点加载
+    器、offload 策略与 LVDM 组件。VideoCrafter2 基础模型与 T2V-Turbo VC2
+    LoRA 均需在本地就位。
+  limitations: |
+    Runner parity status is native_checkpoint_validated: strict component and
+    LoRA validation passed against local assets, but no end-to-end
+    generated-artifact parity run is recorded in this manifest. Default
+    resolution, frame count, and GPU/VRAM requirements are not recorded
+    here.
+  limitations_zh: |
+    runner parity 状态为 native_checkpoint_validated：已对本地资产完成
+    严格的组件与 LoRA 校验，但 manifest 未记录端到端生成产物一致性运
+    行。默认分辨率、帧数与 GPU/显存需求此处未记录。
+  recommended_benchmarks:
+    - vbench
+    - evalcrafter

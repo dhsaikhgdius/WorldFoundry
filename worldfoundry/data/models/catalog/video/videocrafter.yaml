@@ -64,3 +64,59 @@ runner_parity:
   notes:
   - WorldFoundry pipeline targets are registered for VideoCrafter1 I2V, VideoCrafter1 T2V, and VideoCrafter2 T2V.
   - Exhaustive upstream benchmark parity remains a longer validation stage.
+docs:
+  overview: |
+    VideoCrafter is the family-level catalog entry for the open-source
+    VideoCrafter video generation project (official GitHub
+    VideoCrafter/VideoCrafter), covering text-to-video and image-to-video.
+    Three public Hugging Face checkpoints are confirmed:
+    VideoCrafter/VideoCrafter2 (Apache-2.0, T2V),
+    VideoCrafter/Text2Video-1024 (license pending review, T2V), and
+    VideoCrafter/Image2Video-512 (license pending review, I2V). This entry
+    tracks shared checkpoint provenance; the runnable routes live in the
+    sibling entries videocrafter1-t2v, videocrafter1-i2v, and
+    videocrafter2-t2v.
+  overview_zh: |
+    VideoCrafter 是开源 VideoCrafter 视频生成项目（官方 GitHub
+    VideoCrafter/VideoCrafter）的家族级目录条目，覆盖文生视频与图生视
+    频。确认三个公开 Hugging Face 检查点：VideoCrafter/VideoCrafter2
+    （Apache-2.0，T2V）、VideoCrafter/Text2Video-1024（许可证待审查，
+    T2V）与 VideoCrafter/Image2Video-512（许可证待审查，I2V）。本条目
+    跟踪共享的检查点 provenance；可运行路线在兄弟条目
+    videocrafter1-t2v、videocrafter1-i2v、videocrafter2-t2v 中。
+  architecture: |
+    Resolution tiers come from the checkpoint names (Text2Video-1024,
+    Image2Video-512). WorldFoundry wraps in-tree infer-only VideoCrafter
+    runtimes; the family default runtime profile is videocrafter2-t2v.
+    Network architecture and parameter counts are not recorded in this
+    repository; consult the upstream README at the pinned HEAD SHA
+    (f6c7f7f28f71d3069a9ee0e002d2f4b019eb78f6).
+  architecture_zh: |
+    分辨率档位来自检查点名称（Text2Video-1024、Image2Video-512）。
+    WorldFoundry 封装树内仅推理 VideoCrafter 运行时；家族默认运行时
+    profile 为 videocrafter2-t2v。网络架构与参数量仓库未记录，请参考固定
+    HEAD SHA（f6c7f7f28f71d3069a9ee0e002d2f4b019eb78f6）的上游 README。
+  usage_notes: |
+    The in-tree VideoCrafter1 I2V, VideoCrafter1 T2V, and VideoCrafter2 T2V
+    routes are wired with checkpoint, fps, frame count, and seed controls
+    through WorldFoundryPipelineRunner. Checkpoints are not tracked in git;
+    local validation may download the listed repos under cache/hfd.
+  usage_notes_zh: |
+    树内 VideoCrafter1 I2V、VideoCrafter1 T2V 与 VideoCrafter2 T2V 路线
+    已接入检查点、fps、帧数与 seed 控制，经 WorldFoundryPipelineRunner
+    运行。检查点不入 git，本地验证可能将列出的仓库下载到 cache/hfd。
+  limitations: |
+    Demo parity and runner parity are pending; exhaustive upstream benchmark
+    parity remains a longer validation stage. The older
+    Text2Video/Image2Video HF cards expose no license in cardData - do not
+    infer a license from the org name; only VideoCrafter2 exposes
+    Apache-2.0. GPU/VRAM requirements are not recorded here.
+  limitations_zh: |
+    demo parity 与 runner parity 均为 pending；穷尽的上游基准一致性属于
+    更长的验证阶段。较早的 Text2Video/Image2Video HF 卡片在 cardData 中
+    未暴露许可证——不得从组织名推断许可证；仅 VideoCrafter2 暴露
+    Apache-2.0。GPU/显存需求未记录。
+  recommended_benchmarks:
+    - vbench
+    - evalcrafter
+    - aigcbench

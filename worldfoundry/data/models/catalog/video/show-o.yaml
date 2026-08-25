@@ -34,3 +34,48 @@ catalog_category: video
 catalog_scope: Video-generation and video-token catalog entries. Integrated entries
   expose WorldFoundry pipeline targets; metadata-only entries retain upstream provenance
   without runnable WorldFoundry backends.
+docs:
+  overview: |
+    Show-o is showlab's open-source (MIT) unified multimodal generation
+    model, cataloged from the official showlab/Show-o GitHub repository with
+    the showlab/show-o Hugging Face checkpoint pinned at revision
+    c2c6f548c00444432a97bc8fbbce7b2fd73fc9b5. Recorded tasks are
+    multimodal-generation and text-to-image. The current WorldFoundry
+    wrapper supports the text-to-image generation path: given a text prompt
+    it produces a generated image.
+  overview_zh: |
+    Show-o 是 showlab 的开源（MIT）统一多模态生成模型，条目来源于官方
+    showlab/Show-o GitHub 仓库，showlab/show-o Hugging Face 检查点固定在
+    revision c2c6f548c00444432a97bc8fbbce7b2fd73fc9b5。记录的任务为多模态
+    生成与文生图。当前 WorldFoundry 封装支持文生图路径：给定文本提示词，
+    输出生成图像。
+  architecture: |
+    The runtime source is vendored in-tree, and ShowOSynthesis provides the
+    T2I wrapper. Upstream capabilities such as MMU, inpainting, and
+    extrapolation remain future wiring. Network architecture and parameter
+    counts are not recorded in this repository; consult the upstream README.
+  architecture_zh: |
+    运行时源码 vendored 到树内，ShowOSynthesis 提供 T2I 封装。上游的
+    MMU、inpainting、外推等能力属于未来接线。网络架构与参数量仓库未记
+    录，请参考上游 README。
+  usage_notes: |
+    Integration status is runtime_ported; runs through
+    WorldFoundryPipelineRunner with runtime profile and pipeline binding
+    show-o. Aliases show_o and showo resolve here. Runner parity for the T2I
+    path is verified; per-run visual QA and artifact checks are tracked
+    outside the model catalog.
+  usage_notes_zh: |
+    集成状态为 runtime_ported；通过 WorldFoundryPipelineRunner 运行，运行
+    时 profile 与 pipeline binding 均为 show-o。别名 show_o、showo 解析到
+    本条目。T2I 路径的 runner parity 已验证；逐次运行的视觉 QA 与产物检
+    查在目录之外跟踪。
+  limitations: |
+    Only the text-to-image path is wired; MMU, inpainting, and extrapolation
+    are not available through WorldFoundry yet. Despite living in the video
+    catalog, no video-generation route is claimed, so no video benchmark is
+    recommended. GPU/VRAM requirements are not recorded here.
+  limitations_zh: |
+    仅接入文生图路径；MMU、inpainting、外推能力尚不能通过 WorldFoundry
+    使用。虽位于 video 目录，但不声称视频生成路线，故不推荐视频基准。
+    GPU/显存需求未记录。
+  recommended_benchmarks: []

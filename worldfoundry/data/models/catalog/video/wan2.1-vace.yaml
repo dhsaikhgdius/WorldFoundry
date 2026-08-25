@@ -38,3 +38,54 @@ runtime_profile: runtime-profile:wan2.1-vace
 catalog_category: video
 catalog_scope: Video-generation and video-token catalog entries. Integrated entries expose WorldFoundry pipeline targets;
   metadata-only entries retain upstream provenance without runnable WorldFoundry backends.
+docs:
+  overview: |
+    Wan2.1 VACE is the video editing and controlled-generation member of the
+    Wan2.1 family, cataloged from the official Wan-Video/Wan2.1 GitHub
+    repository with two confirmed Hugging Face checkpoints:
+    Wan-AI/Wan2.1-VACE-14B and Wan-AI/Wan2.1-VACE-1.3B-diffusers (sizes from
+    the checkpoint names). Recorded tasks are video-editing, video-to-video,
+    image-to-video, and controlled-video-generation, driven by image
+    references, source video/mask conditions, or precomputed VACE context
+    tensors.
+  overview_zh: |
+    Wan2.1 VACE 是 Wan2.1 家族中负责视频编辑与受控生成的成员，条目来源于
+    官方 Wan-Video/Wan2.1 GitHub 仓库，确认两个 Hugging Face 检查点：
+    Wan-AI/Wan2.1-VACE-14B 与 Wan-AI/Wan2.1-VACE-1.3B-diffusers（规模来自
+    检查点名称）。记录的任务为视频编辑、视频生视频、图生视频与受控视频
+    生成，可由图像参考、源视频/掩码条件或预计算的 VACE 上下文张量驱动。
+  architecture: |
+    VACE is assembled from the canonical Wan network, UMT5 conditioner, VAE
+    codec, scheduler, initializer, and native runner roles; loading,
+    placement, offload, sampling, media normalization, and artifact writing
+    are owned by the shared WorldFoundry infrastructure. No official-runtime
+    backend is used. The native defaults preserve the official VACE-14B
+    inference shape: 1280x720, 81 frames, 50 steps, guidance scale 5.0.
+  architecture_zh: |
+    VACE 由规范 Wan 网络、UMT5 conditioner、VAE 编解码、调度器、
+    initializer 与原生 runner 角色装配；加载、放置、offload、采样、媒体
+    规范化与产物写出由共享 WorldFoundry 基础设施持有。不使用官方运行时
+    后端。原生默认保留官方 VACE-14B 推理形状：1280x720、81 帧、50 步、
+    guidance scale 5.0。
+  usage_notes: |
+    Runs through WorldFoundryPipelineRunner with runtime profile and pipeline
+    binding wan2.1-vace. Image references, source video/mask conditions, and
+    precomputed VACE context tensors are supported inputs. Checkpoints are
+    external Hugging Face assets and must be staged locally.
+  usage_notes_zh: |
+    通过 WorldFoundryPipelineRunner 运行，运行时 profile 与 pipeline
+    binding 均为 wan2.1-vace。支持的输入包括图像参考、源视频/掩码条件与
+    预计算的 VACE 上下文张量。检查点为外部 Hugging Face 资产，需在本地
+    就位。
+  limitations: |
+    Full checkpoint visual parity remains a GPU artifact-validation task -
+    the integrated status covers assembly, not verified output parity. No
+    license metadata is recorded for the two VACE checkpoints in this
+    manifest. GPU/VRAM requirements are not recorded, and this repository's
+    benchmark catalog has no video-editing benchmark to recommend.
+  limitations_zh: |
+    完整的检查点级视觉一致性仍是 GPU 产物验证任务——integrated 状态覆盖
+    装配，而非已验证的输出一致性。manifest 未记录两个 VACE 检查点的许可
+    证元数据。GPU/显存需求未记录，本仓库基准目录中也没有可推荐的视频
+    编辑类基准。
+  recommended_benchmarks: []

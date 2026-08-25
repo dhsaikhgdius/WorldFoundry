@@ -133,3 +133,65 @@ integration:
   status: integrated
   notes:
     - WorldFoundry wraps the in-tree Wan2.2 TI2V runtime.
+docs:
+  overview: |
+    Wan2.2 is the Wan-Video team's follow-on open-weight (Apache-2.0) video
+    generation family, tracked separately from Wan2.1 because code and
+    checkpoint repos are versioned separately upstream. It is cataloged from
+    the official Wan-Video/Wan2.2 GitHub repository with three confirmed
+    Hugging Face checkpoints: Wan2.2-T2V-A14B (text-to-video),
+    Wan2.2-I2V-A14B (image-to-video), and Wan2.2-TI2V-5B (combined
+    text-image-to-video). The runnable WorldFoundry variant is
+    wan2.2-ti2v-5b targeting 1280x704 output at 121 frames.
+  overview_zh: |
+    Wan2.2 是 Wan-Video 团队后续的开源权重（Apache-2.0）视频生成家族，
+    因上游代码与检查点仓库独立版本化而与 Wan2.1 分开跟踪。条目来源于
+    官方 Wan-Video/Wan2.2 GitHub 仓库，确认三个 Hugging Face 检查点：
+    Wan2.2-T2V-A14B（文生视频）、Wan2.2-I2V-A14B（图生视频）与
+    Wan2.2-TI2V-5B（图文生视频）。可运行的 WorldFoundry 变体为
+    wan2.2-ti2v-5b，目标输出 1280x704、121 帧。
+  architecture: |
+    Checkpoint names record the scales: A14B for the T2V/I2V releases and 5B
+    for the TI2V release. The TI2V-5B variant records min_vram_gb 24 and
+    uses runtime profile wan2.2-ti2v-5b-1280x704-121f. The parity fixtures
+    probe for at least 100 frames at 1000x600+ and 20-30 fps. Deeper network
+    details are not recorded in this repository.
+  architecture_zh: |
+    检查点名称记录了规模：T2V/I2V 发布为 A14B，TI2V 发布为 5B。TI2V-5B
+    变体记录 min_vram_gb 为 24，使用运行时 profile
+    wan2.2-ti2v-5b-1280x704-121f。parity 基准检测至少 100 帧、1000x600
+    以上分辨率、20-30 fps。更深层网络细节仓库未记录。
+  usage_notes: |
+    The wan2.2-ti2v-5b variant runs through WorldFoundryPipelineRunner. The
+    official demo command is
+    scripts/model_zoo/run_wan22_ti2v_5b_official_demo.sh and the runner demo
+    is scripts/model_zoo/run_wan22_ti2v_5b_worldfoundry_runner_demo.py, both
+    using the same prompt, seed 42, checkpoint, resolution, frame count,
+    shift, CFG scale, dtype conversion, and offload settings. Aliases
+    wan-2p2 and wan2p2 resolve here. Checkpoints download under cache/hfd.
+  usage_notes_zh: |
+    wan2.2-ti2v-5b 变体通过 WorldFoundryPipelineRunner 运行。官方 demo
+    命令为 scripts/model_zoo/run_wan22_ti2v_5b_official_demo.sh，runner
+    demo 为 scripts/model_zoo/run_wan22_ti2v_5b_worldfoundry_runner_demo.py，
+    两者使用相同的提示词、seed 42、检查点、分辨率、帧数、shift、CFG
+    scale、数据类型转换与 offload 设置。别名 wan-2p2、wan2p2 解析到本
+    条目。检查点下载到 cache/hfd。
+  limitations: |
+    Demo parity is pending_checkpoint_and_demo and runner parity is
+    pending_demo: the parity commands are wired but must pass after
+    checkpoint download and GPU execution; official 121-frame parity remains
+    pending. The T2V-A14B and I2V-A14B checkpoints are confirmed but have no
+    runnable WorldFoundry variants in this catalog. For the hosted Wan 2.5+
+    API generations, see the hosted_api catalog instead.
+  limitations_zh: |
+    demo parity 为 pending_checkpoint_and_demo，runner parity 为
+    pending_demo：parity 命令已接入，但需在检查点下载与 GPU 执行后通过；
+    官方 121 帧一致性仍待验证。T2V-A14B 与 I2V-A14B 检查点已确认，但本
+    目录中没有对应可运行变体。托管的 Wan 2.5+ API 代次请见 hosted_api
+    目录。
+  recommended_benchmarks:
+    - vbench
+    - evalcrafter
+    - t2v-compbench
+    - aigcbench
+    - physics-iq

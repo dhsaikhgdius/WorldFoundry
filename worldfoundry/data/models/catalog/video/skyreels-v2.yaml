@@ -82,3 +82,60 @@ catalog_policy:
     id, sha, private, gated, license, and selected task tags only.
   parity: This manifest does not claim WorldFoundry runtime parity unless an explicit
     parity run and expected artifact are recorded.
+docs:
+  overview: |
+    SkyReels-V2 is SkyworkAI's open-weight video generation family for
+    text-to-video and image-to-video, cataloged from the official
+    SkyworkAI/SkyReels-V2 GitHub repository. Four representative public
+    Hugging Face checkpoints are recorded: SkyReels-V2-DF-1.3B-540P (T2V,
+    diffusion-forcing), SkyReels-V2-T2V-14B-720P, SkyReels-V2-I2V-1.3B-540P,
+    and SkyReels-V2-I2V-14B-720P. The integrated WorldFoundry route is the
+    1.3B model assembled on the shared native Wan graph.
+  overview_zh: |
+    SkyReels-V2 是 SkyworkAI 的开源权重视频生成家族，覆盖文生视频与图生
+    视频，条目来源于官方 SkyworkAI/SkyReels-V2 GitHub 仓库。记录了四个
+    代表性公开 Hugging Face 检查点：SkyReels-V2-DF-1.3B-540P（T2V，
+    diffusion-forcing）、SkyReels-V2-T2V-14B-720P、
+    SkyReels-V2-I2V-1.3B-540P 与 SkyReels-V2-I2V-14B-720P。已集成的
+    WorldFoundry 路线是装配在共享原生 Wan 图上的 1.3B 模型。
+  architecture: |
+    The native diffusion recipe is skyreels-v2 with architecture
+    skyreels-v2-wan-df-1.3b on the worldfoundry-native-diffusion backend; the
+    upstream graph is represented as an FPS-conditioned Wan capability, and
+    the vendored CLI/pipeline is not an inference backend. Shared components
+    are the Wan UMT5 conditioner and tokenizer, the Wan video VAE and UniPC
+    scheduler, and the native loader, CFG runner, and block offload. The
+    checkpoint graph match is 830/830 tensors. Sizes (1.3B/14B) and
+    resolutions (540P/720P) come from the checkpoint names.
+  architecture_zh: |
+    原生扩散 recipe 为 skyreels-v2，架构 skyreels-v2-wan-df-1.3b，后端为
+    worldfoundry-native-diffusion；上游图被表示为 FPS 条件化的 Wan 能力，
+    vendored 的 CLI/pipeline 不作为推理后端。共享组件包括 Wan UMT5
+    conditioner 与 tokenizer、Wan 视频 VAE 与 UniPC 调度器，以及原生
+    loader、CFG runner 与块 offload。检查点图匹配为 830/830 张量。规模
+    （1.3B/14B）与分辨率（540P/720P）来自检查点名称。
+  usage_notes: |
+    Runs through WorldFoundryPipelineRunner with runtime profile skyreels-v2.
+    The 1.3B route is assembled from the shared native Wan components.
+    Checkpoints are metadata-checked only and are not tracked in git; local
+    validation may download the listed repos under cache/hfd.
+  usage_notes_zh: |
+    通过 WorldFoundryPipelineRunner 运行，运行时 profile 为 skyreels-v2。
+    1.3B 路线由共享原生 Wan 组件装配。检查点仅做元数据校验，不入 git；
+    本地验证可能将列出的仓库下载到 cache/hfd。
+  limitations: |
+    All listed checkpoints report license 'other' with
+    manual_review_required - review upstream terms before redistribution.
+    Demo parity is pending_visual_qa: checkpoint structure parity is
+    complete, but release parity still requires a 97-frame native artifact
+    and visual QA. The 14B T2V/I2V checkpoints are recorded but have no
+    separately integrated route here. GPU/VRAM requirements are not recorded.
+  limitations_zh: |
+    所有列出的检查点许可证均为 'other' 且需人工审查——再分发前审查上游
+    条款。demo parity 为 pending_visual_qa：检查点结构一致性已完成，但
+    发布一致性仍需 97 帧原生产物与视觉 QA。14B T2V/I2V 检查点已记录，但
+    此处没有单独集成的路线。GPU/显存需求未记录。
+  recommended_benchmarks:
+    - vbench
+    - evalcrafter
+    - aigcbench

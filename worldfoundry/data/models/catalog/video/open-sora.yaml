@@ -59,3 +59,55 @@ catalog_policy:
     id, sha, private, gated, license, and selected task tags only.
   parity: This manifest does not claim WorldFoundry runtime parity unless an explicit
     parity run and expected artifact are recorded.
+docs:
+  overview: |
+    Open-Sora is hpcaitech's open-source (Apache-2.0) text-to-video project,
+    cataloged from the official hpcaitech/Open-Sora GitHub repository. Three
+    public Hugging Face checkpoints are confirmed: the
+    hpcai-tech/OpenSora-STDiT-v3 denoiser, the hpcai-tech/OpenSora-VAE-v1.2
+    video autoencoder, and the older
+    hpcai-tech/OpenSora-STDiT-v1-HQ-16x512x512 release. Input is a text
+    prompt; output is a generated video.
+  overview_zh: |
+    Open-Sora 是 hpcaitech 的开源（Apache-2.0）文生视频项目，条目来源于
+    官方 hpcaitech/Open-Sora GitHub 仓库。确认三个公开 Hugging Face 检查
+    点：hpcai-tech/OpenSora-STDiT-v3 去噪器、hpcai-tech/OpenSora-VAE-v1.2
+    视频自编码器，以及较早的
+    hpcai-tech/OpenSora-STDiT-v1-HQ-16x512x512 版本。输入为文本提示词，
+    输出为生成视频。
+  architecture: |
+    The checkpoint names carry the recorded structure: an STDiT
+    (spatial-temporal DiT) denoiser plus a separate video VAE - Open-Sora
+    often requires both a model repo and a VAE repo. The
+    v1-HQ-16x512x512 name records the older 16-frame, 512x512 configuration.
+    The OpenSora-STDiT-v2 candidate returned 401 and is not listed. Deeper
+    architecture details are not recorded in this repository.
+  architecture_zh: |
+    检查点名称即承载了已记录的结构：STDiT（时空 DiT）去噪器加独立视频
+    VAE——Open-Sora 通常需要模型仓库与 VAE 仓库两者。v1-HQ-16x512x512
+    名称记录了较早的 16 帧、512x512 配置。OpenSora-STDiT-v2 候选返回
+    401，未列入。更深层架构细节仓库未记录。
+  usage_notes: |
+    Runs through WorldFoundryPipelineRunner with runtime profile open-sora.
+    Missing checkpoint/assets are reported at runtime. Checkpoints are not
+    tracked in git; local validation may download the listed repos under
+    cache/hfd. Both the STDiT-v3 and VAE-v1.2 repos should be staged
+    together for the current route.
+  usage_notes_zh: |
+    通过 WorldFoundryPipelineRunner 运行，运行时 profile 为 open-sora。
+    检查点/资产缺失在运行时报告。检查点不入 git，本地验证可能将列出的
+    仓库下载到 cache/hfd。当前路线应同时就位 STDiT-v3 与 VAE-v1.2 两个
+    仓库。
+  limitations: |
+    Demo parity is pending: no WorldFoundry runtime or official-output parity
+    run was performed for this manifest update, and no expected artifacts are
+    recorded. GPU/VRAM requirements, default resolutions, and frame counts
+    for the v3 route are not recorded in this repository.
+  limitations_zh: |
+    demo parity 为 pending：本次 manifest 更新未执行 WorldFoundry 运行时
+    或官方输出一致性验证，也未记录预期产物。v3 路线的 GPU/显存需求、默认
+    分辨率与帧数仓库未记录。
+  recommended_benchmarks:
+    - vbench
+    - evalcrafter
+    - t2v-compbench

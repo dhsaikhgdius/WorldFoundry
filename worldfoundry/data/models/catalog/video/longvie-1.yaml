@@ -41,3 +41,55 @@ catalog_category: video
 catalog_scope: Video-generation and video-token catalog entries. Integrated entries
   expose WorldFoundry pipeline targets; metadata-only entries retain upstream provenance
   without runnable WorldFoundry backends.
+docs:
+  overview: |
+    LongVie (v1) is the first-generation controllable long-video model from
+    the Vchitect team, cataloged from the official Vchitect/LongVie GitHub
+    repository and the shared LongVie2 project page. Recorded tasks are
+    image-to-video, long-video-generation, depth-controlled-video, and
+    trajectory-controlled-video; the output artifact is a generated video.
+    WorldFoundry implements it on top of the canonical Wan model stack rather
+    than a separate upstream runtime.
+  overview_zh: |
+    LongVie（v1）是 Vchitect 团队第一代可控长视频模型，条目来源于官方
+    Vchitect/LongVie GitHub 仓库与共享的 LongVie2 项目主页。记录的任务为
+    图生视频、长视频生成、深度控制视频与轨迹控制视频；输出产物为生成
+    视频。WorldFoundry 在规范 Wan 模型栈之上实现该模型，而非使用独立的
+    上游运行时。
+  architecture: |
+    The integration composes the canonical Wan model, encoders, VAE,
+    VACE/control roles, checkpoint loaders, and the shared staged runner. The
+    LongVie-1 adapter uses the control-weight path without the optional
+    LongVie 2 DiT attention override. The native runner preserves the
+    official target 640x352 segment size, history/noise continuation state,
+    VRAM management, and optional USP ring/ulysses controls. No dedicated
+    Hugging Face checkpoint is recorded for v1 in this manifest.
+  architecture_zh: |
+    集成由规范 Wan 模型、编码器、VAE、VACE/控制角色、检查点加载器与共享
+    staged runner 组成。LongVie-1 适配器使用控制权重路径，不含可选的
+    LongVie 2 DiT 注意力覆盖。原生 runner 保留官方目标 640x352 分段尺
+    寸、历史/噪声续接状态、显存管理与可选 USP ring/ulysses 控制。本
+    manifest 未为 v1 记录专属 Hugging Face 检查点。
+  usage_notes: |
+    Runs through WorldFoundryPipelineRunner with runtime profile and pipeline
+    binding longvie-1; pass execute=True to run the checkpoint-backed GPU
+    path. Aliases longvie, longvie1, and longvie-v1 resolve here. For the
+    newer control + DiT-attention release with a published checkpoint, use
+    the sibling longvie-2 entry.
+  usage_notes_zh: |
+    通过 WorldFoundryPipelineRunner 运行，运行时 profile 与 pipeline
+    binding 均为 longvie-1；传入 execute=True 走有检查点支撑的 GPU 路径。
+    别名 longvie、longvie1、longvie-v1 解析到本条目。若需带已发布检查点的
+    较新控制 + DiT 注意力版本，请使用兄弟条目 longvie-2。
+  limitations: |
+    Runner parity is pending: official release-parity evidence has not been
+    recorded, and per-run artifact checks are tracked outside the model
+    catalog. This manifest lists no v1-specific checkpoint repository, no
+    license metadata, and no GPU/VRAM requirements.
+  limitations_zh: |
+    runner parity 为 pending：官方发布一致性证据尚未记录，逐次运行的产物
+    检查在目录之外跟踪。本 manifest 未列出 v1 专属检查点仓库、许可证元
+    数据与 GPU/显存需求。
+  recommended_benchmarks:
+    - aigcbench
+    - worldscore

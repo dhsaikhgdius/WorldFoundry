@@ -46,3 +46,58 @@ catalog_category: video
 catalog_scope: Video-generation and video-token catalog entries. Integrated entries
   expose WorldFoundry pipeline targets; metadata-only entries retain upstream provenance
   without runnable WorldFoundry backends.
+docs:
+  overview: |
+    Vchitect-2.0 T2V is the Vchitect team's open-source (Apache-2.0)
+    text-to-video model, cataloged from the official Vchitect/Vchitect-2.0
+    GitHub repository with the Vchitect/Vchitect-2.0-2B checkpoint (2B from
+    the checkpoint name) pinned at revision
+    37936818734242d8e75685b9ee43d2d2e447f98c. Input is a text prompt; the
+    output artifact is a generated video. Integration verification status is
+    gpu_validation_verified.
+  overview_zh: |
+    Vchitect-2.0 T2V 是 Vchitect 团队的开源（Apache-2.0）文生视频模型，
+    条目来源于官方 Vchitect/Vchitect-2.0 GitHub 仓库，检查点为
+    Vchitect/Vchitect-2.0-2B（2B 来自检查点名称），固定 revision
+    37936818734242d8e75685b9ee43d2d2e447f98c。输入为文本提示词，输出产物
+    为生成视频。集成验证状态为 gpu_validation_verified。
+  architecture: |
+    The native diffusion recipe is vchitect-2-t2v with architecture
+    vchitect-2-mmdit (an MMDiT-style graph per the recorded architecture id)
+    on the worldfoundry-native-diffusion backend. Shared components are a
+    native shifted-flow Euler scheduler, a native SD3 frame decoder, and the
+    native checkpoint loader with block offload policy. The native DiT
+    matches all 1019 checkpoint tensors and the native SD3 decoder matches
+    all 138 decoder tensors.
+  architecture_zh: |
+    原生扩散 recipe 为 vchitect-2-t2v，架构 vchitect-2-mmdit（按记录的
+    架构 id，为 MMDiT 风格计算图），后端为 worldfoundry-native-diffusion。
+    共享组件包括原生 shifted-flow Euler 调度器、原生 SD3 帧解码器，以及
+    带块 offload 策略的原生检查点加载器。原生 DiT 与全部 1019 个检查点
+    张量匹配，原生 SD3 解码器与全部 138 个解码器张量匹配。
+  usage_notes: |
+    Use id vchitect-2-t2v; aliases vchitect, vchitect-2, vchitect2-t2v, and
+    vchitect_2_t2v resolve here. Runs through WorldFoundryPipelineRunner with
+    runtime profile and pipeline binding vchitect-2-t2v. The Hugging Face
+    checkpoint reports gated=auto and requires_auth=true - accept the access
+    terms on Hugging Face before downloading.
+  usage_notes_zh: |
+    使用 id vchitect-2-t2v；别名 vchitect、vchitect-2、vchitect2-t2v、
+    vchitect_2_t2v 解析到本条目。通过 WorldFoundryPipelineRunner 运行，
+    运行时 profile 与 pipeline binding 均为 vchitect-2-t2v。Hugging Face
+    检查点为 gated=auto 且 requires_auth=true——下载前需在 Hugging Face
+    接受访问条款。
+  limitations: |
+    Runner parity status is native_checkpoint_validated (tensor-level
+    matching), not an end-to-end generated-artifact parity claim. The
+    checkpoint is gated and requires accepting access terms. Default
+    generation configuration and GPU/VRAM requirements are not recorded in
+    this repository.
+  limitations_zh: |
+    runner parity 状态为 native_checkpoint_validated（张量级匹配），并非
+    端到端生成产物一致性断言。检查点为 gated，需接受访问条款。默认生成
+    配置与 GPU/显存需求仓库未记录。
+  recommended_benchmarks:
+    - vbench
+    - evalcrafter
+    - t2v-compbench

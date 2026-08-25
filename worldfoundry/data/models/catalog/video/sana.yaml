@@ -223,3 +223,70 @@ catalog_category: video
 catalog_scope: Video-generation and video-token catalog entries. Integrated entries
   expose WorldFoundry pipeline targets; metadata-only entries retain upstream provenance
   without runnable WorldFoundry backends.
+docs:
+  overview: |
+    Sana is NVIDIA NVlabs' open-source (Apache-2.0) efficient generation
+    family, cataloged from the official NVlabs/Sana GitHub repository with
+    the project page nvlabs.github.io/Sana and paper arXiv 2410.10629. This
+    entry spans text-to-image (Sana 600M/1600M, SANA 1.5, Sana Sprint,
+    ControlNet variants - all planned), text-to-video (SANA-Video 2B 480p
+    integrated; 720p and LongSANA planned), and video-to-video (SANA-Streaming
+    long and bidirectional routes, both integrated). Checkpoints live under
+    the Efficient-Large-Model Hugging Face org.
+  overview_zh: |
+    Sana 是 NVIDIA NVlabs 的开源（Apache-2.0）高效生成家族，条目来源于
+    官方 NVlabs/Sana GitHub 仓库，项目主页 nvlabs.github.io/Sana，论文
+    arXiv 2410.10629。本条目覆盖文生图（Sana 600M/1600M、SANA 1.5、Sana
+    Sprint、ControlNet 变体——均为 planned）、文生视频（SANA-Video 2B
+    480p 已集成；720p 与 LongSANA 为 planned）与视频生视频
+    （SANA-Streaming long 与 bidirectional 路线均已集成）。检查点位于
+    Efficient-Large-Model Hugging Face 组织下。
+  architecture: |
+    Sana checkpoint math is split across canonical denoiser, network,
+    encoder, autoencoder, initializer, scheduler, and recipe roles under
+    worldfoundry.base_models.diffusion_model. SANA-Streaming routes use the
+    vendored official BF16 CLI, hybrid DiT blocks, fused GDN kernels, and a
+    causal LTX-2 VAE wrapper, synchronized from NVlabs/Sana commit
+    78be97aec4efabd73ddb97d47e9f7c13a60ef90a. The long_streaming route
+    defaults to 969 frames, 4 denoising steps, 704x1280 output with
+    sink-token state caching; the bidirectional_short route defaults to 81
+    frames and 50 steps with classifier-free guidance.
+  architecture_zh: |
+    Sana 的检查点计算被拆分到 worldfoundry.base_models.diffusion_model
+    下的规范 denoiser、network、encoder、autoencoder、initializer、
+    scheduler 与 recipe 角色。SANA-Streaming 路线使用 vendored 的官方
+    BF16 CLI、混合 DiT 块、融合 GDN 内核与因果 LTX-2 VAE 封装，源码同步
+    自 NVlabs/Sana 提交 78be97aec4efabd73ddb97d47e9f7c13a60ef90a。
+    long_streaming 路线默认 969 帧、4 步去噪、704x1280 输出并带
+    sink-token 状态缓存；bidirectional_short 路线默认 81 帧、50 步、
+    带 classifier-free guidance。
+  usage_notes: |
+    Integration status is runtime_ported; all variants share runtime profile
+    sana under WorldFoundryPipelineRunner. Integrated variants are
+    sana-video-2b-480p, sana-streaming-2b-720p, and
+    sana-streaming-bidirectional-2b-720p; the many text-to-image variants are
+    planned placeholders. Aliases sana-video, longsana-video, sana-streaming,
+    and sana-streaming-bidirectional resolve here. Checkpoints remain
+    external Hugging Face assets and were not downloaded for verification.
+  usage_notes_zh: |
+    集成状态为 runtime_ported；所有变体共享运行时 profile sana，经
+    WorldFoundryPipelineRunner 运行。已集成变体为 sana-video-2b-480p、
+    sana-streaming-2b-720p 与 sana-streaming-bidirectional-2b-720p；众多
+    文生图变体为 planned 占位。别名 sana-video、longsana-video、
+    sana-streaming、sana-streaming-bidirectional 解析到本条目。检查点为
+    外部 Hugging Face 资产，验证时未下载。
+  limitations: |
+    Runner parity is pending: SanaSynthesis plan-onlys and executes the
+    official in-tree CLI scripts, but full 50-step / longer-frame official
+    quality parity remains pending. The paper's MPQ deployment path is not
+    part of the public BF16 inference recipe. Most text-to-image variants are
+    planned-only with no runnable route. GPU/VRAM requirements are not
+    recorded.
+  limitations_zh: |
+    runner parity 为 pending：SanaSynthesis 以 plan-only 方式并执行官方
+    树内 CLI 脚本，但完整 50 步 / 更长帧数的官方质量一致性仍待验证。论文
+    中的 MPQ 部署路径不属于公开 BF16 推理配方。大多数文生图变体仅为
+    planned，无可运行路线。GPU/显存需求未记录。
+  recommended_benchmarks:
+    - vbench
+    - evalcrafter

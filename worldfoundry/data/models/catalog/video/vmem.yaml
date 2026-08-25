@@ -35,3 +35,51 @@ runner_parity:
   - Per-run validation evidence is tracked outside the release catalog.
 catalog_category: video
 catalog_scope: Video-generation and video-token catalog entries. Integrated entries expose WorldFoundry pipeline targets; metadata-only entries retain upstream provenance without runnable WorldFoundry backends.
+docs:
+  overview: |
+    VMem is an open-source (Apache-2.0) memory-augmented video generation
+    system, cataloged from the official runjiali-rl/vmem GitHub repository
+    with paper arXiv 2506.18903 and project page v-mem.github.io. Recorded
+    tasks are video-generation, memory, stream, and interactive-world-model.
+    Two Hugging Face model repos are confirmed: liguang0115/vmem (the VMem
+    checkpoint) and liguang0115/cut3r (the CUT3R geometry model it depends
+    on).
+  overview_zh: |
+    VMem 是开源（Apache-2.0）的记忆增强视频生成系统，条目来源于官方
+    runjiali-rl/vmem GitHub 仓库，论文为 arXiv 2506.18903，项目主页为
+    v-mem.github.io。记录的任务为视频生成、记忆、流式与交互式世界模型。
+    确认两个 Hugging Face 模型仓库：liguang0115/vmem（VMem 检查点）与
+    liguang0115/cut3r（其依赖的 CUT3R 几何模型）。
+  architecture: |
+    The in-tree VMem runtime lives at
+    worldfoundry/synthesis/visual_generation/vmem/vmem_runtime; no external
+    checkout is required. Inference requires both the VMem and CUT3R
+    checkpoints staged locally. Memory mechanism internals and parameter
+    counts are not recorded in this repository; consult the paper and
+    upstream README.
+  architecture_zh: |
+    树内 VMem 运行时位于
+    worldfoundry/synthesis/visual_generation/vmem/vmem_runtime，无需外部
+    检出。推理需要 VMem 与 CUT3R 两个检查点在本地就位。记忆机制内部与
+    参数量仓库未记录，请参考论文与上游 README。
+  usage_notes: |
+    Runs through WorldFoundryPipelineRunner with pipeline binding vmem.
+    Integration and runner parity are both verified: Studio/API visual
+    validation uses the in-tree runtime with staged VMem and CUT3R
+    checkpoints. Per-run validation evidence is tracked outside the release
+    catalog.
+  usage_notes_zh: |
+    通过 WorldFoundryPipelineRunner 运行，pipeline binding 为 vmem。集成
+    与 runner parity 均已验证：Studio/API 视觉验证使用树内运行时与已就位
+    的 VMem、CUT3R 检查点。逐次运行的验证证据在发布目录之外跟踪。
+  limitations: |
+    No runtime_profile is recorded on this entry (pipeline binding only).
+    Input contract details (camera trajectories, interaction controls) and
+    GPU/VRAM requirements are not recorded in this repository. Per-run
+    validation evidence lives outside the catalog.
+  limitations_zh: |
+    本条目未记录 runtime_profile（仅有 pipeline binding）。输入契约细节
+    （相机轨迹、交互控制）与 GPU/显存需求仓库未记录。逐次运行的验证证据
+    在目录之外。
+  recommended_benchmarks:
+    - worldscore

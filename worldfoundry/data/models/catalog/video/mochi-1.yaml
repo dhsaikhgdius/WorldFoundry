@@ -86,3 +86,57 @@ catalog_policy:
     id, sha, private, gated, license, and selected task tags only.
   parity: This manifest does not claim WorldFoundry runtime parity unless an explicit
     parity run and expected artifact are recorded.
+docs:
+  overview: |
+    Mochi-1 is Genmo's open-weight text-to-video model, cataloged from the
+    official genmoai/models GitHub repository and the Apache-2.0
+    genmo/mochi-1-preview Hugging Face checkpoint. Input is a text prompt;
+    output is a generated video. The parity fixtures in this manifest target
+    848x480 output at 31 frames (seed 12345), matching the recorded expected
+    artifact mochi1_preview_seed12345_848x480_31f.mp4.
+  overview_zh: |
+    Mochi-1 是 Genmo 的开源权重文生视频模型，条目来源于官方
+    genmoai/models GitHub 仓库与 Apache-2.0 许可证的 genmo/mochi-1-preview
+    Hugging Face 检查点。输入为文本提示词，输出为生成视频。manifest 中的
+    parity 基准针对 848x480、31 帧输出（seed 12345），对应记录的预期产物
+    mochi1_preview_seed12345_848x480_31f.mp4。
+  architecture: |
+    This repository records provenance and demo wiring only: the official
+    GitHub org is genmoai while the official HF org is genmo, and a similarly
+    named diffusers repo candidate returned 401 and is excluded. The official
+    CLI parity command pins prompt, seed, resolution, frame count, CFG scale,
+    and step count. Network architecture and parameter counts are not
+    recorded here; consult the upstream README.
+  architecture_zh: |
+    本仓库仅记录 provenance 与 demo 接线：官方 GitHub 组织为 genmoai，
+    官方 HF 组织为 genmo；一个名称相近的 diffusers 仓库候选返回 401，已
+    排除。官方 CLI parity 命令固定提示词、seed、分辨率、帧数、CFG scale
+    与步数。网络架构与参数量此处未记录，请参考上游 README。
+  usage_notes: |
+    The runnable variant is mochi-1-preview-t2v through
+    WorldFoundryPipelineRunner with runtime profile mochi-1-preview-t2v. The
+    official demo command is
+    scripts/model_zoo/run_mochi1_preview_official_demo.sh, run against the
+    local genmo/mochi-1-preview checkpoint (pinned snapshot
+    14be5fcea23095ed330cb214647916a451e38b6e). Checkpoints are not tracked in
+    git; local validation may download the repo under cache/hfd.
+  usage_notes_zh: |
+    可运行变体为 mochi-1-preview-t2v，通过 WorldFoundryPipelineRunner
+    运行，运行时 profile 为 mochi-1-preview-t2v。官方 demo 命令为
+    scripts/model_zoo/run_mochi1_preview_official_demo.sh，使用本地
+    genmo/mochi-1-preview 检查点（固定 snapshot
+    14be5fcea23095ed330cb214647916a451e38b6e）。检查点不入 git，本地验证
+    可能将仓库下载到 cache/hfd。
+  limitations: |
+    Demo parity and runner parity are pending: the route and parity command
+    are wired, but the full official 31-frame / 64-step quality run has not
+    been completed. Only the preview checkpoint is cataloged. GPU/VRAM
+    requirements are not recorded in this repository.
+  limitations_zh: |
+    demo parity 与 runner parity 均为 pending：路线与 parity 命令已接
+    入，但完整的官方 31 帧 / 64 步质量运行尚未完成。仅收录 preview 检查
+    点。GPU/显存需求仓库未记录。
+  recommended_benchmarks:
+    - vbench
+    - evalcrafter
+    - t2v-compbench

@@ -52,3 +52,52 @@ catalog_policy:
     id, sha, private, gated, license, and selected task tags only.
   parity: This manifest does not claim WorldFoundry runtime parity unless an explicit
     parity run and expected artifact are recorded.
+docs:
+  overview: |
+    ModelScopeT2V is the DAMO/ModelScope text-to-video synthesis model. The
+    confirmed open-weight checkpoint is
+    ali-vilab/modelscope-damo-text-to-video-synthesis on Hugging Face
+    (CC-BY-NC-4.0). Input is a text prompt; output is a generated video. The
+    general official ModelScope SDK repository
+    (github.com/modelscope/modelscope) is verified, but a dedicated
+    model-specific GitHub source repo was not confirmed in this pass.
+  overview_zh: |
+    ModelScopeT2V 是达摩院/ModelScope 的文生视频合成模型。确认的开源权重
+    检查点为 Hugging Face 上的
+    ali-vilab/modelscope-damo-text-to-video-synthesis（CC-BY-NC-4.0）。
+    输入为文本提示词，输出为生成视频。通用官方 ModelScope SDK 仓库
+    （github.com/modelscope/modelscope）已验证，但本轮未确认模型专属的
+    GitHub 源码仓库。
+  architecture: |
+    This repository records provenance and wiring only. The similarly named
+    model-scope/text-to-video-synthesis repo is reachable but intentionally
+    not used; the ali-vilab checkpoint is the selected open-weight source.
+    Network architecture and parameter counts are not recorded here.
+  architecture_zh: |
+    本仓库仅记录 provenance 与接线。名称相近的
+    model-scope/text-to-video-synthesis 仓库可访问但有意未采用；ali-vilab
+    检查点是选定的开源权重来源。网络架构与参数量此处未记录。
+  usage_notes: |
+    Runs through WorldFoundryPipelineRunner with runtime profile
+    modelscope-t2v, exposing text prompt, fps, and seed controls. Missing
+    checkpoint/assets are reported at runtime. Checkpoints are not tracked in
+    git; local validation may download the listed repo under cache/hfd.
+  usage_notes_zh: |
+    通过 WorldFoundryPipelineRunner 运行，运行时 profile 为
+    modelscope-t2v，暴露文本提示词、fps 与 seed 控制。检查点/资产缺失在
+    运行时报告。检查点不入 git，本地验证可能将列出的仓库下载到
+    cache/hfd。
+  limitations: |
+    The checkpoint license is CC-BY-NC-4.0 (non-commercial) per HF cardData -
+    do not treat it as unrestricted open source, and review benchmark policy
+    before commercial or automated benchmark use. Demo parity is pending;
+    official sample parity has not been demonstrated. The model-specific
+    source_status is confirmed_general_official_github_model_specific_source_pending.
+  limitations_zh: |
+    按 HF cardData，检查点许可证为 CC-BY-NC-4.0（非商用）——不得视为无
+    限制开源，在商用或自动化基准使用前需审查政策。demo parity 为
+    pending；官方样例一致性尚未验证。模型专属 source_status 为
+    confirmed_general_official_github_model_specific_source_pending。
+  recommended_benchmarks:
+    - vbench
+    - evalcrafter

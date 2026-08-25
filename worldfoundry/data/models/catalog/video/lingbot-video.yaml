@@ -52,3 +52,61 @@ runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipel
 pipeline_binding: lingbot-video
 catalog_category: video
 schema_version: 2
+docs:
+  overview: |
+    LingBot-Video is Robbyant's open-source (Apache-2.0) visual generation
+    model, cataloged from the official Robbyant/lingbot-video GitHub
+    repository (pinned HEAD SHA a2bb04b78edd848500dc27a26e035a95442ae186) and
+    a project page at technology.robbyant.com/lingbot-video. Recorded tasks
+    are text-to-image, text-to-video, text-image-to-video, and
+    video-refinement, producing generated images or videos. Two confirmed
+    checkpoints exist: the required dense 1.3B model
+    (robbyant/lingbot-video-dense-1.3b) and an optional 30B-A3B MoE variant
+    with refiner (robbyant/lingbot-video-moe-30b-a3b).
+  overview_zh: |
+    LingBot-Video 是 Robbyant 的开源（Apache-2.0）视觉生成模型，条目来源
+    于官方 Robbyant/lingbot-video GitHub 仓库（固定 HEAD SHA
+    a2bb04b78edd848500dc27a26e035a95442ae186），项目主页为
+    technology.robbyant.com/lingbot-video。记录的任务为文生图、文生视频、
+    图文生视频与视频精修，输出为生成的图像或视频。已确认两个检查点：必需
+    的 dense 1.3B 模型（robbyant/lingbot-video-dense-1.3b）与可选的
+    30B-A3B MoE 变体（含 refiner，robbyant/lingbot-video-moe-30b-a3b）。
+  architecture: |
+    Model scales (dense 1.3B; MoE 30B with A3B active-parameter naming) come
+    from the official checkpoint names. The vendored inference package
+    preserves the direct Diffusers path plus optional SGLang, FSDP,
+    context-parallel, CFG-parallel, and refiner code paths. The inference
+    package is flattened under
+    worldfoundry/synthesis/visual_generation/lingbot_video. Deeper network
+    details are not recorded in this repository.
+  architecture_zh: |
+    模型规模（dense 1.3B；MoE 30B、A3B 激活参数命名）来自官方检查点名称。
+    vendored 的推理包保留直接 Diffusers 路径，以及可选的 SGLang、FSDP、
+    上下文并行、CFG 并行与 refiner 代码路径。推理包平铺于
+    worldfoundry/synthesis/visual_generation/lingbot_video。更深层网络细节
+    仓库未记录。
+  usage_notes: |
+    Runs through WorldFoundryPipelineRunner with runtime profile and pipeline
+    binding lingbot-video. Aliases lingbot-video-dense and lingbot-video-moe
+    resolve here. Prompt rewriter, training, benchmark, documentation, and
+    demo-media sources are intentionally excluded from the vendored tree.
+    Dense and MoE checkpoints remain external assets and are never tracked in
+    git.
+  usage_notes_zh: |
+    通过 WorldFoundryPipelineRunner 运行，运行时 profile 与 pipeline
+    binding 均为 lingbot-video。别名 lingbot-video-dense、
+    lingbot-video-moe 解析到本条目。提示词改写器、训练、benchmark、文档与
+    演示媒体源码被有意排除在 vendored 树之外。dense 与 MoE 检查点为外部
+    资产，永不入 git。
+  limitations: |
+    Runner parity is pending: full checkpoint-backed artifact and visual
+    parity validation has not been run. The MoE variant is recorded as
+    optional and has no separate runnable route in this catalog. GPU/VRAM
+    requirements are not recorded here.
+  limitations_zh: |
+    runner parity 为 pending：完整的有检查点支撑的产物与视觉一致性验证
+    尚未运行。MoE 变体记录为可选，本目录中没有独立可运行路线。GPU/显存
+    需求未记录。
+  recommended_benchmarks:
+    - vbench
+    - evalcrafter

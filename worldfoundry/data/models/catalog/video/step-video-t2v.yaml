@@ -46,3 +46,54 @@ catalog_category: video
 catalog_scope: Video-generation and video-token catalog entries. Integrated entries
   expose WorldFoundry pipeline targets; metadata-only entries retain upstream provenance
   without runnable WorldFoundry backends.
+docs:
+  overview: |
+    Step-Video-T2V is StepFun's open-source (MIT) text-to-video model,
+    cataloged from the official stepfun-ai/Step-Video-T2V GitHub repository
+    and the stepfun-ai/stepvideo-t2v Hugging Face checkpoint pinned at
+    revision 7a2b639ca2685350e87a4df7e4026285309f7fb6 with an estimated size
+    of 183 GB. Input is a text prompt; the output artifact is a generated
+    video.
+  overview_zh: |
+    Step-Video-T2V 是阶跃星辰（StepFun）的开源（MIT）文生视频模型，条目
+    来源于官方 stepfun-ai/Step-Video-T2V GitHub 仓库与
+    stepfun-ai/stepvideo-t2v Hugging Face 检查点（固定 revision
+    7a2b639ca2685350e87a4df7e4026285309f7fb6，估计体积 183 GB）。输入为
+    文本提示词，输出产物为生成视频。
+  architecture: |
+    The public pipeline is assembled from native role-based components on the
+    worldfoundry-native-diffusion backend: DiT denoiser, Step-LLM and CLIP
+    prompt encoders, scheduler, latent initialization, and VAE decoding all
+    execute in-process. Shared components include the native checkpoint
+    resolver and module loader, the framework-owned CFG sampling loop, and
+    core scaled-dot-product attention with block offload. The former xFuser
+    and caption/VAE service runtime is not a backend.
+  architecture_zh: |
+    公开 pipeline 由 worldfoundry-native-diffusion 后端上的原生角色化组件
+    装配：DiT 去噪器、Step-LLM 与 CLIP 提示词编码器、调度器、latent 初始
+    化与 VAE 解码全部进程内执行。共享组件包括原生检查点解析与模块加载
+    器、框架持有的 CFG 采样循环，以及带块 offload 的核心 SDPA 注意力。
+    先前的 xFuser 与 caption/VAE 服务运行时不再作为后端。
+  usage_notes: |
+    Use id step-video-t2v; aliases step-video, stepvideo-t2v, and
+    step_video_t2v resolve here. Runs through WorldFoundryPipelineRunner with
+    runtime profile and pipeline binding step-video-t2v. The checkpoint is an
+    external asset of roughly 183 GB - plan storage accordingly.
+  usage_notes_zh: |
+    使用 id step-video-t2v；别名 step-video、stepvideo-t2v、
+    step_video_t2v 解析到本条目。通过 WorldFoundryPipelineRunner 运行，
+    运行时 profile 与 pipeline binding 均为 step-video-t2v。检查点为约
+    183 GB 的外部资产——请预留相应存储。
+  limitations: |
+    Runner parity status is native_checkpoint_layout_validated: the native
+    checkpoint layout is validated, but no end-to-end generated-artifact
+    parity run is recorded in this manifest. GPU/VRAM requirements and
+    default generation configuration are not recorded here.
+  limitations_zh: |
+    runner parity 状态为 native_checkpoint_layout_validated：原生检查点
+    布局已验证，但 manifest 未记录端到端生成产物一致性运行。GPU/显存
+    需求与默认生成配置此处未记录。
+  recommended_benchmarks:
+    - vbench
+    - evalcrafter
+    - t2v-compbench

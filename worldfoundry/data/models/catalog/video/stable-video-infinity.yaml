@@ -67,3 +67,67 @@ pipeline_binding: stable-video-infinity
 catalog_category: video
 catalog_scope: Video-generation and video-token catalog entries. Integrated entries expose WorldFoundry pipeline targets;
   metadata-only entries retain upstream provenance without runnable WorldFoundry backends.
+docs:
+  overview: |
+    Stable Video Infinity 2.0 (SVI) is VITA@EPFL's open-source (MIT)
+    long-video generation system, cataloged from the official
+    vita-epfl/Stable-Video-Infinity GitHub repository at a pinned revision,
+    with paper arXiv 2510.09212 and a project page. It is distributed as a
+    LoRA (vita-video-gen/svi-model, file
+    version-2.0/SVI_Wan2.1-I2V-14B_lora_v2.0.safetensors) applied to the
+    Wan2.1 I2V 14B 480P base model. Recorded tasks are image-to-video,
+    long-video-generation, and prompt-stream-video-generation.
+  overview_zh: |
+    Stable Video Infinity 2.0（SVI）是 VITA@EPFL 的开源（MIT）长视频生成
+    系统，条目来源于官方 vita-epfl/Stable-Video-Infinity GitHub 仓库的
+    固定版本，论文为 arXiv 2510.09212，并有项目主页。它以 LoRA 形式分发
+    （vita-video-gen/svi-model，文件
+    version-2.0/SVI_Wan2.1-I2V-14B_lora_v2.0.safetensors），应用于
+    Wan2.1 I2V 14B 480P 基础模型。记录的任务为图生视频、长视频生成与
+    提示词流视频生成。
+  architecture: |
+    WorldFoundry ports the official SVI 2.0 inference-only conditioning path
+    in-tree at the pinned upstream revision, reusing the canonical Wan2.1
+    components and staged runner. The adapter preserves five-frame
+    continuation, per-clip seed changes, reference-frame padding, and
+    prompt-stream repetition. Released training-pipeline LoRA keys are
+    normalized to bare Wan DiT module names, and runtime loading fails unless
+    every discovered LoRA pair is merged.
+  architecture_zh: |
+    WorldFoundry 在固定上游版本将官方 SVI 2.0 的仅推理条件化路径移植到
+    树内，复用规范 Wan2.1 组件与 staged runner。适配器保留五帧续接、
+    每段独立 seed、参考帧填充与提示词流重复。发布的训练管线 LoRA 键被
+    规范化为纯 Wan DiT 模块名，且运行时加载要求所有发现的 LoRA 对全部
+    合并，否则失败。
+  usage_notes: |
+    Runs through WorldFoundryPipelineRunner with runtime profile and pipeline
+    binding stable-video-infinity. Both the SVI LoRA (MIT) and the Wan2.1
+    I2V 14B 480P base (Apache-2.0) must be staged. A full A100 workspace
+    default run generated two linked 81-frame, 50-step clips at 832x544 and
+    emitted the expected 157-frame H.264 artifact after removing the
+    five-frame overlap. Aliases SVI, SVI-2.0, stable_video_infinity, and
+    stable-video-infinity-2.0 resolve here.
+  usage_notes_zh: |
+    通过 WorldFoundryPipelineRunner 运行，运行时 profile 与 pipeline
+    binding 均为 stable-video-infinity。需同时就位 SVI LoRA（MIT）与
+    Wan2.1 I2V 14B 480P 基础模型（Apache-2.0）。一次完整的 A100 工作区
+    默认运行生成两段相连的 81 帧、50 步、832x544 片段，去除五帧重叠后
+    输出预期的 157 帧 H.264 产物。别名 SVI、SVI-2.0、
+    stable_video_infinity、stable-video-infinity-2.0 解析到本条目。
+  limitations: |
+    Runner parity is full_default_gpu_parity_verified for the default
+    configuration: exact-setting parity against the pinned official native
+    runtime reached 31.03 dB PSNR, 4.05 pixel MAE, and 0.993 luma correlation
+    across all 81 frames, with visual contact-sheet review passed. Training
+    launchers, datasets, demo media, and checkpoints remain outside the
+    source tree. Behavior beyond the verified default configuration and
+    GPU/VRAM requirements are not separately recorded.
+  limitations_zh: |
+    默认配置的 runner parity 为 full_default_gpu_parity_verified：与固定
+    官方原生运行时的同设置一致性达到 81 帧全部 31.03 dB PSNR、4.05 像素
+    MAE、0.993 亮度相关性，且视觉 contact-sheet 审查通过。训练启动器、
+    数据集、演示媒体与检查点不在源码树内。已验证默认配置之外的行为与
+    GPU/显存需求未单独记录。
+  recommended_benchmarks:
+    - aigcbench
+    - physics-iq

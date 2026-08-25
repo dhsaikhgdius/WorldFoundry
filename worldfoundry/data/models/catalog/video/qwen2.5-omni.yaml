@@ -29,3 +29,47 @@ runner_parity:
 catalog_category: video
 catalog_scope: Video-generation and video-token catalog entries. Integrated entries expose WorldFoundry pipeline targets;
   metadata-only entries retain upstream provenance without runnable WorldFoundry backends.
+docs:
+  overview: |
+    Qwen2.5-Omni is Alibaba's open-source omni-modal model, cataloged from
+    its official Hugging Face repository Qwen/Qwen2.5-Omni-7B (the 7B size
+    comes from the repo name). In this catalog it is tagged for
+    multimodal-reasoning, audio-reasoning, image-question-answering, and
+    video-question-answering - it reasons over and answers questions about
+    audio, image, and video inputs rather than generating video. The entry
+    was originally exposed by the WorldFoundry-native-3D integration.
+  overview_zh: |
+    Qwen2.5-Omni 是阿里的开源全模态模型，条目来源于其官方 Hugging Face
+    仓库 Qwen/Qwen2.5-Omni-7B（7B 规模来自仓库名）。本目录中任务标注为
+    多模态推理、音频推理、图像问答与视频问答——它对音频、图像、视频输入
+    进行推理与问答，而非生成视频。该条目最初由 WorldFoundry-native-3D
+    集成暴露。
+  architecture: |
+    This repository records only provenance (official HF repo, open_source
+    status, provider worldfoundry_native) and wiring (runtime profile
+    qwen2.5-omni). Architecture, tokenizer, and license details are not
+    recorded here; consult the upstream Hugging Face model card.
+  architecture_zh: |
+    本仓库仅记录 provenance（官方 HF 仓库、open_source 状态、provider 为
+    worldfoundry_native）与接线（运行时 profile 为 qwen2.5-omni）。架构、
+    tokenizer 与许可证细节此处未记录，请查阅上游 Hugging Face 模型卡。
+  usage_notes: |
+    Runs through WorldFoundryPipelineRunner with pipeline binding
+    qwen2.5-omni. Aliases qwen2p5-omni, qwen2p5_omni, and
+    Qwen/Qwen2.5-Omni-7B resolve here. The WorldFoundry route is complete;
+    missing checkpoint/assets are reported at runtime.
+  usage_notes_zh: |
+    通过 WorldFoundryPipelineRunner 运行，pipeline binding 为
+    qwen2.5-omni。别名 qwen2p5-omni、qwen2p5_omni、Qwen/Qwen2.5-Omni-7B
+    解析到本条目。WorldFoundry 路线已完成；检查点/资产缺失在运行时报告。
+  limitations: |
+    Runner parity is pending: checkpoint-backed artifact parity has not been
+    run in this workspace. No GitHub source repo or license metadata is
+    recorded. This is a reasoning/QA model; no video-generation capability is
+    claimed, and no matching benchmark from this repository's catalog is
+    recommended.
+  limitations_zh: |
+    runner parity 为 pending：本工作区尚未运行有检查点支撑的产物一致性
+    验证。未记录 GitHub 源码仓库或许可证元数据。这是推理/问答模型，不
+    声称视频生成能力，本仓库基准目录中也没有合适的推荐基准。
+  recommended_benchmarks: []

@@ -61,3 +61,61 @@ catalog_category: video
 catalog_scope: Video-generation and video-token catalog entries. Integrated entries
   expose WorldFoundry pipeline targets; metadata-only entries retain upstream provenance
   without runnable WorldFoundry backends.
+docs:
+  overview: |
+    LongVie 2 is the second-generation controllable long-video model from the
+    Vchitect team, cataloged from the official Vchitect/LongVie GitHub
+    repository, the Vchitect/LongVie2 Hugging Face checkpoint, and the
+    project page vchitect.github.io/LongVie2-project. Recorded tasks are
+    image-to-video, long-video-generation, depth-controlled-video, and
+    trajectory-controlled-video. It runs on top of the Wan2.1 I2V 14B 480P
+    base model (Apache-2.0), with LongVie2 supplying control and DiT
+    attention weights.
+  overview_zh: |
+    LongVie 2 是 Vchitect 团队第二代可控长视频模型，条目来源于官方
+    Vchitect/LongVie GitHub 仓库、Vchitect/LongVie2 Hugging Face 检查点与
+    项目主页 vchitect.github.io/LongVie2-project。记录的任务为图生视频、
+    长视频生成、深度控制视频与轨迹控制视频。它运行在 Wan2.1 I2V 14B 480P
+    基础模型（Apache-2.0）之上，LongVie2 提供控制与 DiT 注意力权重。
+  architecture: |
+    WorldFoundry implements LongVie 2 over canonical Wan roles and the shared
+    staged runner; LongVie owns only checkpoint-shaped control and attention
+    behavior. The adapter loads control.safetensors and dit.safetensors,
+    preserves the official history/noise continuation loop (eight-frame
+    history plus prior final frame), and supports the official USP
+    ring/ulysses distributed inference controls when execute=True. Segments
+    are 81 frames at the official 640x352 target size.
+  architecture_zh: |
+    WorldFoundry 在规范 Wan 角色与共享 staged runner 之上实现 LongVie 2；
+    LongVie 仅持有检查点形态的控制与注意力行为。适配器加载
+    control.safetensors 与 dit.safetensors，保留官方历史/噪声续接循环
+    （八帧历史加上前一段末帧），并在 execute=True 时支持官方 USP
+    ring/ulysses 分布式推理控制。分段为 81 帧，官方目标尺寸 640x352。
+  usage_notes: |
+    Exposed as queued 81-frame control-video segments, not keyboard realtime.
+    Full quality defaults are 81 frames at 16 FPS with 50 denoising steps.
+    Studio's default four-GPU torchrun USP route completed a
+    checkpoint-backed run on 2026-07-28: all 81 frames decoded at 640x352 and
+    rank zero materialized the artifact. Aliases longvie2 and longvie-v2
+    resolve here; both the LongVie2 weights and the Wan2.1 base checkpoint
+    must be staged.
+  usage_notes_zh: |
+    以排队的 81 帧控制视频分段形式暴露，不是键盘实时交互。完整质量默认
+    配置为 81 帧、16 FPS、50 步去噪。Studio 默认四卡 torchrun USP 路线于
+    2026-07-28 完成有检查点支撑的运行：81 帧全部以 640x352 解码，rank 0
+    产出产物。别名 longvie2、longvie-v2 解析到本条目；需要同时就位
+    LongVie2 权重与 Wan2.1 基础检查点。
+  limitations: |
+    Runner parity is verified for the recorded Studio USP configuration, but
+    per-run artifact checks live outside the catalog. The Vchitect/LongVie2
+    checkpoint has no license metadata recorded in this manifest (the Wan2.1
+    base is Apache-2.0). Realtime/keyboard interactivity is explicitly not
+    claimed. Single-GPU behavior and VRAM requirements are not recorded.
+  limitations_zh: |
+    runner parity 已针对记录的 Studio USP 配置验证，但逐次运行的产物检查
+    在目录之外。本 manifest 未记录 Vchitect/LongVie2 检查点的许可证元数据
+    （Wan2.1 基础模型为 Apache-2.0）。明确不声称实时/键盘交互能力。单卡
+    行为与显存需求未记录。
+  recommended_benchmarks:
+    - aigcbench
+    - worldscore

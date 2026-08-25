@@ -112,3 +112,64 @@ variants:
       notes:
         - The in-tree CogVideoX 5B I2V runner supports the official-style I2V parameter contract.
         - Per-run evidence is tracked outside the model catalog.
+docs:
+  overview: |
+    CogVideoX is THUDM's open-weight video generation family from the official
+    THUDM/CogVideo GitHub repository, covering text-to-video and
+    image-to-video. This catalog entry confirms five public Hugging Face
+    checkpoints: CogVideoX-2b (Apache-2.0, T2V), CogVideoX-5b (license
+    'other', T2V), CogVideoX-5b-I2V (I2V), CogVideoX1.5-5B (T2V/I2V), and
+    CogVideoX1.5-5B-I2V (I2V). Input is a text prompt (plus a conditioning
+    image for I2V); output is a generated video. WorldFoundry exposes three
+    runnable variants: cogvideox-2b-t2v, cogvideox-5b-t2v, and
+    cogvideox-5b-i2v.
+  overview_zh: |
+    CogVideoX 是清华 THUDM 的开源权重视频生成家族，来源于官方
+    THUDM/CogVideo GitHub 仓库，覆盖文生视频与图生视频。本条目确认了五个
+    公开 Hugging Face 检查点：CogVideoX-2b（Apache-2.0，T2V）、
+    CogVideoX-5b（许可证 'other'，T2V）、CogVideoX-5b-I2V（I2V）、
+    CogVideoX1.5-5B（T2V/I2V）与 CogVideoX1.5-5B-I2V（I2V）。输入为文本
+    提示词（I2V 需附条件图像），输出为生成视频。WorldFoundry 暴露三个可
+    运行变体：cogvideox-2b-t2v、cogvideox-5b-t2v、cogvideox-5b-i2v。
+  architecture: |
+    Parameter scales (2B / 5B) come from the official checkpoint names. The
+    I2V configuration follows the official-style 49-frame, 50-step Diffusers
+    recipe. T2V profiles expose num_inference_steps, num_frames, height,
+    width, and fps; the I2V profile additionally exposes guidance_scale.
+    Deeper network details are not recorded in this repository; the SAT
+    checkpoint candidate returned 401 and is not listed.
+  architecture_zh: |
+    参数规模（2B / 5B）来自官方检查点名称。I2V 配置遵循官方风格的
+    49 帧、50 步 Diffusers 配方。T2V profile 暴露 num_inference_steps、
+    num_frames、height、width、fps；I2V profile 额外暴露 guidance_scale。
+    更深层网络细节仓库未记录；SAT 检查点候选返回 401，未列入。
+  usage_notes: |
+    All variants run through WorldFoundryPipelineRunner wrapping the in-tree
+    CogVideoX T2V/I2V runtimes; the family default runtime profile is
+    cogvideox-5b-t2v. Demo parity and runner parity are verified for 2B T2V,
+    5B T2V, and 5B I2V with Studio/API-compatible parameter propagation.
+    Checkpoints are not tracked in git; local validation may download the
+    listed repos under cache/hfd.
+  usage_notes_zh: |
+    所有变体通过 WorldFoundryPipelineRunner 运行，封装树内 CogVideoX
+    T2V/I2V 运行时；家族默认运行时 profile 为 cogvideox-5b-t2v。2B T2V、
+    5B T2V、5B I2V 的 demo parity 与 runner parity 均已验证，参数在
+    Studio/API 路线正确传递。检查点不入 git，本地验证可能将列出的仓库
+    下载到 cache/hfd。
+  limitations: |
+    Only CogVideoX-2b carries an Apache-2.0 license; the 5B and 1.5 variants
+    report 'other' in HF cardData and need upstream license review before
+    redistribution. CogVideoX1.5-5B and CogVideoX1.5-5B-I2V are confirmed
+    checkpoints but have no runnable WorldFoundry variant in this catalog.
+    Per-run visual QA and artifact checks are tracked outside the model
+    catalog, and GPU/VRAM requirements are not recorded here.
+  limitations_zh: |
+    仅 CogVideoX-2b 为 Apache-2.0 许可证；5B 与 1.5 系列在 HF cardData 中
+    报告为 'other'，再分发前需人工审查上游条款。CogVideoX1.5-5B 与
+    CogVideoX1.5-5B-I2V 是已确认的检查点，但本目录中没有对应可运行变体。
+    逐次运行的视觉 QA 与产物检查在目录之外跟踪，GPU/显存需求未记录。
+  recommended_benchmarks:
+    - vbench
+    - evalcrafter
+    - t2v-compbench
+    - aigcbench

@@ -55,3 +55,61 @@ catalog_policy:
     id, sha, private, gated, license, and selected task tags only.
   parity: This manifest does not claim WorldFoundry runtime parity unless an explicit
     parity run and expected artifact are recorded.
+docs:
+  overview: |
+    Open-Sora-Plan is PKU-YuanGroup's open-source text-to-video project; the
+    validated WorldFoundry GPU route uses the MIT-licensed
+    LanguageBind/Open-Sora-Plan-v1.3.0 Hugging Face release together with the
+    google/mt5-xxl text encoder. Input is a text prompt; output is a
+    generated video. Demo parity has passed: the official v1.3 GPU demo
+    recipe (Tokyo street prompt, 93 frames, 352x640, fps 18, 100
+    EulerAncestralDiscrete steps, guidance 7.5, seed 1234, torchrun
+    --nproc_per_node=8) decodes 93 non-empty frames and passes visual QA.
+  overview_zh: |
+    Open-Sora-Plan 是北大 PKU-YuanGroup 的开源文生视频项目；已验证的
+    WorldFoundry GPU 路线使用 MIT 许可证的
+    LanguageBind/Open-Sora-Plan-v1.3.0 Hugging Face 发布版，配合
+    google/mt5-xxl 文本编码器。输入为文本提示词，输出为生成视频。demo
+    parity 已通过：官方 v1.3 GPU demo 配方（东京街景提示词、93 帧、
+    352x640、fps 18、100 步 EulerAncestralDiscrete、guidance 7.5、seed
+    1234、torchrun --nproc_per_node=8）解码出 93 帧非空画面并通过视觉
+    QA。
+  architecture: |
+    The validated route pairs the v1.3.0 release with the mt5-xxl text
+    encoder and 100-step EulerAncestralDiscrete sampling. Upstream also has
+    older LanguageBind releases (v1.0.0 through v1.2.0) and a v1.5.0
+    NPU/MindSpeed-oriented release, which are not the validated GPU route.
+    Network internals are not recorded in this repository.
+  architecture_zh: |
+    已验证路线将 v1.3.0 发布版与 mt5-xxl 文本编码器及 100 步
+    EulerAncestralDiscrete 采样配对。上游还有较早的 LanguageBind 发布
+    （v1.0.0 至 v1.2.0）与面向 NPU/MindSpeed 的 v1.5.0 版本，均非已验证
+    的 GPU 路线。网络内部细节仓库未记录。
+  usage_notes: |
+    Runs through WorldFoundryPipelineRunner with runtime profile
+    open-sora-plan. The mt5-xxl text encoder is staged by
+    scripts/inference/prepare_model_infer.sh to avoid duplicating the roughly
+    50GB checkpoint inside both WORLDFOUNDRY_CKPT_DIR and
+    WORLDFOUNDRY_HFD_ROOT. The demo recipe uses eight GPUs via torchrun.
+    Official GitHub is PKU-YuanGroup; official HF releases are under
+    LanguageBind.
+  usage_notes_zh: |
+    通过 WorldFoundryPipelineRunner 运行，运行时 profile 为
+    open-sora-plan。mt5-xxl 文本编码器由
+    scripts/inference/prepare_model_infer.sh 就位，避免约 50GB 的检查点在
+    WORLDFOUNDRY_CKPT_DIR 与 WORLDFOUNDRY_HFD_ROOT 中重复存放。demo 配方
+    通过 torchrun 使用八卡。官方 GitHub 为 PKU-YuanGroup；官方 HF 发布在
+    LanguageBind 组织下。
+  limitations: |
+    Only the v1.3.0 + mt5-xxl GPU recipe carries parity evidence; older
+    releases and the v1.5.0 NPU release are not validated here. The demo
+    recipe assumes an 8-GPU torchrun environment; single-GPU behavior is not
+    recorded. The text encoder is a separate large download.
+  limitations_zh: |
+    仅 v1.3.0 + mt5-xxl 的 GPU 配方有 parity 证据；较早版本与 v1.5.0 NPU
+    版本此处未验证。demo 配方假设八卡 torchrun 环境；单卡行为未记录。
+    文本编码器是独立的大体积下载。
+  recommended_benchmarks:
+    - vbench
+    - evalcrafter
+    - t2v-compbench

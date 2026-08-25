@@ -36,3 +36,57 @@ catalog_category: video
 catalog_scope: Video-generation and video-token catalog entries. Integrated entries
   expose WorldFoundry pipeline targets; metadata-only entries retain upstream provenance
   without runnable WorldFoundry backends.
+docs:
+  overview: |
+    AnimateDiff is an open-source text-to-video system from the guoyww GitHub
+    project that animates Stable Diffusion 1.5-family image models with a
+    learned motion module. Input is a text prompt; output is a short generated
+    video clip. In this catalog it is tagged text-to-video and
+    legacy-unet-diffusion, reflecting that it builds on the older UNet
+    diffusion stack rather than a DiT-style video backbone.
+  overview_zh: |
+    AnimateDiff 是 guoyww GitHub 项目发布的开源文生视频系统，通过学习到的
+    运动模块为 Stable Diffusion 1.5 系列图像模型赋予动画能力。输入为文本
+    提示词，输出为短视频片段。本目录中它被标注为 text-to-video 与
+    legacy-unet-diffusion，表明其基于较早的 UNet 扩散栈而非 DiT 式视频
+    骨干。
+  architecture: |
+    The manifest records the checkpoint composition directly: the guoyww/animatediff
+    motion-module weights (Apache-2.0), guoyww/animatediff_t2i_backups,
+    the stable-diffusion-v1-5/stable-diffusion-v1-5 base image model, and the
+    openai/clip-vit-large-patch14 text encoder. The CLIP encoder is resolved
+    from an existing local HF-cache copy via symlinks. Further architecture
+    details are not recorded in this repository.
+  architecture_zh: |
+    manifest 直接记录了检查点组成：guoyww/animatediff 运动模块权重
+    （Apache-2.0）、guoyww/animatediff_t2i_backups、
+    stable-diffusion-v1-5/stable-diffusion-v1-5 基础图像模型，以及
+    openai/clip-vit-large-patch14 文本编码器。CLIP 编码器通过 HF 缓存符号
+    链接复用本地已有副本。更多架构细节仓库未记录。
+  usage_notes: |
+    Runs through the WorldFoundryPipelineRunner with runtime profile
+    animatediff and pipeline binding animatediff in the unified environment
+    profile. Runner parity is verified against the official repo's default
+    RealisticVision scripts.animate demo with exact file SHA256, decoded pixel
+    SHA256, and artifact size matches. The current diffusers/transformers
+    checkpoint-key compatibility fixes are required for the Studio/API route.
+  usage_notes_zh: |
+    通过 WorldFoundryPipelineRunner 运行，运行时 profile 为 animatediff，
+    pipeline binding 为 animatediff，使用统一环境 profile。runner parity
+    已对照官方仓库默认 RealisticVision scripts.animate demo 验证，文件
+    SHA256、解码像素 SHA256 与产物大小完全一致。Studio/API 路线依赖当前
+    diffusers/transformers 检查点键兼容性修复。
+  limitations: |
+    Per-run validation evidence is tracked outside the model catalog. The
+    manifest does not record GPU/VRAM requirements or generation length/fps
+    defaults. Only the verified RealisticVision demo configuration carries
+    parity evidence; other community motion modules or base models are not
+    covered by this entry.
+  limitations_zh: |
+    逐次运行的验证证据在模型目录之外跟踪。manifest 未记录 GPU/显存需求，
+    也未记录生成长度/帧率默认值。仅经过验证的 RealisticVision demo 配置
+    具有 parity 证据；其他社区运动模块或基础模型不在本条目覆盖范围内。
+  recommended_benchmarks:
+    - vbench
+    - evalcrafter
+    - t2v-compbench

@@ -42,3 +42,49 @@ catalog_category: video
 catalog_scope: Video-generation and video-token catalog entries. Integrated entries
   expose WorldFoundry pipeline targets; metadata-only entries retain upstream provenance
   without runnable WorldFoundry backends.
+docs:
+  overview: |
+    LongCat-Video is Meituan's open-source (MIT) video generation model,
+    cataloged from the official meituan-longcat/LongCat-Video GitHub
+    repository, the matching Hugging Face checkpoint, and the project page at
+    meituan-longcat.github.io/LongCat-Video. Recorded tasks are
+    text-to-video, image-to-video, video-continuation, and
+    long-video-generation; the output artifact is a generated video.
+  overview_zh: |
+    LongCat-Video 是美团的开源（MIT）视频生成模型，条目来源于官方
+    meituan-longcat/LongCat-Video GitHub 仓库、同名 Hugging Face 检查点与
+    项目主页 meituan-longcat.github.io/LongCat-Video。记录的任务为文生
+    视频、图生视频、视频续写与长视频生成；输出产物为生成视频。
+  architecture: |
+    This repository records provenance and wiring only. The official quality
+    reference configuration implied by the parity notes is 93 frames at 50
+    denoising steps. Network architecture, conditioning design, and parameter
+    counts are not recorded here; consult the upstream README.
+  architecture_zh: |
+    本仓库仅记录 provenance 与接线。parity 注释隐含的官方质量参考配置为
+    93 帧、50 步去噪。网络架构、条件化设计与参数量此处未记录，请参考上游
+    README。
+  usage_notes: |
+    A model-specific WorldFoundry pipeline is registered and runs the
+    vendored in-tree demo scripts when explicit execute=True is supplied. The
+    route uses local LongCat-Video checkpoints in the unified environment
+    profile, with runtime profile and pipeline binding longcat-video.
+    Checkpoints are external Hugging Face assets.
+  usage_notes_zh: |
+    已注册模型专属 WorldFoundry pipeline，在显式传入 execute=True 时运行
+    vendored 的树内 demo 脚本。路线在统一环境 profile 中使用本地
+    LongCat-Video 检查点，运行时 profile 与 pipeline binding 均为
+    longcat-video。检查点为外部 Hugging Face 资产。
+  limitations: |
+    Runner parity is pending: full official 93-frame / 50-step quality parity
+    has not been demonstrated, and per-run visual QA and artifact checks are
+    tracked outside the model catalog. GPU/VRAM requirements and maximum
+    continuation length are not recorded in this repository.
+  limitations_zh: |
+    runner parity 为 pending：完整的官方 93 帧 / 50 步质量一致性尚未验
+    证，逐次运行的视觉 QA 与产物检查在目录之外跟踪。GPU/显存需求与最大
+    续写长度仓库未记录。
+  recommended_benchmarks:
+    - vbench
+    - aigcbench
+    - physics-iq

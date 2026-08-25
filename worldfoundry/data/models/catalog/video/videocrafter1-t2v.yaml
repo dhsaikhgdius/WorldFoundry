@@ -32,3 +32,46 @@ catalog_category: video
 catalog_scope: Video-generation and video-token catalog entries. Integrated entries
   expose WorldFoundry pipeline targets; metadata-only entries retain upstream provenance
   without runnable WorldFoundry backends.
+docs:
+  overview: |
+    VideoCrafter1 T2V is the text-to-video route of the open-source
+    VideoCrafter project (official GitHub VideoCrafter/VideoCrafter). Given a
+    text prompt it generates a video. The in-tree infer-only runtime wraps
+    the official VideoCrafter text-to-video 1024 path; checkpoint provenance
+    (VideoCrafter/Text2Video-1024) is tracked on the top-level videocrafter
+    catalog entry to avoid duplicate HF repo aliases.
+  overview_zh: |
+    VideoCrafter1 T2V 是开源 VideoCrafter 项目（官方 GitHub
+    VideoCrafter/VideoCrafter）的文生视频路线。给定文本提示词，生成视
+    频。树内仅推理运行时封装官方 VideoCrafter 文生视频 1024 路径；检查
+    点 provenance（VideoCrafter/Text2Video-1024）在顶层 videocrafter
+    目录条目中跟踪，以避免重复的 HF 仓库别名。
+  architecture: |
+    The upstream Text2Video checkpoint name records a 1024 resolution tier.
+    Training, dataset, and download scripts are intentionally not packaged in
+    the vendored runtime. Network architecture and parameter counts are not
+    recorded in this repository; consult the upstream README.
+  architecture_zh: |
+    上游 Text2Video 检查点名称对应 1024 分辨率档位。训练、数据集与下载
+    脚本被有意排除在 vendored 运行时之外。网络架构与参数量仓库未记录，
+    请参考上游 README。
+  usage_notes: |
+    Runs through WorldFoundryPipelineRunner with runtime profile and pipeline
+    binding videocrafter1-t2v, exposing local checkpoint, fps, frame count,
+    and seed controls. Alias videocrafter1_t2v resolves here.
+  usage_notes_zh: |
+    通过 WorldFoundryPipelineRunner 运行，运行时 profile 与 pipeline
+    binding 均为 videocrafter1-t2v，暴露本地检查点、fps、帧数与 seed
+    控制。别名 videocrafter1_t2v 解析到本条目。
+  limitations: |
+    Runner parity is pending, and per-run artifact checks are tracked outside
+    the model catalog. The Text2Video-1024 checkpoint's license is pending
+    review (no license in HF cardData). GPU/VRAM requirements are not
+    recorded here.
+  limitations_zh: |
+    runner parity 为 pending，逐次运行的产物检查在目录之外跟踪。
+    Text2Video-1024 检查点许可证待审查（HF cardData 无许可证）。GPU/显存
+    需求未记录。
+  recommended_benchmarks:
+    - vbench
+    - evalcrafter

@@ -32,3 +32,55 @@ runtime_profile: runtime-profile:bernini-r-14b
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 pipeline_binding: bernini-r-14b
 catalog_category: video
+docs:
+  overview: |
+    Bernini-R 14B is the 14-billion-parameter renderer variant of ByteDance's
+    open-source Bernini unified visual generation family (the size comes from
+    the checkpoint name ByteDance/Bernini-R-Diffusers and the entry name). It
+    is cataloged from the official bytedance/Bernini GitHub repository under
+    Apache-2.0, with the same recorded task surface as the family:
+    text-to-image, image-to-image, text-to-video, video-to-video,
+    reference-to-video, and reference-video-to-video, producing generated
+    images or videos.
+  overview_zh: |
+    Bernini-R 14B 是字节跳动开源 Bernini 统一视觉生成家族的 140 亿参数
+    渲染器变体（规模来自检查点名称 ByteDance/Bernini-R-Diffusers 与条目
+    名称）。条目来源于官方 bytedance/Bernini GitHub 仓库，许可证为
+    Apache-2.0，记录的任务面与家族一致：文生图、图生图、文生视频、视频生
+    视频、参考图生视频、参考视频生视频，输出为生成的图像或视频。
+  architecture: |
+    Official renderer inference is vendored in-tree at pinned GitHub revision
+    82d573e9a553dccb1405dde4cb0f26466f9df6c5; weights load from the
+    self-contained Diffusers-format checkpoint ByteDance/Bernini-R-Diffusers.
+    Recorded provenance includes the project page (bernini-ai.github.io) and
+    paper (arXiv 2605.22344). Network internals are not recorded in this
+    repository.
+  architecture_zh: |
+    官方渲染器推理源码按固定 GitHub 版本
+    82d573e9a553dccb1405dde4cb0f26466f9df6c5 vendored 到树内；权重从自包含
+    Diffusers 格式检查点 ByteDance/Bernini-R-Diffusers 加载。provenance
+    记录了项目主页（bernini-ai.github.io）与论文（arXiv 2605.22344）。
+    网络内部细节仓库未记录。
+  usage_notes: |
+    Runs through WorldFoundryPipelineRunner with runtime profile
+    bernini-r-14b and pipeline binding bernini-r-14b. Aliases bernini-r and
+    bernini-r-diffusers resolve here. Checkpoints remain external Hugging
+    Face assets; expect materially larger download and memory footprints than
+    the 1.3B sibling entry, though exact requirements are not recorded.
+  usage_notes_zh: |
+    通过 WorldFoundryPipelineRunner 运行，运行时 profile 与 pipeline
+    binding 均为 bernini-r-14b。别名 bernini-r、bernini-r-diffusers 解析到
+    本条目。检查点为外部 Hugging Face 资产；相比 1.3B 兄弟条目，下载与
+    显存开销会显著更大，但精确需求仓库未记录。
+  limitations: |
+    Runner parity is pending_gpu_validation; no parity artifacts, benchmark
+    scores, or GPU/VRAM requirements are recorded in this repository. The
+    family-level Bernini entry notes that full dispatch validation requires
+    staged weights and H100-class GPUs.
+  limitations_zh: |
+    runner parity 为 pending_gpu_validation；仓库未记录 parity 产物、
+    benchmark 分数或 GPU/显存需求。家族级 Bernini 条目注明完整分发验证
+    需要就位权重与 H100 级 GPU。
+  recommended_benchmarks:
+    - vbench
+    - evalcrafter

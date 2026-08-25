@@ -55,3 +55,61 @@ runner_parity:
     - WorldFoundry pipeline target is registered for the in-tree Allegro TI2V runtime.
     - Generated artifact parity with the official demo configuration still requires
       a full official run.
+docs:
+  overview: |
+    Allegro is an open-weight video generation family from rhymes-ai, cataloged
+    here for text-to-video and image-to-video (TI2V) work. The confirmed public
+    checkpoints are rhymes-ai/Allegro for text-to-video and rhymes-ai/Allegro-TI2V
+    for image-to-video, both published under Apache-2.0 on Hugging Face. Inputs
+    are a text prompt (optionally with a conditioning image on the TI2V route)
+    and the output is a generated video artifact. WorldFoundry wraps the in-tree
+    Allegro TI2V runtime behind the shared pipeline runner, so the model is run
+    through the same catalog contract as other video models.
+  overview_zh: |
+    Allegro 是 rhymes-ai 发布的开源权重视频生成模型家族，本目录条目覆盖
+    文本生视频与图文生视频（TI2V）两类任务。已确认的公开检查点为
+    rhymes-ai/Allegro（文生视频）与 rhymes-ai/Allegro-TI2V（图生视频），
+    均以 Apache-2.0 许可证发布在 Hugging Face。输入为文本提示词（TI2V
+    路线可附带条件图像），输出为生成的视频文件。WorldFoundry 通过树内
+    Allegro TI2V 运行时与共享 pipeline runner 封装该模型，与其他视频模型
+    走相同的目录调用契约。
+  architecture: |
+    The catalog records the official GitHub source (rhymes-ai/Allegro, default
+    branch main, pinned HEAD SHA) and two Hugging Face checkpoint repositories.
+    Architecture internals (network layout, parameter counts, tokenizer) are not
+    recorded in this repository's manifest; consult the upstream README at the
+    pinned revision for those details. The rhymes-ai/Allegro-I2V candidate repo
+    returned HTTP 401 during verification and is intentionally not listed.
+  architecture_zh: |
+    目录中记录了官方 GitHub 源码仓库（rhymes-ai/Allegro，默认分支 main，
+    已固定 HEAD SHA）与两个 Hugging Face 检查点仓库。网络结构、参数量、
+    tokenizer 等架构细节仓库未记录，请以固定版本的上游 README 为准。
+    rhymes-ai/Allegro-I2V 候选仓库在校验时返回 401，因此有意未列入。
+  usage_notes: |
+    The model runs through runner target
+    worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
+    with runtime profile allegro-ti2v. Checkpoints are not tracked in git; local
+    validation may download the listed repos under cache/hfd. The TI2V route is
+    wired in the unified environment profile. Aliases allegro_ti2v and
+    allegro-ti2v resolve to this entry.
+  usage_notes_zh: |
+    模型通过 runner target
+    worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
+    运行，运行时 profile 为 allegro-ti2v。检查点不入 git，本地验证可能会把
+    列出的仓库下载到 cache/hfd。TI2V 路线已接入统一环境 profile。别名
+    allegro_ti2v、allegro-ti2v 均解析到本条目。
+  limitations: |
+    Demo parity and runner parity are both pending: the manifest does not claim
+    WorldFoundry runtime parity with the official long-config demo, and no
+    expected artifact is recorded. GPU/VRAM requirements are not recorded in
+    this repository. GitHub verification succeeded only after a retry due to a
+    transient TLS error, which is noted for provenance.
+  limitations_zh: |
+    demo parity 与 runner parity 均处于 pending 状态：manifest 未声称与官方
+    长配置 demo 达到运行时一致，也未记录预期产物。仓库未记录 GPU/显存
+    需求。GitHub 校验首次因瞬时 TLS 错误失败、重试后成功，此事在
+    provenance 中已注明。
+  recommended_benchmarks:
+    - vbench
+    - evalcrafter
+    - aigcbench
