@@ -45,7 +45,7 @@ docs:
   architecture: |
     The repository does not record architecture details for this entry beyond the modalities and official sources quoted above.
   architecture_zh: |
-    除上述模态与官方来源外，仓库未记录该条目的架构细节。
+    除上述引用的模态与官方来源外，仓库未记录该条目的架构细节；骨干网络、参数量、训练数据与动作头设计均未知，按「仓库未记录」处理。
   usage_notes: |
     WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `last-r1` and runtime profile `runtime-profile:last-r1`.
     Catalog integration status: `runtime_ported`.

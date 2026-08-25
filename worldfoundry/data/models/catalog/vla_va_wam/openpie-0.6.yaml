@@ -48,7 +48,7 @@ docs:
   architecture: |
     The repository records only the FLA policy-factory route, the open-weights availability, and the official sources. Architecture details are not recorded in the repository.
   architecture_zh: |
-    仓库仅记录 FLA 策略工厂路线、开放权重可用性与官方来源。架构细节仓库未记录。
+    仓库仅记录 FLA 策略工厂路线、开放权重可用性与官方来源；除此之外的架构细节（骨干网络、参数量、训练数据与动作头设计）仓库未记录。
   usage_notes: |
     WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `openpie-0.6` and runtime profile `runtime-profile:openpie-0.6`.
     Catalog integration status: `runtime_ported`.
