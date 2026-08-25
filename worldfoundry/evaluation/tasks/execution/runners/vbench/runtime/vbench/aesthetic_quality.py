@@ -1,7 +1,4 @@
-import os
-
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 from tqdm import tqdm
 from vbench.utils import clip_transform, load_dimension_info, load_video
@@ -15,20 +12,11 @@ from worldfoundry.core.distributed.evaluation_collectives import (
     get_world_size,
 )
 from worldfoundry.core.utils.inference_runtime import adaptive_batched_inference, resolve_inference_batch_size
+from worldfoundry.evaluation.tasks.metrics._shared.aesthetic import (
+    load_laion_aesthetic_linear_head as get_aesthetic_model,
+)
 
 batch_size = 32
-
-
-def get_aesthetic_model(cache_folder):
-    """load the aesthetic model"""
-    path_to_model = cache_folder if str(cache_folder).endswith(".pth") else os.path.join(cache_folder, "sa_0_4_vit_l_14_linear.pth")
-    if not os.path.exists(path_to_model):
-        raise FileNotFoundError(f"LAION aesthetic checkpoint is not staged: {path_to_model}")
-    m = nn.Linear(768, 1)
-    s = torch.load(path_to_model, map_location="cpu")
-    m.load_state_dict(s)
-    m.eval()
-    return m
 
 
 def laion_aesthetic(aesthetic_model, clip_model, video_list, device):

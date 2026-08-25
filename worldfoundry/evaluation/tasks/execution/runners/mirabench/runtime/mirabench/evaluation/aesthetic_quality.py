@@ -5,16 +5,17 @@ from __future__ import annotations
 from pathlib import Path
 
 import torch
-import torch.nn as nn
 from PIL import Image
 from torchvision import transforms
 from torchvision.transforms import CenterCrop, Compose, Normalize, Resize
 
-from worldfoundry.base_models.capabilities import vbench_asset_path
 from worldfoundry.core.io.video import list_numbered_frame_paths
 from worldfoundry.core.utils.inference_runtime import (
     adaptive_batched_inference,
     resolve_inference_batch_size,
+)
+from worldfoundry.evaluation.tasks.metrics._shared.aesthetic import (
+    load_laion_aesthetic_linear_head,
 )
 
 try:
@@ -26,15 +27,10 @@ except ImportError:
 
 
 def get_aesthetic_model(cache_folder):
-    """Load the inference-only LAION aesthetic linear head."""
+    """Load the LAION aesthetic linear head (delegates to the shared in-tree loader)."""
 
-    path_to_model = Path(cache_folder) / "aesthetic_model" / "sa_0_4_vit_l_14_linear.pth"
-    if not path_to_model.is_file():
-        path_to_model = vbench_asset_path("vbench_aesthetic_linear_checkpoint")
-    model = nn.Linear(768, 1)
-    state_dict = torch.load(path_to_model, map_location="cpu", weights_only=True)
-    model.load_state_dict(state_dict)
-    return model.eval()
+    candidate = Path(cache_folder) / "aesthetic_model" / "sa_0_4_vit_l_14_linear.pth"
+    return load_laion_aesthetic_linear_head(candidate if candidate.is_file() else None)
 
 
 def clip_transform(n_px):

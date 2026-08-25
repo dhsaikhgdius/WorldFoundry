@@ -13,7 +13,12 @@ from typing import Any
 
 from worldfoundry.evaluation.tasks.metrics.registry import metric_module_from_globals
 
-from .compute import compute_distribution_metrics, compute_fid, summarize_distribution_metrics
+from .compute import (
+    compute_distribution_metrics,
+    compute_fid,
+    compute_paired_fid_kid,
+    summarize_distribution_metrics,
+)
 from .scene import compute_scene_fid, extract_object_crops
 from .swav import compute_swav_fid
 
@@ -104,6 +109,7 @@ __all__ = [
     "compute_distribution_metrics",
     "compute_fid",
     "compute_fid_vid",
+    "compute_paired_fid_kid",
     "compute_scene_fid",
     "compute_swav_fid",
     "extract_object_crops",
