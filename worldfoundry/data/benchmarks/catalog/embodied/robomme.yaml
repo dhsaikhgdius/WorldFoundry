@@ -1,5 +1,7 @@
 id: robomme
 name: RoboMME
+publisher: University of Michigan
+publisher_kind: university
 benchmark_kind:
 - vla
 - embodied-action

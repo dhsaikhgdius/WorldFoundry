@@ -1,5 +1,7 @@
 id: simpler-env
 name: SimplerEnv
+publisher: UC San Diego
+publisher_kind: university
 benchmark_kind:
 - vla
 - robot-manipulation

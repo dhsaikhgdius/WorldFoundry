@@ -1,5 +1,7 @@
 id: physvidbench
 name: PhysVidBench
+publisher: Koç University
+publisher_kind: university
 benchmark_kind:
 - text-to-video
 - physical-commonsense

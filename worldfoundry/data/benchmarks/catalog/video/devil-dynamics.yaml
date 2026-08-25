@@ -1,5 +1,7 @@
 id: devil-dynamics
 name: DEVIL Dynamics
+publisher: University of Chinese Academy of Sciences
+publisher_kind: university
 benchmark_kind:
 - text-to-video
 - dynamics-evaluation

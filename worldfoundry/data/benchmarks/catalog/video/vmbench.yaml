@@ -1,5 +1,7 @@
 id: vmbench
 name: VMBench
+publisher: Alibaba AMAP
+publisher_kind: company
 benchmark_kind:
 - video-motion
 - text-to-video

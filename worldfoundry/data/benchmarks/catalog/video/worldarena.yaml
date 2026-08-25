@@ -1,5 +1,7 @@
 id: worldarena
 name: WorldArena
+publisher: Tsinghua University
+publisher_kind: university
 benchmark_kind:
 - embodied-world-model
 - video-generation-quality

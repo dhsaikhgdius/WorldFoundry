@@ -1,5 +1,7 @@
 id: bridgedata-v2
 name: BridgeData V2
+publisher: UC Berkeley
+publisher_kind: university
 benchmark_kind:
 - vla
 - robot-manipulation

@@ -1,5 +1,7 @@
 id: worldreasonbench
 name: WorldReasonBench
+publisher: Tsinghua University
+publisher_kind: university
 benchmark_kind:
 - image-to-video
 - world-reasoning

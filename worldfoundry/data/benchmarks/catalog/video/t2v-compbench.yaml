@@ -1,5 +1,7 @@
 id: t2v-compbench
 name: T2V-CompBench
+publisher: The University of Hong Kong
+publisher_kind: university
 benchmark_kind:
 - text-to-video
 - compositionality

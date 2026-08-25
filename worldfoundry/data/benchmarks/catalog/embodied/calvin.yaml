@@ -1,5 +1,7 @@
 id: calvin
 name: CALVIN
+publisher: University of Freiburg
+publisher_kind: university
 benchmark_kind:
 - vla
 - robot-manipulation

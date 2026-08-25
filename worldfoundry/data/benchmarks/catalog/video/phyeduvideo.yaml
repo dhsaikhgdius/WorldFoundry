@@ -1,5 +1,7 @@
 id: phyeduvideo
 name: PhyEduVideo
+publisher: IIIT Hyderabad
+publisher_kind: university
 benchmark_kind:
 - text-to-video
 - physics-education

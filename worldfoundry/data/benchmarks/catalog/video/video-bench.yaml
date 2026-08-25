@@ -1,5 +1,7 @@
 id: video-bench
 name: Video-Bench
+publisher: Shanghai Jiao Tong University
+publisher_kind: university
 benchmark_kind:
 - human-preference-aligned
 - mllm-judge

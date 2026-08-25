@@ -1,5 +1,7 @@
 id: physical-ai-bench
 name: Physical AI Bench (PAI-Bench)
+publisher: Georgia Tech
+publisher_kind: university
 benchmark_kind: [video-generation, conditional-video-generation, video-question-answering]
 status: in_tree_runtime_ready
 

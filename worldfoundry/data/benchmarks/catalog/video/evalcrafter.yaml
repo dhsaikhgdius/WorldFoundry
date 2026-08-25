@@ -1,5 +1,7 @@
 id: evalcrafter
 name: EvalCrafter
+publisher: Tencent AI Lab
+publisher_kind: company
 benchmark_kind:
 - text-to-video
 - video-generation-quality

@@ -1,5 +1,7 @@
 id: visual-chronometer
 name: Visual Chronometer
+publisher: Texas A&M University
+publisher_kind: university
 benchmark_kind:
 - video-metric
 - temporal-consistency

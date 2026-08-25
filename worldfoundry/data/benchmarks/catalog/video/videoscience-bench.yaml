@@ -1,5 +1,7 @@
 id: videoscience-bench
 name: VideoScience-Bench
+publisher: UC San Diego
+publisher_kind: university
 benchmark_kind:
 - text-to-video
 - scientific-reasoning

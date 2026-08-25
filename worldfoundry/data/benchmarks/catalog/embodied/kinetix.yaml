@@ -1,5 +1,7 @@
 id: kinetix
 name: Kinetix
+publisher: University of Oxford
+publisher_kind: university
 benchmark_kind:
 - vla
 - embodied-action

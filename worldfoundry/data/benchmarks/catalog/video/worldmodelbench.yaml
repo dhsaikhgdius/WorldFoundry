@@ -1,5 +1,7 @@
 id: worldmodelbench
 name: WorldModelBench
+publisher: NVIDIA
+publisher_kind: company
 benchmark_kind:
 - world-model
 - image-to-video

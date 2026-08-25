@@ -1,5 +1,7 @@
 id: worldscore
 name: WorldScore
+publisher: Stanford University
+publisher_kind: university
 benchmark_kind:
 - world-generation
 - image-to-video
