@@ -37,3 +37,59 @@ catalog_category: three_d_four_d
 catalog_scope: Independent geometric prior integrations used by 3D and world-model
   runtimes.
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
+docs:
+  overview: |
+    Depth Any Panoramas (`dap`) is catalogued as a panoramic metric-depth estimation prior: it produces metric depth for full 360-degree panoramic inputs and serves as a geometry prior for 3D and world-model runtimes. The catalog integrates it at `worldfoundry/base_models/three_dimensions/depth/depth_anything/depth_anything_v1` and exposes it through the shared geometry-prior pipeline/operator contract; ViPE imports this prior from that canonical owner rather than holding a private copy.
+
+    Within the WorldFoundry model catalog this entry is tracked as `dap` in the `three_d_four_d` category.
+    The repository does not record an official source link for this entry.
+  overview_zh: |
+    Depth Any Panoramas（`dap`）在目录中登记为全景公制深度估计先验：对 360 度全景输入输出公制深度，作为 3D 与世界模型运行时的几何先验使用。目录将其集成在 `worldfoundry/base_models/three_dimensions/depth/depth_anything/depth_anything_v1`，并通过共享几何先验 pipeline/operator 契约暴露；ViPE 从该规范归属路径引用此先验，而非持有私有副本。
+
+    在 WorldFoundry 模型目录中，该条目以 `dap` 收录于 `three_d_four_d` 分类。
+    仓库未记录该条目的官方来源链接。
+  architecture: |
+    The repository records this entry as part of the in-tree Depth Anything prior family (integration path under `depth_anything/depth_anything_v1`) with modalities panoramic-depth-estimation, metric-depth-estimation, and geometry-prior. The repository does not record architecture details for this entry beyond the metadata quoted above.
+  architecture_zh: |
+    仓库将该条目记录为 in-tree Depth Anything 先验家族的一部分（集成路径位于 `depth_anything/depth_anything_v1`），模态为全景深度估计、公制深度估计与几何先验。除上文引用的元数据外，仓库未记录该条目的架构细节。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` and runtime profile `runtime-profile:dap`.
+    Catalog integration status: `integrated`.
+    Integration notes recorded in the catalog:
+    - Integrated as an independent geometric prior at worldfoundry/base_models/three_dimensions/depth/depth_anything/depth_anything_v1.
+    - ViPE imports this prior from the canonical three_dimensions.depth owner; the model is not owned by the ViPE package.
+    - Exposed through the shared WorldFoundry geometry-prior pipeline/operator contract.
+
+    Embodiment contract:
+    - Simulator: none — this entry is an offline geometric prior invoked by other WorldFoundry pipelines, not a simulator-driven model.
+    - Sensors: panoramic (equirectangular 360-degree) RGB images; no additional sensor modalities are recorded in the repository.
+    - Action space: not applicable — priors are pure perception modules without an action interface.
+    - Dedicated environment: no dedicated environment; it is exposed through the shared WorldFoundry geometry-prior pipeline/operator contract.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，运行时配置为 `runtime-profile:dap`。
+    目录集成状态：已集成（integrated）。
+    目录中记录的集成备注（保留原文）：
+    - Integrated as an independent geometric prior at worldfoundry/base_models/three_dimensions/depth/depth_anything/depth_anything_v1.
+    - ViPE imports this prior from the canonical three_dimensions.depth owner; the model is not owned by the ViPE package.
+    - Exposed through the shared WorldFoundry geometry-prior pipeline/operator contract.
+
+    具身接口（embodiment contract）：
+    - 仿真器：无——该条目是被其它 WorldFoundry 管线调用的离线几何先验，不涉及仿真器。
+    - 传感器：全景（等距柱状投影 360 度）RGB 图像；仓库未记录其它传感器模态。
+    - 动作空间：不适用——先验模块为纯感知组件，没有动作接口。
+    - 是否专用环境：无专用环境；通过 WorldFoundry 共享几何先验 pipeline/operator 契约暴露。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`verified`.
+    Runner parity notes recorded in the catalog:
+    - Checkpoint-backed inference is implemented through the shared geometry-prior pipeline/operator contract.
+    - Per-run validation evidence is tracked outside the model catalog so this file remains stable release metadata.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=已验证（verified）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - Checkpoint-backed inference is implemented through the shared geometry-prior pipeline/operator contract.
+    - Per-run validation evidence is tracked outside the model catalog so this file remains stable release metadata.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks: []

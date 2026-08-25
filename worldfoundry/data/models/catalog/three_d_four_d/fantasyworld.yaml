@@ -75,3 +75,69 @@ catalog_policy:
   - open_weights_restricted
   - api_or_closed
   - unknown
+docs:
+  overview: |
+    FantasyWorld (Fantasy-AMAP/fantasy-world) is a camera-controlled world-video generation project from the AMAP (Alibaba) Fantasy team. WorldFoundry exposes two in-tree pipelines built on the Wan video-diffusion family: a Wan2.1-based image-to-world-video route (the release-facing default, which has passed Studio artifact and visual validation) and a Wan2.2-based camera-controlled route that stays hidden from Studio until its official memory strategy is verified.
+
+    Within the WorldFoundry model catalog this entry is tracked as `fantasyworld` in the `three_d_four_d` category.
+    Recorded availability: status=source_available, open_source=False, code=public, weights=confirmed_public, license=not_found.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/Fantasy-AMAP/fantasy-world.
+  overview_zh: |
+    FantasyWorld（Fantasy-AMAP/fantasy-world）是高德（阿里）Fantasy 团队的相机可控世界视频生成项目。WorldFoundry 暴露了两条基于 Wan 视频扩散家族的 in-tree 管线：基于 Wan2.1 的图像到世界视频路线（发布默认，已通过 Studio artifact 与视觉验证），以及基于 Wan2.2 的相机可控路线（在其官方显存策略验证完成前对 Studio 隐藏）。
+
+    在 WorldFoundry 模型目录中，该条目以 `fantasyworld` 收录于 `three_d_four_d` 分类。
+    仓库记录的可用性：状态=source_available，是否开源=False，代码=public，权重=confirmed_public，许可证=not_found。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/Fantasy-AMAP/fantasy-world。
+  architecture: |
+    The catalog records that both routes are assembled from Wan2.1 / Wan2.2 video diffusion backbones with FantasyWorld's camera-control conditioning on top; the Wan2.1 variant (`fantasyworld-wan21`, image-to-world-video) is runner-verified while the Wan2.2 variant (`fantasyworld-wan22`, camera-controlled-world-video) is pending. Upstream weights are recorded as confirmed public with license not_found.
+  architecture_zh: |
+    目录记录两条路线均以 Wan2.1 / Wan2.2 视频扩散骨干为基础，叠加 FantasyWorld 的相机控制条件：Wan2.1 变体（`fantasyworld-wan21`，图像到世界视频）runner 已验证，Wan2.2 变体（`fantasyworld-wan22`，相机可控世界视频）为 pending。上游权重记录为 confirmed_public，许可证为 not_found（未找到）。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `fantasyworld` and runtime profile `runtime-profile:fantasyworld`.
+    Catalog integration status: `integrated`.
+    Integration notes recorded in the catalog:
+    - WorldFoundry exposes the in-tree FantasyWorld Wan2.1 and Wan2.2 camera-control pipelines.
+    - The release-facing default is the Wan2.1 pipeline because it has passed Studio artifact and visual validation.
+    - Wan2.2 remains integrated but hidden from Studio until its official memory strategy is verified.
+    Recorded variant `fantasyworld-wan21`, task `image-to-world-video`, runner parity `verified`.
+    Recorded variant `fantasyworld-wan22`, task `camera-controlled-world-video`, runner parity `pending`.
+
+    Embodiment contract:
+    - Simulator: none — this is a generative video/scene model, not a physics simulator; generation is conditioned on user-provided camera trajectories.
+    - Sensors: RGB image or video conditioning inputs; no additional sensor modalities are recorded in the repository.
+    - Action space: camera trajectory control (sequences of camera poses) supplied as conditioning; no robot/agent action space is recorded.
+    - Dedicated environment: no dedicated environment; it runs through the shared WorldFoundry pipeline runtime described in the integration notes.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `fantasyworld`，运行时配置为 `runtime-profile:fantasyworld`。
+    目录集成状态：已集成（integrated）。
+    目录中记录的集成备注（保留原文）：
+    - WorldFoundry exposes the in-tree FantasyWorld Wan2.1 and Wan2.2 camera-control pipelines.
+    - The release-facing default is the Wan2.1 pipeline because it has passed Studio artifact and visual validation.
+    - Wan2.2 remains integrated but hidden from Studio until its official memory strategy is verified.
+    目录记录：变体 `fantasyworld-wan21`，任务 `image-to-world-video`，runner 一致性 已验证（verified）。
+    目录记录：变体 `fantasyworld-wan22`，任务 `camera-controlled-world-video`，runner 一致性 待验证（pending）。
+
+    具身接口（embodiment contract）：
+    - 仿真器：无——这是生成式视频/场景模型而非物理仿真器；生成过程以用户提供的相机轨迹为条件。
+    - 传感器：RGB 图像或视频条件输入；仓库未记录其它传感器模态。
+    - 动作空间：以相机轨迹（相机位姿序列）作为条件控制；仓库未记录机器人/智能体动作空间。
+    - 是否专用环境：无专用环境；通过集成备注中描述的 WorldFoundry 共享管线运行时执行。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`verified`.
+    Runner parity notes recorded in the catalog:
+    - The default FantasyWorld row resolves to the in-tree Wan2.1 runner.
+    - Wan2.2 remains pending because the official single-GPU run requires an accepted memory strategy.
+    - Per-run validation evidence is tracked outside the model catalog.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=已验证（verified）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - The default FantasyWorld row resolves to the in-tree Wan2.1 runner.
+    - Wan2.2 remains pending because the official single-GPU run requires an accepted memory strategy.
+    - Per-run validation evidence is tracked outside the model catalog.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - worldscore
+  - camerabench

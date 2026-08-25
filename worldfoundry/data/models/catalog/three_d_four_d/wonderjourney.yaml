@@ -32,3 +32,56 @@ catalog_category: three_d_four_d
 catalog_scope: 3D Gaussian-splatting catalog entries. Integrated entries expose in-tree
   WorldFoundry runtimes; metadata-only entries retain upstream provenance without runnable
   backends.
+docs:
+  overview: |
+    WonderJourney (KovenYu/WonderJourney, CVPR 2024) generates perpetual 3D scene 'journeys': starting from a text description or an image, it repeatedly synthesizes new connected 3D scenes, wandering through a long sequence of diverse yet coherent places. WorldFoundry exposes an in-tree adapter that runs the upstream `run.py`/`example_config` flow; missing assets or runtime dependencies are reported at inference time, and runner parity is `pending`.
+
+    Within the WorldFoundry model catalog this entry is tracked as `wonderjourney` in the `three_d_four_d` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/KovenYu/WonderJourney.
+  overview_zh: |
+    WonderJourney（KovenYu/WonderJourney，CVPR 2024）生成持续的 3D 场景『旅程』：从文本描述或图像出发，反复合成相互衔接的新 3D 场景，在一长串多样而连贯的场景间漫游。WorldFoundry 暴露 in-tree 适配器运行上游 `run.py`/`example_config` 流程；资产或运行时依赖缺失会在推理时报告，runner 一致性为 pending。
+
+    在 WorldFoundry 模型目录中，该条目以 `wonderjourney` 收录于 `three_d_four_d` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/KovenYu/WonderJourney。
+  architecture: |
+    The published system is a modular pipeline: an LLM proposes the next scene description, a text-driven point-cloud generation module (text-to-image diffusion plus monocular depth) lifts it into colored 3D point clouds, and a VLM verifies the generated scene before the camera moves on; scenes are chained by rendering the current point cloud from the next camera pose and outpainting.
+  architecture_zh: |
+    公开系统是模块化管线：LLM 提出下一个场景描述；文本驱动的点云生成模块（文生图扩散加单目深度）将其提升为彩色 3D 点云；VLM 在相机继续前进前校验生成场景；通过从下一相机位姿渲染当前点云并外补全（outpainting）来衔接场景。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `wonderjourney` and runtime profile `runtime-profile:wonderjourney`.
+    Catalog integration status: `integrated`.
+    Integration notes recorded in the catalog:
+    - WorldFoundry exposes an in-tree adapter that runs the upstream WonderJourney run.py/example_config flow.
+    - Missing assets or runtime dependencies are reported at inference time.
+
+    Embodiment contract:
+    - Simulator: none — this is an offline 3D scene generation model; it produces renderable scene artifacts rather than running inside a simulator.
+    - Sensors: text prompts and/or a single RGB image as conditioning; no additional sensor modalities are recorded in the repository.
+    - Action space: not applicable at generation time; navigation of the generated scene is a rendering-side camera path, not a learned action space.
+    - Dedicated environment: no dedicated environment; it runs through the shared WorldFoundry pipeline runtime described in the integration notes.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `wonderjourney`，运行时配置为 `runtime-profile:wonderjourney`。
+    目录集成状态：已集成（integrated）。
+    目录中记录的集成备注（保留原文）：
+    - WorldFoundry exposes an in-tree adapter that runs the upstream WonderJourney run.py/example_config flow.
+    - Missing assets or runtime dependencies are reported at inference time.
+
+    具身接口（embodiment contract）：
+    - 仿真器：无——这是离线 3D 场景生成模型，产出可渲染的场景 artifact，而非在仿真器内运行。
+    - 传感器：以文本提示和/或单张 RGB 图像为条件；仓库未记录其它传感器模态。
+    - 动作空间：生成阶段不适用；对生成场景的浏览属于渲染侧的相机路径，不是学习得到的动作空间。
+    - 是否专用环境：无专用环境；通过集成备注中描述的 WorldFoundry 共享管线运行时执行。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`pending`.
+    Runner parity notes recorded in the catalog:
+    - Pipeline target imports and plan-only inference are wired; full artifact parity needs runtime assets.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=待验证（pending）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - Pipeline target imports and plan-only inference are wired; full artifact parity needs runtime assets.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - worldscore

@@ -17,3 +17,49 @@ integration:
   - WorldFoundry tracks upstream source metadata only; no runnable in-tree pipeline is registered yet.
 catalog_category: three_d_four_d
 catalog_scope: Official-source manifest for 3D, 4D, and camera-controlled world/model generation projects.
+docs:
+  overview: |
+    GaussianObject (GaussianObject/GaussianObject, SIGGRAPH Asia 2024) targets high-quality object-level 3D reconstruction from very sparse inputs — around four views — by combining 3D Gaussian Splatting with diffusion-based repair. WorldFoundry tracks upstream source metadata only; no runnable in-tree pipeline is registered yet.
+
+    Within the WorldFoundry model catalog this entry is tracked as `gaussianobject` in the `three_d_four_d` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/GaussianObject/GaussianObject.
+  overview_zh: |
+    GaussianObject（GaussianObject/GaussianObject，SIGGRAPH Asia 2024）面向极稀疏输入（约四个视角）下的高质量物体级 3D 重建，将 3D Gaussian Splatting 与基于扩散模型的修复相结合。WorldFoundry 仅跟踪其上游来源元数据；尚未注册可运行的 in-tree 管线。
+
+    在 WorldFoundry 模型目录中，该条目以 `gaussianobject` 收录于 `three_d_four_d` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/GaussianObject/GaussianObject。
+  architecture: |
+    The published pipeline first builds an initial 3DGS with structural priors (visual-hull initialization and floater elimination), then trains a 'Gaussian repair' model — a ControlNet-style fine-tuned image diffusion model — that corrects renderings from under-observed viewpoints, distilling the corrections back into the Gaussians. Training/optimization is per-object; the catalog records no feed-forward checkpoints.
+  architecture_zh: |
+    公开管线先利用结构先验（视觉外壳初始化与漂浮物剔除）构建初始 3DGS，再训练『高斯修复』模型——ControlNet 式微调的图像扩散模型——修正欠观测视角的渲染结果，并将修正蒸馏回高斯表示。训练/优化按物体进行；目录未记录前向推理权重。
+  usage_notes: |
+    No runner target is registered for this entry; the catalog tracks upstream provenance metadata without a runnable in-tree pipeline.
+    Catalog integration status: `blocked`.
+    Integration notes recorded in the catalog:
+    - WorldFoundry tracks upstream source metadata only; no runnable in-tree pipeline is registered yet.
+
+    Embodiment contract:
+    - Simulator: none — the official workflow is per-scene optimization over recorded data, not a simulator rollout.
+    - Sensors: calibrated multi-view or monocular RGB video with camera poses prepared by upstream preprocessing; no additional sensors are recorded.
+    - Action space: not applicable — the model does not consume an action or control stream.
+    - Dedicated environment: no dedicated environment; the entry is metadata-only (or blocked) in WorldFoundry because the official path is training/reconstruction-first.
+  usage_notes_zh: |
+    该条目未注册 runner target；目录仅跟踪上游来源元数据，暂无可运行的 in-tree 管线。
+    目录集成状态：受阻/仅跟踪元数据（blocked）。
+    目录中记录的集成备注（保留原文）：
+    - WorldFoundry tracks upstream source metadata only; no runnable in-tree pipeline is registered yet.
+
+    具身接口（embodiment contract）：
+    - 仿真器：无——官方流程是基于已录制数据的逐场景优化，不是仿真器 rollout。
+    - 传感器：由上游预处理准备的带相机位姿的标定多视角或单目 RGB 视频；仓库未记录其它传感器。
+    - 动作空间：不适用——该模型不接收动作或控制流输入。
+    - 是否专用环境：无专用环境；由于官方路径以训练/重建为先，该条目在 WorldFoundry 中为仅元数据（或受阻）状态。
+  limitations: |
+    No family-level demo/runner parity status is recorded in this catalog file.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件未记录家族级 demo/runner 一致性状态。
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks: []

@@ -48,3 +48,59 @@ catalog_policy:
 runtime_profile: runtime-profile:dust3r-base-model
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 pipeline_binding: dust3r-base-model
+docs:
+  overview: |
+    DUSt3R (naver/dust3r, CVPR 2024) is the seminal 'Dense Unconstrained Stereo 3D Reconstruction' model: it reconstructs dense 3D geometry from arbitrary uncalibrated image collections by regressing pointmaps, removing the need for known intrinsics or poses. WorldFoundry vendors DUSt3R in-tree under `worldfoundry.base_models.three_dimensions.general_3d.dust3r`; the runnable route is the `dust3r-base-model` profile, and checkpoint-backed Studio inference has produced a finite point cloud from the bundled multi-view test case (see `worldfoundry/data/models/validation/inference_evidence.yaml`).
+
+    Within the WorldFoundry model catalog this entry is tracked as `dust3r` in the `three_d_four_d` category.
+    Recorded availability: status=source_available, open_source=False, code=public, weights=linked_from_repo, license=CC-BY-NC-SA-4.0.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/naver/dust3r.
+  overview_zh: |
+    DUSt3R（naver/dust3r，CVPR 2024）是『无约束稠密立体 3D 重建』的开创性模型：通过回归 pointmap，从任意未标定图像集合重建稠密 3D 几何，无需已知内参或位姿。WorldFoundry 将 DUSt3R 内置于 `worldfoundry.base_models.three_dimensions.general_3d.dust3r`；可运行路线为 `dust3r-base-model` 配置，且有权重支撑的 Studio 推理已从内置多视角测试用例产出有限值点云（见 `worldfoundry/data/models/validation/inference_evidence.yaml`）。
+
+    在 WorldFoundry 模型目录中，该条目以 `dust3r` 收录于 `three_d_four_d` 分类。
+    仓库记录的可用性：状态=source_available，是否开源=False，代码=public，权重=linked_from_repo，许可证=CC-BY-NC-SA-4.0。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/naver/dust3r。
+  architecture: |
+    A shared ViT encoder embeds each image; two entangled transformer decoders with cross-attention align the pair; and DPT-style heads regress per-pixel 3D pointmaps with confidences, both expressed in the first view's camera frame. Pairwise predictions are fused into multi-view scenes via lightweight global alignment over pointmaps. Upstream weights are linked from the repo under a CC-BY-NC-SA-4.0 license, which the catalog records for provenance.
+  architecture_zh: |
+    共享 ViT 编码器嵌入每张图像；两个带交叉注意力的耦合 transformer 解码器对图像对进行对齐；DPT 风格输出头逐像素回归 3D pointmap 与置信度，均表达在第一视角相机坐标系下。两两预测再经 pointmap 上的轻量全局对齐融合为多视角场景。上游权重从官方仓库链接获取，许可证为 CC-BY-NC-SA-4.0，目录已将其作为来源信息记录。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `dust3r-base-model` and runtime profile `runtime-profile:dust3r-base-model`.
+    Catalog integration status: `verified`.
+    Integration notes recorded in the catalog:
+    - WorldFoundry vendors DUSt3R under worldfoundry.base_models.three_dimensions.general_3d.dust3r.
+    - The runnable route is exposed through the shared geometry-prior pipeline/operator contract (see dust3r-base-model).
+    - Upstream license metadata remains CC-BY-NC-SA-4.0; it is recorded for provenance and does not block in-tree integration.
+
+    Embodiment contract:
+    - Simulator: none — this is an offline reconstruction model that consumes recorded images or video; it does not drive or require a simulator.
+    - Sensors: monocular or multi-view RGB images/video frames; no additional sensor modalities are recorded in the repository.
+    - Action space: not applicable — the model does not consume an action or control stream.
+    - Dedicated environment: no dedicated environment; it runs through the shared WorldFoundry pipeline runtime described in the integration notes.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `dust3r-base-model`，运行时配置为 `runtime-profile:dust3r-base-model`。
+    目录集成状态：已验证（verified）。
+    目录中记录的集成备注（保留原文）：
+    - WorldFoundry vendors DUSt3R under worldfoundry.base_models.three_dimensions.general_3d.dust3r.
+    - The runnable route is exposed through the shared geometry-prior pipeline/operator contract (see dust3r-base-model).
+    - Upstream license metadata remains CC-BY-NC-SA-4.0; it is recorded for provenance and does not block in-tree integration.
+
+    具身接口（embodiment contract）：
+    - 仿真器：无——这是一个离线重建模型，输入为已录制的图像或视频，不驱动也不依赖仿真器。
+    - 传感器：单目或多视角 RGB 图像/视频帧；仓库未记录其它传感器模态。
+    - 动作空间：不适用——该模型不接收动作或控制流输入。
+    - 是否专用环境：无专用环境；通过集成备注中描述的 WorldFoundry 共享管线运行时执行。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`verified`.
+    Runner parity notes recorded in the catalog:
+    - Checkpoint-backed Studio inference produced a finite point cloud from the bundled multi-view test case; see worldfoundry/data/models/validation/inference_evidence.yaml.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=已验证（verified）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - Checkpoint-backed Studio inference produced a finite point cloud from the bundled multi-view test case; see worldfoundry/data/models/validation/inference_evidence.yaml.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks: []

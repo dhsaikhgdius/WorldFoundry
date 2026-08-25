@@ -18,3 +18,49 @@ integration:
   - WorldFoundry tracks upstream source metadata only; no runnable in-tree pipeline is registered yet.
 catalog_category: three_d_four_d
 catalog_scope: Official-source manifest for 3D, 4D, and camera-controlled world/model generation projects.
+docs:
+  overview: |
+    K-Planes (sarafridov/K-Planes, CVPR 2023) is a planar-factorization representation for radiance fields in arbitrary dimensions: it represents a d-dimensional scene with d-choose-2 feature planes (six planes for 4D dynamic scenes), providing an interpretable, fast, and memory-efficient alternative to MLP-based dynamic NeRFs. WorldFoundry tracks upstream source metadata only; no runnable in-tree pipeline is registered yet.
+
+    Within the WorldFoundry model catalog this entry is tracked as `k-planes` in the `three_d_four_d` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/sarafridov/K-Planes.
+  overview_zh: |
+    K-Planes（sarafridov/K-Planes，CVPR 2023）是任意维度辐射场的平面因式分解表示：用 d 取 2 个特征平面表示 d 维场景（4D 动态场景对应六个平面），是 MLP 型动态 NeRF 的可解释、快速且省显存的替代方案。WorldFoundry 仅跟踪其上游来源元数据；尚未注册可运行的 in-tree 管线。
+
+    在 WorldFoundry 模型目录中，该条目以 `k-planes` 收录于 `three_d_four_d` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/sarafridov/K-Planes。
+  architecture: |
+    The published representation multiplies features bilinearly interpolated from each of the d-choose-2 planes (separating static space-space planes from dynamic space-time planes) and decodes them with either a small MLP or an explicit linear decoder; multiscale planes and simple regularizers (total variation, time smoothness) stabilize optimization. Training is per-scene; no feed-forward checkpoints are recorded.
+  architecture_zh: |
+    公开表示对 d 取 2 个平面（区分静态空间-空间平面与动态空间-时间平面）双线性插值得到的特征做乘法组合，再用小型 MLP 或显式线性解码器解码；多尺度平面与简单正则项（全变差、时间平滑）稳定优化。训练按场景进行；未记录前向推理权重。
+  usage_notes: |
+    No runner target is registered for this entry; the catalog tracks upstream provenance metadata without a runnable in-tree pipeline.
+    Catalog integration status: `blocked`.
+    Integration notes recorded in the catalog:
+    - WorldFoundry tracks upstream source metadata only; no runnable in-tree pipeline is registered yet.
+
+    Embodiment contract:
+    - Simulator: none — the official workflow is per-scene optimization over recorded data, not a simulator rollout.
+    - Sensors: calibrated multi-view or monocular RGB video with camera poses prepared by upstream preprocessing; no additional sensors are recorded.
+    - Action space: not applicable — the model does not consume an action or control stream.
+    - Dedicated environment: no dedicated environment; the entry is metadata-only (or blocked) in WorldFoundry because the official path is training/reconstruction-first.
+  usage_notes_zh: |
+    该条目未注册 runner target；目录仅跟踪上游来源元数据，暂无可运行的 in-tree 管线。
+    目录集成状态：受阻/仅跟踪元数据（blocked）。
+    目录中记录的集成备注（保留原文）：
+    - WorldFoundry tracks upstream source metadata only; no runnable in-tree pipeline is registered yet.
+
+    具身接口（embodiment contract）：
+    - 仿真器：无——官方流程是基于已录制数据的逐场景优化，不是仿真器 rollout。
+    - 传感器：由上游预处理准备的带相机位姿的标定多视角或单目 RGB 视频；仓库未记录其它传感器。
+    - 动作空间：不适用——该模型不接收动作或控制流输入。
+    - 是否专用环境：无专用环境；由于官方路径以训练/重建为先，该条目在 WorldFoundry 中为仅元数据（或受阻）状态。
+  limitations: |
+    No family-level demo/runner parity status is recorded in this catalog file.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件未记录家族级 demo/runner 一致性状态。
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks: []

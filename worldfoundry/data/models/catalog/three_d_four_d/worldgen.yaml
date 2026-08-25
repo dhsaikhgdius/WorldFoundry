@@ -36,3 +36,58 @@ catalog_category: three_d_four_d
 catalog_scope: 3D Gaussian-splatting catalog entries. Integrated entries expose in-tree
   WorldFoundry runtimes; metadata-only entries retain upstream provenance without runnable
   backends.
+docs:
+  overview: |
+    WorldGen (ZiYang-xie/WorldGen) generates interactive, navigable 3D worlds from a text prompt or a single image. WorldFoundry exposes an in-tree adapter that runs the WorldGen inference flow; missing gated foundation models or WorldGen assets are reported at inference time. The in-tree adapter can execute the flow when required assets are staged; full official scene-quality parity remains pending.
+
+    Within the WorldFoundry model catalog this entry is tracked as `worldgen` in the `three_d_four_d` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/ZiYang-xie/WorldGen.
+  overview_zh: |
+    WorldGen（ZiYang-xie/WorldGen）从文本提示或单张图像生成可交互、可漫游的 3D 世界。WorldFoundry 暴露 in-tree 适配器运行 WorldGen 推理流程；gated 基础模型或 WorldGen 资产缺失会在推理时报告。所需资产就绪时，in-tree 适配器可执行该流程；与官方场景质量的完整一致性仍待验证。
+
+    在 WorldFoundry 模型目录中，该条目以 `worldgen` 收录于 `three_d_four_d` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/ZiYang-xie/WorldGen。
+  architecture: |
+    The published pipeline composes text-to-panorama/image diffusion generation, metric depth estimation, and 3D Gaussian Splatting scene assembly to build a 360-degree navigable scene in one shot, with optional scene decomposition for object-level layout; the WorldFoundry catalog records the adapter-level integration and asset gating rather than internal training details.
+  architecture_zh: |
+    公开管线组合文本到全景/图像扩散生成、公制深度估计与 3D Gaussian Splatting 场景装配，一次性构建 360 度可漫游场景，并可选做场景分解以获得物体级布局；WorldFoundry 目录记录的是适配器级集成与资产门控，而非内部训练细节。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `worldgen` and runtime profile `runtime-profile:worldgen`.
+    Catalog integration status: `integrated`.
+    Integration notes recorded in the catalog:
+    - WorldFoundry exposes an in-tree adapter that runs the WorldGen inference flow.
+    - Missing gated foundation models or WorldGen assets are reported at inference time.
+
+    Embodiment contract:
+    - Simulator: none — this is an offline 3D scene generation model; it produces renderable scene artifacts rather than running inside a simulator.
+    - Sensors: text prompts and/or a single RGB image as conditioning; no additional sensor modalities are recorded in the repository.
+    - Action space: not applicable at generation time; navigation of the generated scene is a rendering-side camera path, not a learned action space.
+    - Dedicated environment: no dedicated environment; it runs through the shared WorldFoundry pipeline runtime described in the integration notes.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `worldgen`，运行时配置为 `runtime-profile:worldgen`。
+    目录集成状态：已集成（integrated）。
+    目录中记录的集成备注（保留原文）：
+    - WorldFoundry exposes an in-tree adapter that runs the WorldGen inference flow.
+    - Missing gated foundation models or WorldGen assets are reported at inference time.
+
+    具身接口（embodiment contract）：
+    - 仿真器：无——这是离线 3D 场景生成模型，产出可渲染的场景 artifact，而非在仿真器内运行。
+    - 传感器：以文本提示和/或单张 RGB 图像为条件；仓库未记录其它传感器模态。
+    - 动作空间：生成阶段不适用；对生成场景的浏览属于渲染侧的相机路径，不是学习得到的动作空间。
+    - 是否专用环境：无专用环境；通过集成备注中描述的 WorldFoundry 共享管线运行时执行。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`pending`.
+    Runner parity notes recorded in the catalog:
+    - The in-tree adapter can execute the WorldGen inference flow when required assets are staged.
+    - Full official scene-quality parity remains pending; per-run artifact checks are tracked outside the model catalog.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=待验证（pending）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - The in-tree adapter can execute the WorldGen inference flow when required assets are staged.
+    - Full official scene-quality parity remains pending; per-run artifact checks are tracked outside the model catalog.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - worldscore

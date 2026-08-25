@@ -18,3 +18,49 @@ integration:
   - WorldFoundry tracks upstream source metadata only; no runnable in-tree pipeline is registered yet.
 catalog_category: three_d_four_d
 catalog_scope: Official-source manifest for 3D, 4D, and camera-controlled world/model generation projects.
+docs:
+  overview: |
+    SC-GS (CVMI-Lab/SC-GS, CVPR 2024) — Sparse-Controlled Gaussian Splatting — represents dynamic scenes with dense 3D Gaussians whose motion is driven by a much sparser set of control points, enabling high-quality dynamic novel-view synthesis and interactive motion editing. WorldFoundry tracks upstream source metadata only; no runnable in-tree pipeline is registered yet.
+
+    Within the WorldFoundry model catalog this entry is tracked as `sc-gs` in the `three_d_four_d` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/CVMI-Lab/SC-GS.
+  overview_zh: |
+    SC-GS（CVMI-Lab/SC-GS，CVPR 2024）——稀疏控制点高斯 Splatting——用稠密 3D 高斯表示动态场景，其运动由数量少得多的控制点驱动，支持高质量动态新视角合成与交互式运动编辑。WorldFoundry 仅跟踪其上游来源元数据；尚未注册可运行的 in-tree 管线。
+
+    在 WorldFoundry 模型目录中，该条目以 `sc-gs` 收录于 `three_d_four_d` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/CVMI-Lab/SC-GS。
+  architecture: |
+    The published method learns sparse control points paired with time-varying 6-DoF transformations decoded by a deformation MLP; dense Gaussians are deformed via locally-rigid linear blend skinning of neighboring control points, with ARAP-style regularization keeping motion locally rigid. Training is per-scene optimization; no feed-forward checkpoints are recorded.
+  architecture_zh: |
+    公开方法学习稀疏控制点及由形变 MLP 解码的时变 6 自由度变换；稠密高斯经由邻近控制点的局部刚性线性混合蒙皮（LBS）形变，并用 ARAP 式正则保持局部刚性。训练为逐场景优化；未记录前向推理权重。
+  usage_notes: |
+    No runner target is registered for this entry; the catalog tracks upstream provenance metadata without a runnable in-tree pipeline.
+    Catalog integration status: `blocked`.
+    Integration notes recorded in the catalog:
+    - WorldFoundry tracks upstream source metadata only; no runnable in-tree pipeline is registered yet.
+
+    Embodiment contract:
+    - Simulator: none — the official workflow is per-scene optimization over recorded data, not a simulator rollout.
+    - Sensors: calibrated multi-view or monocular RGB video with camera poses prepared by upstream preprocessing; no additional sensors are recorded.
+    - Action space: not applicable — the model does not consume an action or control stream.
+    - Dedicated environment: no dedicated environment; the entry is metadata-only (or blocked) in WorldFoundry because the official path is training/reconstruction-first.
+  usage_notes_zh: |
+    该条目未注册 runner target；目录仅跟踪上游来源元数据，暂无可运行的 in-tree 管线。
+    目录集成状态：受阻/仅跟踪元数据（blocked）。
+    目录中记录的集成备注（保留原文）：
+    - WorldFoundry tracks upstream source metadata only; no runnable in-tree pipeline is registered yet.
+
+    具身接口（embodiment contract）：
+    - 仿真器：无——官方流程是基于已录制数据的逐场景优化，不是仿真器 rollout。
+    - 传感器：由上游预处理准备的带相机位姿的标定多视角或单目 RGB 视频；仓库未记录其它传感器。
+    - 动作空间：不适用——该模型不接收动作或控制流输入。
+    - 是否专用环境：无专用环境；由于官方路径以训练/重建为先，该条目在 WorldFoundry 中为仅元数据（或受阻）状态。
+  limitations: |
+    No family-level demo/runner parity status is recorded in this catalog file.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件未记录家族级 demo/runner 一致性状态。
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks: []

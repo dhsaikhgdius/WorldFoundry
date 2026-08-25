@@ -19,3 +19,51 @@ integration:
   - A related public repository also exists at https://github.com/NJU-3DV/Gaussian-Flow.
 catalog_category: three_d_four_d
 catalog_scope: Official-source manifest for 3D, 4D, and camera-controlled world/model generation projects.
+docs:
+  overview: |
+    GaussianFlow (Zerg-Overmind/GaussianFlow) is a 4D content creation method that connects the dynamics of 3D Gaussians to pixel-space optical flow: by supervising splatted Gaussian motion ('Gaussian flow') with optical flow computed on the input video, it improves motion fidelity in dynamic 3DGS reconstruction and 4D generation. WorldFoundry tracks upstream source metadata only (a related public repository also exists at NJU-3DV/Gaussian-Flow); no runnable in-tree pipeline is registered yet.
+
+    Within the WorldFoundry model catalog this entry is tracked as `gaussianflow` in the `three_d_four_d` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/Zerg-Overmind/GaussianFlow.
+  overview_zh: |
+    GaussianFlow（Zerg-Overmind/GaussianFlow）是把 3D 高斯动力学与像素空间光流连接起来的 4D 内容创建方法：将 splatting 后的高斯运动（『Gaussian flow』）与输入视频计算的光流对齐监督，从而提升动态 3DGS 重建与 4D 生成中的运动保真度。WorldFoundry 仅跟踪其上游来源元数据（另有相关公开仓库 NJU-3DV/Gaussian-Flow）；尚未注册可运行的 in-tree 管线。
+
+    在 WorldFoundry 模型目录中，该条目以 `gaussianflow` 收录于 `three_d_four_d` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/Zerg-Overmind/GaussianFlow。
+  architecture: |
+    The published method densely splats the motion of contributing 3D Gaussians into image space to obtain a differentiable Gaussian-flow field, matched against off-the-shelf optical flow of the source video; this flow supervision plugs into existing dynamic 3DGS optimization pipelines. The workflow is per-scene/per-asset optimization, so the catalog records no feed-forward checkpoints.
+  architecture_zh: |
+    公开方法把参与渲染的 3D 高斯的运动稠密地 splat 到图像空间，得到可微的 Gaussian-flow 场，并与源视频的现成光流进行匹配监督；该流监督可插入现有动态 3DGS 优化管线。其工作流是逐场景/逐资产优化，因此目录未记录前向推理权重。
+  usage_notes: |
+    No runner target is registered for this entry; the catalog tracks upstream provenance metadata without a runnable in-tree pipeline.
+    Catalog integration status: `blocked`.
+    Integration notes recorded in the catalog:
+    - WorldFoundry tracks upstream source metadata only; no runnable in-tree pipeline is registered yet.
+    - A related public repository also exists at https://github.com/NJU-3DV/Gaussian-Flow.
+
+    Embodiment contract:
+    - Simulator: none — the official workflow is per-scene optimization over recorded data, not a simulator rollout.
+    - Sensors: calibrated multi-view or monocular RGB video with camera poses prepared by upstream preprocessing; no additional sensors are recorded.
+    - Action space: not applicable — the model does not consume an action or control stream.
+    - Dedicated environment: no dedicated environment; the entry is metadata-only (or blocked) in WorldFoundry because the official path is training/reconstruction-first.
+  usage_notes_zh: |
+    该条目未注册 runner target；目录仅跟踪上游来源元数据，暂无可运行的 in-tree 管线。
+    目录集成状态：受阻/仅跟踪元数据（blocked）。
+    目录中记录的集成备注（保留原文）：
+    - WorldFoundry tracks upstream source metadata only; no runnable in-tree pipeline is registered yet.
+    - A related public repository also exists at https://github.com/NJU-3DV/Gaussian-Flow.
+
+    具身接口（embodiment contract）：
+    - 仿真器：无——官方流程是基于已录制数据的逐场景优化，不是仿真器 rollout。
+    - 传感器：由上游预处理准备的带相机位姿的标定多视角或单目 RGB 视频；仓库未记录其它传感器。
+    - 动作空间：不适用——该模型不接收动作或控制流输入。
+    - 是否专用环境：无专用环境；由于官方路径以训练/重建为先，该条目在 WorldFoundry 中为仅元数据（或受阻）状态。
+  limitations: |
+    No family-level demo/runner parity status is recorded in this catalog file.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件未记录家族级 demo/runner 一致性状态。
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks: []

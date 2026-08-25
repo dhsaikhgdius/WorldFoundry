@@ -37,3 +37,57 @@ catalog_category: three_d_four_d
 catalog_scope: Independent geometric prior integrations used by 3D and world-model
   runtimes.
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
+docs:
+  overview: |
+    UniK3D (lpiccinelli-eth, CVPR 2025) generalizes monocular metric 3D estimation to any camera geometry — pinhole, fisheye, and full panoramas — with a spherical formulation. WorldFoundry integrates it as a universal-camera geometric prior at `worldfoundry/base_models/three_dimensions/depth/unik3d`, resolving the default checkpoint from `lpiccinelli/unik3d-vitl` or a local `model_path` override. The upstream release is CC-BY-NC-4.0. The catalog records `checkpoint_verified` runner status with auto camera estimation; pinhole and panorama camera overrides remain explicit.
+
+    Within the WorldFoundry model catalog this entry is tracked as `unik3d-prior` in the `three_d_four_d` category.
+    The repository does not record an official source link for this entry.
+  overview_zh: |
+    UniK3D（lpiccinelli-eth，CVPR 2025）用球面化建模把单目公制 3D 估计推广到任意相机几何——针孔、鱼眼与完整全景。WorldFoundry 将其作为通用相机几何先验集成于 `worldfoundry/base_models/three_dimensions/depth/unik3d`，默认权重从 `lpiccinelli/unik3d-vitl` 解析或用本地 `model_path` 覆盖。上游发布为 CC-BY-NC-4.0。目录记录 runner 状态为 checkpoint_verified，支持自动相机估计；针孔与全景相机覆盖仍需显式指定。
+
+    在 WorldFoundry 模型目录中，该条目以 `unik3d-prior` 收录于 `three_d_four_d` 分类。
+    仓库未记录该条目的官方来源链接。
+  architecture: |
+    The published method models the camera as a learned spherical harmonics ray representation and predicts a radial distance field over that sphere, disentangling camera geometry from scene geometry; this lets one ViT-based model output metric 3D for arbitrary field-of-view inputs without rectification, including 360-degree panoramas.
+  architecture_zh: |
+    公开方法把相机建模为学习到的球谐光线表示，并在该球面上预测径向距离场，将相机几何与场景几何解耦；这使单个 ViT 系模型无需校正即可对任意视场角输入（含 360 度全景）输出公制 3D。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` and runtime profile `runtime-profile:unik3d-prior`.
+    Catalog integration status: `integrated`.
+    Integration notes recorded in the catalog:
+    - Integrated as a universal-camera geometric prior at worldfoundry/base_models/three_dimensions/depth/unik3d.
+    - The default checkpoint is resolved through Hugging Face from lpiccinelli/unik3d-vitl or an explicit local model_path override.
+    - The upstream release is CC-BY-NC-4.0; downstream users must respect the non-commercial license terms when enabling this prior.
+
+    Embodiment contract:
+    - Simulator: none — this entry is an offline geometric prior invoked by other WorldFoundry pipelines, not a simulator-driven model.
+    - Sensors: monocular RGB images from arbitrary cameras (pinhole, fisheye, panoramic); no additional sensors are recorded.
+    - Action space: not applicable — priors are pure perception modules without an action interface.
+    - Dedicated environment: no dedicated environment; it is exposed through the shared WorldFoundry geometry-prior pipeline/operator contract.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，运行时配置为 `runtime-profile:unik3d-prior`。
+    目录集成状态：已集成（integrated）。
+    目录中记录的集成备注（保留原文）：
+    - Integrated as a universal-camera geometric prior at worldfoundry/base_models/three_dimensions/depth/unik3d.
+    - The default checkpoint is resolved through Hugging Face from lpiccinelli/unik3d-vitl or an explicit local model_path override.
+    - The upstream release is CC-BY-NC-4.0; downstream users must respect the non-commercial license terms when enabling this prior.
+
+    具身接口（embodiment contract）：
+    - 仿真器：无——该条目是被其它 WorldFoundry 管线调用的离线几何先验，不涉及仿真器。
+    - 传感器：来自任意相机（针孔、鱼眼、全景）的单目 RGB 图像；仓库未记录其它传感器。
+    - 动作空间：不适用——先验模块为纯感知组件，没有动作接口。
+    - 是否专用环境：无专用环境；通过 WorldFoundry 共享几何先验 pipeline/operator 契约暴露。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`checkpoint_verified`.
+    Runner parity notes recorded in the catalog:
+    - Real checkpoint inference is verified through the shared geometry-prior pipeline/operator contract with auto camera estimation; pinhole and panorama camera overrides remain explicit.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=已通过真实权重验证（checkpoint_verified）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - Real checkpoint inference is verified through the shared geometry-prior pipeline/operator contract with auto camera estimation; pinhole and panorama camera overrides remain explicit.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks: []
