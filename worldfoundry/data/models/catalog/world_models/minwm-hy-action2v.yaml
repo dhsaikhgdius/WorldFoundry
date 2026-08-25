@@ -17,3 +17,23 @@ runner_parity:
   status: pending
   notes: [Dedicated HY15 Action2V DMD entrypoint and native action-token route are wired.]
 catalog_category: world_models
+docs:
+  publisher: Shengshu Technology
+  publisher_kind: company
+  publisher_zh: 生数科技（Shengshu AI）
+  overview: 'minWM HY Action2V is Shengshu''s minimal world-model recipe on a HunyuanVideo-1.5 base: given a prompt, an image, and a motion trajectory it generates action-conditioned, camera-controllable video through a distilled DMD entrypoint. In this catalog the dedicated HY15 Action2V route and native action-token path are wired; runner parity waits on checkpoints.'
+  overview_zh: minWM HY Action2V 是生数科技在 HunyuanVideo-1.5 基座上的极简世界模型配方：给定提示词、图像与运动轨迹，经蒸馏的 DMD 入口生成动作条件、相机可控的视频。本 catalog 中专用 HY15 Action2V 路径与原生动作 token 路径已接通；runner parity 待 checkpoint 就位。
+  architecture: The official source is vendored at a pinned revision (apache-2.0). Only the HY15/Action2V/dmd subset of the 384.97 GB upstream minWM repository is required — the entry deliberately avoids pulling the full research archive.
+  architecture_zh: 官方源码以固定 revision 内置（apache-2.0）。仅需上游 384.97 GB minWM 仓库中的 HY15/Action2V/dmd 子集——该条目有意避免拉取完整研究归档。
+  usage_notes: Inputs are prompt, image, and trajectory (native motion tokens). Stage the HY15 Action2V DMD subset before expecting artifacts; the Wan-based sibling is separately cataloged as minwm-wan-action2v.
+  usage_notes_zh: 输入为提示词、图像与轨迹（原生运动 token）。期望得到产物前请先就位 HY15 Action2V DMD 子集；基于 Wan 的同门单独记录为 minwm-wan-action2v。
+  limitations:
+  - Runner parity is pending the staged DMD checkpoint subset.
+  - The upstream repository is enormous (384.97 GB) — stage only the required subset.
+  limitations_zh:
+  - runner parity 待 DMD checkpoint 子集就位。
+  - 上游仓库极大（384.97 GB）——请只就位所需子集。
+  recommended_benchmarks:
+  - id: camerabench
+    reason: Camera/motion-trajectory adherence.
+    reason_zh: 相机/运动轨迹贴合度。
