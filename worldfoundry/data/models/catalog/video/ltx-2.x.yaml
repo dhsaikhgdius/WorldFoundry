@@ -184,3 +184,25 @@ runner_parity:
     - WorldFoundry LTX-2.3 I2V pipeline target is registered and produced the
       nonblank Studio demo artifact recorded above.
     - T2V/V2V variants still need scoped wrappers and checkpoint-backed validation.
+docs:
+  publisher: Lightricks
+  publisher_kind: company
+  publisher_zh: Lightricks
+  overview: LTX-2.x is Lightricks' current-generation video model family in this catalog, integrated natively for the distilled LTX-2 and LTX-2.3 image-to-video paths. The native route uses the official spatial upscaler between two denoising stages. Six variants are recorded (T2V/I2V/V2V for both 2 and 2.3), but only the two I2V routes are runnable today — the others are upstream capability profiles.
+  overview_zh: LTX-2.x 是 Lightricks 当前一代视频模型在本 catalog 中的条目，原生集成了蒸馏版 LTX-2 与 LTX-2.3 的图生视频路径。原生路径在两段去噪之间使用官方空间上采样器。共记录六个 variant（2 与 2.3 各有 T2V/I2V/V2V），但目前只有两条 I2V 路径可运行——其余是上游能力档案。
+  architecture: 'The I2V route is a two-stage denoise with the official Spatial Upscaler as the boundary, loaded automatically from spatial_upsampler_path (not a separate Studio refiner toggle). Assembly uses the shared NativeDiffusionPipeline, joint multi-stage runner, and optimization policies — no Diffusers pipeline or copied upstream pipeline. Note the recorded schedule caveat: the native distilled schedule is 8+3 steps while upstream documents 8+4, so exact upstream parity must not be claimed until reconciled.'
+  architecture_zh: I2V 路径为两段去噪，以官方 Spatial Upscaler 为分界，从 spatial_upsampler_path 自动加载（不是独立的 Studio 细化开关）。装配使用共享 NativeDiffusionPipeline、联合多段 runner 与优化策略——不使用 Diffusers pipeline 或复制的上游 pipeline。注意记录在案的调度差异：原生蒸馏调度为 8+3 步，而上游文档为 8+4 步，在差异调和并完成 checkpoint 验证前不得宣称与上游完全一致。
+  usage_notes: 'Runner status is partial_studio_visual_validation_verified: both the LTX-2 and LTX-2.3 I2V targets produced recorded nonblank Studio demo artifacts. T2V/V2V still need scoped wrappers and validation — don''t select those variants expecting output. This entry is tracked separately from LTX-Video 0.9.x because upstream ships distinct HF repository ids.'
+  usage_notes_zh: runner 状态为 partial_studio_visual_validation_verified：LTX-2 与 LTX-2.3 的 I2V target 均产出了记录在案的非空 Studio demo 产物。T2V/V2V 仍需专门封装与验证——不要指望选那些 variant 能出结果。由于上游使用不同的 HF 仓库 id，本条目与 LTX-Video 0.9.x 分开跟踪。
+  limitations:
+  - Only the I2V routes run; T2V and V2V variants are profiles, not runnable paths.
+  - The 8+3 vs 8+4 distilled-schedule difference means exact upstream parity is not yet claimable.
+  - Visual validation is partial (Studio demo artifacts), not full checkpoint-backed parity.
+  limitations_zh:
+  - 只有 I2V 路径可运行；T2V 与 V2V variant 是档案而非可运行路径。
+  - 蒸馏调度 8+3 与上游 8+4 的差异未调和前，不能宣称与上游精确一致。
+  - 视觉验证为部分性（Studio demo 产物），并非完整 checkpoint 一致性。
+  recommended_benchmarks:
+  - id: aigcbench
+    reason: I2V-focused benchmark for the runnable routes.
+    reason_zh: 针对可运行 I2V 路径的图生视频评测。
