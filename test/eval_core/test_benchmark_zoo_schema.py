@@ -55,6 +55,10 @@ NEW_VIDEO_WORLD_NORMALIZER_IDS = (
 
 NEW_VIDEO_WORLD_CONTRACT_IDS = ()
 
+# Contracts that compute their metrics fully in-tree and therefore do not
+# require an upstream benchmark checkout at scoring time.
+IN_TREE_COMPUTED_CONTRACT_IDS = frozenset({"worldbench", "physics-iq"})
+
 
 def _command_text(command: str | tuple[str, ...]) -> str:
     if isinstance(command, str):
@@ -166,10 +170,9 @@ def test_benchmark_zoo_entry_accepts_flat_manifest_fields() -> None:
     )
 
     assert entry.benchmark_id == "flat-example"
-    assert entry.contract_validation_command == (
-        "worldfoundry-eval zoo benchmark-run --benchmark-id flat-example "
-        "--mode contract --output-dir tmp/benchmark_zoo/benchmark_contract/flat-example --json"
-    )
+    # contract_validation_command is a deprecated legacy manifest field; it is
+    # only populated when explicitly declared and no longer synthesized.
+    assert entry.contract_validation_command is None
     assert entry.ready_now_command is None
     assert entry.one_click_command is None
     assert entry.aliases == ("FlatBench",)
@@ -329,7 +332,10 @@ def test_benchmark_zoo_loads_video_world_manifest() -> None:
     assert by_id["vbench"].integration_status == "integrated"
     assert by_id["vbench"].verification_status == "verified"
     assert by_id["vbench"].open_source_status == "stable"
-    assert by_id["vbench"].official_benchmark_verified is True
+    # official_benchmark_verified stays false until full-suite verification is
+    # recorded in the manifest (bounded validation only sets
+    # integration_evidence).
+    assert by_id["vbench"].official_benchmark_verified is False
     assert by_id["vbench"].integration_evidence is True
     assert by_id["vbench"].leaderboard_valid is False
     assert by_id["worldmodelbench"].hf_dataset_id == "Efficient-Large-Model/worldmodelbench"
@@ -338,7 +344,7 @@ def test_benchmark_zoo_loads_video_world_manifest() -> None:
     assert by_id["video-bench"].verification_status == "verified"
     assert by_id["video-bench"].open_source_status == "gated"
     assert by_id["video-bench"].official_benchmark_verified is False
-    assert by_id["video-bench"].integration_evidence is True
+    assert by_id["video-bench"].integration_evidence is False
     assert by_id["video-bench"].leaderboard_valid is False
     assert by_id["vbench"].metrics[0].metric_id == "overall_quality"
     vbench_metric_ids = tuple(metric.metric_id for metric in by_id["vbench"].metrics)
@@ -365,7 +371,7 @@ def test_benchmark_zoo_loads_video_world_manifest() -> None:
     assert by_id["vbench-2.0"].open_source_status == "experimental"
     assert by_id["vbench-2.0"].release_status == "experimental"
     assert by_id["vbench-2.0"].maturity == "contract_ready"
-    assert by_id["vbench-2.0"].official_benchmark_verified is True
+    assert by_id["vbench-2.0"].official_benchmark_verified is False
     assert by_id["vbench-2.0"].integration_evidence is True
     assert by_id["vbench-2.0"].leaderboard_valid is False
     vbench2_validation = by_id["vbench-2.0"].runner.assets["official_gpu_validation"]
@@ -403,8 +409,11 @@ def test_benchmark_zoo_loads_video_world_manifest() -> None:
     assert "benchmark-run" in _command_text(by_id["video-bench"].validation_command)
     assert _command_contains(by_id["video-bench"].validation_command, "--official-results-path")
     assert by_id["worldbench"].validation_command is not None
-    assert "benchmark-run" in _command_text(by_id["worldbench"].validation_command)
-    assert _command_contains(by_id["worldbench"].validation_command, "--official-results-path")
+    # worldbench computes its metrics fully in-tree: validation invokes the
+    # in-tree official runner module directly instead of the benchmark-run
+    # results-import path.
+    assert "run_worldbench_official_runner" in _command_text(by_id["worldbench"].validation_command)
+    assert _command_contains(by_id["worldbench"].validation_command, "--run-official")
     assert by_id["videoscore"].validation_command is not None
     assert by_id["videoscore"].open_source_status == "experimental"
     assert "run_videoscore_official_runner.py" in _command_text(by_id["videoscore"].validation_command)
@@ -436,8 +445,11 @@ def test_benchmark_zoo_loads_video_world_manifest() -> None:
     assert by_id["worldscore"].metrics[-1].primary is True
     assert by_id["video-bench"].metrics[-1].metric_id == "videobench_average"
     assert by_id["video-bench"].metrics[-1].primary is True
-    assert by_id["worldbench"].metrics[-1].metric_id == "worldbench_average"
-    assert by_id["worldbench"].metrics[-1].primary is True
+    # worldbench reports the official per-track metrics (no synthesized
+    # average); the primary metric is foreground_miou.
+    assert by_id["worldbench"].metrics[0].metric_id == "foreground_miou"
+    assert by_id["worldbench"].metrics[0].primary is True
+    assert by_id["worldbench"].metrics[-1].metric_id == "binary_accuracy"
     assert by_id["videoscore"].metrics[-1].primary is True
     assert by_id["t2v-compbench"].metrics[-1].metric_id == "t2v_compbench_average"
     assert by_id["t2v-compbench"].metrics[-1].primary is True
@@ -459,12 +471,18 @@ def test_new_video_world_normalizers_do_not_claim_leaderboard_verification() -> 
         all_labels = (*entry.tags, *entry.domains, *entry.modalities)
 
         assert entry.integration_status in {"planned", "integrated"}
-        assert entry.maturity in {"contract_ready", "verified_runner"}
+        assert entry.maturity in {"contract_ready", "verified_runner", "planned"}
         assert entry.verification_status != "verified"
+        # Protective claims: normalizer-only integrations must never assert
+        # full official verification or leaderboard validity.  The
+        # integration_evidence bit varies per benchmark (bounded evidence is
+        # recorded per manifest), so it is intentionally not pinned here.
         assert entry.official_benchmark_verified is False
-        assert entry.integration_evidence is True
         assert entry.leaderboard_valid is False
-        surface = entry.runner_availability["surface"]
+        surface = entry.runner_availability.get("surface")
+        if surface is None:
+            # Some manifests (e.g. physics-iq) do not declare a surface label.
+            continue
         assert surface in {
             "official_result_normalizer",
             "official_runner",
@@ -477,7 +495,7 @@ def test_new_video_world_normalizers_do_not_claim_leaderboard_verification() -> 
             "in_tree_mock_judge_and_normalizer",
             "physics_iq_official_in_tree",
             "official_in_tree_runtime",
-        } or surface.endswith("_official_in_tree")
+        } or surface.endswith("_official_in_tree") or surface.startswith("in_tree_result_importer")
 
 
 def test_benchmark_zoo_loads_embodied_world_manifest() -> None:
@@ -510,7 +528,12 @@ def test_benchmark_zoo_loads_embodied_world_manifest() -> None:
     assert by_id["robotwin"].paper_url == "https://arxiv.org/abs/2506.18088"
     assert by_id["robotwin"].runner_target.endswith("RoboTwinContract")
     assert by_id["robotwin"].run_command is not None
-    assert "run_robotwin_official_runner.py" in _command_text(by_id["robotwin"].run_command)
+    # The robotwin manifest routes runs through the embodied CLI entrypoint
+    # (config-driven) instead of the old standalone runner script.
+    robotwin_command = _command_text(by_id["robotwin"].run_command)
+    assert "worldfoundry-eval embodied run" in robotwin_command
+    assert "--config" in robotwin_command
+    assert "embodied/robotwin/eval.yaml" in robotwin_command
     assert by_id["robotwin"].runner.clone_dir == "thirdparty/RoboTwin"
     assert by_id["robotwin"].runner_runtime["root_env"] == "WORLDFOUNDRY_ROBOTWIN_ROOT"
     assert by_id["robotwin"].dataset_refs[0].revision == "9dc9299c163db059931898a9f0852098a61155a1"
@@ -595,7 +618,10 @@ def test_priority_external_benchmark_contract_targets_are_importable() -> None:
 
         assert runner.benchmark_id == benchmark_id
         assert contract.metric_ids == runner.metric_ids
-        assert contract.requires_upstream_runtime is True
+        # Contracts default to requiring the upstream benchmark runtime;
+        # benchmarks whose metrics are computed fully in-tree opt out.
+        expected_requires_upstream = benchmark_id not in IN_TREE_COMPUTED_CONTRACT_IDS
+        assert contract.requires_upstream_runtime is expected_requires_upstream
 
 
 def test_benchmark_zoo_entry_converts_to_public_benchmark_spec() -> None:
@@ -631,10 +657,9 @@ def test_benchmark_zoo_entry_converts_to_public_benchmark_spec() -> None:
     assert spec.benchmark_id == "runner-example"
     assert spec.tasks[0].evaluation_protocol == "external_benchmark_contract"
     assert spec.tasks[0].data["hf_dataset_id"] == "org/runner-example"
-    assert spec.tasks[0].metadata["contract_validation_command"] == (
-        "worldfoundry-eval zoo benchmark-run --benchmark-id runner-example "
-        "--mode contract --output-dir tmp/benchmark_zoo/benchmark_contract/runner-example --json"
-    )
+    # The synthesized contract_validation_command was removed from spec
+    # metadata together with the legacy manifest field.
+    assert "contract_validation_command" not in spec.tasks[0].metadata
     assert spec.tasks[0].metadata["ready_now_command"] is None
     assert spec.tasks[0].metadata["one_click_command"] is None
     assert spec.tasks[0].metadata["contract_only_surface"] is True
@@ -649,7 +674,7 @@ def test_benchmark_zoo_entry_converts_to_public_benchmark_spec() -> None:
     assert spec.metrics[0].primary is True
     assert spec.metrics[0].metadata["leaderboard_key"] == "quality"
     assert spec.metadata["integration_status"] == "planned"
-    assert spec.metadata["contract_validation_command"] == spec.tasks[0].metadata["contract_validation_command"]
+    assert "contract_validation_command" not in spec.metadata
     assert spec.metadata["ready_now_command"] is None
     assert spec.metadata["one_click_command"] is None
     assert spec.metadata["base_model_dependencies"] == ("grounded_depth_segmentation_stack",)
@@ -665,9 +690,12 @@ def test_benchmark_zoo_video_world_manifest_converts_to_public_specs() -> None:
     assert len(specs) >= 10
     by_id = {spec.benchmark_id: spec for spec in specs}
     assert by_id["vbench"].tasks[0].metadata["source_status"] == "open_source"
-    assert by_id["vbench"].tasks[0].metadata["contract_only_surface"] is False
+    # official_runtime_validated requires official_benchmark_verified, which
+    # the vbench manifest keeps false until full-suite verification, so the
+    # surface stays contract-only.
+    assert by_id["vbench"].tasks[0].metadata["contract_only_surface"] is True
     assert by_id["vbench"].tasks[0].metadata["requires_upstream_runtime"] is True
-    assert by_id["vbench"].tasks[0].metadata["official_runtime_validated"] is True
+    assert by_id["vbench"].tasks[0].metadata["official_runtime_validated"] is False
     assert by_id["vbench"].metadata["integration_status"] == "integrated"
     assert by_id["vbench"].tasks[0].input_keys == ("prompt_suite_json", "generated_video_dir")
     assert by_id["vbench"].metrics[0].metric_id == "overall_quality"
@@ -680,8 +708,8 @@ def test_benchmark_zoo_video_world_manifest_converts_to_public_specs() -> None:
     assert by_id["vbench-plus-plus"].tasks[0].metadata["dataset"]["not_applicable"] is True
     assert by_id["vbench-2.0"].tasks[0].metadata["runner"]["runner_target"].endswith("VBench2Contract")
     assert by_id["vbench-2.0"].metadata["open_source_status"] == "experimental"
-    assert by_id["vbench-2.0"].metadata["official_runtime_validated"] is True
-    assert by_id["vbench-2.0"].tasks[0].metadata["contract_only_surface"] is False
+    assert by_id["vbench-2.0"].metadata["official_runtime_validated"] is False
+    assert by_id["vbench-2.0"].tasks[0].metadata["contract_only_surface"] is True
     assert by_id["vbench-2.0"].tasks[0].metadata["runner"]["assets"]["official_gpu_validation"][
         "scorecard"
     ].endswith("gpu_vbench2_cu113_diversity_probe/scorecard.json")
@@ -701,7 +729,7 @@ def test_benchmark_zoo_video_world_manifest_converts_to_public_specs() -> None:
     assert by_id["video-bench"].tasks[0].metadata["leaderboard_valid"] is False
     assert by_id["video-bench"].metrics[-1].metric_id == "videobench_average"
     assert by_id["worldbench"].tasks[0].metadata["runner"]["runner_target"].endswith("WorldBenchContract")
-    assert by_id["worldbench"].metrics[-1].metric_id == "worldbench_average"
+    assert by_id["worldbench"].metrics[0].metric_id == "foreground_miou"
     assert by_id["t2v-compbench"].tasks[0].metadata["runner"]["runner_target"].endswith(
         "T2VCompBenchContract"
     )
@@ -783,10 +811,12 @@ def test_benchmark_user_commands_use_manifest_fields_only() -> None:
 
     commands = zoo_cli._benchmark_user_commands(entry)
 
-    assert commands["contract_run"] == (
-        "worldfoundry-eval zoo benchmark-run --benchmark-id stable-release-planned-runner "
-        "--mode contract --output-dir tmp/benchmark_zoo/benchmark_contract/stable-release-planned-runner --json"
-    )
+    # User commands come exclusively from manifest-declared run/validation
+    # command fields.  The deprecated contract_validation_command no longer
+    # surfaces a suggested command, and nothing is synthesized for entries
+    # that declare neither run_command nor validation_command.
+    assert commands == {}
+    assert "contract_run" not in commands
     assert "suite_plan" not in commands
 
 

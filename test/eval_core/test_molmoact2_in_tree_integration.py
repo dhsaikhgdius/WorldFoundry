@@ -23,7 +23,10 @@ def test_molmoact2_model_zoo_and_runtime_profile_are_registered() -> None:
     assert entry.runner_target == "worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner"
     assert entry.pipeline_target == "worldfoundry.pipelines.component_pipelines:MolmoAct2Pipeline"
     assert entry.runtime_profile == "runtime-profile:molmoact2"
-    assert entry.integration_status == "planned"
+    # The catalog records in_tree_checkpoint_runtime_static_verified, which is
+    # a registered in-tree integration state, so the entry is integrated (the
+    # remaining GPU/checkpoint validation is tracked by parity fields).
+    assert entry.integration_status == "integrated"
     assert "allenai/MolmoAct2-DROID" in entry.hf_repo_ids
     assert "allenai/MolmoAct2-BimanualYAM" in entry.hf_repo_ids
     assert profile.model_id == "molmoact2"
@@ -61,9 +64,11 @@ def test_molmoact2_plan_only_writes_runtime_plan(tmp_path: Path) -> None:
     plan = json.loads(Path(result["plan_path"]).read_text(encoding="utf-8"))
     assert plan["runtime"]["backend"] == "worldfoundry.molmoact2.in_tree_hf_predict_action"
     assert plan["runtime"]["repo_id"] == "allenai/MolmoAct2-DROID"
-    assert plan["runtime"]["camera_keys"] == ["external_cam", "wrist_cam"]
+    # The DROID contract moved to the official three-camera layout, and dtype
+    # selection is deferred to the runtime ("auto") instead of pinned bfloat16.
+    assert plan["runtime"]["camera_keys"] == ["external_cam", "external_cam_2", "wrist_cam"]
     assert plan["runtime"]["state_dim"] == 8
-    assert plan["runtime"]["torch_dtype"] == "bfloat16"
+    assert plan["runtime"]["torch_dtype"] == "auto"
     assert plan["runtime"]["num_steps"] == 10
 
 

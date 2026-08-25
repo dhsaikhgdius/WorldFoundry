@@ -141,6 +141,7 @@
 
 - 改动（`models/catalog/schema.py`）：新增 `_warn_unknown_status_once`：进程内首个未知状态值 `WARNING`（附"启用 DEBUG 看全量、有意的新状态请注册"提示），后续每个新未知值 `DEBUG`（真实 catalog 有 64 种未注册 demo_status，逐条 WARNING 会刷屏）。`_normalize_integration_status`/`_normalize_demo_status` 接入。归一化结果不变（仍降级 planned/pending——语义变更需 catalog 数据侧配合，见 deferred）。
 - 验证：真实 catalog 加载输出单条 WARNING；DEBUG 级别可见全部未知值明细。
+- 后续（分支 `cursor/eval-catalog-test-contracts-2f62`）：deferred 的"catalog 数据侧配合"已落地——catalog 中有意的状态值注册进 schema 词表：integration 侧 `verified`/`runtime_ported`/`in_tree_*` 系列归 `integrated`、metadata/staging 系列归 `planned`；demo-parity 侧仅明确记录 checkpoint-backed GPU parity 证据的值归 `verified`，组件/静态验证一律归 `pending`（不放大部分证据）。真实 catalog（283 条模型）加载已零 WARNING；由词表归一变化牵动的消费方测试（TUI 路由、zoo readiness、vla readiness、visual metadata-only、molmoact2）已同步修订。
 
 ### EF-25 (P2) resolver 未知 model id 报错无建议、异常类型泄漏
 

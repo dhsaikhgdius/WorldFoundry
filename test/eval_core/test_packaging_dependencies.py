@@ -41,8 +41,16 @@ def test_data_gpu_probe_dependencies_are_packaged() -> None:
 def test_studio_static_assets_are_packaged() -> None:
     package_data = _package_data()
 
-    assert (REPO_ROOT / "worldfoundry/studio/assets/openenvision-logo.png").is_file()
+    # The OpenEnvision logo moved to the CLI package and the PNG itself is
+    # gitignored (worldfoundry/cli/assets/*.png), so the checked-in contract is
+    # the packaging metadata plus the loader's asset path, not the binary file.
+    assert "assets/openenvision_logo.png" in package_data["worldfoundry.cli"]
     assert "assets/**/*" in package_data["worldfoundry.studio"]
+    assert (REPO_ROOT / "worldfoundry/studio/assets").is_dir()
+
+    from worldfoundry.cli.tui_brand import logo_asset_path
+
+    assert logo_asset_path().name == "openenvision_logo.png"
 
 
 def test_unified_requirements_install_data_gpu_probe_dependencies() -> None:
@@ -50,7 +58,10 @@ def test_unified_requirements_install_data_gpu_probe_dependencies() -> None:
     install_script = (REPO_ROOT / "scripts" / "setup" / "conda_install.sh").read_text(encoding="utf-8")
 
     assert "build" in requirements
-    assert "-e .[tui,optimized_core,video,hf,api,ui,metrics]" in requirements
+    assert (
+        "-e .[tui,optimized_core,video,hf,api,ui,metrics,studio_pointcloud,studio_rerun]"
+        in requirements
+    )
     for package in ("h5py", "numpy", "opencv-python", "pillow", "pyarrow"):
         assert package in requirements
     for module in ('"cv2"', '"h5py"', '"numpy"', '"PIL"', '"pyarrow"'):
@@ -73,26 +84,26 @@ def test_optimized_core_extra_declares_flashdreams_runtime_dependencies() -> Non
 def test_sdist_manifest_excludes_generated_downloaded_and_large_artifacts() -> None:
     manifest = (REPO_ROOT / "MANIFEST.in").read_text(encoding="utf-8")
 
+    # Model runtime profiles moved from data/models/runtime_profiles to
+    # data/models/runtime (+ environments/), and the cosmos vendored trees are
+    # covered by the global binary/notebook excludes instead of per-path prunes.
     required_snippets = (
         "include worldfoundry/data/benchmarks/*.md",
         "recursive-include worldfoundry/data/benchmarks/catalog *.yaml",
         "recursive-include worldfoundry/data/benchmarks/runtime_profiles *.yaml",
-        "recursive-include worldfoundry/data/models/runtime_profiles *.yaml",
+        "recursive-include worldfoundry/data/models/catalog *.yaml",
         "recursive-include worldfoundry/data/models/runtime *.yaml",
         "recursive-include worldfoundry/data/models/bindings *.yaml",
         "recursive-include worldfoundry/data/models/runtime/configs *.yaml",
         "recursive-include worldfoundry/data/models/runtime/configs *.yml",
         "recursive-include worldfoundry/data/models/runtime/configs *.json",
+        "recursive-include worldfoundry/data/models/runtime/environments *.yaml",
         "prune tmp",
         "prune cache",
         "prune data/hfd_datasets",
         "prune worldfoundry/data/test_cases",
         "prune docs/fumadocs/.next",
         "prune docs/fumadocs/node_modules",
-        "prune worldfoundry/base_models/diffusion_model/video/cosmos/cosmos1/cosmos_predict1_gen3c/cosmos_predict1/tokenizer/notebook",
-        "prune worldfoundry/base_models/diffusion_model/video/cosmos/cosmos1/cosmos_predict1_gen3c/cosmos_predict1/tokenizer/test_data",
-        "prune worldfoundry/base_models/diffusion_model/video/cosmos/cosmos2/runtime/cosmos_predict2/cosmos_predict2/_src/imaginaire/attention/tests",
-        "prune worldfoundry/base_models/diffusion_model/video/cosmos/cosmos2/runtime/cosmos_predict2/cosmos_predict2/_src/predict2/tests",
         "prune worldfoundry/synthesis/visual_generation/pandora/pandora_runtime/ChatUniVi/eval",
         "prune worldfoundry/synthesis/visual_generation/pandora/pandora_runtime/ChatUniVi/train",
         "prune worldfoundry/synthesis/visual_generation/dynamicrafter_pandora/DynamiCrafter/assets",

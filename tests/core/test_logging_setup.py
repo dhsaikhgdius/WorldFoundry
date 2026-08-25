@@ -273,6 +273,12 @@ def test_bad_level_raises():
 
 
 def test_is_configured_flag(isolated_logging):
+    import worldfoundry.core.logging_setup as _ls
+
+    # Earlier tests in the session may have configured logging (e.g. via the
+    # CLI); reset the process-global flag so this test checks the transition
+    # rather than session history.  ``isolated_logging`` restores the flag.
+    _ls._CONFIGURED = False
     assert is_configured() is False
     configure_logging(force=True)
     assert is_configured() is True
@@ -343,10 +349,20 @@ def test_cli_logging_flag_pre_scan():
     pytest.importorskip("yaml")
     from worldfoundry.cli.main import _extract_logging_flags
 
-    level, log_file, log_json, rest = _extract_logging_flags(
+    # The pre-scan grew a ``verbose`` slot (``-v``/``--verbose``) and now
+    # returns a 5-tuple: (level, log_file, log_json, verbose, rest).
+    level, log_file, log_json, verbose, rest = _extract_logging_flags(
         ["--log-level", "DEBUG", "run", "--log-file=/tmp/x.log", "--log-json"]
     )
     assert level == "DEBUG"
     assert log_file == "/tmp/x.log"
     assert log_json is True
+    assert verbose is False
     assert rest == ["run"]
+
+    level, log_file, log_json, verbose, rest = _extract_logging_flags(
+        ["-v", "zoo", "benchmark-run", "--verbose"]
+    )
+    assert level is None and log_file is None and log_json is None
+    assert verbose is True
+    assert rest == ["zoo", "benchmark-run"]

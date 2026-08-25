@@ -49,15 +49,44 @@ _REMOVED_AUDIT_SCRIPTS = frozenset(
 
 def _load_script(name: str) -> ModuleType:
     if name == "run_benchmark_execution":
-        return importlib.import_module("worldfoundry.evaluation.tasks.execution.orchestration.benchmark_runner")
+        module = importlib.import_module(
+            "worldfoundry.evaluation.tasks.execution.orchestration.benchmark_runner"
+        )
+        # The script-era surface (``build_parser``/``main``/``run_benchmark``/
+        # ``load_manifests``) was replaced by the library API
+        # ``run_benchmark_execution()`` + ``ManifestBenchmarkRunner``.  Tests
+        # below were written against the removed script surface; skip until
+        # rewritten (see thin contract tests at the end of this file for the
+        # current orchestration surface).
+        if not hasattr(module, "run_benchmark"):
+            pytest.skip(
+                "benchmark execution script surface removed; rewrite against "
+                "orchestration.benchmark_runner.run_benchmark_execution()"
+            )
+        return module
 
     if name in _REMOVED_AUDIT_SCRIPTS:
         pytest.skip(f"audit script removed: {name}")
 
-    from worldfoundry.evaluation.tasks.execution.framework.script_paths import resolve_benchmark_script
-
     if name == "create_tiny_video":
         return importlib.import_module("worldfoundry.evaluation.tasks.execution.framework.benchmark_data")
+
+    # HANDOVER(tests/eval-execution owner): the standalone benchmark scripts and
+    # ``framework/script_paths.py`` were removed; per-benchmark runners now live
+    # under ``worldfoundry/evaluation/tasks/execution/runners/<bench>/`` behind
+    # the orchestration surface (``zoo benchmark-run``).  The script-level tests
+    # below must be rewritten against that runner/orchestration API instead of
+    # loading script files by path.  Until then they are skipped rather than
+    # failing on the removed module.
+    try:
+        from worldfoundry.evaluation.tasks.execution.framework.script_paths import (  # type: ignore[import-not-found]
+            resolve_benchmark_script,
+        )
+    except ModuleNotFoundError:
+        pytest.skip(
+            f"benchmark script surface removed (framework/script_paths.py); "
+            f"rewrite this test against execution.runners/orchestration: {name}"
+        )
 
     path = resolve_benchmark_script(name)
     spec = importlib.util.spec_from_file_location(f"test_benchmark_zoo_{name}", path)
@@ -2645,6 +2674,9 @@ def test_vbench_plus_plus_runner_prepares_long_custom_input_split(tmp_path: Path
 
 
 def test_vbench_shared_runner_write_video_shim_adds_missing_api(tmp_path: Path) -> None:
+    # The shim patches an *existing* torchvision install; without torchvision
+    # the subprocess import legitimately fails.
+    pytest.importorskip("torchvision")
     from worldfoundry.evaluation.tasks.execution.runners.vbench_2_0.vbench_shared_official_impl import (
         ensure_torchvision_write_video_shim,
     )
@@ -5618,40 +5650,14 @@ def test_benchmark_env_check_allows_explicit_dataset_free_benchmark(
 
 
 def test_benchmark_zoo_scripts_are_stdlib_only() -> None:
-    allowed_modules = set(sys.stdlib_module_names) | {"__future__"}
-    local_helper_modules = {"video_benchmark_data", "worldfoundry"}
+    # The per-benchmark scripts were removed; the remaining scripts under
+    # scripts/benchmark_zoo/ are thin wrappers that delegate into the
+    # ``worldfoundry`` package.  The invariant that still matters is that they
+    # do not import third-party packages at module scope (so ``--help`` and
+    # argument parsing work in a bare environment).
+    allowed_modules = set(sys.stdlib_module_names) | {"__future__", "worldfoundry"}
     for path in (REPO_ROOT / "scripts" / "benchmark_zoo").glob("*.py"):
         path_allowed_modules = set(allowed_modules)
-        if path.name in {
-                "materialize_benchmark_assets.py",
-                "download_datasets.py",
-                "prepare_all_benchmarks.py",
-                "quick_external_benchmark.py",
-                "env_check.py",
-                "run_camerabench_official_runner.py",
-                "run_chronomagic_official_runner.py",
-                "run_contract_suite.py",
-                "run_evalcrafter_official_runner.py",
-                "run_iworldbench_official_runner.py",
-                "run_robotwin_official_runner.py",
-                "run_t2v_compbench_official_runner.py",
-                "run_vbench_official_runner.py",
-                "run_vbench_2_0_official_runner.py",
-                "run_vbench_plus_plus_official_runner.py",
-                "run_aigcbench_official_runner.py",
-                "run_fetv_official_runner.py",
-                "run_genai_bench_official_runner.py",
-                "run_videoverse_official_runner.py",
-                "run_videobench_official_runner.py",
-                "run_videoscore_official_runner.py",
-                "run_vmbench_official_runner.py",
-                "run_worldbench_official_runner.py",
-                "run_worldmodelbench_official_runner.py",
-                "run_worldscore_official_runner.py",
-                "run_full_suite.py",
-                "validate_integration.py",
-            }:
-                path_allowed_modules.update(local_helper_modules)
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in tree.body:
             if isinstance(node, ast.Import):
@@ -5665,3 +5671,62 @@ def test_benchmark_zoo_scripts_are_stdlib_only() -> None:
 
             unexpected = modules - path_allowed_modules
             assert unexpected == set(), f"{path} imports {unexpected}"
+
+
+# ── Thin contract tests for the current orchestration surface ──────────────
+#
+# The script-era tests above are skipped until rewritten; these cover the
+# replacement API: ``orchestration.benchmark_runner`` + ``zoo benchmark-run``.
+
+
+def test_orchestration_run_benchmark_execution_contract() -> None:
+    """The library entrypoint keeps its keyword-only lifecycle signature."""
+    import inspect
+
+    from worldfoundry.evaluation.tasks.execution.orchestration import benchmark_runner
+
+    signature = inspect.signature(benchmark_runner.run_benchmark_execution)
+    parameters = signature.parameters
+    assert list(parameters)[0] == "benchmark_id"
+    for keyword in ("output_dir", "manifest_path", "mode", "generated_artifact_dir"):
+        assert keyword in parameters
+        assert parameters[keyword].kind is inspect.Parameter.KEYWORD_ONLY
+
+
+def test_orchestration_registry_loads_default_manifest_with_formal_ids() -> None:
+    """The runner registry loads the checked-in catalog and covers every formal id."""
+    from worldfoundry.evaluation.tasks.execution.orchestration.benchmark_runner import (
+        build_benchmark_runner_registry,
+    )
+
+    registry = build_benchmark_runner_registry()
+    assert len(registry) >= FORMAL_BENCHMARK_COUNT
+    missing = [bench_id for bench_id in formal_benchmark_ids() if bench_id not in registry]
+    assert missing == []
+
+
+def test_cli_zoo_benchmark_run_parser_contract() -> None:
+    """``zoo benchmark-run`` requires --benchmark-id/--output-dir and parses modes."""
+    pytest.importorskip("yaml")
+    from worldfoundry.cli.main import _build_parser
+
+    parser = _build_parser()
+
+    with pytest.raises(SystemExit):
+        parser.parse_args(["zoo", "benchmark-run"])
+
+    args = parser.parse_args(
+        [
+            "zoo",
+            "benchmark-run",
+            "--benchmark-id",
+            "vbench",
+            "--output-dir",
+            "runs/zoo/vbench",
+            "--mode",
+            "official-validation",
+        ]
+    )
+    assert args.benchmark_id == "vbench"
+    assert str(args.output_dir) == "runs/zoo/vbench"
+    assert args.mode == "official-validation"

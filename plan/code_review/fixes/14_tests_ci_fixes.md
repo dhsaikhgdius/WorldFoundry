@@ -126,6 +126,21 @@
 7. **docker 脚本 hermetic 化**（TC-11，P3）：镜像 digest pin、预装依赖镜像、`.netrc` 挂载改开关。
 8. **`tests/` 与 `test/` 两树合并**（TC-05 长期项）。
 
+## 移交项落地记录（分支 `cursor/eval-catalog-test-contracts-2f62`）
+
+上节「移交源码/owner 问题」中的第 4–9 条已在该分支落地：
+
+- **第 9 条（catalog schema 状态告警，P1）**：`evaluation/models/catalog/schema.py` 注册了 catalog 数据中有意的 integration 状态（`verified`、`runtime_ported`、`in_tree_*` 系列 → `integrated`；metadata/staging 系列 → `planned`）与 demo-parity 状态（明确记录 GPU parity 证据的 → `verified`，组件/静态验证 → `pending`）；`evaluation/tasks/catalog/schema.py` 注册了 open_source/maturity 别名并把 manifest 顶层 runtime-readiness `status:` 回落进 `source.status` 的值登记为无源码信号（`unknown`，不再告警）。catalog 全量加载已无 WARNING。
+- **第 5 条（TUI 路由）与第 8 条（worldarena 词表）**：词表注册后按现行路由/词表修订 `test_tui_cli.py` 与 `test_worldarena_model_integrations.py` 断言；`test_ctrl_world_test_cases_live_in_data_package` 因 ctrl_world 资产与 `.config` 模块未落库保持 skip（HANDOVER 注释留在测试内，归 synthesis/in-tree model track）。
+- **第 4 条（benchmark_zoo 脚本层）**：`_load_script` 对已删除的 `framework/script_paths.py` 与脚本级 `run_benchmark_execution` API（`build_parser`/`run_benchmark`/`load_manifests`/`main`）统一 `pytest.skip`（skip reason 指明需按 `execution.runners`/orchestration 新面重写），并新增 3 个针对现行面的薄契约测试（`run_benchmark_execution()` 签名、runner registry 覆盖 formal ids、CLI `zoo benchmark-run` 参数契约）。该文件现为 8 passed / 136 skipped / 0 failed。**5.6k 行脚本级用例的整体重写仍待 owner 排期。**
+- **第 6/7 条（conda env / packaging 契约）**：按现行 `requirements/worldfoundry-unified.txt`（extras 含 studio_pointcloud/studio_rerun）、runtime env spec（step-video-t2v 并入 unified cu128、openpi 保留隔离 JAX env `worldfoundry-openpi-cu12`、若干 `prepare_only` → 具体 cuda profile）与 `MANIFEST.in` 现行布局（models runtime_profiles → runtime/ + environments/）更新测试期望；未回改任何发布契约文件（pyproject/MANIFEST.in 未动）。
+- **连带修复**：`test_zoo_readiness_contracts.py`（pipeline binding 计入 runtime 路由、证据位按 per-benchmark 记录、iworld-bench 现为 integrated、embodied 分片数量不再冻结、data_refs 作为数据出处凭证）；`test_visual_generation_metadata_only.py` / `test_vla_va_wam_framework_integration.py` / `test_molmoact2_in_tree_integration.py`（词表注册后 catalog 声明 verified in-tree runner 的模型归为 runnable_runner；DROID 三相机 plan 契约、torch_dtype=auto）；`test_eval_tasks_fix_catalog_hygiene.py` 改用合成未知值；`test_eval_tasks_fix_workspace_timeout.py` 从 `workspace_registry.dispatch` 导入私有助手；`tests/core/test_logging_setup.py`（`_extract_logging_flags` 5 元组 verbose 槽位、`test_is_configured_flag` 会话内进程全局标志复位）。
+
 ## eval_core 最终实跑结果
 
 <!-- FINAL_NUMBERS -->
+
+分支 `cursor/eval-catalog-test-contracts-2f62`（CPU 环境，pip 安装 pytest/pyyaml/numpy/einops/pillow/joblib/pandas/safetensors/triton 后）：
+
+- 本次触及的 16 个测试文件合跑：**163 passed / 144 skipped / 0 failed**（skip 主体为 `test_benchmark_zoo_scripts.py` 待重写的脚本级用例 136 个 + ctrl_world 数据缺失 1 个等）。
+- `test/eval_core/` 全量：**1032 passed / 325 failed / 162 skipped**（基线 main 同环境为 342 failed + 收集错误合计 462 条 FAILED/ERROR）。剩余失败全部在本任务范围外的文件（runner/metrics/skill-docs/yume 等 track），与基线逐条比对**无新增失败**。
