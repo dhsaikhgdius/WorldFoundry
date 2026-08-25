@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from .context import DEFAULT_CONTEXT, MCPToolContext
+from .context import MCPToolContext, get_default_context
 from .responses import invoke_tool, invoke_tool_async
 from .discovery import (
     get_benchmark_info_payload,
@@ -60,7 +60,7 @@ def register_tools(mcp: Any, context: MCPToolContext | None = None) -> None:
         context: Shared execution context (defaults to :data:`DEFAULT_CONTEXT`).
     """
 
-    ctx = context or DEFAULT_CONTEXT
+    ctx = context or get_default_context()
 
     @mcp.tool()
     def server_info() -> dict:

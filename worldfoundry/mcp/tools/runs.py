@@ -18,7 +18,7 @@ from typing import Any
 from worldfoundry.cli.tui_discovery import build_model_benchmark_command, build_suite_command
 from worldfoundry.runtime.jobs import python_module_command
 
-from .context import DEFAULT_CONTEXT, MCPToolContext
+from .context import MCPToolContext, get_default_context
 
 # ── Preview and submission ──────────────────────────────────────────────
 
@@ -77,7 +77,7 @@ def preview_run_payload(
         Dictionary with ``command``, ``command_text``, ``run_command`,
         ``run_command_text``, ``output_dir``, and ``plan_only`` keys.
     """
-    ctx = context or DEFAULT_CONTEXT
+    ctx = context or get_default_context()
     selected_benchmarks = _benchmark_ids(benchmark=benchmark, benchmarks=benchmarks)
     resolved_output_dir = (
         Path(output_dir) if output_dir is not None else _default_output_dir(ctx.output_root, model, selected_benchmarks)
@@ -183,7 +183,7 @@ async def run_evaluation_payload(
     if wait not in {"auto", "async", "sync"}:
         raise ValueError("wait must be one of: auto, async, sync")
     selected_benchmarks = _benchmark_ids(benchmark=benchmark, benchmarks=benchmarks or tasks)
-    ctx = context or DEFAULT_CONTEXT
+    ctx = context or get_default_context()
     preview = preview_run_payload(
         model=model,
         benchmarks=selected_benchmarks,
@@ -239,7 +239,7 @@ def list_runs_payload(
 
     if limit < 1 or limit > 500:
         raise ValueError("limit must be between 1 and 500")
-    ctx = context or DEFAULT_CONTEXT
+    ctx = context or get_default_context()
     matched = [
         job.to_summary(log_tail=0)
         for job in ctx.job_store.list()
@@ -269,7 +269,7 @@ def get_run_status_payload(run_id: str, *, context: MCPToolContext | None = None
     Returns:
         Run summary dictionary with a ``log_tail`` of the last 20 log lines.
     """
-    ctx = context or DEFAULT_CONTEXT
+    ctx = context or get_default_context()
     job = ctx.job_store.get(run_id)
     if job is None:
         raise ValueError(f"run not found: {run_id}")
@@ -295,7 +295,7 @@ def get_run_result_payload(
     Returns:
         Run result dictionary, optionally including log lines.
     """
-    ctx = context or DEFAULT_CONTEXT
+    ctx = context or get_default_context()
     job = ctx.job_store.get(run_id)
     if job is None:
         raise ValueError(f"run not found: {run_id}")
@@ -338,7 +338,7 @@ def get_run_samples_payload(
     if task_name is not None and any(separator in task_name for separator in ("/", "\\")):
         raise ValueError("task_name cannot contain path separators")
 
-    ctx = context or DEFAULT_CONTEXT
+    ctx = context or get_default_context()
     job = ctx.job_store.get(run_id)
     if job is None:
         raise ValueError(f"run not found: {run_id}")
@@ -365,7 +365,7 @@ async def cancel_run_payload(run_id: str, *, context: MCPToolContext | None = No
     Returns:
         Dictionary with ``success``, ``run_id``, and ``message`` keys.
     """
-    ctx = context or DEFAULT_CONTEXT
+    ctx = context or get_default_context()
     success, message = await ctx.job_store.cancel(run_id)
     return {"success": success, "run_id": run_id, "message": message}
 

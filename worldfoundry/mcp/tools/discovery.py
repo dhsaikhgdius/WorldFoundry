@@ -14,7 +14,7 @@ from typing import Any
 
 from worldfoundry.cli.tui_discovery import load_tui_catalog
 
-from .context import DEFAULT_CONTEXT, MCPToolContext
+from .context import MCPToolContext, get_default_context
 
 # Discovery tools are the hottest calls in an agent session; reloading every
 # manifest plus conda probing on each list/get is wasteful for a long-lived
@@ -65,7 +65,7 @@ def list_models_payload(
         Dictionary with ``models``, ``total``, and ``query`` keys.
     """
 
-    ctx = context or DEFAULT_CONTEXT
+    ctx = context or get_default_context()
     catalog = _load_catalog(ctx)
     rows = []
     for row in catalog.models:
@@ -97,7 +97,7 @@ def get_model_info_payload(model_id: str, *, context: MCPToolContext | None = No
         Model manifest dictionary.
     """
 
-    ctx = context or DEFAULT_CONTEXT
+    ctx = context or get_default_context()
     catalog = _load_catalog(ctx)
     for row in catalog.models:
         if row.model_id == model_id:
@@ -127,7 +127,7 @@ def list_benchmarks_payload(
         Dictionary with ``benchmarks``, ``total``, and ``query`` keys.
     """
 
-    ctx = context or DEFAULT_CONTEXT
+    ctx = context or get_default_context()
     catalog = _load_catalog(ctx)
     rows = []
     for row in catalog.benchmarks:
@@ -156,7 +156,7 @@ def get_benchmark_info_payload(benchmark_id: str, *, context: MCPToolContext | N
         Benchmark manifest dictionary.
     """
 
-    ctx = context or DEFAULT_CONTEXT
+    ctx = context or get_default_context()
     catalog = _load_catalog(ctx)
     for row in catalog.benchmarks:
         if row.benchmark_id == benchmark_id:

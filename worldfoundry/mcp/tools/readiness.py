@@ -7,7 +7,7 @@ from typing import Any
 
 from worldfoundry.evaluation.tasks.datasets import check_local_dataset
 
-from .context import DEFAULT_CONTEXT, MCPToolContext
+from .context import MCPToolContext, get_default_context
 
 
 def check_benchmark_datasets_payload(
@@ -20,7 +20,7 @@ def check_benchmark_datasets_payload(
 
     from worldfoundry.evaluation.tasks.catalog.zoo_registry import load_benchmark_zoo_registry
 
-    ctx = context or DEFAULT_CONTEXT
+    ctx = context or get_default_context()
     registry = load_benchmark_zoo_registry(ctx.benchmark_manifest_dir)
     entry = registry.get(benchmark_id)
     cache_dir = Path(data_root).expanduser() if data_root else _default_dataset_root()
