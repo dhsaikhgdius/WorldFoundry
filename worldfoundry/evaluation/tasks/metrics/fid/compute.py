@@ -88,6 +88,51 @@ def compute_fid(
     raise KeyError("FID key missing from torch-fidelity result")
 
 
+def compute_paired_fid_kid(
+    reference_batches: Any,
+    generated_batches: Any,
+    *,
+    device: str = "cuda",
+    kid_subset_size: int = 100,
+) -> tuple[float, float]:
+    """FID and KID over preprocessed image batches (torchmetrics backend).
+
+    Protocol-compatibility path for benchmark runtimes (e.g. MiraBench) whose
+    official scores are defined against ``torchmetrics`` Inception statistics
+    rather than the torch-fidelity path of :func:`compute_fid`. Runtimes keep
+    only their frame sampling/preprocessing and delegate the metric math here.
+
+    Both inputs are iterables of image tensors shaped ``(N, 3, H, W)`` in the
+    value range expected by ``normalize=True`` (floats in ``[0, 1]``).
+    Returns ``(fid, kid_mean)``.
+    """
+    import torch
+    from torchmetrics.image.fid import FrechetInceptionDistance
+    from torchmetrics.image.kid import KernelInceptionDistance
+    from torchmetrics.utilities.data import dim_zero_cat
+
+    fid_metric = FrechetInceptionDistance(normalize=True).to(device)
+    kid_metric = KernelInceptionDistance(normalize=True, subset_size=kid_subset_size).to(device)
+    with torch.no_grad():
+        for batch in reference_batches:
+            batch = batch.to(device)
+            fid_metric.update(batch, real=True)
+            kid_metric.update(batch, real=True)
+        for batch in generated_batches:
+            batch = batch.to(device)
+            fid_metric.update(batch, real=False)
+            kid_metric.update(batch, real=False)
+    generated_count = dim_zero_cat(kid_metric.fake_features).shape[0]
+    if generated_count < kid_metric.subset_size:
+        raise ValueError(
+            f"KID subset_size={kid_metric.subset_size} exceeds the number of "
+            f"generated samples ({generated_count}); pass a smaller kid_subset_size"
+        )
+    fid_score = float(fid_metric.compute().item())
+    kid_mean = float(kid_metric.compute()[0].item())
+    return fid_score, kid_mean
+
+
 def summarize_distribution_metrics(payload: Mapping[str, float]) -> dict[str, float]:
     """Normalize torch-fidelity metric keys to stable WorldFoundry names."""
     aliases = {
@@ -114,6 +159,7 @@ def summarize_distribution_metrics(payload: Mapping[str, float]) -> dict[str, fl
 __all__ = [
     "compute_distribution_metrics",
     "compute_fid",
+    "compute_paired_fid_kid",
     "resolve_distribution_inputs",
     "summarize_distribution_metrics",
 ]

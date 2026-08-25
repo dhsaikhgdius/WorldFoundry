@@ -1,6 +1,4 @@
-import os
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 from .utils import load_video, load_dimension_info, clip_transform
 from tqdm import tqdm
@@ -15,26 +13,18 @@ from worldfoundry.core.distributed.evaluation_collectives import (
     distribute_list_to_rank,
     gather_list_of_dict,
 )
+from worldfoundry.evaluation.tasks.metrics._shared.aesthetic import (
+    load_laion_aesthetic_linear_head,
+)
 
 batch_size = 32
 
 
 def get_aesthetic_model(cache_folder_or_file):
-    """Load the aesthetic linear head from a provided path or directory."""
+    """Load the aesthetic linear head (delegates to the shared in-tree loader)."""
     if cache_folder_or_file is None:
         raise ValueError("aesthetic_quality_head_ckpt is required")
-
-    if cache_folder_or_file.endswith('.pth'):
-        path_to_model = cache_folder_or_file
-    else:
-        path_to_model = os.path.join(cache_folder_or_file, "sa_0_4_vit_l_14_linear.pth")
-    if not os.path.exists(path_to_model):
-        raise FileNotFoundError(f"WorldArena aesthetic checkpoint is not staged: {path_to_model}")
-    m = nn.Linear(768, 1)
-    s = torch.load(path_to_model)
-    m.load_state_dict(s)
-    m.eval()
-    return m
+    return load_laion_aesthetic_linear_head(cache_folder_or_file)
 
 
 def laion_aesthetic(aesthetic_model, clip_model, video_list, device):

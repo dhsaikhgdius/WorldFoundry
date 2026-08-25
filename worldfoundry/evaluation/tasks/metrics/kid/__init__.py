@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from worldfoundry.evaluation.tasks.metrics.registry import metric_module_from_globals
 
-from .compute import compute_kid
+from .compute import compute_kid, polynomial_mmd
 
 METRIC_ID = "kid"
 ALIASES = ("kernel-inception-distance",)
@@ -23,4 +23,4 @@ METRIC_MODULE = metric_module_from_globals(
 
 compute = compute_kid
 
-__all__ = ["ALIASES", "FAMILY", "HIGHER_IS_BETTER", "METRIC_ID", "METRIC_MODULE", "compute", "compute_kid"]
+__all__ = ["ALIASES", "FAMILY", "HIGHER_IS_BETTER", "METRIC_ID", "METRIC_MODULE", "compute", "compute_kid", "polynomial_mmd"]
