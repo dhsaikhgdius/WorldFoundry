@@ -7,7 +7,7 @@ from pathlib import Path
 
 from worldfoundry.evaluation.utils import BENCHMARK_ZOO_DIR, MODEL_ZOO_DIR, TMP_ROOT
 
-from .utils import json_dump, parse_key_value_mapping
+from .utils import CliUsageError, json_dump, parse_key_value_mapping
 
 # NOTE: the orchestration service stack is imported inside each handler, never
 # at module import time: registering these subparsers happens on every CLI
@@ -43,6 +43,13 @@ def _finish(prepared, args: argparse.Namespace) -> int:
 
 
 def _handle_score(args: argparse.Namespace) -> int:
+    # Usage validation happens before the heavy orchestration import so a bad
+    # flag combination fails fast (exit 2) without paying the import cost.
+    if args.benchmark and args.artifacts is None:
+        raise CliUsageError("score --benchmark requires --artifacts")
+    if not args.benchmark and (args.results is None or not args.metric):
+        raise CliUsageError("score without --benchmark requires --results and at least one --metric")
+
     from worldfoundry.evaluation.tasks.execution.orchestration.service import (
         ScoreArtifactsIntent,
         ScoreResultsIntent,
@@ -50,8 +57,6 @@ def _handle_score(args: argparse.Namespace) -> int:
     )
 
     if args.benchmark:
-        if args.artifacts is None:
-            raise ValueError("score --benchmark requires --artifacts")
         intent = ScoreArtifactsIntent(
             output_dir=args.output_dir,
             benchmark_id=args.benchmark,
@@ -65,8 +70,6 @@ def _handle_score(args: argparse.Namespace) -> int:
             run_id=args.run_id,
         )
     else:
-        if args.results is None or not args.metric:
-            raise ValueError("score without --benchmark requires --results and at least one --metric")
         intent = ScoreResultsIntent(
             output_dir=args.output_dir,
             results_path=args.results,

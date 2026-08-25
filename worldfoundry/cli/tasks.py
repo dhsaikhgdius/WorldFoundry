@@ -9,7 +9,7 @@ from pathlib import Path
 
 from worldfoundry.evaluation.utils import BENCHMARK_TASK_ROOT, write_json, write_jsonl
 
-from .utils import json_dump, task_roots_from_args as _task_roots_from_args
+from .utils import CliUsageError, json_dump, task_roots_from_args as _task_roots_from_args
 
 DEFAULT_TASK_ROOT = BENCHMARK_TASK_ROOT
 DEFAULT_BENCHMARK_TASK_ROOT = DEFAULT_TASK_ROOT
@@ -115,16 +115,12 @@ def _handle_tasks_show(args: argparse.Namespace) -> int:
     else:
         matches = list_benchmark_zoo_cli_tasks(task_type=args.task_type)
         if not matches:
-            print(f"unknown task: {args.task_type!r}", file=sys.stderr)
-            return 2
+            raise CliUsageError(f"unknown task: {args.task_type!r}")
         if len(matches) > 1:
             benchmark_names = ", ".join(row["benchmark_name"] for row in matches)
-            print(
-                f"task {args.task_type!r} exists in multiple benchmarks: {benchmark_names}; "
-                "pass --benchmark-name",
-                file=sys.stderr,
+            raise CliUsageError(
+                f"task {args.task_type!r} exists in multiple benchmarks: {benchmark_names}; pass --benchmark-name"
             )
-            return 2
         item = matches[0]
     if args.json:
         json_dump(item)
@@ -198,8 +194,7 @@ def _handle_suites_show(args: argparse.Namespace) -> int:
     try:
         suite = dict(get_model_benchmark_suite_preset(args.suite, args.suite_preset_path))
     except KeyError as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 2
+        raise CliUsageError(str(exc)) from exc
     if args.json:
         json_dump(suite)
         return 0
@@ -328,7 +323,7 @@ def _handle_task_materialize(args: argparse.Namespace) -> int:
     from worldfoundry.evaluation.tasks.execution.orchestration.plan import build_run_plan
 
     if args.dataset_root is None and args.dataset_manifest is None:
-        raise ValueError("task materialize requires --dataset-root or --dataset-manifest")
+        raise CliUsageError("task materialize requires --dataset-root or --dataset-manifest")
 
     registry = _load_filesystem_task_registry(args)
     entry = registry.get(args.task_name, benchmark=args.benchmark)

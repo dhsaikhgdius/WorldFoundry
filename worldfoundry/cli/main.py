@@ -22,7 +22,7 @@ from worldfoundry.evaluation.utils import (
 )
 
 from .help import WorldFoundryArgumentParser
-from .utils import json_dump, load_json_mapping, parse_key_value_mapping
+from .utils import CliUsageError, json_dump, load_json_mapping, parse_key_value_mapping
 
 _BENCHMARK_RUN_MODE_CHOICES = ("normalizer", "official-run", "official-validation", "contract")
 
@@ -364,23 +364,13 @@ def _handle_evaluate(args: argparse.Namespace) -> int:
 
     task_args = (args.task_type, args.benchmark_name, args.data_path)
     if args.embodied_spec is not None and any(item is not None for item in task_args):
-        print(
-            "error: --embodied-spec cannot be combined with --task-type/--benchmark-name/--data-path",
-            file=sys.stderr,
-        )
-        return 2
+        raise CliUsageError("--embodied-spec cannot be combined with --task-type/--benchmark-name/--data-path")
     if args.samples_path is not None and args.embodied_spec is None:
-        print("error: --samples-path requires --embodied-spec", file=sys.stderr)
-        return 2
+        raise CliUsageError("--samples-path requires --embodied-spec")
     if args.embodied_spec is not None and args.samples_path is not None and args.requests_path is not None:
-        print("error: use either --samples-path or --requests-path with --embodied-spec, not both", file=sys.stderr)
-        return 2
+        raise CliUsageError("use either --samples-path or --requests-path with --embodied-spec, not both")
     if any(item is not None for item in task_args) and not all(item is not None for item in task_args):
-        print(
-            "error: --task-type, --benchmark-name, and --data-path must be provided together",
-            file=sys.stderr,
-        )
-        return 2
+        raise CliUsageError("--task-type, --benchmark-name, and --data-path must be provided together")
 
     requests = None
     benchmark_metadata = None
@@ -397,7 +387,7 @@ def _handle_evaluate(args: argparse.Namespace) -> int:
 
         spec_payload = _load_json_mapping_or_inline(args.embodied_spec, field_name="--embodied-spec")
         if spec_payload is None:
-            raise ValueError("--embodied-spec is required")
+            raise CliUsageError("--embodied-spec is required")
         embodied_spec = EmbodiedGenerationSpec.from_dict(spec_payload)
         if args.requests_path is None:
             samples = _load_samples_or_episodes(args.samples_path, field_name="--samples-path")
@@ -810,7 +800,7 @@ def _model_run_plan(args: argparse.Namespace) -> dict[str, Any]:
 
     schema = getattr(args, "model_run_schema", None)
     if schema is None:
-        raise ValueError("model-specific configuration requires `run <model-id>`")
+        raise CliUsageError("model-specific configuration requires `run <model-id>`")
     resolution = _resolved_model_run_options(args)
     parameters = _run_model_parameters(args)
     generation_defaults = parameters.pop(GENERATION_DEFAULTS_PARAMETER, {})
@@ -863,12 +853,10 @@ def _handle_direct_model_run(args: argparse.Namespace) -> int:
 
     schema = args.model_run_schema
     if not schema.runnable:
-        print(
-            f"error: model {schema.model_id!r} is not runnable: {schema.blocked_reason}. "
-            f"Use `worldfoundry-eval run {schema.requested_model_id} --model-status` for its contract.",
-            file=sys.stderr,
+        raise CliUsageError(
+            f"model {schema.model_id!r} is not runnable: {schema.blocked_reason}. "
+            f"Use `worldfoundry-eval run {schema.requested_model_id} --model-status` for its contract."
         )
-        return 2
     resolution = _resolved_model_run_options(args)
     missing = [
         field.option
@@ -878,8 +866,7 @@ def _handle_direct_model_run(args: argparse.Namespace) -> int:
         and not resolution.inputs.get(field.input_key or field.key_path[-1])
     ]
     if missing and args.requests_path is None:
-        print(f"error: direct {schema.model_id} inference requires {', '.join(missing)}", file=sys.stderr)
-        return 2
+        raise CliUsageError(f"direct {schema.model_id} inference requires {', '.join(missing)}")
 
     requests = None
     if args.requests_path is None:
@@ -944,19 +931,13 @@ def _handle_direct_model_run(args: argparse.Namespace) -> int:
 def _handle_run(args: argparse.Namespace) -> int:
     """Route run into either plan replay or unified/in-process execution."""
     if getattr(args, "model_run_schema", None) is not None and len(_run_model_ids(args)) > 1:
-        print(
-            "error: positional model syntax accepts one model; remove conflicting --model/--model-id values",
-            file=sys.stderr,
-        )
-        return 2
+        raise CliUsageError("positional model syntax accepts one model; remove conflicting --model/--model-id values")
     schema = getattr(args, "model_run_schema", None)
     if schema is not None and not schema.runnable and not args.print_config and not args.plan_only:
-        print(
-            f"error: model {schema.model_id!r} is not runnable: {schema.blocked_reason}. "
-            f"Use `worldfoundry-eval run {schema.requested_model_id} --model-status` for its contract.",
-            file=sys.stderr,
+        raise CliUsageError(
+            f"model {schema.model_id!r} is not runnable: {schema.blocked_reason}. "
+            f"Use `worldfoundry-eval run {schema.requested_model_id} --model-status` for its contract."
         )
-        return 2
     if args.plan is not None:
         result = _execute_run_plan_file(args)
         payload = result.to_dict()
@@ -975,8 +956,7 @@ def _handle_run(args: argparse.Namespace) -> int:
 
     if _uses_direct_model_run(args):
         if args.engine != "in-process":
-            print("error: direct model execution requires --engine in-process", file=sys.stderr)
-            return 2
+            raise CliUsageError("direct model execution requires --engine in-process")
         if args.plan_only:
             return _print_model_run_plan(args)
         return _handle_direct_model_run(args)
@@ -988,21 +968,15 @@ def _handle_run(args: argparse.Namespace) -> int:
             and not _suite_presets_declare_models(args)
             and not args.contract_fixture
         ):
-            print(
-                "error: model-benchmark runs require --model for real evaluation",
-                file=sys.stderr,
-            )
-            return 2
+            raise CliUsageError("model-benchmark runs require --model for real evaluation")
         return _handle_worldfoundry_run(args)
 
     if not _has_complete_task_args(args):
-        print(
-            "error: select a run target: `run --benchmark <id> --model <id>` for a benchmark-zoo cell, "
+        raise CliUsageError(
+            "select a run target: `run --benchmark <id> --model <id>` for a benchmark-zoo cell, "
             "`run <model-id>` for direct model inference, or `run --plan <plan.json>` for replay. "
-            "(The legacy --task-type/--benchmark-name/--data-path flow is retired.)",
-            file=sys.stderr,
+            "(The legacy --task-type/--benchmark-name/--data-path flow is retired.)"
         )
-        return 2
 
     return _handle_run_in_process(args)
 
@@ -1030,8 +1004,7 @@ def _handle_run_in_process(args: argparse.Namespace) -> int:
     else:
         mode = "model"
     if mode == "existing-results" and args.results_path is None:
-        print("error: run --engine existing-results requires --results-path", file=sys.stderr)
-        return 2
+        raise CliUsageError("run --engine existing-results requires --results-path")
 
     benchmark_metadata = {
         "suite": benchmark.suite,
@@ -1987,6 +1960,43 @@ def main(argv: list[str] | None = None) -> int:
             exit_code=130,
         )
         parser.exit(130, "Interrupted.\n")
+    except CliUsageError as exc:
+        # Usage mistakes (bad flag combinations, missing required values) keep
+        # the argparse convention: exit 2, one concise stderr line, no stack
+        # trace or stack-carrying log event (CM-08).  Runtime failures below
+        # stay on exit 1.  Returning (not parser.exit) preserves the historic
+        # ``return 2`` handler behaviour for in-process callers of ``main``.
+        from worldfoundry.core.logging_setup import is_configured
+
+        if is_configured():
+            from worldfoundry.core import get_logger
+
+            get_logger(__name__).event(
+                "ERROR",
+                "cli.command.usage_error",
+                "CLI command rejected: usage error",
+                command=getattr(args, "command", None),
+                error=str(exc),
+            )
+        _write_cli_run_lifecycle(
+            run_observability,
+            event="run.failed",
+            level="ERROR",
+            message="WorldFoundry command rejected: usage error",
+            exit_code=2,
+            exception=exc,
+        )
+        if getattr(args, "json", False):
+            json_dump(
+                {
+                    "status": "error",
+                    "command": getattr(args, "command", None),
+                    "error": {"type": "usage", "message": str(exc)},
+                    "exit_code": 2,
+                }
+            )
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
     except Exception as exc:
         from worldfoundry.core.logging_setup import is_configured
 

@@ -12,6 +12,18 @@ from typing import Any
 _JSON_NUMBER_RE = re.compile(r"-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?\Z")
 
 
+class CliUsageError(Exception):
+    """User-facing command-usage error raised by CLI handlers.
+
+    Handlers raise this for invalid flag combinations, missing required
+    values, and other mistakes the user can fix by changing the command
+    line.  ``cli.main`` renders it as a single ``error: <message>`` line on
+    stderr (JSON envelope in ``--json`` mode) and returns exit code 2 — the
+    argparse usage-error convention — keeping runtime failures (exit 1)
+    distinguishable from usage mistakes (CM-08).
+    """
+
+
 def json_dump(payload: object) -> None:
     """Print the sole machine-readable payload for a CLI ``--json`` response.
 

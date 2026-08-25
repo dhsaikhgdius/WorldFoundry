@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
 
-from .utils import json_dump
+from .utils import CliUsageError, json_dump
 
 # ── Compare runs ────────────────────────────────────────────────
 
@@ -22,8 +21,7 @@ def _handle_compare_runs(args: argparse.Namespace) -> int:
     run_paths = list(args.run or ())
     positional_labels = list(args.label or ())
     if positional_labels and len(positional_labels) != len(run_paths):
-        print("error: --label count must match explicit run count", file=sys.stderr)
-        return 2
+        raise CliUsageError("--label count must match explicit run count")
 
     try:
         indexed_runs = [
@@ -42,8 +40,7 @@ def _handle_compare_runs(args: argparse.Namespace) -> int:
             )
         ]
     except (FileNotFoundError, TypeError, ValueError) as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 2
+        raise CliUsageError(str(exc)) from exc
 
     index_labels = [selected_run["label"] for selected_run in indexed_runs]
     if positional_labels or index_labels:
@@ -61,17 +58,14 @@ def _handle_compare_runs(args: argparse.Namespace) -> int:
         run_paths = [args.baseline, *run_paths]
         baseline = 0
     elif args.baseline_label is not None:
-        print("error: --baseline-label requires --baseline", file=sys.stderr)
-        return 2
+        raise CliUsageError("--baseline-label requires --baseline")
     elif args.baseline_run is not None:
         baseline = args.baseline_run
 
     if not run_paths:
-        print("error: at least one run path or --index selection is required", file=sys.stderr)
-        return 2
+        raise CliUsageError("at least one run path or --index selection is required")
     if labels is not None and len(labels) != len(run_paths):
-        print("error: --label count must match run count", file=sys.stderr)
-        return 2
+        raise CliUsageError("--label count must match run count")
 
     try:
         comparison = write_run_comparison(
@@ -83,8 +77,7 @@ def _handle_compare_runs(args: argparse.Namespace) -> int:
             output_md=args.output_md,
         )
     except (FileNotFoundError, TypeError, ValueError) as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 2
+        raise CliUsageError(str(exc)) from exc
 
     if args.json:
         json_dump(comparison)
@@ -109,8 +102,7 @@ def _handle_index_runs(args: argparse.Namespace) -> int:
             output_html=args.output_html,
         )
     except (FileNotFoundError, NotADirectoryError, TypeError, ValueError) as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 2
+        raise CliUsageError(str(exc)) from exc
 
     if args.json:
         json_dump(index)
@@ -140,8 +132,7 @@ def _handle_validate_artifact(args: argparse.Namespace) -> int:
     kind = normalize_contract_artifact_kind(args.kind)
     paths = [*list(args.path or ()), *list(args.path_option or ())]
     if not paths:
-        print("error: at least one artifact path is required", file=sys.stderr)
-        return 2
+        raise CliUsageError("at least one artifact path is required")
     report = validate_contract_paths(
         paths,
         kind=kind,
