@@ -57,3 +57,61 @@ output_artifacts:
 - generated_video
 catalog_category: world_models
 catalog_scope: World-model catalog entries with in-tree inference runtimes.
+docs:
+  overview: |
+    MoVerse (Orange-3DV-Team/MoVerse; Hugging Face `Orange-3DV-Team/MoVerse`; code public without a root license) turns a single image into a navigable world: it builds a panoramic Gaussian scaffold and generates camera-controlled video for free exploration. WorldFoundry integrates the headless inference closure in tree with local-only checkpoint resolution, sharing WorldFoundry's GeoCalib, Depth Anything 3, SHARP, Wan, and TAEHV components; runtime planning and missing-asset diagnostics work without importing the heavyweight model stack. Full GPU artifact parity remains pending staged checkpoints, FLUX access, CUDA kernels, and at least 24 GB VRAM.
+
+    Within the WorldFoundry model catalog this entry is tracked as `moverse` in the `world_models` category.
+    Recorded availability: status=source_available, open_source=False, code=public_without_root_license, weights=public_huggingface, license=not_found.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/Orange-3DV-Team/MoVerse; Hugging Face `Orange-3DV-Team/MoVerse`.
+  overview_zh: |
+    MoVerse（Orange-3DV-Team/MoVerse；Hugging Face `Orange-3DV-Team/MoVerse`；代码公开但根目录无许可证）把单张图像变成可导航世界：构建全景高斯脚手架并生成相机控制视频以自由探索。WorldFoundry 在树内集成无头推理闭包，权重仅本地解析，共享 WorldFoundry 的 GeoCalib、Depth Anything 3、SHARP、Wan 与 TAEHV 组件；运行时规划与缺失资产诊断无需导入重型模型栈。完整 GPU artifact 一致性待暂存权重、FLUX 访问、CUDA 内核与至少 24 GB 显存。
+
+    在 WorldFoundry 模型目录中，该条目以 `moverse` 收录于 `world_models` 分类。
+    仓库记录的可用性：状态=source_available，是否开源=False，代码=public_without_root_license，权重=public_huggingface，许可证=not_found。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/Orange-3DV-Team/MoVerse；Hugging Face `Orange-3DV-Team/MoVerse`。
+  architecture: |
+    The recorded composition: geometric calibration (GeoCalib) and depth (DA3) lift the input image; a panoramic Gaussian scaffold anchors scene geometry; and a Wan-based video diffusion stage (with TAEHV fast VAE decoding and SHARP components) renders camera-controlled exploration video, with FLUX access needed for image expansion. Recorded modalities are image-to-navigable-world, camera-controlled-video, and panoramic-gaussian-scaffold; availability notes weights on Hugging Face but no root license found.
+  architecture_zh: |
+    记录组成：几何标定（GeoCalib）与深度（DA3）提升输入图像；全景高斯脚手架锚定场景几何；基于 Wan 的视频扩散阶段（配 TAEHV 快速 VAE 解码与 SHARP 组件）渲染相机控制探索视频，图像扩展需 FLUX 访问。记录模态为 image-to-navigable-world、camera-controlled-video 与 panoramic-gaussian-scaffold；可用性记录为权重在 Hugging Face、但未找到根许可证。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `moverse` and runtime profile `runtime-profile:moverse`.
+    Catalog integration status: `runtime_ported`.
+    Integration notes recorded in the catalog:
+    - The headless inference closure is integrated in-tree with local-only checkpoint resolution and shared WorldFoundry GeoCalib, DA3, SHARP, Wan, and TAEHV components.
+    - Runtime planning and missing-asset diagnostics work without importing the heavyweight model stack.
+
+    Embodiment contract:
+    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
+    - Sensors: an initial image (and optionally a text prompt) plus a camera trajectory / pose sequence as the control signal.
+    - Action space: the action channel is the camera trajectory (extrinsics/pose sequence); the model renders the world consistently along the requested path.
+    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `moverse`，运行时配置为 `runtime-profile:moverse`。
+    目录集成状态：运行时已移植（runtime_ported）。
+    目录中记录的集成备注（保留原文）：
+    - The headless inference closure is integrated in-tree with local-only checkpoint resolution and shared WorldFoundry GeoCalib, DA3, SHARP, Wan, and TAEHV components.
+    - Runtime planning and missing-asset diagnostics work without importing the heavyweight model stack.
+
+    具身接口（embodiment contract）：
+    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
+    - 传感器：初始图像（可选文本提示）加相机轨迹/位姿序列作为控制信号。
+    - 动作空间：动作通道为相机轨迹（外参/位姿序列）；模型沿请求路径一致地渲染世界。
+    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`implemented_checkpoint_pending`.
+    Runner parity notes recorded in the catalog:
+    - Static compilation, route resolution, and offline command planning are covered locally.
+    - Full GPU artifact parity remains pending staged checkpoints, FLUX access, CUDA kernels, and at least 24 GB VRAM.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=已实现、待权重就绪（implemented_checkpoint_pending）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - Static compilation, route resolution, and offline command planning are covered locally.
+    - Full GPU artifact parity remains pending staged checkpoints, FLUX access, CUDA kernels, and at least 24 GB VRAM.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - worldscore
+  - camerabench

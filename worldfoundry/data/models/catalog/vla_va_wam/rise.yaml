@@ -39,3 +39,55 @@ pipeline_binding: rise
 runtime_profile: runtime-profile:rise
 catalog_category: vla_va_wam
 schema_version: 2
+docs:
+  overview: |
+    RISE (OpenDriveLab/RISE, Apache-2.0) is an embodied policy project from OpenDriveLab tracked here for its action-prediction contract. WorldFoundry executes the official deployment transform, three-camera observation mapping, the Pi0.5-style action architecture, normalization, and the 50x14 output contract fully in process, with no source checkout, remote custom code, or runtime network access. Note the recorded caveat: the public `OpenDriveLab-org/RISE_Assets` repository currently contains the dynamics model and sample data, not a trained action-policy checkpoint, so runtime construction fails early until compatible trained action weights and their task normalization statistics are staged locally.
+
+    Within the WorldFoundry model catalog this entry is tracked as `rise` in the `vla_va_wam` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/OpenDriveLab/RISE; Hugging Face `OpenDriveLab-org/RISE_Assets`.
+  overview_zh: |
+    RISE（OpenDriveLab/RISE，Apache-2.0）是 OpenDriveLab 的具身策略项目，本目录跟踪其动作预测契约。WorldFoundry 在进程内完整执行官方部署变换、三相机观测映射、Pi0.5 式动作架构、归一化与 50x14 输出契约，不使用源码 checkout、远程自定义代码或运行时网络访问。注意目录记录的限制：公开的 `OpenDriveLab-org/RISE_Assets` 仓库目前只包含动力学模型与样例数据，没有已训练的动作策略权重，因此在本地暂存兼容的已训练动作权重及其任务归一化统计之前，运行时构建会尽早失败。
+
+    在 WorldFoundry 模型目录中，该条目以 `rise` 收录于 `vla_va_wam` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/OpenDriveLab/RISE；Hugging Face `OpenDriveLab-org/RISE_Assets`。
+  architecture: |
+    The recorded runtime contract is: a three-camera observation mapping feeding a Pi0.5-style action architecture that emits a 50-step chunk of 14-dimensional actions (50x14) after task normalization. Beyond this deployment contract, the repository does not record architecture details (backbone, parameter count, training data) for this entry.
+  architecture_zh: |
+    目录记录的运行时契约为：三相机观测映射输入 Pi0.5 式动作架构，经任务归一化后输出 50 步 14 维动作块（50x14）。除该部署契约外，仓库未记录该条目的架构细节（骨干、参数量、训练数据等）。
+  usage_notes: |
+    No runner target is registered for this entry; the catalog tracks upstream provenance metadata without a runnable in-tree pipeline.
+    Catalog integration status: `in_tree_checkpoint_gated_runtime`.
+    Integration notes recorded in the catalog:
+    - The official deployment transform, three-camera mapping, Pi0.5 action architecture, normalization, and 50x14 output contract execute in process.
+    - The public asset repository currently contains the dynamics model and sample data, not a trained action-policy checkpoint.
+    - Runtime construction therefore fails early until compatible trained action weights and their task normalization statistics are staged locally.
+    - No source checkout, remote custom code, or runtime network access is used.
+
+    Embodiment contract:
+    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
+    - Sensors: three RGB camera views per the official deployment transform; the exact camera roles are not further recorded in this catalog file.
+    - Action space: a 50-step chunk of 14-dimensional actions (50x14), consistent with a bimanual action layout, produced after normalization.
+    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
+  usage_notes_zh: |
+    该条目未注册 runner target；目录仅跟踪上游来源元数据，暂无可运行的 in-tree 管线。
+    目录集成状态：`in_tree_checkpoint_gated_runtime`。
+    目录中记录的集成备注（保留原文）：
+    - The official deployment transform, three-camera mapping, Pi0.5 action architecture, normalization, and 50x14 output contract execute in process.
+    - The public asset repository currently contains the dynamics model and sample data, not a trained action-policy checkpoint.
+    - Runtime construction therefore fails early until compatible trained action weights and their task normalization statistics are staged locally.
+    - No source checkout, remote custom code, or runtime network access is used.
+
+    具身接口（embodiment contract）：
+    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
+    - 传感器：按官方部署变换的三路 RGB 相机视角；各相机的具体角色本目录文件未进一步记录。
+    - 动作空间：归一化后输出的 50 步 14 维动作块（50x14），与双臂动作布局一致。
+    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
+  limitations: |
+    No family-level demo/runner parity status is recorded in this catalog file.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件未记录家族级 demo/runner 一致性状态。
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks: []

@@ -27,3 +27,52 @@ catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint metadata, and runtime-profile
   planning records. Runner or pipeline targets are present only after a complete in-tree WorldFoundry model runtime is registered
   and validated.
+docs:
+  overview: |
+    RT-1 (google-research/robotics_transformer) is Google's Robotics Transformer 1, the landmark real-robot scaling study that preceded RT-2 and the modern VLA wave: it was trained on about 130k real kitchen demonstrations collected over 17 months across 13 robots covering 700+ tasks, and showed that a task-agnostic transformer policy absorbs large heterogeneous robot data with strong zero-shot robustness. WorldFoundry vendors the RT-1 SavedModel runtime and upstream source in tree; py_compile, import/from_pretrained, and plan generation passed, but the configured TensorFlow checkpoint directory is missing locally, so checkpoint-backed rollout validation is still outstanding.
+
+    Within the WorldFoundry model catalog this entry is tracked as `rt-1` in the `vla_va_wam` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/google-research/robotics_transformer.
+  overview_zh: |
+    RT-1（google-research/robotics_transformer）是谷歌的 Robotics Transformer 1，先于 RT-2 与现代 VLA 浪潮的里程碑式真实机器人规模化研究：在 13 台机器人、17 个月采集的约 13 万条真实厨房示教（700 余任务）上训练，证明任务无关的 transformer 策略能吸收大规模异构机器人数据并具备强零样本鲁棒性。WorldFoundry 在树内内嵌 RT-1 SavedModel 运行时与上游源码；py_compile、导入/from_pretrained 与计划生成已通过，但配置的 TensorFlow 权重目录在本地缺失，权重支撑的 rollout 验证仍未完成。
+
+    在 WorldFoundry 模型目录中，该条目以 `rt-1` 收录于 `vla_va_wam` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/google-research/robotics_transformer。
+  architecture: |
+    The published architecture: ImageNet-pretrained EfficientNet-B3 processes 300x300 RGB frames with FiLM conditioning on the Universal Sentence Encoder embedding of the instruction; TokenLearner compresses visual features to 8 tokens per frame; a decoder-only transformer over a 6-frame history emits discretized action tokens (256 bins per dimension) covering the 7-DoF arm, 3-DoF base, and a mode switch, at 3 Hz. The implementation is TensorFlow, exported as a SavedModel.
+  architecture_zh: |
+    公开架构：ImageNet 预训练的 EfficientNet-B3 处理 300x300 RGB 帧，并以 Universal Sentence Encoder 指令嵌入做 FiLM 调制；TokenLearner 将视觉特征压缩为每帧 8 个 token；decoder-only transformer 在 6 帧历史上输出离散动作 token（每维 256 桶），覆盖 7 自由度机械臂、3 自由度底盘与模式切换，频率 3 Hz。实现为 TensorFlow，导出 SavedModel。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `rt-1` and runtime profile `runtime-profile:rt-1`.
+    Catalog integration status: `runtime_ported`.
+    Integration notes recorded in the catalog:
+    - Official checkpoint and TensorFlow rollout command must be validated before integrated status.
+    - RT-1 SavedModel runtime and upstream source are vendored in-tree; py_compile, import/from_pretrained, and plan generation passed, but the configured checkpoint directory is missing locally.
+
+    Embodiment contract:
+    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
+    - Sensors: a single 300x300 RGB camera stream over a 6-frame history plus a natural-language instruction embedded with the Universal Sentence Encoder.
+    - Action space: discretized action tokens (256 bins per dimension) for the 7-DoF arm, 3-DoF mobile base, and an arm/base/terminate mode switch.
+    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `rt-1`，运行时配置为 `runtime-profile:rt-1`。
+    目录集成状态：运行时已移植（runtime_ported）。
+    目录中记录的集成备注（保留原文）：
+    - Official checkpoint and TensorFlow rollout command must be validated before integrated status.
+    - RT-1 SavedModel runtime and upstream source are vendored in-tree; py_compile, import/from_pretrained, and plan generation passed, but the configured checkpoint directory is missing locally.
+
+    具身接口（embodiment contract）：
+    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
+    - 传感器：单路 300x300 RGB 相机流的 6 帧历史，加经 Universal Sentence Encoder 嵌入的自然语言指令。
+    - 动作空间：离散动作 token（每维 256 桶），覆盖 7 自由度机械臂、3 自由度移动底盘与臂/底盘/终止模式切换。
+    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
+  limitations: |
+    No family-level demo/runner parity status is recorded in this catalog file.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件未记录家族级 demo/runner 一致性状态。
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - simpler-env

@@ -44,3 +44,61 @@ catalog_policy:
   - open_weights_restricted
   - api_or_closed
   - unknown
+docs:
+  overview: |
+    Shape of Motion (vye16/shape-of-motion) reconstructs 4D geometry and motion from a single monocular video of a dynamic scene: it produces persistent, globally consistent 3D tracks and renderable dynamic Gaussians. WorldFoundry vendors the source components in-tree, but the official project is reconstruction/training-oriented — data preprocessing and optimization produce a checkpoint that rendering scripts consume — so no release-ready infer-only Studio runtime is exposed and the model is hidden from Studio job submission until a real in-tree artifact path exists. Availability is open source under MIT.
+
+    Within the WorldFoundry model catalog this entry is tracked as `shape-of-motion` in the `three_d_four_d` category.
+    Recorded availability: status=open_source, open_source=True, code=public, weights=linked_from_repo, license=MIT.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/vye16/shape-of-motion.
+  overview_zh: |
+    Shape of Motion（vye16/shape-of-motion）从动态场景的单目视频重建 4D 几何与运动：产出持久、全局一致的 3D 轨迹与可渲染动态高斯。WorldFoundry 已将源码组件内置 in-tree，但官方项目以重建/训练为导向——数据预处理与优化产出供渲染脚本消费的 checkpoint——因此未暴露发布级仅推理 Studio 运行时，在真实的 in-tree artifact 路径出现之前，该模型对 Studio 任务提交隐藏。可用性为 MIT 开源。
+
+    在 WorldFoundry 模型目录中，该条目以 `shape-of-motion` 收录于 `three_d_four_d` 分类。
+    仓库记录的可用性：状态=open_source，是否开源=True，代码=public，权重=linked_from_repo，许可证=MIT。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/vye16/shape-of-motion。
+  architecture: |
+    The published method represents scene motion with a compact set of SE(3) motion bases: each dynamic 3D Gaussian's trajectory is a weighted combination of shared rigid-motion bases, exploiting the low-dimensional structure of real-world motion. Optimization is guided by off-the-shelf priors — monocular depth and long-range 2D tracks — fused into a globally consistent representation. Training is per-video optimization; no feed-forward checkpoints are recorded.
+  architecture_zh: |
+    公开方法用一组紧凑的 SE(3) 运动基表示场景运动：每个动态 3D 高斯的轨迹是共享刚体运动基的加权组合，利用真实世界运动的低维结构。优化由现成先验引导——单目深度与长程 2D 轨迹——融合为全局一致的表示。训练为逐视频优化；未记录前向推理权重。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `shape-of-motion` and runtime profile `runtime-profile:shape-of-motion`.
+    Catalog integration status: `blocked`.
+    Integration notes recorded in the catalog:
+    - WorldFoundry vendors the Shape of Motion source components in-tree.
+    - {'The official project is reconstruction/training-oriented': 'data preprocessing and optimization produce a checkpoint that rendering scripts consume.'}
+    - No release-ready infer-only Studio runtime is exposed; this model is hidden from Studio job submission until a real in-tree artifact path exists.
+
+    Embodiment contract:
+    - Simulator: none — the official workflow is per-scene optimization over recorded data, not a simulator rollout.
+    - Sensors: calibrated multi-view or monocular RGB video with camera poses prepared by upstream preprocessing; no additional sensors are recorded.
+    - Action space: not applicable — the model does not consume an action or control stream.
+    - Dedicated environment: no dedicated environment; the entry is metadata-only (or blocked) in WorldFoundry because the official path is training/reconstruction-first.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `shape-of-motion`，运行时配置为 `runtime-profile:shape-of-motion`。
+    目录集成状态：受阻/仅跟踪元数据（blocked）。
+    目录中记录的集成备注（保留原文）：
+    - WorldFoundry vendors the Shape of Motion source components in-tree.
+    - {'The official project is reconstruction/training-oriented': 'data preprocessing and optimization produce a checkpoint that rendering scripts consume.'}
+    - No release-ready infer-only Studio runtime is exposed; this model is hidden from Studio job submission until a real in-tree artifact path exists.
+
+    具身接口（embodiment contract）：
+    - 仿真器：无——官方流程是基于已录制数据的逐场景优化，不是仿真器 rollout。
+    - 传感器：由上游预处理准备的带相机位姿的标定多视角或单目 RGB 视频；仓库未记录其它传感器。
+    - 动作空间：不适用——该模型不接收动作或控制流输入。
+    - 是否专用环境：无专用环境；由于官方路径以训练/重建为先，该条目在 WorldFoundry 中为仅元数据（或受阻）状态。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`not_applicable`.
+    Runner parity notes recorded in the catalog:
+    - Blocked for release-facing inference because the official path is preprocessing and optimization/training first.
+    - Do not claim Studio inference parity until an in-tree infer-only runtime materializes a 4D scene artifact.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=不适用（not_applicable）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - Blocked for release-facing inference because the official path is preprocessing and optimization/training first.
+    - Do not claim Studio inference parity until an in-tree infer-only runtime materializes a 4D scene artifact.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks: []

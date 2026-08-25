@@ -37,3 +37,59 @@ catalog_category: three_d_four_d
 catalog_scope: Independent geometric prior integrations used by 3D and world-model
   runtimes.
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
+docs:
+  overview: |
+    Depth Anything 3 Metric Prior is the metric-depth prior profile of ByteDance-Seed's Depth Anything 3 inside WorldFoundry. It is integrated as an independent depth prior at `worldfoundry/base_models/three_dimensions/depth/depth_anything/depth_anything_v3`, with runtime configs under `worldfoundry/data/models/runtime/configs/depth_anything_v3` kept separate from VIPE configs, and is exposed through the shared geometry-prior pipeline/operator contract.
+
+    Within the WorldFoundry model catalog this entry is tracked as `depth-anything-v3-prior` in the `three_d_four_d` category.
+    The repository does not record an official source link for this entry.
+  overview_zh: |
+    Depth Anything 3 Metric Prior 是字节跳动 Seed 团队 Depth Anything 3 在 WorldFoundry 内的公制深度先验配置。它作为独立深度先验集成于 `worldfoundry/base_models/three_dimensions/depth/depth_anything/depth_anything_v3`，运行时配置位于 `worldfoundry/data/models/runtime/configs/depth_anything_v3`（与 VIPE 配置分离），并通过共享几何先验 pipeline/operator 契约暴露。
+
+    在 WorldFoundry 模型目录中，该条目以 `depth-anything-v3-prior` 收录于 `three_d_four_d` 分类。
+    仓库未记录该条目的官方来源链接。
+  architecture: |
+    Depth Anything 3 is publicly described as an any-view geometry model: a single plain transformer (DINO-family backbone) trained with a depth-ray prediction target, so one model handles monocular depth, multi-view consistent depth, and pose-free geometry. This catalog entry wires the metric-depth prior route of that model; the sibling `depth-anything-v3` entry wires the official SOH export route separately.
+  architecture_zh: |
+    Depth Anything 3 的公开描述是任意视角几何模型：单一朴素 transformer（DINO 系骨干）以 depth-ray 预测为训练目标，使同一模型可处理单目深度、多视角一致深度与无位姿几何。本目录条目接入其公制深度先验路线；姊妹条目 `depth-anything-v3` 单独接入官方 SOH 导出路线。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` and runtime profile `runtime-profile:depth-anything-v3-prior`.
+    Catalog integration status: `integrated`.
+    Integration notes recorded in the catalog:
+    - Integrated as an independent depth prior at worldfoundry/base_models/three_dimensions/depth/depth_anything/depth_anything_v3.
+    - Runtime configs live under worldfoundry/data/models/runtime/configs/depth_anything_v3, separate from VIPE configs.
+    - Exposed through the shared WorldFoundry geometry-prior pipeline/operator contract.
+
+    Embodiment contract:
+    - Simulator: none — this entry is an offline geometric prior invoked by other WorldFoundry pipelines, not a simulator-driven model.
+    - Sensors: monocular RGB images (or video frames for temporal variants); no additional sensor modalities are recorded in the repository.
+    - Action space: not applicable — priors are pure perception modules without an action interface.
+    - Dedicated environment: no dedicated environment; it is exposed through the shared WorldFoundry geometry-prior pipeline/operator contract.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，运行时配置为 `runtime-profile:depth-anything-v3-prior`。
+    目录集成状态：已集成（integrated）。
+    目录中记录的集成备注（保留原文）：
+    - Integrated as an independent depth prior at worldfoundry/base_models/three_dimensions/depth/depth_anything/depth_anything_v3.
+    - Runtime configs live under worldfoundry/data/models/runtime/configs/depth_anything_v3, separate from VIPE configs.
+    - Exposed through the shared WorldFoundry geometry-prior pipeline/operator contract.
+
+    具身接口（embodiment contract）：
+    - 仿真器：无——该条目是被其它 WorldFoundry 管线调用的离线几何先验，不涉及仿真器。
+    - 传感器：单目 RGB 图像（时序变体为视频帧）；仓库未记录其它传感器模态。
+    - 动作空间：不适用——先验模块为纯感知组件，没有动作接口。
+    - 是否专用环境：无专用环境；通过 WorldFoundry 共享几何先验 pipeline/operator 契约暴露。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`verified`.
+    Runner parity notes recorded in the catalog:
+    - Checkpoint-backed inference is implemented through the shared geometry-prior pipeline/operator contract.
+    - Per-run validation evidence is tracked outside the model catalog so this file remains stable release metadata.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=已验证（verified）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - Checkpoint-backed inference is implemented through the shared geometry-prior pipeline/operator contract.
+    - Per-run validation evidence is tracked outside the model catalog so this file remains stable release metadata.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks: []

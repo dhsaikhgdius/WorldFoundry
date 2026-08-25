@@ -62,3 +62,69 @@ runner_parity:
 catalog_category: world_models
 catalog_scope: World-model catalog entries. Integrated entries expose in-tree WorldFoundry runtimes; blocked entries retain
   upstream provenance without runnable backends.
+docs:
+  overview: |
+    WoW (wow-world-model/wow-world-model) is X-Humanoid's robot world model family for action-conditioned image-to-video generation, tracked with four released checkpoints: `X-Humanoid/WoW-1-Wan-1.3B-2M`, `WoW-1-Wan-14B-600k`, `WoW-1-Wan-14B-2M`, and `WoW-1-DiT-2B-600k`. In WorldFoundry the Wan route loads its trained transformer through the canonical Wan loader reusing the shared conditioner, VAE, scheduler, and staged runner — the released 1.3B transformer graph matches the native model exactly for all 825 tensors with VAE-only first-frame conditioning — while the DiT 2B checkpoint is a transformer override on the canonical Cosmos Predict2 recipe selected via runtime_backend=dit2b, with no private Cosmos runtime remaining.
+
+    Within the WorldFoundry model catalog this entry is tracked as `wow` in the `world_models` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/wow-world-model/wow-world-model; Hugging Face `X-Humanoid/WoW-1-Wan-1.3B-2M`, `X-Humanoid/WoW-1-Wan-14B-600k`, `X-Humanoid/WoW-1-Wan-14B-2M`, `X-Humanoid/WoW-1-DiT-2B-600k`.
+  overview_zh: |
+    WoW（wow-world-model/wow-world-model）是 X-Humanoid（北京人形机器人创新中心）面向动作条件图像到视频生成的机器人世界模型家族，跟踪四个已发布权重：`X-Humanoid/WoW-1-Wan-1.3B-2M`、`WoW-1-Wan-14B-600k`、`WoW-1-Wan-14B-2M` 与 `WoW-1-DiT-2B-600k`。在 WorldFoundry 中，Wan 路线通过规范 Wan 加载器加载其训练后的 transformer，复用共享条件器、VAE、调度器与分阶段 runner——发布的 1.3B transformer 图与原生模型全部 825 个张量精确匹配，采用仅 VAE 的首帧条件——DiT 2B 权重则是规范 Cosmos Predict2 recipe 上的 transformer 覆盖，通过 runtime_backend=dit2b 选择，不保留私有 Cosmos 运行时。
+
+    在 WorldFoundry 模型目录中，该条目以 `wow` 收录于 `world_models` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/wow-world-model/wow-world-model；Hugging Face `X-Humanoid/WoW-1-Wan-1.3B-2M`、`X-Humanoid/WoW-1-Wan-14B-600k`、`X-Humanoid/WoW-1-Wan-14B-2M`、`X-Humanoid/WoW-1-DiT-2B-600k`。
+  architecture: |
+    The family spans two backbones: Wan-based variants (1.3B and 14B, trained on 600k-2M robot interaction samples per checkpoint naming) and a 2B DiT variant on the Cosmos Predict2 recipe. Recorded demo defaults are steps=50, seed=42, tiled=true, num_frames=41, output_fps=15 for Wan, and resolution=720, fps=16, num_conditional_frames=1, guidance=7, seed=42 with guardrail/refiner disabled for DiT 2B. The pinned DiT 2B Hub snapshot does not expose wow_dit_2b.pt, so local graph validation for that variant remains pending.
+  architecture_zh: |
+    该家族覆盖两种骨干：基于 Wan 的变体（1.3B 与 14B，按权重命名训练于 60 万至 200 万条机器人交互样本）与基于 Cosmos Predict2 recipe 的 2B DiT 变体。记录的演示默认值：Wan 为 steps=50、seed=42、tiled=true、num_frames=41、output_fps=15；DiT 2B 为 resolution=720、fps=16、num_conditional_frames=1、guidance=7、seed=42，且 guardrail/refiner 关闭。锁定的 DiT 2B Hub 快照未暴露 wow_dit_2b.pt，该变体的本地图校验仍待完成。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `wow` and runtime profile `runtime-profile:wow`.
+    Catalog integration status: `runtime_ported`.
+    Integration notes recorded in the catalog:
+    - The WoW Wan route loads its trained transformer through the canonical Wan loader and reuses the shared conditioner, VAE, scheduler, and staged runner.
+    - The released 1.3B transformer graph matches the native model exactly for all 825 tensors and uses VAE-only first-frame conditioning.
+    - The WoW DiT 2B checkpoint is a transformer override on the canonical Cosmos Predict2 recipe and is selected through runtime_backend=dit2b; no private Cosmos runtime remains.
+    - The pinned DiT 2B Hub snapshot does not expose wow_dit_2b.pt, so local checkpoint graph validation and a native CUDA artifact remain pending.
+    - Wan demo defaults are steps=50, seed=42, tiled=true, num_frames=41, output_fps=15.
+    - DiT 2B demo defaults are resolution=720, fps=16, num_conditional_frames=1, guidance=7, seed=42, guardrail/refiner disabled.
+
+    Embodiment contract:
+    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
+    - Sensors: initial visual context of a robot scene (and optionally text) plus a robot action sequence as conditioning.
+    - Action space: robot action trajectories are the conditioning channel: the model predicts the resulting future observations instead of emitting actions itself.
+    - Dedicated environment: targets the robot-manipulation domains recorded per checkpoint; no simulator ships with this entry.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `wow`，运行时配置为 `runtime-profile:wow`。
+    目录集成状态：运行时已移植（runtime_ported）。
+    目录中记录的集成备注（保留原文）：
+    - The WoW Wan route loads its trained transformer through the canonical Wan loader and reuses the shared conditioner, VAE, scheduler, and staged runner.
+    - The released 1.3B transformer graph matches the native model exactly for all 825 tensors and uses VAE-only first-frame conditioning.
+    - The WoW DiT 2B checkpoint is a transformer override on the canonical Cosmos Predict2 recipe and is selected through runtime_backend=dit2b; no private Cosmos runtime remains.
+    - The pinned DiT 2B Hub snapshot does not expose wow_dit_2b.pt, so local checkpoint graph validation and a native CUDA artifact remain pending.
+    - Wan demo defaults are steps=50, seed=42, tiled=true, num_frames=41, output_fps=15.
+    - DiT 2B demo defaults are resolution=720, fps=16, num_conditional_frames=1, guidance=7, seed=42, guardrail/refiner disabled.
+
+    具身接口（embodiment contract）：
+    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
+    - 传感器：机器人场景的初始视觉上下文（可选文本），加机器人动作序列作为条件。
+    - 动作空间：机器人动作轨迹是条件通道：模型预测动作导致的未来观测，而不是自己输出动作。
+    - 是否专用环境：面向各权重记录的机器人操作域；该条目不附带仿真器。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`implemented_pending_native_gpu_parity`.
+    Runner parity notes recorded in the catalog:
+    - The recorded Wan 14B Workspace artifact predates the native cutover and remains historical source/checkpoint evidence, not native artifact parity.
+    - The current native route has exact checkpoint structure coverage; a fresh checkpoint-backed CUDA artifact is still required.
+    - The DiT 2B native route remains checkpoint-gated and should record its own artifact evidence before promotion.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=`implemented_pending_native_gpu_parity`。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - The recorded Wan 14B Workspace artifact predates the native cutover and remains historical source/checkpoint evidence, not native artifact parity.
+    - The current native route has exact checkpoint structure coverage; a fresh checkpoint-backed CUDA artifact is still required.
+    - The DiT 2B native route remains checkpoint-gated and should record its own artifact evidence before promotion.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - ewmbench
+  - worldmodelbench

@@ -27,3 +27,50 @@ runner_parity:
 catalog_category: world_models
 catalog_scope: World-model catalog entries. Integrated entries expose in-tree WorldFoundry
   runtimes; blocked entries retain upstream provenance without runnable backends.
+docs:
+  overview: |
+    World Labs Marble 1.1 is the hosted 3D world generation service from World Labs (the spatial-intelligence company founded by Fei-Fei Li), exposed in WorldFoundry through the existing in-tree WorldLabs API pipeline with the marble-1.1 model id: recorded modalities are world-generation, 3d-world-generation, and api-world-model. The entry is an API surface — no weights or source are recorded — and integration status is planned with runner parity pending.
+
+    Within the WorldFoundry model catalog this entry is tracked as `worldlabs-marble-1.1` in the `world_models` category.
+    The repository does not record an official source link for this entry.
+  overview_zh: |
+    World Labs Marble 1.1 是 World Labs（李飞飞创立的空间智能公司）的托管 3D 世界生成服务，在 WorldFoundry 中通过既有的树内 WorldLabs API 管线以 marble-1.1 模型 id 暴露：记录模态为 world-generation、3d-world-generation 与 api-world-model。该条目是 API 表面——未记录权重或源码——集成状态为计划中，runner 一致性待验证。
+
+    在 WorldFoundry 模型目录中，该条目以 `worldlabs-marble-1.1` 收录于 `world_models` 分类。
+    仓库未记录该条目的官方来源链接。
+  architecture: |
+    Architecture details are not recorded in the repository: the entry is tracked as a hosted 3D world-generation API only, addressed by the marble-1.1 model id through the shared WorldLabs API pipeline.
+  architecture_zh: |
+    仓库未记录架构细节：该条目仅作为托管 3D 世界生成 API 跟踪，通过共享 WorldLabs API 管线以 marble-1.1 模型 id 寻址。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `worldlabs-marble-1.1` and runtime profile `runtime-profile:worldlabs-marble-1.1`.
+    Catalog integration status: `planned`.
+    Integration notes recorded in the catalog:
+    - World Labs Marble 1.1 is exposed through the existing in-tree WorldLabs API pipeline with the marble-1.1 model id.
+
+    Embodiment contract:
+    - Simulator: a hosted API world generator producing explorable 3D worlds; the underlying implementation is not recorded in the repository.
+    - Sensors: API request payloads (prompts/images per the service contract); exact request schemas are not recorded in this catalog file.
+    - Action space: no per-step action interface; generation is request-driven through the API.
+    - Dedicated environment: requires valid WorldLabs API access at runtime; nothing runs locally.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `worldlabs-marble-1.1`，运行时配置为 `runtime-profile:worldlabs-marble-1.1`。
+    目录集成状态：计划中（planned）。
+    目录中记录的集成备注（保留原文）：
+    - World Labs Marble 1.1 is exposed through the existing in-tree WorldLabs API pipeline with the marble-1.1 model id.
+
+    具身接口（embodiment contract）：
+    - 仿真器：产出可探索 3D 世界的托管 API 生成器；底层实现仓库未记录。
+    - 传感器：API 请求负载（按服务契约的提示/图像）；具体请求 schema 本目录文件未记录。
+    - 动作空间：无逐步动作接口；生成由 API 请求驱动。
+    - 是否专用环境：运行时需要有效的 WorldLabs API 访问；本地不运行任何模型。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`pending`.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=待验证（pending）。
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - worldscore

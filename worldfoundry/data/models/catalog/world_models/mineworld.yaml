@@ -31,3 +31,55 @@ pipeline_binding: mineworld
 catalog_category: world_models
 catalog_scope: World-model catalog entries. Integrated entries expose in-tree WorldFoundry runtimes; blocked entries retain
   upstream provenance without runnable backends.
+docs:
+  overview: |
+    MineWorld (microsoft/mineworld) is Microsoft's real-time open-source interactive world model for Minecraft: a visual-action autoregressive transformer that consumes interleaved image and action tokens and generates the next game state, with parallel decoding enabling several frames per second of interaction. WorldFoundry registers an in-tree runtime-manifest pipeline for the vendored source; the official inference entrypoint resolves but returns blocked diagnostics until checkpoints and validation data are staged.
+
+    Within the WorldFoundry model catalog this entry is tracked as `mineworld` in the `world_models` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/microsoft/mineworld.
+  overview_zh: |
+    MineWorld（microsoft/mineworld）是微软面向 Minecraft 的实时开源交互世界模型：视觉-动作自回归 transformer，消费交错的图像与动作 token 并生成下一游戏状态，并行解码可支撑每秒数帧的交互。WorldFoundry 为内嵌源码注册树内运行时清单管线；官方推理入口可解析，但在暂存权重与验证数据之前返回受阻诊断。
+
+    在 WorldFoundry 模型目录中，该条目以 `mineworld` 收录于 `world_models` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/microsoft/mineworld。
+  architecture: |
+    The published architecture tokenizes game frames with a visual tokenizer (VQ-style) and interleaves them with Minecraft action tokens in a decoder-only transformer trained on VPT-style gameplay; a diagonal parallel decoding scheme accelerates generation for real-time interaction. Model sizes from roughly 300M to 1.2B are published upstream; this catalog file does not record the staged size.
+  architecture_zh: |
+    公开架构用视觉分词器（VQ 式）将游戏帧 token 化，并与 Minecraft 动作 token 交错输入 decoder-only transformer，训练于 VPT 式游戏数据；对角并行解码方案加速生成以达到实时交互。上游发布约 3 亿至 12 亿参数多档；本目录文件未记录暂存的档位。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `mineworld` and runtime profile `runtime-profile:mineworld`.
+    Catalog integration status: `runtime_ported`.
+    Integration notes recorded in the catalog:
+    - WorldFoundry registers an in-tree runtime manifest pipeline for the vendored MineWorld source.
+
+    Embodiment contract:
+    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
+    - Sensors: an initial image or context frames plus streaming interaction inputs.
+    - Action space: Minecraft keyboard/mouse action tokens interleaved with visual tokens.
+    - Dedicated environment: dedicated to the Minecraft game domain; the model substitutes the game engine during interaction.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `mineworld`，运行时配置为 `runtime-profile:mineworld`。
+    目录集成状态：运行时已移植（runtime_ported）。
+    目录中记录的集成备注（保留原文）：
+    - WorldFoundry registers an in-tree runtime manifest pipeline for the vendored MineWorld source.
+
+    具身接口（embodiment contract）：
+    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
+    - 传感器：初始图像或上下文帧，加流式交互输入。
+    - 动作空间：与视觉 token 交错的 Minecraft 键鼠动作 token。
+    - 是否专用环境：专用于 Minecraft 游戏域；交互期间模型替代游戏引擎。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`implemented_checkpoint_pending`.
+    Runner parity notes recorded in the catalog:
+    - The pipeline resolves the official inference entrypoint and returns blocked runtime diagnostics until checkpoints and validation data are staged.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=已实现、待权重就绪（implemented_checkpoint_pending）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - The pipeline resolves the official inference entrypoint and returns blocked runtime diagnostics until checkpoints and validation data are staged.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - iworld-bench
+  - world-in-world

@@ -48,3 +48,61 @@ runner_parity:
   - LIBERO/LIBERO-plus simulators, training configs, DROID/modified LIBERO RLDS datasets, and benchmark loops are excluded.
 catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint metadata, and runtime-profile planning records.
+docs:
+  overview: |
+    VLANeXt (DravenALG/VLANeXt, S-Lab License 1.0) is a source-available VLA from S-Lab with released LIBERO checkpoints (`VLANeXt_libero_spatial/object/goal/10.pt` under Hugging Face `DravenALG/VLANeXt`) and recorded LIBERO/LIBERO-plus action-inference contracts. WorldFoundry registers an independent synthesis entrypoint that calls the official get_vla/get_processor/get_vla_action in-process from the in-tree vendored infer subset under `worldfoundry/synthesis/action_generation/vlanext/vlanext_runtime`; resolver, runtime import, and compileall checks pass without an external checkout, while checkpoint-backed action-chunk validation remains required before demo parity is claimed.
+
+    Within the WorldFoundry model catalog this entry is tracked as `vlanext` in the `vla_va_wam` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/DravenALG/VLANeXt; Hugging Face `DravenALG/VLANeXt`.
+  overview_zh: |
+    VLANeXt（DravenALG/VLANeXt，S-Lab License 1.0）是 S-Lab 的源码可得 VLA，发布了 LIBERO 权重（Hugging Face `DravenALG/VLANeXt` 下的 `VLANeXt_libero_spatial/object/goal/10.pt`），并记录了 LIBERO/LIBERO-plus 动作推理契约。WorldFoundry 注册独立合成入口，从 `worldfoundry/synthesis/action_generation/vlanext/vlanext_runtime` 的树内内嵌推理子集在进程内调用官方 get_vla/get_processor/get_vla_action；解析器、运行时导入与 compileall 检查无需外部 checkout 即通过，但在声称演示一致性之前仍需权重支撑的动作块验证。
+
+    在 WorldFoundry 模型目录中，该条目以 `vlanext` 收录于 `vla_va_wam` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/DravenALG/VLANeXt；Hugging Face `DravenALG/VLANeXt`。
+  architecture: |
+    The recorded demo observation contract includes full_image, optional full_image_wrist, image/state/action history, and task_description, indicating a history-conditioned VLA in the OpenVLA lineage. Beyond the runtime contract, the repository does not record architecture details (backbone, action-head type, parameter count) for this entry.
+  architecture_zh: |
+    目录记录的演示观测契约包括 full_image、可选 full_image_wrist、图像/状态/动作历史与 task_description，表明这是 OpenVLA 谱系中带历史条件的 VLA。除运行时契约外，仓库未记录该条目的架构细节（骨干、动作头类型、参数量等）。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `vlanext` and runtime profile `runtime-profile:vlanext`.
+    Catalog integration status: `in_tree_vendored_import_verified`.
+    Integration notes recorded in the catalog:
+    - WorldFoundry records VLANeXt LIBERO/LIBERO-plus action inference contracts with an independent synthesis entrypoint.
+    - The current runtime calls official get_vla/get_processor/get_vla_action in-process from the in-tree vendored infer subset under worldfoundry/synthesis/action_generation/vlanext/vlanext_runtime.
+    - Resolver, runtime import, and compileall checks pass without an external github_repos checkout; checkpoint-backed action chunk validation remains required before demo parity is claimed.
+    Recorded variant `vlanext-libero`, task `vla.policy_rollout`.
+
+    Embodiment contract:
+    - Simulator: none bundled — LIBERO/LIBERO-plus simulators, training configs, DROID/modified LIBERO RLDS datasets, and benchmark loops are explicitly excluded from the in-tree runtime.
+    - Sensors: full_image, optional full_image_wrist, image/state/action history, and task_description, per the recorded demo observation contract.
+    - Action space: continuous robot end-effector/joint action chunks; the exact action dimensionality is not recorded in this catalog file.
+    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `vlanext`，运行时配置为 `runtime-profile:vlanext`。
+    目录集成状态：`in_tree_vendored_import_verified`。
+    目录中记录的集成备注（保留原文）：
+    - WorldFoundry records VLANeXt LIBERO/LIBERO-plus action inference contracts with an independent synthesis entrypoint.
+    - The current runtime calls official get_vla/get_processor/get_vla_action in-process from the in-tree vendored infer subset under worldfoundry/synthesis/action_generation/vlanext/vlanext_runtime.
+    - Resolver, runtime import, and compileall checks pass without an external github_repos checkout; checkpoint-backed action chunk validation remains required before demo parity is claimed.
+    目录记录：变体 `vlanext-libero`，任务 `vla.policy_rollout`。
+
+    具身接口（embodiment contract）：
+    - 仿真器：不内置仿真器——LIBERO/LIBERO-plus 仿真器、训练配置、DROID/修改版 LIBERO RLDS 数据集与基准循环被明确排除在树内运行时之外。
+    - 传感器：full_image、可选 full_image_wrist、图像/状态/动作历史与 task_description（按目录记录的演示观测契约）。
+    - 动作空间：连续的机器人末端/关节动作块；具体动作维度本目录文件未记录。
+    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`in_tree_vendor_ready_checkpoint_pending`.
+    Runner parity notes recorded in the catalog:
+    - LIBERO/LIBERO-plus simulators, training configs, DROID/modified LIBERO RLDS datasets, and benchmark loops are excluded.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=`in_tree_vendor_ready_checkpoint_pending`。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - LIBERO/LIBERO-plus simulators, training configs, DROID/modified LIBERO RLDS datasets, and benchmark loops are excluded.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - libero
+  - libero-plus

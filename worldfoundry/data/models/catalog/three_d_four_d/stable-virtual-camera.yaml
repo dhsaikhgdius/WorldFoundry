@@ -56,3 +56,61 @@ catalog_policy:
   - open_weights_restricted
   - api_or_closed
   - unknown
+docs:
+  overview: |
+    Stable Virtual Camera (Stability-AI/stable-virtual-camera) is Stability AI's multi-view diffusion model for novel view synthesis: from one or a few input images it generates novel views or smooth camera-trajectory videos of the scene. WorldFoundry exposes an in-tree adapter that runs the upstream `demo.py` entrypoint; the weights are gated on Hugging Face under the Stability AI Non-Commercial License, and missing gated-checkpoint access is reported at inference time, so runner parity remains `pending`.
+
+    Within the WorldFoundry model catalog this entry is tracked as `stable-virtual-camera` in the `three_d_four_d` category.
+    Recorded availability: status=open_weights_restricted, open_source=False, code=public, weights=gated_huggingface, license=Stability AI Non-Commercial License Agreement, api=huggingface_space.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/Stability-AI/stable-virtual-camera.
+  overview_zh: |
+    Stable Virtual Camera（Stability-AI/stable-virtual-camera）是 Stability AI 的多视角扩散新视角合成模型：从一张或数张输入图像生成场景的新视角或平滑相机轨迹视频。WorldFoundry 暴露 in-tree 适配器运行上游 `demo.py` 入口；权重在 Hugging Face 上为 gated，受 Stability AI 非商用许可证约束，gated 权重不可访问会在推理时报告，因此 runner 一致性保持 pending。
+
+    在 WorldFoundry 模型目录中，该条目以 `stable-virtual-camera` 收录于 `three_d_four_d` 分类。
+    仓库记录的可用性：状态=open_weights_restricted，是否开源=False，代码=public，权重=gated_huggingface，许可证=Stability AI Non-Commercial License Agreement，API=huggingface_space。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/Stability-AI/stable-virtual-camera。
+  architecture: |
+    Publicly, the model is a camera-conditioned multi-view latent diffusion model (a 1.3B-scale transformer-diffusion design in the upstream release) trained with a two-pass procedural sampling scheme: anchor views are generated first, then intermediate frames are filled to yield trajectory-consistent videos of arbitrary length, supporting flexible input-view counts and target trajectories without per-scene optimization.
+  architecture_zh: |
+    公开资料中，该模型是相机条件的多视角潜扩散模型（上游发布为约 1.3B 规模的 transformer 扩散设计），采用两阶段程序化采样：先生成锚定视角，再填充中间帧，得到任意长度且轨迹一致的视频；支持灵活的输入视角数量与目标轨迹，无需逐场景优化。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `stable-virtual-camera` and runtime profile `runtime-profile:stable-virtual-camera`.
+    Catalog integration status: `integrated`.
+    Integration notes recorded in the catalog:
+    - WorldFoundry exposes an in-tree adapter that runs the upstream Stable Virtual Camera demo.py entrypoint.
+    - Missing gated checkpoint access is reported at inference time.
+
+    Embodiment contract:
+    - Simulator: none — this is a generative video/scene model, not a physics simulator; generation is conditioned on user-provided camera trajectories.
+    - Sensors: RGB image or video conditioning inputs; no additional sensor modalities are recorded in the repository.
+    - Action space: camera trajectory control (sequences of camera poses) supplied as conditioning; no robot/agent action space is recorded.
+    - Dedicated environment: no dedicated environment; it runs through the shared WorldFoundry pipeline runtime described in the integration notes.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `stable-virtual-camera`，运行时配置为 `runtime-profile:stable-virtual-camera`。
+    目录集成状态：已集成（integrated）。
+    目录中记录的集成备注（保留原文）：
+    - WorldFoundry exposes an in-tree adapter that runs the upstream Stable Virtual Camera demo.py entrypoint.
+    - Missing gated checkpoint access is reported at inference time.
+
+    具身接口（embodiment contract）：
+    - 仿真器：无——这是生成式视频/场景模型而非物理仿真器；生成过程以用户提供的相机轨迹为条件。
+    - 传感器：RGB 图像或视频条件输入；仓库未记录其它传感器模态。
+    - 动作空间：以相机轨迹（相机位姿序列）作为条件控制；仓库未记录机器人/智能体动作空间。
+    - 是否专用环境：无专用环境；通过集成备注中描述的 WorldFoundry 共享管线运行时执行。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`pending`.
+    Runner parity notes recorded in the catalog:
+    - The in-tree adapter supports the upstream demo.py entrypoint and reports missing gated checkpoint access at inference time.
+    - Full official-gallery artifact parity still needs gated checkpoint access and a reviewed official demo run.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=待验证（pending）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - The in-tree adapter supports the upstream demo.py entrypoint and reports missing gated checkpoint access at inference time.
+    - Full official-gallery artifact parity still needs gated checkpoint access and a reviewed official demo run.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - camerabench
+  - worldscore

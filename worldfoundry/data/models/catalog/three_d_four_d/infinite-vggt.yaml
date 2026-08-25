@@ -32,3 +32,53 @@ runner_parity:
   - Checkpoint-backed inference depends on staged StreamVGGT weights.
 catalog_category: three_d_four_d
 catalog_scope: Official-source manifest for 3D, 4D, and camera-controlled world/model generation projects.
+docs:
+  overview: |
+    Infinite VGGT is WorldFoundry's catalog name for StreamVGGT (wzzheng/StreamVGGT): a streaming 4D visual geometry transformer that performs online, incremental 3D reconstruction over long image streams instead of re-running global attention over all frames. The in-tree pipeline is registered for streaming 3D reconstruction; checkpoint-backed inference depends on staged `lch01/StreamVGGT` weights.
+
+    Within the WorldFoundry model catalog this entry is tracked as `infinite-vggt` in the `three_d_four_d` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/wzzheng/StreamVGGT; Hugging Face `lch01/StreamVGGT`.
+  overview_zh: |
+    Infinite VGGT 是 WorldFoundry 目录中对 StreamVGGT（wzzheng/StreamVGGT）的命名：一个流式 4D 视觉几何 transformer，对长图像流做在线增量 3D 重建，而非对全部帧重复运行全局注意力。in-tree 管线已注册用于流式 3D 重建；有权重支撑的推理依赖 `lch01/StreamVGGT` 权重的就绪。
+
+    在 WorldFoundry 模型目录中，该条目以 `infinite-vggt` 收录于 `three_d_four_d` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/wzzheng/StreamVGGT；Hugging Face `lch01/StreamVGGT`。
+  architecture: |
+    Publicly, StreamVGGT replaces VGGT's global attention with causal (temporal) attention plus cached memory tokens: each incoming frame attends to cached history, so inference cost per frame stays bounded; knowledge distillation from the bidirectional VGGT teacher preserves reconstruction quality while enabling streaming operation.
+  architecture_zh: |
+    公开资料中，StreamVGGT 用因果（时序）注意力加缓存 memory token 取代 VGGT 的全局注意力：每个新帧只对缓存历史做注意力，单帧推理成本保持有界；再通过对双向 VGGT 教师模型的知识蒸馏，在支持流式运行的同时保持重建质量。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `infinite-vggt`.
+    Catalog integration status: `runtime_ported`.
+    Integration notes recorded in the catalog:
+    - In-tree StreamVGGT (Infinite VGGT) pipeline is registered for streaming 3D reconstruction.
+
+    Embodiment contract:
+    - Simulator: none — this is an offline reconstruction model that consumes recorded images or video; it does not drive or require a simulator.
+    - Sensors: monocular or multi-view RGB images/video frames; no additional sensor modalities are recorded in the repository.
+    - Action space: not applicable — the model does not consume an action or control stream.
+    - Dedicated environment: no dedicated environment; it runs through the shared WorldFoundry pipeline runtime described in the integration notes.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `infinite-vggt`。
+    目录集成状态：运行时已移植（runtime_ported）。
+    目录中记录的集成备注（保留原文）：
+    - In-tree StreamVGGT (Infinite VGGT) pipeline is registered for streaming 3D reconstruction.
+
+    具身接口（embodiment contract）：
+    - 仿真器：无——这是一个离线重建模型，输入为已录制的图像或视频，不驱动也不依赖仿真器。
+    - 传感器：单目或多视角 RGB 图像/视频帧；仓库未记录其它传感器模态。
+    - 动作空间：不适用——该模型不接收动作或控制流输入。
+    - 是否专用环境：无专用环境；通过集成备注中描述的 WorldFoundry 共享管线运行时执行。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`pending`.
+    Runner parity notes recorded in the catalog:
+    - Checkpoint-backed inference depends on staged StreamVGGT weights.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=待验证（pending）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - Checkpoint-backed inference depends on staged StreamVGGT weights.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks: []

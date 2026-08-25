@@ -50,3 +50,63 @@ output_artifacts:
 - generated_world_video
 catalog_category: world_models
 catalog_scope: World-model catalog entries with in-tree inference runtimes.
+docs:
+  overview: |
+    LingBot-World-V2 (Robbyant/lingbot-world-v2; Hugging Face `robbyant/lingbot-world-v2-14b-causal-fast`, CC-BY-NC-SA-4.0 weights) is the second generation of Ant Group's LingBot world model: a 14B causal-fast image-to-world-video generator with camera control. WorldFoundry integrates only the released causal-fast inference route in tree, reusing common Wan, T5, VAE, scheduler, FSDP, collective, geometry, and media code; training, example assets, and unreleased causal-pretrain/bidirectional routes are excluded. Static imports, runtime planning, and command construction are covered locally; official 8-GPU artifact parity remains pending a staged 14B checkpoint and CUDA run.
+
+    Within the WorldFoundry model catalog this entry is tracked as `lingbot-world-v2` in the `world_models` category.
+    Recorded availability: status=source_available, open_source=False, code=public, weights=public_huggingface, license=CC-BY-NC-SA-4.0.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/Robbyant/lingbot-world-v2; Hugging Face `robbyant/lingbot-world-v2-14b-causal-fast`.
+  overview_zh: |
+    LingBot-World-V2（Robbyant/lingbot-world-v2；Hugging Face `robbyant/lingbot-world-v2-14b-causal-fast`，权重 CC-BY-NC-SA-4.0）是蚂蚁集团 LingBot 世界模型的第二代：14B causal-fast 图像到世界视频生成器，带相机控制。WorldFoundry 仅在树内集成已发布的 causal-fast 推理路线，复用公共 Wan、T5、VAE、调度器、FSDP、collective、几何与媒体代码；训练、示例资产与未发布的 causal-pretrain/双向路线被排除。静态导入、运行时规划与命令构建已本地覆盖；官方 8-GPU artifact 一致性待暂存 14B 权重与 CUDA 运行。
+
+    在 WorldFoundry 模型目录中，该条目以 `lingbot-world-v2` 收录于 `world_models` 分类。
+    仓库记录的可用性：状态=source_available，是否开源=False，代码=public，权重=public_huggingface，许可证=CC-BY-NC-SA-4.0。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/Robbyant/lingbot-world-v2；Hugging Face `robbyant/lingbot-world-v2-14b-causal-fast`。
+  architecture: |
+    The released route is a 14B causal ('fast') world video transformer in the Wan lineage: autoregressive causal decoding accelerates interactive generation relative to the unreleased bidirectional route, with camera-controlled image-to-world-video as the recorded interface. Further architecture details are not recorded in the repository.
+  architecture_zh: |
+    发布路线为 Wan 谱系的 14B 因果（fast）世界视频 transformer：相对未发布的双向路线，自回归因果解码加速交互生成，记录接口为相机控制的图像到世界视频。更多架构细节仓库未记录。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `lingbot-world-v2` and runtime profile `runtime-profile:lingbot-world-v2`.
+    Catalog integration status: `implemented_checkpoint_pending`.
+    Integration notes recorded in the catalog:
+    - Only the released causal-fast inference route is integrated in-tree.
+    - Common Wan, T5, VAE, scheduler, FSDP, collective, geometry and media code is reused from WorldFoundry.
+    - Training, example assets and unreleased causal-pretrain/bidirectional routes are excluded.
+
+    Embodiment contract:
+    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
+    - Sensors: an initial image (and optionally a text prompt) plus a camera trajectory / pose sequence as the control signal.
+    - Action space: the action channel is the camera trajectory (extrinsics/pose sequence); the model renders the world consistently along the requested path.
+    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `lingbot-world-v2`，运行时配置为 `runtime-profile:lingbot-world-v2`。
+    目录集成状态：已实现、待权重就绪（implemented_checkpoint_pending）。
+    目录中记录的集成备注（保留原文）：
+    - Only the released causal-fast inference route is integrated in-tree.
+    - Common Wan, T5, VAE, scheduler, FSDP, collective, geometry and media code is reused from WorldFoundry.
+    - Training, example assets and unreleased causal-pretrain/bidirectional routes are excluded.
+
+    具身接口（embodiment contract）：
+    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
+    - 传感器：初始图像（可选文本提示）加相机轨迹/位姿序列作为控制信号。
+    - 动作空间：动作通道为相机轨迹（外参/位姿序列）；模型沿请求路径一致地渲染世界。
+    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`implemented_checkpoint_pending`.
+    Runner parity notes recorded in the catalog:
+    - Static imports, runtime planning and command construction are covered locally.
+    - Official 8-GPU artifact parity remains pending a staged 14B checkpoint and CUDA run.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=已实现、待权重就绪（implemented_checkpoint_pending）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - Static imports, runtime planning and command construction are covered locally.
+    - Official 8-GPU artifact parity remains pending a staged 14B checkpoint and CUDA run.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - wrbench
+  - worldscore

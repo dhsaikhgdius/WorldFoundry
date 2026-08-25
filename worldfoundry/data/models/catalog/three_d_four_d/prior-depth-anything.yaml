@@ -34,3 +34,57 @@ catalog_category: three_d_four_d
 catalog_scope: Independent geometric prior integrations used by 3D and world-model
   runtimes.
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
+docs:
+  overview: |
+    Prior Depth Anything is a depth-completion prior: it fuses sparse, incomplete, or cross-sensor metric depth measurements ('prompt depth') with Depth Anything-style monocular prediction to output refined metric depth. WorldFoundry integrates it at `worldfoundry/base_models/three_dimensions/depth/priorda`; it consumes prompt metric depth and is shared by higher-level geometry pipelines without being nested under them. The catalog records a verified runner: the workspace loaded the official checkpoint and refined a real Depth Anything 3 metric-depth condition on 2026-07-11.
+
+    Within the WorldFoundry model catalog this entry is tracked as `prior-depth-anything` in the `three_d_four_d` category.
+    The repository does not record an official source link for this entry.
+  overview_zh: |
+    Prior Depth Anything 是深度补全先验：把稀疏、不完整或跨传感器的公制深度测量（『prompt depth』）与 Depth Anything 式单目预测融合，输出精化的公制深度。WorldFoundry 将其集成于 `worldfoundry/base_models/three_dimensions/depth/priorda`；它消费 prompt 公制深度，并被上层几何管线共享而不嵌套于其下。目录记录 runner 已验证：工作区于 2026-07-11 加载官方权重并对真实的 Depth Anything 3 公制深度条件完成了精化。
+
+    在 WorldFoundry 模型目录中，该条目以 `prior-depth-anything` 收录于 `three_d_four_d` 分类。
+    仓库未记录该条目的官方来源链接。
+  architecture: |
+    The published approach performs coarse metric alignment between the prompt depth and a monocular relative-depth prediction, then runs a conditioned monocular depth network that takes the aligned prior (plus uncertainty) as input to produce a completed, refined metric depth map that follows the metric scale of the prompt while inheriting the detail of the foundation model.
+  architecture_zh: |
+    公开方法先对 prompt 深度与单目相对深度预测做粗粒度公制对齐，再运行条件化单目深度网络，以对齐后的先验（含不确定性）为输入，输出补全且精化的公制深度图——保持 prompt 的公制尺度，同时继承基础模型的细节。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` and runtime profile `runtime-profile:prior-depth-anything`.
+    Catalog integration status: `integrated`.
+    Integration notes recorded in the catalog:
+    - Integrated as an independent depth-completion prior at worldfoundry/base_models/three_dimensions/depth/priorda.
+    - It consumes prompt metric depth and is shared by higher-level geometry pipelines without being nested under them.
+    - Exposed through the shared WorldFoundry geometry-prior pipeline/operator contract.
+
+    Embodiment contract:
+    - Simulator: none — this entry is an offline geometric prior invoked by other WorldFoundry pipelines, not a simulator-driven model.
+    - Sensors: monocular RGB images plus a metric depth prompt (sparse/low-resolution/cross-sensor depth measurements); no additional sensors are recorded.
+    - Action space: not applicable — priors are pure perception modules without an action interface.
+    - Dedicated environment: no dedicated environment; it is exposed through the shared WorldFoundry geometry-prior pipeline/operator contract.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，运行时配置为 `runtime-profile:prior-depth-anything`。
+    目录集成状态：已集成（integrated）。
+    目录中记录的集成备注（保留原文）：
+    - Integrated as an independent depth-completion prior at worldfoundry/base_models/three_dimensions/depth/priorda.
+    - It consumes prompt metric depth and is shared by higher-level geometry pipelines without being nested under them.
+    - Exposed through the shared WorldFoundry geometry-prior pipeline/operator contract.
+
+    具身接口（embodiment contract）：
+    - 仿真器：无——该条目是被其它 WorldFoundry 管线调用的离线几何先验，不涉及仿真器。
+    - 传感器：单目 RGB 图像加公制深度 prompt（稀疏/低分辨率/跨传感器深度测量）；仓库未记录其它传感器。
+    - 动作空间：不适用——先验模块为纯感知组件，没有动作接口。
+    - 是否专用环境：无专用环境；通过 WorldFoundry 共享几何先验 pipeline/operator 契约暴露。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`verified`.
+    Runner parity notes recorded in the catalog:
+    - Workspace loaded the official checkpoint and refined a real Depth Anything 3 metric-depth condition on 2026-07-11.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=已验证（verified）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - Workspace loaded the official checkpoint and refined a real Depth Anything 3 metric-depth condition on 2026-07-11.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks: []

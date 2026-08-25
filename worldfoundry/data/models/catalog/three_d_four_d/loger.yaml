@@ -29,3 +29,53 @@ runner_parity:
 runtime_profile: runtime-profile:loger
 catalog_category: three_d_four_d
 catalog_scope: Official-source manifest for 3D, 4D, and camera-controlled world/model generation projects.
+docs:
+  overview: |
+    LoGeR (Junyi42/LoGeR) is a 3D reconstruction model catalogued for point-cloud reconstruction and trajectory rendering. WorldFoundry registers the in-tree LoGeR point-cloud navigation pipeline, and the catalog records verified checkpoint-backed Studio inference: finite poses, depth, and a 601,570-vertex point cloud, with evidence tracked in `worldfoundry/data/models/validation/inference_evidence.yaml`.
+
+    Within the WorldFoundry model catalog this entry is tracked as `loger` in the `three_d_four_d` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/Junyi42/LoGeR; Hugging Face `Junyi42/LoGeR`.
+  overview_zh: |
+    LoGeR（Junyi42/LoGeR）是 3D 重建模型，目录登记其能力为点云重建与轨迹渲染。WorldFoundry 注册了 in-tree 的 LoGeR 点云导航管线，且目录记录了已验证的权重支撑 Studio 推理：输出有限值位姿、深度以及包含 601,570 个顶点的点云，证据记录在 `worldfoundry/data/models/validation/inference_evidence.yaml`。
+
+    在 WorldFoundry 模型目录中，该条目以 `loger` 收录于 `three_d_four_d` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/Junyi42/LoGeR；Hugging Face `Junyi42/LoGeR`。
+  architecture: |
+    The repository records the model's modalities (3D reconstruction, trajectory, point cloud), its in-tree navigation pipeline, and the official GitHub/Hugging Face sources (`Junyi42/LoGeR`). The repository does not record architecture details for this entry beyond the metadata quoted above.
+  architecture_zh: |
+    仓库记录了该模型的模态（3D 重建、轨迹、点云）、in-tree 导航管线以及官方 GitHub/Hugging Face 来源（`Junyi42/LoGeR`）。除上文引用的元数据外，仓库未记录该条目的架构细节。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `loger` and runtime profile `runtime-profile:loger`.
+    Catalog integration status: `verified`.
+    Integration notes recorded in the catalog:
+    - In-tree LoGeR point-cloud navigation pipeline is registered for reconstruction and trajectory rendering.
+
+    Embodiment contract:
+    - Simulator: none — this is an offline reconstruction model that consumes recorded images or video; it does not drive or require a simulator.
+    - Sensors: monocular or multi-view RGB images/video frames; no additional sensor modalities are recorded in the repository.
+    - Action space: not applicable — the model does not consume an action or control stream.
+    - Dedicated environment: no dedicated environment; it runs through the shared WorldFoundry pipeline runtime described in the integration notes.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `loger`，运行时配置为 `runtime-profile:loger`。
+    目录集成状态：已验证（verified）。
+    目录中记录的集成备注（保留原文）：
+    - In-tree LoGeR point-cloud navigation pipeline is registered for reconstruction and trajectory rendering.
+
+    具身接口（embodiment contract）：
+    - 仿真器：无——这是一个离线重建模型，输入为已录制的图像或视频，不驱动也不依赖仿真器。
+    - 传感器：单目或多视角 RGB 图像/视频帧；仓库未记录其它传感器模态。
+    - 动作空间：不适用——该模型不接收动作或控制流输入。
+    - 是否专用环境：无专用环境；通过集成备注中描述的 WorldFoundry 共享管线运行时执行。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`verified`.
+    Runner parity notes recorded in the catalog:
+    - Checkpoint-backed Studio inference produced finite poses, depth, and a 601570-vertex point cloud; see worldfoundry/data/models/validation/inference_evidence.yaml.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=已验证（verified）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - Checkpoint-backed Studio inference produced finite poses, depth, and a 601570-vertex point cloud; see worldfoundry/data/models/validation/inference_evidence.yaml.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks: []

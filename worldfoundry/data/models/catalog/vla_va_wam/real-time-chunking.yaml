@@ -27,3 +27,52 @@ catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint
   metadata, and runtime-profile planning records. Runner or pipeline targets are present
   only after a complete in-tree WorldFoundry model runtime is registered and validated.
+docs:
+  overview: |
+    Real-Time Chunking (RTC, Physical-Intelligence/real-time-chunking-kinetix) is not a checkpoint family but an inference-time algorithm from Physical Intelligence's 'Real-Time Action Chunking with Large Models': it treats switching between consecutive action chunks as an inpainting problem, freezing actions already being executed and regenerating the remainder, so flow-based VLA policies can run asynchronously in real time without pausing between chunks. The official repository demonstrates the algorithm on the Kinetix simulator. WorldFoundry routes RTC through an in-tree action runtime adapter; no checkpoint is required for chunk-context processing.
+
+    Within the WorldFoundry model catalog this entry is tracked as `real-time-chunking` in the `vla_va_wam` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/Physical-Intelligence/real-time-chunking-kinetix.
+  overview_zh: |
+    Real-Time Chunking（RTC，Physical-Intelligence/real-time-chunking-kinetix）不是权重家族，而是 Physical Intelligence《Real-Time Action Chunking with Large Models》提出的推理期算法：它把相邻动作块的切换视为图像修复（inpainting）式问题——冻结正在执行的动作、重新生成其余部分，使基于 flow 的 VLA 策略可以异步实时运行、块间无停顿。官方仓库在 Kinetix 仿真器上演示该算法。WorldFoundry 通过树内动作运行时适配器接入 RTC；块上下文处理不需要权重。
+
+    在 WorldFoundry 模型目录中，该条目以 `real-time-chunking` 收录于 `vla_va_wam` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/Physical-Intelligence/real-time-chunking-kinetix。
+  architecture: |
+    RTC wraps a flow-matching policy: during generation of the next chunk, the guidance procedure clamps the prefix of actions that will already have executed (hard masking) and softly weights the near-future region, so the new chunk is consistent with the committed actions while adapting to fresh observations. It is architecture-agnostic across flow/diffusion action heads. The reference implementation targets the JAX-based Kinetix environment suite.
+  architecture_zh: |
+    RTC 包装一个 flow-matching 策略：在生成下一动作块时，引导过程硬性锁定将已执行完的动作前缀（硬掩码），并对近未来区域软加权，使新块既与已提交动作一致，又能适应最新观测。它对 flow/扩散动作头是架构无关的。参考实现面向基于 JAX 的 Kinetix 环境套件。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `real-time-chunking` and runtime profile `runtime-profile:real-time-chunking`.
+    Catalog integration status: `runtime_ported`.
+    Integration notes recorded in the catalog:
+    - RTC is an inference-time action-chunking algorithm used by flow VLA policies rather than a standalone checkpoint family.
+    - WorldFoundry routes RTC through an in-tree action runtime adapter; no checkpoint is required for chunk-context processing.
+
+    Embodiment contract:
+    - Simulator: the reference implementation demonstrates RTC in the Kinetix 2D physics simulator; the in-tree adapter itself is simulator-agnostic and only performs chunk-context processing.
+    - Sensors: whatever observation contract the wrapped policy uses; RTC itself consumes only the previous action chunk and its execution progress.
+    - Action space: re-generated continuous action chunks consistent with the already-executing prefix of the previous chunk.
+    - Dedicated environment: no dedicated environment; RTC is an inference-time wrapper applied to flow-based policies in whatever environment they target.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `real-time-chunking`，运行时配置为 `runtime-profile:real-time-chunking`。
+    目录集成状态：运行时已移植（runtime_ported）。
+    目录中记录的集成备注（保留原文）：
+    - RTC is an inference-time action-chunking algorithm used by flow VLA policies rather than a standalone checkpoint family.
+    - WorldFoundry routes RTC through an in-tree action runtime adapter; no checkpoint is required for chunk-context processing.
+
+    具身接口（embodiment contract）：
+    - 仿真器：参考实现于 Kinetix 2D 物理仿真器中演示 RTC；树内适配器本身与仿真器无关，仅执行块上下文处理。
+    - 传感器：取决于被包装策略的观测契约；RTC 本身只消费上一动作块及其执行进度。
+    - 动作空间：与上一块中已在执行的前缀保持一致的、重新生成的连续动作块。
+    - 是否专用环境：无专用环境；RTC 是应用于 flow 策略的推理期包装器，环境取决于被包装策略。
+  limitations: |
+    No family-level demo/runner parity status is recorded in this catalog file.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件未记录家族级 demo/runner 一致性状态。
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - kinetix

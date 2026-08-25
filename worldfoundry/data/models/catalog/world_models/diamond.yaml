@@ -48,3 +48,65 @@ pipeline_binding: diamond
 catalog_category: world_models
 catalog_scope: World-model catalog entries. Integrated entries expose in-tree WorldFoundry runtimes; blocked
   entries retain upstream provenance without runnable backends.
+docs:
+  overview: |
+    DIAMOND (eloialonso/diamond, 'Diffusion for World Modeling: Visual Details Matter in Atari', NeurIPS 2024 spotlight) trains reinforcement-learning agents entirely inside a diffusion world model, and also ships a playable CS:GO world model. WorldFoundry vendors the official play/inference stack directly under `synthesis/visual_generation/world_model/diamond` with runtime configs packaged in tree; jobs run with a local checkpoint or pretrained=true plus a non-interactive pretrained_game value, and the upstream runtime downloads Atari assets on demand.
+
+    Within the WorldFoundry model catalog this entry is tracked as `diamond` in the `world_models` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/eloialonso/diamond.
+  overview_zh: |
+    DIAMOND（eloialonso/diamond，《Diffusion for World Modeling: Visual Details Matter in Atari》，NeurIPS 2024 spotlight）完全在扩散世界模型内训练强化学习智能体，并发布了可游玩的 CS:GO 世界模型。WorldFoundry 将官方 play/推理栈直接内嵌于 `synthesis/visual_generation/world_model/diamond`，运行时配置打包在树内；作业可用本地权重或 pretrained=true 加非交互 pretrained_game 值运行，上游运行时按需下载 Atari 资产。
+
+    在 WorldFoundry 模型目录中，该条目以 `diamond` 收录于 `world_models` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/eloialonso/diamond。
+  architecture: |
+    The published design uses an EDM-style diffusion model as the world model, predicting the next frame conditioned on past frames and actions with very few denoising steps, plus separate reward/termination heads for RL training; the CS:GO variant scales the same recipe to keyboard/mouse gameplay at 10 fps. Two recorded variants are diamond-atari and diamond-csgo.
+  architecture_zh: |
+    公开设计以 EDM 式扩散模型作为世界模型：以历史帧与动作为条件、用极少去噪步预测下一帧，另有独立奖励/终止头用于 RL 训练；CS:GO 变体把同一方案扩展到 10 fps 的键鼠游戏。记录的两个变体为 diamond-atari 与 diamond-csgo。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `diamond` and runtime profile `runtime-profile:diamond`.
+    Catalog integration status: `integrated`.
+    Integration notes recorded in the catalog:
+    - WorldFoundry vendors the official DIAMOND play/inference stack directly under synthesis/visual_generation/world_model/diamond.
+    - Runtime configs are packaged under worldfoundry/data/models/runtime/configs/diamond/config.
+    - Lightweight game/RL world-model candidate; upstream runtime downloads Atari assets on demand.
+    - Jobs can run with a local checkpoint or pretrained=true plus a non-interactive pretrained_game value.
+    Recorded variant `diamond-atari`, task `atari-world-model`.
+    Recorded variant `diamond-csgo`, task `game-world-model`.
+
+    Embodiment contract:
+    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
+    - Sensors: an initial image or context frames plus streaming interaction inputs.
+    - Action space: per-game discrete Atari actions, or keyboard/mouse inputs for the CS:GO variant.
+    - Dedicated environment: dedicated to the trained game domains (Atari 100k games, CS:GO Dust II); the world model itself substitutes the game engine during play.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `diamond`，运行时配置为 `runtime-profile:diamond`。
+    目录集成状态：已集成（integrated）。
+    目录中记录的集成备注（保留原文）：
+    - WorldFoundry vendors the official DIAMOND play/inference stack directly under synthesis/visual_generation/world_model/diamond.
+    - Runtime configs are packaged under worldfoundry/data/models/runtime/configs/diamond/config.
+    - Lightweight game/RL world-model candidate; upstream runtime downloads Atari assets on demand.
+    - Jobs can run with a local checkpoint or pretrained=true plus a non-interactive pretrained_game value.
+    目录记录：变体 `diamond-atari`，任务 `atari-world-model`。
+    目录记录：变体 `diamond-csgo`，任务 `game-world-model`。
+
+    具身接口（embodiment contract）：
+    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
+    - 传感器：初始图像或上下文帧，加流式交互输入。
+    - 动作空间：Atari 变体为各游戏的离散动作；CS:GO 变体为键鼠输入。
+    - 是否专用环境：专用于所训练的游戏域（Atari 100k 游戏、CS:GO Dust II）；游玩时世界模型本身替代游戏引擎。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`pending`.
+    Runner parity notes recorded in the catalog:
+    - The pipeline resolves the in-tree official play.py entrypoint and constructs the same pretrained/checkpoint command route used by the official repo.
+    - Full generation parity requires staged Atari assets/checkpoints; per-run validation evidence is tracked outside the model catalog.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=待验证（pending）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - The pipeline resolves the in-tree official play.py entrypoint and constructs the same pretrained/checkpoint command route used by the official repo.
+    - Full generation parity requires staged Atari assets/checkpoints; per-run validation evidence is tracked outside the model catalog.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks: []

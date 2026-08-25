@@ -44,3 +44,57 @@ runner_parity:
 catalog_category: world_models
 catalog_scope: World-model catalog entries. Integrated entries expose in-tree WorldFoundry runtimes; blocked entries retain
   upstream provenance without runnable backends.
+docs:
+  overview: |
+    Ctrl-World (Robert-gyj/Ctrl-World; Hugging Face `yjguo/Ctrl-World`) is a controllable robot-manipulation world model built on Stable Video Diffusion: given the current observation and a candidate robot action trajectory, it predicts the resulting future video, enabling policy evaluation and improvement inside the world model. WorldFoundry vendors the official WorldArena-listed source in tree under `worldfoundry/synthesis/visual_generation/ctrl_world/ctrl_world_runtime` and registers a runtime-manifest pipeline; the rollout entrypoint resolves but returns blocked diagnostics until checkpoints and task assets are staged.
+
+    Within the WorldFoundry model catalog this entry is tracked as `ctrl-world` in the `world_models` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/Robert-gyj/Ctrl-World; Hugging Face `yjguo/Ctrl-World`, `stabilityai/stable-video-diffusion-img2vid`, `openai/clip-vit-base-patch32`.
+  overview_zh: |
+    Ctrl-World（Robert-gyj/Ctrl-World；Hugging Face `yjguo/Ctrl-World`）是基于 Stable Video Diffusion 的可控机器人操作世界模型：给定当前观测与候选机器人动作轨迹，预测相应未来视频，可在世界模型内做策略评估与改进。WorldFoundry 在 `worldfoundry/synthesis/visual_generation/ctrl_world/ctrl_world_runtime` 内嵌官方 WorldArena 收录源码并注册运行时清单管线；rollout 入口可解析，但在暂存权重与任务资产之前返回受阻诊断。
+
+    在 WorldFoundry 模型目录中，该条目以 `ctrl-world` 收录于 `world_models` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/Robert-gyj/Ctrl-World；Hugging Face `yjguo/Ctrl-World`、`stabilityai/stable-video-diffusion-img2vid`、`openai/clip-vit-base-patch32`。
+  architecture: |
+    The recorded dependency set (stabilityai/stable-video-diffusion-img2vid plus openai/clip-vit-base-patch32) indicates an SVD image-to-video diffusion backbone with CLIP visual conditioning, extended with robot action conditioning for multi-view, action-aligned future prediction. Further architecture details are not recorded in the repository.
+  architecture_zh: |
+    记录的依赖集合（stabilityai/stable-video-diffusion-img2vid 加 openai/clip-vit-base-patch32）表明其为 SVD 图像到视频扩散骨干加 CLIP 视觉条件，并扩展机器人动作条件以做多视角、动作对齐的未来预测。更多架构细节仓库未记录。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `ctrl-world` and runtime profile `runtime-profile:ctrl-world`.
+    Catalog integration status: `runtime_ported`.
+    Integration notes recorded in the catalog:
+    - WorldFoundry registers an in-tree runtime manifest pipeline for the vendored Ctrl-World source.
+    - Official WorldArena-listed source is vendored in-tree under worldfoundry/synthesis/visual_generation/ctrl_world/ctrl_world_runtime.
+
+    Embodiment contract:
+    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
+    - Sensors: initial visual context of a robot scene (and optionally text) plus a robot action sequence as conditioning.
+    - Action space: robot action trajectories are the conditioning channel: the model predicts the resulting future observations instead of emitting actions itself.
+    - Dedicated environment: targets the robot-manipulation domains recorded per checkpoint; no simulator ships with this entry.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `ctrl-world`，运行时配置为 `runtime-profile:ctrl-world`。
+    目录集成状态：运行时已移植（runtime_ported）。
+    目录中记录的集成备注（保留原文）：
+    - WorldFoundry registers an in-tree runtime manifest pipeline for the vendored Ctrl-World source.
+    - Official WorldArena-listed source is vendored in-tree under worldfoundry/synthesis/visual_generation/ctrl_world/ctrl_world_runtime.
+
+    具身接口（embodiment contract）：
+    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
+    - 传感器：机器人场景的初始视觉上下文（可选文本），加机器人动作序列作为条件。
+    - 动作空间：机器人动作轨迹是条件通道：模型预测动作导致的未来观测，而不是自己输出动作。
+    - 是否专用环境：面向各权重记录的机器人操作域；该条目不附带仿真器。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`implemented_checkpoint_pending`.
+    Runner parity notes recorded in the catalog:
+    - The pipeline resolves the vendored rollout entrypoint and returns blocked runtime diagnostics until checkpoints and task assets are staged.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=已实现、待权重就绪（implemented_checkpoint_pending）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - The pipeline resolves the vendored rollout entrypoint and returns blocked runtime diagnostics until checkpoints and task assets are staged.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - worldarena
+  - ewmbench

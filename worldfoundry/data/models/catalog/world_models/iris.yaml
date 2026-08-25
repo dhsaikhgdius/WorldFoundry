@@ -18,3 +18,49 @@ integration:
   - WorldFoundry tracks upstream source metadata only; no runnable in-tree pipeline is registered yet.
 catalog_category: world_models
 catalog_scope: World-model catalog entries. Integrated entries expose in-tree WorldFoundry runtimes; blocked entries retain upstream provenance without runnable backends.
+docs:
+  overview: |
+    IRIS (eloialonso/iris, 'Transformers are Sample-Efficient World Models', ICLR 2023 notable-top-5%) is the influential Atari world-model agent: it learns a discrete autoencoder plus a GPT-style autoregressive transformer world model and trains the policy purely inside imagination, setting sample-efficiency records on Atari 100k at publication. WorldFoundry currently tracks upstream source metadata only; no runnable in-tree pipeline is registered yet.
+
+    Within the WorldFoundry model catalog this entry is tracked as `iris` in the `world_models` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/eloialonso/iris.
+  overview_zh: |
+    IRIS（eloialonso/iris，《Transformers are Sample-Efficient World Models》，ICLR 2023 notable-top-5%）是有影响力的 Atari 世界模型智能体：学习离散自编码器加 GPT 式自回归 transformer 世界模型，并完全在想象中训练策略，发表时刷新 Atari 100k 采样效率纪录。WorldFoundry 目前仅跟踪上游源码元数据；尚未注册可运行的树内管线。
+
+    在 WorldFoundry 模型目录中，该条目以 `iris` 收录于 `world_models` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/eloialonso/iris。
+  architecture: |
+    The published architecture: a VQ-style discrete autoencoder tokenizes frames; a GPT transformer predicts next frame tokens, reward, and termination conditioned on actions; an actor-critic policy is trained on imagined rollouts inside the world model. This entry records provenance only.
+  architecture_zh: |
+    公开架构：VQ 式离散自编码器将帧 token 化；GPT transformer 以动作为条件预测下一帧 token、奖励与终止；actor-critic 策略在世界模型内的想象 rollout 上训练。该条目仅记录来源。
+  usage_notes: |
+    No runner target is registered for this entry; the catalog tracks upstream provenance metadata without a runnable in-tree pipeline.
+    Catalog integration status: `blocked`.
+    Integration notes recorded in the catalog:
+    - WorldFoundry tracks upstream source metadata only; no runnable in-tree pipeline is registered yet.
+
+    Embodiment contract:
+    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
+    - Sensors: an initial image or context frames plus streaming interaction inputs.
+    - Action space: discrete Atari actions condition the token-level world model.
+    - Dedicated environment: dedicated to Atari 100k games as published; no environment ships with this metadata-only entry.
+  usage_notes_zh: |
+    该条目未注册 runner target；目录仅跟踪上游来源元数据，暂无可运行的 in-tree 管线。
+    目录集成状态：受阻/仅跟踪元数据（blocked）。
+    目录中记录的集成备注（保留原文）：
+    - WorldFoundry tracks upstream source metadata only; no runnable in-tree pipeline is registered yet.
+
+    具身接口（embodiment contract）：
+    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
+    - 传感器：初始图像或上下文帧，加流式交互输入。
+    - 动作空间：离散 Atari 动作作为 token 级世界模型的条件。
+    - 是否专用环境：按发表面向 Atari 100k 游戏；该仅元数据条目不附带环境。
+  limitations: |
+    No family-level demo/runner parity status is recorded in this catalog file.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件未记录家族级 demo/runner 一致性状态。
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks: []

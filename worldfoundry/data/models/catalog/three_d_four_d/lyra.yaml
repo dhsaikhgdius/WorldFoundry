@@ -78,3 +78,67 @@ catalog_policy:
   - open_weights_restricted
   - api_or_closed
   - unknown
+docs:
+  overview: |
+    Lyra (nv-tlabs/lyra) is an NVIDIA research project for generative 3D/4D scene reconstruction: it distills the implicit 3D knowledge of camera-controlled video diffusion models into feed-forward 3D Gaussian Splatting, enabling scene-level 3D generation without multi-view training data. WorldFoundry exposes in-tree Lyra-1 (`image-or-video-to-world-video`) and Lyra-2 (`action-conditioned-world-video`) pipelines backed by vendored runtime adapters; the default catalog runner targets Lyra-2, and the native World Explorer vendors the upstream CUDA/C++/ImGui interaction and rendering implementation behind a model-neutral inference adapter.
+
+    Within the WorldFoundry model catalog this entry is tracked as `lyra` in the `three_d_four_d` category.
+    Recorded availability: status=open_source, open_source=True, code=public, weights=linked_from_repo, license=Apache-2.0.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/nv-tlabs/lyra.
+  overview_zh: |
+    Lyra（nv-tlabs/lyra）是 NVIDIA 的生成式 3D/4D 场景重建研究项目：把相机可控视频扩散模型隐含的 3D 知识蒸馏为前向 3D Gaussian Splatting，在没有多视角训练数据的情况下实现场景级 3D 生成。WorldFoundry 暴露 in-tree 的 Lyra-1（图像/视频到世界视频）与 Lyra-2（动作条件世界视频）管线，均由内置运行时适配器支撑；目录默认 runner 指向 Lyra-2，原生 World Explorer 在模型无关的推理适配器之后内置了上游 CUDA/C++/ImGui 交互与渲染实现。
+
+    在 WorldFoundry 模型目录中，该条目以 `lyra` 收录于 `three_d_four_d` 分类。
+    仓库记录的可用性：状态=open_source，是否开源=True，代码=public，权重=linked_from_repo，许可证=Apache-2.0。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/nv-tlabs/lyra。
+  architecture: |
+    Publicly, Lyra couples a camera-controlled video diffusion backbone (Cosmos-family in the upstream release) with a feed-forward 3DGS decoder trained by self-distillation: the video model synthesizes multi-view-consistent rollouts that supervise the Gaussian decoder, yielding real-time renderable static (Lyra-1 style) and dynamic (Lyra-2 style) scene reconstructions. Both catalog variants are recorded runner-verified with per-run validation evidence tracked outside the catalog.
+  architecture_zh: |
+    公开资料中，Lyra 将相机可控视频扩散骨干（上游发布基于 Cosmos 家族）与经自蒸馏训练的前向 3DGS 解码器耦合：视频模型合成多视角一致的 rollout 来监督高斯解码器，得到可实时渲染的静态（Lyra-1 类）与动态（Lyra-2 类）场景重建。目录中两个变体的 runner 均记录为 verified，逐次运行的验证证据在目录之外跟踪。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `lyra` and runtime profile `runtime-profile:lyra`.
+    Catalog integration status: `integrated`.
+    Integration notes recorded in the catalog:
+    - WorldFoundry exposes in-tree Lyra-1 and Lyra-2 pipelines backed by vendored runtime adapters.
+    - Default catalog runner targets Lyra-2; Lyra-1 remains available as an explicit variant.
+    - The native World Explorer vendors the upstream CUDA/C++/ImGui interaction and rendering implementation behind a model-neutral inference adapter.
+    Recorded variant `lyra-1`, task `image-or-video-to-world-video`, runner parity `verified`.
+    Recorded variant `lyra-2`, task `action-conditioned-world-video`, runner parity `verified`.
+
+    Embodiment contract:
+    - Simulator: none — this is an offline 3D scene generation model; it produces renderable scene artifacts rather than running inside a simulator.
+    - Sensors: text prompts and/or a single RGB image as conditioning; no additional sensor modalities are recorded in the repository.
+    - Action space: Lyra-2 accepts action-conditioned world-video control per the catalog variant record; the exact action parameterization is not recorded in the repository. Lyra-1 uses camera/scene conditioning only.
+    - Dedicated environment: no dedicated environment; it runs through the shared WorldFoundry pipeline runtime described in the integration notes.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `lyra`，运行时配置为 `runtime-profile:lyra`。
+    目录集成状态：已集成（integrated）。
+    目录中记录的集成备注（保留原文）：
+    - WorldFoundry exposes in-tree Lyra-1 and Lyra-2 pipelines backed by vendored runtime adapters.
+    - Default catalog runner targets Lyra-2; Lyra-1 remains available as an explicit variant.
+    - The native World Explorer vendors the upstream CUDA/C++/ImGui interaction and rendering implementation behind a model-neutral inference adapter.
+    目录记录：变体 `lyra-1`，任务 `image-or-video-to-world-video`，runner 一致性 已验证（verified）。
+    目录记录：变体 `lyra-2`，任务 `action-conditioned-world-video`，runner 一致性 已验证（verified）。
+
+    具身接口（embodiment contract）：
+    - 仿真器：无——这是离线 3D 场景生成模型，产出可渲染的场景 artifact，而非在仿真器内运行。
+    - 传感器：以文本提示和/或单张 RGB 图像为条件；仓库未记录其它传感器模态。
+    - 动作空间：目录变体记录显示 Lyra-2 接受动作条件的世界视频控制；具体动作参数化方式仓库未记录。Lyra-1 仅使用相机/场景条件。
+    - 是否专用环境：无专用环境；通过集成备注中描述的 WorldFoundry 共享管线运行时执行。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`verified`.
+    Runner parity notes recorded in the catalog:
+    - Lyra-1 and Lyra-2 are wired through in-tree runners and unified environment profiles.
+    - Per-run validation evidence is tracked outside the model catalog.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=已验证（verified）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - Lyra-1 and Lyra-2 are wired through in-tree runners and unified environment profiles.
+    - Per-run validation evidence is tracked outside the model catalog.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - worldscore
+  - 4dworldbench

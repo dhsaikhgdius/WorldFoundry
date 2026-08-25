@@ -45,3 +45,55 @@ pipeline_binding: tinyvla
 runtime_profile: runtime-profile:tinyvla
 catalog_category: vla_va_wam
 schema_version: 2
+docs:
+  overview: |
+    TinyVLA (liyaxuanliyaxuan/TinyVLA, mixed MIT/Apache-2.0) targets fast, data-efficient VLA policies: it replaces billion-scale VLM backbones with sub-billion LLaVA-Pythia multimodal models and skips robot-data pretraining entirely, attaching a diffusion action head for manipulation. WorldFoundry executes LLaVA-Pythia, CLIP/SigLIP vision fusion, ACT, and conditional 1D diffusion action heads in process, supporting both merged weights and local LoRA plus non-LoRA action tensors without source checkouts or remote code. Note: the published Hub models (`lesjie/Llava-Pythia-400M/700M/1.3B`) are VLM backbones for policy training, not task-trained robot action checkpoints, so runtime construction fails early until a compatible task checkpoint and its normalization statistics are staged locally.
+
+    Within the WorldFoundry model catalog this entry is tracked as `tinyvla` in the `vla_va_wam` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/liyaxuanliyaxuan/TinyVLA; Hugging Face `lesjie/Llava-Pythia-400M`, `lesjie/Llava-Pythia-700M`, `lesjie/Llava-Pythia-1.3B`.
+  overview_zh: |
+    TinyVLA（liyaxuanliyaxuan/TinyVLA，MIT/Apache-2.0 混合许可）面向快速、数据高效的 VLA 策略：用不足十亿参数的 LLaVA-Pythia 多模态模型替代十亿级 VLM 骨干，完全跳过机器人数据预训练，外挂扩散动作头做操作。WorldFoundry 在进程内执行 LLaVA-Pythia、CLIP/SigLIP 视觉融合、ACT 与条件 1D 扩散动作头，支持合并权重及本地 LoRA 加非 LoRA 动作张量，无需源码 checkout 或远程代码。注意：Hub 发布的模型（`lesjie/Llava-Pythia-400M/700M/1.3B`）是用于策略训练的 VLM 骨干，不是任务训练的机器人动作权重，因此在本地暂存兼容任务权重及其归一化统计之前，运行时构建会尽早失败。
+
+    在 WorldFoundry 模型目录中，该条目以 `tinyvla` 收录于 `vla_va_wam` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/liyaxuanliyaxuan/TinyVLA；Hugging Face `lesjie/Llava-Pythia-400M`、`lesjie/Llava-Pythia-700M`、`lesjie/Llava-Pythia-1.3B`。
+  architecture: |
+    The published design: a compact LLaVA-Pythia VLM (Pythia language backbone with CLIP-style vision, 400M/700M/1.3B scales) is fine-tuned with LoRA while a conditional 1D diffusion policy head denoises continuous action chunks conditioned on multimodal embeddings; an ACT-style head is also supported in tree. This avoids autoregressive token-by-token action decoding and large-scale robot pretraining.
+  architecture_zh: |
+    公开设计：紧凑的 LLaVA-Pythia VLM（Pythia 语言骨干加 CLIP 式视觉，400M/700M/1.3B 三档）用 LoRA 微调，条件 1D 扩散策略头以多模态嵌入为条件对连续动作块去噪；树内还支持 ACT 式动作头。该设计避免了自回归逐 token 动作解码与大规模机器人预训练。
+  usage_notes: |
+    No runner target is registered for this entry; the catalog tracks upstream provenance metadata without a runnable in-tree pipeline.
+    Catalog integration status: `in_tree_checkpoint_gated_runtime`.
+    Integration notes recorded in the catalog:
+    - LLaVA-Pythia, CLIP/SigLIP vision fusion, ACT, and conditional 1D diffusion action heads execute in process.
+    - Both merged weights and local LoRA plus non-LoRA action tensors are supported without source checkouts or remote code.
+    - The published Hub models are VLM backbones for policy training; they are not task-trained robot action checkpoints.
+    - Runtime construction fails early until a compatible task checkpoint and its normalization statistics are staged locally.
+
+    Embodiment contract:
+    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
+    - Sensors: RGB camera observations plus a language instruction; the exact camera/state contract is not recorded in this catalog file.
+    - Action space: continuous robot end-effector/joint action chunks; the exact action dimensionality is not recorded in this catalog file.
+    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
+  usage_notes_zh: |
+    该条目未注册 runner target；目录仅跟踪上游来源元数据，暂无可运行的 in-tree 管线。
+    目录集成状态：`in_tree_checkpoint_gated_runtime`。
+    目录中记录的集成备注（保留原文）：
+    - LLaVA-Pythia, CLIP/SigLIP vision fusion, ACT, and conditional 1D diffusion action heads execute in process.
+    - Both merged weights and local LoRA plus non-LoRA action tensors are supported without source checkouts or remote code.
+    - The published Hub models are VLM backbones for policy training; they are not task-trained robot action checkpoints.
+    - Runtime construction fails early until a compatible task checkpoint and its normalization statistics are staged locally.
+
+    具身接口（embodiment contract）：
+    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
+    - 传感器：RGB 相机观测加语言指令；具体相机/状态契约本目录文件未记录。
+    - 动作空间：连续的机器人末端/关节动作块；具体动作维度本目录文件未记录。
+    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
+  limitations: |
+    No family-level demo/runner parity status is recorded in this catalog file.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件未记录家族级 demo/runner 一致性状态。
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks: []

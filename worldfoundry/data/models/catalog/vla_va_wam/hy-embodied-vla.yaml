@@ -69,3 +69,58 @@ runner_parity:
   status: robotwin_and_umi_checkpoints_gpu_validated
 catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint metadata, and runtime-profile planning records.
+docs:
+  overview: |
+    Hy-Embodied-0.5-VLA (Tencent-Hunyuan/Hy-Embodied-0.5-VLA, Apache-2.0) is Tencent Hunyuan's bimanual-capable VLA. WorldFoundry retains the inference-only architecture, MoT backbone, runtime, preprocessing, and action decoding in-tree. The catalog records GPU validation for both released checkpoints: the RoboTwin checkpoint restored strictly and produced finite 20x20 decoded actions from the official six-frame, three-camera input on an A100, and the UMI checkpoint produced a finite 50x20 relative-action chunk in BF16.
+
+    Within the WorldFoundry model catalog this entry is tracked as `hy-embodied-vla` in the `vla_va_wam` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/Tencent-Hunyuan/Hy-Embodied-0.5-VLA; Hugging Face `tencent/Hy-Embodied-0.5-VLA-UMI`, `tencent/Hy-Embodied-0.5-VLA-RoboTwin`.
+  overview_zh: |
+    Hy-Embodied-0.5-VLA（Tencent-Hunyuan/Hy-Embodied-0.5-VLA，Apache-2.0）是腾讯混元的支持双臂的 VLA。WorldFoundry 在树内保留仅推理架构、MoT 骨干、运行时、预处理与动作解码。目录记录两个已发布权重的 GPU 验证：RoboTwin 权重严格恢复并在 A100 上以官方六帧三相机输入产出有限值的 20×20 解码动作；UMI 权重以 BF16 通过 Workspace 运行时产出有限值的 50×20 相对动作块。
+
+    在 WorldFoundry 模型目录中，该条目以 `hy-embodied-vla` 收录于 `vla_va_wam` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/Tencent-Hunyuan/Hy-Embodied-0.5-VLA；Hugging Face `tencent/Hy-Embodied-0.5-VLA-UMI`、`tencent/Hy-Embodied-0.5-VLA-RoboTwin`。
+  architecture: |
+    The recorded architecture is a mixture-of-transformers (MoT) backbone over multi-frame, multi-camera visual context with an action decoder emitting fixed-length chunks: the RoboTwin variant produces 20 RT-relative plus 20 absolute action tokens with six-frame visual memory, and the UMI variant produces a 50-step normalized RT-relative chunk with 20 channels. Further details are not recorded in the repository.
+  architecture_zh: |
+    目录记录的架构是基于多帧多相机视觉上下文的 mixture-of-transformers（MoT）骨干加动作解码器，输出定长动作块：RoboTwin 变体输出 20 个 RT 相对加 20 个绝对动作 token 并使用六帧视觉记忆；UMI 变体输出 50 步、20 通道的归一化 RT 相对动作块。更多细节仓库未记录。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `hy-embodied-vla` and runtime profile `runtime-profile:hy-embodied-vla`.
+    Catalog integration status: `integrated`.
+    Integration notes recorded in the catalog:
+    - Inference-only architecture, MoT backbone, runtime, preprocessing, and action decoding are retained in-tree.
+    - The RoboTwin checkpoint was restored strictly and produced finite 20-by-20 decoded actions from the official six-frame, three-camera input on an A100.
+    - The UMI checkpoint produced a finite 50-by-20 decoded relative-action chunk through the Workspace runtime on an A100 in BF16.
+    Recorded variant `hy-embodied-vla-umi`, task `vla.policy_rollout`.
+    Recorded variant `hy-embodied-vla-robotwin`, task `vla.policy_rollout`.
+
+    Embodiment contract:
+    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
+    - Sensors: six-frame, three-camera RGB input for the RoboTwin variant per the recorded official contract; the UMI variant follows the UMI observation convention.
+    - Action space: 20-channel action chunks: 20x20 (RT-relative plus absolute) for RoboTwin and 50x20 relative for UMI, per the recorded validation.
+    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `hy-embodied-vla`，运行时配置为 `runtime-profile:hy-embodied-vla`。
+    目录集成状态：已集成（integrated）。
+    目录中记录的集成备注（保留原文）：
+    - Inference-only architecture, MoT backbone, runtime, preprocessing, and action decoding are retained in-tree.
+    - The RoboTwin checkpoint was restored strictly and produced finite 20-by-20 decoded actions from the official six-frame, three-camera input on an A100.
+    - The UMI checkpoint produced a finite 50-by-20 decoded relative-action chunk through the Workspace runtime on an A100 in BF16.
+    目录记录：变体 `hy-embodied-vla-umi`，任务 `vla.policy_rollout`。
+    目录记录：变体 `hy-embodied-vla-robotwin`，任务 `vla.policy_rollout`。
+
+    具身接口（embodiment contract）：
+    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
+    - 传感器：RoboTwin 变体按目录记录的官方契约使用六帧三相机 RGB 输入；UMI 变体遵循 UMI 观测惯例。
+    - 动作空间：20 通道动作块：RoboTwin 为 20×20（RT 相对加绝对），UMI 为 50×20 相对动作（按目录记录的验证结果）。
+    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`robotwin_and_umi_checkpoints_gpu_validated`.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=`robotwin_and_umi_checkpoints_gpu_validated`。
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - robotwin

@@ -52,3 +52,58 @@ catalog_scope: World-model catalog entries. Integrated entries expose in-tree Wo
   runtimes; blocked entries retain upstream provenance without runnable backends.
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 pipeline_binding: egowm
+docs:
+  overview: |
+    EgoWM (miccooper9/egowm; Hugging Face `anuragba/egowm`) is an egocentric navigation world model: action-conditioned video prediction for first-person navigation, tracked with two SVD-based variants — egowm-svd-3dof and egowm-svd-25dof — differing in the dimensionality of the conditioning action space. WorldFoundry registers the official source route with checkpoint/assets runtime-gated; real generation emits a runtime plan until required checkpoints are staged.
+
+    Within the WorldFoundry model catalog this entry is tracked as `egowm` in the `world_models` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/miccooper9/egowm; Hugging Face `anuragba/egowm`.
+  overview_zh: |
+    EgoWM（miccooper9/egowm；Hugging Face `anuragba/egowm`）是第一视角导航世界模型：面向第一人称导航的动作条件视频预测，跟踪两个基于 SVD 的变体——egowm-svd-3dof 与 egowm-svd-25dof——区别在于条件动作空间的维度。WorldFoundry 注册官方源码路线，权重/资产受运行时门控；在暂存所需权重之前，真实生成输出运行时计划。
+
+    在 WorldFoundry 模型目录中，该条目以 `egowm` 收录于 `world_models` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/miccooper9/egowm；Hugging Face `anuragba/egowm`。
+  architecture: |
+    The variant naming (svd-3dof / svd-25dof) indicates a Stable Video Diffusion image-to-video backbone fine-tuned with action conditioning at 3-DoF and 25-DoF action parameterizations for egocentric navigation. Further architecture details are not recorded in the repository.
+  architecture_zh: |
+    变体命名（svd-3dof / svd-25dof）表明其为 Stable Video Diffusion 图像到视频骨干，分别以 3 自由度与 25 自由度动作参数化做动作条件微调，用于第一视角导航。更多架构细节仓库未记录。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `egowm` and runtime profile `runtime-profile:egowm`.
+    Catalog integration status: `runtime_ported`.
+    Integration notes recorded in the catalog:
+    - EgoWM official source route is registered; checkpoint/assets are runtime-gated.
+    Recorded variant `egowm-svd-3dof`, task `egocentric-navigation-video`.
+    Recorded variant `egowm-svd-25dof`, task `egocentric-navigation-video`.
+
+    Embodiment contract:
+    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
+    - Sensors: egocentric RGB context frames plus a navigation action sequence.
+    - Action space: navigation actions at 3-DoF or 25-DoF parameterization (per variant) condition the predicted egocentric video.
+    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `egowm`，运行时配置为 `runtime-profile:egowm`。
+    目录集成状态：运行时已移植（runtime_ported）。
+    目录中记录的集成备注（保留原文）：
+    - EgoWM official source route is registered; checkpoint/assets are runtime-gated.
+    目录记录：变体 `egowm-svd-3dof`，任务 `egocentric-navigation-video`。
+    目录记录：变体 `egowm-svd-25dof`，任务 `egocentric-navigation-video`。
+
+    具身接口（embodiment contract）：
+    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
+    - 传感器：第一视角 RGB 上下文帧加导航动作序列。
+    - 动作空间：3 自由度或 25 自由度参数化的导航动作（按变体）作为第一视角视频预测的条件。
+    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`implemented_checkpoint_pending`.
+    Runner parity notes recorded in the catalog:
+    - resolve_model_zoo_config and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=已实现、待权重就绪（implemented_checkpoint_pending）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - resolve_model_zoo_config and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - world-in-world

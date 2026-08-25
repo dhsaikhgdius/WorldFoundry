@@ -39,3 +39,65 @@ runner_parity:
   - Any downstream fine-tune must remain paired with the exact statistics emitted during that fine-tune.
 catalog_category: vla_va_wam
 catalog_scope: In-tree inference runtime and checkpoint metadata for embodied policies.
+docs:
+  overview: |
+    GO-1 (OpenDriveLab/AgiBot-World, CC-BY-NC-SA-4.0) is the generalist policy released with the AgiBot World project. WorldFoundry keeps InternVision, InternLM2, the latent planner, the action expert, the diffusion sampler, tokenizer, and preprocessing in-tree; the runtime executes only staged safetensors (`agibot-world/GO-1`) and never imports checkpoint-provided Python.
+
+    Within the WorldFoundry model catalog this entry is tracked as `go1` in the `vla_va_wam` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/OpenDriveLab/AgiBot-World; Hugging Face `agibot-world/GO-1`.
+  overview_zh: |
+    GO-1（OpenDriveLab/AgiBot-World，CC-BY-NC-SA-4.0）是随智元 AgiBot World 项目发布的通用策略。WorldFoundry 在树内保留 InternVision、InternLM2、隐式规划器、动作专家、扩散采样器、分词器与预处理；运行时仅执行暂存的 safetensors（`agibot-world/GO-1`），从不导入权重携带的 Python。
+
+    在 WorldFoundry 模型目录中，该条目以 `go1` 收录于 `vla_va_wam` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/OpenDriveLab/AgiBot-World；Hugging Face `agibot-world/GO-1`。
+  architecture: |
+    Publicly, GO-1 implements the ViLLA (Vision-Language-Latent-Action) design: an InternVL-based VLM (InternVision plus InternLM2) feeds a latent planner that predicts latent action tokens, which condition a diffusion-based action expert that decodes executable robot actions. The in-tree composition recorded in the catalog matches this three-stage structure.
+  architecture_zh: |
+    公开资料中，GO-1 实现 ViLLA（视觉-语言-隐动作）设计：基于 InternVL 的 VLM（InternVision 加 InternLM2）接入隐式规划器预测隐动作 token，再条件化基于扩散的动作专家解码可执行机器人动作。目录记录的树内组成与该三段式结构一致。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `go1` and runtime profile `runtime-profile:go1`.
+    Catalog integration status: `in_tree_checkpoint_runtime_static_verified`.
+    Integration notes recorded in the catalog:
+    - InternVision, InternLM2, latent planner, action expert, diffusion sampler, tokenizer, and preprocessing are in-tree.
+    - Runtime executes only staged safetensors and never imports checkpoint-provided Python.
+    - Dataset, training, deployment server, evaluator, and robot-control code are excluded.
+
+    Embodiment contract:
+    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
+    - Sensors: RGB camera observations plus a language instruction; the exact camera/state contract is not recorded in this catalog file.
+    - Action space: continuous robot end-effector/joint action chunks; the exact action dimensionality is not recorded in this catalog file.
+    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `go1`，运行时配置为 `runtime-profile:go1`。
+    目录集成状态：`in_tree_checkpoint_runtime_static_verified`。
+    目录中记录的集成备注（保留原文）：
+    - InternVision, InternLM2, latent planner, action expert, diffusion sampler, tokenizer, and preprocessing are in-tree.
+    - Runtime executes only staged safetensors and never imports checkpoint-provided Python.
+    - Dataset, training, deployment server, evaluator, and robot-control code are excluded.
+
+    具身接口（embodiment contract）：
+    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
+    - 传感器：RGB 相机观测加语言指令；具体相机/状态契约本目录文件未记录。
+    - 动作空间：连续的机器人末端/关节动作块；具体动作维度本目录文件未记录。
+    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`static_runtime_verified`.
+    Runner parity notes recorded in the catalog:
+    - Model and parameter names preserve the official checkpoint contract.
+    - The pinned pretrained foundation checkpoint and released statistics are staged; numerical and GPU rollout validation remain pending.
+    - Any downstream fine-tune must remain paired with the exact statistics emitted during that fine-tune.
+
+    The release is non-commercial (CC-BY-NC-SA-4.0). The pinned pretrained foundation checkpoint and released statistics are staged; numerical and GPU rollout validation remain pending, and any downstream fine-tune must stay paired with the exact statistics emitted during that fine-tune.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=`static_runtime_verified`。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - Model and parameter names preserve the official checkpoint contract.
+    - The pinned pretrained foundation checkpoint and released statistics are staged; numerical and GPU rollout validation remain pending.
+    - Any downstream fine-tune must remain paired with the exact statistics emitted during that fine-tune.
+
+    该发布为非商用（CC-BY-NC-SA-4.0）。锁定版本的预训练基础权重与官方统计已暂存；数值与 GPU rollout 验证仍待完成，且任何下游微调必须与该次微调产出的统计严格配对。
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks: []

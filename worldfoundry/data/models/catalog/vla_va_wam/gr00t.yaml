@@ -69,3 +69,56 @@ catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint
   metadata, and runtime-profile planning records. Runner or pipeline targets are present
   only after a complete in-tree WorldFoundry model runtime is registered and validated.
+docs:
+  overview: |
+    NVIDIA GR00T (NVIDIA/Isaac-GR00T, NVIDIA Open Model License) is NVIDIA's foundation VLA line for generalist humanoid robots. WorldFoundry executes the GR00T model, processor, transforms, and policy runtime from a flattened in-tree package with checkpoint-hosted Python disabled; checkpoint-backed predict is verified with local `nvidia/Cosmos-Reason2-2B` and `nvidia/GR00T-N1.7-LIBERO` (libero_10) on CUDA 11.8, while simulator rollout validation remains separate. Recorded checkpoints also include `nvidia/GR00T-N1-2B`.
+
+    Within the WorldFoundry model catalog this entry is tracked as `gr00t` in the `vla_va_wam` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/NVIDIA/Isaac-GR00T; Hugging Face `nvidia/GR00T-N1-2B`, `nvidia/GR00T-N1.7-LIBERO`, `nvidia/Cosmos-Reason2-2B`.
+  overview_zh: |
+    NVIDIA GR00T（NVIDIA/Isaac-GR00T，NVIDIA 开放模型许可证）是 NVIDIA 面向通用人形机器人的基础 VLA 系列。WorldFoundry 从扁平化树内包执行 GR00T 模型、processor、变换与策略运行时，禁用权重携带的 Python；权重支撑的 predict 已在 CUDA 11.8 上用本地 `nvidia/Cosmos-Reason2-2B` 与 `nvidia/GR00T-N1.7-LIBERO`（libero_10）验证，仿真 rollout 验证另行跟踪。记录的权重还包括 `nvidia/GR00T-N1-2B`。
+
+    在 WorldFoundry 模型目录中，该条目以 `gr00t` 收录于 `vla_va_wam` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/NVIDIA/Isaac-GR00T；Hugging Face `nvidia/GR00T-N1-2B`、`nvidia/GR00T-N1.7-LIBERO`、`nvidia/Cosmos-Reason2-2B`。
+  architecture: |
+    Publicly, GR00T N1 is a dual-system VLA: a vision-language module (Eagle-family VLM in N1; the N1.7 LIBERO route here loads Cosmos-Reason2-2B as the reasoning backbone) processes observations and instructions, and a DiT-style flow-matching action head decodes continuous cross-embodiment action chunks. Training mixes real robot data, human video, and synthetic data.
+  architecture_zh: |
+    公开资料中，GR00T N1 是双系统 VLA：视觉-语言模块（N1 使用 Eagle 系 VLM；此处 N1.7 LIBERO 路线加载 Cosmos-Reason2-2B 作为推理骨干）处理观测与指令，DiT 式 flow-matching 动作头解码连续的跨具身动作块。训练混合真实机器人数据、人类视频与合成数据。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `gr00t` and runtime profile `runtime-profile:gr00t`.
+    Catalog integration status: `integrated`.
+    Integration notes recorded in the catalog:
+    - The GR00T model, processor, transforms, and policy runtime execute from the flattened in-tree package with checkpoint-hosted Python disabled.
+    - Checkpoint-backed predict is verified with local nvidia--Cosmos-Reason2-2B and nvidia--GR00T-N1.7-LIBERO/libero_10 on CUDA 11.8; simulator rollout validation remains separate.
+    Recorded variant `gr00t-n1-2b`, task `vla.policy_rollout`.
+    Recorded variant `gr00t-n1.7-libero`, task `vla.policy_rollout`.
+
+    Embodiment contract:
+    - Simulator: none bundled — the N1.7 checkpoint targets LIBERO (libero_10); Isaac-based simulator rollouts are upstream tooling and are not part of this in-tree runtime.
+    - Sensors: RGB camera observations plus a language instruction; the exact camera/state contract is not recorded in this catalog file.
+    - Action space: continuous robot end-effector/joint action chunks; the exact action dimensionality is not recorded in this catalog file.
+    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `gr00t`，运行时配置为 `runtime-profile:gr00t`。
+    目录集成状态：已集成（integrated）。
+    目录中记录的集成备注（保留原文）：
+    - The GR00T model, processor, transforms, and policy runtime execute from the flattened in-tree package with checkpoint-hosted Python disabled.
+    - Checkpoint-backed predict is verified with local nvidia--Cosmos-Reason2-2B and nvidia--GR00T-N1.7-LIBERO/libero_10 on CUDA 11.8; simulator rollout validation remains separate.
+    目录记录：变体 `gr00t-n1-2b`，任务 `vla.policy_rollout`。
+    目录记录：变体 `gr00t-n1.7-libero`，任务 `vla.policy_rollout`。
+
+    具身接口（embodiment contract）：
+    - 仿真器：不内置仿真器——N1.7 权重面向 LIBERO（libero_10）；基于 Isaac 的仿真 rollout 属上游工具链，不在本树内运行时范围内。
+    - 传感器：RGB 相机观测加语言指令；具体相机/状态契约本目录文件未记录。
+    - 动作空间：连续的机器人末端/关节动作块；具体动作维度本目录文件未记录。
+    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
+  limitations: |
+    No family-level demo/runner parity status is recorded in this catalog file.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件未记录家族级 demo/runner 一致性状态。
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - libero

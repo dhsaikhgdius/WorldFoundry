@@ -42,3 +42,57 @@ runner_parity:
 catalog_category: world_models
 catalog_scope: World-model catalog entries. Integrated entries expose in-tree WorldFoundry runtimes; blocked entries retain
   upstream provenance without runnable backends.
+docs:
+  overview: |
+    GigaWorld-0 (open-gigaai/giga-world-0) is GigaAI's robot world-model family for video generation, tracked with two released checkpoints: `GigaWorld-0-Video-Pretrain-2b` (generic pretraining) and `GigaWorld-0-Video-GR1-2b` (GR-1 humanoid fine-tune). WorldFoundry vendors the official WorldArena-listed source in tree under `worldfoundry/synthesis/visual_generation/giga_world_0/giga_world_0_runtime`; the inference entrypoint resolves but returns blocked diagnostics until checkpoints and task assets are staged.
+
+    Within the WorldFoundry model catalog this entry is tracked as `giga-world-0` in the `world_models` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/open-gigaai/giga-world-0; Hugging Face `open-gigaai/GigaWorld-0-Video-Pretrain-2b`, `open-gigaai/GigaWorld-0-Video-GR1-2b`.
+  overview_zh: |
+    GigaWorld-0（open-gigaai/giga-world-0）是 GigaAI 面向视频生成的机器人世界模型家族，跟踪两个已发布权重：`GigaWorld-0-Video-Pretrain-2b`（通用预训练）与 `GigaWorld-0-Video-GR1-2b`（GR-1 人形机器人微调）。WorldFoundry 在 `worldfoundry/synthesis/visual_generation/giga_world_0/giga_world_0_runtime` 内嵌官方 WorldArena 收录源码；推理入口可解析，但在暂存权重与任务资产之前返回受阻诊断。
+
+    在 WorldFoundry 模型目录中，该条目以 `giga-world-0` 收录于 `world_models` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/open-gigaai/giga-world-0；Hugging Face `open-gigaai/GigaWorld-0-Video-Pretrain-2b`、`open-gigaai/GigaWorld-0-Video-GR1-2b`。
+  architecture: |
+    The released checkpoints are 2B-parameter action-conditioned video generation models (a pretrain base plus a GR-1 embodiment fine-tune). Beyond checkpoint naming and the robotics-world-model modality, the repository does not record architecture details for this entry.
+  architecture_zh: |
+    发布权重为 20 亿参数的动作条件视频生成模型（预训练基座加 GR-1 具身微调）。除权重命名与 robotics-world-model 模态外，仓库未记录该条目的架构细节。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `giga-world-0` and runtime profile `runtime-profile:giga-world-0`.
+    Catalog integration status: `runtime_ported`.
+    Integration notes recorded in the catalog:
+    - WorldFoundry registers an in-tree runtime manifest pipeline for the vendored GigaWorld-0 source.
+    - Official WorldArena-listed source is vendored in-tree under worldfoundry/synthesis/visual_generation/giga_world_0/giga_world_0_runtime.
+
+    Embodiment contract:
+    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
+    - Sensors: initial visual context of a robot scene (and optionally text) plus a robot action sequence as conditioning.
+    - Action space: robot action trajectories are the conditioning channel: the model predicts the resulting future observations instead of emitting actions itself.
+    - Dedicated environment: targets the robot-manipulation domains recorded per checkpoint; no simulator ships with this entry.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `giga-world-0`，运行时配置为 `runtime-profile:giga-world-0`。
+    目录集成状态：运行时已移植（runtime_ported）。
+    目录中记录的集成备注（保留原文）：
+    - WorldFoundry registers an in-tree runtime manifest pipeline for the vendored GigaWorld-0 source.
+    - Official WorldArena-listed source is vendored in-tree under worldfoundry/synthesis/visual_generation/giga_world_0/giga_world_0_runtime.
+
+    具身接口（embodiment contract）：
+    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
+    - 传感器：机器人场景的初始视觉上下文（可选文本），加机器人动作序列作为条件。
+    - 动作空间：机器人动作轨迹是条件通道：模型预测动作导致的未来观测，而不是自己输出动作。
+    - 是否专用环境：面向各权重记录的机器人操作域；该条目不附带仿真器。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`implemented_checkpoint_pending`.
+    Runner parity notes recorded in the catalog:
+    - The pipeline resolves the vendored inference entrypoint and returns blocked runtime diagnostics until checkpoints and task assets are staged.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=已实现、待权重就绪（implemented_checkpoint_pending）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - The pipeline resolves the vendored inference entrypoint and returns blocked runtime diagnostics until checkpoints and task assets are staged.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - worldarena
+  - ewmbench

@@ -51,3 +51,59 @@ runner_parity:
 catalog_category: world_models
 catalog_scope: World-model catalog entries. Integrated entries expose in-tree WorldFoundry
   runtimes; blocked entries retain upstream provenance without runnable backends.
+docs:
+  overview: |
+    SCOPE (z2tong/SCOPE; Hugging Face `zizhaotong/SCOPE`) is an interactive game world model doing action-conditioned image-to-video generation. WorldFoundry integrates SCOPE-specific action conditioning as a canonical Wan network variant assembled with shared Wan encoders, VAE, loaders, and staged execution; large weights remain external Hugging Face assets injected through model_dir/checkpoint_root or SCOPE_MODEL_DIR. The image-action-to-video demo is verified through the Workspace infer path with staged SCOPE weights, the in-tree example image, and the action parquet.
+
+    Within the WorldFoundry model catalog this entry is tracked as `scope` in the `world_models` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/z2tong/SCOPE; Hugging Face `zizhaotong/SCOPE`.
+  overview_zh: |
+    SCOPE（z2tong/SCOPE；Hugging Face `zizhaotong/SCOPE`）是做动作条件图像到视频生成的交互式游戏世界模型。WorldFoundry 将 SCOPE 特有的动作条件实现为规范 Wan 网络变体，与共享 Wan 编码器、VAE、加载器和分阶段执行组装；大权重保留为外部 Hugging Face 资产，通过 model_dir/checkpoint_root 或 SCOPE_MODEL_DIR 注入。图像-动作到视频演示已通过 Workspace 推理路径验证，使用暂存 SCOPE 权重、树内示例图像与动作 parquet。
+
+    在 WorldFoundry 模型目录中，该条目以 `scope` 收录于 `world_models` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/z2tong/SCOPE；Hugging Face `zizhaotong/SCOPE`。
+  architecture: |
+    The in-tree implementation expresses SCOPE as a canonical Wan-family video diffusion variant whose novelty is the action-conditioning pathway; game actions are supplied as a parquet sequence aligned with the rollout. Recorded modalities are interactive-world-model, game-world-model, action-conditioned-video, and image-to-video; further architecture details are not recorded in the repository.
+  architecture_zh: |
+    树内实现将 SCOPE 表达为规范 Wan 系视频扩散变体，其创新点在动作条件通路；游戏动作以与 rollout 对齐的 parquet 序列提供。记录模态为 interactive-world-model、game-world-model、action-conditioned-video 与 image-to-video；更多架构细节仓库未记录。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `scope` and runtime profile `runtime-profile:scope`.
+    Catalog integration status: `verified`.
+    Integration notes recorded in the catalog:
+    - SCOPE-specific action conditioning is integrated as a canonical Wan network variant and assembled with shared Wan encoders, VAE, loaders, and staged execution.
+    - Large model weights remain external HuggingFace assets and are injected through model_dir/checkpoint_root or SCOPE_MODEL_DIR.
+    - The WorldFoundry wrapper runs the in-tree native SCOPE assembly for execute=True Workspace jobs.
+
+    Embodiment contract:
+    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
+    - Sensors: an initial image or context frames plus streaming interaction inputs.
+    - Action space: game-action sequences supplied as a parquet file aligned to the generated frames.
+    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `scope`，运行时配置为 `runtime-profile:scope`。
+    目录集成状态：已验证（verified）。
+    目录中记录的集成备注（保留原文）：
+    - SCOPE-specific action conditioning is integrated as a canonical Wan network variant and assembled with shared Wan encoders, VAE, loaders, and staged execution.
+    - Large model weights remain external HuggingFace assets and are injected through model_dir/checkpoint_root or SCOPE_MODEL_DIR.
+    - The WorldFoundry wrapper runs the in-tree native SCOPE assembly for execute=True Workspace jobs.
+
+    具身接口（embodiment contract）：
+    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
+    - 传感器：初始图像或上下文帧，加流式交互输入。
+    - 动作空间：以 parquet 文件提供、与生成帧对齐的游戏动作序列。
+    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`verified`.
+    Runner parity notes recorded in the catalog:
+    - The image-action-to-video demo is verified through the Workspace infer path with staged SCOPE weights, the in-tree example image, and action parquet.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=已验证（verified）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - The image-action-to-video demo is verified through the Workspace infer path with staged SCOPE weights, the in-tree example image, and action parquet.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - iworld-bench
+  - world-in-world

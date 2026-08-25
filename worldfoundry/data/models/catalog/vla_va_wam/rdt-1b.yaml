@@ -32,3 +32,54 @@ runtime_profile: runtime-profile:rdt-1b
 catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint metadata,
   and executable runtime records.
+docs:
+  overview: |
+    RDT-1B (thu-ml/RoboticsDiffusionTransformer) is Tsinghua's 1B-parameter Robotics Diffusion Transformer, the largest diffusion-based foundation model for bimanual manipulation at release: pretrained on 46 datasets spanning about one million multi-robot episodes and fine-tuned on a 6k+ episode self-collected bimanual ALOHA corpus. WorldFoundry keeps the native 128-D unified action model, two-frame three-camera preprocessing, and DPM inference in tree; prompt encoding uses the official T5 checkpoint, with precomputed embeddings accepted for lower peak memory.
+
+    Within the WorldFoundry model catalog this entry is tracked as `rdt-1b` in the `vla_va_wam` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/thu-ml/RoboticsDiffusionTransformer; Hugging Face `robotics-diffusion-transformer/rdt-1b`.
+  overview_zh: |
+    RDT-1B（thu-ml/RoboticsDiffusionTransformer）是清华的 10 亿参数 Robotics Diffusion Transformer，发布时是最大的基于扩散的双臂操作基础模型：在覆盖约一百万条多机器人轨迹的 46 个数据集上预训练，并在 6000 余条自采双臂 ALOHA 数据上微调。WorldFoundry 在树内保留原生 128 维统一动作模型、两帧三相机预处理与 DPM 推理；语言提示编码使用官方 T5 权重，并接受预计算嵌入以降低峰值内存。
+
+    在 WorldFoundry 模型目录中，该条目以 `rdt-1b` 收录于 `vla_va_wam` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/thu-ml/RoboticsDiffusionTransformer；Hugging Face `robotics-diffusion-transformer/rdt-1b`。
+  architecture: |
+    The published architecture is a diffusion transformer (DiT) policy: T5-XXL encodes the language instruction, a SigLIP vision encoder processes three camera views over a two-frame history, and the DiT denoises action chunks expressed in a 128-dimensional unified action space that physically grounds heterogeneous robot action formats so cross-robot pretraining is possible. Inference uses a DPM solver. The released Hub checkpoint is a pretraining checkpoint and may require embodiment/task fine-tuning for deployment.
+  architecture_zh: |
+    公开架构为扩散 transformer（DiT）策略：T5-XXL 编码语言指令，SigLIP 视觉编码器处理三路相机的两帧历史，DiT 在 128 维统一动作空间中对动作块去噪——该空间对异构机器人动作格式做物理落地，使跨机器人预训练成为可能。推理使用 DPM 求解器。Hub 发布的权重为预训练权重，部署可能需要具身/任务微调。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `rdt-1b` and runtime profile `runtime-profile:rdt-1b`.
+    Catalog integration status: `runtime_ported`.
+    Integration notes recorded in the catalog:
+    - The native 128D unified action model, two-frame three-camera preprocessing, and DPM inference are in tree.
+    - Prompt encoding uses the official T5 checkpoint; precomputed embeddings are accepted for lower peak memory.
+    - The released checkpoint is a pretraining checkpoint and may require embodiment/task fine-tuning for deployment.
+
+    Embodiment contract:
+    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
+    - Sensors: three RGB camera views with a two-frame history plus a T5-encoded language instruction and proprioceptive state, per the recorded preprocessing contract.
+    - Action space: denoised action chunks in the 128-D unified action space, mapped to the physical bimanual (or single-arm) action format of the target robot.
+    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `rdt-1b`，运行时配置为 `runtime-profile:rdt-1b`。
+    目录集成状态：运行时已移植（runtime_ported）。
+    目录中记录的集成备注（保留原文）：
+    - The native 128D unified action model, two-frame three-camera preprocessing, and DPM inference are in tree.
+    - Prompt encoding uses the official T5 checkpoint; precomputed embeddings are accepted for lower peak memory.
+    - The released checkpoint is a pretraining checkpoint and may require embodiment/task fine-tuning for deployment.
+
+    具身接口（embodiment contract）：
+    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
+    - 传感器：三路 RGB 相机的两帧历史，加 T5 编码的语言指令与本体状态（按目录记录的预处理契约）。
+    - 动作空间：128 维统一动作空间中的去噪动作块，映射到目标机器人的物理双臂（或单臂）动作格式。
+    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
+  limitations: |
+    No family-level demo/runner parity status is recorded in this catalog file.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件未记录家族级 demo/runner 一致性状态。
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - robotwin

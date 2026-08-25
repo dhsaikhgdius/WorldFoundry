@@ -37,3 +37,57 @@ catalog_category: three_d_four_d
 catalog_scope: Independent geometric prior integrations used by 3D and world-model
   runtimes.
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
+docs:
+  overview: |
+    UniDepth V2 (lpiccinelli-eth) is a universal monocular metric depth model: it predicts metric 3D points from a single image across widely varying cameras and domains by self-prompting an internal camera representation. WorldFoundry integrates it at `worldfoundry/base_models/three_dimensions/depth/unidepth`, resolving the default checkpoint from `lpiccinelli/unidepth-v2-vitl14` or an explicit local `model_path` override. The upstream release is CC-BY-NC-4.0; downstream users must respect the non-commercial terms. The catalog records `checkpoint_verified` runner status with official point export through the shared prior contract and Workspace route.
+
+    Within the WorldFoundry model catalog this entry is tracked as `unidepth-v2-prior` in the `three_d_four_d` category.
+    The repository does not record an official source link for this entry.
+  overview_zh: |
+    UniDepth V2（lpiccinelli-eth）是通用单目公制深度模型：通过自提示内部相机表示，在差异极大的相机与领域间从单张图像预测公制 3D 点。WorldFoundry 将其集成于 `worldfoundry/base_models/three_dimensions/depth/unidepth`，默认权重从 `lpiccinelli/unidepth-v2-vitl14` 解析，或用显式本地 `model_path` 覆盖。上游发布为 CC-BY-NC-4.0，下游使用者须遵守非商用条款。目录记录 runner 状态为 checkpoint_verified，官方点云导出经共享先验契约与 Workspace 路由验证。
+
+    在 WorldFoundry 模型目录中，该条目以 `unidepth-v2-prior` 收录于 `three_d_four_d` 分类。
+    仓库未记录该条目的官方来源链接。
+  architecture: |
+    The published design decouples camera and depth: a camera module predicts a dense spherical camera representation (azimuth/elevation rays) which conditions the depth module, so metric scale transfers across unseen camera models; v2 adds efficiency improvements, an uncertainty output, and camera-conditioning robustness over v1. Backbone options are ViT-based encoders with dense decoders.
+  architecture_zh: |
+    公开设计将相机与深度解耦：相机模块预测稠密球面相机表示（方位角/仰角光线）并作为深度模块的条件，使公制尺度可迁移到未见过的相机型号；v2 相比 v1 增加了效率优化、不确定性输出与相机条件稳健性。骨干为 ViT 系编码器加稠密解码器。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` and runtime profile `runtime-profile:unidepth-v2-prior`.
+    Catalog integration status: `integrated`.
+    Integration notes recorded in the catalog:
+    - Integrated as an independent geometric prior at worldfoundry/base_models/three_dimensions/depth/unidepth.
+    - The default checkpoint is resolved through Hugging Face from lpiccinelli/unidepth-v2-vitl14 or an explicit local model_path override.
+    - The upstream release is CC-BY-NC-4.0; downstream users must respect the non-commercial license terms when enabling this prior.
+
+    Embodiment contract:
+    - Simulator: none — this entry is an offline geometric prior invoked by other WorldFoundry pipelines, not a simulator-driven model.
+    - Sensors: monocular RGB images (or video frames for temporal variants); no additional sensor modalities are recorded in the repository.
+    - Action space: not applicable — priors are pure perception modules without an action interface.
+    - Dedicated environment: no dedicated environment; it is exposed through the shared WorldFoundry geometry-prior pipeline/operator contract.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，运行时配置为 `runtime-profile:unidepth-v2-prior`。
+    目录集成状态：已集成（integrated）。
+    目录中记录的集成备注（保留原文）：
+    - Integrated as an independent geometric prior at worldfoundry/base_models/three_dimensions/depth/unidepth.
+    - The default checkpoint is resolved through Hugging Face from lpiccinelli/unidepth-v2-vitl14 or an explicit local model_path override.
+    - The upstream release is CC-BY-NC-4.0; downstream users must respect the non-commercial license terms when enabling this prior.
+
+    具身接口（embodiment contract）：
+    - 仿真器：无——该条目是被其它 WorldFoundry 管线调用的离线几何先验，不涉及仿真器。
+    - 传感器：单目 RGB 图像（时序变体为视频帧）；仓库未记录其它传感器模态。
+    - 动作空间：不适用——先验模块为纯感知组件，没有动作接口。
+    - 是否专用环境：无专用环境；通过 WorldFoundry 共享几何先验 pipeline/operator 契约暴露。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`checkpoint_verified`.
+    Runner parity notes recorded in the catalog:
+    - Real checkpoint inference and official point export are verified through the shared geometry-prior pipeline/operator contract and Workspace route.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=已通过真实权重验证（checkpoint_verified）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - Real checkpoint inference and official point export are verified through the shared geometry-prior pipeline/operator contract and Workspace route.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks: []

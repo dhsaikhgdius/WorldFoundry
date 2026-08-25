@@ -25,3 +25,57 @@ pipeline_binding: lingbot-world-act
 runtime_profile: runtime-profile:lingbot-world-act
 runner_parity: {status: pending, notes: [In-tree action payload routing is wired; full GPU artifact parity requires locally staged weights.]}
 catalog_category: world_models
+docs:
+  overview: |
+    LingBot-World Base Act (robbyant/lingbot-world; Hugging Face `robbyant/lingbot-world-base-act-preview`) is the action-conditioned variant of Ant Group's LingBot-World interactive world model, cataloged independently from the Base-Cam camera variant so it resolves the official action checkpoint. The inference path reuses the in-tree LingBot runtime and central Wan base modules; in-tree action payload routing is wired, and full GPU artifact parity requires locally staged weights.
+
+    Within the WorldFoundry model catalog this entry is tracked as `lingbot-world-act` in the `world_models` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/robbyant/lingbot-world; Hugging Face `robbyant/lingbot-world-base-act-preview`.
+  overview_zh: |
+    LingBot-World Base Act（robbyant/lingbot-world；Hugging Face `robbyant/lingbot-world-base-act-preview`）是蚂蚁集团 LingBot-World 交互世界模型的动作条件变体，与 Base-Cam 相机变体独立登记，以解析官方动作权重。推理路径复用树内 LingBot 运行时与中央 Wan 基座模块；树内动作载荷路由已接通，完整 GPU artifact 一致性需本地暂存权重。
+
+    在 WorldFoundry 模型目录中，该条目以 `lingbot-world-act` 收录于 `world_models` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/robbyant/lingbot-world；Hugging Face `robbyant/lingbot-world-base-act-preview`。
+  architecture: |
+    The model shares the LingBot-World architecture (a Wan-based interactive world video generator) with action conditioning replacing camera conditioning; the released checkpoint is a preview. Beyond the shared Wan-based composition, the repository does not record further architecture details for this entry.
+  architecture_zh: |
+    该模型共享 LingBot-World 架构（基于 Wan 的交互式世界视频生成器），以动作条件替代相机条件；发布权重为 preview 版本。除共享的 Wan 系组成外，仓库未记录该条目更多架构细节。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `lingbot-world-act` and runtime profile `runtime-profile:lingbot-world-act`.
+    Catalog integration status: `integrated`.
+    Integration notes recorded in the catalog:
+    - Base-Act is independently cataloged and resolves the official action checkpoint rather than Base-Cam.
+    - The inference path reuses the in-tree LingBot runtime and central Wan base modules.
+
+    Embodiment contract:
+    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
+    - Sensors: an initial image or context frames plus streaming interaction inputs.
+    - Action space: keyboard/mouse-style or discrete navigation actions (plus optional camera controls) drive frame-by-frame world evolution.
+    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `lingbot-world-act`，运行时配置为 `runtime-profile:lingbot-world-act`。
+    目录集成状态：已集成（integrated）。
+    目录中记录的集成备注（保留原文）：
+    - Base-Act is independently cataloged and resolves the official action checkpoint rather than Base-Cam.
+    - The inference path reuses the in-tree LingBot runtime and central Wan base modules.
+
+    具身接口（embodiment contract）：
+    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
+    - 传感器：初始图像或上下文帧，加流式交互输入。
+    - 动作空间：键鼠式或离散导航动作（可选相机控制）驱动逐帧世界演化。
+    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`pending`.
+    Runner parity notes recorded in the catalog:
+    - In-tree action payload routing is wired; full GPU artifact parity requires locally staged weights.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=待验证（pending）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - In-tree action payload routing is wired; full GPU artifact parity requires locally staged weights.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - iworld-bench
+  - world-in-world

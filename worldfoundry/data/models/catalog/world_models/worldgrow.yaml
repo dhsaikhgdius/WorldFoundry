@@ -36,3 +36,54 @@ catalog_scope: World-model catalog entries. Integrated entries expose in-tree Wo
   runtimes; blocked entries retain upstream provenance without runnable backends.
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 pipeline_binding: worldgrow
+docs:
+  overview: |
+    WorldGrow (world-grow/WorldGrow; Hugging Face `UranusITS/WorldGrow`) is a 3D world generation and scene-expansion method: recorded modalities are world-generation, interactive-world-model, and scene-expansion, and the route depends on TRELLIS 3D-generation assets, indicating block-wise growth of explorable 3D scenes rather than video rollout. WorldFoundry registers the official source route; checkpoints and TRELLIS assets are runtime-gated, so real generation emits a runtime plan until required assets are staged.
+
+    Within the WorldFoundry model catalog this entry is tracked as `worldgrow` in the `world_models` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/world-grow/WorldGrow; Hugging Face `UranusITS/WorldGrow`.
+  overview_zh: |
+    WorldGrow（world-grow/WorldGrow；Hugging Face `UranusITS/WorldGrow`）是 3D 世界生成与场景扩展方法：记录模态为 world-generation、interactive-world-model 与 scene-expansion，路线依赖 TRELLIS 3D 生成资产，表明它以块状方式生长可探索 3D 场景而非滚动视频。WorldFoundry 注册官方源码路线；权重与 TRELLIS 资产受运行时门控，在暂存所需资产之前，真实生成输出运行时计划。
+
+    在 WorldFoundry 模型目录中，该条目以 `worldgrow` 收录于 `world_models` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/world-grow/WorldGrow；Hugging Face `UranusITS/WorldGrow`。
+  architecture: |
+    The recorded dependency on TRELLIS assets indicates the pipeline builds on TRELLIS structured-latent 3D generation, extended to grow scenes block by block for expansion. Beyond the modality tags and this asset dependency, the repository does not record architecture details for this entry.
+  architecture_zh: |
+    记录的 TRELLIS 资产依赖表明管线构建于 TRELLIS 结构化隐变量 3D 生成之上，并扩展为逐块生长场景以实现扩展。除模态标签与该资产依赖外，仓库未记录该条目的架构细节。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `worldgrow` and runtime profile `runtime-profile:worldgrow`.
+    Catalog integration status: `runtime_ported`.
+    Integration notes recorded in the catalog:
+    - WorldGrow official source route is registered; checkpoints/TRELLIS assets are runtime-gated.
+
+    Embodiment contract:
+    - Simulator: generates and expands explorable 3D scene content rather than rolling video; downstream renderers consume the generated scene blocks.
+    - Sensors: conditioning inputs per the recorded modalities (typically an initial image and/or a text prompt); exact tensor contracts are not recorded in this catalog file.
+    - Action space: no explicit action interface is recorded; control is via generation/expansion requests rather than per-step actions.
+    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `worldgrow`，运行时配置为 `runtime-profile:worldgrow`。
+    目录集成状态：运行时已移植（runtime_ported）。
+    目录中记录的集成备注（保留原文）：
+    - WorldGrow official source route is registered; checkpoints/TRELLIS assets are runtime-gated.
+
+    具身接口（embodiment contract）：
+    - 仿真器：生成并扩展可探索的 3D 场景内容而非滚动视频；下游渲染器消费生成的场景块。
+    - 传感器：按记录的模态提供条件输入（通常为初始图像和/或文本提示）；具体张量契约本目录文件未记录。
+    - 动作空间：未记录显式动作接口；控制通过生成/扩展请求而非逐步动作实现。
+    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`implemented_checkpoint_pending`.
+    Runner parity notes recorded in the catalog:
+    - resolve_model_zoo_config and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=已实现、待权重就绪（implemented_checkpoint_pending）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - resolve_model_zoo_config and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - worldscore

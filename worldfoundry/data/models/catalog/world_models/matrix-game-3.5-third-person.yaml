@@ -107,3 +107,69 @@ availability:
   code: in_tree_native_infer
   weights: public_upstream
   license: apache-2.0
+docs:
+  overview: |
+    Matrix-Game 3.5 Third-Person Base (Riemann-Dynamics/Matrix-Game-3.5; Hugging Face `RiemannDynamics/Matrix-Game-3.5-Base`, Apache-2.0) is the third-person variant of Matrix-Game 3.5: its checkpoint adds four subject-reference embedding slots so a protagonist can be injected into the generated world, with the released runtime accepting at most two references per request. In WorldFoundry the model ID is permanently bound to third-person.safetensors via the canonical NativeDiffusionPipeline. A 2026-07-20 one-step one-block A100 80GB smoke run with one protagonist reference exported 85 non-empty 1280x704 frames at 16 fps, validating strict checkpoint loading, subject-reference installation, Mosaic rollout, decoding, and result materialization only; the artifact must be regenerated post-cutover before parity is claimed.
+
+    Within the WorldFoundry model catalog this entry is tracked as `matrix-game-3.5-third-person` in the `world_models` category.
+    Recorded availability: status=open_source, open_source=True, code=in_tree_native_infer, weights=public_upstream, license=apache-2.0.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/Riemann-Dynamics/Matrix-Game-3.5; Hugging Face `RiemannDynamics/Matrix-Game-3.5-Base`, `Wan-AI/Wan2.2-TI2V-5B`, `depth-anything/DA3NESTED-GIANT-LARGE-1.1`.
+  overview_zh: |
+    Matrix-Game 3.5 第三人称基座（Riemann-Dynamics/Matrix-Game-3.5；Hugging Face `RiemannDynamics/Matrix-Game-3.5-Base`，Apache-2.0）是 Matrix-Game 3.5 的第三人称变体：其权重增加四个主体参考嵌入槽位，可把主角注入生成世界，发布运行时每请求最多接受两个参考。在 WorldFoundry 中该模型 ID 经规范 NativeDiffusionPipeline 永久绑定 third-person.safetensors。2026-07-20 的一步单块 A100 80GB 冒烟运行（一个主角参考）导出 85 帧非空 1280x704、16 fps，仅验证严格权重加载、主体参考安装、Mosaic rollout、解码与结果物化；声称一致性前须在切换后重新生成 artifact。
+
+    在 WorldFoundry 模型目录中，该条目以 `matrix-game-3.5-third-person` 收录于 `world_models` 分类。
+    仓库记录的可用性：状态=open_source，是否开源=True，代码=in_tree_native_infer，权重=public_upstream，许可证=apache-2.0。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/Riemann-Dynamics/Matrix-Game-3.5；Hugging Face `RiemannDynamics/Matrix-Game-3.5-Base`、`Wan-AI/Wan2.2-TI2V-5B`、`depth-anything/DA3NESTED-GIANT-LARGE-1.1`。
+  architecture: |
+    The base matches the first-person variant (Wan2.2-TI2V-5B with image/text/camera-trajectory conditioning and the CC-BY-NC-4.0 DA3 depth dependency), extended with subject-reference image conditioning through four embedding slots. CPU contract validation additionally covers subject-reference wiring.
+  architecture_zh: |
+    基座与第一人称变体一致（Wan2.2-TI2V-5B，图像/文本/相机轨迹条件，依赖 CC-BY-NC-4.0 的 DA3 深度模型），并通过四个嵌入槽位扩展主体参考图像条件。CPU 契约验证额外覆盖主体参考接线。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `matrix-game-3.5-third-person` and runtime profile `runtime-profile:matrix-game-3.5-third-person`.
+    Catalog integration status: `integrated`.
+    Integration notes recorded in the catalog:
+    - Revision-pinned inference behavior is integrated through the canonical NativeDiffusionPipeline; no DiffSynth Matrix pipeline remains.
+    - This model ID is permanently bound to third-person.safetensors; its checkpoint has four subject-reference embedding slots and the released runtime accepts at most two references per request.
+    - Checkpoints remain external assets; the shared resolver prefers staged local files and can materialize missing Hub files.
+    - The DA3NESTED-GIANT-LARGE-1.1 dependency is CC-BY-NC-4.0; users must follow its separate non-commercial checkpoint license.
+
+    Embodiment contract:
+    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
+    - Sensors: an initial image, a text prompt, a camera trajectory (NPZ), and up to two subject-reference images per request.
+    - Action space: the action channel is the camera trajectory (extrinsics/pose sequence); the model renders the world consistently along the requested path.
+    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `matrix-game-3.5-third-person`，运行时配置为 `runtime-profile:matrix-game-3.5-third-person`。
+    目录集成状态：已集成（integrated）。
+    目录中记录的集成备注（保留原文）：
+    - Revision-pinned inference behavior is integrated through the canonical NativeDiffusionPipeline; no DiffSynth Matrix pipeline remains.
+    - This model ID is permanently bound to third-person.safetensors; its checkpoint has four subject-reference embedding slots and the released runtime accepts at most two references per request.
+    - Checkpoints remain external assets; the shared resolver prefers staged local files and can materialize missing Hub files.
+    - The DA3NESTED-GIANT-LARGE-1.1 dependency is CC-BY-NC-4.0; users must follow its separate non-commercial checkpoint license.
+
+    具身接口（embodiment contract）：
+    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
+    - 传感器：初始图像、文本提示、相机轨迹（NPZ），及每请求最多两张主体参考图像。
+    - 动作空间：动作通道为相机轨迹（外参/位姿序列）；模型沿请求路径一致地渲染世界。
+    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`pending_default_25_step_and_official_sample_parity`.
+    Runner parity notes recorded in the catalog:
+    - CPU contract validation covers model identity, asset resolution, camera NPZ validation, command construction, subject-reference wiring, and result normalization.
+    - On 2026-07-20, the pinned third-person checkpoint and one protagonist reference completed a one-step, one-block A100 80GB smoke run and exported 85 non-empty 1280x704 frames at 16 fps (sha256 5fc946910e815d8e5989fb4f843901880c227aec8b32cf56afb27df5083901b6).
+    - The smoke run validates strict checkpoint loading, subject-reference installation, Mosaic rollout, decoding, and result materialization only.
+    - The recorded A100 artifact predates the final NativeDiffusionPipeline cutover and must be regenerated before native artifact parity can be claimed.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=`pending_default_25_step_and_official_sample_parity`。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - CPU contract validation covers model identity, asset resolution, camera NPZ validation, command construction, subject-reference wiring, and result normalization.
+    - On 2026-07-20, the pinned third-person checkpoint and one protagonist reference completed a one-step, one-block A100 80GB smoke run and exported 85 non-empty 1280x704 frames at 16 fps (sha256 5fc946910e815d8e5989fb4f843901880c227aec8b32cf56afb27df5083901b6).
+    - The smoke run validates strict checkpoint loading, subject-reference installation, Mosaic rollout, decoding, and result materialization only.
+    - The recorded A100 artifact predates the final NativeDiffusionPipeline cutover and must be regenerated before native artifact parity can be claimed.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - wrbench
+  - worldscore

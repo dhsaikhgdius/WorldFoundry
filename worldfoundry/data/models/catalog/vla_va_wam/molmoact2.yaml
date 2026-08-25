@@ -119,3 +119,72 @@ catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint
   metadata, and runtime-profile planning records. Runner or pipeline targets are present
   only after a complete in-tree WorldFoundry model runtime is registered and validated.
+docs:
+  overview: |
+    MolmoAct2 (allenai/molmoact2, Apache-2.0) is AI2's second-generation action reasoning model family, with released checkpoints spanning DROID, bimanual YAM, SO100/SO101, LIBERO, and Think variants. WorldFoundry's in-tree runtime lives under `worldfoundry/synthesis/action_generation/molmoact2`, ports the official DROID/YAM `predict_action` server contracts into an action-trace pipeline, and no longer depends on the external checkout at runtime; runner parity is recorded as verified with remote Python disabled.
+
+    Within the WorldFoundry model catalog this entry is tracked as `molmoact2` in the `vla_va_wam` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/allenai/molmoact2; Hugging Face `allenai/MolmoAct2`, `allenai/MolmoAct2-Think`, `allenai/MolmoAct2-DROID`, `allenai/MolmoAct2-BimanualYAM`, `allenai/MolmoAct2-SO100_101`, `allenai/MolmoAct2-LIBERO`, `allenai/MolmoAct2-Think-LIBERO`.
+  overview_zh: |
+    MolmoAct2（allenai/molmoact2，Apache-2.0）是 AI2 第二代动作推理模型家族，发布权重覆盖 DROID、双臂 YAM、SO100/SO101、LIBERO 与 Think 变体。WorldFoundry 树内运行时位于 `worldfoundry/synthesis/action_generation/molmoact2`，把官方 DROID/YAM `predict_action` 服务器契约移植为 action-trace 管线，运行时不再依赖外部 checkout；runner 一致性记录为 verified，且禁用远程 Python。
+
+    在 WorldFoundry 模型目录中，该条目以 `molmoact2` 收录于 `vla_va_wam` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/allenai/molmoact2；Hugging Face `allenai/MolmoAct2`、`allenai/MolmoAct2-Think`、`allenai/MolmoAct2-DROID`、`allenai/MolmoAct2-BimanualYAM`、`allenai/MolmoAct2-SO100_101`、`allenai/MolmoAct2-LIBERO`、`allenai/MolmoAct2-Think-LIBERO`。
+  architecture: |
+    Publicly, the MolmoAct line builds on the Molmo open VLM and factors manipulation into perception, planning (including visual trace/depth reasoning in 'Think' variants), and action decoding. The catalog records concrete per-embodiment contracts: DROID uses external_cam/external_cam_2/wrist_cam with franka_droid normalization and an 8-D state; YAM uses top/left/right cams with a 14-D state; SO100/SO101 uses top/side cams with a 6-D state; LIBERO uses agentview/wrist RGB with libero normalization.
+  architecture_zh: |
+    公开资料中，MolmoAct 系列基于开源 VLM Molmo，将操作分解为感知、规划（Think 变体含视觉轨迹/深度推理）与动作解码。目录记录了具体的分具身契约：DROID 用 external_cam/external_cam_2/wrist_cam、franka_droid 归一化与 8 维状态；YAM 用 top/left/right 相机与 14 维状态；SO100/SO101 用 top/side 相机与 6 维状态；LIBERO 用 agentview/腕部 RGB 与 libero 归一化。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `molmoact2` and runtime profile `runtime-profile:molmoact2`.
+    Catalog integration status: `in_tree_checkpoint_runtime_static_verified`.
+    Integration notes recorded in the catalog:
+    - WorldFoundry in-tree MolmoAct2 runtime lives under worldfoundry/synthesis/action_generation/molmoact2 and no longer depends on the external molmoact2 checkout at runtime.
+    - The runtime ports the official DROID/YAM predict_action server contracts into a WorldFoundry action_trace pipeline.
+    - Configured DROID, YAM, SO100, LIBERO, and Think-LIBERO profiles expose checkpoint-backed action_trace routes.
+    Recorded variant `molmoact2-droid`, task `vla.policy_rollout`.
+    Recorded variant `molmoact2-bimanual-yam`, task `vla.policy_rollout`.
+    Recorded variant `molmoact2-so100-101`, task `vla.policy_rollout`.
+    Recorded variant `molmoact2-libero`, task `vla.policy_rollout`.
+    Recorded variant `molmoact2-think-libero`, task `vla.policy_rollout`.
+
+    Embodiment contract:
+    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
+    - Sensors: per-embodiment RGB camera sets plus proprioceptive state vectors (8-D DROID, 14-D YAM, 6-D SO100/SO101), as recorded in the variant notes.
+    - Action space: continuous action chunks decoded per embodiment contract; normalization keys (franka_droid, yam_dual_molmoact2, so100_so101_molmoact2, libero) are recorded per variant.
+    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `molmoact2`，运行时配置为 `runtime-profile:molmoact2`。
+    目录集成状态：`in_tree_checkpoint_runtime_static_verified`。
+    目录中记录的集成备注（保留原文）：
+    - WorldFoundry in-tree MolmoAct2 runtime lives under worldfoundry/synthesis/action_generation/molmoact2 and no longer depends on the external molmoact2 checkout at runtime.
+    - The runtime ports the official DROID/YAM predict_action server contracts into a WorldFoundry action_trace pipeline.
+    - Configured DROID, YAM, SO100, LIBERO, and Think-LIBERO profiles expose checkpoint-backed action_trace routes.
+    目录记录：变体 `molmoact2-droid`，任务 `vla.policy_rollout`。
+    目录记录：变体 `molmoact2-bimanual-yam`，任务 `vla.policy_rollout`。
+    目录记录：变体 `molmoact2-so100-101`，任务 `vla.policy_rollout`。
+    目录记录：变体 `molmoact2-libero`，任务 `vla.policy_rollout`。
+    目录记录：变体 `molmoact2-think-libero`，任务 `vla.policy_rollout`。
+
+    具身接口（embodiment contract）：
+    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
+    - 传感器：按具身配置的 RGB 相机组加本体状态向量（DROID 8 维、YAM 14 维、SO100/SO101 6 维），见目录变体备注。
+    - 动作空间：按具身契约解码的连续动作块；各变体的归一化键（franka_droid、yam_dual_molmoact2、so100_so101_molmoact2、libero）见目录记录。
+    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`verified`.
+    Runner parity notes recorded in the catalog:
+    - Plan-only pipeline creation is covered by test/eval_core/test_molmoact2_in_tree_integration.py.
+    - The runtime loads DROID, YAM, SO100/SO101, LIBERO, and Think-LIBERO checkpoints through explicit retained model and processor classes with remote Python disabled.
+    - Per-run action trace evidence is tracked outside the model catalog.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=已验证（verified）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - Plan-only pipeline creation is covered by test/eval_core/test_molmoact2_in_tree_integration.py.
+    - The runtime loads DROID, YAM, SO100/SO101, LIBERO, and Think-LIBERO checkpoints through explicit retained model and processor classes with remote Python disabled.
+    - Per-run action trace evidence is tracked outside the model catalog.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - libero

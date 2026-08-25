@@ -25,3 +25,51 @@ catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint metadata, and runtime-profile
   planning records. Runner or pipeline targets are present only after a complete in-tree WorldFoundry model runtime is registered
   and validated.
+docs:
+  overview: |
+    Action Chunking Transformer (ACT, tonyzhaozh/act) is the imitation-learning policy introduced with ALOHA (RSS 2023): it predicts short chunks of future actions instead of single steps, drastically reducing compounding error in fine bimanual manipulation. WorldFoundry executes the ACT policy, DETR-VAE, transformer, ResNet backbone, preprocessing, and action-chunk aggregation from a flattened in-tree package; checkpoint-backed prediction requires a caller-staged `policy_best.ckpt` and matching `dataset_stats.pkl`, loaded with weights-only deserialization and a restricted NumPy-only statistics reader.
+
+    Within the WorldFoundry model catalog this entry is tracked as `act` in the `vla_va_wam` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/tonyzhaozh/act.
+  overview_zh: |
+    Action Chunking Transformer（ACT，tonyzhaozh/act）是随 ALOHA（RSS 2023）提出的模仿学习策略：预测未来动作块而非单步动作，大幅降低精细双臂操作中的误差累积。WorldFoundry 从扁平化的树内包执行 ACT 策略、DETR-VAE、transformer、ResNet 骨干、预处理与动作块聚合；有权重支撑的预测需调用方暂存 `policy_best.ckpt` 与匹配的 `dataset_stats.pkl`，权重用 weights-only 反序列化加载，统计文件用受限的 NumPy-only 读取器。
+
+    在 WorldFoundry 模型目录中，该条目以 `act` 收录于 `vla_va_wam` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/tonyzhaozh/act。
+  architecture: |
+    The published architecture is a CVAE: a transformer encoder infers a latent style variable from demonstration action sequences, and a DETR-style transformer decoder conditioned on multi-camera ResNet features, joint positions, and the latent predicts a chunk of future joint actions (originally k=100); at test time chunks are smoothed by temporal ensembling. Training is per-task behavior cloning on teleoperated demonstrations.
+  architecture_zh: |
+    公开架构是一个 CVAE：transformer 编码器从示教动作序列推断隐式风格变量；DETR 式 transformer 解码器以多相机 ResNet 特征、关节位置与该隐变量为条件，预测未来关节动作块（原始配置 k=100）；测试时用时间集成（temporal ensembling）平滑动作块。训练为在遥操作示教上按任务行为克隆。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `act` and runtime profile `runtime-profile:act`.
+    Catalog integration status: `integrated`.
+    Integration notes recorded in the catalog:
+    - The ACT policy, DETR-VAE, transformer, ResNet backbone, preprocessing, and action-chunk aggregation execute from the flattened in-tree package.
+    - Checkpoint-backed prediction requires a caller-staged policy_best.ckpt and matching dataset_stats.pkl; checkpoint tensors use weights-only deserialization and statistics use a restricted NumPy-only reader.
+
+    Embodiment contract:
+    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
+    - Sensors: multi-camera RGB views plus robot joint positions, following the original ALOHA observation contract.
+    - Action space: chunks of continuous joint-position targets (originally 14-DoF bimanual ALOHA); the deployed dimensionality follows the trained checkpoint.
+    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `act`，运行时配置为 `runtime-profile:act`。
+    目录集成状态：已集成（integrated）。
+    目录中记录的集成备注（保留原文）：
+    - The ACT policy, DETR-VAE, transformer, ResNet backbone, preprocessing, and action-chunk aggregation execute from the flattened in-tree package.
+    - Checkpoint-backed prediction requires a caller-staged policy_best.ckpt and matching dataset_stats.pkl; checkpoint tensors use weights-only deserialization and statistics use a restricted NumPy-only reader.
+
+    具身接口（embodiment contract）：
+    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
+    - 传感器：多相机 RGB 视角加机器人关节位置，遵循原始 ALOHA 观测契约。
+    - 动作空间：连续关节位置目标的动作块（原始为 14 自由度双臂 ALOHA）；实际维度取决于所训练的权重。
+    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
+  limitations: |
+    No family-level demo/runner parity status is recorded in this catalog file.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件未记录家族级 demo/runner 一致性状态。
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks: []

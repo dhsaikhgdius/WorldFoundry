@@ -34,3 +34,55 @@ catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint metadata,
   and runtime-profile planning records. Runner or pipeline targets are present only after a complete in-tree
   WorldFoundry model runtime is registered and validated.
+docs:
+  overview: |
+    Spirit-VLA v1.5 (Spirit-AI-Team/spirit-v1.5; checkpoint `Spirit-AI-robotics/Spirit-v1.5`) is Spirit AI's vision-language-action policy release. WorldFoundry includes the native inference architecture and preprocessing in tree; the runtime loads the official checkpoint and its Qwen3-VL backbone with remote Python disabled. Import and checkpoint gating are validated, but numerical parity requires staging the 21.6 GB checkpoint locally, so checkpoint-backed validation is still outstanding.
+
+    Within the WorldFoundry model catalog this entry is tracked as `spirit-v1.5` in the `vla_va_wam` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/Spirit-AI-Team/spirit-v1.5; Hugging Face `Spirit-AI-robotics/Spirit-v1.5`.
+  overview_zh: |
+    Spirit-VLA v1.5（Spirit-AI-Team/spirit-v1.5；权重 `Spirit-AI-robotics/Spirit-v1.5`）是 Spirit AI 发布的视觉-语言-动作策略。WorldFoundry 在树内包含原生推理架构与预处理；运行时加载官方权重及其 Qwen3-VL 骨干，并禁用远程 Python。导入与权重门控已验证，但数值一致性需要在本地暂存 21.6 GB 权重，权重支撑的验证仍未完成。
+
+    在 WorldFoundry 模型目录中，该条目以 `spirit-v1.5` 收录于 `vla_va_wam` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/Spirit-AI-Team/spirit-v1.5；Hugging Face `Spirit-AI-robotics/Spirit-v1.5`。
+  architecture: |
+    Per the integration notes, the model builds on a Qwen3-VL vision-language backbone with a native action-inference head; the checkpoint totals 21.6 GB. Beyond this, the repository does not record architecture details (action-head type, parameter count, training data) for this entry.
+  architecture_zh: |
+    按集成备注，该模型基于 Qwen3-VL 视觉-语言骨干并带原生动作推理头；权重总计 21.6 GB。除此之外，仓库未记录该条目的架构细节（动作头类型、参数量、训练数据等）。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `spirit-v1.5` and runtime profile `runtime-profile:spirit-v1.5`.
+    Catalog integration status: `runtime_ported`.
+    Integration notes recorded in the catalog:
+    - Native inference architecture and preprocessing are included in tree.
+    - Runtime loads the official checkpoint and Qwen3-VL backbone with remote Python disabled.
+
+    Embodiment contract:
+    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
+    - Sensors: RGB camera observations plus a language instruction; the exact camera/state contract is not recorded in this catalog file.
+    - Action space: continuous robot end-effector/joint action chunks; the exact action dimensionality is not recorded in this catalog file.
+    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `spirit-v1.5`，运行时配置为 `runtime-profile:spirit-v1.5`。
+    目录集成状态：运行时已移植（runtime_ported）。
+    目录中记录的集成备注（保留原文）：
+    - Native inference architecture and preprocessing are included in tree.
+    - Runtime loads the official checkpoint and Qwen3-VL backbone with remote Python disabled.
+
+    具身接口（embodiment contract）：
+    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
+    - 传感器：RGB 相机观测加语言指令；具体相机/状态契约本目录文件未记录。
+    - 动作空间：连续的机器人末端/关节动作块；具体动作维度本目录文件未记录。
+    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`checkpoint_required`.
+    Runner parity notes recorded in the catalog:
+    - Import and checkpoint gating are validated; numerical parity requires the 21.6 GB checkpoint.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=`checkpoint_required`。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - Import and checkpoint gating are validated; numerical parity requires the 21.6 GB checkpoint.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks: []

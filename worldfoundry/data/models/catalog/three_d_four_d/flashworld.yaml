@@ -49,3 +49,61 @@ catalog_policy:
   - open_weights_restricted
   - api_or_closed
   - unknown
+docs:
+  overview: |
+    FlashWorld (imlixinyang/FlashWorld) is a fast 3D scene generation model: from a single image (plus camera trajectory conditioning) it produces a renderable 3D scene in seconds rather than minutes, trading per-scene optimization for direct 3D-oriented generation. WorldFoundry exposes the in-tree FlashWorld pipeline, operator, and representation runtime; the recorded runner supports the image-conditioned camera-scene demo with local FlashWorld/Wan assets. Availability is open-source (GitHub Apache-2.0; the Hugging Face model repo carries CC-BY-NC-SA-4.0 metadata) with a Hugging Face Space demo.
+
+    Within the WorldFoundry model catalog this entry is tracked as `flashworld` in the `three_d_four_d` category.
+    Recorded availability: status=open_source, open_source=True, code=public, weights=public_huggingface, license=Apache-2.0 for GitHub repo; CC-BY-NC-SA-4.0 metadata on Hugging Face model repo, api=huggingface_space.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/imlixinyang/FlashWorld.
+  overview_zh: |
+    FlashWorld（imlixinyang/FlashWorld）是快速 3D 场景生成模型：从单张图像（配合相机轨迹条件）在数秒内生成可渲染 3D 场景，用直接的 3D 导向生成替代逐场景优化。WorldFoundry 暴露 in-tree 的 FlashWorld pipeline、operator 与表示运行时；目录记录的 runner 支持使用本地 FlashWorld/Wan 资产运行图像条件相机场景演示。可用性为开源（GitHub Apache-2.0；Hugging Face 模型仓库元数据为 CC-BY-NC-SA-4.0），并提供 Hugging Face Space 演示。
+
+    在 WorldFoundry 模型目录中，该条目以 `flashworld` 收录于 `three_d_four_d` 分类。
+    仓库记录的可用性：状态=open_source，是否开源=True，代码=public，权重=public_huggingface，许可证=Apache-2.0 for GitHub repo; CC-BY-NC-SA-4.0 metadata on Hugging Face model repo，API=huggingface_space。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/imlixinyang/FlashWorld。
+  architecture: |
+    Publicly, FlashWorld builds on a video-diffusion backbone (the WorldFoundry integration stages local FlashWorld/Wan assets) and shifts from 2D-oriented multi-view generation to a 3D-oriented mode that directly produces 3D Gaussian scene representations during generation, using cross-mode distillation to keep visual quality while ensuring 3D consistency. The in-tree runtime remains checkpoint/GPU/dependency gated; no empty runner shim is registered.
+  architecture_zh: |
+    公开资料显示 FlashWorld 基于视频扩散骨干（WorldFoundry 集成使用本地 FlashWorld/Wan 资产），将 2D 导向的多视角生成转变为 3D 导向模式，在生成过程中直接产出 3D 高斯场景表示，并用跨模式蒸馏在保证 3D 一致性的同时保持视觉质量。in-tree 运行时仍受权重/GPU/依赖限制；未注册空的 runner 占位实现。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `flashworld` and runtime profile `runtime-profile:flashworld`.
+    Catalog integration status: `integrated`.
+    Integration notes recorded in the catalog:
+    - WorldFoundry exposes the in-tree FlashWorld pipeline, operator, and representation runtime.
+    - Runtime execution remains checkpoint/GPU/dependency gated; no empty runner shim is registered.
+
+    Embodiment contract:
+    - Simulator: none — this is an offline 3D scene generation model; it produces renderable scene artifacts rather than running inside a simulator.
+    - Sensors: text prompts and/or a single RGB image as conditioning; no additional sensor modalities are recorded in the repository.
+    - Action space: not applicable at generation time; navigation of the generated scene is a rendering-side camera path, not a learned action space.
+    - Dedicated environment: no dedicated environment; it runs through the shared WorldFoundry pipeline runtime described in the integration notes.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `flashworld`，运行时配置为 `runtime-profile:flashworld`。
+    目录集成状态：已集成（integrated）。
+    目录中记录的集成备注（保留原文）：
+    - WorldFoundry exposes the in-tree FlashWorld pipeline, operator, and representation runtime.
+    - Runtime execution remains checkpoint/GPU/dependency gated; no empty runner shim is registered.
+
+    具身接口（embodiment contract）：
+    - 仿真器：无——这是离线 3D 场景生成模型，产出可渲染的场景 artifact，而非在仿真器内运行。
+    - 传感器：以文本提示和/或单张 RGB 图像为条件；仓库未记录其它传感器模态。
+    - 动作空间：生成阶段不适用；对生成场景的浏览属于渲染侧的相机路径，不是学习得到的动作空间。
+    - 是否专用环境：无专用环境；通过集成备注中描述的 WorldFoundry 共享管线运行时执行。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`verified`.
+    Runner parity notes recorded in the catalog:
+    - The in-tree FlashWorld runner supports the image-conditioned camera-scene demo with local FlashWorld/Wan assets.
+    - Per-run visual QA and artifact checks are tracked outside the model catalog.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=已验证（verified）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - The in-tree FlashWorld runner supports the image-conditioned camera-scene demo with local FlashWorld/Wan assets.
+    - Per-run visual QA and artifact checks are tracked outside the model catalog.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - worldscore
+  - camerabench

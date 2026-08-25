@@ -64,3 +64,66 @@ runner_parity:
 catalog_category: world_models
 catalog_scope: world-model/interactive starred models
 schema_version: 2
+docs:
+  overview: |
+    RollingForcing (TencentARC/RollingForcing; Hugging Face `TencentARC/RollingForcing`, academic-only license) is Tencent ARC's streaming long-video generator in the Forcing lineage: it denoises rolling windows of frames jointly with an attention-sink mechanism so multi-minute video can stream in real time with little drift. WorldFoundry contains an inference-only runner that reuses the in-tree forcing pipeline, causal Wan variant, attention sink/KV cache, core scheduler, attention dispatch, distributed helpers, and video I/O; execution never imports an external RollingForcing checkout. A full Workspace inference with the exact released checkpoint completed on A100: 126 latent frames decoded to 501 H.264 frames at 832x480, 16 FPS, 31.31 seconds.
+
+    Within the WorldFoundry model catalog this entry is tracked as `rolling-forcing` in the `world_models` category.
+    Recorded availability: status=source_available, open_source=False, code=public, weights=public_huggingface, license=rollingforcing-academic-only.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/TencentARC/RollingForcing; Hugging Face `TencentARC/RollingForcing`.
+  overview_zh: |
+    RollingForcing（TencentARC/RollingForcing；Hugging Face `TencentARC/RollingForcing`，仅限学术许可）是腾讯 ARC 在 Forcing 谱系的流式长视频生成器：对滚动窗口内的帧联合去噪并配合 attention-sink 机制，使数分钟视频能实时流式生成且漂移很小。WorldFoundry 包含仅推理 runner，复用树内 forcing 管线、因果 Wan 变体、attention sink/KV 缓存、核心调度器、注意力分发、分布式辅助与视频 I/O；执行从不导入外部 RollingForcing checkout。使用确切发布权重的完整 Workspace 推理已在 A100 上完成：126 个隐帧解码为 501 帧 832x480 H.264，16 FPS，31.31 秒。
+
+    在 WorldFoundry 模型目录中，该条目以 `rolling-forcing` 收录于 `world_models` 分类。
+    仓库记录的可用性：状态=source_available，是否开源=False，代码=public，权重=public_huggingface，许可证=rollingforcing-academic-only。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/TencentARC/RollingForcing；Hugging Face `TencentARC/RollingForcing`。
+  architecture: |
+    The published method modifies causal autoregressive video diffusion (Wan-based) so that frames inside a rolling window are denoised jointly rather than strictly sequentially, and keeps attention-sink tokens from the sequence start as a global anchor against drift. The in-tree integration follows the official five-step, three-latent-frame block configuration; the released route is text-to-video only, and unverified I2V behavior is not advertised. Upstream terms allow academic use only and prohibit all commercial and production use.
+  architecture_zh: |
+    公开方法改造基于 Wan 的因果自回归视频扩散：滚动窗口内的帧联合去噪而非严格顺序去噪，并保留序列开头的 attention-sink token 作为对抗漂移的全局锚点。树内集成遵循官方五步、三隐帧的块配置；发布路线仅为文本到视频，未验证的 I2V 行为不做宣传。上游条款仅允许学术使用，禁止一切商业与生产用途。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `rolling-forcing` and runtime profile `runtime-profile:rolling-forcing`.
+    Catalog integration status: `integrated`.
+    Integration notes recorded in the catalog:
+    - WorldFoundry contains an inference-only RollingForcing runner and reuses the existing in-tree forcing pipeline, causal Wan variant, attention sink/KV cache, core scheduler, attention dispatch, distributed helpers, and video I/O.
+    - Runtime execution never imports or loads source code from an external RollingForcing repository.
+    - The released route is registered as text-to-video only; unverified I2V behavior is not advertised.
+    - Upstream terms allow academic use only and prohibit all commercial and production use.
+
+    Embodiment contract:
+    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
+    - Sensors: conditioning inputs per the recorded modalities (typically an initial image and/or a text prompt); exact tensor contracts are not recorded in this catalog file.
+    - Action space: no explicit action interface is recorded for this entry; controllability is limited to the conditioning inputs.
+    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `rolling-forcing`，运行时配置为 `runtime-profile:rolling-forcing`。
+    目录集成状态：已集成（integrated）。
+    目录中记录的集成备注（保留原文）：
+    - WorldFoundry contains an inference-only RollingForcing runner and reuses the existing in-tree forcing pipeline, causal Wan variant, attention sink/KV cache, core scheduler, attention dispatch, distributed helpers, and video I/O.
+    - Runtime execution never imports or loads source code from an external RollingForcing repository.
+    - The released route is registered as text-to-video only; unverified I2V behavior is not advertised.
+    - Upstream terms allow academic use only and prohibit all commercial and production use.
+
+    具身接口（embodiment contract）：
+    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
+    - 传感器：按记录的模态提供条件输入（通常为初始图像和/或文本提示）；具体张量契约本目录文件未记录。
+    - 动作空间：该条目未记录显式动作接口；可控性仅限于条件输入。
+    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`full_demo_verified`.
+    Runner parity notes recorded in the catalog:
+    - Static in-tree integration follows the official five-step, three-latent-frame block configuration.
+    - A full Workspace inference using the exact released checkpoint completed on A100: 126 latent frames decoded to 501 H.264 frames at 832x480, 16 FPS, and 31.31 seconds.
+    - This records end-to-end functional demo validation; numerical pixel parity with a separately published upstream reference artifact is not claimed.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=`full_demo_verified`。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - Static in-tree integration follows the official five-step, three-latent-frame block configuration.
+    - A full Workspace inference using the exact released checkpoint completed on A100: 126 latent frames decoded to 501 H.264 frames at 832x480, 16 FPS, and 31.31 seconds.
+    - This records end-to-end functional demo validation; numerical pixel parity with a separately published upstream reference artifact is not claimed.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - vbench

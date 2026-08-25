@@ -41,3 +41,55 @@ catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint metadata,
   and runtime-profile planning records. Runner or pipeline targets are present only after a complete in-tree
   WorldFoundry model runtime is registered and validated.
+docs:
+  overview: |
+    Wall-OSS (X-Square-Robot/wall-x) is X Square Robot's open-source embodied foundation model release, tracked here with two Hugging Face checkpoints whose names indicate the two standard VLA action-decoding routes: `x-square-robot/wall-oss-flow` (flow-matching continuous action head) and `x-square-robot/wall-oss-fast` (FAST-style autoregressive action tokenization). WorldFoundry routes Wall-OSS through an in-tree action runtime adapter against the concrete Wall-X policy; the runtime route resolves and imports, checkpoint absence is reported by runtime missing_assets, and checkpoint-backed parity remains asset-gated.
+
+    Within the WorldFoundry model catalog this entry is tracked as `wall-oss` in the `vla_va_wam` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/X-Square-Robot/wall-x; Hugging Face `x-square-robot/wall-oss-flow`, `x-square-robot/wall-oss-fast`.
+  overview_zh: |
+    Wall-OSS（X-Square-Robot/wall-x）是自变量机器人（X Square Robot）开源的具身基础模型，本条目跟踪两个 Hugging Face 权重，其命名对应两条标准 VLA 动作解码路线：`x-square-robot/wall-oss-flow`（flow-matching 连续动作头）与 `x-square-robot/wall-oss-fast`（FAST 式自回归动作分词）。WorldFoundry 通过树内动作运行时适配器接入具体的 Wall-X 策略；运行时路由可解析并导入，权重缺失由运行时 missing_assets 报告，权重支撑的一致性验证仍受资产门控。
+
+    在 WorldFoundry 模型目录中，该条目以 `wall-oss` 收录于 `vla_va_wam` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/X-Square-Robot/wall-x；Hugging Face `x-square-robot/wall-oss-flow`、`x-square-robot/wall-oss-fast`。
+  architecture: |
+    The public Wall-OSS release describes a vision-language model extended for embodied action generation with both flow-matching and FAST-token action variants (matching the two released checkpoints). The repository does not record further architecture details (backbone identity, parameter count, training data) for this entry.
+  architecture_zh: |
+    公开的 Wall-OSS 发布将其描述为面向具身动作生成扩展的视觉-语言模型，提供 flow-matching 与 FAST token 两种动作变体（与两个发布权重对应）。仓库未记录该条目更多架构细节（骨干、参数量、训练数据等）。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `wall-oss` and runtime profile `runtime-profile:wall-oss`.
+    Catalog integration status: `runtime_ported`.
+    Integration notes recorded in the catalog:
+    - WorldFoundry routes Wall-OSS through an in-tree action runtime adapter against the concrete Wall-X policy.
+    - Checkpoint absence is reported by runtime missing_assets and is not a catalog blocker.
+
+    Embodiment contract:
+    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
+    - Sensors: RGB camera observations plus a language instruction; the exact camera/state contract is not recorded in this catalog file.
+    - Action space: continuous robot end-effector/joint action chunks; the exact action dimensionality is not recorded in this catalog file.
+    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `wall-oss`，运行时配置为 `runtime-profile:wall-oss`。
+    目录集成状态：运行时已移植（runtime_ported）。
+    目录中记录的集成备注（保留原文）：
+    - WorldFoundry routes Wall-OSS through an in-tree action runtime adapter against the concrete Wall-X policy.
+    - Checkpoint absence is reported by runtime missing_assets and is not a catalog blocker.
+
+    具身接口（embodiment contract）：
+    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
+    - 传感器：RGB 相机观测加语言指令；具体相机/状态契约本目录文件未记录。
+    - 动作空间：连续的机器人末端/关节动作块；具体动作维度本目录文件未记录。
+    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`runtime_ported`.
+    Runner parity notes recorded in the catalog:
+    - Runtime route resolves and imports; checkpoint-backed parity remains asset-gated.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=运行时已移植（runtime_ported）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - Runtime route resolves and imports; checkpoint-backed parity remains asset-gated.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks: []

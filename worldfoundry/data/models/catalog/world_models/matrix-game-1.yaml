@@ -53,3 +53,61 @@ evidence:
 catalog_category: world_models
 catalog_scope: world-model/interactive starred models
 starred: true
+docs:
+  overview: |
+    Matrix-Game 1.0 (SkyworkAI/Matrix-Game; Hugging Face `Skywork/Matrix-Game`, MIT) is Skywork's first-generation interactive game world foundation model: a 17B-class image-to-world model generating Minecraft-style gameplay controlled by keyboard and mouse actions, released alongside the GameWorldScore evaluation suite. In WorldFoundry, Studio/API dispatch is wired through the in-tree official runner with the unified environment profile. Official-demo visual parity remains pending: the generic Studio fixture produced noisy visuals, so an in-domain GameWorldScore initial image is staged for the next validation pass, and the 65-frame official default hit single-A100 80GB OOM, needing an accepted memory strategy before promotion.
+
+    Within the WorldFoundry model catalog this entry is tracked as `matrix-game-1` in the `world_models` category.
+    Recorded availability: license=mit.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/SkyworkAI/Matrix-Game; Hugging Face `Skywork/Matrix-Game`.
+    Confirmed checkpoint repo: `Skywork/Matrix-Game` (not gated).
+  overview_zh: |
+    Matrix-Game 1.0（SkyworkAI/Matrix-Game；Hugging Face `Skywork/Matrix-Game`，MIT）是昆仑万维 Skywork 第一代交互式游戏世界基础模型：17B 级图像到世界模型，生成由键鼠动作控制的 Minecraft 风格游戏画面，随 GameWorldScore 评测套件发布。在 WorldFoundry 中，Studio/API 分发通过树内官方 runner 与统一环境配置接通。官方演示视觉一致性待完成：通用 Studio fixture 产出噪声视觉，因此已暂存域内 GameWorldScore 初始图像用于下一轮验证；65 帧官方默认在单卡 A100 80GB 上 OOM，晋级前需确定可接受的内存策略。
+
+    在 WorldFoundry 模型目录中，该条目以 `matrix-game-1` 收录于 `world_models` 分类。
+    仓库记录的可用性：许可证=mit。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/SkyworkAI/Matrix-Game；Hugging Face `Skywork/Matrix-Game`。
+    已确认的权重仓库：`Skywork/Matrix-Game`（无访问门槛）。
+  architecture: |
+    The published design is a two-stage image-to-world generation model: large-scale unlabeled pretraining on gameplay video followed by action-labeled training, producing a diffusion world model conditioned on an initial image plus keyboard/mouse action streams. Runtime profile and conda env are maintained under runtime_profiles/world. Further architecture details are not recorded in the repository.
+  architecture_zh: |
+    公开设计为两阶段图像到世界生成模型：先在无标注游戏视频上大规模预训练，再做动作标注训练，得到以初始图像加键鼠动作流为条件的扩散世界模型。运行时配置与 conda 环境维护在 runtime_profiles/world 下。更多架构细节仓库未记录。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `matrix-game-1` and runtime profile `runtime-profile:matrix-game-1`.
+    Catalog integration status: `integrated`.
+    Integration notes recorded in the catalog:
+    - Runtime profile and conda env are maintained under runtime_profiles/world.
+    - Studio/API dispatch is wired through the in-tree official runner with the unified environment profile.
+    - Official-demo visual parity remains pending. The generic Studio fixture generated noisy visuals; WorldFoundry now stages an in-domain GameWorldScore initial image under worldfoundry/data/test_cases/matrix-game-1/official_initial_image for the next Studio validation pass.
+    - The 65-frame official default hit single-A100 80GB OOM in the unified env and needs an accepted memory strategy before promotion.
+
+    Embodiment contract:
+    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
+    - Sensors: an initial image or context frames plus streaming interaction inputs.
+    - Action space: keyboard/mouse-style or discrete navigation actions (plus optional camera controls) drive frame-by-frame world evolution.
+    - Dedicated environment: dedicated to Minecraft-style game worlds per the released training domain; the model replaces the game engine during generation.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `matrix-game-1`，运行时配置为 `runtime-profile:matrix-game-1`。
+    目录集成状态：已集成（integrated）。
+    目录中记录的集成备注（保留原文）：
+    - Runtime profile and conda env are maintained under runtime_profiles/world.
+    - Studio/API dispatch is wired through the in-tree official runner with the unified environment profile.
+    - Official-demo visual parity remains pending. The generic Studio fixture generated noisy visuals; WorldFoundry now stages an in-domain GameWorldScore initial image under worldfoundry/data/test_cases/matrix-game-1/official_initial_image for the next Studio validation pass.
+    - The 65-frame official default hit single-A100 80GB OOM in the unified env and needs an accepted memory strategy before promotion.
+
+    具身接口（embodiment contract）：
+    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
+    - 传感器：初始图像或上下文帧，加流式交互输入。
+    - 动作空间：键鼠式或离散导航动作（可选相机控制）驱动逐帧世界演化。
+    - 是否专用环境：按发布训练域面向 Minecraft 风格游戏世界；生成期间模型替代游戏引擎。
+  limitations: |
+    No family-level demo/runner parity status is recorded in this catalog file.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件未记录家族级 demo/runner 一致性状态。
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - iworld-bench
+  - world-in-world

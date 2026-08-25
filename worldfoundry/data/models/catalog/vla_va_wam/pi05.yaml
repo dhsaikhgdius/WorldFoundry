@@ -28,3 +28,52 @@ catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint
   metadata, and runtime-profile planning records. Runner or pipeline targets are present
   only after a complete in-tree WorldFoundry model runtime is registered and validated.
+docs:
+  overview: |
+    pi0.5 is Physical Intelligence's successor to pi0 ('pi0.5: a VLA with Open-World Generalization'), also released through the openpi repository, targeting policies that generalize to entirely unseen homes. It extends pi0 with co-training on heterogeneous web and robot data and a hierarchical inference scheme in which the model first infers a semantic subtask and then produces low-level action chunks. WorldFoundry tracks it as a concrete algorithm entry that reuses the in-tree OpenPI runtime with pi05-specific config and checkpoint selection; the sibling openpi entry records that checkpoint-backed `pi05_libero` policy inference passed in tree. Do not route this entry through the LeRobot policy-zoo.
+
+    Within the WorldFoundry model catalog this entry is tracked as `pi05` in the `vla_va_wam` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/Physical-Intelligence/openpi.
+  overview_zh: |
+    pi0.5 是 Physical Intelligence 对 pi0 的后继版本（《pi0.5: a VLA with Open-World Generalization》），同样通过 openpi 仓库发布，目标是能泛化到完全未见过的家庭场景的策略。它在 pi0 基础上加入异构网络与机器人数据的联合训练，并采用分层推理：模型先推断语义子任务，再生成底层动作块。WorldFoundry 将其作为具体算法条目跟踪，复用树内 OpenPI 运行时并使用 pi05 专属配置与权重选择；同级 openpi 条目记录了权重支撑的 `pi05_libero` 策略推理已在树内通过。请勿将该条目路由到 LeRobot policy-zoo。
+
+    在 WorldFoundry 模型目录中，该条目以 `pi05` 收录于 `vla_va_wam` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/Physical-Intelligence/openpi。
+  architecture: |
+    The published design keeps the pi0 backbone-plus-action-expert layout (PaliGemma-derived VLM with a flow-matching action expert) and adds hierarchical inference: a high-level pass predicts a subtask token sequence, and the low-level pass decodes continuous action chunks conditioned on it; discrete autoregressive action prediction is also used during co-training. The in-tree `pi05_libero` route loads checkpoints only from local paths and rejects remote checkpoint URIs.
+  architecture_zh: |
+    公开设计保留 pi0 的骨干加动作专家布局（PaliGemma 派生 VLM 加 flow-matching 动作专家），并增加分层推理：高层先预测子任务 token 序列，低层以其为条件解码连续动作块；联合训练阶段还使用离散自回归动作预测。树内 `pi05_libero` 路线仅从本地路径加载权重，拒绝远程权重 URI。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `pi05` and runtime profile `runtime-profile:pi05`.
+    Catalog integration status: `runtime_ported`.
+    Integration notes recorded in the catalog:
+    - Concrete pi0.5 algorithm entry backed by Physical Intelligence openpi. Do not route this through LeRobot policy-zoo.
+    - WorldFoundry reuses the in-tree OpenPI runtime with pi05-specific config and checkpoint selection.
+
+    Embodiment contract:
+    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
+    - Sensors: multiple RGB camera views with proprioceptive state and a language prompt; the recorded in-tree LIBERO route follows the openpi observation/state, observation/image, observation/wrist_image, prompt key contract.
+    - Action space: continuous action chunks from the flow-matching expert, with a high-level subtask inference stage per the published hierarchical scheme.
+    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `pi05`，运行时配置为 `runtime-profile:pi05`。
+    目录集成状态：运行时已移植（runtime_ported）。
+    目录中记录的集成备注（保留原文）：
+    - Concrete pi0.5 algorithm entry backed by Physical Intelligence openpi. Do not route this through LeRobot policy-zoo.
+    - WorldFoundry reuses the in-tree OpenPI runtime with pi05-specific config and checkpoint selection.
+
+    具身接口（embodiment contract）：
+    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
+    - 传感器：多路 RGB 相机视角加本体状态与语言提示；目录记录的树内 LIBERO 路线遵循 openpi 的 observation/state、observation/image、observation/wrist_image、prompt 键契约。
+    - 动作空间：flow-matching 专家输出的连续动作块，并按公开的分层方案带有高层子任务推断阶段。
+    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
+  limitations: |
+    No family-level demo/runner parity status is recorded in this catalog file.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件未记录家族级 demo/runner 一致性状态。
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - libero

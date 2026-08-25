@@ -30,3 +30,55 @@ catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint metadata,
   and runtime-profile planning records. Runner or pipeline targets are present only after a complete in-tree
   WorldFoundry model runtime is registered and validated.
+docs:
+  overview: |
+    PI0 (WorldFoundry native) is the repository's own PI0 route: it is not a separate upstream model but the WorldFoundry-native binding that routes PI0 action prediction and policy rollout through the same flattened in-tree OpenPI runtime used by the concrete pi0 entry. It exists so that WorldFoundry pipelines can request a PI0 policy by a stable native id independent of upstream packaging. Full checkpoint-backed PI0 inference remains asset gated on local checkpoint, tokenizer, and normalization-statistics availability.
+
+    Within the WorldFoundry model catalog this entry is tracked as `pi0-worldfoundry` in the `vla_va_wam` category.
+    The repository does not record an official source link for this entry.
+  overview_zh: |
+    PI0（WorldFoundry native）是本仓库自身的 PI0 路线：它不是独立的上游模型，而是 WorldFoundry 原生绑定，把 PI0 动作预测与策略 rollout 路由到与具体 pi0 条目相同的扁平化树内 OpenPI 运行时。设立该条目是为了让 WorldFoundry 管线可以用稳定的原生 id 请求 PI0 策略，而不依赖上游打包方式。完整的权重支撑 PI0 推理仍受本地权重、分词器与归一化统计可用性的资产门控。
+
+    在 WorldFoundry 模型目录中，该条目以 `pi0-worldfoundry` 收录于 `vla_va_wam` 分类。
+    仓库未记录该条目的官方来源链接。
+  architecture: |
+    Architecturally identical to pi0 (PaliGemma-derived VLM backbone plus flow-matching action expert); this entry only adds the WorldFoundry-native runtime routing. No independent architecture details are recorded for this entry beyond the shared OpenPI runtime.
+  architecture_zh: |
+    架构与 pi0 相同（PaliGemma 派生 VLM 骨干加 flow-matching 动作专家）；该条目只增加 WorldFoundry 原生运行时路由。除共享的 OpenPI 运行时外，仓库未记录该条目的独立架构细节。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `pi0-worldfoundry` and runtime profile `runtime-profile:pi0-worldfoundry`.
+    Catalog integration status: `runtime_ported`.
+    Integration notes recorded in the catalog:
+    - WorldFoundry-native PI0 is routed through the same in-tree OpenPI runtime used by the concrete pi0 entry.
+    - Full checkpoint-backed PI0 inference remains asset gated on local checkpoint/tokenizer/normalization stats availability.
+
+    Embodiment contract:
+    - Simulator: none bundled — WorldFoundry integrates this entry as an action-inference runtime that emits action traces; closed-loop simulator rollouts are executed by separate benchmark runners, not by this catalog entry.
+    - Sensors: RGB camera observations plus a language instruction; the exact camera/state contract is not recorded in this catalog file.
+    - Action space: continuous robot end-effector/joint action chunks; the exact action dimensionality is not recorded in this catalog file.
+    - Dedicated environment: no dedicated simulation environment ships with this entry; upstream simulators, datasets, and training stacks are explicitly excluded from the in-tree runtime.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `pi0-worldfoundry`，运行时配置为 `runtime-profile:pi0-worldfoundry`。
+    目录集成状态：运行时已移植（runtime_ported）。
+    目录中记录的集成备注（保留原文）：
+    - WorldFoundry-native PI0 is routed through the same in-tree OpenPI runtime used by the concrete pi0 entry.
+    - Full checkpoint-backed PI0 inference remains asset gated on local checkpoint/tokenizer/normalization stats availability.
+
+    具身接口（embodiment contract）：
+    - 仿真器：不内置仿真器——WorldFoundry 将该条目集成为动作推理运行时，输出 action trace；闭环仿真 rollout 由独立的 benchmark runner 执行，不属于本目录条目。
+    - 传感器：RGB 相机观测加语言指令；具体相机/状态契约本目录文件未记录。
+    - 动作空间：连续的机器人末端/关节动作块；具体动作维度本目录文件未记录。
+    - 是否专用环境：该条目不附带专用仿真环境；上游仿真器、数据集与训练栈被明确排除在 in-tree 运行时之外。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`pending`.
+    Runner parity notes recorded in the catalog:
+    - Runner resolves to the in-tree OpenPI component pipeline; checkpoint-backed PI0 parity remains pending.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=待验证（pending）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - Runner resolves to the in-tree OpenPI component pipeline; checkpoint-backed PI0 parity remains pending.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks: []

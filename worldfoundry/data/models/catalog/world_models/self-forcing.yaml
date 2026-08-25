@@ -57,3 +57,58 @@ catalog_policy:
   checkpoint_rule: Only list checkpoints that were confirmed on official source pages or staged locally. Do not download weights.
   integration_rule: Closed, API-only, or unknown releases stay blocked or planned until an official integration surface is available.
   open_source_rule: Only mark open_source when an official GitHub repository or official model page was confirmed.
+docs:
+  overview: |
+    Self-Forcing (guandeh17/Self-Forcing; Hugging Face `gdhe17/Self-Forcing`) is the well-known autoregressive video diffusion recipe that bridges the train-test gap: during training the model conditions on its own previously generated frames (simulating inference with KV caching) instead of ground-truth frames, enabling real-time streaming text-to-video on a Wan backbone. WorldFoundry vendors the official infer-only runtime under worldfoundry/synthesis/visual_generation/forcing/self_forcing_runtime; the runner owns prompt/i2v data materialization, Wan weight symlinks, command construction, output loading, and catalog exposure in-tree.
+
+    Within the WorldFoundry model catalog this entry is tracked as `self-forcing` in the `world_models` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/guandeh17/Self-Forcing; Hugging Face `gdhe17/Self-Forcing`.
+  overview_zh: |
+    Self-Forcing（guandeh17/Self-Forcing；Hugging Face `gdhe17/Self-Forcing`）是弥合训练-推理分布差距的知名自回归视频扩散方案：训练时模型以自己已生成的帧（用 KV 缓存模拟推理）而非真值帧为条件，使 Wan 骨干能实时流式文本到视频。WorldFoundry 在 worldfoundry/synthesis/visual_generation/forcing/self_forcing_runtime 内嵌官方仅推理运行时；runner 负责 prompt/i2v 数据物化、Wan 权重软链、命令构建、输出加载与树内目录暴露。
+
+    在 WorldFoundry 模型目录中，该条目以 `self-forcing` 收录于 `world_models` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/guandeh17/Self-Forcing；Hugging Face `gdhe17/Self-Forcing`。
+  architecture: |
+    The published method distills a bidirectional Wan video diffusion model into a causal few-step autoregressive generator trained with holistic video-level objectives while rolling out with KV caching, so inference-time error accumulation is directly optimized against. Recorded modalities are text-to-video, image-to-video, and real-time-video-generation. The default checkpoint path follows the official Hugging Face layout under ${WORLDFOUNDRY_CKPT_DIR}/Self-Forcing.
+  architecture_zh: |
+    公开方法把双向 Wan 视频扩散模型蒸馏为因果少步自回归生成器，训练时用整段视频级目标并以 KV 缓存滚动生成，从而直接优化推理时的误差累积。记录模态为 text-to-video、image-to-video 与 real-time-video-generation。默认权重路径遵循 ${WORLDFOUNDRY_CKPT_DIR}/Self-Forcing 的官方 Hugging Face 布局。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `self-forcing` and runtime profile `runtime-profile:self-forcing`.
+    Catalog integration status: `integrated`.
+    Integration notes recorded in the catalog:
+    - WorldFoundry vendors the official infer-only Self-Forcing runtime under worldfoundry/synthesis/visual_generation/forcing/self_forcing_runtime; the runner owns prompt/i2v data materialization, Wan weight symlinks, command construction, output loading, and pipeline/catalog exposure in-tree.
+    - The default checkpoint path follows the official Hugging Face layout under ${WORLDFOUNDRY_CKPT_DIR}/Self-Forcing. Override checkpoint_path if the local checkpoint is staged elsewhere.
+
+    Embodiment contract:
+    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
+    - Sensors: conditioning inputs per the recorded modalities (typically an initial image and/or a text prompt); exact tensor contracts are not recorded in this catalog file.
+    - Action space: no explicit action interface is recorded for this entry; controllability is limited to the conditioning inputs.
+    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `self-forcing`，运行时配置为 `runtime-profile:self-forcing`。
+    目录集成状态：已集成（integrated）。
+    目录中记录的集成备注（保留原文）：
+    - WorldFoundry vendors the official infer-only Self-Forcing runtime under worldfoundry/synthesis/visual_generation/forcing/self_forcing_runtime; the runner owns prompt/i2v data materialization, Wan weight symlinks, command construction, output loading, and pipeline/catalog exposure in-tree.
+    - The default checkpoint path follows the official Hugging Face layout under ${WORLDFOUNDRY_CKPT_DIR}/Self-Forcing. Override checkpoint_path if the local checkpoint is staged elsewhere.
+
+    具身接口（embodiment contract）：
+    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
+    - 传感器：按记录的模态提供条件输入（通常为初始图像和/或文本提示）；具体张量契约本目录文件未记录。
+    - 动作空间：该条目未记录显式动作接口；可控性仅限于条件输入。
+    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`pending`.
+    Runner parity notes recorded in the catalog:
+    - The adapter executes the vendored official inference.py path. Full parity requires the Self-Forcing checkpoint and local Wan2.1 weights under a wan_models-compatible layout.
+    - Per-run visual QA and artifact checks are tracked outside the model catalog.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=待验证（pending）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - The adapter executes the vendored official inference.py path. Full parity requires the Self-Forcing checkpoint and local Wan2.1 weights under a wan_models-compatible layout.
+    - Per-run visual QA and artifact checks are tracked outside the model catalog.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - vbench

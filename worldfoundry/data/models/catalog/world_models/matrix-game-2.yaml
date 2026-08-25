@@ -148,3 +148,70 @@ catalog_policy:
   open_source_rule: Only mark open_source when an official GitHub repository or official
     Hugging Face model page was confirmed. Do not infer checkpoint availability from
     papers, demos, or third-party mirrors.
+docs:
+  overview: |
+    Matrix-Game 2.0 (SkyworkAI/Matrix-Game; Hugging Face `Skywork/Matrix-Game-2.0`, MIT) is Skywork's streaming interactive world model: an auto-regressive diffusion model generating minute-scale interactive video at 25 fps across universal, GTA-driving, and Temple-Run-style domains with keyboard/mouse action injection. WorldFoundry uses an in-tree runtime with the official inference_universal defaults and in-tree Bench_actions_* condition generator; both the official demo (via the model-zoo helper) and the runner are verified, with the Studio/API route using num_output_frames=150, seed=42, size 352x640, and official bench action trajectories. A 24 GB min-VRAM action-validation variant is recorded.
+
+    Within the WorldFoundry model catalog this entry is tracked as `matrix-game-2` in the `world_models` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/SkyworkAI/Matrix-Game; Hugging Face `Skywork/Matrix-Game-2.0`.
+    Checkpoint status recorded in the catalog: `confirmed_public_hf`.
+    Confirmed checkpoint repo: `Skywork/Matrix-Game-2.0` (license mit, not gated).
+  overview_zh: |
+    Matrix-Game 2.0（SkyworkAI/Matrix-Game；Hugging Face `Skywork/Matrix-Game-2.0`，MIT）是 Skywork 的流式交互世界模型：自回归扩散模型，以 25 fps 生成分钟级交互视频，覆盖 universal、GTA 驾驶与 Temple-Run 风格域，支持键鼠动作注入。WorldFoundry 使用树内运行时，采用官方 inference_universal 默认与树内 Bench_actions_* 条件生成器；官方演示（经 model-zoo 辅助脚本）与 runner 均已验证，Studio/API 路线使用 num_output_frames=150、seed=42、尺寸 352x640 与官方 bench 动作轨迹。另记录一个最低 24 GB 显存的动作验证变体。
+
+    在 WorldFoundry 模型目录中，该条目以 `matrix-game-2` 收录于 `world_models` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/SkyworkAI/Matrix-Game；Hugging Face `Skywork/Matrix-Game-2.0`。
+    目录记录的权重状态：已确认公开 Hugging Face 仓库（confirmed_public_hf）。
+    已确认的权重仓库：`Skywork/Matrix-Game-2.0`（许可证 mit，无访问门槛）。
+  architecture: |
+    The published architecture is a few-step auto-regressive diffusion world model (Self-Forcing-style distillation over a Wan-lineage backbone) with frame-level keyboard/mouse action conditioning, trained on about 1200 hours of game video; streaming KV-cache decoding sustains 25 fps. The recorded generation contract for the validation variant is mode=universal, official_bench_actions=true, num_output_frames=15, fps=12, seed=42, and its WorldScore/VBench status is runner_contract_ready_gpu_parity_pending (VBench can probe the 15-frame mp4; WorldScore requires its official static/dynamic tree).
+  architecture_zh: |
+    公开架构为少步自回归扩散世界模型（对 Wan 谱系骨干做 Self-Forcing 式蒸馏），带帧级键鼠动作条件，训练于约 1200 小时游戏视频；流式 KV 缓存解码维持 25 fps。验证变体的记录生成契约为 mode=universal、official_bench_actions=true、num_output_frames=15、fps=12、seed=42，其 WorldScore/VBench 状态为 runner_contract_ready_gpu_parity_pending（VBench 可探测 15 帧 mp4；WorldScore 还需其官方 static/dynamic 目录树）。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `matrix-game-2` and runtime profile `runtime-profile:matrix-game-2-universal-ref-image-seed42-15f`.
+    Catalog integration status: `integrated`.
+    Integration notes recorded in the catalog:
+    - Matrix-Game 2 already uses an in-tree runtime and no external repo_root dependency was found.
+    - The WorldFoundry runner uses the official inference_universal defaults and in-tree Bench_actions_* condition generator.
+    Recorded official demo command: `python scripts/model_zoo/run_matrix_game2_official_demo.py`.
+    Recorded variant `matrix-game-2-universal-action-validation`, task `action-conditioned-video`, runner parity `verified`, demo parity `verified`, min VRAM 24 GB.
+
+    Embodiment contract:
+    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
+    - Sensors: an initial image or context frames plus streaming interaction inputs.
+    - Action space: keyboard/mouse-style or discrete navigation actions (plus optional camera controls) drive frame-by-frame world evolution.
+    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `matrix-game-2`，运行时配置为 `runtime-profile:matrix-game-2-universal-ref-image-seed42-15f`。
+    目录集成状态：已集成（integrated）。
+    目录中记录的集成备注（保留原文）：
+    - Matrix-Game 2 already uses an in-tree runtime and no external repo_root dependency was found.
+    - The WorldFoundry runner uses the official inference_universal defaults and in-tree Bench_actions_* condition generator.
+    目录记录的官方演示命令：`python scripts/model_zoo/run_matrix_game2_official_demo.py`。
+    目录记录：变体 `matrix-game-2-universal-action-validation`，任务 `action-conditioned-video`，runner 一致性 已验证（verified），演示一致性 已验证（verified），最低显存 24 GB。
+
+    具身接口（embodiment contract）：
+    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
+    - 传感器：初始图像或上下文帧，加流式交互输入。
+    - 动作空间：键鼠式或离散导航动作（可选相机控制）驱动逐帧世界演化。
+    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
+  limitations: |
+    Parity fields recorded in this catalog file: demo_parity=`verified`, runner_parity=`verified`.
+    Runner parity notes recorded in the catalog:
+    - The current MatrixGame2Pipeline supports the official default settings: num_frames=150, fps=12, seed=42, size=[352,640], official_bench_actions=true, and the Matrix-Game-2.0 checkpoint. Per-run artifact checks are tracked outside the catalog.
+    Demo parity notes recorded in the catalog:
+    - The official universal-mode command is wired through the formal model-zoo helper. The Studio/API route uses the full official default, num_output_frames=150, seed=42, and official Bench_actions_* trajectories.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：demo_parity=已验证（verified），runner_parity=已验证（verified）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - The current MatrixGame2Pipeline supports the official default settings: num_frames=150, fps=12, seed=42, size=[352,640], official_bench_actions=true, and the Matrix-Game-2.0 checkpoint. Per-run artifact checks are tracked outside the catalog.
+    目录中记录的演示一致性备注（保留原文）：
+    - The official universal-mode command is wired through the formal model-zoo helper. The Studio/API route uses the full official default, num_output_frames=150, seed=42, and official Bench_actions_* trajectories.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - worldscore
+  - vbench
+  - iworld-bench
