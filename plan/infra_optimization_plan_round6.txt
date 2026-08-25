@@ -1,0 +1,225 @@
+WorldFoundry 基础设施优化计划（第 6 轮）
+========================================
+日期：2026-08-25
+性质：建议修改（本文件只记录计划，不直接改代码）
+承接：plan/infra_optimization_plan.txt、round2~round5
+方法：主会话编排 + 4 个云端子代理（claude-fable-5-thinking-xhigh）
+  - Studio workspace（FastAPI/Gradio、job、conda_dispatch）— 云端进行中
+  - training distributed / engine sessions — 云端进行中
+  - embodied simulators / docker_runner — 云端进行中
+  - CLI / operators / device_pool / 冷路径 — 云端已完成
+  + 主会话对 Studio/Training/Embodied 初稿（待云端回报 enrich）
+
+禁止重复第 1–5 轮已写条目。交叉最多一行。
+
+
+0. 现状一句话
+--------------
+五个 console 入口均可解析；operators 注册表反向漂移、Studio auto-GPU 持锁等 acquire、
+catalog YAML 纯 Python 解析拖慢 TUI/zoo 冷路径、CLI 顶层绑定 evaluation.utils 重依赖，
+是本轮新暴露的四条主线。Studio execution 仍大量 atomic=False；embodied docker 路径
+与 pip 安装场景的 repo_root 推断同样脆弱。
+
+
+1. 不建议改的地方
+------------------
+- operators 惰性 __getattr__ 结构不要改；CL-01 只补映射 + 反向测试，不要目录扫描自动注册。
+- _build_parser 不必惰性重写（注册 11 子模块仅 ~33ms）。
+- TUI 子进程执行模型不要改 in-process（CUDA 释放硬边界）。
+- CudaDeviceLeasePool Condition + 轮询取消协议不要改成纯阻塞（CL-02 修调用方持锁）。
+- main() 的 _extract_logging_flags pre-scan 保留。
+- generate-python-api AST 静态解析、docs 静态 export：见 round5 DE。
+- runners/*/runtime/ vendored、framework↔orchestration 分层：见 round5 OR 边界。
+- 第 1–5 轮边界继续有效。
+
+
+2. 优先级
+----------
+P0
+  1) [CL-01] DualCamCtrlOperator 漏注册 → 包级 AttributeError
+  2) [CL-02] conda_dispatch 持生命周期锁内 acquire → 派发/reaper 饿死
+  3) [ST-01] Studio execution 作业 manifest atomic=False（与 round5 IO-01 同族）
+
+P1
+  4) [CL-03] load_manifest 换 CSafeLoader（catalog 解析 ~9x）
+  5) [CL-04] CLI 路径常量脱离 evaluation.utils 重依赖
+  6) [EM-01] embodied docker_runner repo_root=parents[4] pip 失效
+  7) [TR-02] CudaDeviceLeasePool vs Ray DeviceLease 双抽象文档化/收敛边界
+
+P2
+  8) [CL-05/06] TUI 旗标三份拷贝；tui_discovery 变体表与 catalog 漂移
+  9) [CL-07] _automatic_gpu_pool 每次 nvidia-smi + 池重建双租
+  10) [ST-02] runtime_job 原子写 vs execution 非原子 — 统一 helper
+  11) [TR-01] recipes checkpoint.async 与 save_every 契约缺 CLI 预检
+
+P3
+  12) [CL-08~10] preflight 退出码；隐藏 --tui；__all__ 卫生
+  13) [EM-02] embodied orchestrator progress JSON 非原子
+  14) [ST-03] run_workspace 默认 max-jobs=8 与 AGENTS 示例 2 不一致
+
+
+3. Studio workspace
+-------------------
+（主会话初稿；[Studio 云端子代理](bc-f4904408-a50e-56a5-8461-497bc3a35cbe) 回报后 enrich）
+
+[ST-01] P0 execution 落盘 atomic=False
+  问题：studio/execution.py 多处 ``write_json(..., atomic=False)`` 写 manifest/result_metadata；
+        与 studio/runtime_job.py 内 ``_write_json_atomic`` 并存，行为分裂。
+  文件：studio/execution.py；studio/runtime_job.py
+  改法：execution 改复用 runtime_job 的原子写或 core serialization 默认 atomic=True。
+  验收：kill 写盘中间态后 Studio job 目录 manifest 可解析或不存在。
+
+[ST-02] P2 原子写 helper 双轨
+  改法：抽 studio/io.py 单一 write_job_json；execution 与 runtime_job 共用。
+
+[ST-03] P3 max-jobs 默认值与文档不一致
+  问题：scripts/workspace/run_workspace.sh 默认 WORLDFOUNDRY_WORKSPACE_MAX_JOBS=8；
+        AGENTS.md 示例 --max-jobs 2（CPU 云 VM）。
+  改法：AGENTS 写明「生产 GPU 默认 8、CPU 演示 2」；或脚本 CPU 无 GPU 时自动 cap。
+
+[ST-04] P1 与 [CL-02] 同根：conda_dispatch GPU 租约
+  交叉：round6 CL-02；Studio 侧勿重复展开，落地在同一 PR 批次。
+
+[ST-05] P2 workspace_app 体量与 shutdown 钩子
+  问题：workspace_app.py 单文件极大；add_event_handler shutdown 依赖 Starlette<1.0（round1 gradio pin）。
+  改法：仅文档化「升级 gradio≥6 前须迁移 lifespan」；visualizer 清理逻辑单测。
+
+
+4. Training distributed / engine sessions
+-----------------------------------------
+（主会话初稿；[training 云端子代理](bc-cbed4843-d306-543b-aaf9-8aba30dc7a85) 回报后 enrich）
+
+[TR-01] P2 recipes checkpoint.async 契约
+  问题：training/recipes/spec.py CheckpointSpec 要求 async 时 save_every_steps>0；
+        CLI train 路径缺统一 preflight，错误配置晚到 runtime。
+  文件：training/recipes/spec.py；cli/training_commands/
+  改法：train 子命令启动前 validate recipe checkpoint 段；错误信息指向字段名。
+
+[TR-02] P1 设备租约双抽象
+  问题：runtime/device_pool.CudaDeviceLeasePool（Studio/评测）与
+        training/distributed/ray_runtime.DeviceLease（Ray 训练）API 与生命周期不同；
+        文档无「何时用哪套」。
+  改法：AGENTS + docs 一页对照；禁止 Studio 路径误 import Ray DeviceLease。
+
+[TR-03] P2 engine/sessions/io 已用 integrity 栈（正例）
+  问题：MetricWriter 用 ``open("x")`` 独占创建；crash 时 metric 流不完整但无半截 JSON 对象。
+  改法：评测 orchestration 可对齐此模式（见 round5 RP-08）；训练侧保持。
+
+[TR-04] P3 分布式 launch 与 benchmark 超时语义未对齐
+  交叉：round5 OR-04 编排 timeout；训练 torchrun 见 round6 core/process IO-04（round5 §3）。
+
+
+5. Embodied simulators
+----------------------
+（主会话初稿；[embodied 云端子代理](bc-12039945-b387-55b5-b9d2-c612a48068e6) 回报后 enrich）
+
+[EM-01] P1 docker_runner repo_root 推断
+  问题：evaluation/tasks/embodied/docker_runner.py ``_repo_root()`` 用 ``parents[4]``；
+        pip 安装到 site-packages 后指向无意义路径（同 round5 RP-10 preflight REPO_ROOT）。
+  改法：改用 core.io.paths.project_root() + 明确 checkout-only 报错。
+
+[EM-02] P3 orchestrator 进度文件非原子
+  问题：orchestrator.py 写 progress tmp JSON 未 atomic；长 episode 被 kill 留半截。
+  文件：orchestrator.py
+  改法：write_json atomic=True 或 append_jsonl_durable。
+
+[EM-03] P2 docker 镜像 pull/tag 无 digest  Pin
+  交叉：round1 DLC/:latest；embodied docker_cfg 应支持 digest 或 manifest list 校验（一行）。
+
+[EM-04] P2 simulator registry 与 catalog embodied 条目无闭包测试
+  文件：simulators/registry.py；data/benchmarks/
+  改法：eval_core 断言 registry 每个 simulator_id 在 catalog 可解析或显式 exempt。
+
+[EM-05] P2 分片参数 docker 内外双路径
+  问题：orchestrator _shard_requests 与 docker_runner _inner_run_args shard 需手工一致。
+  改法：单一 shard 规范对象，docker 包装层只序列化。
+
+
+6. CLI / operators / device_pool
+--------------------------------
+来源：[CLI 云端子代理](bc-7c71e750-856a-5a89-b74a-be2cd8ceccd5) 深度评审。
+
+[CL-01] P0 DualCamCtrlOperator 漏注册
+  问题：dualcamctrl_operator.py 存在且 component_pipelines 引用；operators/__init__.py
+        _OPERATOR_MODULES 无条目 → ``from worldfoundry.operators import DualCamCtrlOperator`` 失败。
+  改法：补映射；test_operators_registry_smoke 加反向断言 + component_pipelines 39 target 闭包。
+
+[CL-02] P0 conda_dispatch 持锁 acquire
+  问题：_resident_worker_for 在 _RESIDENT_WORKERS_LIFECYCLE_LOCK 内调用 pool.acquire()，
+        无 cancel/timeout；reaper 需同锁 → GPU 占满时可饿死。
+  文件：studio/conda_dispatch.py L1742–1832
+  改法：acquire 移出锁；接 cancel_requested；WORLDFOUNDRY_AUTO_GPU_WAIT_SECONDS 超时。
+
+[CL-03] P1 load_manifest CSafeLoader
+  问题：evaluation/utils.py load_manifest 用 yaml.safe_load；TUI catalog 冷载 ~6s 在 YAML。
+  改法：CSafeLoader 回退 SafeLoader；serialization YAML 读同步。
+
+[CL-04] P1 CLI 绑定 evaluation.utils
+  问题：cli/main.py 等顶层 import 四路径常量，拖入 importlib.metadata、urllib/ssl 链 ~276ms。
+  改法：常量改 core.io.paths；metadata/urllib 延迟 import。
+
+[CL-05] P2 TUI 旗标三份拷贝 + 静默丢弃桥接
+  文件：cli/main.py、cli/tui.py、tui_app.py
+  改法：解析器 option diff 测试；中期 REMAINDER 透传删 ~90 行桥接。
+
+[CL-06] P2 tui_discovery 变体表与 model catalog 平行维护
+  改法：契约测试；中期从 catalog variant 元数据派生。
+
+[CL-07] P2 _automatic_gpu_pool 每次 nvidia-smi；devices 变化重建池 → 双租
+  改法：discovery 缓存/TTL；未归还租约时禁止丢弃旧池。
+
+[CL-08] P3 preflight not-ready 用 exit 2 与 usage error 冲突
+  改法：not-ready 改 3；help 文档化退出码。
+
+[CL-09] P3 隐藏 --tui 裸 argv 重定向
+  改法：删或注册为真实根旗标。
+
+[CL-10] P3 __all__ 泄露私有符号；_PUBLIC_ROOT_COMMANDS drift 单测
+
+
+7. 文件级改动总表
+----------------
+P0
+  operators/__init__.py           CL-01
+  test/test_operators_registry_smoke.py  CL-01
+  studio/conda_dispatch.py        CL-02
+  studio/execution.py             ST-01
+
+P1
+  evaluation/utils.py             CL-03
+  cli/*.py 路径 import            CL-04
+  evaluation/tasks/embodied/docker_runner.py  EM-01
+  docs（device lease 对照）       TR-02
+
+P2/P3
+  cli/main.py, tui_discovery.py   CL-05/06/09
+  studio/runtime_job.py           ST-02
+  embodied/orchestrator.py        EM-02
+  cli/preflight.py                CL-08
+
+
+8. 验收（汇总）
+---------------
+- CL-01：DualCamCtrlOperator 包级 import 成功；漏登记冒烟必红。
+- CL-02：GPU 全 busy 时 reaper/新作业不无限挂；取消可退出 acquire。
+- CL-03：tui --catalog-json 冷启动 ≤1.5s；无 libyaml 行为不变。
+- CL-04：import worldfoundry.cli ≤0.2s。
+- ST-01：Studio job kill 后无半截 manifest JSON。
+- EM-01：wheel 环境 embodied docker 报明确 checkout 指引而非 parents[4] 乱路径。
+
+
+9. 与前轮衔接
+--------------
+atomic 落盘：round5 IO-01/RP-08；Studio ST-01 为同族新面。
+conda_dispatch GPU：round1 R-01/R-04 + 本轮 CL-02/CL-07。
+REPO_ROOT parents[]：round5 RP-10 + EM-01。
+OR-09 zoo model-download wheel 断：round5，本轮 CL 不重复。
+preflight 编排：round5 RP-02；CL-08 只谈 CLI 退出码。
+
+
+10. 子代理索引
+--------------
+  [Studio](bc-f4904408-a50e-56a5-8461-497bc3a35cbe)  §3 初稿，待 enrich
+  [training](bc-cbed4843-d306-543b-aaf9-8aba30dc7a85)  §4 初稿，待 enrich
+  [embodied](bc-12039945-b387-55b5-b9d2-c612a48068e6)  §5 初稿，待 enrich
+  [CLI](bc-7c71e750-856a-5a89-b74a-be2cd8ceccd5)  §6 CL-01~10 已并入
