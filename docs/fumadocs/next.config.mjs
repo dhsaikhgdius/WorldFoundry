@@ -52,7 +52,7 @@ const config = {
           '**/out*/**',
           '**/node_modules/**',
           '**/generated/**',
-          '**/public/model-logos/**',
+          '**/public/org-logos/**',
           path.join(__dirname, 'lib', 'model-recipes-data.json'),
           path.join(__dirname, 'lib', 'model-recipes-index.json'),
         ],

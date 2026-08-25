@@ -10,30 +10,15 @@ type ModelIdentityMarkProps = {
   size?: 'small' | 'medium' | 'large';
 };
 
-type LogoAsset = {
+type OrgIdentity = {
   key: string;
-  src: string;
-  label: string;
+  name: string;
+  abbr: string;
+  src?: string;
 };
 
-const logos = logoMap.logos as Record<string, LogoAsset>;
+const orgs = logoMap.orgs as Record<string, OrgIdentity>;
 const modelLogos = logoMap.modelLogos as Record<string, string>;
-
-const providerMarks: Array<[RegExp, string]> = [
-  [/worldfoundry/i, 'WF'],
-  [/tencent|hunyuan/i, 'TH'],
-  [/nvidia|cosmos/i, 'NV'],
-  [/physical[- ]intelligence/i, 'PI'],
-  [/wan[- ]?ai/i, 'WA'],
-  [/bytedance/i, 'BD'],
-  [/hugging\s*face/i, 'HF'],
-  [/lerobot/i, 'LR'],
-  [/facebook|meta/i, 'M'],
-  [/alibaba|qwen/i, 'QW'],
-  [/google|deepmind/i, 'G'],
-  [/openai/i, 'OA'],
-  [/api/i, 'API'],
-];
 
 function initials(value: string) {
   const normalized = value
@@ -53,44 +38,39 @@ function initials(value: string) {
   return (normalized[0] ?? 'M').slice(0, 2).toUpperCase();
 }
 
-function markFor(provider: string, name: string) {
-  const known = providerMarks.find(([pattern]) => pattern.test(provider));
-  return known?.[1] ?? initials(provider || name);
-}
-
-function logoFor(id: string) {
+function orgFor(id: string) {
   const key = modelLogos[id];
-  return key ? logos[key] : undefined;
+  return key ? orgs[key] : undefined;
 }
 
 export function ModelIdentityMark({
   id,
   name,
-  provider,
   category,
   size = 'medium',
 }: ModelIdentityMarkProps) {
-  const asset = logoFor(id);
+  const org = orgFor(id);
+  const hasLogo = Boolean(org?.src);
 
   return (
     <span
-      className={`wf-model-mark wf-model-mark-${size}${asset ? ' has-logo' : ''}`}
+      className={`wf-model-mark wf-model-mark-${size}${hasLogo ? ' has-logo' : ''}`}
       data-category={category}
-      data-logo={asset?.key}
-      title={asset?.label ?? (provider || name)}
+      data-logo={org?.key}
+      title={org?.name ?? name}
       aria-hidden="true"
     >
-      {asset ? (
+      {org?.src ? (
         <img
           className="wf-model-mark-image"
-          src={withBasePath(asset.src)}
+          src={withBasePath(org.src)}
           alt=""
           width={200}
           height={200}
           draggable={false}
         />
       ) : (
-        <span>{markFor(provider, name)}</span>
+        <span>{org?.abbr ?? initials(name)}</span>
       )}
     </span>
   );
