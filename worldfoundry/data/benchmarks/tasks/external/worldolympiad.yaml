@@ -34,8 +34,7 @@ metadata:
   benchmark_id: worldolympiad
   official_runner_target: worldfoundry.evaluation.tasks.contracts.external:WorldOlympiadContract
   official_runner_script: worldfoundry/evaluation/tasks/execution/runners/worldolympiad/run_worldolympiad_official_runner.py
-  contract_validation_command: worldfoundry-eval zoo benchmark-run --benchmark-id worldolympiad --mode normalizer
-    --output-dir tmp/benchmark_zoo/benchmark_contract/worldolympiad --json
+  contract_validation_command: worldfoundry-eval zoo benchmark-run --benchmark-id worldolympiad --mode contract --output-dir tmp/benchmark_zoo/benchmark_contract/worldolympiad --json
   runtime:
     kind: in_tree_official_runtime
     root: worldfoundry/evaluation/tasks/execution/runners/worldolympiad
@@ -69,8 +68,8 @@ metadata:
     runtime_verified: true
     runtime_verification_scope: batch_plan_only
     full_suite_verified: false
-    normalizer_verified: true
     surface: worldolympiad_official_in_tree
+    normalizer_verified: true
   local_evaluator:
     target: worldfoundry.evaluation.tasks.execution.runners.worldolympiad.run_worldolympiad_official_runner:main
     status: implemented
@@ -86,6 +85,20 @@ metadata:
   - repo_id: facebook/sam3
     repo_type: model
     role: physical_segmentation
+  - repo_id: Qwen/Qwen3-VL-8B-Instruct
+    repo_type: model
+    role: multimodal_judge
+  validation_command:
+  - python
+  - worldfoundry/evaluation/tasks/execution/runners/worldolympiad/run_worldolympiad_official_runner.py
+  - --run-fixture
+  - --output-dir
+  - <out>
+  - --json
+  artifact_layout:
+    generated_artifact_dir_env: WORLDFOUNDRY_GENERATED_ARTIFACT_DIR
+    output_artifact: benchmark_scorecard
+    filename_template: scorecard.json
 tasks:
   worldolympiad_triathlon:
     benchmark_name: worldolympiad
@@ -140,15 +153,34 @@ tasks:
         chunk_timestamps: {kind: json}
     evaluation_protocol:
     - name: physical
-      metric_ids: [physical_score, physical_mechanics, physical_thermotics, physical_material,
-        physical_compliance_rate]
+      metric_ids: [physical_score, physical_mechanics, physical_thermotics, physical_material, physical_compliance_rate]
     - name: geometry
       metric_ids: [three_d_score, three_d_raw, gs_score, meta_view_score, camera_motion_score]
     - name: interaction
-      metric_ids: [interaction_score, interaction_raw, chunk_instruction_following, transition_smoothness,
-        global_consistency, clip_semantic_adherence]
+      metric_ids: [interaction_score, interaction_raw, chunk_instruction_following, transition_smoothness, global_consistency, clip_semantic_adherence]
     - name: aggregate
       metric_ids: [combined_score]
+    - name: in_tree_official_runtime
+      metric_ids:
+      - combined_score
+      - physical_score
+      - physical_mechanics
+      - physical_thermotics
+      - physical_material
+      - physical_compliance_rate
+      - three_d_score
+      - three_d_raw
+      - gs_score
+      - meta_view_score
+      - camera_motion_score
+      - interaction_score
+      - interaction_raw
+      - chunk_instruction_following
+      - transition_smoothness
+      - global_consistency
+      - clip_semantic_adherence
+      runner_target: worldfoundry.evaluation.tasks.contracts.external:WorldOlympiadContract
+      runner_script: worldfoundry/evaluation/tasks/execution/runners/worldolympiad/run_worldolympiad_official_runner.py
     runtime_requirements:
       runtime_root: worldfoundry/evaluation/tasks/execution/runners/worldolympiad/runtime/worldolympiad
       root_env: WORLDFOUNDRY_WORLDOLYMPIAD_ROOT
@@ -156,3 +188,9 @@ tasks:
       generated_artifact_dir_env: WORLDFOUNDRY_GENERATED_ARTIFACT_DIR
       weights_dir_env: WORLDFOUNDRY_WORLDOLYMPIAD_WEIGHTS_DIR
       da3_src_env: WORLDFOUNDRY_WORLDOLYMPIAD_DA3_SRC
+    metadata:
+      source_kind: benchmark_zoo
+      benchmark_id: worldolympiad
+      official_benchmark_verified: false
+      integration_evidence: false
+      leaderboard_valid: false

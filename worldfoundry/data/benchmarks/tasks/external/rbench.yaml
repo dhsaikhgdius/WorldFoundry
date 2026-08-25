@@ -1,7 +1,6 @@
 benchmark: rbench
 name: RBench
-description: Task manifest and in-tree aggregation scorer for RBench robotics image-to-video evaluation
-  (released with the ReVidgen project).
+description: Task manifest and in-tree aggregation scorer for RBench robotics image-to-video evaluation (released with the ReVidgen project).
 tags:
 - benchmark-zoo
 - external-official
@@ -56,9 +55,7 @@ metrics:
 metadata:
   source_kind: benchmark_zoo
   benchmark_id: rbench
-  contract_validation_command: worldfoundry-eval zoo benchmark-run --benchmark-id rbench --mode
-    official-validation --official-results-path <rbench_results_root> --output-dir
-    tmp/benchmark_zoo/benchmark_contract/rbench --json
+  contract_validation_command: worldfoundry-eval zoo benchmark-run --benchmark-id rbench --mode contract --output-dir tmp/benchmark_zoo/benchmark_contract/rbench --json
   name: RBench
   domain:
   - robotics
@@ -71,7 +68,7 @@ metadata:
   integration_status: integrated
   maturity: contract_ready
   release_status: experimental
-  open_source_status: in_tree_official_source
+  open_source_status: normalizer_only
   official_benchmark_verified: false
   integration_evidence: false
   leaderboard_valid: false
@@ -112,8 +109,7 @@ metadata:
   - --result-model-id <model_id> when the results tree holds several generation models
   - --vlm-backend when both gpt and qwen judge outputs are present
   blockers:
-  - WorldFoundry aggregates supplied judge and operator outputs; it does not run the VLM judge or the
-    GroundingDINO/SAM2/CoTracker/Q-Align stack.
+  - WorldFoundry aggregates supplied judge and operator outputs; it does not run the VLM judge or the GroundingDINO/SAM2/CoTracker/Q-Align stack.
   data_refs:
     task_yaml: worldfoundry/data/benchmarks/tasks/external/rbench.yaml
     dataset_refs:
@@ -139,10 +135,7 @@ metadata:
   official_runner_script: worldfoundry/evaluation/tasks/execution/runners/rbench/run_rbench_official_runner.py
   metric_evaluator_target: worldfoundry.evaluation.tasks.execution.runners.rbench.rbench_contract_evaluator:write_rbench_evaluation
   metric_protocol:
-    official_definition: The embodiment track merges three VLM scores with two motion-operator scores per
-      video, min-max normalizes each, then derives Task_Completion as their mean and Visual_Quality as
-      0.8*RSS + 0.2*MS minus amplitude and stability-consistency penalties, floored at zero. The task track
-      rescales each rubric score to (score-1)/4 and pools per video for ALL_TASKS_MEAN.
+    official_definition: The embodiment track merges three VLM scores with two motion-operator scores per video, min-max normalizes each, then derives Task_Completion as their mean and Visual_Quality as 0.8*RSS + 0.2*MS minus amplitude and stability-consistency penalties, floored at zero. The task track rescales each rubric score to (score-1)/4 and pools per video for ALL_TASKS_MEAN.
     official_results_fields:
     - VQA/<vlm>/1_robot_subject_stability/results.csv:score,option
     - VQA/<vlm>/2_physical_plausibility/results.csv:score
@@ -163,6 +156,7 @@ metadata:
     kind: in_tree_official_source
     root: worldfoundry/evaluation/tasks/execution/runners/rbench
     repo_url: https://github.com/DAGroup-PKU/ReVidgen.git
+    root_env: WORLDFOUNDRY_RBENCH_ROOT
   official_result_entrypoint: worldfoundry-eval zoo benchmark-run
   local_evaluator:
     target: worldfoundry.evaluation.tasks.execution.runners.rbench.rbench_contract_evaluator:write_rbench_evaluation
@@ -273,9 +267,27 @@ tasks:
       runner_target: worldfoundry.evaluation.tasks.contracts.external:RBenchContract
       runner_script: worldfoundry/evaluation/tasks/execution/runners/rbench/run_rbench_official_runner.py
       status: implemented
-      official_validation_command: worldfoundry-eval zoo benchmark-run --benchmark-id rbench --mode
-        official-validation --official-results-path <rbench_results_root> --result-model-id <model_id>
-        --output-dir <out> --json
+      official_validation_command: worldfoundry-eval zoo benchmark-run --benchmark-id rbench --mode official-validation --official-results-path <rbench_results_root> --result-model-id <model_id> --output-dir <out> --json
+    - name: external_official_runner
+      metric_ids:
+      - rbench_overall
+      - embodiment_overall
+      - task_completion
+      - visual_quality
+      - visual_quality_base
+      - physical_plausibility
+      - task_adherence_consistency
+      - robot_subject_stability
+      - motion_smoothness
+      - motion_amplitude
+      - task_track_overall
+      - common_manipulation
+      - long_horizon_planning
+      - multi_entity_collaboration
+      - spatial_relationship
+      - visual_reasoning
+      runner_target: worldfoundry.evaluation.tasks.contracts.external:RBenchContract
+      runner_script: worldfoundry/evaluation/tasks/execution/runners/rbench/run_rbench_official_runner.py
     runtime_requirements:
       benchmark_data_root_env: WORLDFOUNDRY_RBENCH_DATA_ROOT
       results_path_env: WORLDFOUNDRY_RBENCH_RESULTS_PATH

@@ -1,7 +1,6 @@
 benchmark: likephys
 name: LikePhys
-description: Task manifest and in-tree mis-rank scorer for LikePhys likelihood-preference probing of video
-  diffusion models.
+description: Task manifest and in-tree mis-rank scorer for LikePhys likelihood-preference probing of video diffusion models.
 tags:
 - benchmark-zoo
 - external-official
@@ -30,8 +29,7 @@ metrics:
 metadata:
   source_kind: benchmark_zoo
   benchmark_id: likephys
-  contract_validation_command: worldfoundry-eval zoo benchmark-run --benchmark-id likephys --mode contract
-    --output-dir tmp/benchmark_zoo/benchmark_contract/likephys --json
+  contract_validation_command: worldfoundry-eval zoo benchmark-run --benchmark-id likephys --mode contract --output-dir tmp/benchmark_zoo/benchmark_contract/likephys --json
   name: LikePhys
   domain:
   - physics
@@ -45,7 +43,7 @@ metadata:
   integration_status: integrated
   maturity: contract_ready
   release_status: experimental
-  open_source_status: in_tree_scorer_with_external_probe_checkout
+  open_source_status: experimental
   official_benchmark_verified: false
   integration_evidence: false
   leaderboard_valid: false
@@ -80,8 +78,7 @@ metadata:
   - misrank_rate
   evaluation_requirements:
   - Probe the model under test with the official ELBO surrogate over the 12 paired scenarios.
-  - Compute mis-rank per (subgroup, variation) as the fraction of valid/impossible loss pairs where the valid
-    clip received the higher loss.
+  - Compute mis-rank per (subgroup, variation) as the fraction of valid/impossible loss pairs where the valid clip received the higher loss.
   - Exclude the read_exp_final.py filter_config variations from reported aggregates.
   - Treat mis-rank as an error rate; lower is better for every metric.
   requires:
@@ -114,9 +111,7 @@ metadata:
   official_runner_script: worldfoundry/evaluation/tasks/execution/runners/likephys/run_likephys_official_runner.py
   metric_evaluator_target: worldfoundry.evaluation.tasks.execution.runners.likephys.likephys_contract_evaluator:write_likephys_evaluation
   metric_protocol:
-    official_definition: For each scenario subgroup, all (valid, impossible) pairs of ELBO-surrogate denoising
-      losses are formed; a pair is mis-ranked when the valid clip has the higher loss. Per-variation rates are
-      averaged over subgroups, then pooled variation-weighted (published ranking) or scenario-weighted.
+    official_definition: For each scenario subgroup, all (valid, impossible) pairs of ELBO-surrogate denoising losses are formed; a pair is mis-ranked when the valid clip has the higher loss. Per-variation rates are averaged over subgroups, then pooled variation-weighted (published ranking) or scenario-weighted.
     official_results_fields:
     - scene_evaluations.<subgroup>.<variation>.<clip>.loss
     - scene_evaluations.<subgroup>.<variation>.<clip>.loss_array
@@ -134,6 +129,7 @@ metadata:
     root: worldfoundry/evaluation/tasks/execution/runners/likephys
     repo_url: https://github.com/YuanJianhao508/LikePhys.git
     evaluator_root_env: WORLDFOUNDRY_LIKEPHYS_EVALUATOR_ROOT
+    root_env: WORLDFOUNDRY_LIKEPHYS_ROOT
   official_result_entrypoint: worldfoundry-eval zoo benchmark-run
   local_evaluator:
     target: worldfoundry.evaluation.tasks.execution.runners.likephys.likephys_contract_evaluator:write_likephys_evaluation
@@ -245,8 +241,18 @@ tasks:
       evaluator_target: worldfoundry.evaluation.tasks.execution.runners.likephys.likephys_contract_evaluator:write_likephys_evaluation
       runner_script: worldfoundry/evaluation/tasks/execution/runners/likephys/run_likephys_official_runner.py
       status: requires_external_checkout_and_cuda
-      official_validation_command: worldfoundry-eval zoo benchmark-run --benchmark-id likephys --mode
-        official-validation --official-results-path <likephys_results_root> --output-dir <out> --json
+      official_validation_command: worldfoundry-eval zoo benchmark-run --benchmark-id likephys --mode official-validation --official-results-path <likephys_results_root> --output-dir <out> --json
+    - name: external_official_runner
+      metric_ids:
+      - likephys_misrank_rate
+      - likephys_dataset_weighted_misrank_rate
+      - rigid_body_misrank_rate
+      - fluid_misrank_rate
+      - deformable_misrank_rate
+      - optics_misrank_rate
+      - temporal_disorder_misrank_rate
+      runner_target: worldfoundry.evaluation.tasks.contracts.external:LikePhysContract
+      runner_script: worldfoundry/evaluation/tasks/execution/runners/likephys/run_likephys_official_runner.py
     runtime_requirements:
       benchmark_data_root_env: WORLDFOUNDRY_LIKEPHYS_DATA_ROOT
       results_path_env: WORLDFOUNDRY_LIKEPHYS_RESULTS_PATH

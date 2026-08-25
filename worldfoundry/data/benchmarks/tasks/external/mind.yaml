@@ -1,7 +1,6 @@
 benchmark: mind
 name: MIND
-description: MIND external benchmark manifest for memory consistency and action control evaluation in
-  interactive world models.
+description: MIND external benchmark manifest for memory consistency and action control evaluation in interactive world models.
 tags:
 - benchmark-zoo
 - external-official
@@ -104,15 +103,11 @@ metadata:
   - per_sample_scores
   - mind_result_json
   evaluation_requirements:
-  - Generated videos follow the official layout <model>/{1st_data,3rd_data}/{mem_test,action_space_test}/<gt
-    name>/video.mp4 and <model>/{1st_data,3rd_data}/mirror_test/<name>/path-N.mp4.
-  - Execute the checked-in MIND metric runtime through the WorldFoundry benchmark runner, or normalize a
-    MIND result JSON when the metric computation has already been completed.
-  - The lcm, visual, dino, and gsc metrics need CUDA plus LPIPS, torchmetrics, pyiqa, and CLIP assets; the
-    action metric additionally needs the ViPE CLI and checkout.
+  - Generated videos follow the official layout <model>/{1st_data,3rd_data}/{mem_test,action_space_test}/<gt name>/video.mp4 and <model>/{1st_data,3rd_data}/mirror_test/<name>/path-N.mp4.
+  - Execute the checked-in MIND metric runtime through the WorldFoundry benchmark runner, or normalize a MIND result JSON when the metric computation has already been completed.
+  - The lcm, visual, dino, and gsc metrics need CUDA plus LPIPS, torchmetrics, pyiqa, and CLIP assets; the action metric additionally needs the ViPE CLI and checkout.
   requires:
-  - --run-official with --gt-root and --generated-artifact-dir, or --official-results-path <mind_result.json>
-    for result normalization
+  - --run-official with --gt-root and --generated-artifact-dir, or --official-results-path <mind_result.json> for result normalization
   - --dino-path <dinov3_vitb16> or <weights-dir>/dinov3_vitb16 when the dino metric is requested
   - --vipe-repo <vipe_checkout> when the action metric is requested
   blockers:
@@ -125,6 +120,7 @@ metadata:
   - repo_id: facebook/dinov3-vitb16-pretrain-lvd1689m
     repo_type: model
     role: metric_weights
+    notes: Supplied through --dino-path or <weights-dir>/dinov3_vitb16; never vendored in tree.
   validation_command:
   - python
   - worldfoundry/evaluation/tasks/execution/runners/mind/run_mind_official_runner.py
