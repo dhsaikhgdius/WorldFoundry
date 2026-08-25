@@ -27,3 +27,19 @@ catalog_category: vla_va_wam
 catalog_scope: VLA / VA(VAM) / WAM model entries tracked as upstream provenance, checkpoint
   metadata, and runtime-profile planning records. Runner or pipeline targets are present
   only after a complete in-tree WorldFoundry model runtime is registered and validated.
+docs:
+  publisher: Hugging Face (LeRobot reference)
+  publisher_kind: company
+  publisher_zh: Hugging Face（LeRobot 参考实现）
+  overview: Multi-task DiT Policy is an imitation-learning diffusion-transformer policy recorded against the concrete LeRobot multi_task_dit implementation — no separate official repository was identified upstream. WorldFoundry routes it through an in-tree action runtime adapter; checkpoints are not recorded, so runs emit a runtime plan.
+  overview_zh: Multi-task DiT Policy 是模仿学习的扩散 transformer 策略，以 LeRobot 中具体的 multi_task_dit 实现为参考记录——上游未识别到独立官方仓库。WorldFoundry 通过树内动作运行时适配器路由；未记录 checkpoint，运行输出运行时计划。
+  architecture: A DiT (diffusion transformer) policy head conditioned on multi-task context, following the LeRobot reference implementation. Further internals are not recorded in this repository.
+  architecture_zh: 以多任务上下文为条件的 DiT（扩散 transformer）策略头，遵循 LeRobot 参考实现。更多内部细节仓库未记录。
+  usage_notes: Checkpoint absence is reported by runtime missing_assets and is not a catalog blocker; runs emit a runtime plan until weights are staged. Stage a trained policy checkpoint to run real predictions.
+  usage_notes_zh: checkpoint 缺失由运行时 missing_assets 报告，不视为 catalog 阻塞；权重就位前运行输出运行时计划。就位训练好的策略 checkpoint 即可运行真实预测。
+  limitations:
+  - 'Reference-implementation entry: no official standalone repository or weights.'
+  - No license is recorded in this repository.
+  limitations_zh:
+  - 参考实现条目：无独立官方仓库或权重。
+  - 仓库未记录许可证。
