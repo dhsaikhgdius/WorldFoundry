@@ -1,0 +1,97 @@
+---
+title: LARYBench
+description: Latent-action representation probe benchmark from Meituan LongCat: extraction, action classification, and action regression over robot datasets.
+---
+
+## About
+
+**Publisher:** Meituan (LongCat team)
+
+LARYBench measures how much real robot-action information is captured by the latent action representations of video/world models. The pipeline has three stages: **extract** latent actions from a chosen representation model over robot datasets (CALVIN, VLABench, AgiBot-Beta, RoboCOIN), then probe them with **classification** (predicting discrete action classes, scored by top-1 accuracy and F1) and **regression** (predicting continuous robot actions, scored by MSE on seen and unseen validation splits).
+
+WorldFoundry vendors the LARYBench stage drivers in tree (`cli.py`, `extract.py`, `classification.py`, `regression.py`): extraction partitions one metadata table across the selected GPUs and merges the resulting CSVs; classification runs one local process per GPU; regression uses Accelerate across `CUDA_VISIBLE_DEVICES`. Existing official outputs can be normalized without loading datasets or checkpoints.
+
+Official references:
+
+- Paper: [arxiv.org/abs/2604.11689](https://arxiv.org/abs/2604.11689)
+- Project page: [meituan-longcat.github.io/LARYBench](https://meituan-longcat.github.io/LARYBench/)
+- Official repository: [meituan-longcat/LARYBench](https://github.com/meituan-longcat/LARYBench)
+- License: `mit`
+
+## Evaluation protocol
+
+Import mode normalizes an official `classification_summary.json` or `best_result.json` with `--stage classify` / `--stage regress`. Full runs stage the selected LARYBench dataset shards under `DATA_DIR`, metadata under `LARY_METADATA_DIR`, extracted latent actions under `LARY_LA_DIR`, and representation-model checkpoints under `MODEL_DIR`, then drive `extract` → `classify` (needs `--dim`, `--classes`) → `regress` (supports `--action-mode absolute|delta`, per-dataset stats JSON).
+
+Primary metric: `extraction_coverage`.
+
+| Metric | Meaning | Direction |
+| --- | --- | --- |
+| `extraction_coverage` | Fraction of metadata rows with successfully extracted latent actions. | Higher is better |
+| `top1_accuracy` | Top-1 accuracy of the classification probe over action classes. | Higher is better |
+| `macro_f1` | Macro-averaged F1 of the classification probe. | Higher is better |
+| `weighted_f1` | Support-weighted F1 of the classification probe. | Higher is better |
+| `val_seen_mse` | Regression-probe action MSE on the seen validation split. | Lower is better |
+| `val_unseen_mse` | Regression-probe action MSE on the unseen validation split. | Lower is better |
+
+## Data and artifact layout
+
+In-tree paths:
+
+```text
+worldfoundry/data/benchmarks/tasks/external/larybench.yaml
+worldfoundry/evaluation/tasks/execution/runners/larybench/cli.py
+worldfoundry/evaluation/tasks/execution/runners/larybench/extract.py
+worldfoundry/evaluation/tasks/execution/runners/larybench/classification.py
+worldfoundry/evaluation/tasks/execution/runners/larybench/regression.py
+```
+
+```text
+${DATA_DIR}/                          # LARYBench dataset shards (videos, robot image pairs, trajectories)
+${LARY_METADATA_DIR}/                 # metadata tables per dataset
+${LARY_LA_DIR}/                       # extracted latent actions (CSV per model/dataset)
+${MODEL_DIR}/                         # representation-model checkpoints
+```
+
+```bash
+hf download meituan-longcat/LARYBench --repo-type dataset --local-dir ${DATA_DIR}
+```
+
+## Run the benchmark
+
+Catalog-recorded validation command:
+
+```bash
+worldfoundry-eval zoo benchmark-run \
+  --benchmark-id larybench \
+  --mode official-validation \
+  --official-results-path <classification_summary.json_or_best_result.json> \
+  --stage <classify_or_regress> \
+  --output-dir <out> \
+  --json
+```
+
+## Checkpoints and environment variables
+
+- `WORLDFOUNDRY_LARYBENCH_RESULTS_PATH`: Default path the importer reads official result exports from when `--official-results-path` is not passed.
+- `DATA_DIR`: Local root of the staged official dataset.
+- `LARY_METADATA_DIR`: Local metadata root for the benchmark.
+- `LARY_LA_DIR`: Directory holding extracted latent actions.
+- `MODEL_DIR`: Local root containing representation-model checkpoints.
+
+## Outputs
+
+The run writes into `--output-dir`:
+
+- `scorecard.json`: WorldFoundry scorecard with the metric values recorded above.
+- `benchmark_contract.json`: Benchmark contract record for the run (inputs, mode, provenance).
+- `raw_metric_table.jsonl`: Metric rows backing the scorecard.
+
+Scorecard primary key: `extraction_coverage` (leaderboard key `extraction_coverage`), stored in `scorecard.json`.
+
+## Limitations
+
+- Full leaderboard parity requires the complete official split, the exact representation checkpoint, the official probe configuration, and retained run artifacts.
+- Classification and regression scores are only comparable across models when extraction settings (stride, mode, split) match.
+- Large classification videos, robot image pairs, trajectories, and metadata are staged outside the package through `DATA_DIR`.
+
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

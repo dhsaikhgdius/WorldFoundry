@@ -1,67 +1,72 @@
 ---
 title: MIND
-description: "MIND in WorldFoundry: memory consistency and action control for interactive world models."
+description: Closed-loop revisited evaluation of interactive world models: long-context memory, visual quality, ViPE action control, and mirror-test scene consistency.
 ---
 
-## What it measures
+## About
 
-MIND evaluates **memory consistency** and **action control** in interactive video world models under a closed-loop revisited protocol. Generated videos are compared against ground-truth continuations and mirrored action trajectories across first-person and third-person perspectives.
+**Publisher:** Central South University (CSU-JPG Group)
 
-The official test split has **250 clips** at 1080p / 24 FPS:
+MIND evaluates memory consistency and action control in interactive world models through open-domain closed-loop *revisit* protocols: the model rolls out under camera/action commands, leaves a region, and returns — its continuation is compared against ground truth (long-context memory: PSNR/SSIM/LPIPS/MSE plus DINOv3 patch-token MSE), while a *mirror test* plays a rollout and its time-reversed half to score general scene consistency. Action control is measured as relative pose error between ViPE-estimated trajectories of generated and ground-truth videos; visual quality uses MUSIQ-SPAQ and the LAION aesthetic predictor.
 
-- `mem_test` and `action_space_test` — long-context memory (LCM), DINOv3 feature distance, visual quality, and ViPE-based action relative pose error
-- `mirror_test` — general scene consistency (GSC) between a rollout and its time-reversed half
+WorldFoundry vendors the MIND metric runtime and drives it with `run_mind_official_runner.py`: `--run-official` computes metrics from a staged MIND-Data ground-truth root and model outputs; `--official-results-path` normalizes an existing MIND result JSON; `--run-fixture` keeps the normalizer testable without GPUs.
 
-WorldFoundry also derives ability-group scores (`memory_consistency_score`, `visual_quality_score`, `action_control_score`, `scene_consistency_score`) and a composite `mind_average`. **MIND publishes no official composite score**, so `mind_average` is never a leaderboard number.
+Official references:
 
-## Official references
+- Paper: [arxiv.org/abs/2602.08025](https://arxiv.org/abs/2602.08025)
+- Project page: [csu-jpg.github.io/MIND.github.io](https://csu-jpg.github.io/MIND.github.io/)
+- Official repository: [CSU-JPG/MIND](https://github.com/CSU-JPG/MIND)
 
-| Resource | Link |
-| --- | --- |
-| Project page | [csu-jpg.github.io/MIND.github.io](https://csu-jpg.github.io/MIND.github.io/) |
-| Paper | [arXiv:2602.08025](https://arxiv.org/abs/2602.08025) |
-| GitHub | [github.com/CSU-JPG/MIND](https://github.com/CSU-JPG/MIND) |
-| HF dataset | [CSU-JPG/MIND](https://huggingface.co/datasets/CSU-JPG/MIND) |
-| In-tree runner | `worldfoundry/evaluation/tasks/execution/runners/mind/run_mind_official_runner.py` |
+## Evaluation protocol
 
-## Data and artifacts
+Model outputs follow `<model>/{1st,3rd}_data/<test_type>/<name>/video.mp4`. `--run-official` needs `--gt-root <MIND-Data>`, `--generated-artifact-dir`, and `--dino-path <dinov3_vitb16>`; the action metric additionally needs a ViPE checkout via `--vipe-repo` plus the `vipe` CLI. `--metrics` selects metric groups; all mutable state (work dir, `MIND_CACHE_DIR`, staged links, logs) is written under `--output-dir` — the vendored runtime stays read-only.
 
-Generated videos must follow the official layout:
+Primary metric: `mind_average`.
+
+| Metric | Meaning | Direction |
+| --- | --- | --- |
+| `lcm_psnr` | Long-context-memory PSNR between the predicted continuation and the ground-truth frames. | Higher is better |
+| `lcm_ssim` | Long-context-memory SSIM against the ground-truth continuation. | Higher is better |
+| `lcm_lpips` | Long-context-memory LPIPS (AlexNet) against the ground-truth continuation; lower is better. | Lower is better |
+| `lcm_mse` | Long-context-memory pixel MSE against the ground-truth continuation; lower is better. | Lower is better |
+| `dino_mse` | MSE between L2-normalized DINOv3 patch tokens of predicted and ground-truth frames; lower is better. | Lower is better |
+| `imaging_quality` | MUSIQ-SPAQ imaging quality of the generated frames, divided by 100 upstream. | Higher is better |
+| `aesthetic_quality` | LAION CLIP ViT-L/14 aesthetic predictor score, divided by 10 upstream. | Higher is better |
+| `action_rpe_trans_mean` | Mean translation relative pose error between the ViPE trajectories of generated and ground-truth videos; lower is better. | Lower is better |
+| `action_rpe_rot_mean_deg` | Mean rotation relative pose error in degrees between the ViPE trajectories; lower is better. | Lower is better |
+| `action_rpe_trans_median` | Median translation relative pose error over all valid action steps; lower is better. | Lower is better |
+| `action_rpe_rot_median_deg` | Median rotation relative pose error in degrees over all valid action steps; lower is better. | Lower is better |
+| `action_translation_rpe_trans_mean` | Mean translation RPE restricted to pure translation actions; lower is better. | Lower is better |
+| `action_rotation_rpe_rot_mean_deg` | Mean rotation RPE in degrees restricted to pure camera-rotation actions; lower is better. | Lower is better |
+| `gsc_psnr` | General scene consistency PSNR between a mirror-test rollout and its time-reversed half. | Higher is better |
+| `gsc_ssim` | General scene consistency SSIM on the mirror-test rollout. | Higher is better |
+| `gsc_lpips` | General scene consistency LPIPS on the mirror-test rollout; lower is better. | Lower is better |
+| `gsc_mse` | General scene consistency pixel MSE on the mirror-test rollout; lower is better. | Lower is better |
+| `memory_consistency_score` | WorldFoundry-derived mean of the normalized LCM and DINOv3 component metrics. | Higher is better |
+| `visual_quality_score` | WorldFoundry-derived mean of the normalized imaging and aesthetic metrics. | Higher is better |
+| `action_control_score` | WorldFoundry-derived mean of the normalized overall RPE translation and rotation metrics. | Higher is better |
+| `scene_consistency_score` | WorldFoundry-derived mean of the normalized mirror-test GSC metrics. | Higher is better |
+| `mind_average` | WorldFoundry-derived mean of the available MIND ability-group scores. MIND publishes no official composite score, so this is never a leaderboard number. | Higher is better |
+
+## Data and artifact layout
+
+In-tree paths:
 
 ```text
-<model>/
-  1st_data/
-    mem_test/<gt_name>/video.mp4
-    action_space_test/<gt_name>/video.mp4
-    mirror_test/<name>/path-N.mp4
-  3rd_data/
-    ...
+worldfoundry/data/benchmarks/tasks/external/mind.yaml
+worldfoundry/evaluation/tasks/execution/runners/mind
 ```
 
-Ground-truth assets live under a MIND-Data root (`--gt-root` / `WORLDFOUNDRY_MIND_GT_ROOT`). The vendored runtime writes a single MIND result JSON that WorldFoundry normalizes into a scorecard.
-
-## Two surfaces
-
-**Normalizer (default).** Recomputes WorldFoundry metrics from an existing MIND result JSON (`--official-results-path` or `WORLDFOUNDRY_MIND_RESULTS_PATH`). Pure Python; no GPU.
-
-**Official runtime (`--run-official`).** Executes the checked-in `runtime/mind/src/process.py`. Needs CUDA plus LPIPS / torchmetrics / pyiqa / CLIP assets for `lcm`, `visual`, `dino`, and `gsc`. The `action` metric additionally needs a ViPE checkout (`--vipe-repo`) and the `vipe` CLI. DINOv3 weights are supplied through `--dino-path` or `<weights-dir>/dinov3_vitb16` and are never vendored in tree.
-
-All mutable state (work directory, `MIND_CACHE_DIR`, staged links, logs, result JSON) is written under `--output-dir`. The vendored runtime is read-only.
-
-## Supported commands
-
-Normalize an existing result JSON:
-
-```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id mind \
-  --mode official-validation \
-  --official-results-path <mind_result.json> \
-  --output-dir <out> \
-  --json
+```text
+<MIND-Data>/                                    # ground-truth root (HF dataset CSU-JPG/MIND)
+<generated_root>/<model>/{1st,3rd}_data/<test_type>/<name>/video.mp4
+<weights>/dinov3_vitb16                         # DINOv3 metric weights (facebook/dinov3-vitb16-pretrain-lvd1689m)
+<vipe_checkout>/                                # ViPE repo for the action metric
 ```
 
-Run the bundled synthetic fixture (no GPU):
+## Run the benchmark
+
+Catalog-recorded validation command:
 
 ```bash
 python worldfoundry/evaluation/tasks/execution/runners/mind/run_mind_official_runner.py \
@@ -70,35 +75,46 @@ python worldfoundry/evaluation/tasks/execution/runners/mind/run_mind_official_ru
   --json
 ```
 
-Execute the in-tree metric runtime:
+Execute the in-tree MIND metric runtime over staged ground truth and model outputs:
 
 ```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id mind \
-  --mode official-validation \
+${WORLDFOUNDRY_UNIFIED_PYTHON} \
+  worldfoundry/evaluation/tasks/execution/runners/mind/run_mind_official_runner.py \
   --run-official \
-  --gt-root <MIND-Data> \
-  --generated-artifact-dir <model_outputs> \
-  --dino-path <dinov3_vitb16> \
-  --output-dir <out> \
+  --gt-root /path/to/MIND-Data \
+  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
+  --dino-path /path/to/dinov3_vitb16 \
+  --output-dir tmp/mind/official \
   --json
 ```
 
-## Metrics
+## Checkpoints and environment variables
 
-| Metric | Higher is better | Notes |
-| --- | --- | --- |
-| `lcm_psnr` / `lcm_ssim` | yes | Long-context memory pixel metrics |
-| `lcm_lpips` / `lcm_mse` | no | Long-context memory distance metrics |
-| `dino_mse` | no | DINOv3 patch-token MSE |
-| `imaging_quality` / `aesthetic_quality` | yes | MUSIQ-SPAQ and LAION aesthetic |
-| `action_rpe_*` | no | ViPE relative pose error |
-| `gsc_*` | PSNR/SSIM yes; LPIPS/MSE no | Mirror-test scene consistency |
-| `*_score` ability groups | yes | WorldFoundry-derived |
-| `mind_average` | yes | WorldFoundry-derived; not a leaderboard score |
+The lcm/visual/dino/gsc metrics need CUDA plus LPIPS/torchmetrics/pyiqa/CLIP assets; the action metric needs the ViPE CLI and checkout.
 
-## Evidence policy
+- `WORLDFOUNDRY_MIND_ROOT`: Optional override pointing at a local benchmark runtime/repository root.
+- `WORLDFOUNDRY_MIND_RESULTS_PATH`: Default path the importer reads official result exports from when `--official-results-path` is not passed.
+- `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR`: Directory containing the candidate generated artifacts to score or import against.
 
-- Importing or normalizing supplied results is **not** official-run evidence: `official_benchmark_verified` and `leaderboard_valid` stay `false`.
-- Leaderboard parity requires the complete 250-clip official split and a published MIND leaderboard (not yet open).
-- Missing metric components stay `None` rather than being zero-filled into a false suite aggregate.
+Shared checkpoint assets: `facebook/dinov3-vitb16-pretrain-lvd1689m` (metric_weights).
+
+This benchmark reuses the shared base-model dependency stack: `video_world_perception_stack`.
+
+## Outputs
+
+The run writes into `--output-dir`:
+
+- `scorecard.json`: WorldFoundry scorecard with the metric values recorded above.
+- `raw_metric_table.jsonl`: Metric rows backing the scorecard.
+- `per_sample_scores.jsonl`: Per-sample rows when the result source exposes sample-level values.
+- `benchmark_contract.json`: Benchmark contract record for the run (inputs, mode, provenance).
+
+Scorecard primary key: `mind_average` (leaderboard key `mind_average`), stored in `scorecard.json`.
+
+## Limitations
+
+- `mind_average` is a WorldFoundry-derived aggregate: MIND publishes no official composite score, so it is never a leaderboard number.
+- Leaderboard-valid scores require the complete official split and a published MIND leaderboard (not yet open).
+- The DINOv3 checkpoint is never vendored in tree; supply it via `--dino-path` or `<weights-dir>/dinov3_vitb16`.
+
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

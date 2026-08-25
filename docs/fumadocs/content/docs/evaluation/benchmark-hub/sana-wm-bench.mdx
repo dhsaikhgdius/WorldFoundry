@@ -1,28 +1,93 @@
 ---
 title: SANA-WM 80-Scene Benchmark
-description: In-tree evaluation for minute-scale, camera-controlled world-model video.
+description: NVIDIA's public SANA-WM 80-scene world-model benchmark: VBench quality, revisit consistency, camera-pose accuracy, and long-horizon imaging drift.
 ---
 
-SANA-WM Bench evaluates 80 fixed first-frame scenes under two 60-second camera trajectory splits: `simple_60s` and `hard_60s`. Each trajectory has 961 frames at 16 FPS.
+## About
 
-WorldFoundry keeps the benchmark layout, generation requests, VBench protocol, revisit consistency, temporal degradation, result importer, and scorecard writer in tree. It reuses the resident VBench and Pi3 model surfaces; it does not execute an external Sana checkout.
+**Publisher:** NVIDIA
 
-Download the public dataset first:
+The SANA-WM 80-Scene Benchmark accompanies NVIDIA's SANA world-model work. Each of two splits (`simple_60s`, `hard_60s`) holds 80 scenes with a conditioning image and a 961-frame, 16 FPS camera trajectory; a world model must roll out one minute of video per scene along the specified trajectory. Scoring covers four families: VBench-style visual/temporal quality, *revisit consistency* (PSNR/SSIM/LPIPS between frame pairs where the trajectory returns to a previous viewpoint), camera-pose accuracy (rotation error, relative translation error, and relative motion consistency against the target trajectory), and `delta_iq` — the imaging-quality degradation across temporal windows that exposes long-horizon drift.
 
-```bash
-huggingface-cli download Efficient-Large-Model/SANA-WM-Bench \
-  --repo-type dataset --local-dir data/SANA-WM-Bench
+WorldFoundry implements the evaluator fully in tree: it owns the layout, prompt binding, revisit-pair protocol, and temporal-window aggregation, and deliberately reuses the resident VBench and Pi3 implementations rather than executing an NVlabs/Sana checkout at evaluation time.
+
+Official references:
+
+- Official repository: [NVlabs/Sana](https://github.com/NVlabs/Sana)
+
+## Evaluation protocol
+
+Generated videos are named `<scene_id>_generated.mp4` per selected split. `--metrics` selects families (`vbench,revisit,temporal,camera`); `--split` selects `simple_60s`, `hard_60s`, or `all`; `--max-pairs` bounds revisit pairs per scene and `--revisit-lpips` adds LPIPS. Camera metrics consume a pose file (`--pose-results-path`, `eval_poses.json`) produced by a separately schedulable Pi3 GPU stage; rotation errors reported in radians are converted to degrees on import.
+
+Primary metric: `vbench_overall`.
+
+| Metric | Meaning | Direction |
+| --- | --- | --- |
+| `vbench_overall` | Mean over the resident VBench visual/temporal quality dimensions. | Higher is better |
+| `vbench_total_score` | VBench total_score diagnostic aggregate. | Higher is better |
+| `revisit_psnr` | PSNR between frame pairs where the trajectory revisits a previous viewpoint. | Higher is better |
+| `revisit_ssim` | SSIM over the same revisit frame pairs. | Higher is better |
+| `revisit_lpips` | LPIPS over the same revisit frame pairs. | Lower is better |
+| `rot_err_deg` | Camera rotation error in degrees against the target trajectory. | Lower is better |
+| `trans_err_rel` | Relative camera translation error against the target trajectory. | Lower is better |
+| `cam_mc_rel` | Relative camera motion-consistency error. | Lower is better |
+| `delta_iq` | Imaging-quality degradation across temporal windows (long-horizon drift). | Lower is better |
+
+## Data and artifact layout
+
+In-tree paths:
+
+```text
+worldfoundry/data/benchmarks/tasks/external/sana-wm-bench.yaml
 ```
 
-Run a selected split from clean `<scene_id>_generated.mp4` artifacts:
-
-```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id sana-wm-bench --mode official-run \
-  --dataset-root data/SANA-WM-Bench \
-  --generated-artifact-dir results/my_method \
-  --output-dir tmp/sana-wm-bench --json
+```text
+<dataset_root>/images/<scene_id>.png                            # conditioning images
+<dataset_root>/<split>/sanawm_export_v2/<scene_id>.npz          # camera trajectories
+<dataset_root>/<split>/sanawm_export_v2/run_manifest.jsonl      # scene manifest
+${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}/<scene_id>_generated.mp4 # rollouts per split
 ```
 
-The runner reports VBench Overall, revisit PSNR/SSIM, temporal `Delta IQ`, and any supplied `eval_poses.json` pose metrics. Fresh Pi3 camera estimation is intentionally a separate distributed GPU stage, then its per-split `eval_poses.json` is consumed by this in-tree runner. A local scorecard is not an NVIDIA leaderboard submission.
+```bash
+hf download Efficient-Large-Model/SANA-WM-Bench --repo-type dataset \
+  --local-dir ${WORLDFOUNDRY_SANA_WM_BENCH_DATASET_ROOT}
+```
 
+## Run the benchmark
+
+Score staged rollouts with the in-tree evaluator:
+
+```bash
+${WORLDFOUNDRY_UNIFIED_PYTHON} \
+  worldfoundry/evaluation/tasks/execution/runners/sana_wm_bench/run_sana_wm_bench_official_runner.py \
+  --run-official \
+  --dataset-root "${WORLDFOUNDRY_SANA_WM_BENCH_DATASET_ROOT}" \
+  --generated-video-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
+  --split simple_60s \
+  --metrics vbench,revisit,temporal \
+  --output-dir tmp/sana_wm_bench/official \
+  --json
+```
+
+## Checkpoints and environment variables
+
+VBench weights back the visual/temporal metrics; a Pi3 checkpoint plus distributed GPU execution produces fresh camera-pose estimates consumed via --pose-results-path.
+
+- `WORLDFOUNDRY_SANA_WM_BENCH_DATASET_ROOT`: Local root of the Efficient-Large-Model/SANA-WM-Bench dataset.
+
+## Outputs
+
+The run writes into `--output-dir`:
+
+- `scorecard.json`: WorldFoundry scorecard with the metric values recorded above.
+- `raw_metric_table.jsonl`: Metric rows backing the scorecard.
+
+Scorecard primary key: `vbench_overall` (leaderboard key `vbench_overall`), stored in `scorecard.json`.
+
+## Limitations
+
+- Full 80-scene × two-split numerical parity has not been run in this checkout.
+- Pose inference is intentionally a separately schedulable GPU stage; only its `eval_poses.json` is consumed in tree.
+- Scores from partial scene subsets or missing metric families are development signals, not benchmark totals.
+
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

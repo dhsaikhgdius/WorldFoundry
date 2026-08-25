@@ -1,151 +1,100 @@
 ---
 title: ChronoMagic-Bench
-description: WorldFoundry 中的 ChronoMagic-Bench time-lapse 评测。
+description: 蜕变式延时摄影 T2V 评测（NeurIPS 2024 D&B）：1,649 条 prompt，用 CHScore 连贯性与 MTScore 蜕变幅度打分。
 ---
 
-## 评测目标
+## 简介
 
-ChronoMagic-Bench 评测 text-to-time-lapse 生成，重点是长时间尺度的 metamorphic change：生物生长、人造物建造或制造、气象变化，以及融化、烘烤等物理变化。
+**发表机构：** Peking University（北京大学 Yuan Group，联合罗切斯特大学）
 
-它关注的是 metamorphic amplitude 和 temporal coherence，而不是普通动作视频质量。论文中的 benchmark 有 1,649 条 prompt，覆盖 4 大类和 75 个子类；WorldFoundry 仓内 manifest 为本地证据与覆盖率统计跟踪 Hugging Face `BestWishYsh/ChronoMagic-Bench` test split，期望行数为 1,799。
+ChronoMagic-Bench 评测文本到延时摄影视频的生成能力：模型能否合成具有大幅物理、生物或化学状态变化（融冰、开花、施工）且时间上连贯的视频。官方套件为 1,649 条 prompt 配备两大指标族：CHScore（基于 CoTracker 的跟踪点连贯性）与 MTScore（蜕变幅度，由 InternVideo2 或 GPT-4o 评判）。官方同时发布了 ChronoMagic-Pro / ProH 训练数据集。
 
-## 资产与数据
+WorldFoundry 在仓内内置 ChronoMagic-Bench runtime，并由 `run_chronomagic_bench_official_runner.py` 直接执行所选官方组件脚本——CHScore、MTScore、GPT4o-MTScore，再经官方 `get_uploaded_json.py` 归一化。
 
-WorldFoundry 已经把官方 runner source 放在仓内：
+官方参考：
 
-| 资产 | 路径 |
-| --- | --- |
-| Task YAML | `worldfoundry/data/benchmarks/tasks/external/chronomagic-bench.yaml` |
-| Runner | `worldfoundry/evaluation/tasks/execution/runners/chronomagic_bench/run_chronomagic_bench_official_runner.py` |
-| Runtime root | `worldfoundry/evaluation/tasks/execution/runners/chronomagic_bench/runtime/chronomagic_bench` |
-| CHScore scripts | `runtime/chronomagic_bench/CHScore/` |
-| GPT4o-MTScore scripts | `runtime/chronomagic_bench/GPT4o_MTScore/` |
-| MTScore scripts | `runtime/chronomagic_bench/MTScore/` |
+- Paper: [arxiv.org/abs/2406.18522](https://arxiv.org/abs/2406.18522)
+- 项目主页: [pku-yuangroup.github.io/ChronoMagic-Bench](https://pku-yuangroup.github.io/ChronoMagic-Bench/)
+- 官方仓库: [PKU-YuanGroup/ChronoMagic-Bench](https://github.com/PKU-YuanGroup/ChronoMagic-Bench)
 
-数据集资产可以从 Hugging Face 下载，然后用 `WORLDFOUNDRY_CHRONOMAGIC_DATASET_ROOT` 指向本地目录。代码不需要外部源码树。
+## 评测协议
 
-## 生成结果目录
+用 `--components` 选择官方组件（`all`、`chscore`、`mtscore`、`gpt4o_mtscore`），用 `--eval-type` 选择评测集（如 `close` 对应封闭的 1,649 条 prompt 集）。CHScore 需要 CoTracker 权重（`--model-pth-chscore`）；MTScore 需要 InternVideo2 权重（`--model-pth-mtscore`）；GPT4o-MTScore 需要 OpenAI 凭据。已有上游结果可改用 `--official-results-path` / `--from-upstream-results` 归一化。
 
-close evaluation 期望 input root 下有一个 model 子目录：
+主指标是 `chronomagic_score`。
 
-```text
-/path/to/chronomagic/input/
-  worldfoundry/
-    sample_000.mp4
-    sample_001.mp4
-```
+| Metric | 含义 | 方向 |
+| --- | --- | --- |
+| `chronomagic_score` | 主要的 metamorphic 延时摄影得分族。 | 越高越好 |
+| `temporal_transformation` | 延时摄影形变与顺序一致性得分族。 | 越高越好 |
 
-你可以用 `--input-folder /path/to/chronomagic/input --model-name worldfoundry` 传入这个布局，也可以用 `--generated-video-dir` 传入任意生成视频目录，runner 会在输出目录下整理成 ChronoMagic 所需结构。
+## 数据与产物布局
 
-open evaluation 使用三个 part 目录：
+WorldFoundry 仓内路径：
 
 ```text
-/path/to/chronomagic/input/
-  worldfoundry/
-    1/*.mp4
-    2/*.mp4
-    3/*.mp4
+worldfoundry/data/benchmarks/tasks/external/chronomagic-bench.yaml
+worldfoundry/evaluation/tasks/execution/runners/chronomagic_bench/runtime/chronomagic_bench
 ```
 
-支持 `.mp4`、`.m4v`、`.mov`、`.mkv`、`.avi`、`.webm`。
-
-## 依赖
-
-ChronoMagic 组件可以单独选择：
-
-| 组件 | 需要 |
-| --- | --- |
-| `chscore` | CoTracker checkpoint，通常是 `cotracker2.pth`，通过 `--model-pth-chscore` 或 `WORLDFOUNDRY_CHRONOMAGIC_CHSCORE_CKPT` 传入。 |
-| `mtscore` | InternVideo checkpoint，通过 `--model-pth-mtscore` 或 `WORLDFOUNDRY_CHRONOMAGIC_MTSCORE_CKPT` 传入；环境里还需要官方脚本使用的 InternVideo 依赖。 |
-| `gpt4o_mtscore` | OpenAI-compatible API key，通过 `--openai-api`、`OPENAI_API_KEY` 或 `WORLDFOUNDRY_CHRONOMAGIC_OPENAI_API` 传入。 |
-
-可用 `--components chscore` 跑 CHScore-only，也可用 `--components mtscore`、`--components gpt4o_mtscore` 或 `--components all` 跑完整 core 组件。leaderboard parity 还需要完整 prompt 覆盖和官方提交字段，不能由小规模组件运行直接声称。
-
-## 命令
-
-先设置常用路径：
-
-```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/chronomagic/generated
-export WORLDFOUNDRY_BENCHMARK_OUTPUT_DIR=tmp/chronomagic-bench/chscore
-export WORLDFOUNDRY_CHRONOMAGIC_CHSCORE_CKPT=/path/to/cotracker2.pth
+```text
+.../runners/chronomagic_bench/runtime/chronomagic_bench    # 仓内官方 runtime
+cache/worldfoundry/data/hfd_datasets/BestWishYsh/ChronoMagic-Bench   # 1,799 行 benchmark 数据集
+${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}/                    # 生成的延时摄影视频
 ```
 
-从生成视频运行 CHScore：
+下载 benchmark 数据集用作 discovery 证据：
 
 ```bash
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-  worldfoundry/evaluation/tasks/execution/runners/chronomagic_bench/run_chronomagic_bench_official_runner.py \
+hf download BestWishYsh/ChronoMagic-Bench --repo-type dataset \
+  --local-dir cache/worldfoundry/data/hfd_datasets/BestWishYsh/ChronoMagic-Bench
+```
+
+## 运行评测
+
+目录 manifest 记录的 validation 命令：
+
+```bash
+${WORLDFOUNDRY_UNIFIED_PYTHON} worldfoundry/evaluation/tasks/execution/runners/chronomagic_bench/run_chronomagic_bench_official_runner.py \
   --chronomagic-root worldfoundry/evaluation/tasks/execution/runners/chronomagic_bench/runtime/chronomagic_bench \
   --components chscore \
-  --generated-video-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
+  --generated-video-dir ${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR} \
   --model-name worldfoundry \
   --eval-type close \
-  --model-pth-chscore "${WORLDFOUNDRY_CHRONOMAGIC_CHSCORE_CKPT}" \
-  --output-dir "${WORLDFOUNDRY_BENCHMARK_OUTPUT_DIR}" \
-  --python "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
+  --model-pth-chscore ${WORLDFOUNDRY_CHRONOMAGIC_CHSCORE_CKPT} \
+  --output-dir <out> \
+  --python ${WORLDFOUNDRY_UNIFIED_PYTHON} \
   --json
 ```
 
-当 MTScore checkpoint 和 API key 都可用时，运行完整 core 组件：
+## 权重与环境变量
 
-```bash
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-  worldfoundry/evaluation/tasks/execution/runners/chronomagic_bench/run_chronomagic_bench_official_runner.py \
-  --components all \
-  --generated-video-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --dataset-root "${WORLDFOUNDRY_CHRONOMAGIC_DATASET_ROOT}" \
-  --model-name worldfoundry \
-  --eval-type close \
-  --model-pth-chscore "${WORLDFOUNDRY_CHRONOMAGIC_CHSCORE_CKPT}" \
-  --model-pth-mtscore "${WORLDFOUNDRY_CHRONOMAGIC_MTSCORE_CKPT}" \
-  --openai-api "${WORLDFOUNDRY_CHRONOMAGIC_OPENAI_API:-${OPENAI_API_KEY}}" \
-  --output-dir tmp/chronomagic-bench/full \
-  --python "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-  --timeout "${WORLDFOUNDRY_CHRONOMAGIC_TIMEOUT:-7200}" \
-  --json
-```
+- `WORLDFOUNDRY_CHRONOMAGIC_ROOT`: 可选覆盖项，指向外部 runtime checkout。
+- `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR`: 存放待评测生成产物（候选视频/rollout）的目录。
+- `WORLDFOUNDRY_CHRONOMAGIC_RESULTS_PATH`: 未显式传 `--official-results-path` 时，导入器默认从该路径读取官方结果导出文件。
+- `WORLDFOUNDRY_CHRONOMAGIC_CHSCORE_CKPT`: CHScore 使用的 CoTracker 权重。
+- `WORLDFOUNDRY_CHRONOMAGIC_MTSCORE_CKPT`: MTScore 使用的 InternVideo2 权重。
+- `WORLDFOUNDRY_CHRONOMAGIC_DATASET_ROOT`: 本地 BestWishYsh/ChronoMagic-Bench 数据集根，用作 discovery 证据。
+- `OPENAI_API_KEY`: GPT4o-MTScore 组件必需。
 
-导入已有 `ChronoMagic-Bench-Input.json`：
+## 输出文件
 
-```bash
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-  worldfoundry/evaluation/tasks/execution/runners/chronomagic_bench/run_chronomagic_bench_official_runner.py \
-  --official-results-path /path/to/ChronoMagic-Bench-Input.json \
-  --all-results-dir /path/to/all \
-  --generated-video-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --dataset-root "${WORLDFOUNDRY_CHRONOMAGIC_DATASET_ROOT}" \
-  --model-name worldfoundry \
-  --output-dir tmp/chronomagic-bench/import \
-  --json
-```
+运行会在 `--output-dir` 下写出：
 
-## Python 导入
+- `scorecard.json`: WorldFoundry 统一 scorecard，记录上表中的指标值。
+- `per_sample_metrics.jsonl`
+- `raw_metric_table.jsonl`: 支撑 scorecard 的原始 metric 行。
+- `generated_video_manifest.json`
+- `dataset_manifest.json`
+- `upstream_stdout.log`: 上游官方 scorer 的 stdout 日志。
+- `upstream_stderr.log`: 上游官方 scorer 的 stderr 日志。
 
-直接在 Python 中复用：
+Scorecard 主键：`chronomagic_score`（leaderboard key `chronomagic_score`），写入 `scorecard.json`。
 
-```python
-from worldfoundry.evaluation.tasks.execution.runners.chronomagic_bench.chronomagic_official_impl import (
-    normalize_chronomagic_results,
-    run_chronomagic,
-)
-from worldfoundry.evaluation.tasks.execution.runners._benchmark_metrics.formulas import chronomagic_average_scores
-```
+## 边界与限制
 
-## 输出
-
-输出目录包含：
-
-| 文件 | 含义 |
-| --- | --- |
-| `scorecard.json` | 组件可用性、覆盖率、可比性信息与指标摘要。 |
-| `raw_metric_table.jsonl` | `chronomagic_score` 和 `temporal_transformation` 指标行。 |
-| `per_sample_metrics.jsonl` | 如果组件 JSON 可用，包含 per-model 与 per-video 行。 |
-| `generated_video_manifest.json` | 生成视频覆盖率统计。 |
-| `dataset_manifest.json` | 提供 `--dataset-root` 时记录本地数据集证据。 |
-| `upstream_stdout.log` / `upstream_stderr.log` | 官方组件日志。 |
-| `staged_input_manifest.json` | 使用 `--generated-video-dir` 并自动整理输入结构时写出。 |
-
-`chronomagic_score` 会对可用的 CHScore、MTScore、GPT4o-MTScore 做尺度归一后求平均。`temporal_transformation` 主要关注 MTScore 和 GPT4o-MTScore。两个指标都是越高越好。
+- 组件级验证（如仅 CHScore）不具 leaderboard 效力；leaderboard 对齐还需完整 prompt 覆盖、UMT-FVD、UMTScore 与官方提交协议。
+- 完整官方核心运行需要用户提供 MTScore 权重与 OpenAI 凭据。
+- 历史记录：worldscore 环境中的一次 MTScore 尝试缺少 InternVideo2 所需的 `flash_attn`/`dropout_layer_norm`，在该环境运行 MTScore 前需先安装。
 
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

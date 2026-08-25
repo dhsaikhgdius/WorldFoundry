@@ -1,0 +1,93 @@
+---
+title: SANA-WM 80-Scene Benchmark
+description: NVIDIA 公开的 SANA-WM 80 场景世界模型评测：VBench 质量、回访一致性、相机位姿精度与长时程成像漂移。
+---
+
+## 简介
+
+**发表机构：** NVIDIA（英伟达）
+
+SANA-WM 80 场景评测配套 NVIDIA 的 SANA 世界模型工作。两个 split（`simple_60s`、`hard_60s`）各含 80 个场景，每个场景配一张条件图与 961 帧、16 FPS 的相机轨迹；世界模型需沿指定轨迹为每个场景 rollout 一分钟视频。评分覆盖四个指标族：VBench 风格视觉/时序质量、*回访一致性*（轨迹回到先前视点时帧对间的 PSNR/SSIM/LPIPS）、相机位姿精度（相对目标轨迹的旋转误差、相对平移误差与相对运动一致性），以及 `delta_iq`——跨时间窗口的成像质量衰减，用于暴露长时程漂移。
+
+WorldFoundry 在仓内完整实现该 evaluator：自持布局、prompt 绑定、回访帧对协议与时间窗聚合，并刻意复用常驻的 VBench 与 Pi3 实现，而非在评测时执行 NVlabs/Sana checkout。
+
+官方参考：
+
+- 官方仓库: [NVlabs/Sana](https://github.com/NVlabs/Sana)
+
+## 评测协议
+
+生成视频按所选 split 命名为 `<scene_id>_generated.mp4`。`--metrics` 选择指标族（`vbench,revisit,temporal,camera`）；`--split` 选择 `simple_60s`、`hard_60s` 或 `all`；`--max-pairs` 限定每场景回访帧对数量，`--revisit-lpips` 追加 LPIPS。相机指标读取由独立调度的 Pi3 GPU 阶段产出的位姿文件（`--pose-results-path`，`eval_poses.json`）；以弧度上报的旋转误差在导入时转换为角度。
+
+主指标是 `vbench_overall`。
+
+| Metric | 含义 | 方向 |
+| --- | --- | --- |
+| `vbench_overall` | 常驻 VBench 视觉/时序质量维度的均值。 | 越高越好 |
+| `vbench_total_score` | VBench total_score 诊断性聚合分。 | 越高越好 |
+| `revisit_psnr` | 轨迹回访先前视点时帧对间的 PSNR。 | 越高越好 |
+| `revisit_ssim` | 同一回访帧对间的 SSIM。 | 越高越好 |
+| `revisit_lpips` | 同一回访帧对间的 LPIPS。 | 越低越好 |
+| `rot_err_deg` | 相对目标轨迹的相机旋转误差（度）。 | 越低越好 |
+| `trans_err_rel` | 相对目标轨迹的相机平移相对误差。 | 越低越好 |
+| `cam_mc_rel` | 相机运动一致性相对误差。 | 越低越好 |
+| `delta_iq` | 跨时间窗口的成像质量衰减（长时程漂移）。 | 越低越好 |
+
+## 数据与产物布局
+
+WorldFoundry 仓内路径：
+
+```text
+worldfoundry/data/benchmarks/tasks/external/sana-wm-bench.yaml
+```
+
+```text
+<dataset_root>/images/<scene_id>.png                            # 条件图
+<dataset_root>/<split>/sanawm_export_v2/<scene_id>.npz          # 相机轨迹
+<dataset_root>/<split>/sanawm_export_v2/run_manifest.jsonl      # 场景 manifest
+${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}/<scene_id>_generated.mp4 # 逐 split rollout
+```
+
+```bash
+hf download Efficient-Large-Model/SANA-WM-Bench --repo-type dataset \
+  --local-dir ${WORLDFOUNDRY_SANA_WM_BENCH_DATASET_ROOT}
+```
+
+## 运行评测
+
+用仓内 evaluator 评测已就位的 rollout：
+
+```bash
+${WORLDFOUNDRY_UNIFIED_PYTHON} \
+  worldfoundry/evaluation/tasks/execution/runners/sana_wm_bench/run_sana_wm_bench_official_runner.py \
+  --run-official \
+  --dataset-root "${WORLDFOUNDRY_SANA_WM_BENCH_DATASET_ROOT}" \
+  --generated-video-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
+  --split simple_60s \
+  --metrics vbench,revisit,temporal \
+  --output-dir tmp/sana_wm_bench/official \
+  --json
+```
+
+## 权重与环境变量
+
+VBench 权重支撑视觉/时序指标；Pi3 权重加分布式 GPU 执行产出相机位姿估计，经 `--pose-results-path` 导入。
+
+- `WORLDFOUNDRY_SANA_WM_BENCH_DATASET_ROOT`: Efficient-Large-Model/SANA-WM-Bench 数据集本地根目录。
+
+## 输出文件
+
+运行会在 `--output-dir` 下写出：
+
+- `scorecard.json`: WorldFoundry 统一 scorecard，记录上表中的指标值。
+- `raw_metric_table.jsonl`: 支撑 scorecard 的原始 metric 行。
+
+Scorecard 主键：`vbench_overall`（leaderboard key `vbench_overall`），写入 `scorecard.json`。
+
+## 边界与限制
+
+- 完整 80 场景 × 两个 split 的数值对齐尚未在本 checkout 中运行。
+- 位姿推理刻意作为可独立调度的 GPU 阶段；仓内只消费其 `eval_poses.json`。
+- 部分场景子集或缺失指标族的得分只是开发信号，不是 benchmark 总分。
+
+[← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

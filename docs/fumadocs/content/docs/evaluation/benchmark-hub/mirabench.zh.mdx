@@ -5,6 +5,8 @@ description: MiraData 的长视频生成评测，包含仓内 official runtime �
 
 ## 简介
 
+**发表机构：** Tencent（腾讯 ARC Lab）
+
 MiraBench 是 MiraData 引入的长视频生成评测组件。MiraData 是一个带结构化 captions 的 large-scale long-video dataset。MiraBench 从六个角度评估长视频生成：temporal consistency、temporal motion strength、3D consistency、visual quality、text-video alignment 和 distribution consistency。官方 scorer 暴露 17 个指标，包括 DINO/CLIP temporal consistency、RAFT-style motion strength、3D reconstruction errors、aesthetic/imaging quality、ViCLIP alignment、FVD、FID 和 KID。
 
 WorldFoundry 已经把 MiraBench runtime 集成在 `worldfoundry/evaluation/tasks/execution/runners/mirabench/runtime/mirabench`，公开 runner 是 `worldfoundry/evaluation/tasks/execution/runners/mirabench/run_mirabench_official_runner.py`。

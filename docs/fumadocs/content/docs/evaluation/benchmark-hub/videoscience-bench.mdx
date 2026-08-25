@@ -1,180 +1,89 @@
 ---
 title: VideoScience-Bench
-description: Scientific-reasoning video generation evaluation with WorldFoundry's checked-in VideoScience runner, data assets, commands, metrics, and current gaps.
+description: Scientific understanding benchmark for video generation: experiment-grounded prompts judged on a 1-4 rubric across five dimensions.
 ---
 
-## What it measures
+## About
 
-VideoScience-Bench evaluates whether generated videos are scientifically correct, not only visually plausible. The local VideoScience README describes 200 undergraduate-level physics and chemistry scenarios: 160 text-to-video examples, 40 image-to-video examples, 12 topics, and 103 scientific concepts. Each prompt usually requires multiple interacting concepts.
+**Publisher:** Hao AI Lab, UC San Diego
 
-WorldFoundry uses the checked-in runner at `worldfoundry/evaluation/tasks/execution/runners/videoscience_bench/run_videoscience_bench_official_runner.py` and the in-tree runtime under `worldfoundry/evaluation/tasks/execution/runners/videoscience_bench/runtime/videoscience_bench`. Do not make a separate copy of the official repo for normal WorldFoundry use. The local `/VideoScience` and `/videoscience-bench` repos are protocol references.
+VideoScience-Bench evaluates whether video generation models understand science: prompts describe real scientific experiments and phenomena, and generated videos are judged on five dimensions — prompt consistency, phenomenon congruency (does the depicted outcome match the true science), correct dynamism, immutability (do invariant properties stay invariant), and spatio-temporal coherence. A VLM judge scores each dimension on a 1-4 rubric; the official weighted overall normalizes to the unit interval as `videoscience_average`.
 
+WorldFoundry integrates VideoScience-Bench with an in-tree runtime: the unified `benchmark-run` entrypoint normalizes caller-provided official result files, and the runtime CLI can drive judge runs over an experiments CSV with a configured judge provider/model.
 
-## Official references
+Official references:
 
-| Resource | Link |
-| --- | --- |
-| Paper | [arXiv:2512.02942](https://arxiv.org/abs/2512.02942) |
-| GitHub | [github.com/hao-ai-lab/VideoScience](https://github.com/hao-ai-lab/VideoScience) |
-| HF dataset | [lmgame/VideoScienceBench](https://huggingface.co/datasets/lmgame/VideoScienceBench) |
-| In-tree runner | `worldfoundry/evaluation/tasks/execution/runners/videoscience_bench/run_videoscience_bench_official_runner.py` |
+- Paper: [arxiv.org/abs/2512.02942](https://arxiv.org/abs/2512.02942)
+- Project page: [huggingface.co/spaces/lmgame/videoscience-bench/blob/main/README.md](https://huggingface.co/spaces/lmgame/videoscience-bench/blob/main/README.md)
+- Official repository: [hao-ai-lab/VideoScience](https://github.com/hao-ai-lab/VideoScience)
 
-## Prepare data and assets
+## Evaluation protocol
 
-Checked-in assets:
+`official-validation` normalizes an official result export. The runtime CLI takes `--experiments-csv`, an `--evaluation-results-dir`, optional `--reference-videos-dir`, and judge configuration (`--judge-provider`, `--judge-model`, `--judge-max-runs`, `--max-frames`, `--judge-fps`); `--ready-only` restricts scoring to experiments whose artifacts are complete.
 
-- `worldfoundry/data/benchmarks/assets/videoscience-bench/database/data.csv`
-- `worldfoundry/data/benchmarks/assets/videoscience-bench/database/data_filtered.jsonl`
-- `worldfoundry/data/benchmarks/assets/videoscience-bench/database/annotations.json`
-- `worldfoundry/data/benchmarks/assets/videoscience-bench/database/annotations_analysis.json`
-- `worldfoundry/data/benchmarks/assets/videoscience-bench/sample_results.csv`
+Primary metric: `videoscience_average`.
 
-Optional HF dataset mirror:
+| Metric | Meaning | Direction |
+| --- | --- | --- |
+| `prompt_consistency` | prompt_consistency normalized benchmark score. | Higher is better |
+| `phenomenon_congruency` | phenomenon_congruency normalized benchmark score. | Higher is better |
+| `correct_dynamism` | correct_dynamism normalized benchmark score. | Higher is better |
+| `immutability` | immutability normalized benchmark score. | Higher is better |
+| `spatio_temporal_coherence` | spatio_temporal_coherence normalized benchmark score. | Higher is better |
+| `videoscience_average` | Official weighted overall score normalized from the 1-4 rubric to the unit interval. | Higher is better |
 
-```bash
-hf download lmgame/VideoScienceBench \
-  --repo-type dataset \
-  --local-dir /path/to/datasets/VideoScienceBench
-```
+## Data and artifact layout
 
-Set the generated videos root and experiments table:
-
-```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/videoscience/generated_videos
-export WORLDFOUNDRY_VIDEOSCIENCE_EXPERIMENTS_CSV="$PWD/worldfoundry/data/benchmarks/assets/videoscience-bench/database/data.csv"
-```
-
-Configure a VLM judge provider for direct execution:
-
-```bash
-export WORLDFOUNDRY_VIDEOSCIENCE_PROVIDER=openai
-export WORLDFOUNDRY_VIDEOSCIENCE_MODEL=gpt-4o
-export OPENAI_API_KEY=...
-```
-
-The in-tree provider layer also supports Gemini and Anthropic when the matching packages and API keys are installed.
-
-## Input and output layout
-
-The runner matches generated videos to `data.csv` rows using `Unique ID`. Accepted filenames include:
+In-tree paths:
 
 ```text
-vid_<id>_run_1.mp4
-vid_<id>.mp4
-<id>.mp4
+worldfoundry/data/benchmarks/tasks/external/videoscience-bench.yaml
+worldfoundry/evaluation/tasks/execution/runners/videoscience_bench/runtime/videoscience_bench
 ```
-
-Zero-padded forms such as `vid_094_run_1.mp4` are also accepted.
-
-Example generated video layout:
 
 ```text
-/path/to/videoscience/generated_videos/
-  vid_94_run_1.mp4
-  vid_106_run_1.mp4
-  vid_101_run_1.mp4
+.../runners/videoscience_bench/runtime/videoscience_bench   # in-tree runtime
+<experiments.csv>                                            # experiment/prompt table
+<evaluation_results_dir>/                                    # judge outputs per experiment
+${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}/                      # generated videos
 ```
 
-Public CLI output:
+Official benchmark assets come from the source repository and leaderboard space; no Hugging Face dataset is required by the contract entry.
 
-```text
-tmp/videoscience-bench/official-validation/
-  scorecard.json
-  raw_metric_table.jsonl
-  per_sample_scores.jsonl
-  runner_runtime_report.json
-  specialized_normalizer_stdout.log
-  specialized_normalizer_stderr.log
-```
+## Run the benchmark
 
-Direct judge output:
-
-```text
-tmp/videoscience-bench/direct-run/
-  scorecard.json
-  raw_metric_table.jsonl
-  per_sample_scores.jsonl
-  upstream_stdout.log
-  upstream_stderr.log
-  upstream/
-    videoscience_judge_results.json
-    per_sample/
-```
-
-## Public CLI
-
-The catalog-supported public command is result import with `official-validation`:
+Catalog-recorded validation command:
 
 ```bash
-cd "$WORLDFOUNDRY_REPO_ROOT"
-
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id videoscience-bench \
   --mode official-validation \
-  --official-results-path /path/to/videoscience_judge_results.json \
-  --generated-artifact-dir /path/to/videoscience/generated_videos \
-  --output-dir tmp/videoscience-bench/official-validation \
+  --official-results-path <official_results.json> \
+  --generated-artifact-dir <generated_videos> \
+  --output-dir <out> \
   --json
 ```
 
-## Direct runner
+## Checkpoints and environment variables
 
-Import an existing VideoScience judge JSON or CSV:
+- `WORLDFOUNDRY_VIDEOSCIENCE_BENCH_ROOT`: Optional override pointing at a local benchmark runtime/repository root.
+- `WORLDFOUNDRY_VIDEOSCIENCE_BENCH_RESULTS_PATH`: Default path the importer reads official result exports from when `--official-results-path` is not passed.
+- `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR`: Directory containing the candidate generated artifacts to score or import against.
 
-```bash
-cd "$WORLDFOUNDRY_REPO_ROOT"
+## Outputs
 
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-  worldfoundry/evaluation/tasks/execution/runners/videoscience_bench/run_videoscience_bench_official_runner.py \
-  --official-results-path /path/to/videoscience_judge_results.json \
-  --output-dir tmp/videoscience-bench/direct-import \
-  --json
-```
+The run writes into `--output-dir`:
 
-Run the checked-in VLM judge over generated videos:
+- `scorecard.json`: WorldFoundry scorecard with the metric values recorded above.
+- `benchmark_contract.json`: Benchmark contract record for the run (inputs, mode, provenance).
+- `raw_metric_table.jsonl`: Metric rows backing the scorecard.
 
-```bash
-cd "$WORLDFOUNDRY_REPO_ROOT"
+Scorecard primary key: `videoscience_average` (leaderboard key `videoscience_average`), stored in `scorecard.json`.
 
-export OPENAI_API_KEY=...
+## Limitations
 
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-  worldfoundry/evaluation/tasks/execution/runners/videoscience_bench/run_videoscience_bench_official_runner.py \
-  --run-official \
-  --generated-video-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --experiments-csv "${WORLDFOUNDRY_VIDEOSCIENCE_EXPERIMENTS_CSV}" \
-  --judge-provider "${WORLDFOUNDRY_VIDEOSCIENCE_PROVIDER:-openai}" \
-  --judge-model "${WORLDFOUNDRY_VIDEOSCIENCE_MODEL:-gpt-4o}" \
-  --max-frames 24 \
-  --output-dir tmp/videoscience-bench/direct-run \
-  --json
-```
+- Scorecards from imported results remain non-leaderboard setup evidence; official runtime execution and judge assets remain pending.
+- Full official-run mode requires a configured VLM judge provider/API key.
+- Leaderboard parity requires official judge/checkpoint/API assets and normalized upstream result files.
 
-For a bounded local run:
-
-```bash
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-  worldfoundry/evaluation/tasks/execution/runners/videoscience_bench/run_videoscience_bench_official_runner.py \
-  --run-official \
-  --generated-video-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --experiments-csv "${WORLDFOUNDRY_VIDEOSCIENCE_EXPERIMENTS_CSV}" \
-  --judge-max-runs 10 \
-  --ready-only \
-  --output-dir tmp/videoscience-bench/direct-run-first10 \
-  --json
-```
-
-`--ready-only` restricts the run to rows marked `Done` in the checked-in table.
-
-## Metrics
-
-| Metric ID | Meaning |
-| --- | --- |
-| `prompt_consistency` | Whether the generated video follows the requested setup and procedure. |
-| `phenomenon_congruency` | Whether the expected scientific phenomenon appears and is scientifically correct. |
-| `correct_dynamism` | Whether motions and interactions obey relevant physical laws beyond the main phenomenon. |
-| `immutability` | Whether objects keep stable identity and attributes unless the prompt requires change. |
-| `spatio_temporal_coherence` | Whether the video avoids flicker, teleportation, identity swaps, and unnatural transitions. |
-| `videoscience_average` | Mean aggregate over available VideoScience metrics; primary metric. |
-
-The judge rubric is 1-4. WorldFoundry normalizes rubric scores to `[0, 1]` with `(score - 1) / 3`, and higher is better.
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)

@@ -1,201 +1,104 @@
 ---
 title: Video-Bench
-description: Human-preference-aligned 视频生成评测，包含仓内 MLLM judge runtime 和可运行命令。
+description: 与人类偏好对齐的 MLLM 视频生成评测（CVPR 2025）：GPT 评审的质量与视频-条件对齐维度，官方 1-5 / 1-3 分制。
 ---
 
 ## 简介
 
-Video-Bench 是一个和人类偏好对齐的视频生成质量评测。它使用 MLLM judge、few-shot scoring 和 chain-of-query prompts，从视频质量、运动质量和文本对齐多个维度评估生成视频，并和人类标注有较高相关性。
+**发表机构：** Shanghai Jiao Tong University（上海交通大学，联合新加坡国立大学、CMU、斯坦福等）
 
-WorldFoundry 已经把 Video-Bench evaluator 集成在 `worldfoundry/evaluation/tasks/execution/runners/videobench`。官方 repo 只作为 protocol 参考；WorldFoundry 使用仓内 runtime，不需要外部代码 checkout。
+Video-Bench（CVPR 2025）用与人类偏好对齐的 MLLM judge 评测生成视频。其维度分两族：视频质量（成像质量、美学、时序一致性、运动效果，1-5 分制）与视频-条件对齐（整体视频-文本一致性 1-5 分；物体类别、颜色、动作、场景一致性 1-3 分）。few-shot 评分与 chain-of-query 技术让 GPT-4o judge 输出结构化、与人工高度相关的评估；官方还发布了用于校准的人工标注数据集。
+
+WorldFoundry 内置 Video-Bench runtime 并做了包装：官方 `*_score_results.json` 输出按 1-5 / 1-3 分制映射到 0-1 归一化；runtime 执行把解析出的生成视频目录传给官方 `evaluate.py`；`VideoBench_full.json` 不可用时从人工标注 JSON 重建 prompt 元数据；私有临时配置由环境变量生成，不改动上游 `config.json`。
 
 官方参考：
 
-- Project page: [video-bench.github.io](https://video-bench.github.io/)
-- Paper: [arXiv:2504.04907](https://arxiv.org/abs/2504.04907)
-- Human annotation dataset: [Video-Bench/Video-Bench_human_annotation](https://huggingface.co/datasets/Video-Bench/Video-Bench_human_annotation)
-- Official videos dataset: [Video-Bench/Video-Bench_videos](https://huggingface.co/datasets/Video-Bench/Video-Bench_videos)
-- 仓内 runner: `worldfoundry/evaluation/tasks/execution/runners/videobench/run_videobench_official_runner.py`
+- Paper: [arxiv.org/abs/2504.04907](https://arxiv.org/abs/2504.04907)
+- 项目主页: [github.com/Video-Bench/Video-Bench](https://github.com/Video-Bench/Video-Bench)
+- 官方仓库: [Video-Bench/Video-Bench](https://github.com/Video-Bench/Video-Bench)
+- License: `apache-2.0`
 
 ## 评测协议
 
-Video-Bench 分三组评估：
+导入模式通过 `--official-results-path` 归一化官方评分结果。runtime 模式需要生成视频目录（`--generated-video-dir` / `--model-output-dir`）、人工标注根目录以及 GPT-4o（可选 GPT-4o-mini）API 凭据；`--dimension` 限定评审维度，`--mode` 选择评审协议。本地 preflight 会校验标注镜像、prompt manifest、视频解码、布局匹配与依赖导入。
 
-| 分组 | Metrics | Scale |
+主指标是 `videobench_average`。
+
+| Metric | 含义 | 方向 |
 | --- | --- | --- |
-| Static quality | `imaging_quality`, `aesthetic_quality` | 1-5 |
-| Dynamic quality | `temporal_consistency`, `motion_effects` | 1-5 |
-| Video-text alignment | `video_text_consistency`, `object_class_consistency`, `color_consistency`, `action_consistency`, `scene_consistency` | overall alignment 为 1-5，细粒度 alignment 为 1-3 |
+| `imaging_quality` | Video-Bench 静态画质得分（官方 1-5 分制）。 | 越高越好 |
+| `aesthetic_quality` | Video-Bench 美学质量得分（官方 1-5 分制）。 | 越高越好 |
+| `temporal_consistency` | Video-Bench 时序一致性得分（官方 1-5 分制）。 | 越高越好 |
+| `motion_effects` | Video-Bench 运动效果得分（官方 1-5 分制）。 | 越高越好 |
+| `video_text_consistency` | Video-Bench 整体视频-文本一致性得分（官方 1-5 分制）。 | 越高越好 |
+| `object_class_consistency` | Video-Bench 物体类别一致性得分（官方 1-3 分制）。 | 越高越好 |
+| `color_consistency` | Video-Bench 颜色一致性得分（官方 1-3 分制）。 | 越高越好 |
+| `action_consistency` | Video-Bench 动作一致性得分（官方 1-3 分制）。 | 越高越好 |
+| `scene_consistency` | Video-Bench 场景一致性得分（官方 1-3 分制）。 | 越高越好 |
+| `videobench_average` | 可用 Video-Bench 维度的归一化均分。 | 越高越好 |
 
-WorldFoundry 会归一化这些维度，并报告 `videobench_average`。
+## 数据与产物布局
 
-仓内 prompt metadata 是 `worldfoundry/data/benchmarks/assets/video-bench/VideoBench_full.json`。如果你下载了官方 human annotation dataset，runner 也能从其中的 per-dimension JSON 构建 prompt metadata。
-
-## 数据准备
-
-Video-Bench standard mode 期望按 dimension 和 model name 组织生成视频：
+WorldFoundry 仓内路径：
 
 ```text
-/path/to/video-bench/generated_videos/
-  color/
-    your_model/
-      A red bird_0.mp4
-      A red bird_1.mp4
-  object_class/
-    your_model/
-      A train_0.mp4
-  action/
-    your_model/
-      A person is marching_0.mp4
-  video-text consistency/
-    your_model/
-      Close up of grapes on a rotating table._0.mp4
+worldfoundry/data/benchmarks/tasks/external/video-bench.yaml
+worldfoundry/evaluation/tasks/execution/runners/videobench/runtime
 ```
 
-`action` folder 会用于 `action`、`temporal_consistency` 和 `motion_effects`。`video-text consistency` folder 会用于 `video-text consistency`、`imaging_quality` 和 `aesthetic_quality`。
-
-设置生成视频目录：
-
-```bash
-export WORLDFOUNDRY_VIDEOBENCH_GENERATED_VIDEO_DIR=/path/to/video-bench/generated_videos
+```text
+worldfoundry/evaluation/tasks/execution/runners/videobench/runtime   # 仓内 runtime
+cache/worldfoundry/data/hfd_datasets/Video-Bench/Video-Bench_human_annotation   # 标注镜像
+cache/worldfoundry/data/hfd_datasets/Video-Bench/Video-Bench_videos             # 官方视频（gated）
+<model_output_dir>/                                                  # 待评审生成视频
 ```
 
-可选官方 datasets：
-
 ```bash
-export WORLDFOUNDRY_VIDEOBENCH_ANNOTATION_ROOT=/path/to/datasets/Video-Bench_human_annotation
-export WORLDFOUNDRY_VIDEOBENCH_OFFICIAL_VIDEOS_ROOT=/path/to/datasets/Video-Bench_videos
-
-hf download Video-Bench/Video-Bench_human_annotation \
-  --repo-type dataset \
-  --local-dir "${WORLDFOUNDRY_VIDEOBENCH_ANNOTATION_ROOT}"
-
-hf download Video-Bench/Video-Bench_videos \
-  --repo-type dataset \
-  --local-dir "${WORLDFOUNDRY_VIDEOBENCH_OFFICIAL_VIDEOS_ROOT}"
+hf download Video-Bench/Video-Bench_human_annotation --repo-type dataset \
+  --local-dir cache/worldfoundry/data/hfd_datasets/Video-Bench/Video-Bench_human_annotation
 ```
 
-候选模型训练和推理是 model-specific 的。先通过候选模型 package 生成视频，再放到上面的 Video-Bench layout。
+## 运行评测
 
-## Judge credentials
-
-Video-Bench 使用 GPT-4o 和 GPT-4o-mini compatible APIs 做 judge。WorldFoundry 会在输出目录生成私有 runtime config，所以不需要手动改仓库里的 `config.json`。
+目录 manifest 记录的 validation 命令：
 
 ```bash
-export WORLDFOUNDRY_VIDEOBENCH_GPT4O_API_KEY="${OPENAI_API_KEY}"
-export WORLDFOUNDRY_VIDEOBENCH_GPT4O_MINI_API_KEY="${OPENAI_API_KEY}"
-export WORLDFOUNDRY_VIDEOBENCH_GPT4O_BASE_URL="${OPENAI_BASE_URL:-}"
-export WORLDFOUNDRY_VIDEOBENCH_GPT4O_MINI_BASE_URL="${OPENAI_BASE_URL:-}"
-```
-
-如果缺少 judge credentials，runner 会写出失败的 scorecard，并说明缺少哪些 API key。
-
-## 运行 Standard Mode
-
-对一个生成模型跑单个 standard dimension：
-
-```bash
-cd /path/to/WorldFoundry
-
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-  worldfoundry/evaluation/tasks/execution/runners/videobench/run_videobench_official_runner.py \
-  --videos-path "${WORLDFOUNDRY_VIDEOBENCH_GENERATED_VIDEO_DIR}" \
-  --full-json-dir "$PWD/worldfoundry/data/benchmarks/assets/video-bench/VideoBench_full.json" \
-  --dimension color \
-  --mode standard \
-  --models your_model \
-  --output-dir tmp/video-bench/color_your_model \
+worldfoundry-eval zoo benchmark-run \
+  --benchmark-id video-bench \
+  --mode official-validation \
+  --official-results-path <official_results.json> \
+  --generated-artifact-dir <generated_videos> \
+  --output-dir <out> \
   --json
 ```
 
-对一个模型跑所有支持的维度：
+## 权重与环境变量
 
-```bash
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-  worldfoundry/evaluation/tasks/execution/runners/videobench/run_videobench_official_runner.py \
-  --videos-path "${WORLDFOUNDRY_VIDEOBENCH_GENERATED_VIDEO_DIR}" \
-  --full-json-dir "$PWD/worldfoundry/data/benchmarks/assets/video-bench/VideoBench_full.json" \
-  --models your_model \
-  --output-dir tmp/video-bench/your_model_full \
-  --timeout 7200 \
-  --json
-```
+- `WORLDFOUNDRY_VIDEOBENCH_ROOT`: 可选覆盖项，指向外部 runtime checkout。
+- `WORLDFOUNDRY_VIDEOBENCH_RESULTS_PATH`: 未显式传 `--official-results-path` 时，导入器默认从该路径读取官方结果导出文件。
+- `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR`: 存放待评测生成产物（候选视频/rollout）的目录。
+- `WORLDFOUNDRY_VIDEOBENCH_GPT4O_API_KEY`: GPT-4o judge 的 API key（回退到 `OPENAI_API_KEY`）。
+- `WORLDFOUNDRY_VIDEOBENCH_ANNOTATION_ROOT`: 人工标注数据集根目录覆盖项。
+- `WORLDFOUNDRY_VIDEOBENCH_MODEL_OUTPUT_DIR`: 存放待评审生成视频的模型输出树。
 
-不传 `--dimension` 时，runner 会评估它支持的 Video-Bench dimensions。
-
-## 运行 Custom Mode
-
-`imaging_quality` 或 `aesthetic_quality` 使用 `custom_static`：
-
-```bash
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-  worldfoundry/evaluation/tasks/execution/runners/videobench/run_videobench_official_runner.py \
-  --videos-path /path/to/custom/videos \
-  --dimension aesthetic_quality \
-  --mode custom_static \
-  --models your_model \
-  --prompt "a cinematic shot of a silver robot walking through rain" \
-  --output-dir tmp/video-bench/custom_static \
-  --json
-```
-
-Dynamic quality 或 video-text alignment 维度使用 `custom_nonstatic`：
-
-```bash
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-  worldfoundry/evaluation/tasks/execution/runners/videobench/run_videobench_official_runner.py \
-  --videos-path /path/to/custom/videos \
-  --dimension motion_effects \
-  --mode custom_nonstatic \
-  --models your_model \
-  --prompt-file /path/to/video_prompts.json \
-  --output-dir tmp/video-bench/custom_motion \
-  --json
-```
-
-`--prompt-file` 使用官方 custom-mode 的格式：sample index 或 video key 到 prompt 的 JSON mapping。
-
-## 导入已有结果
-
-导入官方兼容的 Video-Bench 结果 JSON 或结果目录：
-
-```bash
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-  worldfoundry/evaluation/tasks/execution/runners/videobench/run_videobench_official_runner.py \
-  --official-results-path /path/to/video_bench_results_or_dir \
-  --annotation-root "${WORLDFOUNDRY_VIDEOBENCH_ANNOTATION_ROOT}" \
-  --official-videos-root "${WORLDFOUNDRY_VIDEOBENCH_OFFICIAL_VIDEOS_ROOT}" \
-  --output-dir tmp/video-bench/imported \
-  --json
-```
+该 benchmark 复用共享 base-model 依赖栈：`video_bench_dataset_assets`。
 
 ## 输出文件
 
-每次运行会写出：
+运行会在 `--output-dir` 下写出：
 
-- `scorecard.json`: 归一化 Video-Bench scores 和 `videobench_average`。
-- `raw_metric_table.jsonl`: scorecard 使用的 metric rows。
-- `per_sample_scores.jsonl`: 如果可用，会记录逐样本 judge scores。
-- `upstream/`: 官方 runtime 结果文件。
-- `logs/`: per-dimension judge logs。
-- `videobench_config.private.json`: 生成的私有 API config，文件权限为 `0600`。
+- `scorecard.json`: WorldFoundry 统一 scorecard，记录上表中的指标值。
+- `per_sample_scores.jsonl`: 当结果源包含逐样本数值时写出的逐样本行。
+- `raw_metric_table.jsonl`: 支撑 scorecard 的原始 metric 行。
+- `upstream_stdout.log`: 上游官方 scorer 的 stdout 日志。
+- `upstream_stderr.log`: 上游官方 scorer 的 stderr 日志。
 
-## Leaderboard 说明
+Scorecard 主键：`videobench_average`（leaderboard key `overall_average`），写入 `scorecard.json`。
 
-官方 Video-Bench README 使用 GPT-4o/GPT-4o-mini judge，在 1–5 或 1–3 量表上发布跨模型 leaderboard。代表性上游 baseline：
+## 边界与限制
 
-| Model | Imaging Quality | Aesthetic Quality | Temporal Consist. | Motion Effects | Video-text Consist. | Overall Avg Rank |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Gen3 | 4.66 | 4.44 | 4.74 | 3.99 | 4.38 | 1.78 |
-| CogVideoX | 3.87 | 3.84 | 4.14 | 3.55 | 4.62 | 2.22 |
-| VideoCrafter2 | 4.08 | 3.85 | 3.69 | 2.81 | 4.18 | 3.22 |
-| Kling | 4.26 | 3.82 | 4.38 | 3.11 | 4.07 | 3.78 |
-| Show-1 | 3.30 | 3.28 | 3.90 | 2.90 | 4.21 | 4.33 |
-| LaVie | 3.00 | 2.94 | 3.00 | 2.43 | 3.71 | 5.88 |
-| Pika-Beta | 3.78 | 3.76 | 3.40 | 2.59 | 3.78 | 6.22 |
-
-Video-Bench 还报告了比既有自动指标更强的人类对齐 Spearman 相关。在其 human-alignment 表中，Video-Bench 在 imaging quality 上达到 **0.733**，在 color consistency 上达到 **0.750**，而单个 VBench 组件指标大约在 **0.363–0.545**。
-
-WorldFoundry scorecard 只是本地证据。复现上表仍需要官方 prompt suite、GPT judge 凭证，以及按维度组织的视频 layout。
+- 官方 GPT judge 执行仅受用户显式提供的 API 凭据限制；缺少凭据属于运行时配置要求，不是集成阻塞。
+- 仅在需要官方视频时才需访问 gated 的 Video-Bench_videos 数据集。
+- 完整 leaderboard 对齐需要全部官方资产、生成产物与经验证的 scorecard 证据。
 
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

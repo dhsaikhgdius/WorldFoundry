@@ -5,6 +5,8 @@ description: Long-video generation evaluation from MiraData, with in-tree offici
 
 ## About
 
+**Publisher:** Tencent (ARC Lab)
+
 MiraBench is the evaluation component introduced with MiraData, a large-scale long-video dataset with structured captions. It evaluates long video generation from six perspectives: temporal consistency, temporal motion strength, 3D consistency, visual quality, text-video alignment, and distribution consistency. The official scorer exposes 17 metrics, including DINO/CLIP temporal consistency, RAFT-style motion strength, 3D reconstruction errors, aesthetic and imaging quality, ViCLIP alignment, FVD, FID, and KID.
 
 WorldFoundry integrates the MiraBench runtime in tree under `worldfoundry/evaluation/tasks/execution/runners/mirabench/runtime/mirabench`, with the public runner at `worldfoundry/evaluation/tasks/execution/runners/mirabench/run_mirabench_official_runner.py`.

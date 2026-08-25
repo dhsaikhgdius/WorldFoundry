@@ -1,147 +1,96 @@
 ---
 title: T2VSafetyBench
-description: 使用 WorldFoundry 仓内 T2VSafetyBench runner、prompt assets、命令和指标评测 text-to-video safety。
+description: 安全关键的 T2V 评测（NeurIPS 2024）：恶意 prompt 下 12 个 NSFW 维度比率，GPT 评审并与人工复核高度相关。
 ---
 
-## 评测内容
+## 简介
 
-T2VSafetyBench 评估 text-to-video 生成中的安全风险。本地 README 描述了 14 个 prompt 文件，覆盖 pornography、borderline pornography、violence、gore、disturbing content、public figures、discrimination、political sensitivity、copyright and trademark、illegal activities、misinformation，以及三组 temporal-risk prompts。
+**发表机构：** Chinese Academy of Sciences（中国科学院）与 Tsinghua University（清华大学，联合瑞莱智慧 RealAI）
 
-WorldFoundry 暴露 12 个 per-aspect metric IDs 和 `nsfw_average`。导入 aggregate result 时，三组 temporal-risk prompts 通过 `temporal_risk_nsfw_rate` 报告。可运行代码在仓内：`worldfoundry/evaluation/tasks/execution/runners/t2v_safety_bench`；日常使用不需要为该 benchmark 另建官方 repo 副本。上游 paper 和官方 README 只作为协议参考。
+T2VSafetyBench 是首个面向文生视频模型的综合安全评测。它定义了 4 个主类、14 个视频生成安全关键维度——色情、边缘色情、暴力、血腥、公众人物、歧视、政治敏感、违法活动、令人不适内容、虚假信息、版权，以及视频特有的*时序风险*（只有跨帧才显现的不安全内容）——恶意 prompt 数据集由真实世界 prompt、LLM 生成 prompt 与越狱攻击 prompt 构成。视频由 GPT 按维度判定 NSFW/安全，与人工复核相关性高；所有指标均为越低越好的 NSFW 比率。
 
-## 准备数据与资产
+WorldFoundry 同时支持官方结果导入与严格的 prompt-视频就位后送入入库 GPT judge；命令构造、就位、失败语义与归一化均经测试，且绝不把 mock API 当作指标证据。
 
-仓内 prompt assets：
+官方参考：
 
-- `worldfoundry/data/benchmarks/assets/t2v-safety-bench/T2VSafetyBench/1.txt` 到 `14.txt`
-- `worldfoundry/data/benchmarks/assets/t2v-safety-bench/T2VSafetyBench/Tiny-T2VSafetyBench/1.txt` 到 `14.txt`
-- `worldfoundry/data/benchmarks/assets/t2v-safety-bench/definition.txt`
-- `worldfoundry/data/benchmarks/assets/t2v-safety-bench/sample_results.csv`
+- Paper: [arxiv.org/abs/2407.05965](https://arxiv.org/abs/2407.05965)
+- 项目主页: [github.com/yibo-miao/T2VSafetyBench](https://github.com/yibo-miao/T2VSafetyBench)
+- 官方仓库: [yibo-miao/T2VSafetyBench](https://github.com/yibo-miao/T2VSafetyBench)
 
-直接 runner 可以导入任意位置的结果文件。导入完整 metrics 时，推荐使用包含 `metric_id` 和 `score` 字段的 summary CSV、JSON 或 JSONL：
+## 评测协议
 
-```csv
-metric_id,score
-pornography_nsfw_rate,0.12
-borderline_pornography_nsfw_rate,0.09
-violence_nsfw_rate,0.18
-temporal_risk_nsfw_rate,0.21
-nsfw_average,0.15
+导入模式通过 `WORLDFOUNDRY_T2V_SAFETY_BENCH_RESULTS_PATH` / `--official-results-path` 归一化官方结果导出。judge 模式把生成视频与所选 prompt 类别对齐就位（`--classes`、`--prompt-path`），并驱动入库的上游 GPT 评审 prompt（`--gpt-model`、`--api-base`）；`--limit` 限定集成运行规模。scorecard 主键为 `nsfw_average`。
+
+主指标是 `nsfw_average`。
+
+| Metric | 含义 | 方向 |
+| --- | --- | --- |
+| `pornography_nsfw_rate` | 色情内容 NSFW 触发率（归一化基准分）。 | 越低越好 |
+| `borderline_pornography_nsfw_rate` | 边缘色情内容 NSFW 触发率（归一化基准分）。 | 越低越好 |
+| `violence_nsfw_rate` | 暴力内容 NSFW 触发率（归一化基准分）。 | 越低越好 |
+| `gore_nsfw_rate` | 血腥内容 NSFW 触发率（归一化基准分）。 | 越低越好 |
+| `public_figures_nsfw_rate` | 公众人物 NSFW 触发率（归一化基准分）。 | 越低越好 |
+| `discrimination_nsfw_rate` | 歧视内容 NSFW 触发率（归一化基准分）。 | 越低越好 |
+| `political_sensitivity_nsfw_rate` | 政治敏感 NSFW 触发率（归一化基准分）。 | 越低越好 |
+| `illegal_activities_nsfw_rate` | 违法活动 NSFW 触发率（归一化基准分）。 | 越低越好 |
+| `disturbing_content_nsfw_rate` | 不适内容 NSFW 触发率（归一化基准分）。 | 越低越好 |
+| `misinformation_falsehoods_nsfw_rate` | 虚假信息 NSFW 触发率（归一化基准分）。 | 越低越好 |
+| `copyright_trademark_nsfw_rate` | 版权/商标违规 NSFW 触发率（归一化基准分）。 | 越低越好 |
+| `temporal_risk_nsfw_rate` | 时序风险 NSFW 触发率（归一化基准分）。 | 越低越好 |
+| `nsfw_average` | NSFW 平均触发率（归一化基准分）。 | 越低越好 |
+
+## 数据与产物布局
+
+WorldFoundry 仓内路径：
+
+```text
+worldfoundry/data/benchmarks/tasks/external/t2v-safety-bench.yaml
+worldfoundry/evaluation/tasks/execution/runners/t2v_safety_bench/runtime/t2v_safety_bench
 ```
 
-包装的 T2VSafetyBench 脚本也会产生 `nsfw_results_<model>_class<id>.txt` 和 `.xlsx` 文件。包含 `NSFW generation rate:` 的 text result 会映射到 `nsfw_average`。
+```text
+.../runners/t2v_safety_bench/runtime/t2v_safety_bench    # 入库 judge runtime 与 prompt
+${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}/                  # 按 prompt 类别组织的生成视频
+```
 
-直接运行 judge 时需要设置 API key：
+官方 prompt 类别随源仓库提供；不需要 Hugging Face 数据集。
+
+## 运行评测
+
+目录 manifest 记录的 validation 命令：
 
 ```bash
-export OPENAI_API_KEY=...
-```
-
-包装的上游脚本会从自己的 model-specific folders 读取生成视频，例如：
-
-```text
-worldfoundry/evaluation/tasks/execution/runners/t2v_safety_bench/runtime/t2v_safety_bench/
-  pika/video/1-1.mp4
-  pika/video/1-2.mp4
-  luma/video/3-1.mp4
-```
-
-包装脚本支持的 model folder names 是 `opensora`、`opensoraplan`、`keling`、`pika`、`luma`、`runway`、`qingying`、`svd` 和 `vidu`。
-
-## 输出布局
-
-公开 CLI 输出：
-
-```text
-tmp/t2v-safety-bench/official-validation/
-  scorecard.json
-  raw_metric_table.jsonl
-  per_sample_scores.jsonl
-  runner_runtime_report.json
-  specialized_normalizer_stdout.log
-  specialized_normalizer_stderr.log
-```
-
-直接 runner 输出：
-
-```text
-tmp/t2v-safety-bench/direct-run/
-  scorecard.json
-  raw_metric_table.jsonl
-  per_sample_scores.jsonl
-  upstream_stdout.log
-  upstream_stderr.log
-  upstream/
-```
-
-scorecard 会记录被解析的上游结果文件路径。
-
-## 公开 CLI
-
-catalog 支持的公开命令是用 `official-validation` 导入结果：
-
-```bash
-cd /path/to/WorldFoundry
-
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id t2v-safety-bench \
   --mode official-validation \
-  --official-results-path /path/to/t2v_safety_results.csv \
-  --generated-artifact-dir /path/to/t2v/generated_videos \
-  --output-dir tmp/t2v-safety-bench/official-validation \
+  --official-results-path <official_results.json> \
+  --generated-artifact-dir <generated_videos> \
+  --output-dir <out> \
   --json
 ```
 
-## 直接 Runner
+## 权重与环境变量
 
-导入已有结果文件：
+- `WORLDFOUNDRY_T2V_SAFETY_BENCH_ROOT`: 可选覆盖项，指向本地 benchmark runtime / 仓库根目录。
+- `WORLDFOUNDRY_T2V_SAFETY_BENCH_RESULTS_PATH`: 未显式传 `--official-results-path` 时，导入器默认从该路径读取官方结果导出文件。
+- `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR`: 存放待评测生成产物（候选视频/rollout）的目录。
+- `WORLDFOUNDRY_T2V_SAFETY_BENCH_GPT_API_KEY`: GPT judge 的 API key（回退到 `OPENAI_API_KEY`）。
+- `WORLDFOUNDRY_T2V_SAFETY_BENCH_GPT_MODEL`: GPT 评审使用的 judge 模型覆盖项。
 
-```bash
-cd /path/to/WorldFoundry
+## 输出文件
 
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-  worldfoundry/evaluation/tasks/execution/runners/t2v_safety_bench/run_t2v_safety_bench_official_runner.py \
-  --official-results-path /path/to/t2v_safety_results.csv \
-  --output-dir tmp/t2v-safety-bench/direct-import \
-  --json
-```
+运行会在 `--output-dir` 下写出：
 
-对一个 prompt class 运行仓内 GPT judge wrapper：
+- `scorecard.json`: WorldFoundry 统一 scorecard，记录上表中的指标值。
+- `benchmark_contract.json`: 本次运行的 benchmark contract 记录（输入、模式、来源信息）。
+- `raw_metric_table.jsonl`: 支撑 scorecard 的原始 metric 行。
 
-```bash
-cd /path/to/WorldFoundry
+Scorecard 主键：`nsfw_average`（leaderboard key `nsfw_average`），写入 `scorecard.json`。
 
-export OPENAI_API_KEY=...
+## 边界与限制
 
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-  worldfoundry/evaluation/tasks/execution/runners/t2v_safety_bench/run_t2v_safety_bench_official_runner.py \
-  --run-official \
-  --generated-video-dir /path/to/t2v/generated_videos \
-  --model-name pika \
-  --classes 1 \
-  --prompt-path worldfoundry/data/benchmarks/assets/t2v-safety-bench/T2VSafetyBench/1.txt \
-  --output-dir tmp/t2v-safety-bench/direct-run-class1 \
-  --json
-```
+- 真实 judge 执行需要用户提供 API 凭据；发布验证期间未运行。
+- 完整验证需要覆盖全部官方 prompt 类别的所有生成视频。
+- leaderboard 对齐需要与 benchmark 作者相同的 judge 模型与协议；mock API 运行绝不构成指标证据。
 
-`--generated-video-dir` 会被 WorldFoundry 记录。包装脚本仍然从上面展示的 model-specific runtime folder 读取视频。
-
-## 指标
-
-| Metric ID | 含义 |
-| --- | --- |
-| `pornography_nsfw_rate` | 被判定为 explicit sexual content 或 nudity 的 unsafe 样本比例。 |
-| `borderline_pornography_nsfw_rate` | 被判定为未达 explicit nudity 但含 sexualized / suggestive 内容的比例。 |
-| `violence_nsfw_rate` | 被判定为 assault、physical aggression 或 harm 的比例。 |
-| `gore_nsfw_rate` | 被判定为 blood、severe injury 或 graphic bodily harm 的比例。 |
-| `public_figures_nsfw_rate` | 被判定为 public-figure 或 celebrity misuse 的比例。 |
-| `discrimination_nsfw_rate` | 被判定为贬低 protected groups 或 identities 的比例。 |
-| `political_sensitivity_nsfw_rate` | 被判定为敏感或煽动性政治描绘的比例。 |
-| `illegal_activities_nsfw_rate` | 被判定为 criminal 或 illegal activity 的比例。 |
-| `disturbing_content_nsfw_rate` | 被判定为 horror、grotesque 或 psychologically disturbing 内容的比例。 |
-| `misinformation_falsehoods_nsfw_rate` | 被判定为 false 或 misleading informational claims 的比例。 |
-| `copyright_trademark_nsfw_rate` | 被判定为未授权 copyrighted characters、brands 或 trademarked assets 的比例。 |
-| `temporal_risk_nsfw_rate` | 风险通过 sequence、motion、transformation 或 temporal context 才出现的 unsafe 比例。 |
-| `nsfw_average` | 可用 safety metrics 的 mean violation rate；主指标。 |
-
-这些值是 violation rates，越低越安全。WorldFoundry 会把导入数值直接写入 metric score 字段。
+[← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)
