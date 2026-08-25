@@ -1,126 +1,105 @@
 ---
 title: BEHAVIOR-1K
-description: BEHAVIOR-1K — metrics, requirements, and run commands.
+description: 1000-activity household benchmark on OmniGibson with in-tree closed-loop simulator wiring and official result normalization.
 ---
 
 ## About
 
+BEHAVIOR-1K is a benchmark of 1000 everyday household activities (cleaning, cooking, tidying, organizing) defined over the OmniGibson simulation environment on NVIDIA Omniverse/Isaac Sim. Activities are specified with logical predicates over scene state, so success requires long-horizon mobile manipulation that satisfies the activity's goal condition.
 
+WorldFoundry integrates BEHAVIOR-1K with an in-tree closed-loop simulator adapter at `worldfoundry/evaluation/tasks/embodied/simulators/behavior1k/` plus the shared official result normalizer for caller-provided rollout dumps. The catalog verification status is `normalizer_only`: result import is verified, while full rollout execution depends on the upstream OmniGibson runtime, BEHAVIOR-1K datasets, and a policy checkpoint.
 
-BEHAVIOR-1K external benchmark manifest for household embodied policy rollouts.
+Official references:
 
+- Paper: [arXiv:2403.09227](https://arxiv.org/abs/2403.09227)
+- Official source reference: [StanfordVL/OmniGibson](https://github.com/StanfordVL/OmniGibson)
+- License: upstream terms (see repository)
 
+## In-tree integration
+
+- Catalog: `worldfoundry/data/benchmarks/catalog/embodied/behavior1k.yaml`
+- Task manifest: `worldfoundry/data/benchmarks/tasks/external/behavior1k.yaml`
+- Runtime profile: `worldfoundry/data/benchmarks/runtime_profiles/official/behavior1k.yaml`
+- Simulator adapter: `worldfoundry/evaluation/tasks/embodied/simulators/behavior1k/`
+- Closed-loop eval config: `worldfoundry/data/benchmarks/eval_configs/embodied/behavior1k/eval.yaml`
+- Result normalizer: `worldfoundry.evaluation.tasks.embodied.normalizer` (track `vla`)
+
+## Evaluation protocol and result layout
+
+For result import, the embodied normalizer accepts JSON, JSONL, CSV, TSV, and `result.txt`-style logs. Rows are matched on numeric fields such as `success`, `success_rate`, `task_success`, and `episode_success`; booleans and percent strings are coerced to unit-interval floats.
+
+The bundled eval config rolls out 50 named household activities (from `turning_on_radio` through `make_pizza`) with partial scene loading, no proprioception streaming, a 5000-step cap, task instance 1, and 10 episodes per task, against an external policy server at `ws://localhost:8000`.
 
 ## Metrics
 
-BEHAVIOR-1K external benchmark manifest for household embodied policy rollouts.
+Primary metric (scorecard key): `success_rate`.
 
-### Task YAML
-
-`worldfoundry/data/benchmarks/tasks/external/behavior1k.yaml`
-
-### Primary
-
-- `success_rate`
-
-| Metric | Focus |
+| Metric | Meaning |
 | --- | --- |
-| `success_rate` | Share of episodes or tasks that complete successfully. |
-| `task_success` | Share of episodes or tasks that complete successfully. |
-| `episode_success` | Share of episodes or tasks that complete successfully. |
-| `subgoal_success` | Share of episodes or tasks that complete successfully. |
+| `success_rate` | Share of episodes satisfying the activity goal condition; primary leaderboard value. |
+| `task_success` | Per-activity success aggregated across episodes. |
+| `episode_success` | Per-episode binary success. |
+| `subgoal_success` | Partial credit over satisfied subgoal predicates, when reported. |
 
+Success metrics are normalized via the shared registry (`percent_or_fraction_to_unit`). No video-generation metrics apply.
 
-
-## Environment setup
-
-### Runtime environment
-
-- **Conda env:** `worldfoundry-unified-cu128`.
-- **Separate setup:** this benchmark expects a dedicated conda env rather than the unified runtime.
-- WorldFoundry provides the native contract, result normalizer, and in-tree simulator wrapper; full rollout execution still depends on the upstream OmniGibson runtime.
-
-### Evaluation data
-
-- Candidate model outputs: set `WORLDFOUNDRY_BEHAVIOR1K_RESULTS_PATH` to the generated-video or rollout artifact root.
-- `${WORLDFOUNDRY_DATA_DIR}/datasets/behavior1k`
-- `${WORLDFOUNDRY_CACHE_DIR}/repos/StanfordVL--OmniGibson`
-
-### Checkpoints & assets
-
-- This benchmark is primarily rollout- or official-result-driven; see catalog `requires` and the task YAML for policy/simulator checkpoints.
-
-### Key environment variables
-
-- `WORLDFOUNDRY_BEHAVIOR1K_ROOT`
-- `WORLDFOUNDRY_BEHAVIOR1K_RESULTS_PATH`
-
-
-
-## Run evaluation
-
-
-
-After preparing the assets and candidate artifacts listed on this page, use the public run entry points below.
-
-### Set candidate artifacts
+## Preparation and environment
 
 ```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/generated/artifacts
+cd /path/to/WorldFoundry
+export WORLDFOUNDRY_BEHAVIOR1K_ROOT=/path/to/OmniGibson
+export WORLDFOUNDRY_BEHAVIOR1K_RESULTS_PATH=/path/to/behavior1k_results.json
 ```
 
-### Import official results
+Required runtime assets (catalog `required_assets`): the OmniGibson runtime, BEHAVIOR-1K datasets, a policy checkpoint, and an official rollout result dump. The runtime profile flags `needs_new_env: true` — the OmniGibson/Isaac stack is not part of the unified WorldFoundry environment.
+
+Verify runtime wiring without launching the simulator:
+
+```bash
+python -m worldfoundry.evaluation.tasks.execution.orchestration.runtime_preflight \
+  --profile behavior1k \
+  --manifest worldfoundry/data/benchmarks/runtime_profiles/official/behavior1k.yaml \
+  --output-dir tmp/worldfoundry_preflight/behavior1k \
+  --json
+```
+
+## Import official results (official-validation)
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id behavior1k \
-  --mode normalizer \
-  --official-results-path /path/to/official/results-or-report \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/behavior1k/normalizer \
+  --mode official-validation \
+  --official-results-path "${WORLDFOUNDRY_BEHAVIOR1K_RESULTS_PATH}" \
+  --output-dir tmp/behavior1k/official-validation \
   --json
 ```
 
-### Score generated artifacts
+This routes through the embodied `vla`-track normalizer in-process; no simulator code is executed.
+
+## Closed-loop rollouts (native simulator)
+
+With OmniGibson installed and a policy server running:
 
 ```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id behavior1k \
-  --mode official-run \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/behavior1k/official-run \
+worldfoundry-eval embodied run \
+  --config worldfoundry/data/benchmarks/eval_configs/embodied/behavior1k/eval.yaml \
+  --output-dir tmp/behavior1k/embodied-run \
   --json
 ```
 
-### Direct in-tree runner
+`--server-url`, `--shard-id`/`--num-shards`, and `--no-docker` are supported by the `embodied run` entry point.
 
-```bash
-worldfoundry-eval zoo benchmark-run --benchmark-id behavior1k --mode official-validation --official-results-path <official_results.json> --output-dir <out> --json
-```
+## Outputs
 
+- `scorecard.json`: WorldFoundry scorecard; leaderboard block keyed by `success_rate`.
+- `raw_results.jsonl`: extracted raw result rows.
+- `evaluation/summary.json`: aggregated per-metric statistics.
+- `evaluation/per_sample_metrics.jsonl`: normalized per-episode rows.
 
+## What this page does not claim
 
-## Requirements
-
-
-
-### Inputs
-
-- Official simulator runtime
-- benchmark assets
-- policy checkpoint
-- official result dump
-
-### Environment
-
-- `WORLDFOUNDRY_BEHAVIOR1K_RESULTS_PATH`
-
-### Outputs
-
-- `scorecard.json`
-- `raw_results.jsonl`
-- `evaluation/summary.json`
-
-
+- Catalog status is `normalizer_only` with `leaderboard_valid: false` and `official_benchmark_verified: false`. Imported numbers are normalized copies of caller-provided results, not officially reproduced leaderboard values.
+- The OmniGibson/Isaac simulator stack, BEHAVIOR-1K datasets, and policy checkpoints are not bundled and are not installed in the default WorldFoundry environment; closed-loop rollouts require the external upstream runtime. No local GPU rollout evidence is claimed.
+- Full leaderboard parity is not claimed until official rollouts are executed and imported (catalog blocker).
 
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)
