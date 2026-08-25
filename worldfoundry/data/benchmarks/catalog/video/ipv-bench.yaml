@@ -1,5 +1,7 @@
 id: ipv-bench
 name: IPV-Bench
+publisher: National University of Singapore
+publisher_kind: university
 benchmark_kind:
 - text-to-video
 - counterfactual-video

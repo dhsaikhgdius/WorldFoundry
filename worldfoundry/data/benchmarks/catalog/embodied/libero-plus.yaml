@@ -1,5 +1,7 @@
 id: libero-plus
 name: LIBERO-Plus
+publisher: Fudan University
+publisher_kind: university
 benchmark_kind:
 - vla
 - embodied-action

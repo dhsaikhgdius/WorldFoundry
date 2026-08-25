@@ -1,5 +1,7 @@
 id: metaworld
 name: Meta-World
+publisher: Stanford University
+publisher_kind: university
 benchmark_kind:
 - embodied-action
 - robot-manipulation

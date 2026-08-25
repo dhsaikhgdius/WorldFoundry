@@ -1,5 +1,7 @@
 id: physics-iq
 name: Physics-IQ Original
+publisher: Google DeepMind
+publisher_kind: company
 benchmark_kind: [image-to-video, physical-understanding, video-generation-quality]
 domains: [physics, solid-mechanics, fluid-dynamics, optics, thermodynamics, magnetism]
 modalities: [image, video]

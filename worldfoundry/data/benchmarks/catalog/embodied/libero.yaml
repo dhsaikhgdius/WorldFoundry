@@ -1,5 +1,7 @@
 id: libero
 name: LIBERO
+publisher: The University of Texas at Austin
+publisher_kind: university
 benchmark_kind:
 - vla
 - robot-manipulation

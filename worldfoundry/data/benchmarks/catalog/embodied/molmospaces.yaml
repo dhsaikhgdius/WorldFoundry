@@ -1,5 +1,7 @@
 id: molmospaces
 name: MolmoSpaces-Bench
+publisher: Allen Institute for AI
+publisher_kind: institute
 benchmark_kind:
 - vla
 - embodied-action

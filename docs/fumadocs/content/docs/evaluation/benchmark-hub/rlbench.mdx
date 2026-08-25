@@ -1,106 +1,81 @@
 ---
 title: RLBench
-description: CoppeliaSim/PyRep robot learning benchmark with in-tree closed-loop simulator wiring and official result normalization.
+description: 100-task vision-guided manipulation benchmark on CoppeliaSim/PyRep; WorldFoundry normalizes official rollout exports.
 ---
 
 ## About
 
-RLBench is a large-scale robot learning benchmark built on CoppeliaSim and PyRep. It provides 100+ hand-designed tabletop manipulation tasks with a Franka Panda arm, demonstration generation, and standardized evaluation by rollout success, and is widely used for multi-task, few-shot, and vision-based manipulation research.
+**Publisher:** Imperial College London (Dyson Robotics Lab)
 
-WorldFoundry integrates RLBench with an in-tree closed-loop simulator adapter at `worldfoundry/evaluation/tasks/embodied/simulators/rlbench/` plus the shared official result normalizer for caller-provided rollout dumps. The catalog verification status is `normalizer_only`: result import is verified, while simulator execution requires the external CoppeliaSim/PyRep runtime.
+RLBench, from Imperial College London's Dyson Robotics Lab, is a large-scale vision-guided manipulation benchmark: 100+ hand-designed tasks on a Franka Panda in CoppeliaSim (via PyRep), each with infinite procedural demonstrations from motion planners, supporting imitation learning, RL, and few-shot protocols.
+
+WorldFoundry integrates RLBench as an official-results runner: rollout exports are normalized into the unified scorecard; CoppeliaSim/PyRep execution remains explicit and upstream.
 
 Official references:
 
-- Paper: [arXiv:1909.12271](https://arxiv.org/abs/1909.12271)
+- Paper: [arxiv.org/abs/1909.12271](https://arxiv.org/abs/1909.12271)
 - Project page: [sites.google.com/corp/view/rlbench](https://sites.google.com/corp/view/rlbench)
-- Official source reference: [stepjam/RLBench](https://github.com/stepjam/RLBench) (pinned `02720bba`)
-- License: GitHub API reports `NOASSERTION`; redistribution license needs manual review.
+- Official repository: [stepjam/RLBench](https://github.com/stepjam/RLBench)
+- License: `other:noassertion_github_api`
 
-## In-tree integration
+## Evaluation protocol
 
-- Catalog: `worldfoundry/data/benchmarks/catalog/embodied/rlbench.yaml`
-- Task manifest: `worldfoundry/data/benchmarks/tasks/external/rlbench.yaml`
-- Runtime profile: `worldfoundry/data/benchmarks/runtime_profiles/official/rlbench.yaml`
-- Simulator adapter: `worldfoundry/evaluation/tasks/embodied/simulators/rlbench/`
-- Closed-loop eval config: `worldfoundry/data/benchmarks/eval_configs/embodied/rlbench/eval.yaml`
-- Result normalizer: `worldfoundry.evaluation.tasks.embodied.normalizer` (track `vla`)
+WorldFoundry integrates this benchmark through the unified result-import path: `worldfoundry-eval zoo benchmark-run --mode official-validation` normalizes a caller-provided official result export (JSON/CSV rollout summaries) into the WorldFoundry scorecard without executing the simulator. Simulator execution, policy loading, and rollout collection remain explicit upstream steps performed with the official tooling.
 
-## Evaluation protocol and result layout
+Primary metric: `success_rate`.
 
-For result import, the embodied normalizer accepts JSON, JSONL, CSV, TSV, and `result.txt`-style logs. Rows are matched on numeric fields such as `success`, `success_rate`, `task_success`, `episode_success`, `reward`, and `normalized_return`; booleans and percent strings are coerced to unit-interval floats.
+| Metric | Meaning | Direction |
+| --- | --- | --- |
+| `success_rate` | Primary episode success rate over evaluated rollouts. | Higher is better |
+| `task_success` | Per-task success aggregate. | Higher is better |
+| `episode_success` | Per-episode success indicator aggregate. | Higher is better |
+| `reward` | Mean episode reward / return. | Higher is better |
+| `normalized_return` | Normalized episode return. | Higher is better |
 
-The bundled eval config rolls out 18 tabletop tasks (from `reach_target` and `pick_up_cup` through `stack_cups`, `light_bulb_in`, and `take_lid_off_saucepan`) at 256px render resolution, 200 max steps, and 25 episodes per task, against an external policy server at `ws://localhost:8000`.
+## Data and artifact layout
 
-## Metrics
+In-tree paths:
 
-Primary metric (scorecard key): `success_rate`.
-
-| Metric | Meaning |
-| --- | --- |
-| `success_rate` | Share of rollouts completed successfully; primary leaderboard value. |
-| `task_success` | Per-task success aggregated across episodes. |
-| `episode_success` | Per-episode binary success. |
-| `reward` | Cumulative episode reward. |
-| `normalized_return` | Return normalized against task-specific reference ranges, when reported. |
-
-Success metrics are normalized via the shared registry (`percent_or_fraction_to_unit`). No video-generation metrics apply.
-
-## Preparation and environment
-
-```bash
-cd /path/to/WorldFoundry
-export WORLDFOUNDRY_RLBENCH_RESULTS_PATH=/path/to/rlbench_results.json
+```text
+worldfoundry/data/benchmarks/tasks/external/rlbench.yaml
 ```
 
-The runtime profile flags `needs_new_env: true`: RLBench requires the combined CoppeliaSim/PyRep environment, and the profile only records env vars and the task manifest without starting the simulator. Closed-loop rollouts also require RLBench task assets and a policy checkpoint served over WebSocket.
-
-Verify runtime wiring:
-
-```bash
-python -m worldfoundry.evaluation.tasks.execution.orchestration.runtime_preflight \
-  --profile rlbench \
-  --manifest worldfoundry/data/benchmarks/runtime_profiles/official/rlbench.yaml \
-  --output-dir tmp/worldfoundry_preflight/rlbench \
-  --json
+```text
+<official_results.json>                 # rollout summary export from the official tooling
+${WORLDFOUNDRY_RLBENCH_RESULTS_PATH}   # default import path
 ```
+Upstream rollouts need CoppeliaSim, PyRep, and the RLBench task assets.
 
-## Import official results (official-validation)
+## Run the benchmark
+
+Catalog-recorded validation command:
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id rlbench \
   --mode official-validation \
-  --official-results-path "${WORLDFOUNDRY_RLBENCH_RESULTS_PATH}" \
-  --output-dir tmp/rlbench/official-validation \
+  --official-results-path <official_results.json> \
+  --output-dir <out> \
   --json
 ```
 
-This routes through the embodied `vla`-track normalizer in-process; no simulator code is executed.
+## Checkpoints and environment variables
 
-## Closed-loop rollouts (native simulator)
-
-With CoppeliaSim/PyRep installed and a policy server running:
-
-```bash
-worldfoundry-eval embodied run \
-  --config worldfoundry/data/benchmarks/eval_configs/embodied/rlbench/eval.yaml \
-  --output-dir tmp/rlbench/embodied-run \
-  --json
-```
-
-`--server-url`, `--shard-id`/`--num-shards`, and `--no-docker` are supported by the `embodied run` entry point.
+- `WORLDFOUNDRY_RLBENCH_RESULTS_PATH`: Default path the importer reads official result exports from when `--official-results-path` is not passed.
 
 ## Outputs
 
-- `scorecard.json`: WorldFoundry scorecard; leaderboard block keyed by `success_rate`.
-- `raw_results.jsonl`: extracted raw result rows.
-- `evaluation/summary.json`: aggregated per-metric statistics.
-- `evaluation/per_sample_metrics.jsonl`: normalized per-episode rows.
+The run writes into `--output-dir`:
 
-## What this page does not claim
+- `scorecard.json`: WorldFoundry scorecard with the metric values recorded above.
+- `raw_results.jsonl`: Normalized rows parsed from the official result export.
 
-- Catalog status is `normalizer_only` with `leaderboard_valid: false` and `official_benchmark_verified: false`. Imported numbers are normalized copies of caller-provided results, not officially reproduced leaderboard values.
-- CoppeliaSim and PyRep are not installed in the default WorldFoundry environment; closed-loop rollouts require the external simulator runtime and a policy server. No local rollout evidence is claimed.
-- CoppeliaSim/PyRep runtime validation and task-manifest mapping must be completed before integrated status (catalog blocker).
+Scorecard primary key: `success_rate` (leaderboard key `success_rate`), stored in `scorecard.json`.
+
+## Limitations
+
+- WorldFoundry normalizes supplied rollout results; it does not run the official simulator or policies in tree.
+- Full leaderboard parity is not claimed until official rollouts are executed with staged simulator assets and policy checkpoints, then imported.
+- Imported scorecards are integration evidence, not leaderboard submissions.
 
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

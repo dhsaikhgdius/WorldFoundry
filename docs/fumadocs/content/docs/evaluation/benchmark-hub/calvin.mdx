@@ -1,103 +1,80 @@
 ---
 title: CALVIN
-description: Long-horizon language-conditioned manipulation benchmark with in-tree closed-loop simulator wiring and official result normalization.
+description: Long-horizon language-conditioned manipulation benchmark (RA-L 2022); WorldFoundry normalizes official sequence-evaluation exports.
 ---
 
 ## About
 
-CALVIN (Composing Actions from Language and Vision) evaluates long-horizon, language-conditioned robot manipulation. Policies must chain multiple sub-tasks specified in natural language within a tabletop PyBullet environment; the canonical protocol rolls 1000 instruction sequences and reports how many consecutive sub-tasks a policy completes per sequence.
+**Publisher:** University of Freiburg
 
-WorldFoundry integrates CALVIN with an in-tree closed-loop simulator adapter at `worldfoundry/evaluation/tasks/embodied/simulators/calvin/` plus the shared official result normalizer for caller-provided evaluation dumps. The catalog verification status is `normalizer_only`: result import is verified, while official rollouts require the CALVIN dataset, sequence evaluator, and a policy checkpoint.
+CALVIN (Composing Actions from Language and Vision) from the University of Freiburg evaluates long-horizon, language-conditioned manipulation: a policy in a PyBullet tabletop environment must chain up to five language instructions in sequence, across four environment configurations (A/B/C/D) that test zero-shot transfer. The signature protocol reports success at each chain length and the average number of completed instructions.
+
+WorldFoundry integrates CALVIN as an official-results runner: exports from the official long-horizon sequence evaluator are normalized into the unified scorecard.
 
 Official references:
 
-- Paper: [IEEE RA-L 2022 (9788026)](https://ieeexplore.ieee.org/document/9788026)
+- Paper: [ieeexplore.ieee.org/document/9788026](https://ieeexplore.ieee.org/document/9788026)
 - Project page: [calvin.cs.uni-freiburg.de](http://calvin.cs.uni-freiburg.de/)
-- Official source reference: [mees/calvin](https://github.com/mees/calvin) (pinned `fa03f01f`)
-- License: MIT
+- Official repository: [mees/calvin](https://github.com/mees/calvin)
+- License: `mit`
 
-## In-tree integration
+## Evaluation protocol
 
-- Catalog: `worldfoundry/data/benchmarks/catalog/embodied/calvin.yaml`
-- Task manifest: `worldfoundry/data/benchmarks/tasks/external/calvin.yaml`
-- Runtime profile: `worldfoundry/data/benchmarks/runtime_profiles/official/calvin.yaml`
-- Simulator adapter: `worldfoundry/evaluation/tasks/embodied/simulators/calvin/`
-- Closed-loop eval config: `worldfoundry/data/benchmarks/eval_configs/embodied/calvin/eval.yaml`
-- Result normalizer: `worldfoundry.evaluation.tasks.embodied.normalizer` (track `vla`)
+WorldFoundry integrates this benchmark through the unified result-import path: `worldfoundry-eval zoo benchmark-run --mode official-validation` normalizes a caller-provided official result export (JSON/CSV rollout summaries) into the WorldFoundry scorecard without executing the simulator. Simulator execution, policy loading, and rollout collection remain explicit upstream steps performed with the official tooling.
 
-## Evaluation protocol and result layout
+Primary metric: `success_rate`.
 
-For result import, the embodied normalizer accepts JSON, JSONL, CSV, TSV, and `result.txt`-style logs. Rows are matched on numeric fields such as `success`, `success_rate`, `task_success`, `sequence_success`, and `completion`; booleans and percent strings are coerced to unit-interval floats.
+| Metric | Meaning | Direction |
+| --- | --- | --- |
+| `success_rate` | Primary episode success rate over evaluated rollouts. | Higher is better |
+| `sequence_success` | Success over five-instruction chains (long-horizon protocol). | Higher is better |
+| `task_success` | Per-task success aggregate. | Higher is better |
+| `completion` | Average number of completed instructions per sequence. | Higher is better |
 
-The bundled eval config evaluates 1000 instruction sequences (seed 0, one episode per sequence) against a validation dataset at `/data/calvin/dataset/validation`, driven by an external policy server at `ws://localhost:8000`.
+## Data and artifact layout
 
-## Metrics
+In-tree paths:
 
-Primary metric (scorecard key): `success_rate`.
-
-| Metric | Meaning |
-| --- | --- |
-| `success_rate` | Share of evaluation rollouts completed successfully; primary leaderboard value. |
-| `sequence_success` | Success over full multi-step instruction sequences. |
-| `task_success` | Per-sub-task success aggregated across sequences. |
-| `completion` | Average number/fraction of consecutive sub-tasks completed per sequence. |
-
-Success metrics are normalized via the shared registry (`percent_or_fraction_to_unit`). No video-generation metrics apply.
-
-## Preparation and environment
-
-```bash
-cd /path/to/WorldFoundry
-export WORLDFOUNDRY_CALVIN_RESULTS_PATH=/path/to/calvin_results.json
+```text
+worldfoundry/data/benchmarks/tasks/external/calvin.yaml
 ```
 
-Closed-loop rollouts require the official CALVIN repository checkout (cached at `cache/vla_va_wam/repos/mees--calvin`), a CALVIN dataset root, and a policy checkpoint served over WebSocket. The runtime profile is a lightweight preflight only (`needs_new_env: false`) and does not start the simulator or download the dataset.
-
-Verify runtime wiring:
-
-```bash
-python -m worldfoundry.evaluation.tasks.execution.orchestration.runtime_preflight \
-  --profile calvin \
-  --manifest worldfoundry/data/benchmarks/runtime_profiles/official/calvin.yaml \
-  --output-dir tmp/worldfoundry_preflight/calvin \
-  --json
+```text
+<official_results.json>                 # rollout summary export from the official tooling
+${WORLDFOUNDRY_CALVIN_RESULTS_PATH}   # default import path
 ```
+The upstream checkout is mirrored at `cache/vla_va_wam/repos/mees--calvin`; dataset roots and policy checkpoints follow the official CALVIN documentation.
 
-## Import official results (official-validation)
+## Run the benchmark
+
+Catalog-recorded validation command:
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id calvin \
   --mode official-validation \
-  --official-results-path "${WORLDFOUNDRY_CALVIN_RESULTS_PATH}" \
-  --output-dir tmp/calvin/official-validation \
+  --official-results-path <official_results.json> \
+  --output-dir <out> \
   --json
 ```
 
-This routes through the embodied `vla`-track normalizer in-process; no simulator code is executed.
+## Checkpoints and environment variables
 
-## Closed-loop rollouts (native simulator)
-
-```bash
-worldfoundry-eval embodied run \
-  --config worldfoundry/data/benchmarks/eval_configs/embodied/calvin/eval.yaml \
-  --output-dir tmp/calvin/embodied-run \
-  --json
-```
-
-Adjust `dataset_path` inside the config (or copy it) to point at your CALVIN validation split. `--server-url`, `--shard-id`/`--num-shards`, and `--no-docker` are supported.
+- `WORLDFOUNDRY_CALVIN_RESULTS_PATH`: Default path the importer reads official result exports from when `--official-results-path` is not passed.
 
 ## Outputs
 
-- `scorecard.json`: WorldFoundry scorecard; leaderboard block keyed by `success_rate`.
-- `raw_results.jsonl`: extracted raw result rows.
-- `evaluation/summary.json`: aggregated per-metric statistics.
-- `evaluation/per_sample_metrics.jsonl`: normalized per-sequence rows.
+The run writes into `--output-dir`:
 
-## What this page does not claim
+- `scorecard.json`: WorldFoundry scorecard with the metric values recorded above.
+- `raw_results.jsonl`: Normalized rows parsed from the official result export.
 
-- Catalog status is `normalizer_only` with `leaderboard_valid: false` and `official_benchmark_verified: false`. Imported numbers are normalized copies of caller-provided results, not officially reproduced leaderboard values.
-- The CALVIN dataset, PyBullet simulator assets, and policy checkpoints are not bundled; closed-loop rollouts require external staging plus a policy server. No local GPU rollout evidence is claimed.
-- Official CALVIN dataset split, sequence evaluator, and policy checkpoint validation must be completed before integrated status (catalog blocker).
+Scorecard primary key: `success_rate` (leaderboard key `success_rate`), stored in `scorecard.json`.
+
+## Limitations
+
+- WorldFoundry normalizes supplied rollout results; it does not run the official simulator or policies in tree.
+- Full leaderboard parity is not claimed until official rollouts are executed with staged simulator assets and policy checkpoints, then imported.
+- Imported scorecards are integration evidence, not leaderboard submissions.
 
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

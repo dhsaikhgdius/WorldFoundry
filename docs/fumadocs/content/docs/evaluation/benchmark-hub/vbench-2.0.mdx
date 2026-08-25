@@ -1,188 +1,108 @@
 ---
 title: VBench-2.0
-description: Intrinsic-faithfulness video generation evaluation with in-tree VBench-2.0 runtime, prompt assets, datasets, and commands.
+description: "Intrinsic-faithfulness successor to VBench: creativity, commonsense, controllability, human fidelity, and physics."
 ---
 
 ## About
 
-VBench-2.0 extends the VBench series from basic technical quality toward intrinsic faithfulness. It targets next-generation video generators that must reason about people, physics, controllability, creativity, and commonsense, not just produce sharp short clips.
+**Publisher:** S-Lab, Nanyang Technological University & Shanghai AI Laboratory
 
-WorldFoundry integrates the VBench-2.0 runtime in tree at `worldfoundry/evaluation/tasks/execution/runners/vbench_2_0`. The official VBench repository is a protocol reference; the runnable metric code used here lives in WorldFoundry.
+VBench-2.0 moves beyond per-frame quality toward intrinsic faithfulness: whether generated videos respect commonsense, physics, human anatomy, controllability, and creativity. It defines 18 fine-grained abilities grouped into five pillars (`creativity`, `commonsense`, `controllability`, `human_fidelity`, `physics`) and scores them with a mix of VLM judges, detectors, and specialist models.
+
+WorldFoundry vendors the VBench-2.0 runtime at `worldfoundry/evaluation/tasks/execution/runners/vbench_2_0/runtime` and drives it through `run_vbench_2_0_official_runner.py`, which also handles dataset-snapshot discovery, per-dimension dispatch, coverage manifests, and scorecard conversion.
 
 Official references:
 
+- Paper: [arxiv.org/abs/2503.21755](https://arxiv.org/abs/2503.21755)
 - Project page: [vchitect.github.io/VBench-2.0-project](https://vchitect.github.io/VBench-2.0-project/)
-- Paper: [arXiv:2503.21755](https://arxiv.org/abs/2503.21755)
-- Arena: [Vchitect/VBench2.0_Video_Arena](https://huggingface.co/spaces/Vchitect/VBench2.0_Video_Arena)
-- Sample videos: [Vchitect/VBench-2.0_sampled_videos](https://huggingface.co/datasets/Vchitect/VBench-2.0_sampled_videos)
-- Human annotation: [Vchitect/VBench-2.0_human_annotation](https://huggingface.co/datasets/Vchitect/VBench-2.0_human_annotation)
-- In-tree runner: `worldfoundry/evaluation/tasks/execution/runners/vbench_2_0/run_vbench_2_0_official_runner.py`
+- Official repository: [Vchitect/VBench](https://github.com/Vchitect/VBench)
 
 ## Evaluation protocol
 
-VBench-2.0 has 18 fine-grained dimensions grouped into five categories.
+The runner validates video coverage against the official VBench-2.0 prompt suite before dispatching evaluators, and writes `vbench2_dataset_manifest.json` plus `vbench2_video_coverage.json` so incomplete runs are visible instead of silently under-scored. Dimensions can be selected individually with `--dimension`; the official total aggregates all five pillars.
 
-| Group | Dimensions |
-| --- | --- |
-| Creativity | `composition`, `diversity` |
-| Commonsense | `instance_preservation`, `motion_rationality` |
-| Controllability | `camera_motion`, `complex_landscape`, `complex_plot`, `dynamic_attribute`, `dynamic_spatial_relationship`, `human_interaction`, `motion_order_understanding` |
-| Human fidelity | `human_anatomy`, `human_clothes`, `human_identity` |
-| Physics | `material`, `mechanics`, `multi_view_consistency`, `thermotics` |
+Primary metric: `vbench2_total`.
 
-WorldFoundry aggregates these into `vbench2_creativity`, `vbench2_commonsense`, `vbench2_controllability`, `vbench2_human_fidelity`, `vbench2_physics`, and the primary metric `vbench2_total`.
+| Metric | Meaning | Direction |
+| --- | --- | --- |
+| `vbench2_creativity` | Official VBench-2.0 creativity group aggregated from Composition and Diversity dimensions. | Higher is better |
+| `vbench2_commonsense` | Official VBench-2.0 commonsense group aggregated from Instance Preservation and Motion Rationality. | Higher is better |
+| `vbench2_controllability` | Official VBench-2.0 controllability group aggregated from camera, landscape, plot, dynamic, interaction, and motion-order dimensions. | Higher is better |
+| `vbench2_human_fidelity` | Official VBench-2.0 human fidelity group aggregated from anatomy, clothes, and identity dimensions. | Higher is better |
+| `vbench2_physics` | Official VBench-2.0 physics group aggregated from material, mechanics, multi-view consistency, and thermotics dimensions. | Higher is better |
+| `vbench2_total` | Mean of VBench-2.0 creativity, commonsense, controllability, human fidelity, and physics group scores. | Higher is better |
 
-The prompt assets are checked in:
+## Data and artifact layout
 
-- `worldfoundry/data/benchmarks/assets/vbench-2.0/VBench2_full_info.json`
-- `worldfoundry/data/benchmarks/assets/vbench-2.0/vbench2_prompts/prompt/*.txt`
-- `worldfoundry/data/benchmarks/assets/vbench-2.0/vbench2_prompts/meta_info/*.json`
-
-## Data preparation
-
-For leaderboard-style reproduction, generate videos for the official VBench-2.0 prompts and keep the same dimension split. Put all generated videos under one root and pass it with `--videos-path`.
-
-For local custom-input evaluation, you can score a folder or video file with a prompt:
+In-tree paths:
 
 ```text
-/path/to/vbench2/generated_videos/
-  sample_0001.mp4
-  sample_0002.mp4
+worldfoundry/data/benchmarks/tasks/external/vbench-2.0.yaml
+worldfoundry/evaluation/tasks/execution/runners/vbench_2_0/runtime
 ```
 
-Set the artifact root:
+Stage the official sampled-videos / annotation snapshots (Hugging Face `Vchitect/VBench-2.0_*`) and point the runner at them:
 
 ```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/vbench2/generated_videos
+export WORLDFOUNDRY_VBENCH2_DATASET_ROOT=/path/to/vbench2_datasets
+export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/generated_videos
 ```
 
-The runner also discovers optional official datasets. Download them only when you need dataset coverage, human annotation metadata, or reference sampled videos:
+Generated videos follow the official prompt-name convention from the VBench-2.0 suite. `WORLDFOUNDRY_HF_CACHE_DIR` is consulted for snapshot discovery when the dataset root is not set.
+
+## Run the benchmark
+
+Catalog-recorded validation command:
 
 ```bash
-export WORLDFOUNDRY_VBENCH2_DATASET_ROOT=/path/to/datasets/vbench2
-
-hf download Vchitect/VBench-2.0_sampled_videos \
-  --repo-type dataset \
-  --local-dir "${WORLDFOUNDRY_VBENCH2_DATASET_ROOT}/VBench-2.0_sampled_videos"
-
-hf download Vchitect/VBench-2.0_human_annotation \
-  --repo-type dataset \
-  --local-dir "${WORLDFOUNDRY_VBENCH2_DATASET_ROOT}/VBench-2.0_human_annotation"
+${WORLDFOUNDRY_UNIFIED_PYTHON} worldfoundry/evaluation/tasks/execution/runners/vbench_2_0/run_vbench_2_0_official_runner.py \
+  --benchmark-id vbench-2.0 \
+  --variant vbench2
 ```
 
-Some human-fidelity dimensions also use the VBench-2.0 human anomaly assets:
+Run a selected dimension against staged videos:
 
 ```bash
-hf download Vchitect/VBench-2.0_human_anomaly \
-  --repo-type dataset \
-  --local-dir "${WORLDFOUNDRY_VBENCH2_DATASET_ROOT}/VBench-2.0_human_anomaly"
-```
-
-Candidate model training is model-specific. Train or run the generator through its own package, then export videos into `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR`.
-
-## Checkpoints and runtime
-
-Use the unified CUDA environment. The VBench-2.0 evaluator needs the VBench perception stack plus additional judge/perception assets for LLaVA-Video, Qwen, YOLO-World, ArcFace, anomaly detection, CoTracker, RAFT, CLIP/DINO, GroundingDINO, and SAM-family segmentation. Reusable code for many of these lives under `worldfoundry/base_models`.
-
-Useful cache variables:
-
-```bash
-export WORLDFOUNDRY_VBENCH_CACHE_DIR=/path/to/cache/models/vbench
-export WORLDFOUNDRY_VBENCH2_CACHE_DIR=/path/to/cache/models/vbench2
-export WORLDFOUNDRY_VBENCH_RETINAFACE_CKPT=/path/to/retinaface.pth
-```
-
-`human_identity`, `gender_bias`, and `skin_bias` style face-related metrics require RetinaFace-compatible assets when those dimensions are selected.
-
-## Run a single dimension
-
-Use this command to score generated videos with one VBench-2.0 dimension:
-
-```bash
-cd /path/to/WorldFoundry
-
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
+${WORLDFOUNDRY_UNIFIED_PYTHON} \
   worldfoundry/evaluation/tasks/execution/runners/vbench_2_0/run_vbench_2_0_official_runner.py \
+  --benchmark-id vbench-2.0 \
+  --variant vbench2 \
+  --dimension Motion_Order_Understanding \
   --videos-path "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
   --vbench2-dataset-root "${WORLDFOUNDRY_VBENCH2_DATASET_ROOT}" \
-  --full-json-dir "$PWD/worldfoundry/data/benchmarks/assets/vbench-2.0/VBench2_full_info.json" \
-  --dimension Diversity \
-  --mode custom_input \
-  --output-dir tmp/vbench-2.0/diversity \
-  --timeout 7200 \
+  --output-dir tmp/vbench-2.0/dimension \
   --json
 ```
 
-For a custom prompt shared by all videos:
+## Checkpoints and environment variables
 
-```bash
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-  worldfoundry/evaluation/tasks/execution/runners/vbench_2_0/run_vbench_2_0_official_runner.py \
-  --videos-path "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --full-json-dir "$PWD/worldfoundry/data/benchmarks/assets/vbench-2.0/VBench2_full_info.json" \
-  --dimension Mechanics \
-  --mode custom_input \
-  --prompt "a glass ball rolls down a wooden ramp and collides with a metal block" \
-  --output-dir tmp/vbench-2.0/mechanics_custom \
-  --json
-```
+- `WORLDFOUNDRY_VBENCH2_ROOT`: Optional override pointing at an external runtime checkout instead of the in-tree copy.
+- `WORLDFOUNDRY_VBENCH2_RESULTS_PATH`: Default path the importer reads official result exports from when `--official-results-path` is not passed.
+- `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR`: Directory containing the candidate generated artifacts to score or import against.
+- `WORLDFOUNDRY_VBENCH2_DATASET_ROOT`: Local root of the staged official dataset.
+- `WORLDFOUNDRY_HF_CACHE_DIR`: Hugging Face cache directory used for dataset snapshot discovery.
 
-## Run multiple dimensions
-
-Run the five category groups only after all corresponding metric assets are staged:
-
-```bash
-cd /path/to/WorldFoundry
-
-for DIMENSION in \
-  Composition Diversity Instance_Preservation Motion_Rationality \
-  Camera_Motion Complex_Landscape Complex_Plot Dynamic_Attribute \
-  Dynamic_Spatial_Relationship Human_Interaction Motion_Order_Understanding \
-  Human_Anatomy Human_Clothes Human_Identity \
-  Material Mechanics Multi-View_Consistency Thermotics
-do
-  PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-    worldfoundry/evaluation/tasks/execution/runners/vbench_2_0/run_vbench_2_0_official_runner.py \
-    --videos-path "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-    --vbench2-dataset-root "${WORLDFOUNDRY_VBENCH2_DATASET_ROOT}" \
-    --full-json-dir "$PWD/worldfoundry/data/benchmarks/assets/vbench-2.0/VBench2_full_info.json" \
-    --dimension "${DIMENSION}" \
-    --mode custom_input \
-    --output-dir "tmp/vbench-2.0/${DIMENSION}" \
-    --json
-done
-```
-
-## Import existing results
-
-Import an official-compatible VBench-2.0 `*_eval_results.json`:
-
-```bash
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-  worldfoundry/evaluation/tasks/execution/runners/vbench_2_0/run_vbench_2_0_official_runner.py \
-  --official-results-path /path/to/vbench2_eval_results.json \
-  --videos-path "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --vbench2-dataset-root "${WORLDFOUNDRY_VBENCH2_DATASET_ROOT}" \
-  --output-dir tmp/vbench-2.0/imported \
-  --json
-```
+This benchmark reuses the shared base-model dependency stack: `vbench_perception_metric_stack`.
 
 ## Outputs
 
-Each run writes:
+The run writes into `--output-dir`:
 
-- `scorecard.json`: WorldFoundry scorecard with dimension scores and VBench-2.0 aggregates.
-- `raw_metric_table.jsonl`: metric rows used by the scorecard.
-- `dimension_scores.json`: normalized dimension-score summary.
-- `vbench2_dataset_manifest.json`: discovered official dataset metadata when available.
-- `vbench2_video_coverage.json`: generated-video coverage against discovered references.
-- `upstream_stdout.log` and `upstream_stderr.log`: logs from the in-tree runtime.
+- `scorecard.json`: WorldFoundry scorecard with the metric values recorded above.
+- `raw_metric_table.jsonl`: Metric rows backing the scorecard.
+- `dimension_scores.json`: Per-dimension score breakdown.
+- `vbench2_dataset_manifest.json`
+- `vbench2_video_coverage.json`
+- `vbench2_benchmark_contract.json`
+- `upstream_stdout.log`: Captured stdout of the upstream official scorer.
+- `upstream_stderr.log`: Captured stderr of the upstream official scorer.
 
-## What this cannot claim
+Scorecard primary key: `vbench2_total` (leaderboard key `total score`), stored in `scorecard.json`.
 
-- The catalog records `official_benchmark_verified: false` and `leaderboard_valid: false`: a local scorecard is not an official leaderboard submission, and full numerical parity with the upstream evaluator has not been demonstrated in this checkout.
-- Bounded official GPU validation covers the Diversity dimension only; the full dimension stack requires the complete generated-video set, dataset assets, and materialized base-model checkpoints.
-- Upstream Hugging Face license fields are null in API responses and need manual review before redistribution.
-- This page documents runnable commands; it does not claim those GPU runs were executed in this environment.
+## Limitations
+
+- Several dimensions require heavyweight judge/backbone checkpoints (VLM judges, detectors); partial-dimension runs are not comparable with official VBench-2.0 totals.
+- Coverage manifests record missing prompt videos; a run with incomplete coverage must not be quoted as a leaderboard number.
+- A local scorecard is not an official VBench-2.0 leaderboard entry.
 
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

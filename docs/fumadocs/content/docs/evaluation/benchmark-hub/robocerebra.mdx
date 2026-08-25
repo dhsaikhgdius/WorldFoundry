@@ -1,103 +1,80 @@
 ---
 title: RoboCerebra
-description: Long-horizon planning-and-memory manipulation benchmark with in-tree closed-loop simulator wiring and official result normalization.
+description: Long-horizon robotic manipulation benchmark probing deliberate System-2 planning; WorldFoundry normalizes official result exports.
 ---
 
 ## About
 
-RoboCerebra evaluates deliberate, "System-2" capabilities of robot manipulation policies over long-horizon household tasks. Episodes are much longer than typical VLA benchmarks and include task types that stress planning, memory of past events, and recovery from dynamic disturbances, so success requires more than reactive control.
+**Publisher:** Beihang University (CoLa Lab)
 
-WorldFoundry integrates RoboCerebra with an in-tree closed-loop simulator adapter at `worldfoundry/evaluation/tasks/embodied/simulators/robocerebra/` plus the shared official result normalizer for caller-provided rollout dumps. The catalog verification status is `normalizer_only`.
+RoboCerebra, from Beihang University's CoLa Lab, benchmarks long-horizon robotic manipulation that requires deliberate high-level planning ("cerebra" System-2 reasoning) on top of reactive low-level control: extended household task sequences with dynamic subgoal changes, observation checks, and memory demands, evaluated by hierarchical VLM-planner + VLA-controller stacks.
+
+WorldFoundry integrates RoboCerebra as an official-results runner: rollout exports are normalized into the unified scorecard.
 
 Official references:
 
-- Paper: [arXiv:2502.02853](https://arxiv.org/abs/2502.02853) (catalog `paper_url`)
-- Official source reference: [buaa-colalab/RoboCerebra](https://github.com/buaa-colalab/RoboCerebra)
-- License: upstream terms (see repository)
+- Paper: [arxiv.org/abs/2502.02853](https://arxiv.org/abs/2502.02853)
+- Official repository: [buaa-colalab/RoboCerebra](https://github.com/buaa-colalab/RoboCerebra)
+- License: `upstream_terms`
 
-## In-tree integration
+## Evaluation protocol
 
-- Catalog: `worldfoundry/data/benchmarks/catalog/embodied/robocerebra.yaml`
-- Task manifest: `worldfoundry/data/benchmarks/tasks/external/robocerebra.yaml`
-- Runtime profile: `worldfoundry/data/benchmarks/runtime_profiles/official/robocerebra.yaml`
-- Simulator adapter: `worldfoundry/evaluation/tasks/embodied/simulators/robocerebra/`
-- Closed-loop eval config: `worldfoundry/data/benchmarks/eval_configs/embodied/robocerebra/eval.yaml`
-- Result normalizer: `worldfoundry.evaluation.tasks.embodied.normalizer` (track `vla`)
+WorldFoundry integrates this benchmark through the unified result-import path: `worldfoundry-eval zoo benchmark-run --mode official-validation` normalizes a caller-provided official result export (JSON/CSV rollout summaries) into the WorldFoundry scorecard without executing the simulator. Simulator execution, policy loading, and rollout collection remain explicit upstream steps performed with the official tooling.
 
-## Evaluation protocol and result layout
+Primary metric: `success_rate`.
 
-For result import, the embodied normalizer accepts JSON, JSONL, CSV, TSV, and `result.txt`-style logs. Rows are matched on numeric fields such as `success`, `success_rate`, `task_success`, `episode_success`, and `reward`; booleans and percent strings are coerced to unit-interval floats.
+| Metric | Meaning | Direction |
+| --- | --- | --- |
+| `success_rate` | Primary episode success rate over evaluated rollouts. | Higher is better |
+| `task_success` | Per-task success aggregate. | Higher is better |
+| `episode_success` | Per-episode success indicator aggregate. | Higher is better |
+| `reward` | Mean episode reward / return. | Higher is better |
 
-The bundled eval config expects a staged benchmark root at `/workspace/RoboCerebra_Bench` (`robocerebra_root`), runs the `Ideal` task type with seed 7, one episode per task over up to 5 tasks, against an external policy server at `ws://localhost:8000`.
+## Data and artifact layout
 
-## Metrics
+In-tree paths:
 
-Primary metric (scorecard key): `success_rate`.
-
-| Metric | Meaning |
-| --- | --- |
-| `success_rate` | Share of rollouts completed successfully; primary leaderboard value. |
-| `task_success` | Per-task success aggregated across episodes. |
-| `episode_success` | Per-episode binary success. |
-| `reward` | Cumulative episode reward, when defined. |
-
-Success metrics are normalized via the shared registry (`percent_or_fraction_to_unit`). No video-generation metrics apply.
-
-## Preparation and environment
-
-```bash
-cd /path/to/WorldFoundry
-export WORLDFOUNDRY_ROBOCEREBRA_ROOT=/path/to/RoboCerebra_Bench
-export WORLDFOUNDRY_ROBOCEREBRA_RESULTS_PATH=/path/to/robocerebra_results.json
+```text
+worldfoundry/data/benchmarks/tasks/external/robocerebra.yaml
 ```
 
-Closed-loop rollouts require the RoboCerebra runtime, task assets, and a policy checkpoint served over WebSocket (catalog `required_assets`).
-
-Verify runtime wiring:
-
-```bash
-python -m worldfoundry.evaluation.tasks.execution.orchestration.runtime_preflight \
-  --profile robocerebra \
-  --manifest worldfoundry/data/benchmarks/runtime_profiles/official/robocerebra.yaml \
-  --output-dir tmp/worldfoundry_preflight/robocerebra \
-  --json
+```text
+<official_results.json>                 # rollout summary export from the official tooling
+${WORLDFOUNDRY_ROBOCEREBRA_RESULTS_PATH}   # default import path
 ```
 
-## Import official results (official-validation)
+## Run the benchmark
+
+Catalog-recorded validation command:
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id robocerebra \
   --mode official-validation \
-  --official-results-path "${WORLDFOUNDRY_ROBOCEREBRA_RESULTS_PATH}" \
-  --output-dir tmp/robocerebra/official-validation \
+  --official-results-path <official_results.json> \
+  --output-dir <out> \
   --json
 ```
 
-This routes through the embodied `vla`-track normalizer in-process; no simulator code is executed.
+## Checkpoints and environment variables
 
-## Closed-loop rollouts (native simulator)
-
-```bash
-worldfoundry-eval embodied run \
-  --config worldfoundry/data/benchmarks/eval_configs/embodied/robocerebra/eval.yaml \
-  --output-dir tmp/robocerebra/embodied-run \
-  --json
-```
-
-Adjust `robocerebra_root` in the config (or copy it) to your staged benchmark path. `--server-url`, `--shard-id`/`--num-shards`, and `--no-docker` are supported.
+- `WORLDFOUNDRY_ROBOCEREBRA_ROOT`: Optional override pointing at a local benchmark runtime/repository root.
+- `WORLDFOUNDRY_ROBOCEREBRA_RESULTS_PATH`: Default path the importer reads official result exports from when `--official-results-path` is not passed.
 
 ## Outputs
 
-- `scorecard.json`: WorldFoundry scorecard; leaderboard block keyed by `success_rate`.
-- `raw_results.jsonl`: extracted raw result rows.
-- `evaluation/summary.json`: aggregated per-metric statistics.
-- `evaluation/per_sample_metrics.jsonl`: normalized per-episode rows.
+The run writes into `--output-dir`:
 
-## What this page does not claim
+- `scorecard.json`: WorldFoundry scorecard with the metric values recorded above.
+- `raw_results.jsonl`: Normalized rows parsed from the official result export.
+- `evaluation/summary.json`: Aggregated evaluation summary.
 
-- Catalog status is `normalizer_only` with `leaderboard_valid: false` and `official_benchmark_verified: false`. Imported numbers are normalized copies of caller-provided results, not officially reproduced leaderboard values.
-- The RoboCerebra runtime, benchmark assets, and policy checkpoints are not bundled; closed-loop rollouts require external staging plus a policy server. No local GPU rollout evidence is claimed.
-- Full leaderboard parity is not claimed until official rollouts are executed and imported (catalog blocker).
+Scorecard primary key: `success_rate` (leaderboard key `success_rate`), stored in `scorecard.json`.
+
+## Limitations
+
+- WorldFoundry normalizes supplied rollout results; it does not run the official simulator or policies in tree.
+- Full leaderboard parity is not claimed until official rollouts are executed with staged simulator assets and policy checkpoints, then imported.
+- Imported scorecards are integration evidence, not leaderboard submissions.
 
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

@@ -1,5 +1,7 @@
 id: phygenbench
 name: PhyGenBench
+publisher: Shanghai AI Laboratory
+publisher_kind: institute
 benchmark_kind:
 - text-to-video
 - physical-commonsense

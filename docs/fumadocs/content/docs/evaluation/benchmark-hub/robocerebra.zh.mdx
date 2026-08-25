@@ -1,103 +1,80 @@
 ---
 title: RoboCerebra
-description: 长时程规划与记忆操作基准，仓内提供闭环仿真接线与官方结果归一化。
+description: 考察深思式 System-2 规划的长时程机器人操作评测；WorldFoundry 归一化官方结果导出。
 ---
 
-## 关于
+## 简介
 
-RoboCerebra 评测机器人操作策略在长时程家务任务上的"系统 2"式深思能力。其 episode 远长于常规 VLA 基准，任务类型覆盖规划、对过去事件的记忆、以及从动态扰动中恢复，成功需要的不只是反应式控制。
+**发表机构：** Beihang University（北京航空航天大学 CoLa 实验室）
 
-WorldFoundry 通过仓内闭环仿真适配器 `worldfoundry/evaluation/tasks/embodied/simulators/robocerebra/` 以及共享官方结果归一化器集成 RoboCerebra。catalog 校验状态为 `normalizer_only`。
+RoboCerebra 来自北京航空航天大学 CoLa 实验室，评测需要在反应式底层控制之上进行深思式高层规划（“cerebra” System-2 推理）的长时程机器人操作：加长的家务任务序列包含动态子目标变化、观测核查与记忆要求，由分层的 VLM 规划器 + VLA 控制器栈完成评测。
 
-官方来源：
+WorldFoundry 以官方结果 runner 集成 RoboCerebra：rollout 导出被归一化为统一 scorecard。
 
-- 论文：[arXiv:2502.02853](https://arxiv.org/abs/2502.02853)（catalog `paper_url`）
-- 官方仓库：[buaa-colalab/RoboCerebra](https://github.com/buaa-colalab/RoboCerebra)
-- 许可：上游条款（见仓库）
+官方参考：
 
-## 仓内路径
+- Paper: [arxiv.org/abs/2502.02853](https://arxiv.org/abs/2502.02853)
+- 官方仓库: [buaa-colalab/RoboCerebra](https://github.com/buaa-colalab/RoboCerebra)
+- License: `upstream_terms`
 
-- Catalog：`worldfoundry/data/benchmarks/catalog/embodied/robocerebra.yaml`
-- 任务清单：`worldfoundry/data/benchmarks/tasks/external/robocerebra.yaml`
-- 运行时 profile：`worldfoundry/data/benchmarks/runtime_profiles/official/robocerebra.yaml`
-- 仿真适配器：`worldfoundry/evaluation/tasks/embodied/simulators/robocerebra/`
-- 闭环 eval config：`worldfoundry/data/benchmarks/eval_configs/embodied/robocerebra/eval.yaml`
-- 结果归一化器：`worldfoundry.evaluation.tasks.embodied.normalizer`（track `vla`）
+## 评测协议
 
-## 评测协议与数据布局
+WorldFoundry 通过统一的结果导入路径集成该 benchmark：`worldfoundry-eval zoo benchmark-run --mode official-validation` 把调用方提供的官方结果导出（JSON/CSV rollout 汇总）归一化为 WorldFoundry scorecard，不执行模拟器。模拟器执行、策略加载与 rollout 采集仍是使用官方工具完成的显式上游步骤。
 
-结果导入侧，embodied normalizer 接受 JSON、JSONL、CSV、TSV 及 `result.txt` 风格日志。行记录按 `success`、`success_rate`、`task_success`、`episode_success`、`reward` 等数值字段匹配；布尔值与百分比字符串会被强制转换为 [0,1] 浮点数。
+主指标是 `success_rate`。
 
-内置 eval config 要求在 `/workspace/RoboCerebra_Bench` 部署基准根目录（`robocerebra_root`），以 seed 7 运行 `Ideal` 任务类型，最多 5 个任务、每任务 1 个 episode，由 `ws://localhost:8000` 上的外部 policy server 驱动。
+| Metric | 含义 | 方向 |
+| --- | --- | --- |
+| `success_rate` | 评测 rollout 上的主成功率（逐 episode 成功比例）。 | 越高越好 |
+| `task_success` | 按任务聚合的成功率。 | 越高越好 |
+| `episode_success` | 逐 episode 成功指示的聚合值。 | 越高越好 |
+| `reward` | 平均 episode 奖励 / 回报。 | 越高越好 |
 
-## 指标
+## 数据与产物布局
 
-主指标（scorecard 主键）：`success_rate`。
+WorldFoundry 仓内路径：
 
-| 指标 | 含义 |
-| --- | --- |
-| `success_rate` | 成功完成的 rollout 占比；leaderboard 主值。 |
-| `task_success` | 按任务聚合的成功率。 |
-| `episode_success` | 单 episode 的二值成功。 |
-| `reward` | 有定义时的 episode 累计奖励。 |
-
-成功类指标经共享 registry 的 `percent_or_fraction_to_unit` 归一化；不涉及视频生成类指标。
-
-## 准备命令与环境变量
-
-```bash
-cd /path/to/WorldFoundry
-export WORLDFOUNDRY_ROBOCEREBRA_ROOT=/path/to/RoboCerebra_Bench
-export WORLDFOUNDRY_ROBOCEREBRA_RESULTS_PATH=/path/to/robocerebra_results.json
+```text
+worldfoundry/data/benchmarks/tasks/external/robocerebra.yaml
 ```
 
-闭环 rollout 需要 RoboCerebra 运行时、任务 assets，以及通过 WebSocket 提供动作的策略 checkpoint（catalog `required_assets`）。
-
-校验运行时接线：
-
-```bash
-python -m worldfoundry.evaluation.tasks.execution.orchestration.runtime_preflight \
-  --profile robocerebra \
-  --manifest worldfoundry/data/benchmarks/runtime_profiles/official/robocerebra.yaml \
-  --output-dir tmp/worldfoundry_preflight/robocerebra \
-  --json
+```text
+<official_results.json>                 # 官方工具产出的 rollout 汇总导出
+${WORLDFOUNDRY_ROBOCEREBRA_RESULTS_PATH}   # 默认导入路径
 ```
 
-## 导入官方结果（official-validation）
+## 运行评测
+
+目录 manifest 记录的 validation 命令：
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id robocerebra \
   --mode official-validation \
-  --official-results-path "${WORLDFOUNDRY_ROBOCEREBRA_RESULTS_PATH}" \
-  --output-dir tmp/robocerebra/official-validation \
+  --official-results-path <official_results.json> \
+  --output-dir <out> \
   --json
 ```
 
-该路径在进程内走 embodied `vla` track normalizer，不执行任何仿真代码。
+## 权重与环境变量
 
-## 闭环 rollout（原生仿真器）
+- `WORLDFOUNDRY_ROBOCEREBRA_ROOT`: 可选覆盖项，指向本地 benchmark runtime / 仓库根目录。
+- `WORLDFOUNDRY_ROBOCEREBRA_RESULTS_PATH`: 未显式传 `--official-results-path` 时，导入器默认从该路径读取官方结果导出文件。
 
-```bash
-worldfoundry-eval embodied run \
-  --config worldfoundry/data/benchmarks/eval_configs/embodied/robocerebra/eval.yaml \
-  --output-dir tmp/robocerebra/embodied-run \
-  --json
-```
+## 输出文件
 
-修改 config 中的 `robocerebra_root`（或复制一份）指向你部署的基准路径。支持 `--server-url`、`--shard-id`/`--num-shards`、`--no-docker`。
+运行会在 `--output-dir` 下写出：
 
-## 输出
+- `scorecard.json`: WorldFoundry 统一 scorecard，记录上表中的指标值。
+- `raw_results.jsonl`: 从官方结果导出解析出的归一化行。
+- `evaluation/summary.json`: 聚合评测摘要。
 
-- `scorecard.json`：WorldFoundry scorecard；leaderboard 块以 `success_rate` 为主键。
-- `raw_results.jsonl`：提取的原始结果行。
-- `evaluation/summary.json`：按指标聚合的统计。
-- `evaluation/per_sample_metrics.jsonl`：归一化后的逐 episode 行。
+Scorecard 主键：`success_rate`（leaderboard key `success_rate`），写入 `scorecard.json`。
 
-## 不能声称的边界
+## 边界与限制
 
-- catalog 状态为 `normalizer_only`，`leaderboard_valid: false`、`official_benchmark_verified: false`。导入的数字是调用方结果的归一化副本，不是官方复现的 leaderboard 值。
-- RoboCerebra 运行时、基准 assets、策略 checkpoint 均未随仓库分发；闭环 rollout 需要外部部署并运行 policy server。本页不声称任何本地 GPU rollout 证据。
-- catalog blocker：官方 rollout 执行并导入之前，不声称完整 leaderboard 对齐。
+- WorldFoundry 只归一化所提供的 rollout 结果；不在仓内运行官方模拟器或策略。
+- 在用就位的模拟器资产与策略权重执行官方 rollout 并导入之前，不声称完整 leaderboard 对齐。
+- 导入的 scorecard 是集成证据，不是 leaderboard 提交。
 
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

@@ -1,186 +1,87 @@
 ---
 title: T2VWorldBench
-description: World-knowledge evaluation for text-to-video generation, with in-tree official runtime and runnable scoring commands.
+description: "WACV 2026 world-knowledge T2V benchmark: 1,200 prompts over physics, nature, activity, culture, causality, and object knowledge."
 ---
 
 ## About
 
-T2VWorldBench evaluates whether text-to-video models can generate videos that express world knowledge rather than only surface visual detail. The WACV 2026 benchmark covers six categories: physics, nature, activity, culture, causality, and object knowledge. The paper uses a hybrid protocol that combines human assessment with VLM-based evaluation; the released code implements the VLM assessment component.
+**Publisher:** San Jose State University (with UC Berkeley, UW-Madison, UW & GUET)
 
-WorldFoundry integrates the official runtime in tree. The runner, result parser, and scorecard path live under `worldfoundry/evaluation/tasks/execution/runners/t2vworldbench`; the vendored official `eval.py` stays in `runtime/t2vworldbench`, while prompt and metadata assets live under `worldfoundry/data/benchmarks/assets/t2vworldbench`.
+T2VWorldBench (WACV 2026) is the first systematic framework for evaluating whether text-to-video models can leverage world knowledge for factual generation. It spans 6 major categories, 60 subcategories, and 1,200 prompts covering physics, nature, activity, culture, causality, and object knowledge, scored with a mix of human evaluation and VLM-based automated judging. Its evaluation of 10 frontier T2V systems found most models unable to generate truly knowledge-correct videos.
+
+WorldFoundry vendors the runtime source in tree and normalizes caller-provided official result files; full official VLM evaluation additionally needs the upstream LLaVA runtime and Drive-hosted metadata.
 
 Official references:
 
-- Paper: [arXiv:2507.18107](https://arxiv.org/abs/2507.18107)
-- Official source reference: [magiclinux/world_knowledge](https://github.com/magiclinux/world_knowledge)
-- Full metadata and sample videos: [official Google Drive folder](https://drive.google.com/drive/folders/1-E9CPJf-M6_RuATjIfpYfiUEFhEYwuaF)
-- In-tree runner: `worldfoundry/evaluation/tasks/execution/runners/t2vworldbench/run_t2vworldbench_official_runner.py`
-
-## What it measures
-
-T2VWorldBench evaluates whether text-to-video models express **world knowledge** — physics, nature, activity, culture, causality, and object understanding — rather than only surface visual detail. The WACV 2026 benchmark uses 1,200 prompts across 6 categories and 60 subcategories with a hybrid human + VLM protocol.
-
-## Benchmark design
-
-| Category | Focus |
-| --- | --- |
-| Physics | Physical phenomena and intuitive physics |
-| Nature | Natural scenes, weather, biological and environmental knowledge |
-| Activity | Human actions and activity-specific world knowledge |
-| Culture | Cultural objects, practices, places, and conventions |
-| Causality | Cause-effect relationships in generated videos |
-| Object | Object identity, usage, and behavior |
-
-Primary aggregate: `world_knowledge_average` (mean over available category scores).
+- Paper: [arxiv.org/abs/2507.18107](https://arxiv.org/abs/2507.18107)
+- Official repository: [magiclinux/world_knowledge](https://github.com/magiclinux/world_knowledge)
 
 ## Evaluation protocol
 
-The paper prompt CSV is bundled here:
-
-```text
-worldfoundry/data/benchmarks/assets/t2vworldbench/prompt/prompt.csv
-```
-
-The official VLM evaluator consumes a JSON metadata file. Each item should include:
-
-| Field | Purpose |
-| --- | --- |
-| `id` or `name` | Video filename stem used to match the generated video. |
-| `number` | Processing order. |
-| `prompt` | Original text prompt used for generation. |
-| `explanation` | World-knowledge explanation used by the evaluator. |
-
-The generated video directory can contain either all videos for the run or a single video. For a full reproduction, stage the complete official metadata JSON and one generated video per metadata item:
-
-```text
-/path/to/t2vworldbench/generated_videos/
-  Chopsticks.mp4
-  Mongolia.mp4
-  ...
-
-/path/to/t2vworldbench/meta_data.json
-```
-
-If you use numbered filenames such as `0001.mp4`, make sure `id` or `name` in the metadata JSON is also `0001`; `number` is used for sorting, not prompt lookup.
+`official-validation` normalizes an official result export into per-category knowledge scores plus `world_knowledge_average` (emitted over available categories). Full official runtime execution takes a prompt file or in-tree prompt metadata plus generated videos and the upstream LLaVA judge.
 
 Primary metric: `world_knowledge_average`.
 
-| Metric | Meaning |
-| --- | --- |
-| `physics_knowledge` | World-knowledge score for physical phenomena and intuitive physics. |
-| `nature_knowledge` | Score for natural scenes, weather, biological and environmental knowledge. |
-| `activity_knowledge` | Score for human actions and activity-specific world knowledge. |
-| `culture_knowledge` | Score for cultural objects, practices, places, and conventions. |
-| `causality_knowledge` | Score for cause-effect relationships in generated videos. |
-| `object_knowledge` | Score for object identity, usage, and behavior. |
-| `world_knowledge_average` | Mean over the available category scores. |
+| Metric | Meaning | Direction |
+| --- | --- | --- |
+| `physics_knowledge` | T2VWorldBench physics world-knowledge score. | Higher is better |
+| `nature_knowledge` | T2VWorldBench nature world-knowledge score. | Higher is better |
+| `activity_knowledge` | T2VWorldBench activity world-knowledge score. | Higher is better |
+| `culture_knowledge` | T2VWorldBench culture world-knowledge score. | Higher is better |
+| `causality_knowledge` | T2VWorldBench causality world-knowledge score. | Higher is better |
+| `object_knowledge` | T2VWorldBench object world-knowledge score. | Higher is better |
+| `world_knowledge_average` | Mean over available world-knowledge categories. | Higher is better |
 
-## Data and model preparation
+## Data and artifact layout
 
-Start from the WorldFoundry repository root:
-
-```bash
-cd /path/to/WorldFoundry
-export WORLDFOUNDRY_T2VWORLDBENCH_PROMPT_FILE="$PWD/worldfoundry/data/benchmarks/assets/t2vworldbench/data/meta_data/meta_data.json"
-```
-
-`WORLDFOUNDRY_T2VWORLDBENCH_PROMPT_FILE` is the only prompt-related environment variable the runner reads; the vendored official runtime lives at `worldfoundry/evaluation/tasks/execution/runners/t2vworldbench/runtime/t2vworldbench` and the bundled prompt CSV at `worldfoundry/data/benchmarks/assets/t2vworldbench/prompt/prompt.csv`.
-
-Download or prepare the official metadata JSON. The repository includes a tiny example at:
+In-tree paths:
 
 ```text
-worldfoundry/data/benchmarks/assets/t2vworldbench/data/meta_data/meta_data.json
+worldfoundry/data/benchmarks/tasks/external/t2vworldbench.yaml
+worldfoundry/evaluation/tasks/execution/runners/t2vworldbench/runtime/t2vworldbench
 ```
-
-The bundled file is only a small in-tree metadata asset. For leaderboard-style reproduction, use the full metadata from the official Drive release:
-
-```bash
-export WORLDFOUNDRY_T2VWORLDBENCH_PROMPT_FILE=/path/to/t2vworldbench/meta_data.json
-```
-
-The VLM evaluator uses the LLaVA-based code that has been integrated through WorldFoundry base-model modules. Stage the required LLaVA checkpoint according to your local base-model setup, then run with a Python environment that can import the WorldFoundry evaluation dependencies.
-
-## Generate candidate videos
-
-Run your candidate T2V model on the prompts from the metadata file or from `prompt.csv`, then write videos using metadata-matching filenames:
 
 ```text
-/path/to/t2vworldbench/generated_videos/
-  <id>.mp4
-  <id>.mp4
-  ...
+worldfoundry/evaluation/tasks/execution/runners/t2vworldbench/runtime/t2vworldbench   # vendored runtime
+${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}/                                                # candidate videos
 ```
 
-Set the video root and model name before scoring:
+The official prompt CSV is vendored in the public repo; full metadata/sample videos are Drive-hosted and must be staged manually.
 
-```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/t2vworldbench/generated_videos
-export WORLDFOUNDRY_T2VWORLDBENCH_MODEL_NAME=my_t2v_model
-```
+## Run the benchmark
 
-Candidate model inference and training are model-specific. For a WorldFoundry-integrated generator, run the model's synthesis workflow with these prompts, then export the final videos into the layout above.
-
-## Run VLM scoring
-
-Run the in-tree T2VWorldBench official runtime:
-
-```bash
-cd /path/to/WorldFoundry
-
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-  worldfoundry/evaluation/tasks/execution/runners/t2vworldbench/run_t2vworldbench_official_runner.py \
-  --run-official \
-  --model-name "${WORLDFOUNDRY_T2VWORLDBENCH_MODEL_NAME}" \
-  --prompt-file "${WORLDFOUNDRY_T2VWORLDBENCH_PROMPT_FILE}" \
-  --generated-video-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/t2vworldbench/official-run \
-  --json
-```
-
-The official evaluator writes `<model_name>_video_assessment_scores.csv` under the runner output directory. WorldFoundry then parses that CSV into the standard scorecard.
-
-## Import existing results
-
-If you have already run the T2VWorldBench evaluator and have the official CSV, import it directly:
-
-```bash
-cd /path/to/WorldFoundry
-
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-  worldfoundry/evaluation/tasks/execution/runners/t2vworldbench/run_t2vworldbench_official_runner.py \
-  --official-results-path /path/to/my_t2v_model_video_assessment_scores.csv \
-  --generated-video-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/t2vworldbench/imported \
-  --json
-```
-
-The unified benchmark entry can import the same CSV:
+Catalog-recorded validation command:
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id t2vworldbench \
   --mode official-validation \
-  --official-results-path /path/to/my_t2v_model_video_assessment_scores.csv \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/t2vworldbench/official-validation \
+  --official-results-path <official_results.json> \
+  --generated-artifact-dir <generated_videos> \
+  --output-dir <out> \
   --json
 ```
 
+## Checkpoints and environment variables
+
+- `WORLDFOUNDRY_T2VWORLDBENCH_ROOT`: Optional override pointing at a local benchmark runtime/repository root.
+- `WORLDFOUNDRY_T2VWORLDBENCH_RESULTS_PATH`: Default path the importer reads official result exports from when `--official-results-path` is not passed.
+- `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR`: Directory containing the candidate generated artifacts to score or import against.
+
 ## Outputs
 
-The run writes:
+The run writes into `--output-dir`:
 
-- `scorecard.json`: WorldFoundry scorecard with six category metrics and `world_knowledge_average`.
-- `raw_metric_table.jsonl`: metric rows parsed from the official CSV.
-- `per_sample_scores.jsonl`: per-video rows when the CSV exposes sample-level scores.
-- `upstream_stdout.log` and `upstream_stderr.log`: logs from the in-tree official runtime.
-- `upstream/`: raw evaluator output directory for `--run-official`.
+- `scorecard.json`: WorldFoundry scorecard with the metric values recorded above.
+- `benchmark_contract.json`: Benchmark contract record for the run (inputs, mode, provenance).
+- `raw_metric_table.jsonl`: Metric rows backing the scorecard.
 
-## What this cannot claim
+Scorecard primary key: `world_knowledge_average` (leaderboard key `world_knowledge_average`), stored in `scorecard.json`.
 
-- The catalog records `official_benchmark_verified: false` and `leaderboard_valid: false`: a local scorecard is not an official leaderboard submission, and full numerical parity with the upstream evaluator has not been demonstrated in this checkout.
-- The bundled `meta_data.json` is only a tiny in-tree example; full validation requires generated videos plus the manually staged official Drive metadata and sample assets.
-- Leaderboard parity requires the upstream VLM runtime (a LLaVA-compatible checkpoint) and normalized official result files.
-- This page documents runnable commands; it does not claim those GPU runs were executed in this environment.
+## Limitations
+
+- Full validation requires generated videos and manually staged official Drive metadata/sample assets.
+- Leaderboard parity requires the upstream VLM runtime and normalized official result files.
+- Scorecards remain non-leaderboard setup evidence until full official runtime parity is verified.
 
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

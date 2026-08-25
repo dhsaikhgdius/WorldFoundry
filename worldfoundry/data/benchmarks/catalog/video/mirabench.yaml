@@ -1,5 +1,7 @@
 id: mirabench
 name: MiraBench
+publisher: Tencent
+publisher_kind: company
 benchmark_kind:
 - long-video-generation
 - video-generation-quality

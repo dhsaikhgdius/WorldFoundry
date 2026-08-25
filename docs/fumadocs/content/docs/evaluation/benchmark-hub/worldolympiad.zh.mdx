@@ -1,264 +1,101 @@
 ---
 title: WorldOlympiad
-description: WorldOlympiad — 指标、依赖与运行命令。
+description: 长视频世界模型“铁人三项”：物理忠实度、长时程交互保真与 3D 几何一致性。
 ---
 
 ## 简介
 
-面向长视频世界模型的"铁人三项"评测，覆盖物理真实性、几何一致性与长时程交互保真度。基准包含 1000 条长视频（机器人 400、游戏 400、通用真实场景 200），目标是暴露 pipeline 的失效模式，而不是压缩成单一总分。
+**发表机构：** Alibaba DAMO Academy（阿里巴巴达摩院）
 
-**WorldFoundry 评测路径:** 使用 `--run-official` 运行内置在 runner 目录下的官方批量评测器（**无需外部 checkout**），或使用 `--official-results-path` 将已有 judge 结果归一化为 WorldFoundry scorecard。
+WorldOlympiad 沿三条赛道评测长视频世界模型。物理赛道由 MLLM judge（Qwen3-VL）在力学、热学、材料属性上回答置信度加权的物理问题；交互赛道对长的多 chunk rollout 评审逐 chunk 指令遵循、过渡平滑度与全局一致性；几何赛道用 Depth Anything 3 重建视频（高斯泼溅、meta-view 一致性、相机轨迹对齐）。主指标 `combined_score` 是三条赛道在单位区间上的均值。
 
-官方评测器以 revision `bb2e240` 原样内置，锁定版本、排除内容与 license 状态记录在 runner 目录下的 `runtime/WORLDFOUNDRY_PROVENANCE.md`。上游仓库在该 revision 上没有 LICENSE 文件，因此在再分发这份内置目录前请与上游作者确认授权条款。
+WorldFoundry 已入库官方批量 evaluator，`--run-official` 无需外部 checkout；权重通过 `--weights-dir` 显式传入，DA3 源码树通过 `--da3-src` 传入，默认解析共享的 `worldfoundry/base_models` 资产。
 
-## 集成状态
+官方参考：
 
-| 项目 | 当前状态 |
-| --- | --- |
-| Catalog integration | `integrated` |
-| Runner verification | `in_tree_runtime_plan_verified` —— 批处理计划链路已端到端跑通；尚未执行过打分的三项评测 |
-| Leaderboard | 暂不可用于 leaderboard 声明 |
+- Paper: [arxiv.org/abs/2606.11129](https://arxiv.org/abs/2606.11129)
+- 项目主页: [alibaba-damo-academy.github.io/WorldOlympiad](https://alibaba-damo-academy.github.io/WorldOlympiad)
+- 官方仓库: [alibaba-damo-academy/WorldOlympiad](https://github.com/alibaba-damo-academy/WorldOlympiad)
+- License: `{'status': 'unlicensed_upstream', 'notes': 'The upstream repository publishes no LICENSE file at the pinned revision, so no redistribution terms are stated. Confirm terms with the upstream authors before redistributing the vendored runtime.'}`
 
 ## 评测协议
 
-WorldOlympiad 将世界模型评测拆分为三个赛道：
+计分执行需要在跑的 QwenVL、SAM3 与 DA3 reward 服务（`--qwen-server-urls`、`--sam3-server-urls`、`--reward-3d-server-urls`）；各赛道可单独跳过（`--skip-physical`、`--skip-interaction`、`--skip-3d`）。`--run-official --dry-run` 在无 GPU、无权重的情况下走真实的 manifest、调度器与汇总管线——这是当前已验证的范围。`--official-results-path` 接受 case 根目录、单个 judge JSON、`summary.jsonl` 或聚合 JSON。
 
-| 赛道 | 考察内容 | 主要信号 |
+主指标是 `combined_score`。
+
+| Metric | 含义 | 方向 |
 | --- | --- | --- |
-| Physical | 生成行为是否遵循物理规律。 | 力学、热学与材料属性的合规性，由 SAM3 提供对象证据、MLLM 打分。 |
-| Geometry | 视频是否保持一致的 3D 结构。 | DA3 重建质量、meta-view 一致性以及恢复出的相机轨迹对齐度。 |
-| Interaction | rollout 是否遵循长时程 prompt。 | 分块指令跟随、转场平滑度、整片一致性以及 CLIP 语义对齐。 |
+| `combined_score` | 物理、交互与几何赛道得分在单位区间上的均值。 | 越高越好 |
+| `physical_score` | MLLM judge 判定相关的物理问题上的置信度加权符合度。 | 越高越好 |
+| `physical_mechanics` | 限定力学问题的物理得分。 | 越高越好 |
+| `physical_thermotics` | 限定热学问题的物理得分。 | 越高越好 |
+| `physical_material` | 限定材料属性问题的物理得分。 | 越高越好 |
+| `physical_compliance_rate` | 全语料符合问题数除以相关问题数。 | 越高越好 |
+| `three_d_score` | 由原生 0-3 范围归一化的 DA3 几何得分。 | 越高越好 |
+| `three_d_raw` | 高斯泼溅、meta-view 与相机运动三组件在 0-3 分制上的加和。 | 越高越好 |
+| `gs_score` | DA3 高斯泼溅重建质量组件分。 | 越高越好 |
+| `meta_view_score` | 几何赛道的诊断性 meta-view 一致性组件。 | 越高越好 |
+| `camera_motion_score` | 恢复的 DA3 相机轨迹与参考轨迹的对齐度。 | 越高越好 |
+| `interaction_score` | 由原生 0-5 分制归一化的 VLM 交互得分。 | 越高越好 |
+| `interaction_raw` | chunk、过渡与全局交互判定在 0-5 分制上的均值。 | 越高越好 |
+| `chunk_instruction_following` | 按生成 chunk 时间戳判定的逐 chunk prompt 遵循度。 | 越高越好 |
+| `transition_smoothness` | 相邻生成 chunk 边界处的平滑度。 | 越高越好 |
+| `global_consistency` | 全视频一致性与全局文本对齐。 | 越高越好 |
+| `clip_semantic_adherence` | 采样 chunk 帧与其 caption 间的 CLIP 相似度。 | 越高越好 |
 
-官方评测器按 case 目录组织数据，并把打分文件写在视频旁边，因此中断的批处理可以续跑而不重算已完成的 case：
+## 数据与产物布局
 
-```text
-<case_root>/
-  general/
-    <case_id>/
-      prompt.json
-      ref_<case_id>.mp4
-      <prefix>_gen_<case_id>.mp4
-      <prefix>_gen_<case_id>_chunk_timestamps.json
-      <prefix>_judge_<case_id>.json      # 评测器写出
-  gaming/ ...
-  embodied/ ...
-```
-
-WorldFoundry runner 接受该布局产出的任意一种结果形态：
-
-- case 根目录（递归发现 judge 文件）；
-- 单个 `<prefix>_judge_<case_id>.json`；
-- `batch_scheduler` 的 `summary.jsonl`（行内 `output` 指向 judge 文件）；
-- 上游 `summarize_scores.py` 输出的聚合 JSON。
-
-## 指标
-
-### Task YAML
-
-`worldfoundry/data/benchmarks/tasks/external/worldolympiad.yaml`
-
-### Primary
-
-- `combined_score`
-
-| Metric | 赛道 | 原始量纲 | 关注点 |
-| --- | --- | --- | --- |
-| `combined_score` | aggregate | 0–1 | 物理、交互、几何三个赛道分数的均值。 |
-| `physical_score` | physical | 0–1 | 判定为相关的物理问题上，按置信度加权的合规程度。 |
-| `physical_mechanics` | physical | 0–1 | 仅统计力学类问题的物理分。 |
-| `physical_thermotics` | physical | 0–1 | 仅统计热学类问题的物理分。 |
-| `physical_material` | physical | 0–1 | 仅统计材料属性类问题的物理分。 |
-| `physical_compliance_rate` | physical | 0–1 | 全语料合规问题数除以相关问题数。 |
-| `three_d_score` | geometry | 0–1 | DA3 几何分，由原始 0–3 量纲归一化而来。 |
-| `three_d_raw` | geometry | 0–3 | 高斯泼溅、meta-view 与相机运动三个分量之和。 |
-| `gs_score` | geometry | 0–1 | 高斯泼溅重建质量分量。 |
-| `meta_view_score` | geometry | 0–1 | meta-view 一致性诊断分量。 |
-| `camera_motion_score` | geometry | 0–1 | 恢复轨迹与参考相机轨迹的对齐度。 |
-| `interaction_score` | interaction | 0–1 | VLM 交互分，由原始 0–5 量纲归一化而来。 |
-| `interaction_raw` | interaction | 0–5 | 分块、转场与全局三类交互判定的均值。 |
-| `chunk_instruction_following` | interaction | 0–5 | 依据 chunk 时间戳评估的逐块 prompt 跟随。 |
-| `transition_smoothness` | interaction | 0–5 | 相邻生成块边界处的平滑度。 |
-| `global_consistency` | interaction | 0–5 | 整片一致性与全局文本对齐。 |
-| `clip_semantic_adherence` | interaction | 0–1 | 采样帧与其 caption 之间的 CLIP 相似度。 |
-
-逐 case 的分数字段在 case 维度取均值，与上游 summarizer 一致；`physical_compliance_rate` 按全语料计数聚合，因为上游 summarizer 对问题判定采用计数口径。所有指标在 `raw_metric_table.jsonl` 中都会附带归一化到单位区间的 `normalized_score`。
-
-## 环境准备
-
-### 内置 runtime
-
-官方评测器位于：
+WorldFoundry 仓内路径：
 
 ```text
-worldfoundry/evaluation/tasks/execution/runners/worldolympiad/
-  run_worldolympiad_official_runner.py    # WorldFoundry 入口
-  worldolympiad_metrics.py                # judge 输出归一化
-  runtime/
-    WORLDFOUNDRY_PROVENANCE.md            # 上游 revision、排除内容与 license 状态
-    worldolympiad/                        # 内置的官方评测器
-      batch_test/evaluate_pipelines.py    # 批处理入口
-      scripts/score_video_physical_3d.py  # 单 case 打分脚本
-      physical/  3d_metrics/  interaction/  model/  problem/
+worldfoundry/data/benchmarks/tasks/external/worldolympiad.yaml
+worldfoundry/evaluation/tasks/execution/runners/worldolympiad
 ```
 
-内置目录是**只读**的：runner 会拒绝落在其内部的 `--output-dir` 或 `--weights-dir`，并显式传入全部权重路径，避免上游把权重解析进源码树。
+```text
+worldfoundry/evaluation/tasks/execution/runners/worldolympiad/runtime/worldolympiad   # 官方 evaluator
+worldfoundry/data/benchmarks/assets/worldolympiad                                     # fixture
+${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}/<case_id>/...                                  # 官方 case 布局
+```
 
-### 运行环境
-
-- **Conda env:** `worldfoundry-unified-cu128`。
-- **是否需要独立环境:** 结果归一化与 `--run-official --dry-run` 复用统一环境（`needs_new_env: false`），不依赖 GPU。
-- 上游 `environment.yml` 作为参考一并内置，记录了作者执行打分评测时使用的 conda 环境。
-
-### 评测数据
-
-- 候选模型输出：将 `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR` 指向上述 case 根目录。
-- `worldfoundry/data/benchmarks/tasks/external/worldolympiad.yaml`
-- 内置 fixture（仅合成的 judge schema）：`worldfoundry/data/benchmarks/assets/worldolympiad`
-
-### Checkpoints 与资产
-
-以下**不**内置——它们是各自独立、有自己 license 的项目，在运行时解析：
-
-- 几何赛道需要 Depth Anything 3 源码树（通过 `--da3-src` 或 `WORLDFOUNDRY_WORLDOLYMPIAD_DA3_SRC` 指定）与 `depth-anything/DA3NESTED-GIANT-LARGE-1.1` 权重。
-- 物理赛道需要 `facebook/sam3` 权重。
-- MLLM 判定需要 QwenVL checkpoint 或任意 OpenAI 兼容的多模态服务端点。
-- `clip_semantic_adherence` 需要 CLIP 权重。
-
-权重在 `--weights-dir` 下按 `QwenVL/`、`da3/`、`sam3/sam3.pt`、`clip/` 组织；默认落在 WorldFoundry checkpoint 根目录，绝不在源码树内。当 `worldfoundry/base_models` 中已注册的资产就绪时，DA3/SAM3/QwenVL 权重以及 DA3、CLIP 代码会改从 base_models 复用，`--weights-dir` 与 `--da3-src` 退化为可选覆盖项。
-
-### 关键环境变量
-
-- `WORLDFOUNDRY_WORLDOLYMPIAD_WEIGHTS_DIR`
-- `WORLDFOUNDRY_WORLDOLYMPIAD_DA3_SRC`
-- `WORLDFOUNDRY_WORLDOLYMPIAD_ROOT` —— 用其他 checkout 覆盖内置 runtime
-- `WORLDFOUNDRY_WORLDOLYMPIAD_RESULTS_PATH`
-- `WORLDFOUNDRY_WORLDOLYMPIAD_PYTHON`
-- `WORLDFOUNDRY_WORLDOLYMPIAD_GPU_SLOTS`
-- `WORLDFOUNDRY_WORLDOLYMPIAD_QWEN_URLS`
-- `WORLDFOUNDRY_WORLDOLYMPIAD_SAM3_URLS`
-- `WORLDFOUNDRY_WORLDOLYMPIAD_REWARD_3D_URLS`
-- `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR`
-- `HF_ENDPOINT`
+benchmark 数据集托管在 Hugging Face `ziplab/WorldOlympiad`。所有可变产物（批量 manifest、日志）写在 `--output-dir` 下；runner 拒绝把输出或权重目录放进入库 runtime。
 
 ## 运行评测
 
-### 无 GPU 验证集成
+目录 manifest 记录的 validation 命令：
 
 ```bash
-python worldfoundry/evaluation/tasks/execution/runners/worldolympiad/run_worldolympiad_official_runner.py \
-  --run-fixture \
-  --output-dir tmp/worldolympiad/fixture \
-  --json
+w o r l d f o u n d r y - e v a l   z o o   b e n c h m a r k - r u n   - - b e n c h m a r k - i d   w o r l d o l y m p i a d   - - m o d e   o f f i c i a l - v a l i d a t i o n   - - o f f i c i a l - r e s u l t s - p a t h   < c a s e _ r o o t _ o r _ j u d g e _ j s o n >   - - o u t p u t - d i r   < o u t >   - - j s o n
 ```
 
-Fixture 只包含合成 judge 记录，用于验证归一化链路，不产生任何可比较的分数。
+## 权重与环境变量
 
-### 无 GPU 验证 case 布局
+权重：几何用 DA3（`depth-anything/DA3NESTED-GIANT-LARGE-1.1`），物理分割用 `facebook/sam3`，多模态 judge 用 `Qwen/Qwen3-VL-8B-Instruct`，另需 CLIP。
 
-`--dry-run` 会真实执行内置的 manifest 构建、调度与汇总链路，打印出每个 case 的实际打分命令但不做任何打分；不需要权重、服务或 GPU：
+- `WORLDFOUNDRY_WORLDOLYMPIAD_ROOT`: 可选覆盖项，指向本地 benchmark runtime / 仓库根目录。
+- `WORLDFOUNDRY_WORLDOLYMPIAD_RESULTS_PATH`: 未显式传 `--official-results-path` 时，导入器默认从该路径读取官方结果导出文件。
+- `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR`: 存放待评测生成产物（候选视频/rollout）的目录。
+- `WORLDFOUNDRY_WORLDOLYMPIAD_WEIGHTS_DIR`
+- `WORLDFOUNDRY_WORLDOLYMPIAD_DA3_SRC`
 
-```bash
-python worldfoundry/evaluation/tasks/execution/runners/worldolympiad/run_worldolympiad_official_runner.py \
-  --run-official --dry-run \
-  --generated-artifact-dir /path/to/case_root \
-  --pipelines cosmos-predict \
-  --output-dir tmp/worldolympiad/plan
-```
+共享 checkpoint 资产：`depth-anything/DA3NESTED-GIANT-LARGE-1.1`（geometry_reconstruction）, `facebook/sam3`（physical_segmentation）, `Qwen/Qwen3-VL-8B-Instruct`（multimodal_judge）。
 
-### 设置候选产物
+## 输出文件
 
-```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/case_root
-export WORLDFOUNDRY_WORLDOLYMPIAD_WEIGHTS_DIR=/path/to/weights
-export WORLDFOUNDRY_WORLDOLYMPIAD_DA3_SRC=/path/to/Depth-Anything-3/src
-```
+运行会在 `--output-dir` 下写出：
 
-### 运行官方三项评测
-
-先用内置 runtime 里的启动脚本，在各自终端拉起服务：
-
-```bash
-RUNTIME=worldfoundry/evaluation/tasks/execution/runners/worldolympiad/runtime/worldolympiad
-
-python "$RUNTIME/batch_test/start_qwenvl_servers.py" --gpus 0,1 --ports 8008,8009 \
-  --model "${WORLDFOUNDRY_WORLDOLYMPIAD_WEIGHTS_DIR}/QwenVL" --warmup
-python "$RUNTIME/batch_test/start_sam3_servers.py" --gpus 2 --ports 8090 \
-  --model "${WORLDFOUNDRY_WORLDOLYMPIAD_WEIGHTS_DIR}/sam3/sam3.pt"
-python "$RUNTIME/batch_test/start_reward_3d_servers.py" --gpus 3,4 --ports 8092,8093 \
-  --model "${WORLDFOUNDRY_WORLDOLYMPIAD_WEIGHTS_DIR}/da3" --no-lpips
-```
-
-再通过 WorldFoundry 运行。无需 `--worldolympiad-root`，runner 直接使用内置 runtime：
-
-```bash
-python worldfoundry/evaluation/tasks/execution/runners/worldolympiad/run_worldolympiad_official_runner.py \
-  --run-official \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --domains general gaming embodied \
-  --pipelines cosmos-predict longlive \
-  --weights-dir "${WORLDFOUNDRY_WORLDOLYMPIAD_WEIGHTS_DIR}" \
-  --da3-src "${WORLDFOUNDRY_WORLDOLYMPIAD_DA3_SRC}" \
-  --gpu-slots 5,6,7 \
-  --workers 3 \
-  --qwen-server-urls http://127.0.0.1:8008,http://127.0.0.1:8009 \
-  --sam3-server-urls http://127.0.0.1:8090 \
-  --reward-3d-server-urls http://127.0.0.1:8092,http://127.0.0.1:8093 \
-  --output-dir tmp/worldolympiad/official \
-  --json
-```
-
-批处理 manifest 与调度日志写在 `--output-dir` 下；judge JSON 落在 case 根目录的视频旁边，因此中断的批处理可以续跑而不重算已完成的 case。只有当你想跑另一份 checkout 时才需要 `--worldolympiad-root`。
-
-### 导入官方结果
-
-```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id worldolympiad \
-  --mode normalizer \
-  --official-results-path /path/to/case_root-or-judge-json \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/worldolympiad/normalizer \
-  --json
-```
-
-### 校验或归一化已有结果
-
-```bash
-worldfoundry-eval zoo benchmark-run --benchmark-id worldolympiad --mode official-validation --official-results-path <case_root_or_judge_json> --output-dir <out> --json
-```
-
-若要求三个赛道齐备才算成功，可在 runner 上加 `--strict`。
-
-## 依赖要求
-
-### 输入
-
-- `--run-official` 需要 `WORLDFOUNDRY_WORLDOLYMPIAD_ROOT` 指向上游 checkout
-- 真实判定需要 QwenVL、SAM3 与 DA3 reward 服务处于运行状态
-- Depth Anything 3 源码树与 DA3 权重、SAM3 权重，以及 QwenVL checkpoint 或兼容端点
-
-### 环境
-
-- `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR`
-
-### 输出
-
-- `scorecard.json`
-- `raw_metric_table.jsonl`
+- `scorecard.json`: WorldFoundry 统一 scorecard，记录上表中的指标值。
+- `raw_metric_table.jsonl`: 支撑 scorecard 的原始 metric 行。
 - `per_case_metrics.jsonl`
-- `benchmark_contract.json`
+- `benchmark_contract.json`: 本次运行的 benchmark contract 记录（输入、模式、来源信息）。
 
-## 官方参考
+Scorecard 主键：`combined_score`（leaderboard key `combined_score`），写入 `scorecard.json`。
 
-- [GitHub](https://github.com/alibaba-damo-academy/WorldOlympiad)
-- [Paper](https://arxiv.org/abs/2606.11129)
-- [Project page](https://alibaba-damo-academy.github.io/WorldOlympiad)
-- [Hugging Face dataset](https://huggingface.co/datasets/ziplab/WorldOlympiad)
+## 边界与限制
 
-## 不能声称的边界
-
-- catalog 校验状态为 `in_tree_runtime_plan_verified`，`leaderboard_valid: false`、`official_benchmark_verified: false`（release status 为 `experimental`）。
-- 完整 1,000 视频 split 的打分运行尚未通过本集成执行过；目前只验证了 batch plan（catalog blocker）。plan-only 输出不能当作 leaderboard 数字。
-- scorecard 主键：`combined_score`。
+- 尚未通过本集成对 1,000 视频分割执行计分运行；目前只验证了批量计划。
+- 上游仓库在锁定版本下未发布 LICENSE；再分发内置 runtime 前需与上游确认条款。
+- dry-run 的管线验证不构成 benchmark 证据。
 
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

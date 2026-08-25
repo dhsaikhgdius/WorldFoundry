@@ -1,142 +1,93 @@
 ---
 title: WorldReasonBench
-description: WorldReasonBench — 指标、依赖与运行命令。
+description: 世界状态预测压力测试：436 个用例，经由过程感知推理验证与多维质量评估两套方法评审。
 ---
 
 ## 简介
 
-World-state reasoning QA and reward-model evaluation for generated videos.
+**发表机构：** Tsinghua University（清华大学，联合 NTU、Waterloo）
 
-**WorldFoundry 评测路径:** 导入已有的官方 / 上游结果并归一化为 WorldFoundry scorecard；当前集成不能从原始生成视频完整重跑官方协议。
+WorldReasonBench 把视频生成评测重构为世界状态预测：给定初始状态与一个动作，模型能否生成状态演化在物理、社会、逻辑与信息层面都保持一致的未来视频？它包含 436 个精心策划的用例，带结构化 QA 标注，覆盖四个推理维度、22 个子类。评测分两部分：过程感知推理验证（结构化 QA 加推理阶段诊断，捕捉时序与因果失败）与多维质量评估（推理质量、时序一致性、视觉美学）。配套的 WorldRewardBench 增加约 6K 专家偏好对，支持点式/对式 reward model 评测。
 
-## 集成状态
+WorldFoundry 在仓内托管协议 runtime，judge 资产在外部：由 OpenAI 兼容的多模态 judge 为 QA 与质量维度打分。
 
-| 项目 | 当前状态 |
-| --- | --- |
-| Catalog integration | `integrated` |
-| Runner verification | `normalizer_only` |
-| Leaderboard | 暂不可用于 leaderboard 声明 |
+官方参考：
 
-## 指标
+- Paper: [arxiv.org/abs/2605.10434](https://arxiv.org/abs/2605.10434)
+- 项目主页: [unix-ai-lab.github.io/WorldReasonBench](https://unix-ai-lab.github.io/WorldReasonBench/)
+- 官方仓库: [UniX-AI-Lab/WorldReasonBench](https://github.com/UniX-AI-Lab/WorldReasonBench)
+- License: `{'status': 'restricted_noncommercial', 'notes': 'The upstream repository has no LICENSE file at the pinned revision. Its README prohibits redistribution, modification, and commercial use without prior approval despite also referring to MIT.'}`
 
-### Task YAML
+## 评测协议
 
-`worldfoundry/data/benchmarks/tasks/external/worldreasonbench.yaml`
+用 `--protocol` 选择协议，提供 QA/偏好对文件（`--qa-json`、`--pairs-json`）与 judge 访问参数（`--base-url`、`--api-key`、`--model`、`--judge-model`）。scorecard 主键 `score_pr` 是 QA 准确率与动态推理分的几何组合；`reasoning_gap`（静态结果分减动态推理分，越低越好）用于标记结果作弊。`--official-results-path` 归一化已有官方结果目录。
 
-### Primary
+主指标是 `score_pr`。
 
-- `score_pr`
+| Metric | 含义 | 方向 |
+| --- | --- | --- |
+| `score_pr` | QA 准确率与动态推理得分的几何组合。 | 越高越好 |
+| `qa_accuracy` | 相对真值世界状态问题的结构化 QA 准确率。 | 越高越好 |
+| `state_score` | 最终预测世界状态的正确性。 | 越高越好 |
+| `process_score` | 状态演化过程的推理阶段诊断分。 | 越高越好 |
+| `fidelity_score` | 生成演化的内容保真度。 | 越高越好 |
+| `mechanism_score` | 驱动演化的因果机制正确性。 | 越高越好 |
+| `static_outcome_score` | 仅凭静态（末态）证据判定的结果分。 | 越高越好 |
+| `dynamic_reasoning_score` | 基于完整时序演化判定的推理分。 | 越高越好 |
+| `reasoning_gap` | 静态结果分减去动态推理分；数值越低说明结果作弊越少。 | 越低越好 |
+| `pointwise_score` | 用于 reward model 评测的点式质量分。 | 越高越好 |
+| `reasoning_correctness` | 多维质量评估：推理质量。 | 越高越好 |
+| `content_fidelity` | 多维质量评估：时序/内容一致性。 | 越高越好 |
+| `visual_aesthetics` | 多维质量评估：视觉美学。 | 越高越好 |
+| `pointwise_spearman` | 点式分数与专家排名的 Spearman 相关系数。 | 越高越好 |
+| `induced_pairwise_accuracy` | 由点式分数诱导的成对偏好准确率。 | 越高越好 |
+| `pairwise_accuracy_with_ties` | 计入平局对的成对偏好准确率。 | 越高越好 |
+| `pairwise_accuracy_without_ties` | 剔除平局对的成对偏好准确率。 | 越高越好 |
 
-| Metric | 关注点 |
-| --- | --- |
-| `score_pr` | Geometric combination of QA accuracy and dynamic reasoning score. |
-| `qa_accuracy` | 预测动作、状态或结果相对 benchmark 成功标准的正确性。 |
-| `state_score` | 官方 State Score 指标在 benchmark 协议中的计分结果。 |
-| `process_score` | 官方 Process Score 指标在 benchmark 协议中的计分结果。 |
-| `fidelity_score` | 官方 Fidelity Score 指标在 benchmark 协议中的计分结果。 |
-| `mechanism_score` | 官方 Mechanism Score 指标在 benchmark 协议中的计分结果。 |
-| `static_outcome_score` | 官方 Static Outcome Score 指标在 benchmark 协议中的计分结果。 |
-| `dynamic_reasoning_score` | 官方 Dynamic Reasoning Score 指标在 benchmark 协议中的计分结果。 |
-| `reasoning_gap` | Static outcome score minus dynamic reasoning score; lower values indicate less outcome hacking. |
-| `pointwise_score` | 官方 Pointwise S(v) 指标在 benchmark 协议中的计分结果。 |
-| `reasoning_correctness` | 官方 Reasoning Correctness 指标在 benchmark 协议中的计分结果。 |
-| `content_fidelity` | 官方 Content Fidelity 指标在 benchmark 协议中的计分结果。 |
-| `visual_aesthetics` | 官方 Visual Aesthetics 指标在 benchmark 协议中的计分结果。 |
-| `pointwise_spearman` | 官方 Pointwise Spearman Correlation 指标在 benchmark 协议中的计分结果。 |
-| `induced_pairwise_accuracy` | 预测动作、状态或结果相对 benchmark 成功标准的正确性。 |
-| `pairwise_accuracy_with_ties` | 预测动作、状态或结果相对 benchmark 成功标准的正确性。 |
-| `pairwise_accuracy_without_ties` | 预测动作、状态或结果相对 benchmark 成功标准的正确性。 |
+## 数据与产物布局
 
-## 环境准备
+WorldFoundry 仓内路径：
 
-### 运行环境
+```text
+worldfoundry/data/benchmarks/tasks/external/worldreasonbench.yaml
+worldfoundry/evaluation/tasks/execution/runners/worldreasonbench
+```
 
-- **Conda 环境：** `worldfoundry-unified-cu128`。
-- **单独配置：** 默认复用 WorldFoundry 统一环境（`needs_new_env: false`），通常不需要额外 benchmark-only conda env。
-- Result normalization uses the unified WorldFoundry environment and has no GPU dependency.
-- Real evaluation reuses the unified environment when it provides openai, opencv-python, numpy, Pillow, and tqdm.
-- The judge model server is an external OpenAI-compatible service and may use its own serving environment.
-
-### 测评数据
-
-- 待测模型输出目录：设置 `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR` 指向生成视频或 rollout artifact 根目录。
-- `worldfoundry/evaluation/tasks/execution/runners/worldreasonbench`
-- `worldfoundry/data/benchmarks/tasks/external/worldreasonbench.yaml`
-
-### Checkpoint 与资产
-
-- 该 benchmark 以官方结果归一化或仿真 rollout 为主；policy / simulator checkpoint 见 catalog `requires` 与 task YAML。
-
-### 关键环境变量
-
-- `WORLDFOUNDRY_WORLDREASONBENCH_ROOT`
-- `WORLDFOUNDRY_WORLDREASONBENCH_RESULTS_PATH`
-- `WORLDFOUNDRY_WORLDREASONBENCH_PROTOCOL`
-- `WORLDFOUNDRY_WORLDREASONBENCH_QA_JSON`
-- `WORLDFOUNDRY_WORLDREASONBENCH_PAIRS_JSON`
-- `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR`
-- `OPENAI_BASE_URL`
-- `OPENAI_API_KEY`
-- `OPENAI_MODEL`
-- `HF_ENDPOINT`
+```text
+worldfoundry/evaluation/tasks/execution/runners/worldreasonbench   # 协议 runtime
+worldfoundry/data/benchmarks/assets/worldreasonbench               # fixture
+${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}/                            # 生成的未来状态视频
+```
 
 ## 运行评测
 
-准备好该 benchmark 页面列出的资产和候选产物后，使用下面的公开运行入口。
-
-### 设置候选产物目录
+目录 manifest 记录的 validation 命令：
 
 ```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/generated/artifacts
+w o r l d f o u n d r y - e v a l   z o o   b e n c h m a r k - r u n   - - b e n c h m a r k - i d   w o r l d r e a s o n b e n c h   - - m o d e   o f f i c i a l - v a l i d a t i o n   - - o f f i c i a l - r e s u l t s - p a t h   < o f f i c i a l _ r e s u l t s _ d i r >   - - o u t p u t - d i r   < o u t >   - - j s o n
 ```
 
-### 导入已有官方结果
+## 权重与环境变量
 
-```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id worldreasonbench \
-  --mode normalizer \
-  --official-results-path /path/to/official/results-or-report \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/worldreasonbench/normalizer \
-  --json
-```
+- `WORLDFOUNDRY_WORLDREASONBENCH_ROOT`: 可选覆盖项，指向本地 benchmark runtime / 仓库根目录。
+- `WORLDFOUNDRY_WORLDREASONBENCH_RESULTS_PATH`: 未显式传 `--official-results-path` 时，导入器默认从该路径读取官方结果导出文件。
+- `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR`: 存放待评测生成产物（候选视频/rollout）的目录。
 
-### 校验或归一化已有结果
+## 输出文件
 
-```bash
-worldfoundry-eval zoo benchmark-run --benchmark-id worldreasonbench --mode official-validation --official-results-path <official_results_dir> --output-dir <out> --json
-```
+运行会在 `--output-dir` 下写出：
 
-## 依赖与产物
-
-### Inputs
-
-- WORLDFOUNDRY_WORLDREASONBENCH_ROOT for official execution
-- OPENAI_BASE_URL and a compatible multimodal judge
-
-### Environment
-
-- `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR`
-
-### Outputs
-
-- `scorecard.json`
-- `raw_metric_table.jsonl`
+- `scorecard.json`: WorldFoundry 统一 scorecard，记录上表中的指标值。
+- `raw_metric_table.jsonl`: 支撑 scorecard 的原始 metric 行。
 - `protocol_results.json`
-- `benchmark_contract.json`
+- `benchmark_contract.json`: 本次运行的 benchmark contract 记录（输入、模式、来源信息）。
 
-## 官方资料
+Scorecard 主键：`score_pr`（leaderboard key `score_pr`），写入 `scorecard.json`。
 
-- [GitHub](https://github.com/UniX-AI-Lab/WorldReasonBench)
-- [Paper](https://arxiv.org/abs/2605.10434)
-- [Project page](https://unix-ai-lab.github.io/WorldReasonBench/)
-- [Hugging Face dataset](https://huggingface.co/datasets/WorldReasonBench)
+## 边界与限制
 
-## 不能声称的边界
-
-- catalog 校验状态为 `normalizer_only`，`leaderboard_valid: false`、`official_benchmark_verified: false`；导入的数字是调用方结果的归一化副本。
-- 完整的官方 QA、pointwise 与 pairwise judge 运行尚未通过该集成执行（catalog blocker）；协议 runtime 依赖外部资产。
-- scorecard 主键：`score_pr`。
+- 完整的官方 QA、点式与对式 judge 运行尚未通过本集成执行。
+- 上游 README 禁止未经许可的再分发、修改与商用；资产按受限处理。
+- 依赖 judge 的分数随所配多模态 judge 变化；只有官方 judge 配置可与论文比较。
 
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

@@ -1,5 +1,7 @@
 id: genai-bench
 name: GenAI-Bench
+publisher: University of Waterloo
+publisher_kind: university
 benchmark_kind:
 - human-preference
 - generative-model

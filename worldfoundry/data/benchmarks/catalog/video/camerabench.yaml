@@ -1,5 +1,7 @@
 id: camerabench
 name: CameraBench
+publisher: Carnegie Mellon University
+publisher_kind: university
 source_status: open_source
 benchmark_kind:
 - camera-motion-understanding

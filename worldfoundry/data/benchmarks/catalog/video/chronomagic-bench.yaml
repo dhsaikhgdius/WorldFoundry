@@ -1,5 +1,7 @@
 id: chronomagic-bench
 name: ChronoMagic-Bench
+publisher: Peking University
+publisher_kind: university
 benchmark_kind:
 - text-to-video
 - time-lapse

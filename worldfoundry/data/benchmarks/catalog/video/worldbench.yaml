@@ -1,5 +1,7 @@
 id: worldbench
 name: WorldBench
+publisher: UCLA
+publisher_kind: university
 benchmark_kind:
 - physical-understanding
 - video-to-video

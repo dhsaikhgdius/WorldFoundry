@@ -1,5 +1,7 @@
 id: libero-pro
 name: LIBERO-Pro
+publisher: Huazhong University of Science and Technology
+publisher_kind: university
 benchmark_kind:
 - vla
 - embodied-action

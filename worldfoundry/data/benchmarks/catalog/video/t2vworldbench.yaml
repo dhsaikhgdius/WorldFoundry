@@ -1,5 +1,7 @@
 id: t2vworldbench
 name: T2VWorldBench
+publisher: San Jose State University
+publisher_kind: university
 benchmark_kind:
 - text-to-video
 - world-knowledge

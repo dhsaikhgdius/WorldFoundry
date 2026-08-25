@@ -1,5 +1,7 @@
 id: 4dworldbench
 name: 4DWorldBench
+publisher: University of Science and Technology of China
+publisher_kind: university
 benchmark_kind:
 - world-generation
 - three-d-four-d-generation

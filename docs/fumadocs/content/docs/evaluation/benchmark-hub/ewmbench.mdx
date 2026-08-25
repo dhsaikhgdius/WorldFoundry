@@ -1,152 +1,87 @@
 ---
 title: EWMBench
-description: EWMBench — practical WorldFoundry setup, metrics, and commands.
+description: "Embodied world-model video benchmark from AgiBot: scene consistency, motion correctness, semantic alignment, and diversity."
 ---
 
 ## About
 
-EWMBench evaluates embodied world-model videos across scene stability, robot-motion correctness, semantic alignment, and generation diversity. It is useful when a model must preserve task-relevant state, not just produce visually plausible frames.
+**Publisher:** AgiBot (AgibotTech)
 
-## What it measures
+EWMBench evaluates video world models for embodied manipulation scenarios. Built by AgiBot on top of its AgiBot-World robot data ecosystem, it scores generated robot-manipulation videos along four families — scene consistency (does the workspace stay stable), motion correctness (does the arm trajectory match the task), semantic alignment (does the video match the language instruction), and diversity — aggregated into `ewmbench_average`.
 
-EWMBench evaluates **embodied world-model videos** for scene consistency, robot-motion correctness, semantic alignment, and generation diversity. It samples from AgiBot World manipulation episodes and asks whether generated rollouts preserve task-relevant state — not just visual plausibility.
+WorldFoundry integrates EWMBench with bundled runtime assets: the unified `benchmark-run` entrypoint normalizes caller-provided official result files, and the runner's `--run-official` path can dispatch the upstream `evaluate.py` scorer when its dependencies are staged.
 
-## Benchmark design
+Official references:
 
-| Metric family | What it checks | Upstream evidence |
+- Paper: [arxiv.org/abs/2505.09694](https://arxiv.org/abs/2505.09694)
+- Project page: [huggingface.co/datasets/agibot-world/EWMBench](https://huggingface.co/datasets/agibot-world/EWMBench)
+- Official repository: [AgibotTech/EWMBench](https://github.com/AgibotTech/EWMBench)
+
+## Evaluation protocol
+
+`official-validation` normalizes an official EWMBench result export into the WorldFoundry metric surface. `--run-official` executes the in-tree EWMBench scorer (mock wiring or upstream `evaluate.py` dispatch); `--task-manifest` and `--config-path` bind the task set and scorer configuration, `--limit` bounds the run.
+
+Primary metric: `ewmbench_average`.
+
+| Metric | Meaning | Direction |
 | --- | --- | --- |
-| Scene consistency | DINO-based frame/patch layout stability | Embodied scene appearance over time |
-| Motion correctness | End-effector trajectory vs. ground truth | `trajectory_consistency` from official scorer |
-| Semantic alignment | Task/event alignment via caption + VLM + CLIP | Instruction and event correctness |
-| Diversity | Variation across repeated generations | Same initial state + instruction |
+| `scene_consistency` | scene_consistency normalized benchmark score. | Higher is better |
+| `motion_correctness` | motion_correctness normalized benchmark score. | Higher is better |
+| `semantic_alignment` | semantic_alignment normalized benchmark score. | Higher is better |
+| `diversity` | diversity normalized benchmark score. | Higher is better |
+| `ewmbench_average` | ewmbench_average normalized benchmark score. | Higher is better |
 
-The official dataset contains 4,644 rows (~270 MB) sampled from AgiBot World. Evaluation expects preprocessed `gt_dataset/` and `*_dataset/` frame directories with trajectory and gripper-detection outputs.
+## Data and artifact layout
 
-## Official references
-
-- Paper: [arXiv:2505.09694](https://arxiv.org/abs/2505.09694)
-- Official source reference: [github.com/AgibotTech/EWMBench](https://github.com/AgibotTech/EWMBench)
-- Dataset: [agibot-world/EWMBench](https://huggingface.co/datasets/agibot-world/EWMBench)
-- Model weights: [agibot-world/EWMBench-model](https://huggingface.co/agibot-world/EWMBench-model)
-- In-tree runner: `worldfoundry/evaluation/tasks/execution/runners/ewmbench/run_ewmbench_official_runner.py`
-
-## Leaderboard notes
-
-Official leaderboard claims require the full Hugging Face dataset, EWMBench-style preprocessing, DINOv2/YOLO-World/Qwen/CLIP checkpoints, and upstream-compatible `ewmbm_final_table.csv`. WorldFoundry's default direct scorer backend is a deterministic wiring placeholder; use `WORLDFOUNDRY_EWMBENCH_SCORER_BACKEND=official` only after all assets are staged.
-
-## Data, checkpoints, and assets
-
-For importing existing results, prepare one EWMBench result table:
-
-- `ewmbm_final_table.csv`, or a JSON/CSV summary with the EWMBench metric fields.
-- Generated videos in `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR` if you want coverage metadata in the scorecard.
-
-For full EWMBench scoring, prepare the official data and metric models:
-
-- Hugging Face dataset: `agibot-world/EWMBench`.
-- Ground-truth data in the EWMBench layout: `gt_dataset/task_*/episode_*/prompt/`, `video/`, and after processing, `traj/` plus `gripper_detection/`.
-- Generated samples in a directory whose name ends with `_dataset`, with `task_*/episode_*/<trial>/video/frame_*.jpg` and processed trajectory/detection outputs.
-- Qwen checkpoint: `Qwen/Qwen2.5-VL-7B-Instruct`.
-- CLIP checkpoints: `openai/clip-vit-base-patch16` and `ViT-B-32.pt`.
-- EWMBench model weights from `agibot-world/EWMBench-model`, including fine-tuned DINOv2 and YOLO-World weights.
-- A config file matching `worldfoundry/data/benchmarks/assets/ewmbench/config.template.yaml`, with `data.gt_path`, `data.val_base`, `save_path`, and `ckpt` paths filled in.
-
-WorldFoundry also ships a small task manifest at `worldfoundry/data/benchmarks/assets/ewmbench/task_manifest.json`. It is useful for command wiring and coverage checks, but it is not the full benchmark dataset.
-
-Set these paths for repeatable runs:
-
-```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/ewmbench/generated-videos
-export WORLDFOUNDRY_EWMBENCH_RESULTS_PATH=/path/to/ewmbm_final_table.csv
-export WORLDFOUNDRY_EWMBENCH_CONFIG_PATH=/path/to/ewmbench/config.yaml
-```
-
-## Generated output layout
-
-A successful run writes the stable artifacts below under the chosen output directory:
+In-tree paths:
 
 ```text
-<output-dir>/
-  scorecard.json
-  raw_metric_table.jsonl
-  per_sample_scores.jsonl
-  ewmbench_results.csv              # direct scoring route
-  runner_runtime_report.json        # public CLI route
+worldfoundry/data/benchmarks/tasks/external/ewmbench.yaml
+worldfoundry/evaluation/tasks/execution/runners/ewmbench/runtime/ewmbench
 ```
 
-Use `scorecard.json` for aggregate results and `raw_metric_table.jsonl` for per-metric rows. `per_sample_scores.jsonl` mirrors rows loaded from the EWMBench table when available.
+```text
+worldfoundry/evaluation/tasks/execution/runners/ewmbench/runtime/ewmbench   # bundled runtime assets
+${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}/                                     # generated manipulation videos
+```
 
-## Run commands
+The official dataset lives at Hugging Face [`agibot-world/EWMBench`](https://huggingface.co/datasets/agibot-world/EWMBench).
 
-### Public CLI: import EWMBench results
+## Run the benchmark
 
-Use this when you already have `ewmbm_final_table.csv` or another supported result export.
+Catalog-recorded validation command:
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id ewmbench \
   --mode official-validation \
-  --official-results-path "${WORLDFOUNDRY_EWMBENCH_RESULTS_PATH}" \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/ewmbench/official-validation \
+  --official-results-path <official_results.json> \
+  --generated-artifact-dir <generated_videos> \
+  --output-dir <out> \
   --json
 ```
 
-### Direct runner: import EWMBench results
+## Checkpoints and environment variables
 
-This calls the in-tree runner script directly and accepts the same result table.
+- `WORLDFOUNDRY_EWMBENCH_RESULTS_PATH`: Default path the importer reads official result exports from when `--official-results-path` is not passed.
+- `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR`: Directory containing the candidate generated artifacts to score or import against.
 
-```bash
-PYTHONPATH=. ${WORLDFOUNDRY_UNIFIED_PYTHON:-python} \
-  worldfoundry/evaluation/tasks/execution/runners/ewmbench/run_ewmbench_official_runner.py \
-  --official-results-path "${WORLDFOUNDRY_EWMBENCH_RESULTS_PATH}" \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/ewmbench/direct-import \
-  --json
-```
+This benchmark reuses the shared base-model dependency stack: `ewmbench_dataset_assets`.
 
-### Direct runner: execute the bundled EWMBench scorer path
+## Outputs
 
-By default, the direct scorer backend is `mock`; it writes deterministic placeholder CSV values for CI and wiring checks. Use `official` only after the dataset, preprocessing, config, and checkpoints are ready.
+The run writes into `--output-dir`:
 
-```bash
-export WORLDFOUNDRY_EWMBENCH_SCORER_BACKEND=official
+- `scorecard.json`: WorldFoundry scorecard with the metric values recorded above.
+- `benchmark_contract.json`: Benchmark contract record for the run (inputs, mode, provenance).
+- `raw_metric_table.jsonl`: Metric rows backing the scorecard.
 
-PYTHONPATH=. ${WORLDFOUNDRY_UNIFIED_PYTHON:-python} \
-  worldfoundry/evaluation/tasks/execution/runners/ewmbench/run_ewmbench_official_runner.py \
-  --run-official \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --config-path "${WORLDFOUNDRY_EWMBENCH_CONFIG_PATH}" \
-  --output-dir tmp/ewmbench/direct-run \
-  --json
-```
-
-## Metrics
-
-| Metric ID | Meaning | Better |
-| --- | --- | --- |
-| `scene_consistency` | DINO-based frame/patch consistency for embodied scene layout and appearance over time. | Higher |
-| `motion_correctness` | Trajectory correctness, mapped from EWMBench `trajectory_consistency`, for robot or end-effector motion against expected paths. | Higher |
-| `semantic_alignment` | Task and event alignment from EWMBench semantic scoring, including caption/VLM and CLIP-style evidence when produced by the scorer. | Higher |
-| `diversity` | Diversity across repeated generations for the same initial state and instruction. | Higher |
-| `ewmbench_average` | Mean aggregate over scene, motion, semantic, and diversity components. This is the primary WorldFoundry metric. | Higher |
-
-## Runtime notes
-
-EWMBench runs against in-tree reusable components. Scene consistency uses
-`worldfoundry/base_models/perception_core/general_perception/dinov2` and the
-packaged `worldfoundry/evaluation/tasks/execution/runners/ewmbench/runtime/ewmbench/dino_config.yaml`.
-Set `WORLDFOUNDRY_EWMBENCH_CONFIG_PATH` only when you need to override the main
-EWMBench runtime config. `json_repair` and `fastdtw` remain optional: the runner
-falls back to the Python `json` module for strict JSON and to a deterministic
-NumPy DTW implementation when `fastdtw` is not installed.
+Scorecard primary key: `ewmbench_average` (leaderboard key `ewmbench_average`), stored in `scorecard.json`.
 
 ## Limitations
 
-- The bundled task manifest is deliberately small. Use the Hugging Face dataset for full coverage.
-- The default direct scorer backend is not the leaderboard scorer. It is a deterministic placeholder score for checking local command wiring.
-- The `official` backend expects `config.yaml` to already point at EWMBench-style preprocessed directories and checkpoint paths. It does not convert an arbitrary flat video directory into a full EWMBench data layout.
-- The public CLI path imports existing result rows. Generated videos alone do not produce EWMBench metrics.
-- A leaderboard-equivalent claim needs the full dataset, preprocessing, DINOv2, YOLO-World, Qwen, and CLIP checkpoints, plus an upstream-compatible result table.
+- Imported scorecards are non-leaderboard setup evidence; official runtime execution and judge assets remain upstream requirements.
+- Full leaderboard parity requires generated artifacts for the complete official prompt/task suite plus upstream scorer or judge assets.
+- Mock-backend runs are wiring checks only.
 
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

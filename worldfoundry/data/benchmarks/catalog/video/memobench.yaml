@@ -1,5 +1,7 @@
 id: memobench
 name: MemoBench
+publisher: Harvard University
+publisher_kind: university
 benchmark_kind:
 - world-model
 - visual-memory

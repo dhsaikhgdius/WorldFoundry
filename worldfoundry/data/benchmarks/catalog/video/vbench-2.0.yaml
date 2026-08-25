@@ -1,5 +1,7 @@
 id: vbench-2.0
 name: VBench-2.0
+publisher: Nanyang Technological University
+publisher_kind: university
 benchmark_kind:
 - intrinsic-faithfulness
 - physics

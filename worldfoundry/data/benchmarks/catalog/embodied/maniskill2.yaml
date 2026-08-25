@@ -1,5 +1,7 @@
 id: maniskill2
 name: ManiSkill2
+publisher: UC San Diego
+publisher_kind: university
 benchmark_kind:
 - vla
 - embodied-action

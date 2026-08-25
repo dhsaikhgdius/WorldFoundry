@@ -1,5 +1,7 @@
 id: phyfps-bench-gen
 name: PhyFPS-Bench-Gen
+publisher: Texas A&M University
+publisher_kind: university
 benchmark_kind:
 - text-to-video
 - temporal-consistency

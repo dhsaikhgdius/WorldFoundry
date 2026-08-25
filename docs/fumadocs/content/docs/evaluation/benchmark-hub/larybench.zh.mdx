@@ -1,136 +1,97 @@
 ---
 title: LARYBench
-description: 面向具身动作的 latent-action 表征基准，官方 extract/classify/regress 流水线已 vendored 在仓内。
+description: 美团 LongCat 发布的 latent action 表征探针评测：对机器人数据集做抽取、动作分类与动作回归三阶段。
 ---
 
 ## 简介
 
-LARYBench（美团 LongCat）评估从视频编码器提取的 **latent-action 表征** 对具身动作任务的支撑能力。流水线由三个层层递进的阶段组成：
+**发表机构：** Meituan（美团 LongCat 团队）
 
-1. **extract** —— 在基准视频/图像对上运行表征模型，导出 latent actions。
-2. **classify** —— 用动作语义分类探针评估提取结果（top-1 accuracy、macro/weighted F1）。
-3. **regress** —— 用机器人动作回归探针在 seen/unseen 划分上评估（MSE，越低越好）。
+LARYBench 度量视频/世界模型的 latent action 表征捕获了多少真实机器人动作信息。流程分三阶段：先从所选表征模型对机器人数据集（CALVIN、VLABench、AgiBot-Beta、RoboCOIN）**抽取** latent action，再用**分类**探针（预测离散动作类别，按 top-1 准确率与 F1 打分）与**回归**探针（预测连续机器人动作，按 seen / unseen 验证集 MSE 打分）检验。
 
-WorldFoundry 将官方 runtime 以固定上游 revision vendored 在仓内——运行时不需要外部 checkout：
-
-- Runner：`worldfoundry/evaluation/tasks/execution/runners/larybench/run_larybench_official_runner.py`
-- 仓内 runtime：`worldfoundry/evaluation/tasks/execution/runners/larybench/`（`cli.py`、`extract.py`、`classification.py`、`regression.py`、`models.py`、`registry.py`）
-- 内置配置：`worldfoundry/data/benchmarks/assets/larybench/configs/`（模型配置包含 `dinov2`、`dinov3`、`siglip2`、`vjepa2`、`magvit2`、`lapa`、`univla`、`villa-x`、`flux2`、`wan2-2` 等）
-- Catalog 条目：`worldfoundry/data/benchmarks/catalog/embodied/larybench.yaml`
-- Task contract：`worldfoundry/data/benchmarks/tasks/external/larybench.yaml`
+WorldFoundry 在仓内内置 LARYBench 各阶段驱动（`cli.py`、`extract.py`、`classification.py`、`regression.py`）：抽取阶段把一张元数据表按所选 GPU 分片并合并结果 CSV；分类阶段每 GPU 一个本地进程；回归阶段用 Accelerate 跨 `CUDA_VISIBLE_DEVICES` 执行。已有官方输出可在不加载数据集与权重的情况下直接归一化。
 
 官方参考：
 
-- Paper：[arXiv:2604.11689](https://arxiv.org/abs/2604.11689)
-- Project page：[meituan-longcat.github.io/LARYBench](https://meituan-longcat.github.io/LARYBench/)
-- 官方源码参考：[meituan-longcat/LARYBench](https://github.com/meituan-longcat/LARYBench)（MIT，固定在 `e7feaf1b7292…`）
-- 数据集：[meituan-longcat/LARYBench](https://huggingface.co/datasets/meituan-longcat/LARYBench)（无需鉴权）
+- Paper: [arxiv.org/abs/2604.11689](https://arxiv.org/abs/2604.11689)
+- 项目主页: [meituan-longcat.github.io/LARYBench](https://meituan-longcat.github.io/LARYBench/)
+- 官方仓库: [meituan-longcat/LARYBench](https://github.com/meituan-longcat/LARYBench)
+- License: `mit`
 
-## 数据布局与环境变量
+## 评测协议
 
-分类视频、机器人图像对、轨迹与 metadata 都放在包外，通过环境变量接线（与 vendored 上游代码读取的名字一致）：
+导入模式用 `--stage classify` / `--stage regress` 归一化官方 `classification_summary.json` 或 `best_result.json`。完整运行需把所选 LARYBench 数据分片放到 `DATA_DIR`、元数据放到 `LARY_METADATA_DIR`、已抽取 latent action 放到 `LARY_LA_DIR`、表征模型权重放到 `MODEL_DIR`，然后依次执行 `extract` → `classify`（需 `--dim`、`--classes`）→ `regress`（支持 `--action-mode absolute|delta` 及逐数据集统计 JSON）。
 
-```bash
-hf download meituan-longcat/LARYBench --repo-type dataset --local-dir /path/to/larybench-data
+主指标是 `extraction_coverage`。
 
-export DATA_DIR=/path/to/larybench-data          # 数据集根目录（对应 runner --dataset-root）
-export LARY_METADATA_DIR=/path/to/metadata       # metadata CSV 根目录（runner --metadata-root）
-export LARY_LA_DIR=/path/to/latent_actions       # 已提取 latent-action 根目录（runner --latent-action-root）
-export MODEL_DIR=/path/to/model_checkpoints      # 表征模型权重（runner --model-root）
-export CUDA_VISIBLE_DEVICES=0                    # runner --gpus
-```
+| Metric | 含义 | 方向 |
+| --- | --- | --- |
+| `extraction_coverage` | 元数据行中成功抽取 latent action 的比例。 | 越高越好 |
+| `top1_accuracy` | 分类探针在动作类别上的 top-1 准确率。 | 越高越好 |
+| `macro_f1` | 分类探针的宏平均 F1。 | 越高越好 |
+| `weighted_f1` | 分类探针按支持度加权的 F1。 | 越高越好 |
+| `val_seen_mse` | 回归探针在 seen 验证集上的动作 MSE。 | 越低越好 |
+| `val_unseen_mse` | 回归探针在 unseen 验证集上的动作 MSE。 | 越低越好 |
 
-runner 还会把 `LARY_CONFIG_ROOT` 指向内置配置目录、把 `LARY_LOG_DIR` 指向 `<output-dir>/larybench_runtime`。省略路径 flag 时，metadata / latent-action / model 根目录默认落到 `--output-dir` 的子目录。extraction 会把一张 metadata 表按所选 GPU 切分并合并结果 CSV；classification 每个 GPU 启一个本地进程；regression 通过 Accelerate 跨 `CUDA_VISIBLE_DEVICES` 运行。
+## 数据与产物布局
 
-各阶段的预期产物（runner 在 `--run-official` 后会校验其存在）：
+WorldFoundry 仓内路径：
 
 ```text
-extract  → <metadata-root>/<split>_la_<dataset>[_<stride>]_<model>.csv
-classify → <output-dir>/larybench_runtime/classification/<dataset>/<model>/classification_summary.json
-regress  → <output-dir>/larybench_runtime/regression/logs/<dataset>_<stride>_<model>_<model_type>_<action_mode>/best_result.json
+worldfoundry/data/benchmarks/tasks/external/larybench.yaml
+worldfoundry/evaluation/tasks/execution/runners/larybench/cli.py
+worldfoundry/evaluation/tasks/execution/runners/larybench/extract.py
+worldfoundry/evaluation/tasks/execution/runners/larybench/classification.py
+worldfoundry/evaluation/tasks/execution/runners/larybench/regression.py
 ```
 
-## 指标
-
-Scorecard 指标 id 依阶段而定；runner 会把阶段结果中出现的数值键原样写出（catalog 声明的 id 列在前）：
-
-| 指标 id | 阶段 | 含义 | 方向 |
-| --- | --- | --- | --- |
-| `extraction_coverage` | extract | metadata 行中 `la_path` 非空的比例；**extract 主指标**。 | 越高越好 |
-| `extracted_samples`、`input_samples` | extract | 绝对行数。 | 参考信息 |
-| `top1_accuracy` | classify | 动作语义 top-1 accuracy；**classify 主指标**。 | 越高越好 |
-| `macro_f1`、`weighted_f1`、`macro_precision`、`macro_recall` | classify | F1/precision/recall 聚合（来自 `classification_summary.json` 或混淆矩阵）。 | 越高越好 |
-| `val_seen_mse` | regress | seen 划分机器人动作 MSE；**regress 主指标**。 | 越低越好 |
-| `val_unseen_mse` | regress | unseen 划分机器人动作 MSE。 | 越低越好 |
-
-指标 id 含 `mse` 或 `loss` 时按越低越好处理；单位区间指标在 normalized score 中会被截断到 [0, 1]。
-
-## 运行仓内 official 流水线
-
-三个阶段共用同一个 runner，`--run-official --stage <stage>`；`--model` 与 `--dataset` 始终必填，`classify` 还必须提供 `--dim` 与 `--classes`：
+```text
+${DATA_DIR}/                          # LARYBench 数据分片（视频、机器人图像对、轨迹）
+${LARY_METADATA_DIR}/                 # 逐数据集元数据表
+${LARY_LA_DIR}/                       # 已抽取 latent action（按模型/数据集分 CSV）
+${MODEL_DIR}/                         # 表征模型权重
+```
 
 ```bash
-cd /path/to/WorldFoundry
-
-# 1. 提取 latent actions
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" -m \
-  worldfoundry.evaluation.tasks.execution.runners.larybench.run_larybench_official_runner \
-  --run-official --stage extract \
-  --model dinov3 --dataset <dataset> --split all \
-  --dataset-root "$DATA_DIR" --metadata-root "$LARY_METADATA_DIR" \
-  --latent-action-root "$LARY_LA_DIR" --model-root "$MODEL_DIR" \
-  --gpus "${CUDA_VISIBLE_DEVICES:-0}" \
-  --output-dir tmp/larybench/extract --json
-
-# 2. 分类探针
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" -m \
-  worldfoundry.evaluation.tasks.execution.runners.larybench.run_larybench_official_runner \
-  --run-official --stage classify \
-  --model dinov3 --dataset <dataset> --dim <latent_dim> --classes <num_classes> \
-  --dataset-root "$DATA_DIR" --metadata-root "$LARY_METADATA_DIR" \
-  --latent-action-root "$LARY_LA_DIR" \
-  --output-dir tmp/larybench/classify --json
-
-# 3. 回归探针
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" -m \
-  worldfoundry.evaluation.tasks.execution.runners.larybench.run_larybench_official_runner \
-  --run-official --stage regress \
-  --model dinov3 --dataset <dataset> --model-type mlp --action-mode absolute \
-  --epochs 20 --lr 1e-4 \
-  --output-dir tmp/larybench/regress --json
+hf download meituan-longcat/LARYBench --repo-type dataset --local-dir ${DATA_DIR}
 ```
 
-其他可用 flag：`--stride`（默认 5）、`--mode video|image`、`--batch-size`、`--num-workers`、`--config`（分类配置覆盖）、`--action-data-root`、`--global-stats-json`、`--val-unseen-csv`、`--mixed-precision {no,fp16,bf16}`、`--timeout`（默认 24 小时）、`--strict`。
+## 运行评测
 
-注意：统一入口 `zoo benchmark-run --mode official-run` 无法向该 runner 传递 `--stage`/`--dataset`/`--dim`/`--classes`，完整 official 运行请使用上面的直接模块调用。
-
-## 导入已有结果（official-validation）
-
-已有官方产物可以在不加载数据集与权重的情况下归一化。阶段会依据文件/目录形态自动推断（`classification_summary.json` / `confusion_matrix.json` → classify，`best_result.json|csv` → regress，`*_la_*.csv` → extract）：
+目录 manifest 记录的 validation 命令：
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id larybench \
   --mode official-validation \
-  --official-results-path /path/to/classification_summary.json \
-  --output-dir tmp/larybench/official-validation \
+  --official-results-path <classification_summary.json_or_best_result.json> \
+  --stage <classify_or_regress> \
+  --output-dir <out> \
   --json
 ```
 
-若阶段无法自动推断，请直接调用 runner 并显式传 `--stage`（zoo CLI 不暴露 stage flag）。直接调用时同样读取 `WORLDFOUNDRY_LARYBENCH_RESULTS_PATH` 环境变量。
+## 权重与环境变量
 
-## 输出
+- `WORLDFOUNDRY_LARYBENCH_RESULTS_PATH`: 未显式传 `--official-results-path` 时，导入器默认从该路径读取官方结果导出文件。
+- `DATA_DIR`: 本地官方数据集根目录。
+- `LARY_METADATA_DIR`: 本地 benchmark 元数据根目录。
+- `LARY_LA_DIR`: 存放已抽取 latent action 的目录。
+- `MODEL_DIR`: 存放表征模型权重的本地根目录。
 
-- `scorecard.json`：WorldFoundry scorecard；`benchmark.stage` 记录评测阶段，`metrics.summary.primary_metric_id` 记录该阶段主指标。
-- `raw_metric_table.jsonl`：每个输出指标一行。
-- `benchmark_contract.json`：benchmark id、阶段与指标 id。
-- `larybench_official_runtime.log`、`runtime_summary.json`：上游命令记录（由 `--run-official` 写出）。
+## 输出文件
 
-## 本集成不能声称的边界
+运行会在 `--output-dir` 下写出：
 
-- 运行时验证范围仅为 **合成数据 CPU/gloo 分类 smoke 测试**（`verification_scope: synthetic_cpu_gloo_classification_smoke`）；本工作区未跑过完整官方套件，scorecard 恒定输出 `leaderboard_valid: false` 与 `official_benchmark_verified: false`。
-- 完整 leaderboard parity 需要完整官方划分、精确的表征模型权重、探针配置以及保留的运行产物。
-- 真实的 extract/classify/regress 需要 GPU、已下载的 LARYBench 数据分片和所选表征模型的权重资产；仓库均不内置。
-- 不涉及任何 hosted LLM/VLM judge——所有打分都是确定性的探针训练/评估。
+- `scorecard.json`: WorldFoundry 统一 scorecard，记录上表中的指标值。
+- `benchmark_contract.json`: 本次运行的 benchmark contract 记录（输入、模式、来源信息）。
+- `raw_metric_table.jsonl`: 支撑 scorecard 的原始 metric 行。
+
+Scorecard 主键：`extraction_coverage`（leaderboard key `extraction_coverage`），写入 `scorecard.json`。
+
+## 边界与限制
+
+- 完整 leaderboard 对齐需要完整官方分割、精确的表征模型权重、官方探针配置以及留存的运行产物。
+- 只有当抽取设置（stride、mode、split）一致时，分类与回归得分才可跨模型比较。
+- 大体量的分类视频、机器人图像对、轨迹与元数据通过 `DATA_DIR` 在包外就位。
 
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

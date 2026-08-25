@@ -5,6 +5,8 @@ description: Long-video generation evaluation from MiraData, with in-tree offici
 
 ## About
 
+**Publisher:** Tencent (ARC Lab)
+
 MiraBench is the evaluation component introduced with MiraData, a large-scale long-video dataset with structured captions. It evaluates long video generation from six perspectives: temporal consistency, temporal motion strength, 3D consistency, visual quality, text-video alignment, and distribution consistency. The official scorer exposes 17 metrics, including DINO/CLIP temporal consistency, RAFT-style motion strength, 3D reconstruction errors, aesthetic and imaging quality, ViCLIP alignment, FVD, FID, and KID.
 
 WorldFoundry integrates the MiraBench runtime in tree under `worldfoundry/evaluation/tasks/execution/runners/mirabench/runtime/mirabench`, with the public runner at `worldfoundry/evaluation/tasks/execution/runners/mirabench/run_mirabench_official_runner.py`.
@@ -151,12 +153,5 @@ The run writes:
 - `raw_metric_table.jsonl`: metric rows used by the scorecard.
 - `per_sample_scores.jsonl`: per-video rows when the result file exposes sample-level values.
 - `upstream_scorer/`: materialized meta CSV, extracted frames, and official scorer outputs for `--run-official`.
-
-## What this cannot claim
-
-- The catalog records `official_benchmark_verified: false` and `leaderboard_valid: false`: a local scorecard is not an official leaderboard submission, and full numerical parity with the upstream evaluator has not been demonstrated in this checkout.
-- `WORLDFOUNDRY_MIRABENCH_SCORER_BACKEND=mock` writes deterministic placeholder metric values for wiring runs only; never report mock numbers as benchmark results.
-- Full validation requires generated videos for the official 150-prompt suite plus the staged scorer checkpoints; leaderboard parity additionally requires official judge/checkpoint assets and normalized upstream result files.
-- This page documents runnable commands; it does not claim those GPU runs were executed in this environment.
 
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

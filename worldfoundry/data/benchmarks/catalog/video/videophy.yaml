@@ -1,5 +1,7 @@
 id: videophy
 name: VideoPhy
+publisher: UCLA
+publisher_kind: university
 benchmark_kind:
 - text-to-video
 - physical-commonsense

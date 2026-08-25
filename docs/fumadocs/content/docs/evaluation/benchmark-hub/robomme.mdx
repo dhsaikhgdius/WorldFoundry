@@ -1,104 +1,81 @@
 ---
 title: RoboMME
-description: Memory-probing manipulation benchmark across counting, permanence, reference, and imitation families, with in-tree closed-loop wiring and result normalization.
+description: "Memory-augmented manipulation benchmark (ICML 2026 Spotlight): Counting, Permanence, Reference, and Imitation suites over 16 tasks."
 ---
 
 ## About
 
-RoboMME evaluates memory capabilities of robot manipulation policies across four task families: counting (repeat an action a specified number of times), object permanence (track objects hidden or swapped out of view), reference (act on targets designated earlier, e.g. by video or highlight), and imitation (reproduce a demonstrated motion pattern). Each family has per-family success metrics so memory failures are attributable.
+**Publisher:** University of Michigan (with Stanford & Figure AI)
 
-WorldFoundry integrates RoboMME with an in-tree closed-loop simulator adapter at `worldfoundry/evaluation/tasks/embodied/simulators/robomme/` (alias `robo-mme`) plus the shared official result normalizer for caller-provided rollout dumps. The catalog verification status is `normalizer_only`.
+RoboMME (ICML 2026 Spotlight) is the first large-scale standardized benchmark for memory-augmented robotic manipulation. Following cognitive memory taxonomy, its 16 long-horizon tasks split into four suites: **Counting** (temporal memory — repeat actions an exact number of times), **Permanence** (spatial memory — track objects through occlusion and swaps), **Reference** (object memory — resolve identity from earlier visual/language cues), and **Imitation** (procedural memory — reproduce demonstrated trajectories). The release includes 770k training timesteps and 14 memory-augmented VLA variants on the π0.5 backbone.
+
+WorldFoundry integrates RoboMME as an official-results runner: per-suite success rates from upstream rollout exports are normalized into the unified scorecard.
 
 Official references:
 
-- Paper: [arXiv:2603.04639](https://arxiv.org/abs/2603.04639) (catalog `paper_url`)
-- Official source reference: [RoboMME/robomme_policy_learning](https://github.com/RoboMME/robomme_policy_learning)
-- License: upstream terms (see repository)
+- Paper: [arxiv.org/abs/2603.04639](https://arxiv.org/abs/2603.04639)
+- Official repository: [RoboMME/robomme_policy_learning](https://github.com/RoboMME/robomme_policy_learning)
+- License: `upstream_terms`
 
-## In-tree integration
+## Evaluation protocol
 
-- Catalog: `worldfoundry/data/benchmarks/catalog/embodied/robomme.yaml`
-- Task manifest: `worldfoundry/data/benchmarks/tasks/external/robomme.yaml`
-- Runtime profile: `worldfoundry/data/benchmarks/runtime_profiles/official/robomme.yaml`
-- Simulator adapter: `worldfoundry/evaluation/tasks/embodied/simulators/robomme/`
-- Closed-loop eval config: `worldfoundry/data/benchmarks/eval_configs/embodied/robomme/eval.yaml`
-- Result normalizer: `worldfoundry.evaluation.tasks.embodied.normalizer` (track `vla`)
+WorldFoundry integrates this benchmark through the unified result-import path: `worldfoundry-eval zoo benchmark-run --mode official-validation` normalizes a caller-provided official result export (JSON/CSV rollout summaries) into the WorldFoundry scorecard without executing the simulator. Simulator execution, policy loading, and rollout collection remain explicit upstream steps performed with the official tooling.
 
-## Evaluation protocol and result layout
+Primary metric: `success_rate`.
 
-For result import, the embodied normalizer accepts JSON, JSONL, CSV, TSV, and `result.txt`-style logs. Rows are matched on numeric fields such as `success`, `success_rate`, and `task_success`; booleans and percent strings are coerced to unit-interval floats.
+| Metric | Meaning | Direction |
+| --- | --- | --- |
+| `success_rate` | Primary episode success rate over evaluated rollouts. | Higher is better |
+| `counting_success_rate` | Success rate on the Counting suite (temporal memory). | Higher is better |
+| `permanence_success_rate` | Success rate on the Permanence suite (spatial memory). | Higher is better |
+| `reference_success_rate` | Success rate on the Reference suite (object memory). | Higher is better |
+| `imitation_success_rate` | Success rate on the Imitation suite (procedural memory). | Higher is better |
 
-The bundled eval config chains all four families against an external policy server at `ws://localhost:8000` with `joint_angle` action space, a 1300-step cap, and 50 episodes per task: counting (`BinFill`, `PickXtimes`, `SwingXtimes`, `StopCube`), permanence (`VideoUnmask`, `VideoUnmaskSwap`, `ButtonUnmask`, `ButtonUnmaskSwap`), reference (`PickHighlight`, `VideoRepick`, `VideoPlaceButton`, `VideoPlaceOrder`), and imitation (`MoveCube`, `InsertPeg`, `PatternLock`, `RouteStick`).
+## Data and artifact layout
 
-## Metrics
+In-tree paths:
 
-Primary metric (scorecard key): `success_rate`.
-
-| Metric | Meaning |
-| --- | --- |
-| `success_rate` | Overall rollout success across families; primary leaderboard value. |
-| `counting_success_rate` | Success on the counting family. |
-| `permanence_success_rate` | Success on the object-permanence family. |
-| `reference_success_rate` | Success on the reference family. |
-| `imitation_success_rate` | Success on the imitation family. |
-
-Success metrics are normalized via the shared registry (`percent_or_fraction_to_unit`). No video-generation metrics apply.
-
-## Preparation and environment
-
-```bash
-cd /path/to/WorldFoundry
-export WORLDFOUNDRY_ROBOMME_ROOT=/path/to/robomme
-export WORLDFOUNDRY_ROBOMME_RESULTS_PATH=/path/to/robomme_results.json
+```text
+worldfoundry/data/benchmarks/tasks/external/robomme.yaml
 ```
 
-Closed-loop rollouts require the RoboMME runtime, memory task assets, and a policy checkpoint served over WebSocket (catalog `required_assets`).
-
-Verify runtime wiring:
-
-```bash
-python -m worldfoundry.evaluation.tasks.execution.orchestration.runtime_preflight \
-  --profile robomme \
-  --manifest worldfoundry/data/benchmarks/runtime_profiles/official/robomme.yaml \
-  --output-dir tmp/worldfoundry_preflight/robomme \
-  --json
+```text
+<official_results.json>                 # rollout summary export from the official tooling
+${WORLDFOUNDRY_ROBOMME_RESULTS_PATH}   # default import path
 ```
 
-## Import official results (official-validation)
+## Run the benchmark
+
+Catalog-recorded validation command:
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id robomme \
   --mode official-validation \
-  --official-results-path "${WORLDFOUNDRY_ROBOMME_RESULTS_PATH}" \
-  --output-dir tmp/robomme/official-validation \
+  --official-results-path <official_results.json> \
+  --output-dir <out> \
   --json
 ```
 
-This routes through the embodied `vla`-track normalizer in-process; no simulator code is executed.
+## Checkpoints and environment variables
 
-## Closed-loop rollouts (native simulator)
-
-```bash
-worldfoundry-eval embodied run \
-  --config worldfoundry/data/benchmarks/eval_configs/embodied/robomme/eval.yaml \
-  --output-dir tmp/robomme/embodied-run \
-  --json
-```
-
-`--server-url`, `--shard-id`/`--num-shards`, and `--no-docker` are supported by the `embodied run` entry point.
+- `WORLDFOUNDRY_ROBOMME_ROOT`: Optional override pointing at a local benchmark runtime/repository root.
+- `WORLDFOUNDRY_ROBOMME_RESULTS_PATH`: Default path the importer reads official result exports from when `--official-results-path` is not passed.
 
 ## Outputs
 
-- `scorecard.json`: WorldFoundry scorecard; leaderboard block keyed by `success_rate`.
-- `raw_results.jsonl`: extracted raw result rows.
-- `evaluation/summary.json`: aggregated per-metric statistics.
-- `evaluation/per_sample_metrics.jsonl`: normalized per-episode rows.
+The run writes into `--output-dir`:
 
-## What this page does not claim
+- `scorecard.json`: WorldFoundry scorecard with the metric values recorded above.
+- `raw_results.jsonl`: Normalized rows parsed from the official result export.
+- `evaluation/summary.json`: Aggregated evaluation summary.
 
-- Catalog status is `normalizer_only` with `leaderboard_valid: false` and `official_benchmark_verified: false`. Imported numbers are normalized copies of caller-provided results, not officially reproduced leaderboard values.
-- The RoboMME runtime, memory task assets, and policy checkpoints are not bundled; closed-loop rollouts require external staging plus a policy server. No local GPU rollout evidence is claimed.
-- Full leaderboard parity is not claimed until official rollouts are executed and imported (catalog blocker).
+Scorecard primary key: `success_rate` (leaderboard key `success_rate`), stored in `scorecard.json`.
+
+## Limitations
+
+- WorldFoundry normalizes supplied rollout results; it does not run the official simulator or policies in tree.
+- Full leaderboard parity is not claimed until official rollouts are executed with staged simulator assets and policy checkpoints, then imported.
+- Imported scorecards are integration evidence, not leaderboard submissions.
 
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)

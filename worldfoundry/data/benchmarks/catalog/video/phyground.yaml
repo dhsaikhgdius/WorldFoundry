@@ -1,5 +1,7 @@
 id: phyground
 name: PhyGround
+publisher: Northeastern University
+publisher_kind: university
 benchmark_kind:
 - text-image-to-video
 - physical-reasoning

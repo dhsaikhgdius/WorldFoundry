@@ -1,105 +1,81 @@
 ---
 title: BEHAVIOR-1K
-description: 基于 OmniGibson 的千项家务活动基准，仓内提供闭环仿真接线与官方结果归一化。
+description: OmniGibson 模拟器中的 1,000 项日常家务活动，通过官方结果归一化导入 WorldFoundry。
 ---
 
-## 关于
+## 简介
 
-BEHAVIOR-1K 是定义在 OmniGibson（NVIDIA Omniverse/Isaac Sim）仿真环境上的 1000 项日常家务活动基准（清洁、烹饪、整理、收纳）。活动以场景状态上的逻辑谓词定义，成功要求长时程移动操作最终满足活动的目标条件。
+**发表机构：** Stanford University（斯坦福大学 SVL 实验室）
 
-WorldFoundry 通过仓内闭环仿真适配器 `worldfoundry/evaluation/tasks/embodied/simulators/behavior1k/` 以及共享官方结果归一化器集成 BEHAVIOR-1K。catalog 校验状态为 `normalizer_only`：结果导入已验证，完整 rollout 执行依赖上游 OmniGibson 运行时、BEHAVIOR-1K 数据集与策略 checkpoint。
+BEHAVIOR-1K 是斯坦福以人为中心的具身 AI 评测：从人类时间使用调查中选出的 1,000 项日常活动（清洁、烹饪、整理），用 BDDL 谓词语言定义，并在 OmniGibson 中以逼真物理、流体与物体状态仿真。成功以满足活动的逻辑目标条件衡量，子目标满足率作为部分得分信号。
 
-官方来源：
+WorldFoundry 以官方结果 runner 集成 BEHAVIOR-1K：上游 OmniGibson 工具产出的 rollout 导出被归一化为统一 scorecard。
 
-- 论文：[arXiv:2403.09227](https://arxiv.org/abs/2403.09227)
-- 官方仓库：[StanfordVL/OmniGibson](https://github.com/StanfordVL/OmniGibson)
-- 许可：上游条款（见仓库）
+官方参考：
 
-## 仓内路径
+- Paper: [arxiv.org/abs/2403.09227](https://arxiv.org/abs/2403.09227)
+- 官方仓库: [StanfordVL/OmniGibson](https://github.com/StanfordVL/OmniGibson)
+- License: `upstream_terms`
 
-- Catalog：`worldfoundry/data/benchmarks/catalog/embodied/behavior1k.yaml`
-- 任务清单：`worldfoundry/data/benchmarks/tasks/external/behavior1k.yaml`
-- 运行时 profile：`worldfoundry/data/benchmarks/runtime_profiles/official/behavior1k.yaml`
-- 仿真适配器：`worldfoundry/evaluation/tasks/embodied/simulators/behavior1k/`
-- 闭环 eval config：`worldfoundry/data/benchmarks/eval_configs/embodied/behavior1k/eval.yaml`
-- 结果归一化器：`worldfoundry.evaluation.tasks.embodied.normalizer`（track `vla`）
+## 评测协议
 
-## 评测协议与数据布局
+WorldFoundry 通过统一的结果导入路径集成该 benchmark：`worldfoundry-eval zoo benchmark-run --mode official-validation` 把调用方提供的官方结果导出（JSON/CSV rollout 汇总）归一化为 WorldFoundry scorecard，不执行模拟器。模拟器执行、策略加载与 rollout 采集仍是使用官方工具完成的显式上游步骤。
 
-结果导入侧，embodied normalizer 接受 JSON、JSONL、CSV、TSV 及 `result.txt` 风格日志。行记录按 `success`、`success_rate`、`task_success`、`episode_success` 等数值字段匹配；布尔值与百分比字符串会被强制转换为 [0,1] 浮点数。
+主指标是 `success_rate`。
 
-内置 eval config rollout 50 项命名家务活动（从 `turning_on_radio` 到 `make_pizza`），部分场景加载、不推送本体感知、步数上限 5000、任务实例 1、每任务 10 个 episode，由 `ws://localhost:8000` 上的外部 policy server 驱动。
+| Metric | 含义 | 方向 |
+| --- | --- | --- |
+| `success_rate` | 评测 rollout 上的主成功率（逐 episode 成功比例）。 | 越高越好 |
+| `task_success` | 按任务聚合的成功率。 | 越高越好 |
+| `episode_success` | 逐 episode 成功指示的聚合值。 | 越高越好 |
+| `subgoal_success` | BDDL 子目标满足率（部分得分）。 | 越高越好 |
 
-## 指标
+## 数据与产物布局
 
-主指标（scorecard 主键）：`success_rate`。
+WorldFoundry 仓内路径：
 
-| 指标 | 含义 |
-| --- | --- |
-| `success_rate` | 满足活动目标条件的 episode 占比；leaderboard 主值。 |
-| `task_success` | 按活动聚合的成功率。 |
-| `episode_success` | 单 episode 的二值成功。 |
-| `subgoal_success` | 有上报时，按已满足子目标谓词计算的部分得分。 |
-
-成功类指标经共享 registry 的 `percent_or_fraction_to_unit` 归一化；不涉及视频生成类指标。
-
-## 准备命令与环境变量
-
-```bash
-cd /path/to/WorldFoundry
-export WORLDFOUNDRY_BEHAVIOR1K_ROOT=/path/to/OmniGibson
-export WORLDFOUNDRY_BEHAVIOR1K_RESULTS_PATH=/path/to/behavior1k_results.json
+```text
+worldfoundry/data/benchmarks/tasks/external/behavior1k.yaml
 ```
 
-必需运行时资产（catalog `required_assets`）：OmniGibson 运行时、BEHAVIOR-1K 数据集、策略 checkpoint、官方 rollout 结果 dump。运行时 profile 标记 `needs_new_env: true`——OmniGibson/Isaac 栈不属于统一 WorldFoundry 环境。
-
-不启动仿真器、仅校验运行时接线：
-
-```bash
-python -m worldfoundry.evaluation.tasks.execution.orchestration.runtime_preflight \
-  --profile behavior1k \
-  --manifest worldfoundry/data/benchmarks/runtime_profiles/official/behavior1k.yaml \
-  --output-dir tmp/worldfoundry_preflight/behavior1k \
-  --json
+```text
+<official_results.json>                 # 官方工具产出的 rollout 汇总导出
+${WORLDFOUNDRY_BEHAVIOR1K_RESULTS_PATH}   # 默认导入路径
 ```
+模拟器 runtime、benchmark 资产与策略权重遵循上游 [StanfordVL/OmniGibson](https://github.com/StanfordVL/OmniGibson) 文档。
 
-## 导入官方结果（official-validation）
+## 运行评测
+
+目录 manifest 记录的 validation 命令：
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id behavior1k \
   --mode official-validation \
-  --official-results-path "${WORLDFOUNDRY_BEHAVIOR1K_RESULTS_PATH}" \
-  --output-dir tmp/behavior1k/official-validation \
+  --official-results-path <official_results.json> \
+  --output-dir <out> \
   --json
 ```
 
-该路径在进程内走 embodied `vla` track normalizer，不执行任何仿真代码。
+## 权重与环境变量
 
-## 闭环 rollout（原生仿真器）
+- `WORLDFOUNDRY_BEHAVIOR1K_ROOT`: 可选覆盖项，指向本地 benchmark runtime / 仓库根目录。
+- `WORLDFOUNDRY_BEHAVIOR1K_RESULTS_PATH`: 未显式传 `--official-results-path` 时，导入器默认从该路径读取官方结果导出文件。
 
-在 OmniGibson 已安装、policy server 已启动的前提下：
+## 输出文件
 
-```bash
-worldfoundry-eval embodied run \
-  --config worldfoundry/data/benchmarks/eval_configs/embodied/behavior1k/eval.yaml \
-  --output-dir tmp/behavior1k/embodied-run \
-  --json
-```
+运行会在 `--output-dir` 下写出：
 
-`embodied run` 入口支持 `--server-url`、`--shard-id`/`--num-shards`、`--no-docker`。
+- `scorecard.json`: WorldFoundry 统一 scorecard，记录上表中的指标值。
+- `raw_results.jsonl`: 从官方结果导出解析出的归一化行。
+- `evaluation/summary.json`: 聚合评测摘要。
 
-## 输出
+Scorecard 主键：`success_rate`（leaderboard key `success_rate`），写入 `scorecard.json`。
 
-- `scorecard.json`：WorldFoundry scorecard；leaderboard 块以 `success_rate` 为主键。
-- `raw_results.jsonl`：提取的原始结果行。
-- `evaluation/summary.json`：按指标聚合的统计。
-- `evaluation/per_sample_metrics.jsonl`：归一化后的逐 episode 行。
+## 边界与限制
 
-## 不能声称的边界
-
-- catalog 状态为 `normalizer_only`，`leaderboard_valid: false`、`official_benchmark_verified: false`。导入的数字是调用方结果的归一化副本，不是官方复现的 leaderboard 值。
-- OmniGibson/Isaac 仿真栈、BEHAVIOR-1K 数据集、策略 checkpoint 均未随仓库分发，也未安装在默认 WorldFoundry 环境中；闭环 rollout 需要外部上游运行时。本页不声称任何本地 GPU rollout 证据。
-- catalog blocker：官方 rollout 执行并导入之前，不声称完整 leaderboard 对齐。
+- WorldFoundry 只归一化所提供的 rollout 结果；不在仓内运行官方模拟器或策略。
+- 在用就位的模拟器资产与策略权重执行官方 rollout 并导入之前，不声称完整 leaderboard 对齐。
+- 导入的 scorecard 是集成证据，不是 leaderboard 提交。
 
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)

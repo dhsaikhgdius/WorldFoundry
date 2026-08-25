@@ -1,5 +1,7 @@
 id: larybench
 name: LARYBench
+publisher: Meituan
+publisher_kind: company
 aliases:
 - LARY
 - latent-action-representation-yielding-benchmark

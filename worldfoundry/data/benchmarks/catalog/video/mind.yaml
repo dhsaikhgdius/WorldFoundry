@@ -1,5 +1,7 @@
 id: mind
 name: MIND
+publisher: Central South University
+publisher_kind: university
 benchmark_kind:
 - interactive-video-world-model
 - memory-consistency

@@ -1,5 +1,7 @@
 id: aigcbench
 name: AIGCBench
+publisher: Chinese Academy of Sciences
+publisher_kind: institute
 benchmark_kind:
 - image-to-video
 - video-generation-quality

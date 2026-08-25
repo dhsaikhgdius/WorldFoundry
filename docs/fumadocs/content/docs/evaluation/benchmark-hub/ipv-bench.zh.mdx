@@ -1,161 +1,90 @@
 ---
 title: IPV-Bench
-description: Impossible Videos 评测文档，覆盖 WorldFoundry 仓内 prompts、结果导入、直接 runner、指标与当前缺口。
+description: “不可能视频”评测：从 IPV-Txt prompt 生成到 IPV-Vid 问答，考察对物理上不可能事件的生成与理解。
 ---
 
-## 官方参考
+## 简介
 
-| 资源 | 链接 |
-| --- | --- |
-| 论文 | [arXiv:2503.14378](https://arxiv.org/abs/2503.14378) |
-| GitHub | [github.com/showlab/Impossible-Videos](https://github.com/showlab/Impossible-Videos) |
-| HF 数据集 | [showlab/ImpossibleVideos](https://huggingface.co/datasets/showlab/ImpossibleVideos) |
-| 仓内 runner | `worldfoundry/evaluation/tasks/execution/runners/ipv_bench/run_ipv_bench_official_runner.py` |
+**发表机构：** Show Lab（新加坡国立大学 NUS）
 
-## 评测内容
+IPV-Bench（Impossible Videos）反转了常规的物理性问题：它不问模型是否遵守物理定律，而问模型能否刻意生成反事实、物理上不可能的事件——以及视频理解模型能否识别它们。benchmark 覆盖物理、生物、地理与社会四类不可能性分类体系，含生成赛道（prompt 套件 IPV-Txt，按视觉质量与 prompt 遵循评判）与理解赛道（IPV-Vid 判断题、多选 QA 与开放 QA）。
 
-IPV-Bench 评估 physically impossible videos。本地 Impossible Videos README 描述了两条 track：
+WorldFoundry 提供仓内归一化器，接受两条赛道的官方 CSV/JSON 导出并聚合为统一 scorecard；`--run-fixture` 可在无外部资产时验证接线。
 
-- Text-to-video generation：根据不可能场景 prompts 生成视频，再评估 visual quality 和 prompt following。
-- Video understanding：围绕 impossible videos 做 judgement、multiple-choice 和 open-ended QA。
+官方参考：
 
-官方 benchmark 定义了 4 个 domain、14 个 category 的 taxonomy，以及 `IPV-Txt` prompt suite。WorldFoundry 已把 prompt suite 和结果解析代码放在仓内：`worldfoundry/evaluation/tasks/execution/runners/ipv_bench` 与 `worldfoundry/data/benchmarks/assets/ipv-bench`。日常使用不需要为该 benchmark 另建官方 repo 副本；本地 `/Impossible-Videos` 只作为协议参考。
+- Paper: [arxiv.org/abs/2503.14378](https://arxiv.org/abs/2503.14378)
+- 项目主页: [huggingface.co/papers/2503.14378](https://huggingface.co/papers/2503.14378)
+- 官方仓库: [showlab/Impossible-Videos](https://github.com/showlab/Impossible-Videos)
 
-## 准备数据与资产
+## 评测协议
 
-仓内资产：
+生成赛道的行需要 `visual_quality` 与 `prompt_following` 标注（人工或官方 judge）；`impossible_video_score` 是官方协议下同时满足高质量与忠实 prompt 的视频占比。理解赛道的行需要官方标签，以及判断题、多选 QA 与开放 QA 任务的预测/模型答案。`ipv_bench_average` 对已提供的官方指标族聚合。
 
-- `worldfoundry/data/benchmarks/assets/ipv-bench/ipv_txt_prompt_suite.json`
-- `worldfoundry/data/benchmarks/assets/ipv-bench/judgement_question.json`
-- `worldfoundry/data/benchmarks/assets/ipv-bench/judgement_answer.json`
-- `worldfoundry/data/benchmarks/assets/ipv-bench/mcqa_question.json`
-- `worldfoundry/data/benchmarks/assets/ipv-bench/mcqa_answer.json`
-- `worldfoundry/data/benchmarks/assets/ipv-bench/openqa_question.json`
-- `worldfoundry/data/benchmarks/assets/ipv-bench/openqa_answer.json`
-- `worldfoundry/data/benchmarks/assets/ipv-bench/sample_results.csv`
+主指标是 `ipv_bench_average`。
 
-prompt suite 包含 260 条 canonical text-to-video prompts。生成视频建议按 `prompt_id` 命名，这样 runner 可以计算覆盖率：
+| Metric | 含义 | 方向 |
+| --- | --- | --- |
+| `visual_quality` | IPV-Bench 生成视频视觉质量的人工或官方 judge 标注。 | 越高越好 |
+| `prompt_following` | IPV-Bench prompt 遵循度的人工或官方 judge 标注。 | 越高越好 |
+| `impossible_video_score` | IPV-Bench 协议下同时满足高质量与良好 prompt 遵循的生成视频占比。 | 越高越好 |
+| `judgement_accuracy` | IPV-Bench 视频理解判断任务相对官方标签的准确率。 | 越高越好 |
+| `mcqa_accuracy` | IPV-Bench 多选 QA 相对官方标签的准确率。 | 越高越好 |
+| `open_qa_score` | IPV-Bench 开放式 QA 得分（来自官方 evaluator 或 judge 输出）。 | 越高越好 |
+| `ipv_bench_average` | 由官方标注、judge 输出或归一化结果文件提供的 IPV-Bench 聚合分。 | 越高越好 |
 
-```text
-/path/to/ipv/generated_videos/
-  1.mp4
-  2.mp4
-  3.mp4
-```
+## 数据与产物布局
 
-runner 接受 `.mp4`、`.mov`、`.mkv`、`.webm` 和 `.avi`。
-
-如果需要发布版视频或任务文件，可以下载 HF 数据：
-
-```bash
-hf download showlab/ImpossibleVideos \
-  --repo-type dataset \
-  --local-dir /path/to/datasets/ImpossibleVideos
-```
-
-## 结果文件格式
-
-可以导入 summary metric rows：
-
-```csv
-metric_id,score
-visual_quality,0.82
-prompt_following,0.76
-impossible_video_score,0.61
-judgement_accuracy,0.73
-mcqa_accuracy,0.70
-open_qa_score,0.65
-```
-
-也可以导入 per-sample rows，字段可包含 `prompt_id`、`visual_quality`、`prompt_following`、`answer`、`pred`、`mcqa_answer`、`mcqa_pred`、`open_qa_score`、`open_qa_pred`。仓内 artifact importer 也会寻找 `ipv_results*.csv`、`ipv_results*.json`、`ipv_results*.jsonl` 和 `*_pred_ipv_*.json` 这类文件。
-
-## 输出布局
-
-公开 CLI 输出：
+WorldFoundry 仓内路径：
 
 ```text
-tmp/ipv-bench/official-validation/
-  scorecard.json
-  raw_metric_table.jsonl
-  per_sample_scores.jsonl
-  runner_runtime_report.json
-  specialized_normalizer_stdout.log
-  specialized_normalizer_stderr.log
+worldfoundry/data/benchmarks/tasks/external/ipv-bench.yaml
+worldfoundry/evaluation/tasks/execution/runners/ipv_bench
 ```
 
-直接 runner 也会输出相同的 score files，并额外写一个 metadata JSON，记录 prompt manifest 路径、metric IDs 和来源结果路径。
+```text
+worldfoundry/evaluation/tasks/execution/runners/ipv_bench    # 仓内官方 runner
+${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}/                      # 生成的不可能视频
+<official_results.csv|json>                                  # 标注 / judge / 预测导出
+```
 
-## 公开 CLI
+官方 benchmark 资产来自源仓库（[showlab/Impossible-Videos](https://github.com/showlab/Impossible-Videos)）；契约条目不要求 Hugging Face 数据集。
 
-catalog 支持的公开命令是用 `official-validation` 导入结果：
+## 运行评测
+
+目录 manifest 记录的 validation 命令：
 
 ```bash
-cd "$WORLDFOUNDRY_REPO_ROOT"
-
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id ipv-bench \
   --mode official-validation \
-  --official-results-path /path/to/ipv_results.csv \
-  --generated-artifact-dir /path/to/ipv/generated_videos \
-  --output-dir tmp/ipv-bench/official-validation \
+  --official-results-path <official_results.csv> \
+  --generated-artifact-dir <generated_videos> \
+  --output-dir <out> \
   --json
 ```
 
-## 直接 Runner
+## 权重与环境变量
 
-导入已有 CSV、JSON 或 JSONL 结果：
+- `WORLDFOUNDRY_IPV_BENCH_ROOT`: 可选覆盖项，指向本地 benchmark runtime / 仓库根目录。
+- `WORLDFOUNDRY_IPV_BENCH_RESULTS_PATH`: 未显式传 `--official-results-path` 时，导入器默认从该路径读取官方结果导出文件。
+- `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR`: 存放待评测生成产物（候选视频/rollout）的目录。
+- `WORLDFOUNDRY_IPV_BENCH_RUNTIME_BACKEND`: 选择仓内 runner 使用的 runtime 后端。
 
-```bash
-cd "$WORLDFOUNDRY_REPO_ROOT"
+## 输出文件
 
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-  worldfoundry/evaluation/tasks/execution/runners/ipv_bench/run_ipv_bench_official_runner.py \
-  --official-results-path /path/to/ipv_results.csv \
-  --generated-artifact-dir /path/to/ipv/generated_videos \
-  --output-dir tmp/ipv-bench/direct-import \
-  --json
-```
+运行会在 `--output-dir` 下写出：
 
-导入已经放在生成产物目录里的结果文件：
+- `scorecard.json`: WorldFoundry 统一 scorecard，记录上表中的指标值。
+- `benchmark_contract.json`: 本次运行的 benchmark contract 记录（输入、模式、来源信息）。
+- `raw_metric_table.jsonl`: 支撑 scorecard 的原始 metric 行。
 
-```bash
-cd "$WORLDFOUNDRY_REPO_ROOT"
+Scorecard 主键：`ipv_bench_average`（leaderboard key `ipv_bench_average`），写入 `scorecard.json`。
 
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-  worldfoundry/evaluation/tasks/execution/runners/ipv_bench/run_ipv_bench_official_runner.py \
-  --run-official \
-  --generated-artifact-dir /path/to/ipv/generated_videos \
-  --output-dir tmp/ipv-bench/direct-run \
-  --json
-```
+## 边界与限制
 
-使用自定义 prompt 文件时增加：
-
-```bash
---prompt-manifest /path/to/ipv_txt_prompt_suite.json
-```
-
-## 指标
-
-| Metric ID | 含义 |
-| --- | --- |
-| `visual_quality` | 生成视频的 visual-quality 人工或 judge annotation 均值。 |
-| `prompt_following` | prompt-following 人工或 judge annotation 均值。 |
-| `impossible_video_score` | 同时通过 visual quality 与 prompt-following 阈值的生成样本比例。当前 runner 中两个阈值都是 `4.0`。 |
-| `judgement_accuracy` | judgement understanding task 的 exact-match accuracy。 |
-| `mcqa_accuracy` | multiple-choice QA 的 exact-match accuracy。 |
-| `open_qa_score` | 导入的 open-ended QA 分数；如果只提供 answer/prediction 字段，则使用简单 exact-match。 |
-| `ipv_bench_average` | 可用 IPV-Bench component metrics 的平均值；如果导入文件直接提供 aggregate，则使用导入值。 |
-
-scorecard 主键：`ipv_bench_average`。
-
-所有指标都会归一到 `[0, 1]`，越高越好。
-
-## 不能声称的边界
-
-- catalog 中记录 `official_benchmark_verified: false` 与 `leaderboard_valid: false`：本地 scorecard 不是官方 leaderboard 提交，本 checkout 也未验证与上游评测器的完整数值对齐。
-- 树内入口只对官方标注、评审分数或理解任务预测做归一化，本身不会运行官方评审。
-- 完整 leaderboard 验证仍需要官方标注或评审输出，以及官方套件的生成视频。
-- 本页只给出可运行的命令，不声称这些 GPU 运行已在此环境中执行过。
+- WorldFoundry 只归一化所提供的标注与 judge 输出；不在仓内运行官方 judge 或理解模型。
+- 完整 leaderboard 验证需要官方标注、judge 输出或理解侧预测，外加生成视频。
+- fixture 运行仅验证接线，绝不构成 benchmark 证据。
 
 [← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)
