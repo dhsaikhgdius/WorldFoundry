@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from worldfoundry.evaluation.tasks.execution.framework.io import utc_now_iso, write_json, write_jsonl
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
 from worldfoundry.evaluation.tasks.execution.runners.ewmbench.ewmbench_metrics import (
     METRIC_ORDER,
     METRIC_SPECS,
@@ -28,8 +29,6 @@ from worldfoundry.evaluation.tasks.execution.runners.ewmbench.ewmbench_runtime i
 )
 from worldfoundry.evaluation.utils import benchmark_task_sample_path
 
-SCORECARD_SCHEMA_VERSION = "worldfoundry-scorecard"
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:

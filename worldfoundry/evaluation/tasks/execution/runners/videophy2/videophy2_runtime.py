@@ -14,6 +14,7 @@ from typing import Any, Mapping
 from worldfoundry.base_models.capabilities import get_base_model_capability
 from worldfoundry.base_models.llm_mllm_core.mllm.videophy2_autoeval import runtime_root as autoeval_runtime_root
 from worldfoundry.evaluation.tasks.execution.framework.official_runner import default_benchmark_timeout
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import VIDEO_SUFFIXES
 from worldfoundry.evaluation.tasks.execution.runners.videophy2.videophy2_prompts import (
     load_prompt_records,
     official_video_filename_for_record,
@@ -22,7 +23,6 @@ from worldfoundry.evaluation.tasks.execution.runners.videophy2.videophy2_prompts
     unique_generation_records,
 )
 
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 JOINT_SA_MIN = 4
 JOINT_PC_MIN = 4
 

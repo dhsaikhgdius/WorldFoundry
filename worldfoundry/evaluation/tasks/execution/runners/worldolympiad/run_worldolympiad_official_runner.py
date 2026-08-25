@@ -14,6 +14,7 @@ outside the checked-in runtime, so the vendored source stays read-only. See
 
 from __future__ import annotations
 
+
 import argparse
 import json
 import os

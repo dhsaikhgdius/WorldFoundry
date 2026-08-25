@@ -80,6 +80,7 @@ Join the **WorldFoundry Community** on Slack, [Discord](https://discord.gg/ybUQM
 - [Supported models](docs/fumadocs/content/docs/guides/supported-models/index.mdx)
 - [Benchmark hub](docs/fumadocs/content/docs/evaluation/benchmark-hub/index.mdx)
 - [Contributing](CONTRIBUTING.md)
+- [Native kernels package](packages/worldfoundry-native-kernels/README.md) — optional CUDA/C++ kernels built separately from the main `worldfoundry` wheel
 
 ## Demo Gallery
 

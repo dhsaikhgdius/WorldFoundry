@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from worldfoundry.core.io import materialize_file
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import VIDEO_SUFFIXES
 from worldfoundry.evaluation.tasks.execution.runners.ipv_bench.ipv_bench_metrics import (
     METRIC_ORDER,
 )
@@ -37,7 +38,6 @@ def discover_official_results(search_roots: list[Path]) -> Path | None:
                 return matches[-1]
     return None
 
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 
 
 @dataclass(frozen=True)

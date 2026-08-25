@@ -21,7 +21,6 @@ PROMPTS_JSON_REL = Path("PhyGenBench") / "prompts.json"
 EXPLICIT_PROMPTS_JSON_REL = Path("PhyGenBench") / "explicit_prompts.json"
 CANONICAL_PROMPT_COUNT = 160
 
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 
 
 def _env_path(name: str) -> Path | None:

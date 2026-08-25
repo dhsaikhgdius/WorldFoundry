@@ -78,7 +78,9 @@ class HEDdetector:
             os.makedirs(os.path.dirname(modelpath), exist_ok=True)
             urlretrieve(remote_model_path, modelpath)
         self.netNetwork = ControlNetHED_Apache2().float().cuda().eval()
-        self.netNetwork.load_state_dict(torch.load(modelpath))
+        from worldfoundry.core.checkpoint.safe_loading import load_tensor_state_dict
+
+        self.netNetwork.load_state_dict(load_tensor_state_dict(modelpath, map_location="cpu"))
 
     def __call__(self, input_image, safe=False):
         assert input_image.ndim == 3

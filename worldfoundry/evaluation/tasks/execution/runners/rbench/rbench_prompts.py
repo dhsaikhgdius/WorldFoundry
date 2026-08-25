@@ -16,6 +16,10 @@ read from the ``DAGroup-PKU/RBench`` dataset manifests.
 
 from __future__ import annotations
 
+
+
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
+
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -103,7 +107,6 @@ CANONICAL_EMBODIMENT_PROMPT_COUNT = sum(
 CANONICAL_TASK_PROMPT_COUNT = sum(split.prompt_count for split in SPLITS if split.track == TASK_TRACK)
 CANONICAL_PROMPT_COUNT = CANONICAL_EMBODIMENT_PROMPT_COUNT + CANONICAL_TASK_PROMPT_COUNT
 
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 
 _PROMPT_DIR_NAMES = ("prompts", "data/prompts")
 

@@ -13,6 +13,7 @@ from worldfoundry.evaluation.tasks.execution.framework.benchmark_assets import (
     bundled_benchmark_asset,
     bundled_benchmark_assets_root,
 )
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import VIDEO_SUFFIXES
 from worldfoundry.evaluation.utils import write_jsonl
 
 BENCHMARK_ID = "phyeduvideo"
@@ -26,7 +27,6 @@ PC3_FILE_REL = PROMPTS_DIR_REL / "PC-3.json"
 SCRIPTS_DIR_REL = Path("scripts")
 
 CANONICAL_PROMPT_COUNT = 205
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 
 
 def _env_path(name: str) -> Path | None:

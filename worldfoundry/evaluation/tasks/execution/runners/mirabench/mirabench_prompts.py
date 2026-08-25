@@ -23,7 +23,6 @@ META_GT_REL = Path("data/evaluation_example/meta_gt.csv")
 CALCULATE_SCORE_REL = Path("calculate_score.py")
 CANONICAL_PROMPT_COUNT = 150
 
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 META_COLUMNS = (
     "video_idx",
     "video_path",

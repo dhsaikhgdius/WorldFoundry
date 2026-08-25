@@ -10,6 +10,9 @@ videos, upstream ``runs/`` directories, logs, manifests) is written under
 
 from __future__ import annotations
 
+
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
+
 import argparse
 import json
 import os

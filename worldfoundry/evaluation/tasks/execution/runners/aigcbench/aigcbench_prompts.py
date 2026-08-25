@@ -14,6 +14,7 @@ from worldfoundry.evaluation.tasks.execution.framework.benchmark_assets import (
     bundled_benchmark_asset,
     bundled_benchmark_assets_root,
 )
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import VIDEO_SUFFIXES
 from worldfoundry.evaluation.utils import worldfoundry_hfd_dataset_root, write_jsonl
 
 BENCHMARK_ID = "aigcbench"
@@ -27,7 +28,6 @@ WEBVID_PROMPT_COUNT = 1000
 LAION_PROMPT_COUNT = 925
 DEFAULT_OURS_PROMPT_COUNT = 2002
 CANONICAL_PROMPT_COUNT = WEBVID_PROMPT_COUNT + LAION_PROMPT_COUNT + DEFAULT_OURS_PROMPT_COUNT
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 IMAGE_SUFFIXES = frozenset({".png", ".jpg", ".jpeg", ".webp"})
 
 

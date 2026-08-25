@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+
+
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
+
 import argparse
 import json
 import os
@@ -26,7 +30,6 @@ from worldfoundry.evaluation.tasks.execution.runners.camerabench.camerabench_met
     evaluate_camerabench_from_score_dir,
 )
 
-SCORECARD_SCHEMA_VERSION = "worldfoundry-scorecard"
 METRIC_ORDER = (
     "camera_motion_average_precision",
     "camera_motion_roc_auc",

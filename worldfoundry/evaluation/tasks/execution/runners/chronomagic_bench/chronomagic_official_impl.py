@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+
+
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
+
 import argparse
 import json
 import os
@@ -44,7 +48,6 @@ DEFAULT_CHRONOMAGIC_ROOT = (
     / "runtime"
     / "chronomagic_bench"
 )
-SCORECARD_SCHEMA_VERSION = "worldfoundry-scorecard"
 HF_DATASET_ID = "BestWishYsh/ChronoMagic-Bench"
 HF_DATASET_CONFIG = "default"
 HF_DATASET_SPLIT = "test"

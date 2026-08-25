@@ -27,7 +27,6 @@ BENCHMARK_DIR_NAME = "physics-IQ-benchmark"
 
 CANONICAL_PROMPT_COUNT = 198
 VIEWS = ("perspective-left", "perspective-center", "perspective-right")
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 
 
 def _env_path(name: str) -> Path | None:

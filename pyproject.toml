@@ -489,6 +489,8 @@ extend-exclude = [
     "worldfoundry/base_models",
     "worldfoundry/synthesis",
     "worldfoundry/representations",
+    "worldfoundry/evaluation/tasks/execution/runners/*/runtime",
+    "worldfoundry/evaluation/tasks/metrics/*/vendor",
     # Apache-2.0 native GUI sources preserve upstream formatting.
     "worldfoundry/studio/native/world_explorer",
 ]

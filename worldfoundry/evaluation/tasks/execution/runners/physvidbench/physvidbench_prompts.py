@@ -13,12 +13,12 @@ from worldfoundry.evaluation.tasks.execution.framework.benchmark_assets import (
     bundled_benchmark_asset,
     bundled_benchmark_assets_root,
 )
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import VIDEO_SUFFIXES
 from worldfoundry.evaluation.utils import write_jsonl
 
 BENCHMARK_ID = "physvidbench"
 PROMPT_MANIFEST_REL = Path("prompts_questions.csv")
 
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 
 
 def _env_path(name: str) -> Path | None:

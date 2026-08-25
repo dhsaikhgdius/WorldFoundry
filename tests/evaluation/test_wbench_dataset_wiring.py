@@ -92,7 +92,7 @@ def test_wbench_official_command_uses_isolated_staged_work_dir(
     output_dir = tmp_path / "output"
     captured: dict[str, object] = {}
 
-    def fake_run(command, *, cwd, env, text, capture_output, check):
+    def fake_run(command, *, cwd, env, text, capture_output, check, timeout):
         captured.update(command=command, cwd=cwd, env=env)
         model = command[command.index("--model") + 1]
         work_dir = Path(command[command.index("--work_dir") + 1])

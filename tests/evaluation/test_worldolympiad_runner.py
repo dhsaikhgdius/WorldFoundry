@@ -143,6 +143,9 @@ def test_run_official_uses_the_checked_in_runtime_and_isolates_batch_state(tmp_p
         return {"returncode": 0, "stdout": "ok", "stderr": "", "timed_out": False}
 
     monkeypatch.setattr(runner, "run_bounded_command", fake_run_bounded_command)
+    # CLIP has no staged base_models asset: the runner always resolves its cache
+    # from CLIP_DOWNLOAD_ROOT (or the managed checkpoint dir), never --weights-dir.
+    monkeypatch.setenv("CLIP_DOWNLOAD_ROOT", str(weights_dir / "clip"))
 
     exit_code = runner.main(
         [

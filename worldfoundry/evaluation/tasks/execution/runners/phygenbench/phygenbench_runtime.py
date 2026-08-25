@@ -12,6 +12,7 @@ from typing import Any, Mapping
 
 from worldfoundry.core.io.file_utils import materialize_file
 from worldfoundry.evaluation.tasks.execution.framework.official_runner import default_benchmark_timeout
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import VIDEO_SUFFIXES
 from worldfoundry.evaluation.tasks.execution.runners.phygenbench.phygenbench_prompts import (
     load_prompt_records,
     official_video_filename_for_record,
@@ -60,7 +61,6 @@ def resolve_phyvideos_dir(
     resolved_model = model_name or os.environ.get("WORLDFOUNDRY_PHYGENBENCH_MODEL_NAME") or "worldfoundry"
     return (root / "PhyVideos" / resolved_model).resolve()
 
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 
 
 @dataclass(frozen=True)

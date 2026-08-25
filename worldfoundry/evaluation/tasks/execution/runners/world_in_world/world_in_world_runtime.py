@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from worldfoundry.core.io import materialize_file
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import VIDEO_SUFFIXES
 from worldfoundry.evaluation.tasks.execution.runners.world_in_world.world_in_world_official_runtime import (
     run_official_world_in_world_runtime,
 )
@@ -36,7 +37,6 @@ def discover_metrics_json(search_roots: list[Path]) -> Path | None:
             return matches[-1]
     return None
 
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 
 
 @dataclass(frozen=True)

@@ -12,6 +12,7 @@ from typing import Any, Mapping
 
 from worldfoundry.core.io import materialize_file
 from worldfoundry.core.process import read_text_tail, run_logged_subprocess
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import VIDEO_SUFFIXES
 from worldfoundry.evaluation.tasks.execution.runners.ewmbench.ewmbench_metrics import METRIC_SPECS
 from worldfoundry.evaluation.tasks.execution.runners.ewmbench.ewmbench_paths import resolve_ewmbench_root
 from worldfoundry.evaluation.tasks.execution.runners.ewmbench.ewmbench_prompts import (
@@ -83,7 +84,6 @@ def discover_official_results(search_roots: list[Path]) -> Path | None:
                 return matches[-1]
     return None
 
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 
 
 @dataclass(frozen=True)

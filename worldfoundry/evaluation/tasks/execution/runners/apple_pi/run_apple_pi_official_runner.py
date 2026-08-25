@@ -8,6 +8,10 @@ imported with ``--official-results-path`` for reproducibility and comparison.
 
 from __future__ import annotations
 
+
+
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
+
 import argparse
 import json
 import math
@@ -20,7 +24,6 @@ from typing import Any, Mapping
 from worldfoundry.evaluation.tasks.execution.framework.io import utc_now_iso, write_json, write_jsonl
 
 BENCHMARK_ID = "apple-pi"
-SCORECARD_SCHEMA_VERSION = "worldfoundry-scorecard"
 SUBTRACKS = (
     "perception_text",
     "perception_graphic",

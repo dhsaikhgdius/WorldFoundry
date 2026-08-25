@@ -218,6 +218,7 @@ def _latest_result_file(config_path: Path, dimensions: list[str]) -> Path:
 
 def _require_prepared_dataset_layout(config_path: Path, dimensions: list[str]) -> None:
     """Reject flat output folders that the upstream task hierarchy cannot identify."""
+
     import yaml
 
     cfg = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}

@@ -11,7 +11,6 @@ from worldfoundry.evaluation.api import GenerationRequest, GenerationResult
 from worldfoundry.evaluation.tasks.execution.runners.ewmbench.ewmbench_paths import load_task_manifest
 from worldfoundry.evaluation.utils import write_jsonl
 
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 
 
 def load_prompt_records(*, task_manifest_path: Path | None = None) -> list[dict[str, Any]]:

@@ -15,6 +15,7 @@ from worldfoundry.evaluation.tasks.execution.framework.benchmark_assets import (
     bundled_benchmark_assets_root,
 )
 from worldfoundry.evaluation.tasks.execution.framework.io import utc_now_iso, write_json, write_jsonl  # noqa: E402
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
 from worldfoundry.evaluation.tasks.execution.runners.phyfps_bench_gen.phyfps_metrics import (
     METRIC_ORDER,
     METRIC_SPECS,
@@ -37,9 +38,7 @@ from worldfoundry.evaluation.tasks.execution.runners.phyfps_bench_gen.visual_chr
 )
 from worldfoundry.evaluation.utils import REPO_ROOT
 
-SCORECARD_SCHEMA_VERSION = "worldfoundry-scorecard"
 BENCHMARK_ID = "phyfps-bench-gen"
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:

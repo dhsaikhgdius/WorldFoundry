@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from worldfoundry.evaluation.tasks.execution.framework.io import utc_now_iso, write_json, write_jsonl
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION
 from worldfoundry.evaluation.tasks.execution.runners.evalcrafter.evalcrafter_metrics import (
     METRIC_ORDER,
     METRIC_SPECS,
@@ -34,7 +35,6 @@ from worldfoundry.evaluation.tasks.execution.runners.evalcrafter.evalcrafter_run
 )
 from worldfoundry.evaluation.utils import benchmark_task_sample_path
 
-SCORECARD_SCHEMA_VERSION = "worldfoundry-scorecard"
 BENCHMARK_ID = "evalcrafter"
 DISPLAY_NAME = "EvalCrafter"
 INPUT_KEYS = ("generated_video_dir", "prompt700_txt", "official_results_path")

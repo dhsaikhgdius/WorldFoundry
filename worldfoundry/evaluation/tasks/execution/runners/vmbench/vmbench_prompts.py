@@ -13,11 +13,11 @@ from worldfoundry.evaluation.tasks.execution.framework.benchmark_assets import (
     bundled_benchmark_assets_root,
 )
 from worldfoundry.evaluation.tasks.execution.framework.io import write_json
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import VIDEO_SUFFIXES
 
 BENCHMARK_ID = "vmbench"
 PROMPT_SUITE_REL = Path("prompts/prompts.json")
 CANONICAL_PROMPT_COUNT = 1050
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 
 
 def _env_path(name: str) -> Path | None:

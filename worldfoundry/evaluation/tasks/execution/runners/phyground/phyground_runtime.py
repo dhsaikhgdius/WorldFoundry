@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from worldfoundry.core.io import materialize_file
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import VIDEO_SUFFIXES
 from worldfoundry.evaluation.tasks.execution.runners.phyground.phyground_prompts import (
     load_prompt_records,
     resolve_phyground_root,
@@ -15,7 +16,6 @@ from worldfoundry.evaluation.tasks.execution.runners.phyground.phyground_prompts
     unique_generation_records,
 )
 
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 
 
 @dataclass(frozen=True)

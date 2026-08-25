@@ -18,6 +18,7 @@ from worldfoundry.base_models.llm_mllm_core.mllm.videocon_physics.constants impo
     PROMPT_VTA,
 )
 from worldfoundry.evaluation.tasks.execution.framework.official_runner import default_benchmark_timeout
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import VIDEO_SUFFIXES
 from worldfoundry.evaluation.tasks.execution.runners.videophy.videophy_prompts import (
     load_prompt_records,
     official_video_filename_for_record,
@@ -26,7 +27,6 @@ from worldfoundry.evaluation.tasks.execution.runners.videophy.videophy_prompts i
     unique_generation_records,
 )
 
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 
 
 @dataclass(frozen=True)

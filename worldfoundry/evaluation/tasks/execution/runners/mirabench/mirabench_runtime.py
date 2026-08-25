@@ -12,6 +12,7 @@ from typing import Any, Mapping
 
 from worldfoundry.core.io import materialize_file
 from worldfoundry.core.process import read_text_tail, run_logged_subprocess
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import VIDEO_SUFFIXES
 from worldfoundry.evaluation.tasks.execution.runners.mirabench.mirabench_metrics import METRIC_ORDER, METRIC_SPECS
 from worldfoundry.evaluation.tasks.execution.runners.mirabench.mirabench_prompts import (
     load_prompt_records,
@@ -63,7 +64,6 @@ def resolve_ckpt_path(*, repo_root: Path | None = None) -> Path:
         return Path("data/ckpt")
     return (root / "data" / "ckpt").resolve()
 
-VIDEO_SUFFIXES = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
 
 
 @dataclass(frozen=True)

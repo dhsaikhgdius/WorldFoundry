@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+
+
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
+
 import argparse
 import json
 import math
@@ -26,7 +30,6 @@ IN_TREE_VBENCH2_ROOT = RUNNERS_ROOT / "vbench_2_0" / "runtime"
 DEFAULT_VBENCH_ROOT = IN_TREE_VBENCH_PLUS_PLUS_ROOT
 VBENCH_FULL_INFO_ASSET = bundled_benchmark_asset("vbench", "VBench_full_info.json")
 VBENCH_PROMPTS_ASSET_ROOT = bundled_benchmark_asset("vbench", "prompts")
-SCORECARD_SCHEMA_VERSION = "worldfoundry-scorecard"
 VIDEO_EXTENSIONS = frozenset({".mp4", ".gif", ".mov", ".mkv", ".avi", ".webm", ".m4v"})
 VBENCH2_HF_DATASETS = (
     "Vchitect/VBench-2.0_sampled_videos",
