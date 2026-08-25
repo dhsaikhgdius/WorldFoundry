@@ -1,135 +1,106 @@
 ---
 title: LIBERO
-description: LIBERO — 指标、依赖与运行命令。
+description: 覆盖四个任务套件的终身机器人学习基准，仓内提供闭环仿真接线与官方结果归一化。
 ---
 
-## 简介
+## 关于
 
+LIBERO（LIfelong learning BEnchmark on RObot manipulation）评测终身/多任务机器人学习中的知识迁移。它定义了 130 个语言条件操作任务，按迁移维度组织为若干套件：LIBERO-Spatial（空间关系）、LIBERO-Object（物体类型）、LIBERO-Goal（任务目标）、LIBERO-100（拆分为 LIBERO-10 与 LIBERO-90，分别用于长时程与预训练混合）。策略在 robosuite/MuJoCo 仿真器中按 rollout 成功率打分。
 
+WorldFoundry 通过仓内闭环仿真适配器 `worldfoundry/evaluation/tasks/embodied/simulators/libero/`（套件别名 `libero-spatial`、`libero-object`、`libero-goal`、`libero-10`、`libero-90`）以及官方结果归一化器集成 LIBERO。catalog 校验状态为 `normalizer_only`：结果导入已验证，完整 leaderboard 对齐仍需要带仿真 assets 的 LIBERO/OpenVLA 对照运行记录。
 
-LIBERO 是语言条件机器人操作的 lifelong benchmark，覆盖 spatial、object、goal 与 long-horizon 任务套件。
+官方来源：
 
+- 论文：[arXiv:2306.03310](https://arxiv.org/abs/2306.03310)
+- 项目主页：[libero-project.github.io](https://libero-project.github.io/)
+- 官方仓库：[Lifelong-Robot-Learning/LIBERO](https://github.com/Lifelong-Robot-Learning/LIBERO)（固定 `8f1084e3`）
+- 许可：MIT
 
+## 仓内路径
+
+- Catalog：`worldfoundry/data/benchmarks/catalog/embodied/libero.yaml`
+- 任务清单：`worldfoundry/data/benchmarks/tasks/external/libero.yaml`
+- 运行时 profile：`worldfoundry/data/benchmarks/runtime_profiles/official/libero.yaml`
+- 仿真适配器：`worldfoundry/evaluation/tasks/embodied/simulators/libero/`
+- 闭环 eval config：`worldfoundry/data/benchmarks/eval_configs/embodied/libero/{spatial,object,goal,10,90,all}.yaml`
+- 结果归一化器：`worldfoundry.evaluation.tasks.embodied.normalizer`（track `vla`）
+
+## 评测协议与数据布局
+
+结果导入侧，embodied normalizer 接受 JSON、JSONL、CSV、TSV 及 `result.txt` 风格日志。行记录按 `success`、`success_rate`、`task_success`、`episode_success`、`action_accuracy` 等数值字段匹配；布尔值与百分比字符串会被强制转换为 [0,1] 浮点数，episode 标识从 `sample_id`/`episode_id`/`task_id`/`task`/`id`/`name` 中读取。
+
+内置 `spatial.yaml` eval config 以 seed 7 运行 `libero_spatial` 套件，仿真器预热 10 步，最多 10 个任务、每任务 50 个 episode，并要求 `ws://localhost:8000` 上有外部 policy server。其余套件 config 结构相同，只是套件不同。
 
 ## 指标
 
-LIBERO external benchmark task manifest for language-conditioned robot manipulation policy rollouts.
+主指标（scorecard 主键）：`success_rate`。
 
-### Task YAML
-
-`worldfoundry/data/benchmarks/tasks/external/libero.yaml`
-
-### Primary
-
-- `success_rate`
-
-| Metric | 关注点 |
+| 指标 | 含义 |
 | --- | --- |
-| `success_rate` | episode / task 是否成功完成的比例或成功率。 |
-| `task_success` | episode / task 是否成功完成的比例或成功率。 |
-| `episode_success` | episode / task 是否成功完成的比例或成功率。 |
-| `action_accuracy` | 预测动作、状态或结果相对 benchmark 成功标准的正确性。 |
+| `success_rate` | 成功完成的 rollout 占比；leaderboard 主值。 |
+| `task_success` | 按任务聚合的成功率。 |
+| `episode_success` | 单 episode 的二值成功。 |
+| `action_accuracy` | 有上报时，预测动作与参考动作的一致度。 |
 
+成功类指标经共享 registry 的 `percent_or_fraction_to_unit` 归一化；不涉及视频生成类指标。
 
-
-## 环境准备
-
-### 运行环境
-
-- **Conda 环境：** `giga-world-policy-py311`。
-- **单独配置：** 默认复用 WorldFoundry 统一环境（`needs_new_env: false`），通常不需要额外 benchmark-only conda env。
-- LIBERO Python 包可见；完整状态还需要 policy checkpoint、suite 选择和官方 rollout 结果。
-
-### 测评数据
-
-- 待测模型输出目录：设置 `WORLDFOUNDRY_LIBERO_RESULTS_PATH` 指向生成视频或 rollout artifact 根目录。
-- `${WORLDFOUNDRY_HFD_DATASET_ROOT}/yifengzhu-hf__LIBERO-datasets`
-- `${WORLDFOUNDRY_HFD_DATASET_ROOT}/lerobot__libero`
-- `${WORLDFOUNDRY_CACHE_DIR}/repos/Lifelong-Robot-Learning--LIBERO`
-
-### Checkpoint 与资产
-
-- Base-model / metric 依赖：`libero_source_assets`, `libero_dataset_assets`。
-- Metric / evaluator checkpoint 默认路径与覆盖变量见 [local assets 指南](/zh/docs/guides/local-assets)。
-
-### 关键环境变量
-
-- `WORLDFOUNDRY_LIBERO_ROOT`
-- `WORLDFOUNDRY_LIBERO_RESULTS_PATH`
-
-### 环境检查
+## 准备命令与环境变量
 
 ```bash
-PYTHONPATH=${WORLDFOUNDRY_CACHE_DIR}/repos/Lifelong-Robot-Learning--LIBERO:src ${WORLDFOUNDRY_CONDA_ENVS_ROOT}/worldfoundry-giga-world-policy-py311/bin/python -m worldfoundry.evaluation.tasks.execution.orchestration.runtime_preflight --profile libero --manifest worldfoundry/data/benchmarks/runtime_profiles/official/libero.yaml --output-dir tmp/worldfoundry_preflight/libero --json
+cd /path/to/WorldFoundry
+export WORLDFOUNDRY_LIBERO_ROOT=/path/to/LIBERO            # 官方 checkout，缓存于 cache/vla_va_wam/repos/Lifelong-Robot-Learning--LIBERO
+export WORLDFOUNDRY_LIBERO_RESULTS_PATH=/path/to/libero_results.json
 ```
 
+闭环 rollout 需要 LIBERO 包（按运行时 profile 在统一环境中可导入）、LIBERO 数据集根目录或 LeRobot 转换版本，以及通过 WebSocket 提供动作的套件级策略 checkpoint。
 
-
-## 运行评测
-
-
-
-准备好该 benchmark 页面列出的资产和候选产物后，使用下面的公开运行入口。
-
-### 设置候选产物目录
+不启动仿真器、仅校验运行时接线：
 
 ```bash
-export WORLDFOUNDRY_GENERATED_ARTIFACT_DIR=/path/to/generated/artifacts
+python -m worldfoundry.evaluation.tasks.execution.orchestration.runtime_preflight \
+  --profile libero \
+  --manifest worldfoundry/data/benchmarks/runtime_profiles/official/libero.yaml \
+  --output-dir tmp/worldfoundry_preflight/libero \
+  --json
 ```
 
-### 导入已有官方结果
+## 导入官方结果（official-validation）
 
 ```bash
 worldfoundry-eval zoo benchmark-run \
   --benchmark-id libero \
-  --mode normalizer \
-  --official-results-path /path/to/official/results-or-report \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/libero/normalizer \
+  --mode official-validation \
+  --official-results-path "${WORLDFOUNDRY_LIBERO_RESULTS_PATH}" \
+  --output-dir tmp/libero/official-validation \
   --json
 ```
 
-### 从生成产物重新打分
+该路径在进程内走 embodied `vla` track normalizer，不执行任何仿真代码。
+
+## 闭环 rollout（原生仿真器）
+
+在 LIBERO 已安装、policy server 已启动的前提下：
 
 ```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id libero \
-  --mode official-run \
-  --generated-artifact-dir "${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}" \
-  --output-dir tmp/libero/official-run \
+worldfoundry-eval embodied run \
+  --config worldfoundry/data/benchmarks/eval_configs/embodied/libero/spatial.yaml \
+  --output-dir tmp/libero/embodied-run \
   --json
 ```
 
-### 直接调用仓内 runner
+换用 `object.yaml`、`goal.yaml`、`10.yaml`、`90.yaml` 或 `all.yaml` 可运行其它套件。支持 `--server-url`、`--shard-id`/`--num-shards`、`--no-docker`。
 
-```bash
-worldfoundry-eval embodied run --config worldfoundry/data/benchmarks/eval_configs/embodied/libero/spatial.yaml
-```
+## 输出
 
+- `scorecard.json`：WorldFoundry scorecard；leaderboard 块以 `success_rate` 为主键。
+- `raw_results.jsonl`：提取的原始结果行。
+- `evaluation/summary.json`：按指标聚合的统计。
+- `evaluation/per_sample_metrics.jsonl`：归一化后的逐 episode 行。
 
+## 不能声称的边界
 
-## 依赖与产物
+- catalog 状态为 `normalizer_only`，`leaderboard_valid: false`、`official_benchmark_verified: false`。导入的数字是调用方结果的归一化副本，不是官方复现的 leaderboard 值。
+- LIBERO 仿真 assets、数据集、策略 checkpoint 均未随仓库分发；闭环 rollout 需要外部安装 LIBERO 并运行 policy server。本页不声称任何本地 GPU rollout 证据。
+- catalog blocker：完整 leaderboard 对齐仍需带仿真 assets、策略 checkpoint 与上游证据的官方 LIBERO rollout。
 
-
-
-### Inputs
-
-- Upstream SAPIEN/Curobo simulator runtime
-- RoboTwin simulator assets
-- Policy checkpoint for selected upstream eval script
-- Official eval_result tree or structured result export
-
-### Environment
-
-- `WORLDFOUNDRY_LIBERO_RESULTS_PATH`
-
-### Outputs
-
-- `scorecard.json`
-- `run_manifest.json`
-- `results.jsonl`
-- `metrics/summary.json`
-
-
-
-[← 返回 Benchmark Hub](/zh/docs/evaluation/benchmark-hub)
+[← Benchmark Hub](/docs/evaluation/benchmark-hub)
