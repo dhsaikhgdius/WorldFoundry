@@ -114,6 +114,8 @@ def draw_handpose_new(canvas, keypoints, stickwidth_type='v2', hand_score_th=0.6
         stickwidth = max(int(min(H, W) / 200), 1)
     elif stickwidth_type == 'v2':
         stickwidth = max(max(int(min(H, W) / 200) - 1, 1) // 2, 1)
+    else:
+        raise ValueError(f"Unsupported stickwidth_type {stickwidth_type!r}; expected 'v1' or 'v2'.")
 
     edges = [
         [0, 1],
@@ -855,14 +857,13 @@ def draw_aapose_new(
     ]
 
     H, W, C = img.shape
-    H, W, C = img.shape
 
     if stickwidth_type == 'v1':
         stickwidth = max(int(min(H, W) / 200), 1)
     elif stickwidth_type == 'v2':
         stickwidth = max(int(min(H, W) / 200) - 1, 1)
     else:
-        raise
+        raise ValueError(f"Unsupported stickwidth_type {stickwidth_type!r}; expected 'v1' or 'v2'.")
 
     for _idx, ((k1_index, k2_index), color) in enumerate(zip(limbSeq, colors)):
         keypoint1 = kp2ds_body[k1_index - 1]
@@ -1022,13 +1023,29 @@ def draw_kp2ds(img, kp2ds, threshold=0, color=(255, 0, 0), skeleton=None, revers
 
 
 def draw_mask(img, mask, background=0, return_rgba=False):
+    """Composite ``img`` over ``background`` using ``mask`` as an alpha channel.
+
+    ``mask`` follows the 8-bit alpha convention (0 = fully background,
+    255 = fully foreground); boolean masks are also accepted.  When
+    ``return_rgba`` is True the mask is appended as the alpha channel of the
+    returned image.
+    """
     img = load_image(img)
     h, w, _ = img.shape
-    if type(background) == int:
+    if isinstance(background, int):
         background = np.ones((h, w, 3)).astype(np.uint8) * 255 * background
-    backgournd = cv2.resize(background, (w, h))
-    img_rgba = np.concatenate([img, mask], -1)
-    return alphaMerge(img_rgba, background, 0, 0, return_rgba=True)
+    background = cv2.resize(background, (w, h))[:, :, :3]
+    mask = np.asarray(mask)
+    if mask.ndim == 3:
+        mask = mask[:, :, 0]
+    if mask.dtype == bool:
+        mask = mask.astype(np.uint8) * 255
+    alpha = mask.astype(np.float32)[:, :, None] / 255.0
+    merged = img.astype(np.float32) * alpha + background.astype(np.float32) * (1.0 - alpha)
+    merged = np.clip(merged, 0, 255).astype(np.uint8)
+    if return_rgba:
+        return np.concatenate([merged, mask.astype(np.uint8)[:, :, None]], -1)
+    return merged
 
 
 def draw_pcd(pcd_list, save_path=None):

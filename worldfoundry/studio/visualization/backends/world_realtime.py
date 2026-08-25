@@ -22,7 +22,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field, replace
 from fractions import Fraction
 from pathlib import Path
-from typing import Any, Callable, Mapping
+from typing import Any, Callable, Coroutine, Mapping
 from urllib.parse import quote
 
 import numpy as np
@@ -1314,6 +1314,10 @@ class RealtimePeerManager:
         self._draining = False
         self._drain_done = asyncio.Event()
         self._drain_done.set()
+        # The event loop only keeps weak references to tasks; fire-and-forget
+        # cleanup tasks must be anchored here so they cannot be garbage
+        # collected mid-flight (RUF006).
+        self._background_tasks: set[asyncio.Task[Any]] = set()
         self._perf_log_interval_chunks = _env_int(
             "WORLDFOUNDRY_REALTIME_PERF_LOG_INTERVAL_CHUNKS",
             5,
@@ -1325,6 +1329,20 @@ class RealtimePeerManager:
             minimum=0,
         )
         self._perf_jsonl_path = os.environ.get("WORLDFOUNDRY_REALTIME_PERF_JSONL", "").strip() or None
+
+    def _spawn_background_task(self, coro: Coroutine[Any, Any, Any], *, name: str) -> asyncio.Task[Any]:
+        """Schedule a fire-and-forget coroutine while keeping a strong reference.
+
+        ``asyncio`` only keeps weak references to running tasks, so a bare
+        ``asyncio.create_task`` result can be garbage collected before it runs
+        to completion.  Anchoring the task in ``self._background_tasks`` (and
+        discarding it on completion, per the asyncio documentation) guarantees
+        cleanup work such as ``close_active`` is never silently dropped.
+        """
+        task = asyncio.create_task(coro, name=name)
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
+        return task
 
     @staticmethod
     def _positive_int_runtime_value(value: Any, *, label: str) -> int:
@@ -1867,7 +1885,7 @@ class RealtimePeerManager:
 
                 @channel.on("close")
                 def on_close() -> None:
-                    asyncio.create_task(self.close_active())
+                    self._spawn_background_task(self.close_active(), name="world-realtime-close-active")
 
                 active.generation_task = asyncio.create_task(self._generation_worker(active))
                 active.liveness_task = asyncio.create_task(self._liveness_watchdog(active))

@@ -3675,7 +3675,14 @@ class StudioManager:
             )
             recovered_previews = pick_preview_assets(persisted_artifacts, validate_videos=False)
 
-            def persisted_preview(key: str) -> Any:
+            def persisted_preview(
+                key: str,
+                *,
+                payload: Mapping[str, Any] = payload,
+                recovered_previews: Mapping[str, Any] = recovered_previews,
+            ) -> Any:
+                # Bind loop-scoped values via defaults so the closure stays
+                # correct even if RunRecord construction becomes deferred (B023).
                 configured = payload.get(key)
                 if configured:
                     try:

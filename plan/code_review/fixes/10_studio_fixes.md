@@ -98,6 +98,64 @@
 - **验证**：`py_compile` + `world_realtime` 真实导入通过；实机冒烟中 file 端点对白名单内 200 / 白名单外 404 行为符合预期。
 - **风险**：低。`path_allowed` 与被替换的手写判断同为 resolve-then-prefix 语义，未放宽；registered-artifact 路径保持精确匹配不受影响。
 
+## 第三轮定点修复（静态分析/横切报告点名的 studio 遗留项）
+
+> 分支 `cursor/studio-remaining-fixes-2f62`。条目编号对应 `plan/code_review/13_static_analysis.md`（SA-*）与 `plan/code_review/12_cross_cutting.md`（XC-*）。每条附回归测试；测试文件位于 `tests/studio/` 与 `tests/studio_visualization/`。
+
+### SA-3 (P2) human_pose.py `draw_mask` 调用不存在的 `alphaMerge` + resize 结果被拼写错误丢弃 — 已修
+
+- **文件**：`worldfoundry/studio/visualization/plugins/perception/human_pose.py`
+- **问题确认**（改前）：`backgournd = cv2.resize(...)` 赋给死变量（F841）；`return alphaMerge(...)` 调用全库不存在的符号（F821）——函数一被调用即 NameError；且 `return_rgba` 形参被硬编码 `True` 忽略。
+- **修复**：仓库无通用"全图 alpha 合成"工具（`core/io/artifacts.py:overlay_rgba_icon` 是定位/缩放的 icon 贴图语义，不匹配），改为函数内直接实现标准 alpha 合成（numpy 4 行）：mask 按 8-bit alpha 约定（0=背景，255=前景；bool mask 也接受，HxWx1 自动压平），`background` int 路径保留原 `np.ones*255*background` 语义（0=黑/1=白），图像 background 修正拼写后真正被 resize 且参与合成；`return_rgba` 现按形参生效（True 时把 mask 拼为 alpha 通道）。
+- **测试**：`tests/studio_visualization/test_human_pose_regressions.py::TestDrawMask` 7 例——黑/白背景合成、半透明线性混合、**背景尺寸不匹配时被 resize（原 bug 回归点）**、HxWx1/bool mask、return_rgba 形状与 alpha 值。
+
+### SA-6 (P2) human_pose.py 裸 `raise` 不在 except 内 — 已修
+
+- **文件**：同上，`draw_aapose_new` 的 `stickwidth_type` 分支（原 865 行）。
+- **修复**：`raise` → `raise ValueError(f"Unsupported stickwidth_type {stickwidth_type!r}; expected 'v1' or 'v2'.")`；同函数顺带删除紧邻的重复 `H, W, C = img.shape`（完全相同的相邻两行）。`draw_handpose_new`（95 行起）同一模式缺 else 分支（非法值 → UnboundLocalError），补同样的 ValueError。
+- **测试**：`tests/studio_visualization/test_human_pose_regressions.py::TestStickwidthTypeValidation` 6 例——两函数非法值抛 ValueError（match "stickwidth_type"）、v1/v2 正常路径不回归。
+
+### SA-5 (P3) workspace_app.py 循环变量 `field` 遮蔽 `dataclasses.field` — 已修
+
+- **文件**：`worldfoundry/studio/workspace_app.py`
+- **修复**：全部 Python 级 `field` 绑定改名 `input_field`（choice 查表处一处改 `choice_field`），共 13 处 for/推导式/赋值绑定；模块级 `from dataclasses import ... field ...` 及 `field(default_factory=dict)` 用法不变；HTML 模板字符串内的 JavaScript `field` 标识符（非 Python 绑定）不动。
+- **测试**：`tests/studio/test_workspace_app_field_shadowing.py`——AST 断言全文件无名为 `field` 的 Store 绑定/形参；导入后 `workspace_app.field is dataclasses.field`。
+
+### SA-7 (P2) world_realtime.py fire-and-forget `asyncio.create_task` 未保存引用（RUF006）— 已修（studio 侧）
+
+- **文件**：`worldfoundry/studio/visualization/backends/world_realtime.py`
+- **问题确认**（改前）：WebRTC DataChannel `on_close` 回调内 `asyncio.create_task(self.close_active())` 未保存返回 Task——事件循环仅弱引用任务，会话清理可能被 GC 中途吞掉；同文件其余 create_task 均已挂在 `active.*`/局部变量上。
+- **修复**：`RealtimePeerManager.__init__` 增加 `self._background_tasks: set[asyncio.Task]`；新增 `_spawn_background_task(coro, name=...)`（官方文档推荐模式：add + done 回调 discard）；`on_close` 改走该 helper。SA-7 点名的另一处 `cli/tui_app.py:839` 属 cli 目录，超出本次 studio 边界，未动。
+- **测试**：`tests/studio_visualization/test_world_realtime_background_tasks.py` 3 例——任务在飞行中被强引用、完成后被 discard、异常任务同样被 discard；另有 AST 回归断言全文件无"裸 `asyncio.create_task(...)` 表达式语句"。
+
+### SA-8 (P2) workspace_app 多线程服务内 `subprocess.Popen(preexec_fn=os.setsid)` — 已修
+
+- **文件**：`worldfoundry/studio/workspace_app.py`（visualizer 启动 Popen，原 768 行）
+- **背景**：第一轮 ST-8 修的是 shutdown 清理；SA-8 的 `preexec_fn` 线程安全问题（CPython 文档明确多线程程序不安全，此 Popen 跑在 FastAPI 线程池内）当时未覆盖，本轮补上。
+- **修复**：`preexec_fn=os.setsid if hasattr(os, "setsid") else None` → `start_new_session=hasattr(os, "setsid")`（等效 setsid、fork 后不执行 Python 代码；子进程仍是新进程组组长，`_terminate_process_group` 的 killpg 语义不变；Windows 上 hasattr 为 False 与原行为一致）。
+- **测试**：`tests/studio/test_workspace_app_subprocess_safety.py`——AST 断言全文件无 `preexec_fn` 关键字实参 + `start_new_session` 存在。
+
+### SA-9 (P3, studio 半) execution.py `persisted_preview` 闭包捕获循环变量（B023）— 已修
+
+- **文件**：`worldfoundry/studio/execution.py`（`StudioManager.list_recent_runs` 内闭包）
+- **修复**：按报告建议改默认参数绑定：`payload`/`recovered_previews` 以 keyword-only 默认值在 def 时刻绑定，未来 RunRecord 构造若改为延迟/并行执行不会串成最后一次迭代的值。当前行为零变化。SA-9 的另一处（`evaluation/.../model_benchmark_suite.py`）在 evaluation 目录，超出本次边界，未动。
+- **测试**：`tests/studio/test_execution_recent_runs_previews.py`——两个 run 各带独立 preview 的 manifest，断言 `list_recent_runs` 返回的 preview 按 run 隔离不串扰。
+
+### XC-2 (P2) hed_annotator.py 裸 `torch.load` — 已在先前提交修复，本轮验证后跳过
+
+- **证据**：`worldfoundry/studio/visualization/plugins/perception/hed_annotator.py:81-83` 现为 `from worldfoundry.core.checkpoint.safe_loading import load_tensor_state_dict` + `load_tensor_state_dict(modelpath, map_location="cpu")`（weights_only 安全路径）；`git log` 显示由 commit `b92eb890`（"refactor(eval): deduplicate runner helpers and harden integrations"）落地。rg 复核 `worldfoundry/studio/` 下（排除 vendored `native/world_explorer/`）无其它裸 `torch.load`。`native/world_explorer/api/lyra_persistent.py:153` 的 `weights_only=False` 属 vendored 子树（ruff exclude 同一口径），不在 XC-2 范围，未动。
+
+### 本轮核查后不修（记录理由）
+
+- **SA-15 第 5 项**（`pixelsplat_full/encoder_visualization/encoder_visualizer_epipolar.py` 死代码删除）：报告要求"与 owner 确认后删除"，且 ST-9 的教训（评审"零引用"结论可能过时）表明删除类改动需 owner 决策，跳过。
+- **10_studio.md Deferred 复核**：ST-2（pyproject，按任务安排不动）、ST-9（world.py，`tests/studio_visualization/test_backends_frontends_viser_world.py` 仍实例化 `WorldSession` 等符号，不删）、ST-7 多用户隔离与 ST-1 缓存头统一（设计级，维持 deferred）。
+
+### 第三轮验证汇总
+
+- `PYTHONPYCACHEPREFIX=/tmp/pycache python3 -m py_compile` 通过：`human_pose.py`、`workspace_app.py`、`world_realtime.py`、`execution.py`。
+- 新增回归测试 5 个文件共 20 例全过（本机 CPU，python3.12 + CPU torch）：`test_human_pose_regressions.py` 12、`test_world_realtime_background_tasks.py` 3、`test_workspace_app_field_shadowing.py` 2、`test_workspace_app_subprocess_safety.py` 2、`test_execution_recent_runs_previews.py` 1。
+- 相关既有套件回归数字见 PR 描述（`tests/studio/` 与 `tests/studio_visualization/` 全量）。
+
 ## Deferred / 未修复
 
 ### ST-2 (P3) pyproject `ui` extra 与 studio 实际依赖不符
