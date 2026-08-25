@@ -359,3 +359,4 @@ embodied docker_runner / 镜像 digest：前几轮，本轮 OR 不重复。
   [docs/env/thirdparty](bc-3d049994-ee98-5465-8177-d18b149c896f)  §6 DE-01~14
   [official_runner](bc-e8d9e476-2c63-520e-adf5-5cdf601de7aa)  §5 OR-01~11
   core I/O（主会话）  §3 IO-01~06
+续篇：plan/infra_optimization_plan_round6.txt（Studio/CLI/operators、training sessions、embodied）
