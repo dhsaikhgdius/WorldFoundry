@@ -32,3 +32,19 @@ catalog_category: three_d_four_d
 catalog_scope: 3D Gaussian-splatting catalog entries. Integrated entries expose in-tree
   WorldFoundry runtimes; metadata-only entries retain upstream provenance without runnable
   backends.
+docs:
+  publisher: Massachusetts Institute of Technology (MIT)
+  publisher_kind: university
+  publisher_zh: 麻省理工学院（MIT）
+  overview: pixelSplat reconstructs a 3D Gaussian-splat scene from just two images in a single forward pass — feed-forward 3DGS rather than per-scene optimization (CVPR 2024). In this catalog the runtime source is vendored in-tree, but inference stays blocked until a local Gaussian rasterization extension is provided and the re10k.ckpt checkpoint is staged.
+  overview_zh: pixelSplat 仅凭两张图像即可在单次前向中重建 3D 高斯泼溅场景——前馈式 3DGS，而非逐场景优化（CVPR 2024）。本 catalog 中其运行时源码已内置树内，但在本地提供高斯光栅化扩展并就位 re10k.ckpt checkpoint 之前，推理保持受限。
+  architecture: Per the publication, an epipolar transformer resolves scale ambiguity between the two views, and the network predicts a probabilistic distribution over Gaussian parameters. WorldFoundry vendors the source under base_models/three_dimensions/point_clouds/pixelsplat with a lazy wrapper around the official test entrypoint (MIT license; checkpoint mirror dylanebert/pixelSplat).
+  architecture_zh: 按论文，极线 Transformer 消解两视图间的尺度歧义，网络预测高斯参数的概率分布。 WorldFoundry 将源码内置于 base_models/three_dimensions/point_clouds/pixelsplat，并对官方测试入口做惰性封装（MIT 许可；checkpoint 镜像 dylanebert/pixelSplat）。
+  usage_notes: PixelSplatSynthesis wraps the official test entrypoint but fails fast without the local Gaussian rasterization extension and the staged re10k.ckpt. Build/stage both before submitting jobs.
+  usage_notes_zh: PixelSplatSynthesis 封装官方测试入口，但缺少本地高斯光栅化扩展与就位的 re10k.ckpt 时会快速失败。提交任务前请先编译/就位两者。
+  limitations:
+  - Inference is blocked until a local Gaussian rasterization extension is compiled and re10k.ckpt is staged.
+  - Trained on RealEstate10K-style two-view input; generalization beyond that domain is limited.
+  limitations_zh:
+  - 在本地编译高斯光栅化扩展并就位 re10k.ckpt 之前无法推理。
+  - 训练数据为 RealEstate10K 风格的双视图输入；跨域泛化有限。

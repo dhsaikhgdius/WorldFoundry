@@ -47,3 +47,21 @@ catalog_policy:
   - open_weights_restricted
   - api_or_closed
   - unknown
+docs:
+  publisher: Huazhong University of Science and Technology (HUSTVL)
+  publisher_kind: university
+  publisher_zh: 华中科技大学（HUSTVL）
+  overview: '4D-GS (4D Gaussian Splatting) extends Gaussian splatting to dynamic scenes: one set of Gaussians plus a deformation field renders a moving scene in real time. In this catalog it is a provenance-only entry — the official workflow trains per-scene from prepared dynamic-scene datasets, so there is no prompt-in/video-out inference to expose.'
+  overview_zh: 4D-GS（4D 高斯泼溅）把高斯泼溅扩展到动态场景：一组高斯加一个形变场即可实时渲染运动场景。在本 catalog 中它是仅记录溯源的条目——官方工作流需要用准备好的动态场景数据逐场景训练，因此没有可暴露的「输入提示词、输出视频」式推理。
+  architecture: Per the publication (arXiv 2310.08528), 4D-GS couples 3D Gaussians with a HexPlane-inspired deformation field that displaces Gaussians over time, achieving real-time dynamic rendering. This repository records only the upstream metadata and the intended generated_4d_scene artifact type.
+  architecture_zh: 按论文（arXiv 2310.08528），4D-GS 将 3D 高斯与受 HexPlane 启发的形变场耦合，让高斯随时间位移，实现动态场景实时渲染。本仓库仅记录上游元数据与预期的 generated_4d_scene 产物类型。
+  usage_notes: 'Not runnable here: the entry is hidden from Studio job submission until a real in-tree infer-only artifact path exists. Use the upstream repository (hustvl/4DGaussians) directly if you need to train and render dynamic scenes today.'
+  usage_notes_zh: 此处不可运行：在真正的树内仅推理产物路径出现之前，该条目在 Studio 任务提交中隐藏。当下如需训练与渲染动态场景，请直接使用上游仓库（hustvl/4DGaussians）。
+  limitations:
+  - 'This entry is blocked: WorldFoundry tracks upstream source metadata only, and no runnable in-tree pipeline is registered.'
+  - It records provenance for CLI inspection; the docs site hides blocked 3D/4D entries from the catalog browser.
+  - 'The official workflow is reconstruction/training-first: prepared scene data is optimized into a model before rendering, which is why no infer-only Studio route exists.'
+  limitations_zh:
+  - 该条目处于 blocked 状态：WorldFoundry 仅跟踪上游源码元数据，没有注册可运行的树内 pipeline。
+  - 它的作用是为 CLI 检查记录溯源；文档站的 catalog 浏览器会隐藏 blocked 的 3D/4D 条目。
+  - 官方工作流以重建/训练为先：先用准备好的场景数据优化出模型再渲染，因此不存在仅推理的 Studio 路径。

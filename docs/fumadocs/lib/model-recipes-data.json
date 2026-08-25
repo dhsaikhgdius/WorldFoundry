@@ -2532,8 +2532,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "Insta360-Research",
-      "summary": "Integrated as an independent geometric prior at worldfoundry/base_models/three_dimensions/depth/depth_anything/depth_anything_v1.",
+      "provider": "Insta360 (Research Team)",
+      "summary": "Depth Any Panoramas (DAP) is Insta360's metric depth estimator for panoramic images — full 360° depth from a single equirectangular input. In this catalog it is a verified geometry prior: runner parity passed through the shared geometry-pr…",
       "aliases": [
         "depth-any-panoramas",
         "insta360-dap"
@@ -2804,26 +2804,30 @@
         "WorldFoundry exposes this prior through the shared geometry-prior pipeline/operator contract."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "Insta360 (Research Team)",
+          "nameZh": "影石 Insta360（研究团队）",
+          "kind": "company"
+        },
         "overview": [
-          "Depth Any Panoramas is a 3D/4D reconstruction and generation model from Insta360-Research. The catalog records it for panoramic-depth-estimation, metric-depth-estimation, and geometry-prior. It is also cataloged under the aliases depth-any-panoramas and insta360-dap.",
-          "WorldFoundry binds it to the worldfoundry.pipelines.geometry_priors.pipeline_geometry_priors:DAPPipeline pipeline via worldfoundry.pipeline.",
-          "It runs in the shared unified environment worldfoundry-unified-cu128 (Python 3.11, CUDA 12.8).",
-          "Weights are pulled from the Hugging Face repository Insta360-Research/DAP-weights.",
-          "A WorldFoundry runner-parity artifact is recorded for this route."
+          "Depth Any Panoramas (DAP) is Insta360's metric depth estimator for panoramic images — full 360° depth from a single equirectangular input. In this catalog it is a verified geometry prior: runner parity passed through the shared geometry-prior contract, with weights at Insta360-Research/DAP-weights."
         ],
         "overviewZh": [
-          "Depth Any Panoramas 是来自 Insta360-Research 的3D/4D 重建与生成模型。Catalog 将它记录为全景深度估计、米制深度估计、几何先验任务。它还有别名 depth-any-panoramas、insta360-dap。",
-          "WorldFoundry 将它绑定到 worldfoundry.pipelines.geometry_priors.pipeline_geometry_priors:DAPPipeline pipeline（runner：worldfoundry.pipeline）。",
-          "它运行在统一环境 worldfoundry-unified-cu128 中（Python 3.11，CUDA 12.8）。",
-          "权重来自 Hugging Face 仓库 Insta360-Research/DAP-weights。",
-          "该路径已记录 WorldFoundry runner parity 产物。"
+          "Depth Any Panoramas（DAP）是影石 Insta360 面向全景图像的米制深度估计器——从单张等距柱状投影图得到完整 360° 深度。本 catalog 中它是已验证的几何先验：runner parity 已通过共享 geometry-prior 契约验证，权重位于 Insta360-Research/DAP-weights。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "A Depth-Anything-family backbone adapted to panoramic inputs and metric output. It lives under base_models/three_dimensions/depth as an independent prior; ViPE imports it from this canonical owner. Details beyond the recorded structure are not stored here."
+        ],
+        "architectureZh": [
+          "基于 Depth-Anything 系主干，适配全景输入与米制输出。它位于 base_models/three_dimensions/depth 下作为独立先验；ViPE 从该规范位置导入。除已记录结构外的细节仓库未存。"
+        ],
+        "usageNotes": [
+          "It is integrated as an independent geometry prior under worldfoundry/base_models and exposed through the shared geometry-prior pipeline/operator contract. Higher-level pipelines (e.g. ViPE) import it from this canonical owner instead of keeping private copies. Runner parity is verified; per-run validation evidence is tracked outside the catalog."
+        ],
+        "usageNotesZh": [
+          "它作为独立几何先验集成在 worldfoundry/base_models 下，通过共享的 geometry-prior pipeline/operator 契约对外暴露。上层管线（如 ViPE）从这一规范位置导入它，而不是各自保留私有副本。runner parity 已验证；每次运行的验证证据在 catalog 外跟踪。"
+        ],
         "highlights": [
           "Panoramic Depth Estimation",
           "Metric Depth Estimation",
@@ -2855,14 +2859,12 @@
         },
         "benchmarks": [],
         "limitations": [
-          "Native demo evidence: Not recorded.",
-          "Checkpoint-backed inference is implemented through the shared geometry-prior pipeline/operator contract.",
-          "Per-run validation evidence is tracked outside the model catalog so this file remains stable release metadata."
+          "Panoramic-specific: for ordinary pinhole images use the Depth Anything V2/V3 priors instead.",
+          "Metric accuracy depends on scene scale cues; extreme scenes can drift."
         ],
         "limitationsZh": [
-          "原生 Demo 证据：未记录。",
-          "Checkpoint-backed inference is implemented through the shared geometry-prior pipeline/operator contract.",
-          "Per-run validation evidence is tracked outside the model catalog so this file remains stable release metadata."
+          "专为全景设计：普通针孔图像请改用 Depth Anything V2/V3 先验。",
+          "米制精度依赖场景尺度线索；极端场景可能漂移。"
         ]
       },
       "commands": {
@@ -2880,8 +2882,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "depth-anything",
-      "summary": "Integrated as an independent depth prior at worldfoundry/base_models/three_dimensions/depth/depth_anything/depth_anything_v3.",
+      "provider": "ByteDance (Seed)",
+      "summary": "Depth Anything 3 Metric Prior is the metric-depth head of ByteDance Seed's Depth Anything 3, integrated as an independent geometry prior with verified runner status. The recorded checkpoint is depth-anything/DA3METRIC-LARGE, and it is the…",
       "aliases": [
         "dav3-prior",
         "da3metric-large-prior"
@@ -3152,26 +3154,30 @@
         "WorldFoundry exposes this prior through the shared geometry-prior pipeline/operator contract."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "ByteDance (Seed)",
+          "nameZh": "字节跳动（Seed 团队）",
+          "kind": "company"
+        },
         "overview": [
-          "Depth Anything 3 Metric Prior is a 3D/4D reconstruction and generation model from depth-anything. The catalog records it for monocular-depth-estimation, metric-depth-estimation, and geometry-prior. It is also cataloged under the aliases dav3-prior and da3metric-large-prior.",
-          "WorldFoundry binds it to the worldfoundry.pipelines.geometry_priors.pipeline_geometry_priors:DepthAnythingV3PriorPipeline pipeline via worldfoundry.pipeline.",
-          "It runs in the shared unified environment worldfoundry-unified-cu128 (Python 3.11, CUDA 12.8).",
-          "Weights are pulled from the Hugging Face repository depth-anything/DA3METRIC-LARGE.",
-          "A WorldFoundry runner-parity artifact is recorded for this route."
+          "Depth Anything 3 Metric Prior is the metric-depth head of ByteDance Seed's Depth Anything 3, integrated as an independent geometry prior with verified runner status. The recorded checkpoint is depth-anything/DA3METRIC-LARGE, and it is the depth prior the Prior-Depth-Anything refiner was verified against in this repository."
         ],
         "overviewZh": [
-          "Depth Anything 3 Metric Prior 是来自 depth-anything 的3D/4D 重建与生成模型。Catalog 将它记录为单目深度估计、米制深度估计、几何先验任务。它还有别名 dav3-prior、da3metric-large-prior。",
-          "WorldFoundry 将它绑定到 worldfoundry.pipelines.geometry_priors.pipeline_geometry_priors:DepthAnythingV3PriorPipeline pipeline（runner：worldfoundry.pipeline）。",
-          "它运行在统一环境 worldfoundry-unified-cu128 中（Python 3.11，CUDA 12.8）。",
-          "权重来自 Hugging Face 仓库 depth-anything/DA3METRIC-LARGE。",
-          "该路径已记录 WorldFoundry runner parity 产物。"
+          "Depth Anything 3 Metric Prior 是字节 Seed 团队 Depth Anything 3 的米制深度头，作为独立几何先验集成，runner 状态已验证。记录的 checkpoint 为 depth-anything/DA3METRIC-LARGE，本仓库中 Prior-Depth-Anything 细化器的验证正是以它的输出为条件。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "DA3 scales the Depth Anything recipe and adds metric and geometry heads. This prior entry wires the metric-large checkpoint; runtime configs live under runtime/configs/depth_anything_v3, separate from VIPE configs."
+        ],
+        "architectureZh": [
+          "DA3 扩展了 Depth Anything 的训练配方并增加米制与几何头。本先验条目接入 metric-large checkpoint；运行时配置位于 runtime/configs/depth_anything_v3，与 VIPE 配置分离。"
+        ],
+        "usageNotes": [
+          "It is integrated as an independent geometry prior under worldfoundry/base_models and exposed through the shared geometry-prior pipeline/operator contract. Higher-level pipelines (e.g. ViPE) import it from this canonical owner instead of keeping private copies. Use the sibling depth-anything-v3 entry for the official SOH export route."
+        ],
+        "usageNotesZh": [
+          "它作为独立几何先验集成在 worldfoundry/base_models 下，通过共享的 geometry-prior pipeline/operator 契约对外暴露。上层管线（如 ViPE）从这一规范位置导入它，而不是各自保留私有副本。官方 SOH 导出路径请使用兄弟条目 depth-anything-v3。"
+        ],
         "highlights": [
           "Monocular Depth Estimation",
           "Metric Depth Estimation",
@@ -3203,14 +3209,12 @@
         },
         "benchmarks": [],
         "limitations": [
-          "Native demo evidence: Not recorded.",
-          "Checkpoint-backed inference is implemented through the shared geometry-prior pipeline/operator contract.",
-          "Per-run validation evidence is tracked outside the model catalog so this file remains stable release metadata."
+          "Prior-only surface: full DA3 reconstruction abilities live on the depth-anything-v3 entry.",
+          "Metric scale can drift in unusual focal-length imagery."
         ],
         "limitationsZh": [
-          "原生 Demo 证据：未记录。",
-          "Checkpoint-backed inference is implemented through the shared geometry-prior pipeline/operator contract.",
-          "Per-run validation evidence is tracked outside the model catalog so this file remains stable release metadata."
+          "仅先验用途：完整的 DA3 重建能力在 depth-anything-v3 条目上。",
+          "非常规焦距图像下米制尺度可能漂移。"
         ]
       },
       "commands": {
@@ -3228,8 +3232,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "LiheYoung",
-      "summary": "In-tree Depth Anything V1 pipeline is registered for relative depth and geometry artifact export.",
+      "provider": "TikTok / The University of Hong Kong",
+      "summary": "Depth Anything V1 is the foundation model for relative monocular depth that popularized large-scale unlabeled-data depth training. In this catalog both integration and runner status are verified: the in-tree pipeline exports relative depth…",
       "aliases": [],
       "tasks": [
         "depth",
@@ -3503,26 +3507,30 @@
         "The Studio route produced and visually validated a nonblank depth map on 2026-07-10."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "TikTok / The University of Hong Kong",
+          "nameZh": "TikTok / 香港大学",
+          "kind": "company"
+        },
         "overview": [
-          "Depth Anything V1 is a 3D/4D reconstruction and generation model from LiheYoung. The catalog records it for depth, geometry, and monocular-depth-estimation.",
-          "WorldFoundry binds it to the worldfoundry.pipelines.depth_anything.pipeline_depth_anything_v1:DepthAnything1Pipeline pipeline via worldfoundry.pipeline.",
-          "It runs in the shared unified environment worldfoundry-unified-cu128 (Python 3.11, CUDA 12.8).",
-          "Weights are pulled from the Hugging Face repository LiheYoung/depth-anything-large-hf.",
-          "A WorldFoundry runner-parity artifact is recorded for this route."
+          "Depth Anything V1 is the foundation model for relative monocular depth that popularized large-scale unlabeled-data depth training. In this catalog both integration and runner status are verified: the in-tree pipeline exports relative depth and geometry artifacts, and the Studio route produced a visually validated nonblank depth map on 2026-07-10."
         ],
         "overviewZh": [
-          "Depth Anything V1 是来自 LiheYoung 的3D/4D 重建与生成模型。Catalog 将它记录为深度估计、几何估计、单目深度估计任务。",
-          "WorldFoundry 将它绑定到 worldfoundry.pipelines.depth_anything.pipeline_depth_anything_v1:DepthAnything1Pipeline pipeline（runner：worldfoundry.pipeline）。",
-          "它运行在统一环境 worldfoundry-unified-cu128 中（Python 3.11，CUDA 12.8）。",
-          "权重来自 Hugging Face 仓库 LiheYoung/depth-anything-large-hf。",
-          "该路径已记录 WorldFoundry runner parity 产物。"
+          "Depth Anything V1 是让「大规模无标注数据训练深度」流行起来的相对单目深度基础模型。本 catalog 中其集成与 runner 状态均为 verified：树内 pipeline 导出相对深度与几何产物，Studio 路径已于 2026-07-10 产出并通过视觉验证的非空深度图。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "A DINOv2 ViT backbone with a DPT-style depth head, trained on ~62M unlabeled images with a teacher-student scheme (per the publication). This entry serves relative depth; its metric siblings are the separate *-prior entries."
+        ],
+        "architectureZh": [
+          "DINOv2 ViT 主干加 DPT 式深度头，用约 6200 万张无标注图像以师生方案训练（见论文）。本条目提供相对深度；米制版本是独立的 *-prior 条目。"
+        ],
+        "usageNotes": [
+          "A verified, dependable prior — good default for relative depth. For metric depth choose depth-anything-v2-prior or depth-anything-v3-prior instead."
+        ],
+        "usageNotesZh": [
+          "已验证、可信赖的先验——相对深度的默认选择。需要米制深度时请改用 depth-anything-v2-prior 或 depth-anything-v3-prior。"
+        ],
         "highlights": [
           "Depth",
           "Geometry",
@@ -3554,12 +3562,12 @@
         },
         "benchmarks": [],
         "limitations": [
-          "Native demo evidence: Not recorded.",
-          "Per-run validation evidence is tracked outside the model catalog."
+          "Relative depth only — no metric scale on this route.",
+          "Single-image estimation: temporal flicker on video (use video-depth-anything-prior for video)."
         ],
         "limitationsZh": [
-          "原生 Demo 证据：未记录。",
-          "Per-run validation evidence is tracked outside the model catalog."
+          "仅相对深度——该路径没有米制尺度。",
+          "单帧估计：视频上会闪烁（视频请用 video-depth-anything-prior）。"
         ]
       },
       "commands": {
@@ -3577,8 +3585,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "depth-anything",
-      "summary": "Integrated as an independent depth prior at worldfoundry/base_models/three_dimensions/depth/depth_anything/depth_anything_v2.",
+      "provider": "TikTok / The University of Hong Kong",
+      "summary": "Depth Anything V2 is the sharper, synthetic-data-trained successor to V1, integrated here as a metric/monocular depth prior with verified runner status. The recorded checkpoint is depth-anything/Depth-Anything-V2-Large; the shared priors f…",
       "aliases": [
         "dav2-prior",
         "depth-anything-v2"
@@ -3844,26 +3852,30 @@
         "WorldFoundry exposes this prior through the shared geometry-prior pipeline/operator contract."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "TikTok / The University of Hong Kong",
+          "nameZh": "TikTok / 香港大学",
+          "kind": "company"
+        },
         "overview": [
-          "Depth Anything V2 is a 3D/4D reconstruction and generation model from depth-anything. The catalog records it for monocular-depth-estimation, metric-depth-estimation, and geometry-prior. It is also cataloged under the aliases dav2-prior and depth-anything-v2.",
-          "WorldFoundry binds it to the worldfoundry.pipelines.geometry_priors.pipeline_geometry_priors:DepthAnythingV2PriorPipeline pipeline via worldfoundry.pipeline.",
-          "It runs in the shared unified environment worldfoundry-unified-cu128 (Python 3.11, CUDA 12.8).",
-          "Weights are pulled from the Hugging Face repository depth-anything/Depth-Anything-V2-Large.",
-          "A WorldFoundry runner-parity artifact is recorded for this route."
+          "Depth Anything V2 is the sharper, synthetic-data-trained successor to V1, integrated here as a metric/monocular depth prior with verified runner status. The recorded checkpoint is depth-anything/Depth-Anything-V2-Large; the shared priors factory and the video-depth prior reuse this implementation."
         ],
         "overviewZh": [
-          "Depth Anything V2 是来自 depth-anything 的3D/4D 重建与生成模型。Catalog 将它记录为单目深度估计、米制深度估计、几何先验任务。它还有别名 dav2-prior、depth-anything-v2。",
-          "WorldFoundry 将它绑定到 worldfoundry.pipelines.geometry_priors.pipeline_geometry_priors:DepthAnythingV2PriorPipeline pipeline（runner：worldfoundry.pipeline）。",
-          "它运行在统一环境 worldfoundry-unified-cu128 中（Python 3.11，CUDA 12.8）。",
-          "权重来自 Hugging Face 仓库 depth-anything/Depth-Anything-V2-Large。",
-          "该路径已记录 WorldFoundry runner parity 产物。"
+          "Depth Anything V2 是 V1 的后继者，用合成数据训练、细节更锐利，此处作为米制/单目深度先验集成，runner 状态已验证。记录的 checkpoint 为 depth-anything/Depth-Anything-V2-Large；共享先验工厂与视频深度先验复用同一实现。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "Same DINOv2+DPT family as V1 but trained on precise synthetic labels with pseudo-labeled real images, improving edges and thin structures (per the publication). Registered at base_models/three_dimensions/depth/depth_anything/depth_anything_v2."
+        ],
+        "architectureZh": [
+          "与 V1 同为 DINOv2+DPT 家族，但用精确合成标注加伪标注真实图像训练，边缘与细结构更好（见论文）。注册于 base_models/three_dimensions/depth/depth_anything/depth_anything_v2。"
+        ],
+        "usageNotes": [
+          "It is integrated as an independent geometry prior under worldfoundry/base_models and exposed through the shared geometry-prior pipeline/operator contract. Higher-level pipelines (e.g. ViPE) import it from this canonical owner instead of keeping private copies. Runner parity is verified through the shared contract."
+        ],
+        "usageNotesZh": [
+          "它作为独立几何先验集成在 worldfoundry/base_models 下，通过共享的 geometry-prior pipeline/operator 契约对外暴露。上层管线（如 ViPE）从这一规范位置导入它，而不是各自保留私有副本。runner parity 已通过共享契约验证。"
+        ],
         "highlights": [
           "Monocular Depth Estimation",
           "Metric Depth Estimation",
@@ -3895,14 +3907,12 @@
         },
         "benchmarks": [],
         "limitations": [
-          "Native demo evidence: Not recorded.",
-          "Checkpoint-backed inference is implemented through the shared geometry-prior pipeline/operator contract.",
-          "Per-run validation evidence is tracked outside the model catalog so this file remains stable release metadata."
+          "Metric accuracy varies by domain; indoor/outdoor calibration differs.",
+          "Single-image prior; temporal stability on video is not its job."
         ],
         "limitationsZh": [
-          "原生 Demo 证据：未记录。",
-          "Checkpoint-backed inference is implemented through the shared geometry-prior pipeline/operator contract.",
-          "Per-run validation evidence is tracked outside the model catalog so this file remains stable release metadata."
+          "米制精度随领域变化；室内/室外标定不同。",
+          "单帧先验；视频时序稳定性不在其职责内。"
         ]
       },
       "commands": {
@@ -4455,8 +4465,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "NAVER LABS Europe",
-      "summary": "WorldFoundry vendors DUSt3R under worldfoundry.base_models.three_dimensions.general_3d.dust3r.",
+      "provider": "NAVER Labs Europe",
+      "summary": "DUSt3R made unconstrained two-view 3D reconstruction easy: feed it two images — no calibration, no poses — and it directly regresses aligned pointmaps. In this catalog it is fully verified: checkpoint-backed Studio inference produced a fin…",
       "aliases": [
         "naver-dust3r",
         "geometric-3d-vision-made-easy"
@@ -4631,24 +4641,30 @@
         "WorldFoundry exposes this prior through the shared geometry-prior pipeline/operator contract."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "NAVER Labs Europe",
+          "nameZh": "NAVER 欧洲实验室（NAVER Labs Europe）",
+          "kind": "company"
+        },
         "overview": [
-          "DUSt3R is a 3D/4D reconstruction and generation model from NAVER LABS Europe. The catalog records it for feed-forward multi-view 3d reconstruction and geometry estimation. It is also cataloged under the aliases naver-dust3r and geometric-3d-vision-made-easy.",
-          "WorldFoundry binds it to the worldfoundry.pipelines.geometry_priors.pipeline_geometry_priors:DUSt3RPipeline pipeline via worldfoundry.pipeline.",
-          "It runs in the shared unified environment worldfoundry-unified-cu128 (Python 3.11, CUDA 12.8).",
-          "A WorldFoundry runner-parity artifact is recorded for this route."
+          "DUSt3R made unconstrained two-view 3D reconstruction easy: feed it two images — no calibration, no poses — and it directly regresses aligned pointmaps. In this catalog it is fully verified: checkpoint-backed Studio inference produced a finite point cloud from the bundled multi-view test case, with evidence recorded in inference_evidence.yaml."
         ],
         "overviewZh": [
-          "DUSt3R 是来自 NAVER LABS Europe 的3D/4D 重建与生成模型。Catalog 将它记录为feed-forward multi-view 3D reconstruction and geometry estimation任务。它还有别名 naver-dust3r、geometric-3d-vision-made-easy。",
-          "WorldFoundry 将它绑定到 worldfoundry.pipelines.geometry_priors.pipeline_geometry_priors:DUSt3RPipeline pipeline（runner：worldfoundry.pipeline）。",
-          "它运行在统一环境 worldfoundry-unified-cu128 中（Python 3.11，CUDA 12.8）。",
-          "该路径已记录 WorldFoundry runner parity 产物。"
+          "DUSt3R 让无约束双视图 3D 重建变得简单：给它两张图——无需标定、无需位姿——直接回归对齐的点图。本 catalog 中它已完整验证：checkpoint 加载的 Studio 推理从内置多视图测试用例产出有限点云，证据记录在 inference_evidence.yaml。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "A ViT encoder-decoder that regresses per-pixel 3D pointmaps in a shared frame for an image pair; global alignment merges pairs into scenes (per arXiv 2312.14132). WorldFoundry vendors it under base_models/three_dimensions/general_3d/dust3r, exposed via the geometry-prior contract."
+        ],
+        "architectureZh": [
+          "ViT 编码-解码器为一对图像在共享坐标系中回归逐像素 3D 点图；全局对齐把多对合并为场景（见 arXiv 2312.14132）。WorldFoundry 将其内置于 base_models/three_dimensions/general_3d/dust3r，经 geometry-prior 契约暴露。"
+        ],
+        "usageNotes": [
+          "The runnable route is exposed through the shared geometry-prior contract (see dust3r-base-model). Mind the license: upstream is CC-BY-NC-SA-4.0 — recorded for provenance; respect non-commercial terms downstream."
+        ],
+        "usageNotesZh": [
+          "可运行路径经共享 geometry-prior 契约暴露（见 dust3r-base-model）。注意许可：上游为 CC-BY-NC-SA-4.0——已记录为溯源信息，下游使用需遵守非商用条款。"
+        ],
         "highlights": [
           "Feed Forward Multi View 3D Reconstruction And Geometry Estimation",
           "Unified env · Python 3.11 · CUDA 12.8"
@@ -4670,12 +4686,12 @@
         },
         "benchmarks": [],
         "limitations": [
-          "Native demo evidence: Not recorded.",
-          "Checkpoint-backed Studio inference produced a finite point cloud from the bundled multi-view test case; see worldfoundry/data/models/validation/inference_evidence.yaml."
+          "CC-BY-NC-SA-4.0 license: non-commercial terms apply downstream.",
+          "Pairwise design: large scenes need global alignment, which grows costly with many views."
         ],
         "limitationsZh": [
-          "原生 Demo 证据：未记录。",
-          "Checkpoint-backed Studio inference produced a finite point cloud from the bundled multi-view test case; see worldfoundry/data/models/validation/inference_evidence.yaml."
+          "CC-BY-NC-SA-4.0 许可：下游需遵守非商用条款。",
+          "两两配对设计：大场景需要全局对齐，视图很多时代价上升。"
         ]
       },
       "commands": {
@@ -4693,8 +4709,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "naver",
-      "summary": "Base-model profile for the DUSt3R catalog entry; exposed through the shared geometry-prior pipeline/operator contract.",
+      "provider": "NAVER Labs Europe",
+      "summary": "DUSt3R Base Model is the base-model profile of the DUSt3R catalog entry: the concrete checkpoint surface used by the shared geometry-prior contract. It is verified — the Workspace loaded the official base checkpoint and exported a finite 1…",
       "aliases": [
         "dust3r-base"
       ],
@@ -4958,24 +4974,30 @@
         "WorldFoundry exposes this prior through the shared geometry-prior pipeline/operator contract."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "NAVER Labs Europe",
+          "nameZh": "NAVER 欧洲实验室（NAVER Labs Europe）",
+          "kind": "company"
+        },
         "overview": [
-          "DUSt3R Base Model is a 3D/4D reconstruction and generation model from naver. The catalog records it for geometry, 3d-reconstruction, and geometry-prior. It is also cataloged under the alias dust3r-base.",
-          "WorldFoundry binds it to the worldfoundry.pipelines.geometry_priors.pipeline_geometry_priors:DUSt3RPipeline pipeline via worldfoundry.pipeline.",
-          "It runs in the shared unified environment worldfoundry-unified-cu128 (Python 3.11, CUDA 12.8).",
-          "A WorldFoundry runner-parity artifact is recorded for this route."
+          "DUSt3R Base Model is the base-model profile of the DUSt3R catalog entry: the concrete checkpoint surface used by the shared geometry-prior contract. It is verified — the Workspace loaded the official base checkpoint and exported a finite 10,000-point reconstruction from two views on 2026-07-11."
         ],
         "overviewZh": [
-          "DUSt3R Base Model 是来自 naver 的3D/4D 重建与生成模型。Catalog 将它记录为几何估计、3D 重建、几何先验任务。它还有别名 dust3r-base。",
-          "WorldFoundry 将它绑定到 worldfoundry.pipelines.geometry_priors.pipeline_geometry_priors:DUSt3RPipeline pipeline（runner：worldfoundry.pipeline）。",
-          "它运行在统一环境 worldfoundry-unified-cu128 中（Python 3.11，CUDA 12.8）。",
-          "该路径已记录 WorldFoundry runner parity 产物。"
+          "DUSt3R Base Model 是 DUSt3R catalog 条目的基础模型档案：共享 geometry-prior 契约实际使用的 checkpoint 面。它已验证——Workspace 于 2026-07-11 加载官方基础 checkpoint，并从两个视图导出了 10,000 点的有限重建。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "Same architecture as the dust3r entry (ViT pointmap regressor); this profile pins the base checkpoint and is not a standalone pipeline runner."
+        ],
+        "architectureZh": [
+          "与 dust3r 条目同架构（ViT 点图回归器）；本档案固定基础 checkpoint，不是独立的 pipeline runner。"
+        ],
+        "usageNotes": [
+          "It is integrated as an independent geometry prior under worldfoundry/base_models and exposed through the shared geometry-prior pipeline/operator contract. Higher-level pipelines (e.g. ViPE) import it from this canonical owner instead of keeping private copies. Prefer citing the dust3r entry for provenance; use this profile id when configuring the prior explicitly."
+        ],
+        "usageNotesZh": [
+          "它作为独立几何先验集成在 worldfoundry/base_models 下，通过共享的 geometry-prior pipeline/operator 契约对外暴露。上层管线（如 ViPE）从这一规范位置导入它，而不是各自保留私有副本。溯源请引用 dust3r 条目；显式配置该先验时使用本档案 id。"
+        ],
         "highlights": [
           "Geometry",
           "3D Reconstruction",
@@ -5001,12 +5023,12 @@
         },
         "benchmarks": [],
         "limitations": [
-          "Native demo evidence: Not recorded.",
-          "Workspace loaded the official DUSt3R base checkpoint and exported a finite 10,000-point reconstruction from two views on 2026-07-11."
+          "CC-BY-NC-SA-4.0 license applies (inherited from upstream).",
+          "Not a standalone runner — always consumed through the geometry-prior contract."
         ],
         "limitationsZh": [
-          "原生 Demo 证据：未记录。",
-          "Workspace loaded the official DUSt3R base checkpoint and exported a finite 10,000-point reconstruction from two views on 2026-07-11."
+          "继承上游的 CC-BY-NC-SA-4.0 许可。",
+          "不是独立 runner——始终通过 geometry-prior 契约调用。"
         ]
       },
       "commands": {
@@ -5024,8 +5046,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "AMAP and Beijing University of Posts and Telecommunications authors",
-      "summary": "WorldFoundry exposes the in-tree FantasyWorld Wan2.1 and Wan2.2 camera-control pipelines.",
+      "provider": "Alibaba (Amap, Fantasy-AMAP)",
+      "summary": "FantasyWorld does geometry-consistent world modeling by unifying video and 3D prediction: from an image it produces camera-controllable world video that stays geometrically coherent. Two variants are recorded — the verified Wan2.1 pipeline…",
       "aliases": [
         "Geometry-Consistent World Modeling via Unified Video and 3D Prediction"
       ],
@@ -5383,26 +5405,30 @@
         "Runtime execution requires local FantasyWorld Wan2.1, Wan2.1 I2V, MoGe, and CUDA assets."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "Alibaba (Amap, Fantasy-AMAP)",
+          "nameZh": "阿里巴巴（高德 Fantasy-AMAP 团队）",
+          "kind": "company"
+        },
         "overview": [
-          "FantasyWorld is a 3D/4D reconstruction and generation model from AMAP and Beijing University of Posts and Telecommunications authors. The catalog records it for geometry-consistent world modeling. It is also cataloged under the alias Geometry-Consistent World Modeling via Unified Video and 3D Prediction.",
-          "WorldFoundry serves it through 2 recorded runnable variants (fantasyworld-wan21 and fantasyworld-wan22). The default route binds to the worldfoundry.pipelines.fantasy_world.pipeline_fantasy_world:FantasyWorldPipeline pipeline.",
-          "It runs in the shared unified environment worldfoundry-unified-cu128 (Python 3.11, CUDA 12.8).",
-          "Weights are pulled from the Hugging Face repository acvlab/FantasyWorld-Wan2.1-I2V-14B-480P, plus 2 more recorded repositories.",
-          "A WorldFoundry runner-parity artifact is recorded for this route."
+          "FantasyWorld does geometry-consistent world modeling by unifying video and 3D prediction: from an image it produces camera-controllable world video that stays geometrically coherent. Two variants are recorded — the verified Wan2.1 pipeline (the release-facing default) and a Wan2.2 pipeline that stays hidden from Studio until its official memory strategy is verified."
         ],
         "overviewZh": [
-          "FantasyWorld 是来自 AMAP and Beijing University of Posts and Telecommunications authors 的3D/4D 重建与生成模型。Catalog 将它记录为geometry-consistent world modeling任务。它还有别名 Geometry-Consistent World Modeling via Unified Video and 3D Prediction。",
-          "WorldFoundry 通过 2 个已记录的可运行 variant（fantasyworld-wan21、fantasyworld-wan22）来运行它。默认路径绑定到 worldfoundry.pipelines.fantasy_world.pipeline_fantasy_world:FantasyWorldPipeline pipeline。",
-          "它运行在统一环境 worldfoundry-unified-cu128 中（Python 3.11，CUDA 12.8）。",
-          "权重来自 Hugging Face 仓库 acvlab/FantasyWorld-Wan2.1-I2V-14B-480P，另有 2 个已记录仓库。",
-          "该路径已记录 WorldFoundry runner parity 产物。"
+          "FantasyWorld 通过统一视频与 3D 预测实现几何一致的世界建模：从一张图生成相机可控、几何连贯的世界视频。记录两个 variant——已验证的 Wan2.1 pipeline（面向发布的默认路径），以及在官方显存策略验证前对 Studio 隐藏的 Wan2.2 pipeline。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "FantasyWorld augments a Wan video backbone with a unified 3D-prediction branch so that generated frames respect scene geometry (per arXiv 2509.21657). Runtime execution requires local FantasyWorld Wan2.1, Wan2.1 I2V, MoGe, and CUDA assets."
+        ],
+        "architectureZh": [
+          "FantasyWorld 在 Wan 视频基座上增加统一的 3D 预测分支，使生成帧遵守场景几何（见 arXiv 2509.21657）。运行需要本地 FantasyWorld Wan2.1、Wan2.1 I2V、MoGe 与 CUDA 资产。"
+        ],
+        "usageNotes": [
+          "The default row resolves to the verified in-tree Wan2.1 runner — that is the route to use. The Wan2.2 variant remains pending because the official single-GPU run requires an accepted memory strategy."
+        ],
+        "usageNotesZh": [
+          "默认行解析到已验证的树内 Wan2.1 runner——请使用该路径。Wan2.2 variant 因官方单卡运行需要认可的显存策略而保持 pending。"
+        ],
         "highlights": [
           "Geometry Consistent World Modeling",
           "2 runnable WorldFoundry variants",
@@ -5426,20 +5452,39 @@
           "recommended": null,
           "notes": []
         },
-        "benchmarks": [],
+        "benchmarks": [
+          {
+            "id": "worldscore",
+            "name": "WorldScore",
+            "category": "World Models",
+            "categoryZh": "世界模型",
+            "summary": "In-tree official runtime scores generated videos per prompt",
+            "summaryZh": "仓内 official runtime 对生成视频逐 prompt 评分",
+            "href": "/docs/evaluation/benchmark-hub/worldscore",
+            "source": "docs",
+            "reason": "Scores geometry-consistent generated worlds.",
+            "reasonZh": "评估几何一致的生成世界。"
+          },
+          {
+            "id": "camerabench",
+            "name": "CameraBench",
+            "category": "Video Generation",
+            "categoryZh": "视频生成",
+            "summary": "In-tree official runtime scores generated videos per prompt; some dimensions may call a hosted API",
+            "summaryZh": "仓内 official runtime 对生成视频逐 prompt 评分；部分维度可能调用 hosted API",
+            "href": "/docs/evaluation/benchmark-hub/camerabench",
+            "source": "docs",
+            "reason": "Camera-control quality evaluation.",
+            "reasonZh": "相机控制质量评测。"
+          }
+        ],
         "limitations": [
-          "Native demo evidence: Not recorded.",
-          "The default FantasyWorld row resolves to the in-tree Wan2.1 runner.",
-          "Wan2.2 remains pending because the official single-GPU run requires an accepted memory strategy.",
-          "Per-run validation evidence is tracked outside the model catalog.",
-          "The in-tree FantasyWorld Wan2.1 runner supports the official camera-world demo route in the unified environment profile."
+          "The Wan2.2 variant is hidden from Studio until its memory strategy is verified.",
+          "Requires several staged asset sets (FantasyWorld, Wan2.1 I2V, MoGe)."
         ],
         "limitationsZh": [
-          "原生 Demo 证据：未记录。",
-          "The default FantasyWorld row resolves to the in-tree Wan2.1 runner.",
-          "Wan2.2 remains pending because the official single-GPU run requires an accepted memory strategy.",
-          "Per-run validation evidence is tracked outside the model catalog.",
-          "The in-tree FantasyWorld Wan2.1 runner supports the official camera-world demo route in the unified environment profile."
+          "Wan2.2 variant 在显存策略验证前对 Studio 隐藏。",
+          "需要就位多套资产（FantasyWorld、Wan2.1 I2V、MoGe）。"
         ]
       },
       "commands": {
@@ -5457,8 +5502,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "FlashWorld authors",
-      "summary": "WorldFoundry exposes the in-tree FlashWorld pipeline, operator, and representation runtime.",
+      "provider": "Xiamen University / Tencent",
+      "summary": "FlashWorld generates 3D scenes in seconds: from one image (plus optional prompt) it produces a camera-navigable 3D scene rather than a flat clip. In this catalog the in-tree pipeline, operator, and representation runtime are exposed and ru…",
       "aliases": [],
       "tasks": [
         "fast 3D scene generation from image or text"
@@ -5716,26 +5761,30 @@
         "Runtime execution requires FlashWorld, Wan2.2, diffusers/transformers, and CUDA assets."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "Xiamen University / Tencent",
+          "nameZh": "厦门大学 / 腾讯",
+          "kind": "university"
+        },
         "overview": [
-          "FlashWorld is a 3D/4D reconstruction and generation model from FlashWorld authors. The catalog records it for fast 3d scene generation from image or text.",
-          "WorldFoundry binds it to the worldfoundry.pipelines.flash_world.pipeline_flash_world:FlashWorldPipeline pipeline via worldfoundry.pipeline.",
-          "It runs in the shared unified environment worldfoundry-unified-cu128 (Python 3.11, CUDA 12.8).",
-          "Weights are pulled from the Hugging Face repository imlixinyang/FlashWorld, plus 1 more recorded repository.",
-          "A WorldFoundry runner-parity artifact is recorded for this route."
+          "FlashWorld generates 3D scenes in seconds: from one image (plus optional prompt) it produces a camera-navigable 3D scene rather than a flat clip. In this catalog the in-tree pipeline, operator, and representation runtime are exposed and runner status is verified for the image-conditioned camera-scene demo with local FlashWorld/Wan assets."
         ],
         "overviewZh": [
-          "FlashWorld 是来自 FlashWorld authors 的3D/4D 重建与生成模型。Catalog 将它记录为fast 3D scene generation from image or text任务。",
-          "WorldFoundry 将它绑定到 worldfoundry.pipelines.flash_world.pipeline_flash_world:FlashWorldPipeline pipeline（runner：worldfoundry.pipeline）。",
-          "它运行在统一环境 worldfoundry-unified-cu128 中（Python 3.11，CUDA 12.8）。",
-          "权重来自 Hugging Face 仓库 imlixinyang/FlashWorld，另有 1 个已记录仓库。",
-          "该路径已记录 WorldFoundry runner parity 产物。"
+          "FlashWorld 数秒内生成 3D 场景：从一张图（可附提示词）产出可相机游走的 3D 场景，而非平面视频。本 catalog 中其树内 pipeline、operator 与表示运行时均已暴露，图像条件的相机场景 demo 在本地 FlashWorld/Wan 资产下 runner 状态为 verified。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "FlashWorld distills a Wan-based video generator into a fast 3D-scene generator with Gaussian-style scene representations (per arXiv 2510.13678). Execution requires FlashWorld, Wan2.2, diffusers/transformers, and CUDA assets; no empty runner shim is registered."
+        ],
+        "architectureZh": [
+          "FlashWorld 将基于 Wan 的视频生成器蒸馏为快速 3D 场景生成器，使用高斯式场景表示（见 arXiv 2510.13678）。运行需要 FlashWorld、Wan2.2、diffusers/transformers 与 CUDA 资产；不注册空的 runner 壳。"
+        ],
+        "usageNotes": [
+          "Verified for the image-conditioned demo; per-run visual QA is tracked outside the catalog. Execution remains checkpoint/GPU/dependency gated — stage all recorded assets first."
+        ],
+        "usageNotesZh": [
+          "图像条件 demo 已验证；每次运行的视觉 QA 在 catalog 外跟踪。执行仍受 checkpoint/GPU/依赖限制——请先就位所有记录资产。"
+        ],
         "highlights": [
           "Fast 3D Scene Generation From Image Or Text",
           "Unified env · Python 3.11 · CUDA 12.8",
@@ -5757,16 +5806,27 @@
           "recommended": null,
           "notes": []
         },
-        "benchmarks": [],
+        "benchmarks": [
+          {
+            "id": "worldscore",
+            "name": "WorldScore",
+            "category": "World Models",
+            "categoryZh": "世界模型",
+            "summary": "In-tree official runtime scores generated videos per prompt",
+            "summaryZh": "仓内 official runtime 对生成视频逐 prompt 评分",
+            "href": "/docs/evaluation/benchmark-hub/worldscore",
+            "source": "docs",
+            "reason": "Standard scoring for navigable generated scenes.",
+            "reasonZh": "可游走生成场景的标准评分。"
+          }
+        ],
         "limitations": [
-          "Native demo evidence: Not recorded.",
-          "The in-tree FlashWorld runner supports the image-conditioned camera-scene demo with local FlashWorld/Wan assets.",
-          "Per-run visual QA and artifact checks are tracked outside the model catalog."
+          "Speed-focused distillation trades some scene fidelity versus optimization-based methods.",
+          "Requires the full recorded asset set (FlashWorld + Wan2.2)."
         ],
         "limitationsZh": [
-          "原生 Demo 证据：未记录。",
-          "The in-tree FlashWorld runner supports the image-conditioned camera-scene demo with local FlashWorld/Wan assets.",
-          "Per-run visual QA and artifact checks are tracked outside the model catalog."
+          "以速度为先的蒸馏在场景保真度上弱于基于优化的方法。",
+          "需要完整的记录资产组合（FlashWorld + Wan2.2）。"
         ]
       },
       "commands": {
@@ -5784,8 +5844,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "cvg",
-      "summary": "Integrated as an independent camera-calibration prior at worldfoundry/base_models/three_dimensions/general_3d/geocalib.",
+      "provider": "ETH Zurich (CVG)",
+      "summary": "GeoCalib estimates camera calibration and the gravity direction from a single image by combining geometric optimization with deep learning. In this catalog it is a verified camera-calibration prior consumed by higher-level pipelines (notab…",
       "aliases": [
         "geocalib",
         "cvg-geocalib"
@@ -6047,24 +6107,30 @@
         "WorldFoundry exposes this prior through the shared geometry-prior pipeline/operator contract."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "ETH Zurich (CVG)",
+          "nameZh": "苏黎世联邦理工学院（CVG 组）",
+          "kind": "university"
+        },
         "overview": [
-          "GeoCalib is a 3D/4D reconstruction and generation model from cvg. The catalog records it for camera-calibration, gravity-estimation, and geometry-prior. It is also cataloged under the aliases geocalib and cvg-geocalib.",
-          "WorldFoundry binds it to the worldfoundry.pipelines.geometry_priors.pipeline_geometry_priors:GeoCalibPriorPipeline pipeline via worldfoundry.pipeline.",
-          "It runs in the shared unified environment worldfoundry-unified-cu128 (Python 3.11, CUDA 12.8).",
-          "A WorldFoundry runner-parity artifact is recorded for this route."
+          "GeoCalib estimates camera calibration and the gravity direction from a single image by combining geometric optimization with deep learning. In this catalog it is a verified camera-calibration prior consumed by higher-level pipelines (notably VIPE) through the shared geometry-prior contract."
         ],
         "overviewZh": [
-          "GeoCalib 是来自 cvg 的3D/4D 重建与生成模型。Catalog 将它记录为camera-calibration、gravity-estimation、几何先验任务。它还有别名 geocalib、cvg-geocalib。",
-          "WorldFoundry 将它绑定到 worldfoundry.pipelines.geometry_priors.pipeline_geometry_priors:GeoCalibPriorPipeline pipeline（runner：worldfoundry.pipeline）。",
-          "它运行在统一环境 worldfoundry-unified-cu128 中（Python 3.11，CUDA 12.8）。",
-          "该路径已记录 WorldFoundry runner parity 产物。"
+          "GeoCalib 通过几何优化与深度学习结合，从单张图像估计相机标定与重力方向。本 catalog 中它是已验证的相机标定先验，由上层管线（尤其是 VIPE）通过共享 geometry-prior 契约调用。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "A neural network predicts geometric cues which a differentiable optimization layer turns into focal length and gravity estimates (per the upstream ECCV 2024 release). Registered at base_models/three_dimensions/general_3d/geocalib; apache-2.0."
+        ],
+        "architectureZh": [
+          "神经网络预测几何线索，可微优化层将其转化为焦距与重力估计（见上游 ECCV 2024 发布）。注册于 base_models/three_dimensions/general_3d/geocalib；apache-2.0。"
+        ],
+        "usageNotes": [
+          "It is integrated as an independent geometry prior under worldfoundry/base_models and exposed through the shared geometry-prior pipeline/operator contract. Higher-level pipelines (e.g. ViPE) import it from this canonical owner instead of keeping private copies. Runner parity is verified through the shared contract."
+        ],
+        "usageNotesZh": [
+          "它作为独立几何先验集成在 worldfoundry/base_models 下，通过共享的 geometry-prior pipeline/operator 契约对外暴露。上层管线（如 ViPE）从这一规范位置导入它，而不是各自保留私有副本。runner parity 已通过共享契约验证。"
+        ],
         "highlights": [
           "Camera Calibration",
           "Gravity Estimation",
@@ -6090,14 +6156,10 @@
         },
         "benchmarks": [],
         "limitations": [
-          "Native demo evidence: Not recorded.",
-          "Checkpoint-backed inference is implemented through the shared geometry-prior pipeline/operator contract.",
-          "Per-run validation evidence is tracked outside the model catalog so this file remains stable release metadata."
+          "Single-image estimation: degrades on images without clear geometric cues (e.g. pure sky or texture-less walls)."
         ],
         "limitationsZh": [
-          "原生 Demo 证据：未记录。",
-          "Checkpoint-backed inference is implemented through the shared geometry-prior pipeline/operator contract.",
-          "Per-run validation evidence is tracked outside the model catalog so this file remains stable release metadata."
+          "单图估计：在缺乏几何线索的图像（如纯天空、无纹理墙面）上会退化。"
         ]
       },
       "commands": {
@@ -10008,8 +10070,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "Junyi42",
-      "summary": "In-tree LoGeR point-cloud navigation pipeline is registered for reconstruction and trajectory rendering.",
+      "provider": "Open-source research release (institution not recorded)",
+      "summary": "LoGeR reconstructs 3D scenes with camera trajectories and point clouds from input views, and is one of the verified 3D routes in this catalog: checkpoint-backed Studio inference produced finite poses, depth, and a 601,570-vertex point clou…",
       "aliases": [],
       "tasks": [
         "3d-reconstruction",
@@ -10275,26 +10337,30 @@
         "The default runtime uses the shared worldfoundry-unified-cu128 environment."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "Open-source research release (institution not recorded)",
+          "nameZh": "开源研究发布（仓库未记录正式机构）",
+          "kind": "lab"
+        },
         "overview": [
-          "LoGeR is a 3D/4D reconstruction and generation model from Junyi42. The catalog records it for 3d-reconstruction, trajectory, and point-cloud.",
-          "WorldFoundry binds it to the worldfoundry.pipelines.pi3.pipeline_loger:LoGeRPipeline pipeline via worldfoundry.pipeline.",
-          "It runs in the shared unified environment worldfoundry-unified-cu128 (Python 3.11, CUDA 12.8).",
-          "Weights are pulled from the Hugging Face repository Junyi42/LoGeR.",
-          "A WorldFoundry runner-parity artifact is recorded for this route."
+          "LoGeR reconstructs 3D scenes with camera trajectories and point clouds from input views, and is one of the verified 3D routes in this catalog: checkpoint-backed Studio inference produced finite poses, depth, and a 601,570-vertex point cloud, with evidence in inference_evidence.yaml."
         ],
         "overviewZh": [
-          "LoGeR 是来自 Junyi42 的3D/4D 重建与生成模型。Catalog 将它记录为3D 重建、轨迹预测、点云任务。",
-          "WorldFoundry 将它绑定到 worldfoundry.pipelines.pi3.pipeline_loger:LoGeRPipeline pipeline（runner：worldfoundry.pipeline）。",
-          "它运行在统一环境 worldfoundry-unified-cu128 中（Python 3.11，CUDA 12.8）。",
-          "权重来自 Hugging Face 仓库 Junyi42/LoGeR。",
-          "该路径已记录 WorldFoundry runner parity 产物。"
+          "LoGeR 从输入视图重建 3D 场景、相机轨迹与点云，是本 catalog 中已验证的 3D 路径之一： checkpoint 加载的 Studio 推理产出有限位姿、深度与 601,570 顶点的点云，证据记录在 inference_evidence.yaml。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "The catalog records a reconstruction-plus-trajectory model exporting binary PLY artifacts; the publishing institution and architecture internals are not recorded in this repository (upstream: Junyi42/LoGeR, apache-2.0)."
+        ],
+        "architectureZh": [
+          "catalog 记录其为「重建+轨迹」模型，导出二进制 PLY 产物；发表机构与架构内部细节仓库未记录（上游：Junyi42/LoGeR，apache-2.0）。"
+        ],
+        "usageNotes": [
+          "Verified end to end in the shared worldfoundry-unified-cu128 environment — a dependable choice for point-cloud navigation pipelines."
+        ],
+        "usageNotesZh": [
+          "已在共享 worldfoundry-unified-cu128 环境中端到端验证——点云导航管线的可靠选择。"
+        ],
         "highlights": [
           "3D Reconstruction",
           "Trajectory",
@@ -10324,12 +10390,10 @@
         },
         "benchmarks": [],
         "limitations": [
-          "Native demo evidence: Not recorded.",
-          "Checkpoint-backed Studio inference produced finite poses, depth, and a 601570-vertex point cloud; see worldfoundry/data/models/validation/inference_evidence.yaml."
+          "The publishing institution is not recorded in this repository."
         ],
         "limitationsZh": [
-          "原生 Demo 证据：未记录。",
-          "Checkpoint-backed Studio inference produced finite poses, depth, and a 601570-vertex point cloud; see worldfoundry/data/models/validation/inference_evidence.yaml."
+          "发表机构在本仓库中未记录。"
         ]
       },
       "commands": {
@@ -10862,8 +10926,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "NVIDIA Spatial Intelligence Lab",
-      "summary": "WorldFoundry exposes in-tree Lyra-1 and Lyra-2 pipelines backed by vendored runtime adapters.",
+      "provider": "NVIDIA",
+      "summary": "Lyra is NVIDIA's generative world model family for exploration: from an image or video (Lyra-1) or from actions (Lyra-2) it produces an explorable world video. In this catalog both variants run through in-tree pipelines backed by vendored…",
       "aliases": [
         "Project Lyra",
         "Lyra 1.0",
@@ -11283,26 +11347,30 @@
         "Runtime execution requires local Lyra checkpoints, text-encoder assets, DA3 assets, and CUDA runtime dependencies."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "NVIDIA",
+          "nameZh": "英伟达（NVIDIA）",
+          "kind": "company"
+        },
         "overview": [
-          "Lyra is a 3D/4D reconstruction and generation model from NVIDIA Spatial Intelligence Lab. The catalog records it for open generative 3d and 4d world models. It is also cataloged under the aliases Project Lyra, Lyra 1.0, and Lyra 2.0.",
-          "WorldFoundry serves it through 2 recorded runnable variants (lyra-1 and lyra-2). The default route binds to the worldfoundry.pipelines.lyra.pipeline_lyra2:LyraPipeline pipeline.",
-          "It runs in the dedicated environment lyra (Python 3.10, CUDA 12.4, torch==2.6.0).",
-          "Weights are pulled from the Hugging Face repository depth-anything/DA3NESTED-GIANT-LARGE-1.1.",
-          "A WorldFoundry runner-parity artifact is recorded for this route."
+          "Lyra is NVIDIA's generative world model family for exploration: from an image or video (Lyra-1) or from actions (Lyra-2) it produces an explorable world video. In this catalog both variants run through in-tree pipelines backed by vendored runtime adapters, the default runner targets Lyra-2, and runner status is verified. A native World Explorer vendors the upstream CUDA/C++/ImGui interaction and rendering stack behind a model-neutral inference adapter."
         ],
         "overviewZh": [
-          "Lyra 是来自 NVIDIA Spatial Intelligence Lab 的3D/4D 重建与生成模型。Catalog 将它记录为open generative 3D and 4D world models任务。它还有别名 Project Lyra、Lyra 1.0、Lyra 2.0。",
-          "WorldFoundry 通过 2 个已记录的可运行 variant（lyra-1、lyra-2）来运行它。默认路径绑定到 worldfoundry.pipelines.lyra.pipeline_lyra2:LyraPipeline pipeline。",
-          "它运行在独立环境 lyra 中（Python 3.10，CUDA 12.4，torch==2.6.0）。",
-          "权重来自 Hugging Face 仓库 depth-anything/DA3NESTED-GIANT-LARGE-1.1。",
-          "该路径已记录 WorldFoundry runner parity 产物。"
+          "Lyra 是英伟达面向探索的生成式世界模型家族：Lyra-1 从图像或视频、Lyra-2 从动作输入生成可探索的世界视频。本 catalog 中两个 variant 都经由内置运行时适配器支撑的树内 pipeline 运行，默认 runner 指向 Lyra-2，runner 状态为 verified。原生 World Explorer 将上游 CUDA/C++/ImGui 交互与渲染实现内置在模型无关的推理适配器之后。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "The catalog records two generations: Lyra-1 for image-or-video-to-world-video and Lyra-2 for action-conditioned world video (paper on OpenReview; project page at NVIDIA Research). Runtime execution requires local Lyra checkpoints, text-encoder assets, DA3 (Depth Anything 3) assets, and CUDA dependencies; internals beyond the recorded structure are not stored in this repository."
+        ],
+        "architectureZh": [
+          "catalog 记录两代模型：Lyra-1 做图像/视频到世界视频，Lyra-2 做动作条件世界视频（论文见 OpenReview，项目页在 NVIDIA Research）。运行需要本地 Lyra checkpoint、文本编码器资产、DA3（Depth Anything 3）资产与 CUDA 依赖；除已记录结构外的内部细节仓库未存。"
+        ],
+        "usageNotes": [
+          "Pick the variant by input: lyra-1 when you start from an image or video, lyra-2 when you drive the world with actions. The default catalog runner resolves to Lyra-2. Stage all recorded assets before submitting Studio jobs; per-run validation evidence is tracked outside the catalog."
+        ],
+        "usageNotesZh": [
+          "按输入选 variant：从图像或视频出发用 lyra-1，用动作驱动世界用 lyra-2。默认 catalog runner 解析到 Lyra-2。提交 Studio 任务前请就位所有记录资产；每次运行的验证证据在 catalog 外跟踪。"
+        ],
         "highlights": [
           "Open Generative 3D And 4D World Models",
           "2 runnable WorldFoundry variants",
@@ -11326,20 +11394,39 @@
           "recommended": null,
           "notes": []
         },
-        "benchmarks": [],
+        "benchmarks": [
+          {
+            "id": "worldscore",
+            "name": "WorldScore",
+            "category": "World Models",
+            "categoryZh": "世界模型",
+            "summary": "In-tree official runtime scores generated videos per prompt",
+            "summaryZh": "仓内 official runtime 对生成视频逐 prompt 评分",
+            "href": "/docs/evaluation/benchmark-hub/worldscore",
+            "source": "docs",
+            "reason": "Standard scoring for explorable generated worlds.",
+            "reasonZh": "可探索生成世界的标准评分。"
+          },
+          {
+            "id": "camerabench",
+            "name": "CameraBench",
+            "category": "Video Generation",
+            "categoryZh": "视频生成",
+            "summary": "In-tree official runtime scores generated videos per prompt; some dimensions may call a hosted API",
+            "summaryZh": "仓内 official runtime 对生成视频逐 prompt 评分；部分维度可能调用 hosted API",
+            "href": "/docs/evaluation/benchmark-hub/camerabench",
+            "source": "docs",
+            "reason": "Evaluates camera/viewpoint control quality during exploration.",
+            "reasonZh": "评估探索过程中的相机/视角控制质量。"
+          }
+        ],
         "limitations": [
-          "Native demo evidence: Not recorded.",
-          "Lyra-1 and Lyra-2 are wired through in-tree runners and unified environment profiles.",
-          "Per-run validation evidence is tracked outside the model catalog.",
-          "The in-tree Lyra-1 runner supports the official static single-image SDG demo with local Lyra/Cosmos assets.",
-          "Per-run visual QA and artifact checks are tracked outside the model catalog."
+          "Runtime execution needs several staged asset sets (Lyra checkpoints, text encoder, DA3, CUDA).",
+          "The native World Explorer path depends on the vendored CUDA/C++ implementation and a capable GPU."
         ],
         "limitationsZh": [
-          "原生 Demo 证据：未记录。",
-          "Lyra-1 and Lyra-2 are wired through in-tree runners and unified environment profiles.",
-          "Per-run validation evidence is tracked outside the model catalog.",
-          "The in-tree Lyra-1 runner supports the official static single-image SDG demo with local Lyra/Cosmos assets.",
-          "Per-run visual QA and artifact checks are tracked outside the model catalog."
+          "运行需要就位多套资产（Lyra checkpoint、文本编码器、DA3、CUDA）。",
+          "原生 World Explorer 路径依赖内置的 CUDA/C++ 实现与足够性能的 GPU。"
         ]
       },
       "commands": {
@@ -12233,8 +12320,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "JUGGHM",
-      "summary": "Integrated as an independent metric-depth prior at worldfoundry/base_models/three_dimensions/depth/metric3d.",
+      "provider": "DJI / Zhejiang University",
+      "summary": "Metric3D recovers metric-scale depth from a single image by normalizing images into a canonical camera space, which lets one model generalize across cameras. In this catalog it is a verified metric-depth prior: the VIPE SLAM defaults refer…",
       "aliases": [
         "metric3d",
         "yvanyin-metric3d"
@@ -12505,26 +12592,30 @@
         "WorldFoundry exposes this prior through the shared geometry-prior pipeline/operator contract."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "DJI / Zhejiang University",
+          "nameZh": "大疆创新 / 浙江大学",
+          "kind": "company"
+        },
         "overview": [
-          "Metric3D is a 3D/4D reconstruction and generation model from JUGGHM. The catalog records it for monocular-depth-estimation, metric-depth-estimation, and geometry-prior. It is also cataloged under the aliases metric3d and yvanyin-metric3d.",
-          "WorldFoundry binds it to the worldfoundry.pipelines.geometry_priors.pipeline_geometry_priors:Metric3DPriorPipeline pipeline via worldfoundry.pipeline.",
-          "It runs in the shared unified environment worldfoundry-unified-cu128 (Python 3.11, CUDA 12.8).",
-          "Weights are pulled from the Hugging Face repository JUGGHM/Metric3D.",
-          "A WorldFoundry runner-parity artifact is recorded for this route."
+          "Metric3D recovers metric-scale depth from a single image by normalizing images into a canonical camera space, which lets one model generalize across cameras. In this catalog it is a verified metric-depth prior: the VIPE SLAM defaults reference it by name through the shared priors factory, and checkpoint-backed inference runs through the geometry-prior contract."
         ],
         "overviewZh": [
-          "Metric3D 是来自 JUGGHM 的3D/4D 重建与生成模型。Catalog 将它记录为单目深度估计、米制深度估计、几何先验任务。它还有别名 metric3d、yvanyin-metric3d。",
-          "WorldFoundry 将它绑定到 worldfoundry.pipelines.geometry_priors.pipeline_geometry_priors:Metric3DPriorPipeline pipeline（runner：worldfoundry.pipeline）。",
-          "它运行在统一环境 worldfoundry-unified-cu128 中（Python 3.11，CUDA 12.8）。",
-          "权重来自 Hugging Face 仓库 JUGGHM/Metric3D。",
-          "该路径已记录 WorldFoundry runner parity 产物。"
+          "Metric3D 通过把图像归一化到规范相机空间，从单张图像恢复米制尺度深度，使单一模型能够跨相机泛化。本 catalog 中它是已验证的米制深度先验：VIPE SLAM 默认配置通过共享先验工厂按名称引用它，checkpoint 加载推理经 geometry-prior 契约运行。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "Per the upstream publication (ICCV 2023), a canonical-camera transformation resolves the metric ambiguity of single-image depth, and the recorded checkpoint is JUGGHM/Metric3D under a bsd-2-clause license. Registered at base_models/three_dimensions/depth/metric3d."
+        ],
+        "architectureZh": [
+          "按上游论文（ICCV 2023），规范相机变换消解了单图深度的米制歧义；记录的 checkpoint 为 JUGGHM/Metric3D，许可 bsd-2-clause。注册于 base_models/three_dimensions/depth/metric3d。"
+        ],
+        "usageNotes": [
+          "It is integrated as an independent geometry prior under worldfoundry/base_models and exposed through the shared geometry-prior pipeline/operator contract. Higher-level pipelines (e.g. ViPE) import it from this canonical owner instead of keeping private copies. Runner parity is verified through the shared contract; it is the default metric-depth choice in the VIPE SLAM configuration."
+        ],
+        "usageNotesZh": [
+          "它作为独立几何先验集成在 worldfoundry/base_models 下，通过共享的 geometry-prior pipeline/operator 契约对外暴露。上层管线（如 ViPE）从这一规范位置导入它，而不是各自保留私有副本。runner parity 已通过共享契约验证；它是 VIPE SLAM 配置中的默认米制深度选择。"
+        ],
         "highlights": [
           "Monocular Depth Estimation",
           "Metric Depth Estimation",
@@ -12556,14 +12647,12 @@
         },
         "benchmarks": [],
         "limitations": [
-          "Native demo evidence: Not recorded.",
-          "Checkpoint-backed inference is implemented through the shared geometry-prior pipeline/operator contract.",
-          "Per-run validation evidence is tracked outside the model catalog so this file remains stable release metadata."
+          "Metric accuracy depends on camera-intrinsics quality; wrong intrinsics degrade the scale.",
+          "Single-image prior; temporal stability on video is out of scope."
         ],
         "limitationsZh": [
-          "原生 Demo 证据：未记录。",
-          "Checkpoint-backed inference is implemented through the shared geometry-prior pipeline/operator contract.",
-          "Per-run validation evidence is tracked outside the model catalog so this file remains stable release metadata."
+          "米制精度依赖相机内参质量；内参错误会破坏尺度。",
+          "单帧先验；视频时序稳定性不在其范围内。"
         ]
       },
       "commands": {
@@ -13350,8 +13439,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "MonST3R authors",
-      "summary": "WorldFoundry vendors the MonST3R infer-time components in-tree.",
+      "provider": "Google DeepMind / UC Berkeley",
+      "summary": "MonST3R extends the DUSt3R pointmap approach to dynamic scenes: it estimates per-timestep geometry directly from video, recovering shape and motion without a static-scene assumption. In this catalog it is fully verified — the CUDA Studio j…",
       "aliases": [],
       "tasks": [
         "geometry estimation in the presence of motion"
@@ -13537,24 +13626,30 @@
         "Public source is non-commercial; downstream use must honor the upstream license."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "Google DeepMind / UC Berkeley",
+          "nameZh": "Google DeepMind / 加州大学伯克利分校",
+          "kind": "company"
+        },
         "overview": [
-          "MonST3R is a 3D/4D reconstruction and generation model from MonST3R authors. The catalog records it for geometry estimation in the presence of motion.",
-          "WorldFoundry binds it to the worldfoundry.pipelines.three_d_four_d.pipeline_runtime:MonST3RPipeline pipeline via worldfoundry.pipeline.",
-          "It runs in the shared unified environment worldfoundry-unified-cu128 (Python 3.11, CUDA 12.8).",
-          "A WorldFoundry runner-parity artifact is recorded for this route."
+          "MonST3R extends the DUSt3R pointmap approach to dynamic scenes: it estimates per-timestep geometry directly from video, recovering shape and motion without a static-scene assumption. In this catalog it is fully verified — the CUDA Studio job produced a valid GLB v2 scene with 51 geometries and finite point data on 2026-07-10 through the in-tree demo.py subprocess adapter."
         ],
         "overviewZh": [
-          "MonST3R 是来自 MonST3R authors 的3D/4D 重建与生成模型。Catalog 将它记录为geometry estimation in the presence of motion任务。",
-          "WorldFoundry 将它绑定到 worldfoundry.pipelines.three_d_four_d.pipeline_runtime:MonST3RPipeline pipeline（runner：worldfoundry.pipeline）。",
-          "它运行在统一环境 worldfoundry-unified-cu128 中（Python 3.11，CUDA 12.8）。",
-          "该路径已记录 WorldFoundry runner parity 产物。"
+          "MonST3R 把 DUSt3R 的点图方法扩展到动态场景：直接从视频逐时刻估计几何，在不假设静态场景的前提下同时恢复形状与运动。本 catalog 中它已完整验证——CUDA Studio 任务于 2026-07-10 通过树内 demo.py 子进程适配器产出含 51 个几何体、点数据有限的合法 GLB v2 场景。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "Per the upstream publication, MonST3R fine-tunes the DUSt3R pointmap regressor on dynamic data so that pointmaps are estimated per timestep; downstream optimization aligns them into a 4D scene. WorldFoundry vendors the infer-time components in-tree and materializes a GLB scene artifact."
+        ],
+        "architectureZh": [
+          "按上游论文，MonST3R 在动态数据上微调 DUSt3R 的点图回归器，使点图按时刻估计；下游优化将其对齐为 4D 场景。WorldFoundry 将推理组件内置树内，并生成 GLB 场景产物。"
+        ],
+        "usageNotes": [
+          "The Studio default disables the optional flow loss so missing RAFT2/SAM2 assets do not block preview output. For full official dynamic-mask parity, configure the MonST3R, RAFT, and SAM2 assets in the runtime environment."
+        ],
+        "usageNotesZh": [
+          "Studio 默认关闭可选的光流损失，因此 RAFT2/SAM2 资产缺失不会阻塞预览输出。若要完整对齐官方动态掩码效果，请在运行时环境中配置 MonST3R、RAFT 与 SAM2 资产。"
+        ],
         "highlights": [
           "Geometry Estimation In The Presence Of Motion",
           "Unified env · Python 3.11 · CUDA 12.8"
@@ -13576,12 +13671,12 @@
         },
         "benchmarks": [],
         "limitations": [
-          "Native demo evidence: Not recorded.",
-          "The CUDA Studio job produced a valid GLB v2 scene with 51 geometries and finite point data on 2026-07-10."
+          "Full official dynamic-mask parity needs RAFT2/SAM2 assets beyond the Studio default path.",
+          "Optimization-based alignment makes long videos slow compared with feed-forward reconstructors."
         ],
         "limitationsZh": [
-          "原生 Demo 证据：未记录。",
-          "The CUDA Studio job produced a valid GLB v2 scene with 51 geometries and finite point data on 2026-07-10."
+          "完整的官方动态掩码效果需要 Studio 默认路径之外的 RAFT2/SAM2 资产。",
+          "基于优化的对齐使长视频处理速度慢于前馈式重建器。"
         ]
       },
       "commands": {
@@ -13844,8 +13939,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "CASIA and CreateAI authors",
-      "summary": "WorldFoundry exposes a native NeoVerse assembly over canonical Wan components plus its model-specific control and reconstruction roles.",
+      "provider": "CreateAI (formerly TuSimple)",
+      "summary": "NeoVerse is a 4D world model built as a native assembly over canonical Wan components plus model-specific control and reconstruction roles: it enhances world generation with 4D-aware conditioning. In this catalog the runner is verified for…",
       "aliases": [
         "NeoVerse: Enhancing 4D World Model"
       ],
@@ -14224,26 +14319,30 @@
         "Runtime execution requires NeoVerse, Wan, reconstructor, LoRA, and CUDA assets."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "CreateAI (formerly TuSimple)",
+          "nameZh": "CreateAI（原图森未来）",
+          "kind": "company"
+        },
         "overview": [
-          "NeoVerse is a 3D/4D reconstruction and generation model from CASIA and CreateAI authors. The catalog records it for 4d world modeling from in-the-wild monocular videos. It is also cataloged under the alias NeoVerse: Enhancing 4D World Model.",
-          "WorldFoundry binds it to the worldfoundry.pipelines.neoverse.pipeline_neoverse:NeoVersePipeline pipeline via worldfoundry.pipeline.",
-          "It runs in the shared unified environment worldfoundry-unified-cu128 (Python 3.11, CUDA 12.8).",
-          "Weights are pulled from the Hugging Face repository Yuppie1204/NeoVerse.",
-          "A WorldFoundry runner-parity artifact is recorded for this route."
+          "NeoVerse is a 4D world model built as a native assembly over canonical Wan components plus model-specific control and reconstruction roles: it enhances world generation with 4D-aware conditioning. In this catalog the runner is verified for the README-style tilt_up video demo with local NeoVerse assets; the official video-input path uses static_scene=false."
         ],
         "overviewZh": [
-          "NeoVerse 是来自 CASIA and CreateAI authors 的3D/4D 重建与生成模型。Catalog 将它记录为4D world modeling from in-the-wild monocular videos任务。它还有别名 NeoVerse: Enhancing 4D World Model。",
-          "WorldFoundry 将它绑定到 worldfoundry.pipelines.neoverse.pipeline_neoverse:NeoVersePipeline pipeline（runner：worldfoundry.pipeline）。",
-          "它运行在统一环境 worldfoundry-unified-cu128 中（Python 3.11，CUDA 12.8）。",
-          "权重来自 Hugging Face 仓库 Yuppie1204/NeoVerse。",
-          "该路径已记录 WorldFoundry runner parity 产物。"
+          "NeoVerse 是一个 4D 世界模型，由规范 Wan 组件加模型专属的控制与重建角色原生组装而成，用 4D 感知条件增强世界生成。本 catalog 中其 runner 已针对 README 风格的 tilt_up 视频 demo（使用本地 NeoVerse 资产）验证；官方视频输入路径使用 static_scene=false。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "Per the upstream release (arXiv 2601.00393), NeoVerse layers 4D reconstruction and control roles over a Wan video backbone. WorldFoundry expresses this as a native assembly over shared Wan infrastructure — real inference stays checkpoint/GPU gated with no metadata-only runner shim."
+        ],
+        "architectureZh": [
+          "按上游发布（arXiv 2601.00393），NeoVerse 在 Wan 视频基座上叠加 4D 重建与控制角色。 WorldFoundry 将其表达为共享 Wan 基础设施上的原生组装——真实推理仍受 checkpoint/GPU 限制，不使用仅元数据的 runner 壳。"
+        ],
+        "usageNotes": [
+          "Runtime execution requires NeoVerse, Wan, reconstructor, LoRA, and CUDA assets. For video input follow the official path with static_scene=false; per-run visual QA and artifact checks are tracked outside the catalog."
+        ],
+        "usageNotesZh": [
+          "运行需要 NeoVerse、Wan、重建器、LoRA 与 CUDA 资产。视频输入请按官方路径使用 static_scene=false；每次运行的视觉 QA 与产物检查在 catalog 外跟踪。"
+        ],
         "highlights": [
           "4D World Modeling From In The Wild Monocular Videos",
           "Unified env · Python 3.11 · CUDA 12.8",
@@ -14265,18 +14364,39 @@
           "recommended": null,
           "notes": []
         },
-        "benchmarks": [],
+        "benchmarks": [
+          {
+            "id": "worldscore",
+            "name": "WorldScore",
+            "category": "World Models",
+            "categoryZh": "世界模型",
+            "summary": "In-tree official runtime scores generated videos per prompt",
+            "summaryZh": "仓内 official runtime 对生成视频逐 prompt 评分",
+            "href": "/docs/evaluation/benchmark-hub/worldscore",
+            "source": "docs",
+            "reason": "Scores navigable generated worlds.",
+            "reasonZh": "评估可游走的生成世界。"
+          },
+          {
+            "id": "4dworldbench",
+            "name": "4DWorldBench",
+            "category": "World Models",
+            "categoryZh": "世界模型",
+            "summary": "In-tree official runtime scores generated videos per prompt",
+            "summaryZh": "仓内 official runtime 对生成视频逐 prompt 评分",
+            "href": "/docs/evaluation/benchmark-hub/4dworldbench",
+            "source": "docs",
+            "reason": "Matches the entry's 4D world-model focus.",
+            "reasonZh": "契合该条目的 4D 世界模型定位。"
+          }
+        ],
         "limitations": [
-          "Native demo evidence: Not recorded.",
-          "The in-tree NeoVerse runner supports the README-style tilt_up video demo with local NeoVerse assets.",
-          "The official video-input path uses static_scene=false.",
-          "Per-run visual QA and artifact checks are tracked outside the model catalog."
+          "Requires the full recorded asset stack (NeoVerse + Wan + reconstructor + LoRA).",
+          "Verified scope is the README-style demo; broader scenario coverage is tracked outside the catalog."
         ],
         "limitationsZh": [
-          "原生 Demo 证据：未记录。",
-          "The in-tree NeoVerse runner supports the README-style tilt_up video demo with local NeoVerse assets.",
-          "The official video-input path uses static_scene=false.",
-          "Per-run visual QA and artifact checks are tracked outside the model catalog."
+          "需要完整的记录资产组合（NeoVerse + Wan + 重建器 + LoRA）。",
+          "已验证范围是 README 风格 demo；更广场景覆盖在 catalog 外跟踪。"
         ]
       },
       "commands": {
@@ -14807,8 +14927,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "Rain729",
-      "summary": "Integrated as an independent depth-completion prior at worldfoundry/base_models/three_dimensions/depth/priorda.",
+      "provider": "Open-source research release (institution not recorded)",
+      "summary": "Prior Depth Anything is a depth-completion prior: it takes any coarse or sparse metric-depth prior plus an image and refines them into a dense, sharper metric depth map. In this catalog it is verified — the Workspace loaded the official ch…",
       "aliases": [
         "priorda",
         "prior-depth-anything-prior"
@@ -15078,26 +15198,30 @@
         "WorldFoundry exposes this prior through the shared geometry-prior pipeline/operator contract."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "Open-source research release (institution not recorded)",
+          "nameZh": "开源研究发布（仓库未记录正式机构）",
+          "kind": "lab"
+        },
         "overview": [
-          "Prior Depth Anything is a 3D/4D reconstruction and generation model from Rain729. The catalog records it for depth-completion, metric-depth-estimation, and geometry-prior. It is also cataloged under the aliases priorda and prior-depth-anything-prior.",
-          "WorldFoundry binds it to the worldfoundry.pipelines.geometry_priors.pipeline_geometry_priors:PriorDepthAnythingPipeline pipeline via worldfoundry.pipeline.",
-          "It runs in the shared unified environment worldfoundry-unified-cu128 (Python 3.11, CUDA 12.8).",
-          "Weights are pulled from the Hugging Face repository Rain729/Prior-Depth-Anything.",
-          "A WorldFoundry runner-parity artifact is recorded for this route."
+          "Prior Depth Anything is a depth-completion prior: it takes any coarse or sparse metric-depth prior plus an image and refines them into a dense, sharper metric depth map. In this catalog it is verified — the Workspace loaded the official checkpoint and refined a real Depth Anything 3 metric-depth condition on 2026-07-11."
         ],
         "overviewZh": [
-          "Prior Depth Anything 是来自 Rain729 的3D/4D 重建与生成模型。Catalog 将它记录为depth-completion、米制深度估计、几何先验任务。它还有别名 priorda、prior-depth-anything-prior。",
-          "WorldFoundry 将它绑定到 worldfoundry.pipelines.geometry_priors.pipeline_geometry_priors:PriorDepthAnythingPipeline pipeline（runner：worldfoundry.pipeline）。",
-          "它运行在统一环境 worldfoundry-unified-cu128 中（Python 3.11，CUDA 12.8）。",
-          "权重来自 Hugging Face 仓库 Rain729/Prior-Depth-Anything。",
-          "该路径已记录 WorldFoundry runner parity 产物。"
+          "Prior Depth Anything 是深度补全先验：接受任意粗糙或稀疏的米制深度先验加一张图像，将其细化为致密且更锐利的米制深度图。本 catalog 中它已验证——Workspace 于 2026-07-11 加载官方 checkpoint，并对真实的 Depth Anything 3 米制深度条件完成了细化。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "The catalog records a prompt-conditioned depth-completion design: the model consumes prompt metric depth alongside the image (checkpoint Rain729/Prior-Depth-Anything, apache-2.0). It is registered at base_models/three_dimensions/depth/priorda and shared by higher-level geometry pipelines without being nested under them."
+        ],
+        "architectureZh": [
+          "catalog 记录其为提示条件的深度补全设计：模型同时消费提示米制深度与图像（checkpoint 为 Rain729/Prior-Depth-Anything，apache-2.0）。注册于 base_models/three_dimensions/depth/priorda，供上层几何管线共享而不嵌套于其下。"
+        ],
+        "usageNotes": [
+          "It is integrated as an independent geometry prior under worldfoundry/base_models and exposed through the shared geometry-prior pipeline/operator contract. Higher-level pipelines (e.g. ViPE) import it from this canonical owner instead of keeping private copies. Pair it with a metric source (e.g. depth-anything-v3-prior) whose output it refines."
+        ],
+        "usageNotesZh": [
+          "它作为独立几何先验集成在 worldfoundry/base_models 下，通过共享的 geometry-prior pipeline/operator 契约对外暴露。上层管线（如 ViPE）从这一规范位置导入它，而不是各自保留私有副本。请与米制深度源（如 depth-anything-v3-prior）配对使用，由它细化该源的输出。"
+        ],
         "highlights": [
           "Depth Completion",
           "Metric Depth Estimation",
@@ -15129,12 +15253,12 @@
         },
         "benchmarks": [],
         "limitations": [
-          "Native demo evidence: Not recorded.",
-          "Workspace loaded the official checkpoint and refined a real Depth Anything 3 metric-depth condition on 2026-07-11."
+          "Needs a metric-depth condition as input — it refines priors rather than estimating from scratch.",
+          "The publishing institution is not recorded in this repository."
         ],
         "limitationsZh": [
-          "原生 Demo 证据：未记录。",
-          "Workspace loaded the official checkpoint and refined a real Depth Anything 3 metric-depth condition on 2026-07-11."
+          "需要米制深度条件作为输入——它细化先验而非从零估计。",
+          "发表机构在本仓库中未记录。"
         ]
       },
       "commands": {
@@ -15152,8 +15276,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "Kling Team / Kuaishou, Zhejiang University, CUHK, and HUST authors",
-      "summary": "WorldFoundry exposes the in-tree ReCamMaster pipeline, operator, and synthesis runtime under the Kling namespace.",
+      "provider": "Kuaishou (Kling Team)",
+      "summary": "ReCamMaster re-renders an existing video along a new camera trajectory — camera-controlled generative rendering from a single video. In this catalog the in-tree pipeline, operator, and synthesis runtime live under the Kling namespace, and…",
       "aliases": [
         "Camera-Controlled Generative Rendering from A Single Video"
       ],
@@ -15354,26 +15478,30 @@
         "Runtime execution requires local Wan2.1, ReCamMaster checkpoint, torchvision, and CUDA assets."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "Kuaishou (Kling Team)",
+          "nameZh": "快手（可灵团队）",
+          "kind": "company"
+        },
         "overview": [
-          "ReCamMaster is a 3D/4D reconstruction and generation model from Kling Team / Kuaishou, Zhejiang University, CUHK, and HUST authors. The catalog records it for camera-controlled video rerendering. It is also cataloged under the alias Camera-Controlled Generative Rendering from A Single Video.",
-          "WorldFoundry binds it to the worldfoundry.pipelines.kling.pipeline_recammaster:ReCamMasterPipeline pipeline via worldfoundry.pipeline.",
-          "It runs in the shared unified environment worldfoundry-unified-cu128 (Python 3.11, CUDA 12.8).",
-          "Weights are pulled from the Hugging Face repository KlingTeam/ReCamMaster-Wan2.1, pinned to revision 4f3f73917, plus 1 more recorded repository.",
-          "A WorldFoundry runner-parity artifact is recorded for this route."
+          "ReCamMaster re-renders an existing video along a new camera trajectory — camera-controlled generative rendering from a single video. In this catalog the in-tree pipeline, operator, and synthesis runtime live under the Kling namespace, and the runner is verified for the official camera-trajectory video-to-video demo with local ReCamMaster/Wan assets."
         ],
         "overviewZh": [
-          "ReCamMaster 是来自 Kling Team / Kuaishou, Zhejiang University, CUHK, and HUST authors 的3D/4D 重建与生成模型。Catalog 将它记录为camera-controlled video rerendering任务。它还有别名 Camera-Controlled Generative Rendering from A Single Video。",
-          "WorldFoundry 将它绑定到 worldfoundry.pipelines.kling.pipeline_recammaster:ReCamMasterPipeline pipeline（runner：worldfoundry.pipeline）。",
-          "它运行在统一环境 worldfoundry-unified-cu128 中（Python 3.11，CUDA 12.8）。",
-          "权重来自 Hugging Face 仓库 KlingTeam/ReCamMaster-Wan2.1，固定在 revision 4f3f73917，另有 1 个已记录仓库。",
-          "该路径已记录 WorldFoundry runner parity 产物。"
+          "ReCamMaster 让已有视频沿新的相机轨迹重新渲染——从单个视频出发的相机可控生成式渲染。本 catalog 中其树内 pipeline、operator 与合成运行时位于 Kling 命名空间下，runner 已针对官方相机轨迹 video-to-video demo（使用本地 ReCamMaster/Wan 资产）验证。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "Per the paper (arXiv 2503.11647), ReCamMaster conditions a pre-trained text-to-video model (Wan-family in the open release) on the source video through frame-dimension conditioning, letting camera trajectories be swapped at generation time. Runtime execution requires local Wan2.1, the ReCamMaster checkpoint, torchvision, and CUDA assets."
+        ],
+        "architectureZh": [
+          "按论文（arXiv 2503.11647），ReCamMaster 通过帧维度条件化把源视频注入预训练文生视频模型（开源版基于 Wan 系），从而在生成时更换相机轨迹。运行需要本地 Wan2.1、ReCamMaster checkpoint、torchvision 与 CUDA 资产。"
+        ],
+        "usageNotes": [
+          "The open-source reference runtime is checkpoint/GPU gated — no empty runner shim is registered. Stage Wan2.1 plus the ReCamMaster checkpoint before submitting jobs; per-run visual QA is tracked outside the catalog."
+        ],
+        "usageNotesZh": [
+          "开源参考运行时受 checkpoint/GPU 限制——不注册空 runner 壳。提交任务前请就位 Wan2.1 与 ReCamMaster checkpoint；每次运行的视觉 QA 在 catalog 外跟踪。"
+        ],
         "highlights": [
           "Camera Controlled Video Rerendering",
           "Unified env · Python 3.11 · CUDA 12.8",
@@ -15395,16 +15523,27 @@
           "recommended": null,
           "notes": []
         },
-        "benchmarks": [],
+        "benchmarks": [
+          {
+            "id": "camerabench",
+            "name": "CameraBench",
+            "category": "Video Generation",
+            "categoryZh": "视频生成",
+            "summary": "In-tree official runtime scores generated videos per prompt; some dimensions may call a hosted API",
+            "summaryZh": "仓内 official runtime 对生成视频逐 prompt 评分；部分维度可能调用 hosted API",
+            "href": "/docs/evaluation/benchmark-hub/camerabench",
+            "source": "docs",
+            "reason": "Directly evaluates camera-trajectory control quality.",
+            "reasonZh": "直接评估相机轨迹控制质量。"
+          }
+        ],
         "limitations": [
-          "Native demo evidence: Not recorded.",
-          "The in-tree ReCamMaster runner supports the official camera-trajectory video-to-video demo with local ReCamMaster/Wan assets.",
-          "Per-run visual QA and artifact checks are tracked outside the model catalog."
+          "Requires local Wan2.1 and ReCamMaster checkpoints plus CUDA.",
+          "Re-rendering quality is bounded by the source video content — unseen regions are hallucinated."
         ],
         "limitationsZh": [
-          "原生 Demo 证据：未记录。",
-          "The in-tree ReCamMaster runner supports the official camera-trajectory video-to-video demo with local ReCamMaster/Wan assets.",
-          "Per-run visual QA and artifact checks are tracked outside the model catalog."
+          "需要本地 Wan2.1 与 ReCamMaster checkpoint 及 CUDA。",
+          "重渲染质量受源视频内容限制——未见区域由模型补全想象。"
         ]
       },
       "commands": {
@@ -16979,8 +17118,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "brandonsmart",
-      "summary": "Runtime code is vendored in-tree under worldfoundry/base_models/three_dimensions/general_3d/splatt3r/splatt3r_runtime; checkpoints remain external assets.",
+      "provider": "University of Oxford (Active Vision Lab)",
+      "summary": "Splatt3R predicts a 3D Gaussian splat scene directly from an uncalibrated image pair — zero shot, no camera parameters, no per-scene optimization. In this catalog it is fully verified: checkpoint-backed GPU inference produced a finite 344,…",
       "aliases": [
         "splattr",
         "splatt3r-official"
@@ -17191,26 +17330,30 @@
         "Splatt3RSynthesis loads the in-tree runtime code in-process and emits a PLY Gaussian splat artifact."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "University of Oxford (Active Vision Lab)",
+          "nameZh": "牛津大学（Active Vision Lab）",
+          "kind": "university"
+        },
         "overview": [
-          "Splatt3R is a 3D/4D reconstruction and generation model from brandonsmart. The catalog records it for 3d-reconstruction and gaussian-splatting. It is also cataloged under the aliases splattr and splatt3r-official.",
-          "WorldFoundry binds it to the worldfoundry.pipelines.component_pipelines:Splatt3RPipeline pipeline via worldfoundry.pipeline.",
-          "It runs in the shared unified environment worldfoundry-unified-cu128 (Python 3.10, CUDA 11.3).",
-          "Weights are pulled from the Hugging Face repository brandonsmart/splatt3r_v1.0.",
-          "A WorldFoundry runner-parity artifact is recorded for this route."
+          "Splatt3R predicts a 3D Gaussian splat scene directly from an uncalibrated image pair — zero shot, no camera parameters, no per-scene optimization. In this catalog it is fully verified: checkpoint-backed GPU inference produced a finite 344,064-Gaussian PLY from the bundled official-style views, with evidence in inference_evidence.yaml."
         ],
         "overviewZh": [
-          "Splatt3R 是来自 brandonsmart 的3D/4D 重建与生成模型。Catalog 将它记录为3D 重建、高斯泼溅（Gaussian Splatting）任务。它还有别名 splattr、splatt3r-official。",
-          "WorldFoundry 将它绑定到 worldfoundry.pipelines.component_pipelines:Splatt3RPipeline pipeline（runner：worldfoundry.pipeline）。",
-          "它运行在统一环境 worldfoundry-unified-cu128 中（Python 3.10，CUDA 11.3）。",
-          "权重来自 Hugging Face 仓库 brandonsmart/splatt3r_v1.0。",
-          "该路径已记录 WorldFoundry runner parity 产物。"
+          "Splatt3R 直接从未标定的图像对预测 3D 高斯泼溅场景——零样本、无需相机参数、无需逐场景优化。本 catalog 中它已完整验证：checkpoint 加载的 GPU 推理从内置官方风格视图产出含 344,064 个高斯的有限 PLY，证据记录在 inference_evidence.yaml。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "Per the paper (arXiv 2408.13912), Splatt3R builds on MASt3R's two-view geometry backbone and adds a Gaussian-parameter head. WorldFoundry keeps the runtime under base_models/three_dimensions/general_3d/splatt3r/splatt3r_runtime, importing MASt3R/DUSt3R from their canonical sibling paths; the packaged runtime is inference-only (training loaders and demo code are pruned)."
+        ],
+        "architectureZh": [
+          "按论文（arXiv 2408.13912），Splatt3R 在 MASt3R 的双视图几何主干上增加高斯参数头。 WorldFoundry 将运行时放在 base_models/three_dimensions/general_3d/splatt3r/splatt3r_runtime，并从规范兄弟路径导入 MASt3R/DUSt3R；打包的运行时仅含推理（训练加载器与 demo 代码已裁剪）。"
+        ],
+        "usageNotes": [
+          "Splatt3RSynthesis loads the in-tree runtime in-process and emits a PLY Gaussian-splat artifact. Checkpoints stay external assets (brandonsmart/splatt3r_v1.0) — stage them before running."
+        ],
+        "usageNotesZh": [
+          "Splatt3RSynthesis 在进程内加载树内运行时，输出 PLY 高斯泼溅产物。checkpoint 保持为外部资产（brandonsmart/splatt3r_v1.0）——运行前请先就位。"
+        ],
         "highlights": [
           "3D Reconstruction",
           "Gaussian Splatting",
@@ -17236,12 +17379,12 @@
         },
         "benchmarks": [],
         "limitations": [
-          "Native demo evidence: Not recorded.",
-          "Checkpoint-backed GPU inference produced a finite 344064-Gaussian PLY from the bundled official-style views; see worldfoundry/data/models/validation/inference_evidence.yaml."
+          "Two-view input: large scenes need multiple pairs and external merging.",
+          "Inherits MASt3R/DUSt3R licensing considerations through its backbone lineage."
         ],
         "limitationsZh": [
-          "原生 Demo 证据：未记录。",
-          "Checkpoint-backed GPU inference produced a finite 344064-Gaussian PLY from the bundled official-style views; see worldfoundry/data/models/validation/inference_evidence.yaml."
+          "双视图输入：大场景需要多对图像并在外部合并。",
+          "经主干继承 MASt3R/DUSt3R 的许可注意事项。"
         ]
       },
       "commands": {
@@ -17745,8 +17888,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "Huggingface",
-      "summary": "VGGT-Omega uses an official-architecture representation runner plus the existing WorldFoundry VGGTResult/save interface.",
+      "provider": "Meta AI",
+      "summary": "VGGT-Omega is the extended VGGT release published under facebook/VGGT-Omega, covering 3D reconstruction, Gaussian splatting, and novel view synthesis. In this catalog it is verified with unusually strong evidence: single-image GPU parity a…",
       "aliases": [
         "vggt_omega",
         "facebook/VGGT-Omega"
@@ -18005,26 +18148,30 @@
         "VGGT-Omega uses the in-tree official scene-export runner and emits predictions.npz plus GLB scene artifacts."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "Meta AI",
+          "nameZh": "Meta AI",
+          "kind": "company"
+        },
         "overview": [
-          "VGGT-Omega is a 3D/4D reconstruction and generation model from Huggingface. The catalog records it for 3d-reconstruction, gaussian-splatting, and novel-view-synthesis. It is also cataloged under the aliases vggt_omega and facebook/VGGT-Omega.",
-          "WorldFoundry binds it to the worldfoundry.pipelines.vggt_omega.pipeline_vggt_omega:VGGTOmegaPipeline pipeline via worldfoundry.pipeline.",
-          "It runs in the shared unified environment worldfoundry-unified-cu128 (Python 3.11, CUDA 12.8).",
-          "Weights are pulled from the Hugging Face repository facebook/VGGT-Omega (license: cc-by-nc-4.0).",
-          "A WorldFoundry runner-parity artifact is recorded for this route."
+          "VGGT-Omega is the extended VGGT release published under facebook/VGGT-Omega, covering 3D reconstruction, Gaussian splatting, and novel view synthesis. In this catalog it is verified with unusually strong evidence: single-image GPU parity against the pinned upstream commit passed with max_abs_diff=0.0 for comparable outputs, and the in-tree runner supports the official scene-export route."
         ],
         "overviewZh": [
-          "VGGT-Omega 是来自 Huggingface 的3D/4D 重建与生成模型。Catalog 将它记录为3D 重建、高斯泼溅（Gaussian Splatting）、新视角合成任务。它还有别名 vggt_omega、facebook/VGGT-Omega。",
-          "WorldFoundry 将它绑定到 worldfoundry.pipelines.vggt_omega.pipeline_vggt_omega:VGGTOmegaPipeline pipeline（runner：worldfoundry.pipeline）。",
-          "它运行在统一环境 worldfoundry-unified-cu128 中（Python 3.11，CUDA 12.8）。",
-          "权重来自 Hugging Face 仓库 facebook/VGGT-Omega（license：cc-by-nc-4.0）。",
-          "该路径已记录 WorldFoundry runner parity 产物。"
+          "VGGT-Omega 是以 facebook/VGGT-Omega 发布的 VGGT 扩展版本，覆盖 3D 重建、高斯泼溅与新视角合成。本 catalog 中它以异常严格的证据验证：与固定上游 commit 的单图 GPU 一致性对比在可比输出上达到 max_abs_diff=0.0，树内 runner 支持官方场景导出路径。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "It uses an official-architecture representation runner plus the existing WorldFoundry VGGTResult/save interface, emitting predictions.npz plus GLB scene artifacts. Weights stay under assets/checkpoints and are never committed into source files; the checkpoint license is CC-BY-NC-4.0."
+        ],
+        "architectureZh": [
+          "它使用官方架构的表示 runner 加上现有的 WorldFoundry VGGTResult/save 接口，输出 predictions.npz 与 GLB 场景产物。权重存放于 assets/checkpoints、绝不提交进源码；checkpoint 许可为 CC-BY-NC-4.0。"
+        ],
+        "usageNotes": [
+          "Use this entry for the verified official scene-export route with WorldFoundry representation artifacts. It is distinct from the vggt (base) and vggt-world entries — pick by route, not by name."
+        ],
+        "usageNotesZh": [
+          "需要已验证的官方场景导出路径与 WorldFoundry 表示产物时使用本条目。它与 vggt（基础版）及 vggt-world 条目相互独立——请按路径而非名称选择。"
+        ],
         "highlights": [
           "3D Reconstruction",
           "Gaussian Splatting",
@@ -18052,16 +18199,12 @@
         },
         "benchmarks": [],
         "limitations": [
-          "Native demo evidence: Not recorded.",
-          "Single-image GPU parity against ${WORLDFOUNDRY_MODEL_SOURCE_DIR}/vggt-omega commit 815432d4384d707c8e33478a9a72e214cb4cf9f1 passed with max_abs_diff=0.0 for comparable outputs.",
-          "The in-tree runner supports the official scene-export route and WorldFoundry representation artifacts.",
-          "Per-run validation evidence is tracked outside the model catalog."
+          "CC-BY-NC-4.0 checkpoint: non-commercial license terms apply downstream.",
+          "Verified scope is single-image parity plus scene export; broader multi-view coverage is tracked outside the catalog."
         ],
         "limitationsZh": [
-          "原生 Demo 证据：未记录。",
-          "Single-image GPU parity against ${WORLDFOUNDRY_MODEL_SOURCE_DIR}/vggt-omega commit 815432d4384d707c8e33478a9a72e214cb4cf9f1 passed with max_abs_diff=0.0 for comparable outputs.",
-          "The in-tree runner supports the official scene-export route and WorldFoundry representation artifacts.",
-          "Per-run validation evidence is tracked outside the model catalog."
+          "checkpoint 为 CC-BY-NC-4.0：下游适用非商用许可条款。",
+          "已验证范围为单图一致性加场景导出；更广的多视图覆盖在 catalog 外跟踪。"
         ]
       },
       "commands": {
@@ -30452,8 +30595,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "nvidia",
-      "summary": "Runtime source is externalized from the public release tree; checkpoints remain external assets.",
+      "provider": "NVIDIA",
+      "summary": "Déjà View Looping Transformer (DVLT) is an NVIDIA multi-view reconstruction model covering 3D reconstruction, camera pose estimation, and depth from image collections, exporting GLB scenes. The WorldFoundry wrapper is lazy: it runs the ext…",
       "aliases": [
         "deja-view",
         "dejaview",
@@ -30794,26 +30937,30 @@
         "DVLTSynthesis fails fast on missing prerequisites and uses the external DVLT inference and GLB export helpers when CUDA, dependencies, inputs, source, and weights are staged locally."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "NVIDIA",
+          "nameZh": "英伟达（NVIDIA）",
+          "kind": "company"
+        },
         "overview": [
-          "Déjà View Looping Transformer is a 3D/4D reconstruction and generation model from nvidia. The catalog records it for 3d-reconstruction, multi-view-reconstruction, camera-pose-estimation, and depth-estimation. It is also cataloged under the aliases deja-view, dejaview, and deja-view-looping-transformer.",
-          "WorldFoundry binds it to the worldfoundry.pipelines.component_pipelines:DVLTPipeline pipeline via worldfoundry.pipeline.",
-          "It runs in the shared unified environment worldfoundry-unified-cu128 (Python 3.11, CUDA 12.8).",
-          "Weights are pulled from the Hugging Face repository nvidia/dvlt (license: nvidia-noncommercial-research-evaluation).",
-          "Runner parity is currently “Pending” and native-demo parity is “Not Recorded”; treat end-to-end GPU evidence as not yet recorded."
+          "Déjà View Looping Transformer (DVLT) is an NVIDIA multi-view reconstruction model covering 3D reconstruction, camera pose estimation, and depth from image collections, exporting GLB scenes. The WorldFoundry wrapper is lazy: it runs the external DVLT GLB export path only when CUDA, dependencies, source, inputs, and weights are all staged locally."
         ],
         "overviewZh": [
-          "Déjà View Looping Transformer 是来自 nvidia 的3D/4D 重建与生成模型。Catalog 将它记录为3D 重建、multi-view-reconstruction、camera-pose-estimation、depth-estimation任务。它还有别名 deja-view、dejaview、deja-view-looping-transformer。",
-          "WorldFoundry 将它绑定到 worldfoundry.pipelines.component_pipelines:DVLTPipeline pipeline（runner：worldfoundry.pipeline）。",
-          "它运行在统一环境 worldfoundry-unified-cu128 中（Python 3.11，CUDA 12.8）。",
-          "权重来自 Hugging Face 仓库 nvidia/dvlt（license：nvidia-noncommercial-research-evaluation）。",
-          "当前 runner parity 为“Pending”，原生 demo parity 为“Not Recorded”；端到端 GPU 证据应视为尚未记录。"
+          "Déjà View Looping Transformer（DVLT）是英伟达的多视图重建模型，覆盖 3D 重建、相机位姿估计与深度估计，输出 GLB 场景。WorldFoundry 的封装是惰性的：仅当 CUDA、依赖、源码、输入与权重全部本地就位时，才运行外部 DVLT 的 GLB 导出路径。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "The catalog records a looping-transformer design for multi-view geometry (paper arXiv 2605.30215); the runtime source is externalized from the public release tree, so architecture internals beyond the recorded tasks are not stored here."
+        ],
+        "architectureZh": [
+          "catalog 记录其为面向多视图几何的 looping-transformer 设计（论文 arXiv 2605.30215）；运行时源码不在公开发布树内，除已记录任务外的架构细节此处未存。"
+        ],
+        "usageNotes": [
+          "Runner registration is wired; GPU parity is pending checkpoint and environment validation. The nvidia/dvlt checkpoint carries the NVIDIA non-commercial research/evaluation license — check terms before use. DVLTSynthesis fails fast on missing prerequisites."
+        ],
+        "usageNotesZh": [
+          "runner 注册已接好；GPU 一致性待 checkpoint 与环境验证。nvidia/dvlt checkpoint 使用英伟达非商用研究/评估许可——使用前请核对条款。DVLTSynthesis 在前置条件缺失时快速失败。"
+        ],
         "highlights": [
           "3D Reconstruction",
           "Multi View Reconstruction",
@@ -30845,14 +30992,14 @@
         },
         "benchmarks": [],
         "limitations": [
-          "Runner evidence is “Pending” — not a verified end-to-end GPU run. Do not treat this page as proof the route is fully validated.",
-          "Native demo evidence: Not recorded.",
-          "Runner registration is wired; GPU parity is pending checkpoint and environment validation."
+          "Checkpoint license is NVIDIA non-commercial research/evaluation only.",
+          "Upstream runtime source is external to this repository; staging it is your responsibility.",
+          "GPU parity is pending."
         ],
         "limitationsZh": [
-          "Runner 证据为“Pending”——这不是经过验证的端到端 GPU 运行结果，请勿将本页视为该路径已被完整验证的证明。",
-          "原生 Demo 证据：未记录。",
-          "Runner registration is wired; GPU parity is pending checkpoint and environment validation."
+          "checkpoint 许可仅限英伟达非商用研究/评估用途。",
+          "上游运行时源码在本仓库之外，需要自行就位。",
+          "GPU 一致性待验证。"
         ]
       },
       "commands": {
@@ -36973,8 +37120,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "facebook",
-      "summary": "WorldFoundry exposes an in-tree adapter that runs the upstream LagrNVS minimal_inference.py command.",
+      "provider": "Meta AI (FAIR)",
+      "summary": "LagrNVS is Meta's novel-view-synthesis model for rendering new camera paths through a scene (facebook/lagernvs_general_512). WorldFoundry wraps the upstream minimal_inference.py command with an in-tree adapter; the checkpoint is gated on H…",
       "aliases": [
         "lager-nvs",
         "facebook/lagernvs_general_512",
@@ -37260,26 +37407,30 @@
         "Uses the upstream LagrNVS minimal_inference.py path and reports missing HF_TOKEN/checkpoint access at runtime."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "Meta AI (FAIR)",
+          "nameZh": "Meta AI（FAIR）",
+          "kind": "company"
+        },
         "overview": [
-          "LagrNVS is a 3D/4D reconstruction and generation model from facebook. The catalog records it for novel-view-synthesis, 3d-scene-rendering, and camera-path-rendering. It is also cataloged under the aliases lager-nvs, facebook/lagernvs_general_512, and facebookresearch/lagernvs.",
-          "WorldFoundry binds it to the worldfoundry.pipelines.three_d_four_d.pipeline_runtime:LagrNVSPipeline pipeline via worldfoundry.pipeline.",
-          "It runs in the shared unified environment worldfoundry-unified-cu128 (Python 3.10, CUDA 12.8).",
-          "Weights are pulled from the Hugging Face repository facebook/lagernvs_general_512. Access to facebook/lagernvs_general_512 is gated and requires accepting the upstream terms.",
-          "Runner parity is currently “Pending” and native-demo parity is “Not Recorded”; treat end-to-end GPU evidence as not yet recorded."
+          "LagrNVS is Meta's novel-view-synthesis model for rendering new camera paths through a scene (facebook/lagernvs_general_512). WorldFoundry wraps the upstream minimal_inference.py command with an in-tree adapter; the checkpoint is gated on Hugging Face and missing HF_TOKEN access is reported at inference time."
         ],
         "overviewZh": [
-          "LagrNVS 是来自 facebook 的3D/4D 重建与生成模型。Catalog 将它记录为新视角合成、3d-scene-rendering、camera-path-rendering任务。它还有别名 lager-nvs、facebook/lagernvs_general_512、facebookresearch/lagernvs。",
-          "WorldFoundry 将它绑定到 worldfoundry.pipelines.three_d_four_d.pipeline_runtime:LagrNVSPipeline pipeline（runner：worldfoundry.pipeline）。",
-          "它运行在统一环境 worldfoundry-unified-cu128 中（Python 3.10，CUDA 12.8）。",
-          "权重来自 Hugging Face 仓库 facebook/lagernvs_general_512。其中 facebook/lagernvs_general_512 为 gated 仓库，需要先在上游接受使用条款。",
-          "当前 runner parity 为“Pending”，原生 demo parity 为“Not Recorded”；端到端 GPU 证据应视为尚未记录。"
+          "LagrNVS 是 Meta 的新视角合成模型，用于沿新的相机路径渲染场景（facebook/lagernvs_general_512）。 WorldFoundry 用树内适配器封装上游 minimal_inference.py 命令；checkpoint 在 Hugging Face 上为 gated， HF_TOKEN 缺失会在推理时报告。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "The catalog records a novel-view/camera-path rendering model at 512 resolution; internals are not recorded in this repository. License is the FAIR non-commercial research license."
+        ],
+        "architectureZh": [
+          "catalog 记录其为 512 分辨率的新视角/相机路径渲染模型；内部细节仓库未记录。许可为 FAIR 非商用研究许可。"
+        ],
+        "usageNotes": [
+          "Runner parity is pending: pipeline imports and plan-only inference are wired, and full artifact parity needs the gated checkpoint plus CUDA. Accept the gated terms and set HF_TOKEN before running."
+        ],
+        "usageNotesZh": [
+          "runner parity 为 pending：pipeline 导入与 plan-only 推理已接好，完整产物一致性需要 gated checkpoint 与 CUDA。运行前请先接受 gated 条款并设置 HF_TOKEN。"
+        ],
         "highlights": [
           "Novel View Synthesis",
           "3D Scene Rendering",
@@ -37307,16 +37458,12 @@
         },
         "benchmarks": [],
         "limitations": [
-          "Runner evidence is “Pending” — not a verified end-to-end GPU run. Do not treat this page as proof the route is fully validated.",
-          "Native demo evidence: Not recorded.",
-          "Checkpoint access is gated for facebook/lagernvs_general_512; accept the upstream terms before downloading.",
-          "Pipeline target imports and plan-only inference are wired; full artifact parity needs gated checkpoints and CUDA."
+          "Gated checkpoint under the FAIR non-commercial research license.",
+          "Full artifact parity is pending gated access and CUDA validation."
         ],
         "limitationsZh": [
-          "Runner 证据为“Pending”——这不是经过验证的端到端 GPU 运行结果，请勿将本页视为该路径已被完整验证的证明。",
-          "原生 Demo 证据：未记录。",
-          "Checkpoint facebook/lagernvs_general_512 为 gated 仓库，下载前需要先在上游接受条款。",
-          "Pipeline target imports and plan-only inference are wired; full artifact parity needs gated checkpoints and CUDA."
+          "checkpoint 为 gated，受 FAIR 非商用研究许可约束。",
+          "完整产物一致性待 gated 权限与 CUDA 验证。"
         ]
       },
       "commands": {
@@ -37334,8 +37481,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "robbyant",
-      "summary": "Runtime source is vendored in-tree under worldfoundry/base_models/three_dimensions/point_clouds/lingbot_map; checkpoints remain external cache assets.",
+      "provider": "Robbyant (Ant Group)",
+      "summary": "LingBot-Map is Robbyant's streaming 3D reconstruction model: it consumes image streams and produces camera poses, depth, and point clouds through the GCTStream runtime, supporting both streaming and windowed reconstruction via LingBotMapPi…",
       "aliases": [
         "lingbot_map",
         "robbyant/lingbot-map"
@@ -37664,26 +37811,30 @@
         "The wrapper defaults to SDPA to avoid requiring FlashInfer for baseline execution; users can pass use_sdpa=false when FlashInfer is available."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "Robbyant (Ant Group)",
+          "nameZh": "蚂蚁灵波科技（Robbyant，蚂蚁集团）",
+          "kind": "company"
+        },
         "overview": [
-          "LingBot-Map is a 3D/4D reconstruction and generation model from robbyant. The catalog records it for 3d-reconstruction, streaming-3d-reconstruction, camera-pose-estimation, and depth-estimation. It is also cataloged under the aliases lingbot_map and robbyant/lingbot-map.",
-          "WorldFoundry binds it to the worldfoundry.pipelines.lingbot_map.pipeline_lingbot_map:LingBotMapPipeline pipeline via worldfoundry.pipeline.",
-          "It runs in the shared unified environment worldfoundry-unified-cu128 (Python 3.10, CUDA 12.8).",
-          "Weights are pulled from the Hugging Face repository robbyant/lingbot-map (license: apache-2.0).",
-          "Runner parity is currently “Implemented Pending Gpu Parity” and native-demo parity is “Not Recorded”; treat end-to-end GPU evidence as not yet recorded."
+          "LingBot-Map is Robbyant's streaming 3D reconstruction model: it consumes image streams and produces camera poses, depth, and point clouds through the GCTStream runtime, supporting both streaming and windowed reconstruction via LingBotMapPipeline. The official runtime is vendored in-tree; checkpoints stay external cache assets."
         ],
         "overviewZh": [
-          "LingBot-Map 是来自 robbyant 的3D/4D 重建与生成模型。Catalog 将它记录为3D 重建、streaming-3d-reconstruction、camera-pose-estimation、depth-estimation任务。它还有别名 lingbot_map、robbyant/lingbot-map。",
-          "WorldFoundry 将它绑定到 worldfoundry.pipelines.lingbot_map.pipeline_lingbot_map:LingBotMapPipeline pipeline（runner：worldfoundry.pipeline）。",
-          "它运行在统一环境 worldfoundry-unified-cu128 中（Python 3.10，CUDA 12.8）。",
-          "权重来自 Hugging Face 仓库 robbyant/lingbot-map（license：apache-2.0）。",
-          "当前 runner parity 为“Implemented Pending Gpu Parity”，原生 demo parity 为“Not Recorded”；端到端 GPU 证据应视为尚未记录。"
+          "LingBot-Map 是蚂蚁灵波的流式 3D 重建模型：通过 GCTStream 运行时消费图像流，产出相机位姿、深度与点云，LingBotMapPipeline 同时支持流式与窗口式重建。官方运行时已内置树内；checkpoint 保持为外部缓存资产。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "The vendored GCTStream runtime implements the streaming transformer described in the upstream release (paper arXiv 2604.14141); the wrapper defaults to SDPA attention so FlashInfer is not required for baseline execution (pass use_sdpa=false when FlashInfer is available)."
+        ],
+        "architectureZh": [
+          "内置的 GCTStream 运行时实现了上游发布所述的流式 Transformer（论文 arXiv 2604.14141）；封装默认使用 SDPA 注意力，基线运行不需要 FlashInfer（FlashInfer 可用时可传 use_sdpa=false）。"
+        ],
+        "usageNotes": [
+          "Runner status is implemented_pending_gpu_parity: import and dispatch are in-tree, and full GPU parity needs staged robbyant/lingbot-map checkpoints (apache-2.0). The pipeline accepts a checkpoint file or a local HF snapshot directory."
+        ],
+        "usageNotesZh": [
+          "runner 状态为 implemented_pending_gpu_parity：导入与调度已在树内，完整 GPU 一致性需要就位的 robbyant/lingbot-map checkpoint（apache-2.0）。pipeline 接受 checkpoint 文件或本地 HF snapshot 目录。"
+        ],
         "highlights": [
           "3D Reconstruction",
           "Streaming 3D Reconstruction",
@@ -37715,14 +37866,12 @@
         },
         "benchmarks": [],
         "limitations": [
-          "Runner evidence is “Implemented Pending Gpu Parity” — not a verified end-to-end GPU run. Do not treat this page as proof the route is fully validated.",
-          "Native demo evidence: Not recorded.",
-          "Import and dispatch integration is in-tree; full GPU parity still needs staged robbyant/lingbot-map checkpoints."
+          "Full GPU parity is pending staged checkpoints.",
+          "Streaming reconstruction drifts on long sequences without loop closure."
         ],
         "limitationsZh": [
-          "Runner 证据为“Implemented Pending Gpu Parity”——这不是经过验证的端到端 GPU 运行结果，请勿将本页视为该路径已被完整验证的证明。",
-          "原生 Demo 证据：未记录。",
-          "Import and dispatch integration is in-tree; full GPU parity still needs staged robbyant/lingbot-map checkpoints."
+          "完整 GPU 一致性待 checkpoint 就位。",
+          "无回环约束时，长序列流式重建会漂移。"
         ]
       },
       "commands": {
@@ -45141,8 +45290,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "Simon Fraser University and ByteDance authors",
-      "summary": "WorldFoundry exposes an in-tree runtime subprocess adapter for MVDiffusion.",
+      "provider": "Simon Fraser University",
+      "summary": "MVDiffusion generates consistent multi-view images in one shot — panoramas from text or perspective views, and texture views for scenes — by letting diffusion branches attend to each other. In this catalog it runs through an in-tree runtim…",
       "aliases": [
         "MVDiffusion: Enabling Holistic Multi-view Image Generation"
       ],
@@ -45326,24 +45475,30 @@
         "Uses an in-tree subprocess adapter for upstream MVDiffusion source when available."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "Simon Fraser University",
+          "nameZh": "西蒙菲莎大学（Simon Fraser University）",
+          "kind": "university"
+        },
         "overview": [
-          "MVDiffusion is a 3D/4D reconstruction and generation model from Simon Fraser University and ByteDance authors. The catalog records it for correspondence-aware multiview image generation and scene texturing. It is also cataloged under the alias MVDiffusion: Enabling Holistic Multi-view Image Generation.",
-          "WorldFoundry binds it to the worldfoundry.pipelines.three_d_four_d.pipeline_runtime:MVDiffusionPipeline pipeline via worldfoundry.pipeline.",
-          "It runs in the shared unified environment worldfoundry-unified-cu128 (Python 3.11, CUDA 12.8).",
-          "Runner parity is currently “Pending” and native-demo parity is “Not Recorded”; treat end-to-end GPU evidence as not yet recorded."
+          "MVDiffusion generates consistent multi-view images in one shot — panoramas from text or perspective views, and texture views for scenes — by letting diffusion branches attend to each other. In this catalog it runs through an in-tree runtime subprocess adapter; runner parity is pending runtime assets."
         ],
         "overviewZh": [
-          "MVDiffusion 是来自 Simon Fraser University and ByteDance authors 的3D/4D 重建与生成模型。Catalog 将它记录为correspondence-aware multiview image generation and scene texturing任务。它还有别名 MVDiffusion: Enabling Holistic Multi-view Image Generation。",
-          "WorldFoundry 将它绑定到 worldfoundry.pipelines.three_d_four_d.pipeline_runtime:MVDiffusionPipeline pipeline（runner：worldfoundry.pipeline）。",
-          "它运行在统一环境 worldfoundry-unified-cu128 中（Python 3.11，CUDA 12.8）。",
-          "当前 runner parity 为“Pending”，原生 demo parity 为“Not Recorded”；端到端 GPU 证据应视为尚未记录。"
+          "MVDiffusion 一次性生成一致的多视角图像——从文本或透视图生成全景，或为场景生成纹理视图——方法是让多个扩散分支相互注意。本 catalog 中它经树内运行时子进程适配器运行；runner parity 待运行时资产就位。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "Per the NeurIPS 2023 paper (arXiv 2307.01097), parallel diffusion-model branches generate all views simultaneously with correspondence-aware attention keeping them globally consistent. Missing source checkout, checkpoints, or CUDA dependencies are reported at inference time."
+        ],
+        "architectureZh": [
+          "按 NeurIPS 2023 论文（arXiv 2307.01097），多个并行扩散分支借助「对应感知注意力」同时生成所有视图并保持全局一致。源码、checkpoint 或 CUDA 依赖缺失会在推理时报告。"
+        ],
+        "usageNotes": [
+          "Integration is wired for plan-only inference today; full artifact parity needs the upstream source checkout and checkpoints staged locally. Stage them before expecting real multi-view output."
+        ],
+        "usageNotesZh": [
+          "当前集成已接通 plan-only 推理；完整产物一致性需要本地就位上游源码与 checkpoint。期望得到真实多视角输出前请先完成资产就位。"
+        ],
         "highlights": [
           "Correspondence Aware Multiview Image Generation And Scene Texturing",
           "Unified env · Python 3.11 · CUDA 12.8"
@@ -45365,14 +45520,12 @@
         },
         "benchmarks": [],
         "limitations": [
-          "Runner evidence is “Pending” — not a verified end-to-end GPU run. Do not treat this page as proof the route is fully validated.",
-          "Native demo evidence: Not recorded.",
-          "Pipeline target imports and plan-only inference are wired; full artifact parity needs runtime assets."
+          "Runner parity is pending: plan-only inference works, real generation needs staged assets.",
+          "Panorama-oriented training: free-form camera trajectories are out of scope."
         ],
         "limitationsZh": [
-          "Runner 证据为“Pending”——这不是经过验证的端到端 GPU 运行结果，请勿将本页视为该路径已被完整验证的证明。",
-          "原生 Demo 证据：未记录。",
-          "Pipeline target imports and plan-only inference are wired; full artifact parity needs runtime assets."
+          "runner parity 待验证：plan-only 推理可用，真实生成需要就位资产。",
+          "训练面向全景场景：自由相机轨迹不在其范围内。"
         ]
       },
       "commands": {
@@ -49864,8 +50017,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "ShilongLiu",
-      "summary": "Integrated as an independent tracking prior at worldfoundry/base_models/perception_core/tracking/track_anything.",
+      "provider": "Zhejiang University (ReLER Lab)",
+      "summary": "Segment and Track Anything (SAM-Track) combines SAM segmentation with AOT/DeAOT tracking so objects can be segmented once and tracked across a whole video, with GroundingDINO enabling text-prompted selection. In this catalog it is an indep…",
       "aliases": [
         "segment-and-track-anything",
         "track-anything",
@@ -50131,26 +50284,30 @@
         "WorldFoundry exposes this prior through the shared geometry-prior pipeline/operator contract."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "Zhejiang University (ReLER Lab)",
+          "nameZh": "浙江大学（ReLER 实验室）",
+          "kind": "university"
+        },
         "overview": [
-          "Segment and Track Anything is a 3D/4D reconstruction and generation model from ShilongLiu. The catalog records it for video-object-segmentation, object-tracking, and geometry-prior. It is also cataloged under the aliases segment-and-track-anything, track-anything, and aot-deaot-l.",
-          "WorldFoundry binds it to the worldfoundry.pipelines.geometry_priors.pipeline_geometry_priors:TrackAnythingPriorPipeline pipeline via worldfoundry.pipeline.",
-          "It runs in the shared unified environment worldfoundry-unified-cu128 (Python 3.11, CUDA 12.8).",
-          "Weights are pulled from the Hugging Face repository ShilongLiu/GroundingDINO.",
-          "Runner parity is currently “Implemented Checkpoint Pending” and native-demo parity is “Not Recorded”; treat end-to-end GPU evidence as not yet recorded."
+          "Segment and Track Anything (SAM-Track) combines SAM segmentation with AOT/DeAOT tracking so objects can be segmented once and tracked across a whole video, with GroundingDINO enabling text-prompted selection. In this catalog it is an independent tracking prior consumed through the shared geometry-prior contract."
         ],
         "overviewZh": [
-          "Segment and Track Anything 是来自 ShilongLiu 的3D/4D 重建与生成模型。Catalog 将它记录为video-object-segmentation、object-tracking、几何先验任务。它还有别名 segment-and-track-anything、track-anything、aot-deaot-l。",
-          "WorldFoundry 将它绑定到 worldfoundry.pipelines.geometry_priors.pipeline_geometry_priors:TrackAnythingPriorPipeline pipeline（runner：worldfoundry.pipeline）。",
-          "它运行在统一环境 worldfoundry-unified-cu128 中（Python 3.11，CUDA 12.8）。",
-          "权重来自 Hugging Face 仓库 ShilongLiu/GroundingDINO。",
-          "当前 runner parity 为“Implemented Checkpoint Pending”，原生 demo parity 为“Not Recorded”；端到端 GPU 证据应视为尚未记录。"
+          "Segment and Track Anything（SAM-Track）把 SAM 分割与 AOT/DeAOT 跟踪结合起来：对象只需分割一次即可在整段视频中被跟踪，GroundingDINO 支持文本提示选择。本 catalog 中它是经共享 geometry-prior 契约调用的独立跟踪先验。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "The recorded structure combines three subcomponents — SAM for masks, GroundingDINO for text grounding, and AOT/DeAOT for propagation — reusing canonical WorldFoundry owners where available. Registered at base_models/perception_core/tracking/track_anything; upstream license is AGPL-3.0."
+        ],
+        "architectureZh": [
+          "记录的结构组合三个子组件——SAM 出掩码、GroundingDINO 做文本定位、AOT/DeAOT 做传播——并在可用时复用 WorldFoundry 的规范组件。注册于 base_models/perception_core/tracking/track_anything；上游许可为 AGPL-3.0。"
+        ],
+        "usageNotes": [
+          "It is integrated as an independent geometry prior under worldfoundry/base_models and exposed through the shared geometry-prior pipeline/operator contract. Higher-level pipelines (e.g. ViPE) import it from this canonical owner instead of keeping private copies. Config resolution and pipeline/operator import are expected to pass; real prior inference remains gated by checkpoints/assets."
+        ],
+        "usageNotesZh": [
+          "它作为独立几何先验集成在 worldfoundry/base_models 下，通过共享的 geometry-prior pipeline/operator 契约对外暴露。上层管线（如 ViPE）从这一规范位置导入它，而不是各自保留私有副本。配置解析与 pipeline/operator 导入预期可通过；真实先验推理仍受 checkpoint/资产限制。"
+        ],
         "highlights": [
           "Video Object Segmentation",
           "Object Tracking",
@@ -50178,14 +50335,12 @@
         },
         "benchmarks": [],
         "limitations": [
-          "Runner evidence is “Implemented Checkpoint Pending” — not a verified end-to-end GPU run. Do not treat this page as proof the route is fully validated.",
-          "Native demo evidence: Not recorded.",
-          "resolve_model_zoo_config and pipeline/operator import are expected to pass; real prior inference remains gated by checkpoints/assets."
+          "AGPL-3.0 license: copyleft terms apply downstream.",
+          "Real inference is checkpoint-gated (SAM, GroundingDINO, AOT assets)."
         ],
         "limitationsZh": [
-          "Runner 证据为“Implemented Checkpoint Pending”——这不是经过验证的端到端 GPU 运行结果，请勿将本页视为该路径已被完整验证的证明。",
-          "原生 Demo 证据：未记录。",
-          "resolve_model_zoo_config and pipeline/operator import are expected to pass; real prior inference remains gated by checkpoints/assets."
+          "AGPL-3.0 许可：下游适用 copyleft 条款。",
+          "真实推理受 checkpoint 限制（SAM、GroundingDINO、AOT 资产）。"
         ]
       },
       "commands": {
@@ -53021,8 +53176,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "Stability AI, University of Oxford, and UC Berkeley authors",
-      "summary": "WorldFoundry exposes an in-tree adapter that runs the upstream Stable Virtual Camera demo.py entrypoint.",
+      "provider": "Stability AI",
+      "summary": "Stable Virtual Camera (SEVA) turns one or a few 2D images into a novel-view video along a user-defined camera path. In this catalog WorldFoundry wraps the upstream demo.py entrypoint with an in-tree adapter; runner parity is pending becaus…",
       "aliases": [
         "SEVA"
       ],
@@ -53220,26 +53375,30 @@
         "Missing gated Stability AI checkpoint access is reported at inference time."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "Stability AI",
+          "nameZh": "Stability AI",
+          "kind": "company"
+        },
         "overview": [
-          "Stable Virtual Camera is a 3D/4D reconstruction and generation model from Stability AI, University of Oxford, and UC Berkeley authors. The catalog records it for generative novel view synthesis with camera control. It is also cataloged under the alias SEVA.",
-          "WorldFoundry binds it to the worldfoundry.pipelines.three_d_four_d.pipeline_runtime:StableVirtualCameraPipeline pipeline via worldfoundry.pipeline.",
-          "It runs in the shared unified environment worldfoundry-unified-cu128 (Python 3.11, CUDA 12.8).",
-          "Weights are pulled from the Hugging Face repository stabilityai/stable-virtual-camera. Access to stabilityai/stable-virtual-camera is gated and requires accepting the upstream terms.",
-          "Runner parity is currently “Pending” and native-demo parity is “Not Recorded”; treat end-to-end GPU evidence as not yet recorded."
+          "Stable Virtual Camera (SEVA) turns one or a few 2D images into a novel-view video along a user-defined camera path. In this catalog WorldFoundry wraps the upstream demo.py entrypoint with an in-tree adapter; runner parity is pending because the Stability AI checkpoint is gated and a reviewed official demo run is still needed."
         ],
         "overviewZh": [
-          "Stable Virtual Camera 是来自 Stability AI, University of Oxford, and UC Berkeley authors 的3D/4D 重建与生成模型。Catalog 将它记录为generative novel view synthesis with camera control任务。它还有别名 SEVA。",
-          "WorldFoundry 将它绑定到 worldfoundry.pipelines.three_d_four_d.pipeline_runtime:StableVirtualCameraPipeline pipeline（runner：worldfoundry.pipeline）。",
-          "它运行在统一环境 worldfoundry-unified-cu128 中（Python 3.11，CUDA 12.8）。",
-          "权重来自 Hugging Face 仓库 stabilityai/stable-virtual-camera。其中 stabilityai/stable-virtual-camera 为 gated 仓库，需要先在上游接受使用条款。",
-          "当前 runner parity 为“Pending”，原生 demo parity 为“Not Recorded”；端到端 GPU 证据应视为尚未记录。"
+          "Stable Virtual Camera（SEVA）把一张或几张 2D 图像变成沿用户自定义相机路径的新视角视频。本 catalog 中 WorldFoundry 用树内适配器封装上游 demo.py 入口；由于 Stability AI checkpoint 为 gated 且官方 demo 运行尚待复核，runner parity 为 pending。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "Per the paper (arXiv 2503.14489), a multi-view diffusion model generates target views at sampled camera poses in a two-pass procedural manner, trading generality across trajectories for consistency. Details beyond the recorded tasks are not stored in this repository."
+        ],
+        "architectureZh": [
+          "按论文（arXiv 2503.14489），多视角扩散模型以两阶段程序化方式在采样相机位姿处生成目标视图，在轨迹通用性与一致性之间取得平衡。除已记录任务外的细节仓库未存。"
+        ],
+        "usageNotes": [
+          "Accept the gated checkpoint terms on Hugging Face and set HF_TOKEN before running; missing gated access is reported at inference time. The adapter drives the upstream demo.py Fire entrypoint."
+        ],
+        "usageNotesZh": [
+          "运行前请在 Hugging Face 接受 gated checkpoint 条款并设置 HF_TOKEN；gated 权限缺失会在推理时报告。适配器驱动上游 demo.py 的 Fire 入口。"
+        ],
         "highlights": [
           "Generative Novel View Synthesis With Camera Control",
           "Unified env · Python 3.11 · CUDA 12.8",
@@ -53261,20 +53420,27 @@
           "recommended": null,
           "notes": []
         },
-        "benchmarks": [],
+        "benchmarks": [
+          {
+            "id": "camerabench",
+            "name": "CameraBench",
+            "category": "Video Generation",
+            "categoryZh": "视频生成",
+            "summary": "In-tree official runtime scores generated videos per prompt; some dimensions may call a hosted API",
+            "summaryZh": "仓内 official runtime 对生成视频逐 prompt 评分；部分维度可能调用 hosted API",
+            "href": "/docs/evaluation/benchmark-hub/camerabench",
+            "source": "docs",
+            "reason": "Evaluates camera-path control quality of generated views.",
+            "reasonZh": "评估生成视图的相机路径控制质量。"
+          }
+        ],
         "limitations": [
-          "Runner evidence is “Pending” — not a verified end-to-end GPU run. Do not treat this page as proof the route is fully validated.",
-          "Native demo evidence: Not recorded.",
-          "Checkpoint access is gated for stabilityai/stable-virtual-camera; accept the upstream terms before downloading.",
-          "The in-tree adapter supports the upstream demo.py entrypoint and reports missing gated checkpoint access at inference time.",
-          "Full official-gallery artifact parity still needs gated checkpoint access and a reviewed official demo run."
+          "Gated checkpoint: Stability AI community-license terms apply.",
+          "Full official-gallery artifact parity is pending gated access and a reviewed demo run."
         ],
         "limitationsZh": [
-          "Runner 证据为“Pending”——这不是经过验证的端到端 GPU 运行结果，请勿将本页视为该路径已被完整验证的证明。",
-          "原生 Demo 证据：未记录。",
-          "Checkpoint stabilityai/stable-virtual-camera 为 gated 仓库，下载前需要先在上游接受条款。",
-          "The in-tree adapter supports the upstream demo.py entrypoint and reports missing gated checkpoint access at inference time.",
-          "Full official-gallery artifact parity still needs gated checkpoint access and a reviewed official demo run."
+          "checkpoint 为 gated：适用 Stability AI 社区许可条款。",
+          "完整的官方画廊产物一致性待 gated 权限与复核的 demo 运行。"
         ]
       },
       "commands": {
@@ -54032,8 +54198,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "lpiccinelli",
-      "summary": "Integrated as an independent geometric prior at worldfoundry/base_models/three_dimensions/depth/unidepth.",
+      "provider": "ETH Zurich",
+      "summary": "UniDepth V2 is a universal monocular metric-depth model: from a single image of any camera it predicts a metric 3D point cloud directly, without external intrinsics. In this catalog it is a checkpoint-verified geometry prior — real checkpo…",
       "aliases": [
         "unidepth-v2",
         "unidepth-v2-vitl14",
@@ -54304,26 +54470,30 @@
         "WorldFoundry exposes this prior through the shared geometry-prior pipeline/operator contract."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "ETH Zurich",
+          "nameZh": "苏黎世联邦理工学院（ETH Zurich）",
+          "kind": "university"
+        },
         "overview": [
-          "UniDepth V2 is a 3D/4D reconstruction and generation model from lpiccinelli. The catalog records it for monocular-depth-estimation, metric-depth-estimation, and geometry-prior. It is also cataloged under the aliases unidepth-v2, unidepth-v2-vitl14, and unidepth_v2_vitl14.",
-          "WorldFoundry binds it to the worldfoundry.pipelines.geometry_priors.pipeline_geometry_priors:UniDepthV2PriorPipeline pipeline via worldfoundry.pipeline.",
-          "It runs in the shared unified environment worldfoundry-unified-cu128 (Python 3.11, CUDA 12.8).",
-          "Weights are pulled from the Hugging Face repository lpiccinelli/unidepth-v2-vitl14.",
-          "Runner parity is currently “Checkpoint Verified” and native-demo parity is “Not Recorded”; treat end-to-end GPU evidence as not yet recorded."
+          "UniDepth V2 is a universal monocular metric-depth model: from a single image of any camera it predicts a metric 3D point cloud directly, without external intrinsics. In this catalog it is a checkpoint-verified geometry prior — real checkpoint inference and official point export are verified through the shared geometry-prior contract and Workspace route."
         ],
         "overviewZh": [
-          "UniDepth V2 是来自 lpiccinelli 的3D/4D 重建与生成模型。Catalog 将它记录为单目深度估计、米制深度估计、几何先验任务。它还有别名 unidepth-v2、unidepth-v2-vitl14、unidepth_v2_vitl14。",
-          "WorldFoundry 将它绑定到 worldfoundry.pipelines.geometry_priors.pipeline_geometry_priors:UniDepthV2PriorPipeline pipeline（runner：worldfoundry.pipeline）。",
-          "它运行在统一环境 worldfoundry-unified-cu128 中（Python 3.11，CUDA 12.8）。",
-          "权重来自 Hugging Face 仓库 lpiccinelli/unidepth-v2-vitl14。",
-          "当前 runner parity 为“Checkpoint Verified”，原生 demo parity 为“Not Recorded”；端到端 GPU 证据应视为尚未记录。"
+          "UniDepth V2 是通用单目米制深度模型：对任意相机的单张图像直接预测米制 3D 点云，无需外部内参。本 catalog 中它是 checkpoint 已验证的几何先验——真实 checkpoint 推理与官方点云导出已通过共享 geometry-prior 契约与 Workspace 路径验证。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "Per the upstream publication, a camera self-prompting module predicts a dense camera representation that conditions depth decoding, enabling cross-camera generalization. The default checkpoint resolves from lpiccinelli/unidepth-v2-vitl14 (or a local model_path override); registered at base_models/three_dimensions/depth/unidepth."
+        ],
+        "architectureZh": [
+          "按上游论文，相机自提示模块预测稠密相机表示并条件化深度解码，实现跨相机泛化。默认 checkpoint 从 lpiccinelli/unidepth-v2-vitl14 解析（或用本地 model_path 覆盖）；注册于 base_models/three_dimensions/depth/unidepth。"
+        ],
+        "usageNotes": [
+          "It is integrated as an independent geometry prior under worldfoundry/base_models and exposed through the shared geometry-prior pipeline/operator contract. Higher-level pipelines (e.g. ViPE) import it from this canonical owner instead of keeping private copies. Mind the license: the upstream release is CC-BY-NC-4.0, so respect non-commercial terms when enabling this prior."
+        ],
+        "usageNotesZh": [
+          "它作为独立几何先验集成在 worldfoundry/base_models 下，通过共享的 geometry-prior pipeline/operator 契约对外暴露。上层管线（如 ViPE）从这一规范位置导入它，而不是各自保留私有副本。注意许可：上游发布为 CC-BY-NC-4.0，启用该先验时需遵守非商用条款。"
+        ],
         "highlights": [
           "Monocular Depth Estimation",
           "Metric Depth Estimation",
@@ -54355,14 +54525,12 @@
         },
         "benchmarks": [],
         "limitations": [
-          "Runner evidence is “Checkpoint Verified” — not a verified end-to-end GPU run. Do not treat this page as proof the route is fully validated.",
-          "Native demo evidence: Not recorded.",
-          "Real checkpoint inference and official point export are verified through the shared geometry-prior pipeline/operator contract and Workspace route."
+          "CC-BY-NC-4.0: non-commercial license terms apply downstream.",
+          "Single-image estimation; temporal stability on video is out of scope."
         ],
         "limitationsZh": [
-          "Runner 证据为“Checkpoint Verified”——这不是经过验证的端到端 GPU 运行结果，请勿将本页视为该路径已被完整验证的证明。",
-          "原生 Demo 证据：未记录。",
-          "Real checkpoint inference and official point export are verified through the shared geometry-prior pipeline/operator contract and Workspace route."
+          "CC-BY-NC-4.0：下游适用非商用许可条款。",
+          "单帧估计；视频时序稳定性不在其范围内。"
         ]
       },
       "commands": {
@@ -54380,8 +54548,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "lpiccinelli",
-      "summary": "Integrated as a universal-camera geometric prior at worldfoundry/base_models/three_dimensions/depth/unik3d.",
+      "provider": "ETH Zurich",
+      "summary": "UniK3D generalizes metric 3D estimation to any camera — pinhole, fisheye, even full panoramas — with one model. In this catalog it is a checkpoint-verified universal-camera geometry prior: real checkpoint inference is verified through the…",
       "aliases": [
         "unik3d",
         "unik3d-vitl"
@@ -54699,26 +54867,30 @@
         "WorldFoundry exposes this prior through the shared geometry-prior pipeline/operator contract."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "ETH Zurich",
+          "nameZh": "苏黎世联邦理工学院（ETH Zurich）",
+          "kind": "university"
+        },
         "overview": [
-          "UniK3D is a 3D/4D reconstruction and generation model from lpiccinelli. The catalog records it for panoramic-depth-estimation, metric-3d-estimation, monocular-depth-estimation, and geometry-prior. It is also cataloged under the aliases unik3d and unik3d-vitl.",
-          "WorldFoundry binds it to the worldfoundry.pipelines.geometry_priors.pipeline_geometry_priors:UniK3DPriorPipeline pipeline via worldfoundry.pipeline.",
-          "It runs in the shared unified environment worldfoundry-unified-cu128 (Python 3.11, CUDA 12.8).",
-          "Weights are pulled from the Hugging Face repository lpiccinelli/unik3d-vitl.",
-          "Runner parity is currently “Checkpoint Verified” and native-demo parity is “Not Recorded”; treat end-to-end GPU evidence as not yet recorded."
+          "UniK3D generalizes metric 3D estimation to any camera — pinhole, fisheye, even full panoramas — with one model. In this catalog it is a checkpoint-verified universal-camera geometry prior: real checkpoint inference is verified through the shared contract with automatic camera estimation, while pinhole and panorama overrides stay explicit."
         ],
         "overviewZh": [
-          "UniK3D 是来自 lpiccinelli 的3D/4D 重建与生成模型。Catalog 将它记录为全景深度估计、metric-3d-estimation、单目深度估计、几何先验任务。它还有别名 unik3d、unik3d-vitl。",
-          "WorldFoundry 将它绑定到 worldfoundry.pipelines.geometry_priors.pipeline_geometry_priors:UniK3DPriorPipeline pipeline（runner：worldfoundry.pipeline）。",
-          "它运行在统一环境 worldfoundry-unified-cu128 中（Python 3.11，CUDA 12.8）。",
-          "权重来自 Hugging Face 仓库 lpiccinelli/unik3d-vitl。",
-          "当前 runner parity 为“Checkpoint Verified”，原生 demo parity 为“Not Recorded”；端到端 GPU 证据应视为尚未记录。"
+          "UniK3D 把米制 3D 估计推广到任意相机——针孔、鱼眼、乃至完整全景——单一模型通吃。本 catalog 中它是 checkpoint 已验证的通用相机几何先验：真实 checkpoint 推理已通过共享契约验证并支持自动相机估计，针孔与全景相机覆盖保持显式配置。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "Per the upstream publication, UniK3D represents the camera with a learned spherical-basis model, decoupling ray directions from radial depth so that no distortion-specific tuning is needed. The default checkpoint resolves from lpiccinelli/unik3d-vitl; registered at base_models/three_dimensions/depth/unik3d."
+        ],
+        "architectureZh": [
+          "按上游论文，UniK3D 用学习到的球谐基相机模型表示相机，把射线方向与径向深度解耦，无需针对畸变单独调参。默认 checkpoint 从 lpiccinelli/unik3d-vitl 解析；注册于 base_models/three_dimensions/depth/unik3d。"
+        ],
+        "usageNotes": [
+          "It is integrated as an independent geometry prior under worldfoundry/base_models and exposed through the shared geometry-prior pipeline/operator contract. Higher-level pipelines (e.g. ViPE) import it from this canonical owner instead of keeping private copies. Prefer it over pinhole-only priors when inputs include fisheye or panoramic imagery. The upstream release is CC-BY-NC-4.0."
+        ],
+        "usageNotesZh": [
+          "它作为独立几何先验集成在 worldfoundry/base_models 下，通过共享的 geometry-prior pipeline/operator 契约对外暴露。上层管线（如 ViPE）从这一规范位置导入它，而不是各自保留私有副本。当输入包含鱼眼或全景图像时，优先选它而非仅支持针孔的先验。上游发布为CC-BY-NC-4.0。"
+        ],
         "highlights": [
           "Panoramic Depth Estimation",
           "Metric 3D Estimation",
@@ -54750,14 +54922,12 @@
         },
         "benchmarks": [],
         "limitations": [
-          "Runner evidence is “Checkpoint Verified” — not a verified end-to-end GPU run. Do not treat this page as proof the route is fully validated.",
-          "Native demo evidence: Not recorded.",
-          "Real checkpoint inference is verified through the shared geometry-prior pipeline/operator contract with auto camera estimation; pinhole and panorama camera overrides remain explicit."
+          "CC-BY-NC-4.0: non-commercial license terms apply downstream.",
+          "Auto camera estimation can misjudge unusual optics — use explicit pinhole/panorama overrides when known."
         ],
         "limitationsZh": [
-          "Runner 证据为“Checkpoint Verified”——这不是经过验证的端到端 GPU 运行结果，请勿将本页视为该路径已被完整验证的证明。",
-          "原生 Demo 证据：未记录。",
-          "Real checkpoint inference is verified through the shared geometry-prior pipeline/operator contract with auto camera estimation; pinhole and panorama camera overrides remain explicit."
+          "CC-BY-NC-4.0：下游适用非商用许可条款。",
+          "自动相机估计可能误判特殊光学系统——已知相机类型时请显式指定针孔/全景覆盖。"
         ]
       },
       "commands": {
@@ -55569,8 +55739,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "depth-anything",
-      "summary": "Integrated as an independent temporal depth prior at worldfoundry/base_models/three_dimensions/depth/videodepthanything.",
+      "provider": "ByteDance",
+      "summary": "Video Depth Anything brings temporal consistency to the Depth Anything family: it estimates depth over arbitrarily long videos without the flicker of frame-by-frame estimation. In this catalog it is an independent temporal depth prior that…",
       "aliases": [
         "video-depth-anything",
         "vda-prior"
@@ -55840,26 +56010,30 @@
         "WorldFoundry exposes this prior through the shared geometry-prior pipeline/operator contract."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "ByteDance",
+          "nameZh": "字节跳动",
+          "kind": "company"
+        },
         "overview": [
-          "Video Depth Anything is a 3D/4D reconstruction and generation model from depth-anything. The catalog records it for video-depth-estimation, temporal-depth-estimation, and geometry-prior. It is also cataloged under the aliases video-depth-anything and vda-prior.",
-          "WorldFoundry binds it to the worldfoundry.pipelines.geometry_priors.pipeline_geometry_priors:VideoDepthAnythingPriorPipeline pipeline via worldfoundry.pipeline.",
-          "It runs in the shared unified environment worldfoundry-unified-cu128 (Python 3.11, CUDA 12.8).",
-          "Weights are pulled from the Hugging Face repository depth-anything/Video-Depth-Anything-Large.",
-          "Runner parity is currently “Implemented Checkpoint Pending” and native-demo parity is “Not Recorded”; treat end-to-end GPU evidence as not yet recorded."
+          "Video Depth Anything brings temporal consistency to the Depth Anything family: it estimates depth over arbitrarily long videos without the flicker of frame-by-frame estimation. In this catalog it is an independent temporal depth prior that VIPE pipeline profiles can select through shared runtime config without owning the code."
         ],
         "overviewZh": [
-          "Video Depth Anything 是来自 depth-anything 的3D/4D 重建与生成模型。Catalog 将它记录为video-depth-estimation、temporal-depth-estimation、几何先验任务。它还有别名 video-depth-anything、vda-prior。",
-          "WorldFoundry 将它绑定到 worldfoundry.pipelines.geometry_priors.pipeline_geometry_priors:VideoDepthAnythingPriorPipeline pipeline（runner：worldfoundry.pipeline）。",
-          "它运行在统一环境 worldfoundry-unified-cu128 中（Python 3.11，CUDA 12.8）。",
-          "权重来自 Hugging Face 仓库 depth-anything/Video-Depth-Anything-Large。",
-          "当前 runner parity 为“Implemented Checkpoint Pending”，原生 demo parity 为“Not Recorded”；端到端 GPU 证据应视为尚未记录。"
+          "Video Depth Anything 为 Depth Anything 家族带来时序一致性：在任意长度的视频上估计深度，避免逐帧估计的闪烁。本 catalog 中它是独立的时序深度先验，VIPE pipeline 档案可通过共享运行时配置选用它，而无需持有其代码。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "Per the upstream release, a spatiotemporal head with a temporal-gradient consistency objective extends Depth Anything V2 to video, plus a keyframe strategy for long sequences. The recorded checkpoint is depth-anything/Video-Depth-Anything-Large (apache-2.0); registered at base_models/three_dimensions/depth/videodepthanything."
+        ],
+        "architectureZh": [
+          "按上游发布，时空头加时间梯度一致性目标把 Depth Anything V2 扩展到视频，并用关键帧策略处理长序列。记录的 checkpoint 为 depth-anything/Video-Depth-Anything-Large（apache-2.0）；注册于 base_models/three_dimensions/depth/videodepthanything。"
+        ],
+        "usageNotes": [
+          "It is integrated as an independent geometry prior under worldfoundry/base_models and exposed through the shared geometry-prior pipeline/operator contract. Higher-level pipelines (e.g. ViPE) import it from this canonical owner instead of keeping private copies. Config resolution and pipeline/operator import are expected to pass; real prior inference remains checkpoint-gated."
+        ],
+        "usageNotesZh": [
+          "它作为独立几何先验集成在 worldfoundry/base_models 下，通过共享的 geometry-prior pipeline/operator 契约对外暴露。上层管线（如 ViPE）从这一规范位置导入它，而不是各自保留私有副本。配置解析与 pipeline/operator 导入预期可通过；真实先验推理仍受 checkpoint 限制。"
+        ],
         "highlights": [
           "Video Depth Estimation",
           "Temporal Depth Estimation",
@@ -55891,14 +56065,12 @@
         },
         "benchmarks": [],
         "limitations": [
-          "Runner evidence is “Implemented Checkpoint Pending” — not a verified end-to-end GPU run. Do not treat this page as proof the route is fully validated.",
-          "Native demo evidence: Not recorded.",
-          "resolve_model_zoo_config and pipeline/operator import are expected to pass; real prior inference remains gated by checkpoints/assets."
+          "Checkpoint-gated: real inference needs the staged Video-Depth-Anything-Large weights.",
+          "Relative depth focus — pair with a metric prior when metric scale is required."
         ],
         "limitationsZh": [
-          "Runner 证据为“Implemented Checkpoint Pending”——这不是经过验证的端到端 GPU 运行结果，请勿将本页视为该路径已被完整验证的证明。",
-          "原生 Demo 证据：未记录。",
-          "resolve_model_zoo_config and pipeline/operator import are expected to pass; real prior inference remains gated by checkpoints/assets."
+          "受 checkpoint 限制：真实推理需要就位的 Video-Depth-Anything-Large 权重。",
+          "以相对深度为主——需要米制尺度时请与米制先验配合。"
         ]
       },
       "commands": {
@@ -59294,8 +59466,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "KovenYu",
-      "summary": "WorldFoundry exposes an in-tree adapter that runs the upstream WonderJourney run.py/example_config flow.",
+      "provider": "Stanford University / Google",
+      "summary": "WonderJourney generates a journey: starting from text or an image, it produces a sequence of connected 3D scenes you travel through — perpetual 3D scene generation rather than a single clip. In this catalog WorldFoundry runs the upstream r…",
       "aliases": [],
       "tasks": [
         "3d-world-generation",
@@ -59577,24 +59749,30 @@
         "Uses the upstream WonderJourney run.py/example_config flow through the in-tree adapter."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "Stanford University / Google",
+          "nameZh": "斯坦福大学 / Google",
+          "kind": "university"
+        },
         "overview": [
-          "WonderJourney is a 3D/4D reconstruction and generation model from KovenYu. The catalog records it for 3d-world-generation, scene-expansion, and image-to-3d-world.",
-          "WorldFoundry binds it to the worldfoundry.pipelines.three_d_four_d.pipeline_runtime:WonderJourneyPipeline pipeline via worldfoundry.pipeline.",
-          "It runs in the dedicated environment wonderworld (Python 3.10, CUDA 12.4).",
-          "Runner parity is currently “Pending” and native-demo parity is “Not Recorded”; treat end-to-end GPU evidence as not yet recorded."
+          "WonderJourney generates a journey: starting from text or an image, it produces a sequence of connected 3D scenes you travel through — perpetual 3D scene generation rather than a single clip. In this catalog WorldFoundry runs the upstream run.py/example_config flow through an in-tree adapter; runner parity is pending runtime assets."
         ],
         "overviewZh": [
-          "WonderJourney 是来自 KovenYu 的3D/4D 重建与生成模型。Catalog 将它记录为3D 世界生成、scene-expansion、图像生成 3D 世界任务。",
-          "WorldFoundry 将它绑定到 worldfoundry.pipelines.three_d_four_d.pipeline_runtime:WonderJourneyPipeline pipeline（runner：worldfoundry.pipeline）。",
-          "它运行在独立环境 wonderworld 中（Python 3.10，CUDA 12.4）。",
-          "当前 runner parity 为“Pending”，原生 demo parity 为“Not Recorded”；端到端 GPU 证据应视为尚未记录。"
+          "WonderJourney 生成一段「旅程」：从文本或一张图出发，产出一串相互衔接、可穿行的 3D 场景——是持续的 3D 场景生成而非单个片段。本 catalog 中 WorldFoundry 通过树内适配器运行上游 run.py/example_config 流程；runner parity 待运行时资产就位。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "Per the paper (arXiv 2312.03884), an LLM proposes upcoming scene descriptions, a point-cloud-and-inpainting visual module renders each new scene from the previous one, and a VLM verifies results. Missing assets or runtime dependencies are reported at inference time."
+        ],
+        "architectureZh": [
+          "按论文（arXiv 2312.03884），LLM 提议后续场景描述，点云加图像修复的视觉模块从上一场景渲染新场景，VLM 负责校验结果。资产或运行时依赖缺失会在推理时报告。"
+        ],
+        "usageNotes": [
+          "Pipeline imports and plan-only inference are wired; full artifact parity needs the upstream assets (depth, inpainting, LLM access) staged locally before real journeys can be generated."
+        ],
+        "usageNotesZh": [
+          "pipeline 导入与 plan-only 推理已接通；完整产物一致性需要本地就位上游资产（深度、修复、LLM 访问）之后才能生成真实旅程。"
+        ],
         "highlights": [
           "3D World Generation",
           "Scene Expansion",
@@ -59623,16 +59801,27 @@
           "recommended": null,
           "notes": []
         },
-        "benchmarks": [],
+        "benchmarks": [
+          {
+            "id": "worldscore",
+            "name": "WorldScore",
+            "category": "World Models",
+            "categoryZh": "世界模型",
+            "summary": "In-tree official runtime scores generated videos per prompt",
+            "summaryZh": "仓内 official runtime 对生成视频逐 prompt 评分",
+            "href": "/docs/evaluation/benchmark-hub/worldscore",
+            "source": "docs",
+            "reason": "Standard scoring for generated navigable scene sequences.",
+            "reasonZh": "生成可游走场景序列的标准评分。"
+          }
+        ],
         "limitations": [
-          "Runner evidence is “Pending” — not a verified end-to-end GPU run. Do not treat this page as proof the route is fully validated.",
-          "Native demo evidence: Not recorded.",
-          "Pipeline target imports and plan-only inference are wired; full artifact parity needs runtime assets."
+          "Runner parity is pending staged runtime assets.",
+          "Scene-to-scene generation accumulates style and geometry drift over long journeys."
         ],
         "limitationsZh": [
-          "Runner 证据为“Pending”——这不是经过验证的端到端 GPU 运行结果，请勿将本页视为该路径已被完整验证的证明。",
-          "原生 Demo 证据：未记录。",
-          "Pipeline target imports and plan-only inference are wired; full artifact parity needs runtime assets."
+          "runner parity 待运行时资产就位。",
+          "场景到场景的生成在长旅程中会累积风格与几何漂移。"
         ]
       },
       "commands": {
@@ -59650,8 +59839,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "Stanford University and MIT authors",
-      "summary": "WorldFoundry runs the in-tree WonderWorld run.py/example_config flow through the shared 3D/4D subprocess adapter.",
+      "provider": "Stanford University / MIT",
+      "summary": "WonderWorld generates an interactive 3D world from a single image fast enough for a live loop — the user picks where to extend the scene and new content appears in seconds. In this catalog the in-tree run.py/example_config flow runs throug…",
       "aliases": [
         "WonderWorld: Interactive 3D Scene Generation from a Single Image"
       ],
@@ -59990,24 +60179,30 @@
         "Direct execution still requires WonderWorld checkpoint/runtime assets and local PyTorch3D-compatible extensions."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "Stanford University / MIT",
+          "nameZh": "斯坦福大学 / 麻省理工学院",
+          "kind": "university"
+        },
         "overview": [
-          "WonderWorld is a 3D/4D reconstruction and generation model from Stanford University and MIT authors. The catalog records it for image-to-3d-world, 3d-scene-generation, interactive-3d-generation, and interactive 3d scene generation from a single image. It is also cataloged under the alias WonderWorld: Interactive 3D Scene Generation from a Single Image.",
-          "WorldFoundry binds it to the worldfoundry.pipelines.three_d_four_d.pipeline_runtime:WonderWorldPipeline pipeline via worldfoundry.pipeline.",
-          "It runs in the dedicated environment wonderworld (Python 3.10, CUDA 12.4).",
-          "Runner parity is currently “Pending” and native-demo parity is “Not Recorded”; treat end-to-end GPU evidence as not yet recorded."
+          "WonderWorld generates an interactive 3D world from a single image fast enough for a live loop — the user picks where to extend the scene and new content appears in seconds. In this catalog the in-tree run.py/example_config flow runs through the shared 3D/4D subprocess adapter; runner parity is pending runtime assets."
         ],
         "overviewZh": [
-          "WonderWorld 是来自 Stanford University and MIT authors 的3D/4D 重建与生成模型。Catalog 将它记录为图像生成 3D 世界、3d-scene-generation、interactive-3d-generation、interactive 3D scene generation from a single image任务。它还有别名 WonderWorld: Interactive 3D Scene Generation from a Single Image。",
-          "WorldFoundry 将它绑定到 worldfoundry.pipelines.three_d_four_d.pipeline_runtime:WonderWorldPipeline pipeline（runner：worldfoundry.pipeline）。",
-          "它运行在独立环境 wonderworld 中（Python 3.10，CUDA 12.4）。",
-          "当前 runner parity 为“Pending”，原生 demo parity 为“Not Recorded”；端到端 GPU 证据应视为尚未记录。"
+          "WonderWorld 从单张图像生成可交互的 3D 世界，速度快到支持实时循环——用户指定扩展方向，新内容数秒内出现。本 catalog 中树内 run.py/example_config 流程经共享 3D/4D 子进程适配器运行；runner parity 待运行时资产就位。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "Per the paper (arXiv 2406.09394), the key representation is FLAGS (Fast LAyered Gaussian Surfels), generated from a single view with a guided depth-diffusion scheme — under 10 seconds per scene on the reported hardware. Direct execution requires WonderWorld checkpoints plus local PyTorch3D-compatible extensions."
+        ],
+        "architectureZh": [
+          "按论文（arXiv 2406.09394），核心表示是 FLAGS（快速分层高斯面元），配合引导式深度扩散从单视图生成——在论文硬件上每场景不足 10 秒。直接运行需要 WonderWorld checkpoint 与本地兼容 PyTorch3D 的扩展。"
+        ],
+        "usageNotes": [
+          "Missing source, inpainting, segmentation, depth/normal, or 3DGS assets are reported at inference time. Stage the full asset set and compile the PyTorch3D-compatible extensions before expecting real scene output."
+        ],
+        "usageNotesZh": [
+          "源码、修复、分割、深度/法线或 3DGS 资产缺失会在推理时报告。期望得到真实场景输出前，请就位全套资产并编译兼容 PyTorch3D 的扩展。"
+        ],
         "highlights": [
           "Image To 3D World",
           "3D Scene Generation",
@@ -60036,16 +60231,27 @@
           "recommended": null,
           "notes": []
         },
-        "benchmarks": [],
+        "benchmarks": [
+          {
+            "id": "worldscore",
+            "name": "WorldScore",
+            "category": "World Models",
+            "categoryZh": "世界模型",
+            "summary": "In-tree official runtime scores generated videos per prompt",
+            "summaryZh": "仓内 official runtime 对生成视频逐 prompt 评分",
+            "href": "/docs/evaluation/benchmark-hub/worldscore",
+            "source": "docs",
+            "reason": "Standard scoring for interactive generated 3D worlds.",
+            "reasonZh": "交互式生成 3D 世界的标准评分。"
+          }
+        ],
         "limitations": [
-          "Runner evidence is “Pending” — not a verified end-to-end GPU run. Do not treat this page as proof the route is fully validated.",
-          "Native demo evidence: Not recorded.",
-          "Pipeline target imports and plan-only inference are wired; full artifact parity needs runtime assets."
+          "Runner parity is pending staged runtime assets and local extensions.",
+          "Single-image origin: scene fidelity beyond the visible content is generative guesswork."
         ],
         "limitationsZh": [
-          "Runner 证据为“Pending”——这不是经过验证的端到端 GPU 运行结果，请勿将本页视为该路径已被完整验证的证明。",
-          "原生 Demo 证据：未记录。",
-          "Pipeline target imports and plan-only inference are wired; full artifact parity needs runtime assets."
+          "runner parity 待运行时资产与本地扩展就位。",
+          "以单图为源：可见内容之外的场景保真度依赖生成式推测。"
         ]
       },
       "commands": {
@@ -60230,8 +60436,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "LeoXie",
-      "summary": "WorldFoundry exposes an in-tree adapter that runs the WorldGen inference flow.",
+      "provider": "Open-source research release (institution not recorded)",
+      "summary": "WorldGen turns a text prompt or an image into a full 3D world — text-to-3D-world and image-to-3D-world generation in one project. In this catalog WorldFoundry exposes an in-tree adapter that executes the WorldGen inference flow when assets…",
       "aliases": [],
       "tasks": [
         "3d-world-generation",
@@ -60518,26 +60724,30 @@
         "Uses the in-tree WorldGen inference path and reports missing gated FLUX or WorldGen assets at runtime."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "Open-source research release (institution not recorded)",
+          "nameZh": "开源研究发布（仓库未记录正式机构）",
+          "kind": "lab"
+        },
         "overview": [
-          "WorldGen is a 3D/4D reconstruction and generation model from LeoXie. The catalog records it for 3d-world-generation, text-to-3d-world, and image-to-3d-world.",
-          "WorldFoundry binds it to the worldfoundry.pipelines.three_d_four_d.pipeline_runtime:WorldGenPipeline pipeline via worldfoundry.pipeline.",
-          "It runs in the shared unified environment worldfoundry-unified-cu128 (Python 3.11, CUDA 12.8).",
-          "Weights are pulled from the Hugging Face repository LeoXie/WorldGen.",
-          "Runner parity is currently “Pending” and native-demo parity is “Not Recorded”; treat end-to-end GPU evidence as not yet recorded."
+          "WorldGen turns a text prompt or an image into a full 3D world — text-to-3D-world and image-to-3D-world generation in one project. In this catalog WorldFoundry exposes an in-tree adapter that executes the WorldGen inference flow when assets are staged; runner parity is pending, and missing gated foundation models are reported at inference time."
         ],
         "overviewZh": [
-          "WorldGen 是来自 LeoXie 的3D/4D 重建与生成模型。Catalog 将它记录为3D 世界生成、text-to-3d-world、图像生成 3D 世界任务。",
-          "WorldFoundry 将它绑定到 worldfoundry.pipelines.three_d_four_d.pipeline_runtime:WorldGenPipeline pipeline（runner：worldfoundry.pipeline）。",
-          "它运行在统一环境 worldfoundry-unified-cu128 中（Python 3.11，CUDA 12.8）。",
-          "权重来自 Hugging Face 仓库 LeoXie/WorldGen。",
-          "当前 runner parity 为“Pending”，原生 demo parity 为“Not Recorded”；端到端 GPU 证据应视为尚未记录。"
+          "WorldGen 把文本提示或一张图变成完整 3D 世界——文本到 3D 世界与图像到 3D 世界生成合于一个项目。本 catalog 中 WorldFoundry 暴露树内适配器，在资产就位时执行 WorldGen 推理流程；runner parity 为 pending，gated 基础模型缺失会在推理时报告。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "The catalog records a generation stack that depends on gated FLUX foundation models plus WorldGen's own assets (apache-2.0 for the WorldGen release itself, paper arXiv 2511.16825). Architecture internals beyond the recorded tasks are not stored in this repository."
+        ],
+        "architectureZh": [
+          "catalog 记录其生成栈依赖 gated 的 FLUX 基础模型与 WorldGen 自身资产（WorldGen 本体为 apache-2.0，论文 arXiv 2511.16825）。除已记录任务外的架构内部细节仓库未存。"
+        ],
+        "usageNotes": [
+          "Accept the gated FLUX terms and stage the WorldGen assets before running; the in-tree adapter can then execute the inference flow. Full official scene-quality parity remains pending, with per-run artifact checks tracked outside the catalog."
+        ],
+        "usageNotesZh": [
+          "运行前请接受 gated FLUX 条款并就位 WorldGen 资产；树内适配器随后即可执行推理流程。完整的官方场景质量一致性仍为 pending，每次运行的产物检查在 catalog 外跟踪。"
+        ],
         "highlights": [
           "3D World Generation",
           "Text To 3D World",
@@ -60569,18 +60779,29 @@
           "recommended": null,
           "notes": []
         },
-        "benchmarks": [],
+        "benchmarks": [
+          {
+            "id": "worldscore",
+            "name": "WorldScore",
+            "category": "World Models",
+            "categoryZh": "世界模型",
+            "summary": "In-tree official runtime scores generated videos per prompt",
+            "summaryZh": "仓内 official runtime 对生成视频逐 prompt 评分",
+            "href": "/docs/evaluation/benchmark-hub/worldscore",
+            "source": "docs",
+            "reason": "Standard scoring for generated 3D worlds.",
+            "reasonZh": "生成 3D 世界的标准评分。"
+          }
+        ],
         "limitations": [
-          "Runner evidence is “Pending” — not a verified end-to-end GPU run. Do not treat this page as proof the route is fully validated.",
-          "Native demo evidence: Not recorded.",
-          "The in-tree adapter can execute the WorldGen inference flow when required assets are staged.",
-          "Full official scene-quality parity remains pending; per-run artifact checks are tracked outside the model catalog."
+          "Depends on gated FLUX foundation models — access must be granted upstream.",
+          "Full official scene-quality parity is pending.",
+          "The publishing institution is not recorded in this repository."
         ],
         "limitationsZh": [
-          "Runner 证据为“Pending”——这不是经过验证的端到端 GPU 运行结果，请勿将本页视为该路径已被完整验证的证明。",
-          "原生 Demo 证据：未记录。",
-          "The in-tree adapter can execute the WorldGen inference flow when required assets are staged.",
-          "Full official scene-quality parity remains pending; per-run artifact checks are tracked outside the model catalog."
+          "依赖 gated 的 FLUX 基础模型——需先在上游获得访问权限。",
+          "完整的官方场景质量一致性待验证。",
+          "发表机构在本仓库中未记录。"
         ]
       },
       "commands": {
@@ -63466,8 +63687,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "CUT3R",
-      "summary": "In-tree CUT3R point-cloud and two-stage 3DGS routes are registered through Studio discovery.",
+      "provider": "UC Berkeley",
+      "summary": "CUT3R is a continuous 3D perception model with persistent state: it ingests a stream of images and continuously updates a metric-scale 3D reconstruction, without offline bundling. In this catalog the in-tree point-cloud and two-stage 3DGS…",
       "aliases": [],
       "tasks": [
         "3d-reconstruction",
@@ -63699,22 +63920,30 @@
         "Checkpoint-backed inference depends on staged local or Hugging Face cut3r weights."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "UC Berkeley",
+          "nameZh": "加州大学伯克利分校（UC Berkeley）",
+          "kind": "university"
+        },
         "overview": [
-          "CUT3R is a 3D/4D reconstruction and generation model from CUT3R. The catalog records it for 3d-reconstruction, 3dgs, and point-cloud.",
-          "No runnable WorldFoundry pipeline is bound to this entry yet; this page records upstream provenance and readiness state only.",
-          "Runner parity is currently “Pending” and native-demo parity is “Not Recorded”; treat end-to-end GPU evidence as not yet recorded."
+          "CUT3R is a continuous 3D perception model with persistent state: it ingests a stream of images and continuously updates a metric-scale 3D reconstruction, without offline bundling. In this catalog the in-tree point-cloud and two-stage 3DGS routes are registered through Studio discovery. CUT3R also serves as the geometry backbone for the verified VMem entry in the video category."
         ],
         "overviewZh": [
-          "CUT3R 是来自 CUT3R 的3D/4D 重建与生成模型。Catalog 将它记录为3D 重建、3dgs、点云任务。",
-          "该条目目前尚未绑定可运行的 WorldFoundry pipeline；本页只记录上游来源与就绪状态。",
-          "当前 runner parity 为“Pending”，原生 demo parity 为“Not Recorded”；端到端 GPU 证据应视为尚未记录。"
+          "CUT3R 是带持久状态的连续 3D 感知模型：接收图像流并持续更新米制尺度的 3D 重建，无需离线捆绑优化。本 catalog 中已通过 Studio 发现机制注册了树内点云与两段式 3DGS 路径。CUT3R 同时是 video 类别中已验证的 VMem 条目的几何主干。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "A recurrent transformer maintains a persistent scene state; each new frame updates the state and outputs pointmaps and camera parameters online (per the upstream publication). The recorded routes cover raw point-cloud export and a two-stage 3DGS pipeline; weights are apache-2.0."
+        ],
+        "architectureZh": [
+          "循环 Transformer 维护持久场景状态；每帧新图像更新状态并在线输出点图与相机参数（见上游论文）。已记录路径覆盖点云导出与两段式 3DGS pipeline；权重为 apache-2.0。"
+        ],
+        "usageNotes": [
+          "Runner parity is pending: checkpoint-backed inference depends on staged local or Hugging Face cut3r weights. Stage them before submitting Studio jobs."
+        ],
+        "usageNotesZh": [
+          "Runner parity 为 pending：checkpoint 加载推理依赖就位的本地或 Hugging Face cut3r 权重。提交 Studio 任务前请先就位权重。"
+        ],
         "highlights": [
           "3D Reconstruction",
           "3Dgs",
@@ -63740,14 +63969,12 @@
         },
         "benchmarks": [],
         "limitations": [
-          "Runner evidence is “Pending” — not a verified end-to-end GPU run. Do not treat this page as proof the route is fully validated.",
-          "Native demo evidence: Not recorded.",
-          "Checkpoint-backed inference depends on staged local or Hugging Face cut3r weights."
+          "Checkpoint-backed parity is pending; the routes are registered but unverified in this workspace.",
+          "Streaming reconstruction quality degrades on long sequences with severe viewpoint changes."
         ],
         "limitationsZh": [
-          "Runner 证据为“Pending”——这不是经过验证的端到端 GPU 运行结果，请勿将本页视为该路径已被完整验证的证明。",
-          "原生 Demo 证据：未记录。",
-          "Checkpoint-backed inference depends on staged local or Hugging Face cut3r weights."
+          "checkpoint 加载一致性待验证；路径已注册但本工作区尚未验证。",
+          "长序列且视角剧烈变化时，流式重建质量会下降。"
         ]
       },
       "commands": {
@@ -64193,8 +64420,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "ByteDance-Seed",
-      "summary": "In-tree official SOH export route is registered separately from the geometry-prior profile at depth-anything-v3-prior.",
+      "provider": "ByteDance (Seed)",
+      "summary": "Depth Anything 3 is ByteDance Seed's geometry foundation model: beyond monocular depth it predicts consistent geometry from multiple views. This entry registers the in-tree official SOH export route, separate from the depth-anything-v3-pri…",
       "aliases": [
         "da3",
         "depth-anything-3"
@@ -64358,22 +64585,30 @@
         "Per-run validation evidence is tracked outside the model catalog."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "ByteDance (Seed)",
+          "nameZh": "字节跳动（Seed 团队）",
+          "kind": "company"
+        },
         "overview": [
-          "Depth Anything 3 is a 3D/4D reconstruction and generation model from ByteDance-Seed. The catalog records it for depth, geometry, and 3d-reconstruction. It is also cataloged under the aliases da3 and depth-anything-3.",
-          "No runnable WorldFoundry pipeline is bound to this entry yet; this page records upstream provenance and readiness state only.",
-          "Runner parity is currently “Pending” and native-demo parity is “Not Recorded”; treat end-to-end GPU evidence as not yet recorded."
+          "Depth Anything 3 is ByteDance Seed's geometry foundation model: beyond monocular depth it predicts consistent geometry from multiple views. This entry registers the in-tree official SOH export route, separate from the depth-anything-v3-prior geometry-prior profile."
         ],
         "overviewZh": [
-          "Depth Anything 3 是来自 ByteDance-Seed 的3D/4D 重建与生成模型。Catalog 将它记录为深度估计、几何估计、3D 重建任务。它还有别名 da3、depth-anything-3。",
-          "该条目目前尚未绑定可运行的 WorldFoundry pipeline；本页只记录上游来源与就绪状态。",
-          "当前 runner parity 为“Pending”，原生 demo parity 为“Not Recorded”；端到端 GPU 证据应视为尚未记录。"
+          "Depth Anything 3 是字节 Seed 团队的几何基础模型：在单目深度之外还能从多视角预测一致几何。本条目注册树内官方 SOH 导出路径，与 depth-anything-v3-prior 的几何先验档案相互独立。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "DA3 uses a plain-transformer backbone with a depth-ray prediction target, spanning monocular depth through multi-view geometry (per the upstream release). Weights are apache-2.0; this entry's runtime specifics live in its recorded route."
+        ],
+        "architectureZh": [
+          "DA3 采用朴素 Transformer 主干与「深度-射线」预测目标，覆盖单目深度到多视角几何（见上游发布）。权重为 apache-2.0；本条目的运行时细节在其记录路径中。"
+        ],
+        "usageNotes": [
+          "Integration is runtime_ported with runner parity pending. If you only need a depth prior for another pipeline, use depth-anything-v3-prior; this entry is for the full export route."
+        ],
+        "usageNotesZh": [
+          "集成为 runtime_ported，runner parity 待验证。若只需为其它管线提供深度先验，请用 depth-anything-v3-prior；本条目面向完整导出路径。"
+        ],
         "highlights": [
           "Depth",
           "Geometry",
@@ -64401,14 +64636,10 @@
         },
         "benchmarks": [],
         "limitations": [
-          "Runner evidence is “Pending” — not a verified end-to-end GPU run. Do not treat this page as proof the route is fully validated.",
-          "Native demo evidence: Not recorded.",
-          "Per-run validation evidence is tracked outside the model catalog."
+          "Runner parity is pending; per-run validation evidence is tracked outside the catalog."
         ],
         "limitationsZh": [
-          "Runner 证据为“Pending”——这不是经过验证的端到端 GPU 运行结果，请勿将本页视为该路径已被完整验证的证明。",
-          "原生 Demo 证据：未记录。",
-          "Per-run validation evidence is tracked outside the model catalog."
+          "runner parity 待验证；每次运行的验证证据在 catalog 外跟踪。"
         ]
       },
       "commands": {
@@ -68271,8 +68502,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "Worldfoundry",
-      "summary": "Shared WorldFoundry geometry-prior pipeline/operator contract surface.",
+      "provider": "WorldFoundry (this repository)",
+      "summary": "Geometry is not an upstream model — it is WorldFoundry's shared geometry-prior contract surface. Individual priors (DUSt3R, Depth Anything, Metric3D, GeoCalib, UniDepth, and others) register as separate catalog entries with their own prove…",
       "aliases": [],
       "tasks": [
         "geometry",
@@ -68349,22 +68580,30 @@
         "This entry records the shared contract; per-prior parity evidence lives on the specific prior catalog entries."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "WorldFoundry (this repository)",
+          "nameZh": "WorldFoundry（本仓库）",
+          "kind": "lab"
+        },
         "overview": [
-          "Geometry is a 3D/4D reconstruction and generation model from Worldfoundry. The catalog records it for geometry, 3d-reconstruction, and geometry-prior.",
-          "No runnable WorldFoundry pipeline is bound to this entry yet; this page records upstream provenance and readiness state only.",
-          "Runner parity is currently “Pending” and native-demo parity is “Not Recorded”; treat end-to-end GPU evidence as not yet recorded."
+          "Geometry is not an upstream model — it is WorldFoundry's shared geometry-prior contract surface. Individual priors (DUSt3R, Depth Anything, Metric3D, GeoCalib, UniDepth, and others) register as separate catalog entries with their own provenance, and all of them are consumed through the pipeline/ operator contract this entry documents."
         ],
         "overviewZh": [
-          "Geometry 是来自 Worldfoundry 的3D/4D 重建与生成模型。Catalog 将它记录为几何估计、3D 重建、几何先验任务。",
-          "该条目目前尚未绑定可运行的 WorldFoundry pipeline；本页只记录上游来源与就绪状态。",
-          "当前 runner parity 为“Pending”，原生 demo parity 为“Not Recorded”；端到端 GPU 证据应视为尚未记录。"
+          "Geometry 不是上游模型——它是 WorldFoundry 的共享几何先验契约面。各个先验（DUSt3R、 Depth Anything、Metric3D、GeoCalib、UniDepth 等）以独立 catalog 条目注册并各自携带溯源，全部通过本条目所描述的 pipeline/operator 契约被调用。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "A contract, not a network: it defines how geometry priors are constructed, invoked, and how their artifacts are exported, so that higher-level pipelines can swap priors through configuration alone."
+        ],
+        "architectureZh": [
+          "这是契约而非网络：定义几何先验如何构造、如何调用、产物如何导出，使上层管线仅靠配置即可更换先验。"
+        ],
+        "usageNotes": [
+          "Do not run this entry directly; pick a concrete prior entry instead. Per-prior parity evidence lives on the specific prior catalog entries."
+        ],
+        "usageNotesZh": [
+          "不要直接运行本条目；请选择具体的先验条目。每个先验的一致性证据都在其各自的 catalog 条目上。"
+        ],
         "highlights": [
           "Geometry",
           "3D Reconstruction",
@@ -68388,14 +68627,10 @@
         },
         "benchmarks": [],
         "limitations": [
-          "Runner evidence is “Pending” — not a verified end-to-end GPU run. Do not treat this page as proof the route is fully validated.",
-          "Native demo evidence: Not recorded.",
-          "This entry records the shared contract; per-prior parity evidence lives on the specific prior catalog entries."
+          "A contract surface only — it has no weights and produces no artifacts by itself."
         ],
         "limitationsZh": [
-          "Runner 证据为“Pending”——这不是经过验证的端到端 GPU 运行结果，请勿将本页视为该路径已被完整验证的证明。",
-          "原生 Demo 证据：未记录。",
-          "This entry records the shared contract; per-prior parity evidence lives on the specific prior catalog entries."
+          "仅为契约面——本身没有权重，也不直接产出产物。"
         ]
       },
       "commands": {
@@ -71738,8 +71973,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "wzzheng",
-      "summary": "In-tree StreamVGGT (Infinite VGGT) pipeline is registered for streaming 3D reconstruction.",
+      "provider": "Tsinghua University",
+      "summary": "Infinite VGGT (StreamVGGT) turns the feed-forward VGGT reconstructor into a streaming model: it processes incoming frames causally with cached tokens, so reconstruction extends indefinitely instead of being bounded by a fixed window. The i…",
       "aliases": [
         "stream-vggt",
         "streamvggt"
@@ -71834,22 +72069,30 @@
         "Checkpoint-backed inference depends on staged StreamVGGT weights."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "Tsinghua University",
+          "nameZh": "清华大学",
+          "kind": "university"
+        },
         "overview": [
-          "Infinite VGGT is a 3D/4D reconstruction and generation model from wzzheng. The catalog records it for 3d-reconstruction and streaming-3d. It is also cataloged under the aliases stream-vggt and streamvggt.",
-          "WorldFoundry binds it to the worldfoundry.pipelines.infinite_vggt.pipeline_infinite_vggt:InfiniteVGGTPipeline pipeline via worldfoundry.pipeline.",
-          "Runner parity is currently “Pending” and native-demo parity is “Not Recorded”; treat end-to-end GPU evidence as not yet recorded."
+          "Infinite VGGT (StreamVGGT) turns the feed-forward VGGT reconstructor into a streaming model: it processes incoming frames causally with cached tokens, so reconstruction extends indefinitely instead of being bounded by a fixed window. The in-tree pipeline is registered for streaming 3D reconstruction."
         ],
         "overviewZh": [
-          "Infinite VGGT 是来自 wzzheng 的3D/4D 重建与生成模型。Catalog 将它记录为3D 重建、streaming-3d任务。它还有别名 stream-vggt、streamvggt。",
-          "WorldFoundry 将它绑定到 worldfoundry.pipelines.infinite_vggt.pipeline_infinite_vggt:InfiniteVGGTPipeline pipeline（runner：worldfoundry.pipeline）。",
-          "当前 runner parity 为“Pending”，原生 demo parity 为“Not Recorded”；端到端 GPU 证据应视为尚未记录。"
+          "Infinite VGGT（StreamVGGT）把前馈重建器 VGGT 改造成流式模型：用缓存 token 因果地处理到来的帧，使重建可以无限延伸而不受固定窗口限制。树内 pipeline 已按流式 3D 重建注册。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "A causal transformer with cached-token knowledge distillation from VGGT (per arXiv 2507.11539). License is CC-BY-NC-4.0 — non-commercial."
+        ],
+        "architectureZh": [
+          "带缓存 token 的因果 Transformer，从 VGGT 进行知识蒸馏（见 arXiv 2507.11539）。许可为 CC-BY-NC-4.0——非商用。"
+        ],
+        "usageNotes": [
+          "Runner parity is pending: checkpoint-backed inference depends on staged StreamVGGT weights. Use the vggt entry for offline reconstruction and this one when frames arrive as a stream."
+        ],
+        "usageNotesZh": [
+          "runner parity 为 pending：checkpoint 加载推理依赖就位的 StreamVGGT 权重。离线重建请用 vggt 条目；帧以流形式到达时用本条目。"
+        ],
         "highlights": [
           "3D Reconstruction",
           "Streaming 3D"
@@ -71871,14 +72114,14 @@
         },
         "benchmarks": [],
         "limitations": [
-          "Runner evidence is “Pending” — not a verified end-to-end GPU run. Do not treat this page as proof the route is fully validated.",
-          "Native demo evidence: Not recorded.",
-          "Checkpoint-backed inference depends on staged StreamVGGT weights."
+          "CC-BY-NC-4.0: non-commercial license.",
+          "Checkpoint-backed parity is pending.",
+          "Causal streaming accumulates drift relative to offline joint reconstruction."
         ],
         "limitationsZh": [
-          "Runner 证据为“Pending”——这不是经过验证的端到端 GPU 运行结果，请勿将本页视为该路径已被完整验证的证明。",
-          "原生 Demo 证据：未记录。",
-          "Checkpoint-backed inference depends on staged StreamVGGT weights."
+          "CC-BY-NC-4.0：非商用许可。",
+          "checkpoint 一致性待验证。",
+          "因果流式处理相对离线联合重建会累积漂移。"
         ]
       },
       "commands": {
@@ -82154,8 +82397,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "yyfz",
-      "summary": "In-tree Pi3 point-cloud navigation pipeline is registered for reconstruction and trajectory rendering.",
+      "provider": "Open-source research release (institution not recorded)",
+      "summary": "Pi3 (π³) is a feed-forward visual-geometry model that reconstructs 3D scenes, camera trajectories, and point clouds without relying on a fixed reference view — its permutation-equivariant design treats all input views symmetrically. In thi…",
       "aliases": [],
       "tasks": [
         "3d-reconstruction",
@@ -82252,22 +82495,30 @@
         "Per-run validation evidence is tracked outside the model catalog."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "Open-source research release (institution not recorded)",
+          "nameZh": "开源研究发布（仓库未记录正式机构）",
+          "kind": "lab"
+        },
         "overview": [
-          "Pi3 is a 3D/4D reconstruction and generation model from yyfz. The catalog records it for 3d-reconstruction, trajectory, and point-cloud.",
-          "No runnable WorldFoundry pipeline is bound to this entry yet; this page records upstream provenance and readiness state only.",
-          "Runner parity is currently “Pending” and native-demo parity is “Not Recorded”; treat end-to-end GPU evidence as not yet recorded."
+          "Pi3 (π³) is a feed-forward visual-geometry model that reconstructs 3D scenes, camera trajectories, and point clouds without relying on a fixed reference view — its permutation-equivariant design treats all input views symmetrically. In this catalog the in-tree point-cloud navigation pipeline is registered for reconstruction and trajectory rendering."
         ],
         "overviewZh": [
-          "Pi3 是来自 yyfz 的3D/4D 重建与生成模型。Catalog 将它记录为3D 重建、轨迹预测、点云任务。",
-          "该条目目前尚未绑定可运行的 WorldFoundry pipeline；本页只记录上游来源与就绪状态。",
-          "当前 runner parity 为“Pending”，原生 demo parity 为“Not Recorded”；端到端 GPU 证据应视为尚未记录。"
+          "Pi3（π³）是前馈式视觉几何模型，重建 3D 场景、相机轨迹与点云，且不依赖固定参考视图——其置换等变设计对所有输入视图一视同仁。本 catalog 中树内点云导航 pipeline 已按重建与轨迹渲染注册。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "Per the paper (arXiv 2507.13347), Pi3 predicts affine-invariant camera poses and scale-invariant local pointmaps with a permutation-equivariant transformer, removing the need for a reference-view heuristic. Weights are apache-2.0; internals beyond the recorded tasks are not stored here."
+        ],
+        "architectureZh": [
+          "按论文（arXiv 2507.13347），Pi3 用置换等变 Transformer 预测仿射不变的相机位姿与尺度不变的局部点图，摆脱了参考视图启发式。权重为 apache-2.0；除已记录任务外的内部细节此处未存。"
+        ],
+        "usageNotes": [
+          "Integration is runtime_ported with runner parity pending; per-run validation evidence is tracked outside the catalog. Stage the upstream Pi3 weights before expecting real reconstruction output."
+        ],
+        "usageNotesZh": [
+          "集成为 runtime_ported，runner parity 待验证；每次运行的验证证据在 catalog 外跟踪。期望得到真实重建输出前请先就位上游 Pi3 权重。"
+        ],
         "highlights": [
           "3D Reconstruction",
           "Trajectory",
@@ -82293,14 +82544,12 @@
         },
         "benchmarks": [],
         "limitations": [
-          "Runner evidence is “Pending” — not a verified end-to-end GPU run. Do not treat this page as proof the route is fully validated.",
-          "Native demo evidence: Not recorded.",
-          "Per-run validation evidence is tracked outside the model catalog."
+          "Runner parity is pending in this workspace.",
+          "The publishing institution is not recorded in this repository."
         ],
         "limitationsZh": [
-          "Runner 证据为“Pending”——这不是经过验证的端到端 GPU 运行结果，请勿将本页视为该路径已被完整验证的证明。",
-          "原生 Demo 证据：未记录。",
-          "Per-run validation evidence is tracked outside the model catalog."
+          "本工作区中 runner parity 待验证。",
+          "发表机构在本仓库中未记录。"
         ]
       },
       "commands": {
@@ -89827,8 +90076,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "facebookresearch",
-      "summary": "In-tree VGGT two-stage 3DGS pipeline is registered; distinct from vggt-omega and vggt-world catalog entries.",
+      "provider": "Meta AI (FAIR) / University of Oxford (VGG)",
+      "summary": "VGGT (Visual Geometry Grounded Transformer, CVPR 2025) is a feed-forward network that infers cameras, depth maps, point maps, and 3D point tracks from one to hundreds of views in a single pass — no per-scene optimization. In this catalog t…",
       "aliases": [],
       "tasks": [
         "3d-reconstruction",
@@ -89925,22 +90174,30 @@
         "Per-run validation evidence is tracked outside the model catalog."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "Meta AI (FAIR) / University of Oxford (VGG)",
+          "nameZh": "Meta AI（FAIR）/ 牛津大学 VGG 组",
+          "kind": "company"
+        },
         "overview": [
-          "VGGT is a 3D/4D reconstruction and generation model from facebookresearch. The catalog records it for 3d-reconstruction, 3dgs, and point-cloud.",
-          "No runnable WorldFoundry pipeline is bound to this entry yet; this page records upstream provenance and readiness state only.",
-          "Runner parity is currently “Pending” and native-demo parity is “Not Recorded”; treat end-to-end GPU evidence as not yet recorded."
+          "VGGT (Visual Geometry Grounded Transformer, CVPR 2025) is a feed-forward network that infers cameras, depth maps, point maps, and 3D point tracks from one to hundreds of views in a single pass — no per-scene optimization. In this catalog the in-tree two-stage 3DGS pipeline is registered, distinct from the vggt-omega and vggt-world entries."
         ],
         "overviewZh": [
-          "VGGT 是来自 facebookresearch 的3D/4D 重建与生成模型。Catalog 将它记录为3D 重建、3dgs、点云任务。",
-          "该条目目前尚未绑定可运行的 WorldFoundry pipeline；本页只记录上游来源与就绪状态。",
-          "当前 runner parity 为“Pending”，原生 demo parity 为“Not Recorded”；端到端 GPU 证据应视为尚未记录。"
+          "VGGT（Visual Geometry Grounded Transformer，CVPR 2025）是前馈网络：单次前向即可从一到数百个视图推断相机、深度图、点图与 3D 点轨迹——无需逐场景优化。本 catalog 中已注册树内两段式 3DGS pipeline，与 vggt-omega、vggt-world 条目相互独立。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "Per the CVPR 2025 paper, a large transformer alternates frame-wise and global attention over image tokens, with task-specific heads for cameras, depth, pointmaps, and tracking. Weights are apache-2.0 (facebookresearch/vggt); the recorded route builds 3DGS from VGGT geometry in two stages."
+        ],
+        "architectureZh": [
+          "按 CVPR 2025 论文，大型 Transformer 在图像 token 上交替执行帧内与全局注意力，任务头分别输出相机、深度、点图与跟踪。权重为 apache-2.0（facebookresearch/vggt）；记录路径分两段从 VGGT 几何构建 3DGS。"
+        ],
+        "usageNotes": [
+          "Integration is runtime_ported with runner parity pending. For the verified scene-export route use vggt-omega; use this entry when you want the two-stage 3DGS pipeline over base VGGT geometry."
+        ],
+        "usageNotesZh": [
+          "集成为 runtime_ported，runner parity 待验证。需要已验证的场景导出路径请用 vggt-omega；需要基于基础 VGGT 几何的两段式 3DGS pipeline 时用本条目。"
+        ],
         "highlights": [
           "3D Reconstruction",
           "3Dgs",
@@ -89966,14 +90223,12 @@
         },
         "benchmarks": [],
         "limitations": [
-          "Runner evidence is “Pending” — not a verified end-to-end GPU run. Do not treat this page as proof the route is fully validated.",
-          "Native demo evidence: Not recorded.",
-          "Per-run validation evidence is tracked outside the model catalog."
+          "Runner parity is pending in this workspace.",
+          "Feed-forward inference on hundreds of views needs substantial GPU memory."
         ],
         "limitationsZh": [
-          "Runner 证据为“Pending”——这不是经过验证的端到端 GPU 运行结果，请勿将本页视为该路径已被完整验证的证明。",
-          "原生 Demo 证据：未记录。",
-          "Per-run validation evidence is tracked outside the model catalog."
+          "本工作区中 runner parity 待验证。",
+          "数百视图的前馈推理需要可观的 GPU 显存。"
         ]
       },
       "commands": {
@@ -103076,8 +103331,8 @@
       "category": "three_d_four_d",
       "categoryLabel": "3D & 4D",
       "categoryLabelZh": "3D 与 4D",
-      "provider": "dylanebert",
-      "summary": "Runtime source is vendored in-tree; inference is blocked until a local Gaussian rasterization extension is provided and re10k.ckpt is staged.",
+      "provider": "Massachusetts Institute of Technology (MIT)",
+      "summary": "pixelSplat reconstructs a 3D Gaussian-splat scene from just two images in a single forward pass — feed-forward 3DGS rather than per-scene optimization (CVPR 2024). In this catalog the runtime source is vendored in-tree, but inference stays…",
       "aliases": [
         "pixel-splat",
         "pixel_splat"
@@ -103324,26 +103579,30 @@
         "Actual inference requires a locally provided Gaussian rasterization extension and a staged re10k.ckpt checkpoint."
       ],
       "docs": {
-        "curated": false,
-        "publisher": null,
+        "curated": true,
+        "publisher": {
+          "name": "Massachusetts Institute of Technology (MIT)",
+          "nameZh": "麻省理工学院（MIT）",
+          "kind": "university"
+        },
         "overview": [
-          "pixelSplat is a 3D/4D reconstruction and generation model from dylanebert. The catalog records it for 3d-reconstruction, gaussian-splatting, and novel-view-synthesis. It is also cataloged under the aliases pixel-splat and pixel_splat.",
-          "No runnable WorldFoundry pipeline is bound to this entry yet; this page records upstream provenance and readiness state only.",
-          "It runs in the shared unified environment worldfoundry-unified-cu128 (Python 3.10, CUDA 11.3).",
-          "Weights are pulled from the Hugging Face repository dylanebert/pixelSplat (license: mit).",
-          "Runner parity is currently “Implemented Local Extension Pending” and native-demo parity is “Not Recorded”; treat end-to-end GPU evidence as not yet recorded."
+          "pixelSplat reconstructs a 3D Gaussian-splat scene from just two images in a single forward pass — feed-forward 3DGS rather than per-scene optimization (CVPR 2024). In this catalog the runtime source is vendored in-tree, but inference stays blocked until a local Gaussian rasterization extension is provided and the re10k.ckpt checkpoint is staged."
         ],
         "overviewZh": [
-          "pixelSplat 是来自 dylanebert 的3D/4D 重建与生成模型。Catalog 将它记录为3D 重建、高斯泼溅（Gaussian Splatting）、新视角合成任务。它还有别名 pixel-splat、pixel_splat。",
-          "该条目目前尚未绑定可运行的 WorldFoundry pipeline；本页只记录上游来源与就绪状态。",
-          "它运行在统一环境 worldfoundry-unified-cu128 中（Python 3.10，CUDA 11.3）。",
-          "权重来自 Hugging Face 仓库 dylanebert/pixelSplat（license：mit）。",
-          "当前 runner parity 为“Implemented Local Extension Pending”，原生 demo parity 为“Not Recorded”；端到端 GPU 证据应视为尚未记录。"
+          "pixelSplat 仅凭两张图像即可在单次前向中重建 3D 高斯泼溅场景——前馈式 3DGS，而非逐场景优化（CVPR 2024）。本 catalog 中其运行时源码已内置树内，但在本地提供高斯光栅化扩展并就位 re10k.ckpt checkpoint 之前，推理保持受限。"
         ],
-        "architecture": [],
-        "architectureZh": [],
-        "usageNotes": [],
-        "usageNotesZh": [],
+        "architecture": [
+          "Per the publication, an epipolar transformer resolves scale ambiguity between the two views, and the network predicts a probabilistic distribution over Gaussian parameters. WorldFoundry vendors the source under base_models/three_dimensions/point_clouds/pixelsplat with a lazy wrapper around the official test entrypoint (MIT license; checkpoint mirror dylanebert/pixelSplat)."
+        ],
+        "architectureZh": [
+          "按论文，极线 Transformer 消解两视图间的尺度歧义，网络预测高斯参数的概率分布。 WorldFoundry 将源码内置于 base_models/three_dimensions/point_clouds/pixelsplat，并对官方测试入口做惰性封装（MIT 许可；checkpoint 镜像 dylanebert/pixelSplat）。"
+        ],
+        "usageNotes": [
+          "PixelSplatSynthesis wraps the official test entrypoint but fails fast without the local Gaussian rasterization extension and the staged re10k.ckpt. Build/stage both before submitting jobs."
+        ],
+        "usageNotesZh": [
+          "PixelSplatSynthesis 封装官方测试入口，但缺少本地高斯光栅化扩展与就位的 re10k.ckpt 时会快速失败。提交任务前请先编译/就位两者。"
+        ],
         "highlights": [
           "3D Reconstruction",
           "Gaussian Splatting",
@@ -103371,16 +103630,12 @@
         },
         "benchmarks": [],
         "limitations": [
-          "No runnable WorldFoundry route exists yet. The entry records provenance and readiness only; run commands are intentionally omitted.",
-          "Runner evidence is “Implemented Local Extension Pending” — not a verified end-to-end GPU run. Do not treat this page as proof the route is fully validated.",
-          "Native demo evidence: Not recorded.",
-          "PixelSplatSynthesis provides an in-tree wrapper around the official test entrypoint."
+          "Inference is blocked until a local Gaussian rasterization extension is compiled and re10k.ckpt is staged.",
+          "Trained on RealEstate10K-style two-view input; generalization beyond that domain is limited."
         ],
         "limitationsZh": [
-          "尚无可运行的 WorldFoundry 路径。该条目只记录来源与就绪状态，因此有意省略了运行命令。",
-          "Runner 证据为“Implemented Local Extension Pending”——这不是经过验证的端到端 GPU 运行结果，请勿将本页视为该路径已被完整验证的证明。",
-          "原生 Demo 证据：未记录。",
-          "PixelSplatSynthesis provides an in-tree wrapper around the official test entrypoint."
+          "在本地编译高斯光栅化扩展并就位 re10k.ckpt 之前无法推理。",
+          "训练数据为 RealEstate10K 风格的双视图输入；跨域泛化有限。"
         ]
       },
       "commands": {

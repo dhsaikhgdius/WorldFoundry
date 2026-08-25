@@ -18,3 +18,19 @@ integration:
   - WorldFoundry tracks upstream source metadata only; no runnable in-tree pipeline is registered yet.
 catalog_category: three_d_four_d
 catalog_scope: Official-source manifest for 3D, 4D, and camera-controlled world/model generation projects.
+docs:
+  publisher: UC Berkeley
+  publisher_kind: university
+  publisher_zh: 加州大学伯克利分校（UC Berkeley）
+  overview: K-Planes factorizes radiance fields in any dimension — 4D dynamic scenes become six feature planes with interpretable space/time separation (CVPR 2023). In this catalog it is upstream metadata only, recorded alongside HexPlane as a foundation of plane-factorized 4D reconstruction.
+  overview_zh: K-Planes 在任意维度分解辐射场——4D 动态场景变成六个特征平面，空间/时间分离且可解释（CVPR 2023）。本 catalog 中它仅为上游元数据，与 HexPlane 一同作为平面分解式 4D 重建的基础记录。
+  architecture: d-choose-2 planes for a d-dimensional scene, multiplicative feature fusion, with linear decoders or small MLPs. Per-scene optimization is required.
+  architecture_zh: d 维场景使用 C(d,2) 个平面，特征乘性融合，配线性解码器或小型 MLP。需要逐场景优化。
+  usage_notes: Blocked — consult the upstream repository (sarafridov/K-Planes).
+  usage_notes_zh: Blocked——请查阅上游仓库（sarafridov/K-Planes）。
+  limitations:
+  - 'This entry is blocked: WorldFoundry tracks upstream source metadata only, and no runnable in-tree pipeline is registered.'
+  - It records provenance for CLI inspection; the docs site hides blocked 3D/4D entries from the catalog browser.
+  limitations_zh:
+  - 该条目处于 blocked 状态：WorldFoundry 仅跟踪上游源码元数据，没有注册可运行的树内 pipeline。
+  - 它的作用是为 CLI 检查记录溯源；文档站的 catalog 浏览器会隐藏 blocked 的 3D/4D 条目。

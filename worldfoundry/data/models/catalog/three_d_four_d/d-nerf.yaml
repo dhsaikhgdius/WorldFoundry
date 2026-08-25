@@ -18,3 +18,19 @@ integration:
   - WorldFoundry tracks upstream source metadata only; no runnable in-tree pipeline is registered yet.
 catalog_category: three_d_four_d
 catalog_scope: Official-source manifest for 3D, 4D, and camera-controlled world/model generation projects.
+docs:
+  publisher: Universitat Politècnica de Catalunya (IRI, CSIC-UPC)
+  publisher_kind: university
+  publisher_zh: 加泰罗尼亚理工大学（IRI，CSIC-UPC）
+  overview: 'D-NeRF is one of the founding dynamic-NeRF methods (CVPR 2021): it extends neural radiance fields to scenes with moving content by adding time as an input. In this catalog it is upstream metadata only — a historical reference point for the newer dynamic-scene entries, not a runnable route.'
+  overview_zh: D-NeRF 是动态 NeRF 的开山方法之一（CVPR 2021）：通过把时间作为额外输入，将神经辐射场扩展到含运动内容的场景。本 catalog 中它只是上游元数据——作为较新动态场景条目的历史参照，并非可运行路径。
+  architecture: 'Two MLPs: a deformation network maps a point at time t to a canonical space, and a canonical NeRF renders it. Per-scene training is required. Nothing beyond the recorded tasks is stored in this repository.'
+  architecture_zh: 两个 MLP：形变网络把 t 时刻的点映射到规范空间，规范 NeRF 负责渲染。需要逐场景训练。本仓库除已记录任务外未存储更多信息。
+  usage_notes: Blocked; use the upstream repo (albertpumarola/D-NeRF) for the training/rendering scripts.
+  usage_notes_zh: Blocked；训练/渲染脚本请使用上游仓库（albertpumarola/D-NeRF）。
+  limitations:
+  - 'This entry is blocked: WorldFoundry tracks upstream source metadata only, and no runnable in-tree pipeline is registered.'
+  - It records provenance for CLI inspection; the docs site hides blocked 3D/4D entries from the catalog browser.
+  limitations_zh:
+  - 该条目处于 blocked 状态：WorldFoundry 仅跟踪上游源码元数据，没有注册可运行的树内 pipeline。
+  - 它的作用是为 CLI 检查记录溯源；文档站的 catalog 浏览器会隐藏 blocked 的 3D/4D 条目。

@@ -18,3 +18,19 @@ integration:
   - WorldFoundry tracks upstream source metadata only; no runnable in-tree pipeline is registered yet.
 catalog_category: three_d_four_d
 catalog_scope: Official-source manifest for 3D, 4D, and camera-controlled world/model generation projects.
+docs:
+  publisher: The University of Hong Kong (CVMI Lab)
+  publisher_kind: university
+  publisher_zh: 香港大学（CVMI Lab）
+  overview: SC-GS (Sparse-Controlled Gaussian Splatting) drives dynamic 3DGS with a small set of sparse control points, making reconstructed dynamic scenes editable — you can drag the control points to repose motion (CVPR 2024). In this catalog it is upstream metadata only, with no runnable in-tree pipeline.
+  overview_zh: SC-GS（稀疏控制高斯泼溅）用一小组稀疏控制点驱动动态 3DGS，使重建的动态场景可编辑——拖动控制点即可重摆运动（CVPR 2024）。本 catalog 中它仅为上游元数据，没有可运行的树内 pipeline。
+  architecture: Per the publication, sparse control points carry time-varying 6-DoF transforms that are interpolated to dense Gaussians via learned skinning weights. Per-scene optimization is required; no further internals are recorded in this repository.
+  architecture_zh: 按论文，稀疏控制点携带随时间变化的六自由度变换，经学习的蒙皮权重插值到稠密高斯。需要逐场景优化；本仓库未记录更多内部细节。
+  usage_notes: Blocked — consult the upstream repository (CVMI-Lab/SC-GS) for the official optimization and editing scripts.
+  usage_notes_zh: Blocked——官方优化与编辑脚本请查阅上游仓库（CVMI-Lab/SC-GS）。
+  limitations:
+  - 'This entry is blocked: WorldFoundry tracks upstream source metadata only, and no runnable in-tree pipeline is registered.'
+  - It records provenance for CLI inspection; the docs site hides blocked 3D/4D entries from the catalog browser.
+  limitations_zh:
+  - 该条目处于 blocked 状态：WorldFoundry 仅跟踪上游源码元数据，没有注册可运行的树内 pipeline。
+  - 它的作用是为 CLI 检查记录溯源；文档站的 catalog 浏览器会隐藏 blocked 的 3D/4D 条目。

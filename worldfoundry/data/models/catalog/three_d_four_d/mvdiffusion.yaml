@@ -46,3 +46,19 @@ catalog_policy:
   - open_weights_restricted
   - api_or_closed
   - unknown
+docs:
+  publisher: Simon Fraser University
+  publisher_kind: university
+  publisher_zh: 西蒙菲莎大学（Simon Fraser University）
+  overview: MVDiffusion generates consistent multi-view images in one shot — panoramas from text or perspective views, and texture views for scenes — by letting diffusion branches attend to each other. In this catalog it runs through an in-tree runtime subprocess adapter; runner parity is pending runtime assets.
+  overview_zh: MVDiffusion 一次性生成一致的多视角图像——从文本或透视图生成全景，或为场景生成纹理视图——方法是让多个扩散分支相互注意。本 catalog 中它经树内运行时子进程适配器运行；runner parity 待运行时资产就位。
+  architecture: Per the NeurIPS 2023 paper (arXiv 2307.01097), parallel diffusion-model branches generate all views simultaneously with correspondence-aware attention keeping them globally consistent. Missing source checkout, checkpoints, or CUDA dependencies are reported at inference time.
+  architecture_zh: 按 NeurIPS 2023 论文（arXiv 2307.01097），多个并行扩散分支借助「对应感知注意力」同时生成所有视图并保持全局一致。源码、checkpoint 或 CUDA 依赖缺失会在推理时报告。
+  usage_notes: Integration is wired for plan-only inference today; full artifact parity needs the upstream source checkout and checkpoints staged locally. Stage them before expecting real multi-view output.
+  usage_notes_zh: 当前集成已接通 plan-only 推理；完整产物一致性需要本地就位上游源码与 checkpoint。期望得到真实多视角输出前请先完成资产就位。
+  limitations:
+  - 'Runner parity is pending: plan-only inference works, real generation needs staged assets.'
+  - 'Panorama-oriented training: free-form camera trajectories are out of scope.'
+  limitations_zh:
+  - runner parity 待验证：plan-only 推理可用，真实生成需要就位资产。
+  - 训练面向全景场景：自由相机轨迹不在其范围内。
