@@ -1,206 +1,97 @@
 ---
 title: iWorld-Bench
-description: Interactive world-model benchmark for action control, camera following, memory, and generated-video quality.
+description: ICML 2026 interactive world-model benchmark: 4.9k tasks over visual generation, trajectory following, and memory with a unified action API.
 ---
 
 ## About
 
-iWorld-Bench evaluates camera-controllable video generation models as interactive world models. It is not a generic video-aesthetic benchmark: a model must preserve visual quality while responding to action or camera controls and remembering the scene when it revisits a location.
+**Publisher:** Tsinghua University (with Northeastern University & SCUT)
 
-The official release provides evaluation code, packaged metadata, camera-trajectory resources, first-frame assets, and reference inference adapters. WorldFoundry integrates the evaluation code in tree under `worldfoundry/evaluation/tasks/execution/runners/iworldbench/`, so a WorldFoundry run does not require a separate official source checkout.
+iWorld-Bench (ICML 2026) evaluates interactive world models — generators that respond to external action sequences — with a unified Action Generation Framework that bridges heterogeneous control interfaces (text actions, camera matrices, trajectories). Built from 330k video clips filtered to 2.1k high-quality samples across perspectives, weather, and scenes, it defines six task types (4.9k test samples) jointly assessing visual generation quality, trajectory following, and memory (e.g. `memory_symmetry` for content that leaves and re-enters view).
 
-## Benchmark design
+WorldFoundry wraps the official metric runtime and normalizes iWorld-Bench report CSV/JSON outputs into scorecards; the bounded pixel-only `memory` component runs without the compiled VIPe runtime.
 
-| Task type | Description | Tasks |
-| --- | --- | --- |
-| Action control D=1 | Stationary + 9 basic translation/rotation actions | 1,000 |
-| Action control D=2 | Two-degree-of-freedom combined actions | 1,000 |
-| Action control D=3 | Three-degree-of-freedom combined actions | 1,000 |
-| Action control D=4 | Four-degree-of-freedom complex actions | 1,000 |
-| Memory ability | Cyclic reciprocal paths requiring loop-closure memory | 200 |
-| Camera following | Trajectory following from camera parameter files | 700 |
+Official references:
 
-The project curates 330K video clips down to 2.1K high-quality samples and produces 4.9K test tasks through a unified action interface `Ct = [D, T, R, V]` (difficulty, translation ID, rotation ID, validity).
-
-## Official references
-
-- Paper: [arXiv:2605.03941](https://arxiv.org/abs/2605.03941)
 - Project page: [iworld-bench.com](https://iworld-bench.com/)
-- Official source reference: [github.com/EmbodiedCity/iWorld-Bench](https://github.com/EmbodiedCity/iWorld-Bench)
-- Dataset: [EmbodiedCity/iWorld-Bench-Dataset](https://huggingface.co/datasets/EmbodiedCity/iWorld-Bench-Dataset)
-- In-tree runner: `worldfoundry/evaluation/tasks/execution/runners/iworldbench/run_iworldbench_official_runner.py`
+- Official repository: [EmbodiedCity/iWorld-Bench](https://github.com/EmbodiedCity/iWorld-Bench)
+- License: `Apache-2.0`
 
-## What to prepare
+## Evaluation protocol
 
-### Dataset
+`--run-official` selects components with `--metric` (the catalog-recorded bounded command uses `--metric memory`) and task splits with `--split`; full official execution needs dataset metadata, VBench assets, and a CUDA-compatible VIPe build. `--official-results-path` normalizes existing report outputs; `WORLDFOUNDRY_IWORLD_BENCH_RUNTIME_BACKEND` selects the runtime backend.
 
-Download the packaged metadata, first-frame assets, and camera-following metadata:
+Primary metric: `iworldbench_average`.
+
+| Metric | Meaning | Direction |
+| --- | --- | --- |
+| `image_quality` | Frame-level image quality of generated videos. | Higher is better |
+| `brightness_consistency` | Brightness stability across generated frames. | Higher is better |
+| `color_temperature_constraint` | Color-temperature stability under the scene constraint. | Higher is better |
+| `sharpness_retention` | Retention of sharpness through the rollout. | Higher is better |
+| `motion_smoothness` | Temporal motion smoothness. | Higher is better |
+| `trajectory_accuracy` | Accuracy of the executed trajectory against the commanded actions. | Higher is better |
+| `trajectory_tolerance` | Tolerance-banded trajectory-following score. | Higher is better |
+| `memory_symmetry` | Consistency of content that leaves and re-enters the view. | Higher is better |
+| `trajectory_alignment` | Alignment between generated and commanded camera trajectories. | Higher is better |
+| `iworldbench_average` | Mean over available iWorld-Bench metric families. | Higher is better |
+
+## Data and artifact layout
+
+In-tree paths:
+
+```text
+worldfoundry/data/benchmarks/tasks/external/iworld-bench.yaml
+```
+
+```text
+${WORLDFOUNDRY_IWORLD_BENCH_DATASET_ROOT}/dataset/all_pack/metadata.csv
+${WORLDFOUNDRY_IWORLD_BENCH_DATASET_ROOT}/dataset/all_pack/camera_following_metadata.csv
+${WORLDFOUNDRY_IWORLD_BENCH_DATASET_ROOT}/dataset/all_pack/assets/
+${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR}/                        # generated videos per task split
+```
 
 ```bash
-export WORLDFOUNDRY_IWORLD_BENCH_DATASET_ROOT=/path/to/datasets/iWorld-Bench-Dataset
-
-hf download EmbodiedCity/iWorld-Bench-Dataset \
-  --repo-type dataset \
-  --include "dataset/all_pack/**" \
+hf download EmbodiedCity/iWorld-Bench-Dataset --repo-type dataset \
+  --revision 530c48cd3d8e9bb20ed685a96521c3a9b68cf6d2 \
   --local-dir "${WORLDFOUNDRY_IWORLD_BENCH_DATASET_ROOT}"
 ```
 
-Expected layout:
+## Run the benchmark
 
-```text
-${WORLDFOUNDRY_IWORLD_BENCH_DATASET_ROOT}/
-`-- dataset/all_pack/
-    |-- metadata.csv
-    |-- camera_following_metadata.csv
-    `-- assets/
-```
-
-`metadata.csv` is used for the Diff/action-control and Mem/memory tasks. `camera_following_metadata.csv` is used only for trajectory-input models.
-
-### Generated videos
-
-Generate videos with the model you want to evaluate before running the scorer. You can use a WorldFoundry model, an API batch job, or your own runner, as long as the output videos can be matched back to the iWorld-Bench metadata rows.
-
-Use one directory per track:
-
-```text
-/path/to/iworld/generated/
-|-- action_control/
-|   |-- <prompt_id>.mp4
-|   `-- ...
-|-- memory_ability/
-|   |-- <prompt_id>.mp4
-|   `-- ...
-`-- camera_following/
-    |-- <prompt_id>.mp4
-    `-- ...
-```
-
-The filename stem should match the metadata `prompt_id` / sample ID. If your generator writes a different official video name from the CSV, keep that name and pass the same metadata file to the runner.
-
-### Metric assets
-
-The in-tree runtime reuses WorldFoundry's VBench and VIPe-related code paths. For real metric execution, set the official backend and point VIPe to the in-tree base-model package or your compatible local package:
+Catalog-recorded validation command:
 
 ```bash
-export WORLDFOUNDRY_IWORLD_BENCH_RUNTIME_BACKEND=official
-export VIPE_ROOT="${VIPE_ROOT:-$PWD/worldfoundry/base_models/three_dimensions/general_3d/vipe}"
-export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:?Set CUDA_VISIBLE_DEVICES to the GPU(s) for this run}"
-```
-
-Do not use the default mock backend for reported numbers. It only exists so local wiring can run without the full metric stack.
-
-## Metrics
-
-| Metric | Group | Meaning |
-| --- | --- | --- |
-| `image_quality` | Generation quality | VBench/MUSIQ-backed frame quality. |
-| `brightness_consistency` | Generation quality | Luminance stability across the generated clip. |
-| `color_temperature_constraint` | Generation quality | Hue and white-balance stability. |
-| `sharpness_retention` | Generation quality | Detail retention without blur or high-frequency artifacts. |
-| `motion_smoothness` | Trajectory following | VBench-backed smoothness for generated motion. |
-| `trajectory_accuracy` | Trajectory following | VIPe-estimated camera path agreement with the command. |
-| `trajectory_tolerance` | Trajectory following | Robustness against reference trajectory NPZ files. |
-| `memory_symmetry` | Memory ability | Loop-closure consistency on reciprocal paths. |
-| `trajectory_alignment` | Memory ability | Bidirectional camera-trajectory consistency for memory tasks. |
-| `iworldbench_average` | Aggregate | Mean over available official component metrics. |
-
-## Reproduce a leaderboard-style run
-
-Run each official track against the videos generated for that track. The direct runner is the clearest entrypoint because it exposes both the task split and the metric selector.
-
-### Action Control / Diff
-
-```bash
-export WORLDFOUNDRY_IWORLD_BENCH_ACTION_DIR=/path/to/iworld/generated/action_control
-
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-  worldfoundry/evaluation/tasks/execution/runners/iworldbench/run_iworldbench_official_runner.py \
+${WORLDFOUNDRY_UNIFIED_PYTHON} worldfoundry/evaluation/tasks/execution/runners/iworldbench/run_iworldbench_official_runner.py \
   --run-official \
-  --generated-videos-dir "${WORLDFOUNDRY_IWORLD_BENCH_ACTION_DIR}" \
-  --prompt-manifest "${WORLDFOUNDRY_IWORLD_BENCH_DATASET_ROOT}/dataset/all_pack/metadata.csv" \
-  --split diff \
-  --metric action_control \
-  --output-dir tmp/iworld-bench/action-control \
+  --generated-videos-dir ${WORLDFOUNDRY_GENERATED_ARTIFACT_DIR} \
+  --metric memory \
+  --output-dir <out> \
   --json
 ```
 
-### Memory Ability / Mem
+## Checkpoints and environment variables
 
-```bash
-export WORLDFOUNDRY_IWORLD_BENCH_MEMORY_DIR=/path/to/iworld/generated/memory_ability
-
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-  worldfoundry/evaluation/tasks/execution/runners/iworldbench/run_iworldbench_official_runner.py \
-  --run-official \
-  --generated-videos-dir "${WORLDFOUNDRY_IWORLD_BENCH_MEMORY_DIR}" \
-  --prompt-manifest "${WORLDFOUNDRY_IWORLD_BENCH_DATASET_ROOT}/dataset/all_pack/metadata.csv" \
-  --split mem \
-  --metric memory_ability \
-  --output-dir tmp/iworld-bench/memory-ability \
-  --json
-```
-
-### Camera Following
-
-```bash
-export WORLDFOUNDRY_IWORLD_BENCH_CAMERA_DIR=/path/to/iworld/generated/camera_following
-
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-  worldfoundry/evaluation/tasks/execution/runners/iworldbench/run_iworldbench_official_runner.py \
-  --run-official \
-  --generated-videos-dir "${WORLDFOUNDRY_IWORLD_BENCH_CAMERA_DIR}" \
-  --prompt-manifest "${WORLDFOUNDRY_IWORLD_BENCH_DATASET_ROOT}/dataset/all_pack/camera_following_metadata.csv" \
-  --split camera_following \
-  --metric camera_following \
-  --output-dir tmp/iworld-bench/camera-following \
-  --json
-```
-
-For public leaderboard claims, keep the generated videos, the scorecards from all reported tracks, and the raw `reports/` CSV files written under each output directory.
-
-## Public CLI
-
-The public CLI is useful for one-track runs. Pass environment overrides explicitly so the run uses the real evaluator:
-
-```bash
-worldfoundry-eval zoo benchmark-run \
-  --benchmark-id iworld-bench \
-  --mode official-run \
-  --generated-artifact-dir "${WORLDFOUNDRY_IWORLD_BENCH_ACTION_DIR}" \
-  --env WORLDFOUNDRY_IWORLD_BENCH_RUNTIME_BACKEND=official \
-  --env WORLDFOUNDRY_IWORLD_BENCH_METRIC=action_control \
-  --env WORLDFOUNDRY_IWORLD_BENCH_DATASET_ROOT="${WORLDFOUNDRY_IWORLD_BENCH_DATASET_ROOT}" \
-  --output-dir tmp/iworld-bench/action-control-cli \
-  --json
-```
-
-Use the direct runner for memory and camera-following runs because those require an explicit `--split`. The public CLI accepts a global `--prompt-manifest` option for some benchmarks, but iWorld-Bench split selection is clearer and less error-prone through the direct runner.
-
-## Import existing results
-
-If you already have iWorld-Bench report CSVs or a `reports/` directory, import them into a WorldFoundry scorecard:
-
-```bash
-PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
-worldfoundry/evaluation/tasks/execution/runners/iworldbench/run_iworldbench_official_runner.py \
-  --official-results-path /path/to/iworld/reports \
-  --generated-videos-dir /path/to/iworld/generated/action_control \
-  --prompt-manifest "${WORLDFOUNDRY_IWORLD_BENCH_DATASET_ROOT}/dataset/all_pack/metadata.csv" \
-  --split diff \
-  --output-dir tmp/iworld-bench/imported \
-  --json
-```
+- `WORLDFOUNDRY_IWORLD_BENCH_ROOT`: Optional override pointing at a local benchmark runtime/repository root.
+- `WORLDFOUNDRY_IWORLD_BENCH_DATASET_ROOT`: Local root of the staged official dataset.
+- `WORLDFOUNDRY_GENERATED_ARTIFACT_DIR`
+- `WORLDFOUNDRY_IWORLD_BENCH_RESULTS_PATH`: Default path the importer reads official result exports from when `--official-results-path` is not passed.
+- `WORLDFOUNDRY_IWORLD_BENCH_RUNTIME_BACKEND`
 
 ## Outputs
 
-Each run writes:
+The run writes into `--output-dir`:
 
-- `scorecard.json`
-- `raw_metric_table.jsonl`
-- `upstream_command.json` when the official backend is executed
-- upstream `reports/*.csv` under the selected output directory
+- `scorecard.json`: WorldFoundry scorecard with the metric values recorded above.
+- `raw_metric_table.jsonl`: Metric rows backing the scorecard.
+- `upstream_command.json`
 
-Open `scorecard.json` first. A run is only comparable to the public leaderboard when the requested split has complete video coverage and all metric assets used by the reported metric family were available.
+Scorecard primary key: `iworldbench_average` (leaderboard key `iworldbench_average`), stored in `scorecard.json`.
+
+## Limitations
+
+- Full official GPU execution beyond the bounded memory metric requires VBench assets and a CUDA/Torch-compatible VIPe extension build; the vendored VIPe tree lacks the native extension sources.
+- Bounded memory-only runs cover one component and are not full iWorld-Bench numbers.
+- Direction metadata for several metrics is upstream-defined; consult the official report format when comparing.
 
 [← Benchmark Hub](/docs/evaluation/benchmark-hub)
