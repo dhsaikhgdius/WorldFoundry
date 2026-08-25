@@ -64,3 +64,60 @@ pipeline_binding: causal-rcm
 catalog_category: world_models
 catalog_scope: World-model catalog entries. Integrated entries expose in-tree WorldFoundry runtimes; blocked
   entries retain upstream provenance without runnable backends.
+docs:
+  overview: |
+    Causal-rCM (NVlabs/rcm; Hugging Face `worstcoder/rcm-Wan`, `worstcoder/Wan`) is the causal/streaming variant of NVIDIA's rCM consistency-distillation line for video diffusion, enabling autoregressive, interactive-rate video generation. WorldFoundry vendors the official Apache-2.0 causal inference stack under `synthesis/visual_generation/rcm/rcm_runtime` without the upstream `imaginaire` framework, backing the code with WorldFoundry's own lazy_config, easy_io, rank-aware logging, and selective activation checkpointing; BlockPattern/AttnMaskSpec block-causal and teacher-forcing mask predicates were lifted into `worldfoundry/core/attention/block_pattern.py` as a shared primitive.
+
+    Within the WorldFoundry model catalog this entry is tracked as `causal-rcm` in the `world_models` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/NVlabs/rcm; Hugging Face `worstcoder/rcm-Wan`, `worstcoder/Wan`.
+  overview_zh: |
+    Causal-rCM（NVlabs/rcm；Hugging Face `worstcoder/rcm-Wan`、`worstcoder/Wan`）是 NVIDIA rCM 一致性蒸馏路线的因果/流式变体，支持自回归、交互速率的视频生成。WorldFoundry 在 `synthesis/visual_generation/rcm/rcm_runtime` 内嵌官方 Apache-2.0 因果推理栈，不引入上游 `imaginaire` 框架，改由 WorldFoundry 自有的 lazy_config、easy_io、感知 rank 的日志与选择性激活检查点支撑；BlockPattern/AttnMaskSpec 及块因果、teacher-forcing 掩码谓词被提升到 `worldfoundry/core/attention/block_pattern.py` 作为共享原语。
+
+    在 WorldFoundry 模型目录中，该条目以 `causal-rcm` 收录于 `world_models` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/NVlabs/rcm；Hugging Face `worstcoder/rcm-Wan`、`worstcoder/Wan`。
+  architecture: |
+    The model applies rCM (a consistency-model distillation recipe) to a Wan-family DiT with block-causal attention so chunks are generated autoregressively in few steps; text-to-video and image-to-video are both recorded modalities. The extracted block-mask primitives are verified against upstream across 702 mask configurations and 162 chunk-schedule configurations; DiT, VAE, and text-encoder checkpoints are not yet staged, so the pipeline returns blocked runtime diagnostics.
+  architecture_zh: |
+    该模型将 rCM（一致性模型蒸馏方案）应用于带块因果注意力的 Wan 系 DiT，使视频块以少步数自回归生成；记录模态包含文本到视频与图像到视频。提取的块掩码原语在 702 个掩码配置与 162 个块调度配置上对照上游验证；DiT、VAE 与文本编码器权重尚未暂存，管线返回受阻运行时诊断。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `causal-rcm` and runtime profile `runtime-profile:causal-rcm`.
+    Catalog integration status: `runtime_ported`.
+    Integration notes recorded in the catalog:
+    - WorldFoundry vendors the official Apache-2.0 causal inference stack under synthesis/visual_generation/rcm/rcm_runtime; the adapter owns checkpoint gating, command construction, and pipeline/catalog exposure.
+    - The upstream `imaginaire` framework package is not vendored. WorldFoundry's own lazy_config, easy_io, rank-aware logging, and selective activation checkpointing back the vendored code.
+    - BlockPattern/AttnMaskSpec and the block-causal and teacher-forcing mask predicates were lifted into worldfoundry/core/attention/block_pattern.py so causal chunk schedules are one shared primitive.
+
+    Embodiment contract:
+    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
+    - Sensors: conditioning inputs per the recorded modalities (typically an initial image and/or a text prompt); exact tensor contracts are not recorded in this catalog file.
+    - Action space: no explicit action interface is recorded for this entry; controllability is limited to the conditioning inputs.
+    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `causal-rcm`，运行时配置为 `runtime-profile:causal-rcm`。
+    目录集成状态：运行时已移植（runtime_ported）。
+    目录中记录的集成备注（保留原文）：
+    - WorldFoundry vendors the official Apache-2.0 causal inference stack under synthesis/visual_generation/rcm/rcm_runtime; the adapter owns checkpoint gating, command construction, and pipeline/catalog exposure.
+    - The upstream `imaginaire` framework package is not vendored. WorldFoundry's own lazy_config, easy_io, rank-aware logging, and selective activation checkpointing back the vendored code.
+    - BlockPattern/AttnMaskSpec and the block-causal and teacher-forcing mask predicates were lifted into worldfoundry/core/attention/block_pattern.py so causal chunk schedules are one shared primitive.
+
+    具身接口（embodiment contract）：
+    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
+    - 传感器：按记录的模态提供条件输入（通常为初始图像和/或文本提示）；具体张量契约本目录文件未记录。
+    - 动作空间：该条目未记录显式动作接口；可控性仅限于条件输入。
+    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`implemented_public_checkpoint_not_staged`.
+    Runner parity notes recorded in the catalog:
+    - The pipeline resolves the vendored causal entrypoint and returns blocked runtime diagnostics until the DiT, VAE, and text-encoder checkpoints are staged.
+    - Extracted block-mask primitives are verified against the upstream implementation across 702 mask configurations and 162 chunk-schedule configurations.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=`implemented_public_checkpoint_not_staged`。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - The pipeline resolves the vendored causal entrypoint and returns blocked runtime diagnostics until the DiT, VAE, and text-encoder checkpoints are staged.
+    - Extracted block-mask primitives are verified against the upstream implementation across 702 mask configurations and 162 chunk-schedule configurations.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - vbench

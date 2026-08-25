@@ -19,3 +19,57 @@ runner_parity:
   status: pending
   notes: [Dedicated MagicWorld-Fast camera path is wired.]
 catalog_category: world_models
+docs:
+  overview: |
+    MagicWorld is an interactive camera-controlled image-to-video world model whose official source is vendored in tree at revision a378d67d1b803db4268340fcc130c98a243ad9a8; the upstream README applies CC BY-NC-SA 4.0 terms to released model materials. The dedicated MagicWorld-Fast camera path is wired, with runner validation pending. No official GitHub or Hugging Face source links are recorded on this entry.
+
+    Within the WorldFoundry model catalog this entry is tracked as `magicworld` in the `world_models` category.
+    The repository does not record an official source link for this entry.
+  overview_zh: |
+    MagicWorld 是交互式相机控制图像到视频世界模型，官方源码以 revision a378d67d1b803db4268340fcc130c98a243ad9a8 内嵌在树内；上游 README 对已发布模型材料适用 CC BY-NC-SA 4.0 条款。专用 MagicWorld-Fast 相机路径已接通，runner 验证待完成。该条目未记录官方 GitHub 或 Hugging Face 来源链接。
+
+    在 WorldFoundry 模型目录中，该条目以 `magicworld` 收录于 `world_models` 分类。
+    仓库未记录该条目的官方来源链接。
+  architecture: |
+    Recorded modalities are interactive-world-model, camera-controlled-video, and image-to-video, with a 'Fast' accelerated camera path as the wired route. Architecture details (backbone, parameter count, distillation recipe) are not recorded in the repository.
+  architecture_zh: |
+    记录模态为 interactive-world-model、camera-controlled-video 与 image-to-video，已接通路线为『Fast』加速相机路径。架构细节（骨干、参数量、蒸馏方案）仓库未记录。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `magicworld` and runtime profile `runtime-profile:magicworld`.
+    Catalog integration status: `integrated`.
+    Integration notes recorded in the catalog:
+    - Official source is vendored at revision a378d67d1b803db4268340fcc130c98a243ad9a8.
+    - Upstream README applies CC BY-NC-SA 4.0 terms to released model materials.
+
+    Embodiment contract:
+    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
+    - Sensors: an initial image (and optionally a text prompt) plus a camera trajectory / pose sequence as the control signal.
+    - Action space: the action channel is the camera trajectory (extrinsics/pose sequence); the model renders the world consistently along the requested path.
+    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `magicworld`，运行时配置为 `runtime-profile:magicworld`。
+    目录集成状态：已集成（integrated）。
+    目录中记录的集成备注（保留原文）：
+    - Official source is vendored at revision a378d67d1b803db4268340fcc130c98a243ad9a8.
+    - Upstream README applies CC BY-NC-SA 4.0 terms to released model materials.
+
+    具身接口（embodiment contract）：
+    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
+    - 传感器：初始图像（可选文本提示）加相机轨迹/位姿序列作为控制信号。
+    - 动作空间：动作通道为相机轨迹（外参/位姿序列）；模型沿请求路径一致地渲染世界。
+    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`pending`.
+    Runner parity notes recorded in the catalog:
+    - Dedicated MagicWorld-Fast camera path is wired.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=待验证（pending）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - Dedicated MagicWorld-Fast camera path is wired.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - wrbench
+  - camerabench

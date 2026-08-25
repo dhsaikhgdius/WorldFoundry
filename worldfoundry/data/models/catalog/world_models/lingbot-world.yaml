@@ -73,3 +73,65 @@ catalog_policy:
     available.
   open_source_rule: Only mark open_source when an official GitHub repository or official Hugging Face model page was confirmed.
     Do not infer checkpoint availability from papers, demos, or third-party mirrors.
+docs:
+  overview: |
+    LingBot-World (robbyant/lingbot-world; Hugging Face `robbyant/lingbot-world-base-cam`, Apache-2.0, partial weights) is Ant Group's interactive world model; this entry carries the Base-Cam camera-control checkpoint. The WorldFoundry wrapper resolves only local HFD or explicit checkpoint directories (no runtime downloads); LingBotPipeline is registered against the in-tree LingBot runtime with a dedicated conda environment profile. Base-cam full-quality artifact validation completed on 2026-07-28 using the official 161-frame, 70-step camera-control demo settings; Base-Act is cataloged independently, and only the Fast checkpoint remains unavailable.
+
+    Within the WorldFoundry model catalog this entry is tracked as `lingbot-world` in the `world_models` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/robbyant/lingbot-world; Hugging Face `robbyant/lingbot-world-base-cam`.
+  overview_zh: |
+    LingBot-World（robbyant/lingbot-world；Hugging Face `robbyant/lingbot-world-base-cam`，Apache-2.0，部分权重）是蚂蚁集团的交互世界模型；本条目对应 Base-Cam 相机控制权重。WorldFoundry 包装器仅解析本地 HFD 或显式权重目录（运行时不下载）；LingBotPipeline 注册在树内 LingBot 运行时上，使用专用 conda 环境配置。Base-cam 全质量 artifact 验证于 2026-07-28 以官方 161 帧、70 步相机控制演示设置完成；Base-Act 独立登记，仅 Fast 权重仍不可得。
+
+    在 WorldFoundry 模型目录中，该条目以 `lingbot-world` 收录于 `world_models` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/robbyant/lingbot-world；Hugging Face `robbyant/lingbot-world-base-cam`。
+  architecture: |
+    The model is a Wan-based interactive world video generator with camera-trajectory control (Base-Cam), released as partial weights across Base-Cam/Base-Act/Fast variants. The recorded official demo contract is 161 frames at 70 denoising steps. Further architecture details are not recorded in the repository.
+  architecture_zh: |
+    该模型是基于 Wan 的交互式世界视频生成器，带相机轨迹控制（Base-Cam），按 Base-Cam/Base-Act/Fast 变体部分开源权重。记录的官方演示契约为 161 帧、70 去噪步。更多架构细节仓库未记录。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `lingbot-world` and runtime profile `runtime-profile:lingbot-world`.
+    Catalog integration status: `verified`.
+    Integration notes recorded in the catalog:
+    - LingBot-World wrapper now only resolves local HFD or explicit checkpoint directories and no longer downloads at runtime.
+    - runtime_plan/from_pretrained path resolution and LingBot runtime cleanup were verified.
+    - Base-cam inference uses the dedicated lingbot-world conda environment profile.
+
+    Embodiment contract:
+    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
+    - Sensors: an initial image (and optionally a text prompt) plus a camera trajectory / pose sequence as the control signal.
+    - Action space: the action channel is the camera trajectory (extrinsics/pose sequence); the model renders the world consistently along the requested path.
+    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `lingbot-world`，运行时配置为 `runtime-profile:lingbot-world`。
+    目录集成状态：已验证（verified）。
+    目录中记录的集成备注（保留原文）：
+    - LingBot-World wrapper now only resolves local HFD or explicit checkpoint directories and no longer downloads at runtime.
+    - runtime_plan/from_pretrained path resolution and LingBot runtime cleanup were verified.
+    - Base-cam inference uses the dedicated lingbot-world conda environment profile.
+
+    具身接口（embodiment contract）：
+    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
+    - 传感器：初始图像（可选文本提示）加相机轨迹/位姿序列作为控制信号。
+    - 动作空间：动作通道为相机轨迹（外参/位姿序列）；模型沿请求路径一致地渲染世界。
+    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`verified`.
+    Runner parity notes recorded in the catalog:
+    - LingBotPipeline is registered against the in-tree LingBot world runtime.
+    - The base-cam checkpoint is wired through the Studio/API route and dedicated conda environment profile.
+    - Base-Act is independently cataloged against the public preview checkpoint; only the Fast checkpoint remains unavailable.
+    - Base-cam full-quality artifact validation completed on 2026-07-28 using the official 161-frame, 70-step camera-control demo settings.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=已验证（verified）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - LingBotPipeline is registered against the in-tree LingBot world runtime.
+    - The base-cam checkpoint is wired through the Studio/API route and dedicated conda environment profile.
+    - Base-Act is independently cataloged against the public preview checkpoint; only the Fast checkpoint remains unavailable.
+    - Base-cam full-quality artifact validation completed on 2026-07-28 using the official 161-frame, 70-step camera-control demo settings.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - wrbench
+  - camerabench

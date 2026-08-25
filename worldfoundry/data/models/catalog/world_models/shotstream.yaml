@@ -38,3 +38,54 @@ catalog_scope: World-model catalog entries. Integrated entries expose in-tree Wo
   runtimes; blocked entries retain upstream provenance without runnable backends.
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 pipeline_binding: shotstream
+docs:
+  overview: |
+    ShotStream (KlingAIResearch/ShotStream; Hugging Face `KlingTeam/ShotStream`) is Kling AI Research's streaming video generator: recorded modalities are interactive-video-generation, real-time-video-generation, and streaming-video. WorldFoundry registers the official inference route; checkpoint and streaming assets are runtime-gated, so real generation emits a runtime plan until required assets are staged.
+
+    Within the WorldFoundry model catalog this entry is tracked as `shotstream` in the `world_models` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/KlingAIResearch/ShotStream; Hugging Face `KlingTeam/ShotStream`.
+  overview_zh: |
+    ShotStream（KlingAIResearch/ShotStream；Hugging Face `KlingTeam/ShotStream`）是可灵 AI 研究院的流式视频生成器：记录模态为 interactive-video-generation、real-time-video-generation 与 streaming-video。WorldFoundry 注册官方推理路线；权重与流式资产受运行时门控，在暂存所需资产之前，真实生成输出运行时计划。
+
+    在 WorldFoundry 模型目录中，该条目以 `shotstream` 收录于 `world_models` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/KlingAIResearch/ShotStream；Hugging Face `KlingTeam/ShotStream`。
+  architecture: |
+    The recorded modality set indicates a real-time streaming generator with an interactive input channel. Beyond these modality tags and the registered inference route, the repository does not record architecture details (backbone, parameter count, interaction encoding) for this entry.
+  architecture_zh: |
+    记录的模态组合表明这是带交互输入通道的实时流式生成器。除这些模态标签与已注册推理路线外，仓库未记录该条目的架构细节（骨干、参数量、交互编码方式）。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `shotstream` and runtime profile `runtime-profile:shotstream`.
+    Catalog integration status: `runtime_ported`.
+    Integration notes recorded in the catalog:
+    - ShotStream official inference route is registered; checkpoint/streaming assets are runtime-gated.
+
+    Embodiment contract:
+    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
+    - Sensors: conditioning inputs per the recorded modalities (typically an initial image and/or a text prompt); exact tensor contracts are not recorded in this catalog file.
+    - Action space: an interactive input channel exists per the recorded modalities, but its exact action encoding is not recorded in this catalog file.
+    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `shotstream`，运行时配置为 `runtime-profile:shotstream`。
+    目录集成状态：运行时已移植（runtime_ported）。
+    目录中记录的集成备注（保留原文）：
+    - ShotStream official inference route is registered; checkpoint/streaming assets are runtime-gated.
+
+    具身接口（embodiment contract）：
+    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
+    - 传感器：按记录的模态提供条件输入（通常为初始图像和/或文本提示）；具体张量契约本目录文件未记录。
+    - 动作空间：按记录模态存在交互输入通道，但其具体动作编码本目录文件未记录。
+    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`implemented_checkpoint_pending`.
+    Runner parity notes recorded in the catalog:
+    - resolve_model_zoo_config and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=已实现、待权重就绪（implemented_checkpoint_pending）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - resolve_model_zoo_config and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - vbench

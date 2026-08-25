@@ -21,3 +21,59 @@ runner_parity:
   - The Control+i2v checkpoint matched all 989 in-tree transformer tensors without fallback or skipped camera weights.
   - The official pose-conditioned route emitted nine coherent H.264 frames at 672x384 after four denoising steps.
 catalog_category: world_models
+docs:
+  overview: |
+    Wan2.1-Fun V1.1 1.3B Control Camera is the lightweight camera-control checkpoint of Alibaba PAI's VideoX-Fun project on the Wan2.1 1.3B backbone. WorldFoundry vendors the VideoX-Fun source at revision 403f1f7b78dcafccc4f6606dda4ec28e16e667dc; the complete 1.3B camera checkpoint plus split Wan components passed real A100 Workspace inference: the Control+i2v checkpoint matched all 989 in-tree transformer tensors without fallback or skipped camera weights, and the official pose-conditioned route emitted nine coherent H.264 frames at 672x384 after four denoising steps.
+
+    Within the WorldFoundry model catalog this entry is tracked as `wan21-fun-1p3b-cam` in the `world_models` category.
+    The repository does not record an official source link for this entry.
+  overview_zh: |
+    Wan2.1-Fun V1.1 1.3B Control Camera 是阿里 PAI VideoX-Fun 项目在 Wan2.1 1.3B 骨干上的轻量相机控制权重。WorldFoundry 以修订号 403f1f7b78dcafccc4f6606dda4ec28e16e667dc 内嵌 VideoX-Fun 源码；完整 1.3B 相机权重加拆分 Wan 组件已通过真实 A100 Workspace 推理：Control+i2v 权重与全部 989 个树内 transformer 张量精确匹配、无回退且未跳过相机权重，官方位姿条件路线在四步去噪后输出九帧连贯的 672x384 H.264。
+
+    在 WorldFoundry 模型目录中，该条目以 `wan21-fun-1p3b-cam` 收录于 `world_models` 分类。
+    仓库未记录该条目的官方来源链接。
+  architecture: |
+    The VideoX-Fun Control-Camera design augments the Wan2.1 image-to-video diffusion transformer with camera-pose conditioning; this entry is the 1.3B-parameter variant, small enough for fast validation runs. The A100 validation confirmed exact tensor-level checkpoint coverage (989/989) in the in-tree implementation. Beyond this, the repository does not record further architecture details for this entry.
+  architecture_zh: |
+    VideoX-Fun Control-Camera 设计在 Wan2.1 图像到视频扩散 transformer 上增加相机位姿条件；该条目为 1.3B 参数变体，规模小、适合快速验证。A100 验证确认了树内实现的张量级权重精确覆盖（989/989）。除此之外，仓库未记录该条目更多架构细节。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `wan21-fun-1p3b-cam` and runtime profile `runtime-profile:wan21-fun-1p3b-cam`.
+    Catalog integration status: `checkpoint_gpu_validated`.
+    Integration notes recorded in the catalog:
+    - VideoX-Fun source is vendored at revision 403f1f7b78dcafccc4f6606dda4ec28e16e667dc.
+    - The complete 1.3B camera checkpoint and split Wan components passed real A100 Workspace inference.
+
+    Embodiment contract:
+    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
+    - Sensors: an initial image (and optionally a text prompt) plus a camera trajectory / pose sequence as the control signal.
+    - Action space: the action channel is the camera trajectory (extrinsics/pose sequence); the model renders the world consistently along the requested path.
+    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `wan21-fun-1p3b-cam`，运行时配置为 `runtime-profile:wan21-fun-1p3b-cam`。
+    目录集成状态：`checkpoint_gpu_validated`。
+    目录中记录的集成备注（保留原文）：
+    - VideoX-Fun source is vendored at revision 403f1f7b78dcafccc4f6606dda4ec28e16e667dc.
+    - The complete 1.3B camera checkpoint and split Wan components passed real A100 Workspace inference.
+
+    具身接口（embodiment contract）：
+    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
+    - 传感器：初始图像（可选文本提示）加相机轨迹/位姿序列作为控制信号。
+    - 动作空间：动作通道为相机轨迹（外参/位姿序列）；模型沿请求路径一致地渲染世界。
+    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`checkpoint_gpu_validated`.
+    Runner parity notes recorded in the catalog:
+    - The Control+i2v checkpoint matched all 989 in-tree transformer tensors without fallback or skipped camera weights.
+    - The official pose-conditioned route emitted nine coherent H.264 frames at 672x384 after four denoising steps.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=`checkpoint_gpu_validated`。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - The Control+i2v checkpoint matched all 989 in-tree transformer tensors without fallback or skipped camera weights.
+    - The official pose-conditioned route emitted nine coherent H.264 frames at 672x384 after four denoising steps.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - wrbench
+  - camerabench

@@ -30,3 +30,55 @@ catalog_scope: World-model catalog entries. Integrated entries expose in-tree Wo
   runtimes; blocked entries retain upstream provenance without runnable backends.
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 pipeline_binding: worldmem
+docs:
+  overview: |
+    WorldMem (xizaoqu/WorldMem) is the memory-augmented interactive Minecraft world model: it attaches a memory bank of past frames and their poses/states to an action-conditioned video world model, retrieving relevant memories so that revisited places stay consistent over long horizons — a direct answer to the consistency failures of memoryless interactive world models. WorldFoundry registers the route with upstream inference model/data assets runtime-gated; the pipeline resolves but emits a runtime plan until assets are staged.
+
+    Within the WorldFoundry model catalog this entry is tracked as `worldmem` in the `world_models` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/xizaoqu/WorldMem.
+  overview_zh: |
+    WorldMem（xizaoqu/WorldMem）是带记忆增强的交互式 Minecraft 世界模型：为动作条件视频世界模型挂接由历史帧及其位姿/状态组成的记忆库，检索相关记忆使重访地点在长时程中保持一致——直接回应了无记忆交互世界模型的一致性缺陷。WorldFoundry 注册该路线，上游推理模型/数据资产受运行时门控；管线可解析，但在资产暂存之前输出运行时计划。
+
+    在 WorldFoundry 模型目录中，该条目以 `worldmem` 收录于 `world_models` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/xizaoqu/WorldMem。
+  architecture: |
+    Per the public project, WorldMem builds on a conditional diffusion transformer world model (Diffusion Forcing-style training) over Minecraft gameplay, adding memory attention that retrieves frames from the memory bank by pose/state relevance and injects them into generation. Recorded modalities are interactive-world-model, minecraft-world-model, and long-term-consistency; further architecture details are not recorded in the repository.
+  architecture_zh: |
+    按公开项目，WorldMem 构建于 Minecraft 游戏数据上的条件扩散 transformer 世界模型（Diffusion Forcing 式训练），增加记忆注意力：按位姿/状态相关性从记忆库检索帧并注入生成。记录模态为 interactive-world-model、minecraft-world-model 与 long-term-consistency；更多架构细节仓库未记录。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `worldmem` and runtime profile `runtime-profile:worldmem`.
+    Catalog integration status: `runtime_ported`.
+    Integration notes recorded in the catalog:
+    - WorldMem route is registered; upstream inference model/data assets are runtime-gated.
+
+    Embodiment contract:
+    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
+    - Sensors: an initial image or context frames plus streaming interaction inputs.
+    - Action space: Minecraft-style keyboard/mouse actions plus camera movement drive the rollout; the memory bank is maintained automatically.
+    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `worldmem`，运行时配置为 `runtime-profile:worldmem`。
+    目录集成状态：运行时已移植（runtime_ported）。
+    目录中记录的集成备注（保留原文）：
+    - WorldMem route is registered; upstream inference model/data assets are runtime-gated.
+
+    具身接口（embodiment contract）：
+    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
+    - 传感器：初始图像或上下文帧，加流式交互输入。
+    - 动作空间：Minecraft 式键鼠动作加相机移动驱动 rollout；记忆库自动维护。
+    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`implemented_checkpoint_pending`.
+    Runner parity notes recorded in the catalog:
+    - resolve_model_zoo_config and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=已实现、待权重就绪（implemented_checkpoint_pending）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - resolve_model_zoo_config and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - memobench
+  - iworld-bench

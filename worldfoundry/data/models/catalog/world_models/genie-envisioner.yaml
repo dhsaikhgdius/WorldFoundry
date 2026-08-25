@@ -42,3 +42,57 @@ runner_parity:
 catalog_category: world_models
 catalog_scope: World-model catalog entries. Integrated entries expose in-tree WorldFoundry runtimes; blocked entries retain
   upstream provenance without runnable backends.
+docs:
+  overview: |
+    Genie Envisioner (AgibotTech/Genie-Envisioner; Hugging Face `agibot-world/Genie-Envisioner`) is AgiBot's unified world-model platform for robot manipulation: the public project combines the GE-Base action-conditioned video world model, the GE-Act policy branch, and the EWMBench evaluation suite, built on an LTX-Video-derived backbone (the runtime also resolves `Lightricks/LTX-Video`). WorldFoundry vendors the official WorldArena-listed source in tree under `worldfoundry/synthesis/visual_generation/genie_envisioner/genie_envisioner_runtime`; the inference entrypoint resolves but returns blocked diagnostics until checkpoints and task assets are staged.
+
+    Within the WorldFoundry model catalog this entry is tracked as `genie-envisioner` in the `world_models` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/AgibotTech/Genie-Envisioner; Hugging Face `agibot-world/Genie-Envisioner`, `Lightricks/LTX-Video`.
+  overview_zh: |
+    Genie Envisioner（AgibotTech/Genie-Envisioner；Hugging Face `agibot-world/Genie-Envisioner`）是智元机器人（AgiBot）面向机器人操作的统一世界模型平台：公开项目组合了 GE-Base 动作条件视频世界模型、GE-Act 策略分支与 EWMBench 评测套件，构建在 LTX-Video 派生骨干上（运行时同时解析 `Lightricks/LTX-Video`）。WorldFoundry 在 `worldfoundry/synthesis/visual_generation/genie_envisioner/genie_envisioner_runtime` 内嵌官方 WorldArena 收录源码；推理入口可解析，但在暂存权重与任务资产之前返回受阻诊断。
+
+    在 WorldFoundry 模型目录中，该条目以 `genie-envisioner` 收录于 `world_models` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/AgibotTech/Genie-Envisioner；Hugging Face `agibot-world/Genie-Envisioner`、`Lightricks/LTX-Video`。
+  architecture: |
+    Per the public project, GE-Base is a multi-view, instruction- and action-conditioned video diffusion world model over an LTX-Video backbone trained on large-scale AgiBot manipulation data; GE-Act decodes actions from the same latent space, and GE-Sim provides action-conditioned simulation. This catalog entry tracks the video world-model route; further architecture details are not recorded in the repository.
+  architecture_zh: |
+    按公开项目，GE-Base 是基于 LTX-Video 骨干、以多视角/指令/动作为条件的视频扩散世界模型，训练于大规模智元操作数据；GE-Act 从同一隐空间解码动作，GE-Sim 提供动作条件仿真。本目录条目跟踪视频世界模型路线；更多架构细节仓库未记录。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `genie-envisioner` and runtime profile `runtime-profile:genie-envisioner`.
+    Catalog integration status: `runtime_ported`.
+    Integration notes recorded in the catalog:
+    - WorldFoundry registers an in-tree runtime manifest pipeline for the vendored Genie Envisioner source.
+    - Official WorldArena-listed source is vendored in-tree under worldfoundry/synthesis/visual_generation/genie_envisioner/genie_envisioner_runtime.
+
+    Embodiment contract:
+    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
+    - Sensors: initial visual context of a robot scene (and optionally text) plus a robot action sequence as conditioning.
+    - Action space: robot action trajectories are the conditioning channel: the model predicts the resulting future observations instead of emitting actions itself.
+    - Dedicated environment: targets the robot-manipulation domains recorded per checkpoint; no simulator ships with this entry.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `genie-envisioner`，运行时配置为 `runtime-profile:genie-envisioner`。
+    目录集成状态：运行时已移植（runtime_ported）。
+    目录中记录的集成备注（保留原文）：
+    - WorldFoundry registers an in-tree runtime manifest pipeline for the vendored Genie Envisioner source.
+    - Official WorldArena-listed source is vendored in-tree under worldfoundry/synthesis/visual_generation/genie_envisioner/genie_envisioner_runtime.
+
+    具身接口（embodiment contract）：
+    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
+    - 传感器：机器人场景的初始视觉上下文（可选文本），加机器人动作序列作为条件。
+    - 动作空间：机器人动作轨迹是条件通道：模型预测动作导致的未来观测，而不是自己输出动作。
+    - 是否专用环境：面向各权重记录的机器人操作域；该条目不附带仿真器。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`implemented_checkpoint_pending`.
+    Runner parity notes recorded in the catalog:
+    - The pipeline resolves the vendored inference entrypoint and returns blocked runtime diagnostics until checkpoints and task assets are staged.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=已实现、待权重就绪（implemented_checkpoint_pending）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - The pipeline resolves the vendored inference entrypoint and returns blocked runtime diagnostics until checkpoints and task assets are staged.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - worldarena
+  - ewmbench

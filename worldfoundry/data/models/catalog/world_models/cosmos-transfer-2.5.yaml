@@ -80,3 +80,61 @@ catalog_policy:
   open_source_rule: Only mark open_source when an official GitHub repository or official
     Hugging Face model page was confirmed. Do not infer checkpoint availability from
     papers, demos, or third-party mirrors.
+docs:
+  overview: |
+    Cosmos Transfer 2.5 (nvidia-cosmos/cosmos-transfer2.5, NVIDIA Open Model License) is NVIDIA's controllable world-to-world transfer model: it converts structured spatial control inputs (segmentation, depth, edge, and other modalities) into photoreal world videos, primarily for Sim2Real augmentation in Physical AI. WorldFoundry reuses the same native runner, Reason1 conditioner, flow-UniPC scheduler, Wan VAE codec, checkpoint loader, and offload policies as Predict 2.5; the VACE network adds only the checkpoint-shaped four-block control branch at base layers 0/7/14/21 and an 8-modality control embedder. A tiny native control forward passes, while exact weight structure and end-to-end GPU parity remain pending because the general/edge checkpoint is not staged locally.
+
+    Within the WorldFoundry model catalog this entry is tracked as `cosmos-transfer-2.5` in the `world_models` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/nvidia-cosmos/cosmos-transfer2.5; Hugging Face `nvidia/Cosmos-Transfer2.5-2B`, `nvidia/Cosmos-Transfer2.5-14B`.
+  overview_zh: |
+    Cosmos Transfer 2.5（nvidia-cosmos/cosmos-transfer2.5，NVIDIA 开放模型许可）是 NVIDIA 的可控世界到世界迁移模型：把结构化空间控制输入（分割、深度、边缘等模态）转换为逼真世界视频，主要用于 Physical AI 的 Sim2Real 数据增广。WorldFoundry 复用与 Predict 2.5 相同的原生 runner、Reason1 条件器、flow-UniPC 调度器、Wan VAE 编解码器、权重加载器与卸载策略；VACE 网络仅在基座第 0/7/14/21 层增加按权重形状的四块控制分支与 8 模态控制嵌入器。极小的原生控制前向已通过，但由于 general/edge 权重未本地暂存，精确权重结构与端到端 GPU 一致性仍待完成。
+
+    在 WorldFoundry 模型目录中，该条目以 `cosmos-transfer-2.5` 收录于 `world_models` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/nvidia-cosmos/cosmos-transfer2.5；Hugging Face `nvidia/Cosmos-Transfer2.5-2B`、`nvidia/Cosmos-Transfer2.5-14B`。
+  architecture: |
+    The architecture extends the Predict 2.5 flow DiT with a VACE-style control branch: four control blocks tap base layers 0/7/14/21 and an 8-modality control embedder fuses spatial control videos into the generation stream, with Reason1 language conditioning retained. No Diffusers or model-specific runner is kept in tree.
+  architecture_zh: |
+    架构在 Predict 2.5 flow DiT 上扩展 VACE 式控制分支：四个控制块接入基座第 0/7/14/21 层，8 模态控制嵌入器把空间控制视频融合进生成流，保留 Reason1 语言条件。树内不保留 Diffusers 或模型特有 runner。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `cosmos-transfer-2.5` and runtime profile `runtime-profile:cosmos-transfer2.5-2b-controlled-video`.
+    Catalog integration status: `integrated`.
+    Integration notes recorded in the catalog:
+    - Transfer 2.5 uses the same native runner, Reason1 conditioner, flow-UniPC scheduler, Wan VAE codec, checkpoint loader, and offload policies as Predict 2.5.
+    - The VACE network adds only the checkpoint-shaped four-block control branch at base layers 0/7/14/21 and 8-modality control embedder; no Diffusers or model-specific runner is retained.
+    - A tiny native control forward passes, while exact weight structure and end-to-end GPU parity remain pending because the general/edge checkpoint is not staged locally.
+    Recorded variant `cosmos-transfer-2.5-2b`, task `controlled-video`, runner parity `pending`, demo parity `pending_native_gpu`.
+
+    Embodiment contract:
+    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
+    - Sensors: structured spatial control videos (up to 8 control modalities such as depth/segmentation/edge) plus text conditioning.
+    - Action space: no explicit action interface is recorded for this entry; controllability is limited to the conditioning inputs.
+    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `cosmos-transfer-2.5`，运行时配置为 `runtime-profile:cosmos-transfer2.5-2b-controlled-video`。
+    目录集成状态：已集成（integrated）。
+    目录中记录的集成备注（保留原文）：
+    - Transfer 2.5 uses the same native runner, Reason1 conditioner, flow-UniPC scheduler, Wan VAE codec, checkpoint loader, and offload policies as Predict 2.5.
+    - The VACE network adds only the checkpoint-shaped four-block control branch at base layers 0/7/14/21 and 8-modality control embedder; no Diffusers or model-specific runner is retained.
+    - A tiny native control forward passes, while exact weight structure and end-to-end GPU parity remain pending because the general/edge checkpoint is not staged locally.
+    目录记录：变体 `cosmos-transfer-2.5-2b`，任务 `controlled-video`，runner 一致性 待验证（pending），演示一致性 `pending_native_gpu`。
+
+    具身接口（embodiment contract）：
+    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
+    - 传感器：结构化空间控制视频（最多 8 种控制模态，如深度/分割/边缘）加文本条件。
+    - 动作空间：该条目未记录显式动作接口；可控性仅限于条件输入。
+    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`pending`.
+    Runner parity notes recorded in the catalog:
+    - CosmosTransfer2p5Pipeline directly invokes the native VACE recipe; checkpoint-key and output parity remain gated by the unavailable local general/edge weights.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=待验证（pending）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - CosmosTransfer2p5Pipeline directly invokes the native VACE recipe; checkpoint-key and output parity remain gated by the unavailable local general/edge weights.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - physical-ai-bench
+  - worldmodelbench

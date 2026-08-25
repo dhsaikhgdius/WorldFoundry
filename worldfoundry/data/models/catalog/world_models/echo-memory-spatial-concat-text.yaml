@@ -58,3 +58,63 @@ availability:
   code: native_worldfoundry
   weights: retracted_misaligned_by_upstream
   license: cc-by-4.0
+docs:
+  overview: |
+    Echo-Memory Spatial Concat-Text Ablation is one of the Echo-Memory independent inference models (Echo-Team-Joy-Future-Academy-JD/Echo-Memory, CC-BY-4.0): the Echo-Memory project studies long-video world models with explicit memory, and WorldFoundry catalogs each released memory method as its own model identity instead of a runtime switch. This identity is permanently pinned to `spatial_concat_text_two_chunk/epoch-0.safetensors`. The recipe is assembled by NativeDiffusionPipeline from shared Wan components and the framework-owned frozen-context strategy, with no external backend. Upstream retracted this checkpoint as misaligned, so the entry is blocked; a local checkpoint can still be supplied for architecture research.
+
+    Within the WorldFoundry model catalog this entry is tracked as `echo-memory-spatial-concat-text` in the `world_models` category.
+    Recorded availability: status=source_available, open_source=True, code=native_worldfoundry, weights=retracted_misaligned_by_upstream, license=cc-by-4.0.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/Echo-Team-Joy-Future-Academy-JD/Echo-Memory.
+  overview_zh: |
+    Echo-Memory 空间记忆拼接文本消融是 Echo-Memory 独立推理模型之一（Echo-Team-Joy-Future-Academy-JD/Echo-Memory，CC-BY-4.0）：Echo-Memory 项目研究带显式记忆的长视频世界模型，WorldFoundry 将每个已发布的记忆方法登记为独立模型身份，而非运行时开关。该身份永久锁定到 `spatial_concat_text_two_chunk/epoch-0.safetensors`。recipe 由 NativeDiffusionPipeline 从共享 Wan 组件与框架自有的冻结上下文（frozen-context）策略组装，无外部后端。上游以未对齐为由撤回了该权重，条目处于受阻状态；仍可提供本地权重用于架构研究。
+
+    在 WorldFoundry 模型目录中，该条目以 `echo-memory-spatial-concat-text` 收录于 `world_models` 分类。
+    仓库记录的可用性：状态=source_available，是否开源=True，代码=native_worldfoundry，权重=retracted_misaligned_by_upstream，许可证=cc-by-4.0。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/Echo-Team-Joy-Future-Academy-JD/Echo-Memory。
+  architecture: |
+    The base is a Wan-family video diffusion transformer driven by image/text/camera-trajectory conditioning; this identity's memory mechanism is: a spatial-memory ablation that injects retrieved memory by concatenation on the text stream (two-chunk schedule), isolating the contribution of the injection pathway. Checkpoint headers are inspected before construction and full DiT tensors are loaded with exact key and shape coverage. Beyond the memory-method configuration, the repository does not record further architecture details (parameter count, training data) for this entry.
+  architecture_zh: |
+    基座为由图像/文本/相机轨迹条件驱动的 Wan 系视频扩散 transformer；该身份的记忆机制为：空间记忆消融：以两块调度、通过在文本流上拼接注入检索记忆，用于隔离注入通路的贡献。构建前检查权重头，DiT 全量张量按精确键与形状覆盖加载。除记忆方法配置外，仓库未记录该条目更多架构细节（参数量、训练数据等）。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `echo-memory-spatial-concat-text` and runtime profile `runtime-profile:echo-memory-spatial-concat-text`.
+    Catalog integration status: `blocked`.
+    Integration notes recorded in the catalog:
+    - This is an independent WorldFoundry model identity pinned to spatial_concat_text_two_chunk/epoch-0.safetensors; users do not select a memory method at runtime.
+    - The independent recipe is assembled by NativeDiffusionPipeline from shared Wan components and the framework-owned frozen-context strategy; it does not use an external backend.
+    - Checkpoint headers are inspected before construction and full DiT tensors are loaded with exact key and shape coverage.
+
+    Embodiment contract:
+    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
+    - Sensors: an initial image, a text prompt, and a camera trajectory; long-horizon generation additionally consumes retrieved memory frames per the frozen-context strategy.
+    - Action space: the camera trajectory is the control channel; the memory mechanism itself is fixed per model identity and is not a runtime option.
+    - Dedicated environment: not tied to an external environment; each identity is permanently pinned to one released memory-method checkpoint.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `echo-memory-spatial-concat-text`，运行时配置为 `runtime-profile:echo-memory-spatial-concat-text`。
+    目录集成状态：受阻/仅跟踪元数据（blocked）。
+    目录中记录的集成备注（保留原文）：
+    - This is an independent WorldFoundry model identity pinned to spatial_concat_text_two_chunk/epoch-0.safetensors; users do not select a memory method at runtime.
+    - The independent recipe is assembled by NativeDiffusionPipeline from shared Wan components and the framework-owned frozen-context strategy; it does not use an external backend.
+    - Checkpoint headers are inspected before construction and full DiT tensors are loaded with exact key and shape coverage.
+
+    具身接口（embodiment contract）：
+    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
+    - 传感器：初始图像、文本提示与相机轨迹；长时程生成还按冻结上下文策略消费检索到的记忆帧。
+    - 动作空间：相机轨迹是控制通道；记忆机制本身按模型身份固定，不是运行时选项。
+    - 是否专用环境：不绑定外部环境；每个身份永久锁定到一个已发布的记忆方法权重。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`pending`.
+    Runner parity notes recorded in the catalog:
+    - CPU contract tests cover sampler layout, frozen-context relocking, target-only CFG, model identity, frame retrieval, and checkpoint architecture validation.
+    - Exact checkpoint and CUDA artifact validation are blocked; a local checkpoint can still be supplied for architecture research.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=待验证（pending）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - CPU contract tests cover sampler layout, frozen-context relocking, target-only CFG, model identity, frame retrieval, and checkpoint architecture validation.
+    - Exact checkpoint and CUDA artifact validation are blocked; a local checkpoint can still be supplied for architecture research.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - memobench
+  - wrbench

@@ -37,3 +37,56 @@ catalog_policy:
   checkpoint_rule: Only list local checkpoint expectations; do not download weights from runtime code.
   integration_rule: Echo-Infinity is packaged as a regular synthesis work, not as a shared base_models owner.
   open_source_rule: Source code was integrated from the local upstream checkout.
+docs:
+  overview: |
+    Echo-Infinity (Echo-Team-Joy-Future-Academy-JD/Echo-Infinity; Hugging Face Echo-Team/Echo-Infinity) is the JD Joy Future Academy Echo team's long-video text-to-video model. WorldFoundry vendors the inference path in tree; runtime assets are local paths under WORLDFOUNDRY_CKPT_DIR and weights are not tracked in git. Full parity requires local Echo-Infinity and Wan2.1 weights staged under WORLDFOUNDRY_CKPT_DIR.
+
+    Within the WorldFoundry model catalog this entry is tracked as `echo-infinity` in the `world_models` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/Echo-Team-Joy-Future-Academy-JD/Echo-Infinity; Hugging Face `https://huggingface.co/Echo-Team/Echo-Infinity`.
+  overview_zh: |
+    Echo-Infinity（Echo-Team-Joy-Future-Academy-JD/Echo-Infinity；Hugging Face Echo-Team/Echo-Infinity）是京东 Joy Future Academy Echo 团队的长视频文本到视频模型。WorldFoundry 在树内内嵌推理路径；运行时资产为 WORLDFOUNDRY_CKPT_DIR 下的本地路径，权重不入 git。完整一致性需要在 WORLDFOUNDRY_CKPT_DIR 下暂存本地 Echo-Infinity 与 Wan2.1 权重。
+
+    在 WorldFoundry 模型目录中，该条目以 `echo-infinity` 收录于 `world_models` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/Echo-Team-Joy-Future-Academy-JD/Echo-Infinity；Hugging Face `https://huggingface.co/Echo-Team/Echo-Infinity`。
+  architecture: |
+    The dependency on staged Wan2.1 weights indicates a Wan2.1-based long-video generation stack in the autoregressive video diffusion family. Beyond that, the repository does not record architecture details (parameter count, distillation recipe, training data) for this entry; the upstream license is recorded as unknown.
+  architecture_zh: |
+    对暂存 Wan2.1 权重的依赖表明这是基于 Wan2.1 的长视频生成栈，属自回归视频扩散家族。除此之外，仓库未记录该条目的架构细节（参数量、蒸馏方案、训练数据等）；上游许可证记录为 unknown。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `echo-infinity` and runtime profile `runtime-profile:echo-infinity`.
+    Catalog integration status: `integrated`.
+    Integration notes recorded in the catalog:
+    - WorldFoundry vendors the Echo-Infinity inference path in-tree.
+    - Runtime assets are local paths under WORLDFOUNDRY_CKPT_DIR; weights are not tracked in git.
+
+    Embodiment contract:
+    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
+    - Sensors: conditioning inputs per the recorded modalities (typically an initial image and/or a text prompt); exact tensor contracts are not recorded in this catalog file.
+    - Action space: no explicit action interface is recorded for this entry; controllability is limited to the conditioning inputs.
+    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `echo-infinity`，运行时配置为 `runtime-profile:echo-infinity`。
+    目录集成状态：已集成（integrated）。
+    目录中记录的集成备注（保留原文）：
+    - WorldFoundry vendors the Echo-Infinity inference path in-tree.
+    - Runtime assets are local paths under WORLDFOUNDRY_CKPT_DIR; weights are not tracked in git.
+
+    具身接口（embodiment contract）：
+    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
+    - 传感器：按记录的模态提供条件输入（通常为初始图像和/或文本提示）；具体张量契约本目录文件未记录。
+    - 动作空间：该条目未记录显式动作接口；可控性仅限于条件输入。
+    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`implemented_pending_gpu_parity`.
+    Runner parity notes recorded in the catalog:
+    - Full parity requires local Echo-Infinity and Wan2.1 weights staged under WORLDFOUNDRY_CKPT_DIR.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=已实现、GPU 一致性待验证（implemented_pending_gpu_parity）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - Full parity requires local Echo-Infinity and Wan2.1 weights staged under WORLDFOUNDRY_CKPT_DIR.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - vbench

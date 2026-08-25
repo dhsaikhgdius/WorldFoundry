@@ -17,3 +17,57 @@ integration:
   - The upstream native profile is 121 frames at 24 FPS; WRBench request values remain explicit.
 runner_parity: {status: pending, notes: [Dedicated Wan2.2 5B camera checkpoint route is wired.]}
 catalog_category: world_models
+docs:
+  overview: |
+    Wan2.2-Fun 5B Control Camera is the 5B camera-control checkpoint of Alibaba PAI's VideoX-Fun project on the Wan2.2 5B backbone. WorldFoundry vendors the VideoX-Fun source at revision 403f1f7b78dcafccc4f6606dda4ec28e16e667dc and wires a dedicated Wan2.2 5B camera checkpoint route; the upstream native profile is 121 frames at 24 FPS, and WRBench request values remain explicit rather than silently remapped. Runner parity is pending.
+
+    Within the WorldFoundry model catalog this entry is tracked as `wan22-fun-5b-cam` in the `world_models` category.
+    The repository does not record an official source link for this entry.
+  overview_zh: |
+    Wan2.2-Fun 5B Control Camera 是阿里 PAI VideoX-Fun 项目在 Wan2.2 5B 骨干上的相机控制权重。WorldFoundry 以修订号 403f1f7b78dcafccc4f6606dda4ec28e16e667dc 内嵌 VideoX-Fun 源码并接通专用 Wan2.2 5B 相机权重路线；上游原生配置为 121 帧、24 FPS，WRBench 请求值保持显式而非静默重映射。runner 一致性待验证。
+
+    在 WorldFoundry 模型目录中，该条目以 `wan22-fun-5b-cam` 收录于 `world_models` 分类。
+    仓库未记录该条目的官方来源链接。
+  architecture: |
+    The VideoX-Fun Control-Camera design augments the Wan2.2 image-to-video diffusion transformer with camera-pose conditioning; this entry is the 5B dense variant with a native 121-frame / 24 FPS generation profile. Beyond the vendored source revision and the checkpoint route, the repository does not record further architecture details for this entry.
+  architecture_zh: |
+    VideoX-Fun Control-Camera 设计在 Wan2.2 图像到视频扩散 transformer 上增加相机位姿条件；该条目为 5B 稠密变体，原生生成配置为 121 帧 / 24 FPS。除内嵌源码修订号与权重路线外，仓库未记录该条目更多架构细节。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `wan22-fun-5b-cam` and runtime profile `runtime-profile:wan22-fun-5b-cam`.
+    Catalog integration status: `integrated`.
+    Integration notes recorded in the catalog:
+    - VideoX-Fun source is vendored at revision 403f1f7b78dcafccc4f6606dda4ec28e16e667dc.
+    - The upstream native profile is 121 frames at 24 FPS; WRBench request values remain explicit.
+
+    Embodiment contract:
+    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
+    - Sensors: an initial image (and optionally a text prompt) plus a camera trajectory / pose sequence as the control signal.
+    - Action space: the action channel is the camera trajectory (extrinsics/pose sequence); the model renders the world consistently along the requested path.
+    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `wan22-fun-5b-cam`，运行时配置为 `runtime-profile:wan22-fun-5b-cam`。
+    目录集成状态：已集成（integrated）。
+    目录中记录的集成备注（保留原文）：
+    - VideoX-Fun source is vendored at revision 403f1f7b78dcafccc4f6606dda4ec28e16e667dc.
+    - The upstream native profile is 121 frames at 24 FPS; WRBench request values remain explicit.
+
+    具身接口（embodiment contract）：
+    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
+    - 传感器：初始图像（可选文本提示）加相机轨迹/位姿序列作为控制信号。
+    - 动作空间：动作通道为相机轨迹（外参/位姿序列）；模型沿请求路径一致地渲染世界。
+    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`pending`.
+    Runner parity notes recorded in the catalog:
+    - Dedicated Wan2.2 5B camera checkpoint route is wired.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=待验证（pending）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - Dedicated Wan2.2 5B camera checkpoint route is wired.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - wrbench
+  - camerabench

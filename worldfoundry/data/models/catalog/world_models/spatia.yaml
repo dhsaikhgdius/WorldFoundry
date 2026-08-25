@@ -17,3 +17,55 @@ runner_parity:
   status: pending
   notes: [In-tree Spatia inference and dense W2C trajectory route are wired.]
 catalog_category: world_models
+docs:
+  overview: |
+    Spatia is a camera-controlled video-to-video world model whose official source is vendored in tree at revision f75b10c9bb5f6b0cd779ec8c41ab33dd8382dba3. WorldFoundry wires the in-tree Spatia inference path together with a dense world-to-camera (W2C) trajectory route, so camera control is specified as a dense per-frame pose stream. No official GitHub repository or Hugging Face checkpoint is recorded in this catalog file; the runner is wired but per-run parity is still pending.
+
+    Within the WorldFoundry model catalog this entry is tracked as `spatia` in the `world_models` category.
+    The repository does not record an official source link for this entry.
+  overview_zh: |
+    Spatia 是相机控制的视频到视频世界模型，官方源码以修订号 f75b10c9bb5f6b0cd779ec8c41ab33dd8382dba3 内嵌在树内。WorldFoundry 接通树内 Spatia 推理路径与稠密世界到相机（W2C）轨迹路线，相机控制以稠密逐帧位姿流指定。本目录文件未记录官方 GitHub 仓库或 Hugging Face 权重；runner 已接通，但每次运行的一致性仍待验证。
+
+    在 WorldFoundry 模型目录中，该条目以 `spatia` 收录于 `world_models` 分类。
+    仓库未记录该条目的官方来源链接。
+  architecture: |
+    Recorded modalities are camera-controlled-video, video-to-video, and world-model: the model re-renders or extends an input video under a requested dense camera trajectory. Beyond the vendored source revision and the W2C trajectory contract, the repository does not record architecture details (backbone, parameter count) for this entry.
+  architecture_zh: |
+    记录模态为 camera-controlled-video、video-to-video 与 world-model：模型在请求的稠密相机轨迹下重渲染或延展输入视频。除内嵌源码修订号与 W2C 轨迹契约外，仓库未记录该条目的架构细节（骨干、参数量）。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `spatia` and runtime profile `runtime-profile:spatia`.
+    Catalog integration status: `integrated`.
+    Integration notes recorded in the catalog:
+    - Official source is vendored at revision f75b10c9bb5f6b0cd779ec8c41ab33dd8382dba3.
+
+    Embodiment contract:
+    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
+    - Sensors: an input video plus a dense per-frame world-to-camera (W2C) pose trajectory.
+    - Action space: the action channel is the camera trajectory (extrinsics/pose sequence); the model renders the world consistently along the requested path.
+    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `spatia`，运行时配置为 `runtime-profile:spatia`。
+    目录集成状态：已集成（integrated）。
+    目录中记录的集成备注（保留原文）：
+    - Official source is vendored at revision f75b10c9bb5f6b0cd779ec8c41ab33dd8382dba3.
+
+    具身接口（embodiment contract）：
+    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
+    - 传感器：输入视频加稠密逐帧世界到相机（W2C）位姿轨迹。
+    - 动作空间：动作通道为相机轨迹（外参/位姿序列）；模型沿请求路径一致地渲染世界。
+    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`pending`.
+    Runner parity notes recorded in the catalog:
+    - In-tree Spatia inference and dense W2C trajectory route are wired.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=待验证（pending）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - In-tree Spatia inference and dense W2C trajectory route are wired.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - wrbench
+  - camerabench

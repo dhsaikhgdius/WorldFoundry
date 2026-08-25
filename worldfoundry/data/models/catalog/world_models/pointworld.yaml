@@ -36,3 +36,54 @@ catalog_scope: World-model catalog entries. Integrated entries expose in-tree Wo
   runtimes; blocked entries retain upstream provenance without runnable backends.
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 pipeline_binding: pointworld
+docs:
+  overview: |
+    PointWorld (NVlabs/PointWorld; Hugging Face `nvidia/PointWorld_models`) is NVIDIA's point-cloud world model for robotics: recorded modalities are point-cloud-world-model, robot-world-model, and 3d-world-model, i.e. world dynamics are modeled directly in 3D point-cloud space rather than as RGB video. WorldFoundry registers the official source route; checkpoint and point-cloud assets are runtime-gated, so real generation emits a runtime plan until required assets are staged.
+
+    Within the WorldFoundry model catalog this entry is tracked as `pointworld` in the `world_models` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/NVlabs/PointWorld; Hugging Face `nvidia/PointWorld_models`.
+  overview_zh: |
+    PointWorld（NVlabs/PointWorld；Hugging Face `nvidia/PointWorld_models`）是 NVIDIA 面向机器人的点云世界模型：记录模态为 point-cloud-world-model、robot-world-model 与 3d-world-model，即直接在 3D 点云空间而非 RGB 视频中建模世界动力学。WorldFoundry 注册官方源码路线；权重与点云资产受运行时门控，在暂存所需资产之前，真实生成输出运行时计划。
+
+    在 WorldFoundry 模型目录中，该条目以 `pointworld` 收录于 `world_models` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/NVlabs/PointWorld；Hugging Face `nvidia/PointWorld_models`。
+  architecture: |
+    The recorded modality set indicates a 3D world model whose state representation is point clouds of robot scenes, predicting future 3D states conditioned on robot actions. Beyond the modality tags and the registered source route, the repository does not record architecture details (backbone, parameter count, point-cloud encoder) for this entry.
+  architecture_zh: |
+    记录的模态组合表明这是以机器人场景点云为状态表征的 3D 世界模型，以机器人动作为条件预测未来 3D 状态。除模态标签与已注册源码路线外，仓库未记录该条目的架构细节（骨干、参数量、点云编码器）。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `pointworld` and runtime profile `runtime-profile:pointworld`.
+    Catalog integration status: `runtime_ported`.
+    Integration notes recorded in the catalog:
+    - PointWorld official source route is registered; checkpoint/point-cloud assets are runtime-gated.
+
+    Embodiment contract:
+    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
+    - Sensors: 3D point clouds of the robot scene (plus any conditioning recorded upstream) instead of RGB frames; exact tensor contracts are not recorded in this catalog file.
+    - Action space: robot action trajectories are the conditioning channel: the model predicts the resulting future observations instead of emitting actions itself.
+    - Dedicated environment: targets robot domains through point-cloud observations; no simulator ships with this entry.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `pointworld`，运行时配置为 `runtime-profile:pointworld`。
+    目录集成状态：运行时已移植（runtime_ported）。
+    目录中记录的集成备注（保留原文）：
+    - PointWorld official source route is registered; checkpoint/point-cloud assets are runtime-gated.
+
+    具身接口（embodiment contract）：
+    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
+    - 传感器：机器人场景的 3D 点云（以及上游记录的其他条件）而非 RGB 帧；具体张量契约本目录文件未记录。
+    - 动作空间：机器人动作轨迹是条件通道：模型预测动作导致的未来观测，而不是自己输出动作。
+    - 是否专用环境：通过点云观测面向机器人域；该条目不附带仿真器。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`implemented_checkpoint_pending`.
+    Runner parity notes recorded in the catalog:
+    - resolve_model_zoo_config and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=已实现、待权重就绪（implemented_checkpoint_pending）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - resolve_model_zoo_config and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - ewmbench

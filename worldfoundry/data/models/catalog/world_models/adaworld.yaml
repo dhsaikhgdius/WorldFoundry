@@ -28,3 +28,54 @@ runtime_profile: runtime-profile:adaworld
 catalog_category: world_models
 catalog_scope: World-model catalog entries. Integrated entries expose in-tree WorldFoundry runtimes; blocked entries retain
   upstream provenance without runnable backends.
+docs:
+  overview: |
+    AdaWorld (Little-Podi/AdaWorld, ICML 2025) proposes learning world models with latent actions: it extracts transferable latent action representations from unlabeled videos of many environments, so the resulting action-conditioned world model can adapt to new domains and new control interfaces with minimal fine-tuning. In WorldFoundry it is retained as open-source provenance/source-only metadata, hidden from the formal Studio infer catalog, and no runnable in-tree backend is advertised until official environment and asset parity is reproducible.
+
+    Within the WorldFoundry model catalog this entry is tracked as `adaworld` in the `world_models` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/Little-Podi/AdaWorld.
+  overview_zh: |
+    AdaWorld（Little-Podi/AdaWorld，ICML 2025）提出用隐动作学习世界模型：从多环境的无标注视频中提取可迁移的隐动作表征，使动作条件世界模型能以极少微调适配新领域与新控制接口。在 WorldFoundry 中，该条目仅保留为开源来源/源码级元数据，从正式 Studio 推理目录中隐藏；在官方环境与资产一致性可复现之前，不提供可运行的树内后端。
+
+    在 WorldFoundry 模型目录中，该条目以 `adaworld` 收录于 `world_models` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/Little-Podi/AdaWorld。
+  architecture: |
+    The published method learns a latent action codebook from videos via an inverse-dynamics-style objective, then trains an autoregressive world model conditioned on those latent actions; new environments are integrated by mapping real control signals onto the latent action space. The repository records no further architecture details for this entry.
+  architecture_zh: |
+    公开方法通过逆动力学式目标从视频学习隐动作码本，再训练以隐动作为条件的自回归世界模型；新环境通过把真实控制信号映射到隐动作空间来接入。仓库未记录该条目更多架构细节。
+  usage_notes: |
+    No runner target is registered for this entry; the catalog tracks upstream provenance metadata without a runnable in-tree pipeline.
+    Catalog integration status: `blocked`.
+    Integration notes recorded in the catalog:
+    - AdaWorld is retained as open-source provenance/source-only metadata and hidden from the formal Studio infer catalog.
+
+    Embodiment contract:
+    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
+    - Sensors: an initial image or context frames plus streaming interaction inputs.
+    - Action space: latent actions learned from unlabeled videos act as the transferable control interface; real control signals are mapped onto the latent action space per domain.
+    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
+  usage_notes_zh: |
+    该条目未注册 runner target；目录仅跟踪上游来源元数据，暂无可运行的 in-tree 管线。
+    目录集成状态：受阻/仅跟踪元数据（blocked）。
+    目录中记录的集成备注（保留原文）：
+    - AdaWorld is retained as open-source provenance/source-only metadata and hidden from the formal Studio infer catalog.
+
+    具身接口（embodiment contract）：
+    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
+    - 传感器：初始图像或上下文帧，加流式交互输入。
+    - 动作空间：从无标注视频学习的隐动作是可迁移控制接口；各领域的真实控制信号被映射到隐动作空间。
+    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`not_applicable`.
+    Runner parity notes recorded in the catalog:
+    - No release-facing WorldFoundry infer runner is advertised until official environment and asset parity is reproducible.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=不适用（not_applicable）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - No release-facing WorldFoundry infer runner is advertised until official environment and asset parity is reproducible.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - world-in-world

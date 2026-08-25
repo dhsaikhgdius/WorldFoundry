@@ -20,3 +20,59 @@ runner_parity:
   status: pending
   notes: [Camera-only 4D-control rendering and diffusion stages are wired in-tree.]
 catalog_category: world_models
+docs:
+  overview: |
+    VerseCrafter is a camera-controlled image-to-video world model whose official source is vendored in tree at revision 008693b52aa74367afb34d183046fecf88100bdc, with the exact VideoX-Fun submodule vendored at revision 246a0e3a22485b1f48647583f764c7fe16caa93b. WorldFoundry wires the camera-only 4D-control rendering and diffusion stages in-tree. The upstream license is research-only, non-commercial, and excludes intended EU use; no official GitHub repository or Hugging Face checkpoint is recorded in this catalog file.
+
+    Within the WorldFoundry model catalog this entry is tracked as `versecrafter` in the `world_models` category.
+    The repository does not record an official source link for this entry.
+  overview_zh: |
+    VerseCrafter 是相机控制的图像到视频世界模型，官方源码以修订号 008693b52aa74367afb34d183046fecf88100bdc 内嵌在树内，配套的 VideoX-Fun 子模块以修订号 246a0e3a22485b1f48647583f764c7fe16caa93b 内嵌。WorldFoundry 在树内接通仅相机的 4D 控制渲染与扩散两个阶段。上游许可为仅研究、非商用，且排除面向欧盟的使用；本目录文件未记录官方 GitHub 仓库或 Hugging Face 权重。
+
+    在 WorldFoundry 模型目录中，该条目以 `versecrafter` 收录于 `world_models` 分类。
+    仓库未记录该条目的官方来源链接。
+  architecture: |
+    The recorded pipeline has two stages: a 4D-control rendering stage that turns the requested camera path into control signals, followed by a diffusion generation stage built on the vendored VideoX-Fun stack. Recorded modalities are camera-controlled-video, image-to-video, and world-model; further architecture details are not recorded in the repository.
+  architecture_zh: |
+    记录的管线分两阶段：先由 4D 控制渲染阶段把请求相机路径转为控制信号，再由基于内嵌 VideoX-Fun 栈的扩散生成阶段出片。记录模态为 camera-controlled-video、image-to-video 与 world-model；更多架构细节仓库未记录。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `versecrafter` and runtime profile `runtime-profile:versecrafter`.
+    Catalog integration status: `integrated`.
+    Integration notes recorded in the catalog:
+    - Official source is vendored at revision 008693b52aa74367afb34d183046fecf88100bdc.
+    - The exact VideoX-Fun submodule is vendored at revision 246a0e3a22485b1f48647583f764c7fe16caa93b.
+    - Upstream license is research-only, non-commercial, and excludes intended EU use.
+
+    Embodiment contract:
+    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
+    - Sensors: an initial image (and optionally a text prompt) plus a camera trajectory / pose sequence as the control signal.
+    - Action space: the action channel is the camera trajectory (extrinsics/pose sequence); the model renders the world consistently along the requested path.
+    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `versecrafter`，运行时配置为 `runtime-profile:versecrafter`。
+    目录集成状态：已集成（integrated）。
+    目录中记录的集成备注（保留原文）：
+    - Official source is vendored at revision 008693b52aa74367afb34d183046fecf88100bdc.
+    - The exact VideoX-Fun submodule is vendored at revision 246a0e3a22485b1f48647583f764c7fe16caa93b.
+    - Upstream license is research-only, non-commercial, and excludes intended EU use.
+
+    具身接口（embodiment contract）：
+    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
+    - 传感器：初始图像（可选文本提示）加相机轨迹/位姿序列作为控制信号。
+    - 动作空间：动作通道为相机轨迹（外参/位姿序列）；模型沿请求路径一致地渲染世界。
+    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`pending`.
+    Runner parity notes recorded in the catalog:
+    - Camera-only 4D-control rendering and diffusion stages are wired in-tree.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=待验证（pending）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - Camera-only 4D-control rendering and diffusion stages are wired in-tree.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - wrbench
+  - camerabench

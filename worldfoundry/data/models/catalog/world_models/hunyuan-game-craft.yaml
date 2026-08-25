@@ -34,3 +34,57 @@ runner_parity:
   - Per-run visual QA and artifact checks are tracked outside the catalog.
 catalog_category: world_models
 catalog_scope: world-model/interactive starred models
+docs:
+  overview: |
+    Hunyuan GameCraft (Tencent-Hunyuan/Hunyuan-GameCraft-1.0; Hugging Face `tencent/Hunyuan-GameCraft-1.0`) is Tencent's interactive game video generation model on the HunyuanVideo backbone: keyboard-style directional actions are unified into a continuous camera representation, and history-conditioned autoregressive extension keeps long interactive sequences consistent. WorldFoundry registers the in-tree pipeline with official inference using the HYGameCraft conda profile and torchrun dispatch; the official village image-conditioned demo is runner-verified with actions forward/backward/right/left, 129 frames, 704x1216, 50 steps, CFG 2.0, over 8 torchrun ranks.
+
+    Within the WorldFoundry model catalog this entry is tracked as `hunyuan-game-craft` in the `world_models` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/Tencent-Hunyuan/Hunyuan-GameCraft-1.0; Hugging Face `tencent/Hunyuan-GameCraft-1.0`.
+  overview_zh: |
+    Hunyuan GameCraft（Tencent-Hunyuan/Hunyuan-GameCraft-1.0；Hugging Face `tencent/Hunyuan-GameCraft-1.0`）是腾讯基于 HunyuanVideo 骨干的交互式游戏视频生成模型：把键盘式方向动作统一为连续相机表征，用历史条件自回归延展保持长交互序列一致。WorldFoundry 注册树内管线，官方推理使用 HYGameCraft conda 配置与 torchrun 分发；官方 village 图像条件演示已通过 runner 验证：动作 forward/backward/right/left、129 帧、704x1216、50 步、CFG 2.0、8 个 torchrun rank。
+
+    在 WorldFoundry 模型目录中，该条目以 `hunyuan-game-craft` 收录于 `world_models` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/Tencent-Hunyuan/Hunyuan-GameCraft-1.0；Hugging Face `tencent/Hunyuan-GameCraft-1.0`。
+  architecture: |
+    The published architecture extends the HunyuanVideo (13B-class) video diffusion transformer with an action encoder that maps discrete keyboard/mouse game inputs into a shared continuous camera-motion space, plus hybrid history conditioning for autoregressive video extension; a distilled variant accelerates inference for interactive rates. The in-tree route records the official multi-GPU (8-rank) execution profile.
+  architecture_zh: |
+    公开架构在 HunyuanVideo（13B 级）视频扩散 transformer 上扩展动作编码器，把离散键鼠游戏输入映射到共享的连续相机运动空间，并用混合历史条件做自回归视频延展；蒸馏变体加速推理以达到交互速率。树内路线记录了官方多 GPU（8 rank）执行配置。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `hunyuan-game-craft`.
+    Catalog integration status: `runtime_ported`.
+    Integration notes recorded in the catalog:
+    - In-tree Hunyuan GameCraft pipeline is registered; official inference uses the HYGameCraft conda profile and torchrun dispatch.
+
+    Embodiment contract:
+    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
+    - Sensors: an initial image or context frames plus streaming interaction inputs.
+    - Action space: keyboard/mouse-style or discrete navigation actions (plus optional camera controls) drive frame-by-frame world evolution.
+    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `hunyuan-game-craft`。
+    目录集成状态：运行时已移植（runtime_ported）。
+    目录中记录的集成备注（保留原文）：
+    - In-tree Hunyuan GameCraft pipeline is registered; official inference uses the HYGameCraft conda profile and torchrun dispatch.
+
+    具身接口（embodiment contract）：
+    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
+    - 传感器：初始图像或上下文帧，加流式交互输入。
+    - 动作空间：键鼠式或离散导航动作（可选相机控制）驱动逐帧世界演化。
+    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`verified`.
+    Runner parity notes recorded in the catalog:
+    - The official village image-conditioned interactive demo is represented with actions forward, backward, right, and left, 129 frames, 704x1216 generation, 50 inference steps, CFG 2.0, and torchrun over 8 ranks.
+    - Per-run visual QA and artifact checks are tracked outside the catalog.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=已验证（verified）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - The official village image-conditioned interactive demo is represented with actions forward, backward, right, and left, 129 frames, 704x1216 generation, 50 inference steps, CFG 2.0, and torchrun over 8 ranks.
+    - Per-run visual QA and artifact checks are tracked outside the catalog.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - iworld-bench
+  - world-in-world

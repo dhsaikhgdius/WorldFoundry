@@ -30,3 +30,53 @@ catalog_scope: World-model catalog entries. Integrated entries expose in-tree Wo
   runtimes; blocked entries retain upstream provenance without runnable backends.
 runner_target: worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner
 pipeline_binding: wildworld
+docs:
+  overview: |
+    WildWorld (ShandaAI/WildWorld) is tracked in the world_models catalog as a benchmark/dataset entry rather than a generative model: recorded modalities are world-model-benchmark, dataset, and evaluation. WorldFoundry registers the official source route with benchmark/dataset assets runtime-gated; the entry preserves upstream provenance so the evaluation-side tooling can resolve it, while real execution emits a runtime plan until assets are staged.
+
+    Within the WorldFoundry model catalog this entry is tracked as `wildworld` in the `world_models` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/ShandaAI/WildWorld.
+  overview_zh: |
+    WildWorld（ShandaAI/WildWorld）在 world_models 目录中作为基准/数据集条目而非生成模型跟踪：记录模态为 world-model-benchmark、dataset 与 evaluation。WorldFoundry 注册官方源码路线，基准/数据集资产受运行时门控；条目保留上游来源以便评测侧工具解析，在资产暂存之前真实执行输出运行时计划。
+
+    在 WorldFoundry 模型目录中，该条目以 `wildworld` 收录于 `world_models` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/ShandaAI/WildWorld。
+  architecture: |
+    This entry has no model architecture of its own: it tracks a world-model benchmark/dataset resource. The composition of the dataset and its evaluation protocol are not recorded in this catalog file.
+  architecture_zh: |
+    该条目本身没有模型架构：它跟踪的是世界模型基准/数据集资源（记录模态为 world-model-benchmark、dataset 与 evaluation）。数据集构成与评测协议本目录文件未记录。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `wildworld` and runtime profile `runtime-profile:wildworld`.
+    Catalog integration status: `runtime_ported`.
+    Integration notes recorded in the catalog:
+    - WildWorld official source route is registered; benchmark/dataset assets are runtime-gated.
+
+    Embodiment contract:
+    - Simulator: not applicable: this is a benchmark/dataset entry, not a simulator or generator.
+    - Sensors: not applicable: no runtime sensor inputs; the entry provides evaluation data/assets.
+    - Action space: not applicable: no action interface.
+    - Dedicated environment: the benchmark/dataset assets themselves are the gated resources for this entry.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `wildworld`，运行时配置为 `runtime-profile:wildworld`。
+    目录集成状态：运行时已移植（runtime_ported）。
+    目录中记录的集成备注（保留原文）：
+    - WildWorld official source route is registered; benchmark/dataset assets are runtime-gated.
+
+    具身接口（embodiment contract）：
+    - 仿真器：不适用：这是基准/数据集条目，不是模拟器或生成器。
+    - 传感器：不适用：无运行时传感器输入；条目提供评测数据/资产。
+    - 动作空间：不适用：无动作接口。
+    - 是否专用环境：基准/数据集资产本身即为该条目受门控的资源。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`implemented_checkpoint_pending`.
+    Runner parity notes recorded in the catalog:
+    - resolve_model_zoo_config and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=已实现、待权重就绪（implemented_checkpoint_pending）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - resolve_model_zoo_config and pipeline import are expected to pass; real generation emits a runtime plan until required checkpoints/assets are staged.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks: []

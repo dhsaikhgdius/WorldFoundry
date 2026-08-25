@@ -16,3 +16,55 @@ integration:
   - This exact route is the official trajectory-render stage over a pre-materialized HY-World scene; it does not claim full five-stage world generation.
 runner_parity: {status: pending, notes: [Dedicated camera.json point-cloud rendering route is wired.]}
 catalog_category: world_models
+docs:
+  overview: |
+    HY-World 2.0 Trajectory Renderer (catalog id hyworld-worldgen) is not a standalone generative model: it is the official trajectory-render stage of the HY-World 2.0 pipeline, vendored at revision 7f668e67c74338d50684e57be46a438459b6bbe1, which renders camera-controlled video from a pre-materialized HY-World scene's point cloud. It explicitly does not claim full five-stage world generation. The dedicated camera.json point-cloud rendering route is wired; runner validation is pending.
+
+    Within the WorldFoundry model catalog this entry is tracked as `hyworld-worldgen` in the `world_models` category.
+    The repository does not record an official source link for this entry.
+  overview_zh: |
+    HY-World 2.0 轨迹渲染器（目录 id hyworld-worldgen）不是独立生成模型：它是 HY-World 2.0 管线的官方轨迹渲染阶段，以 revision 7f668e67c74338d50684e57be46a438459b6bbe1 内嵌，从预先物化的 HY-World 场景点云渲染相机控制视频。它明确不声称完整五阶段世界生成。专用 camera.json 点云渲染路线已接通；runner 验证待完成。
+
+    在 WorldFoundry 模型目录中，该条目以 `hyworld-worldgen` 收录于 `world_models` 分类。
+    仓库未记录该条目的官方来源链接。
+  architecture: |
+    This is a rendering stage, not a neural generator: given a materialized HY-World scene (point cloud) and a camera.json trajectory, it produces the camera-following video used by later pipeline stages. Recorded modalities are camera-controlled-video, world-generation-stage, and point-cloud-rendering.
+  architecture_zh: |
+    这是渲染阶段而非神经生成器：给定已物化的 HY-World 场景（点云）与 camera.json 轨迹，产出后续管线阶段使用的相机跟随视频。记录模态为 camera-controlled-video、world-generation-stage 与 point-cloud-rendering。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `hyworld-worldgen` and runtime profile `runtime-profile:hyworld-worldgen`.
+    Catalog integration status: `integrated`.
+    Integration notes recorded in the catalog:
+    - Official source is vendored at revision 7f668e67c74338d50684e57be46a438459b6bbe1.
+    - This exact route is the official trajectory-render stage over a pre-materialized HY-World scene; it does not claim full five-stage world generation.
+
+    Embodiment contract:
+    - Simulator: a deterministic point-cloud rendering stage over a pre-materialized HY-World scene; no learned world dynamics.
+    - Sensors: a materialized scene point cloud plus a camera.json trajectory.
+    - Action space: the camera trajectory fully determines the output; there is no other action channel.
+    - Dedicated environment: dedicated to the HY-World 2.0 world-generation pipeline as its trajectory-render stage.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `hyworld-worldgen`，运行时配置为 `runtime-profile:hyworld-worldgen`。
+    目录集成状态：已集成（integrated）。
+    目录中记录的集成备注（保留原文）：
+    - Official source is vendored at revision 7f668e67c74338d50684e57be46a438459b6bbe1.
+    - This exact route is the official trajectory-render stage over a pre-materialized HY-World scene; it does not claim full five-stage world generation.
+
+    具身接口（embodiment contract）：
+    - 仿真器：对预先物化 HY-World 场景的确定性点云渲染阶段；无学习的世界动力学。
+    - 传感器：已物化的场景点云加 camera.json 轨迹。
+    - 动作空间：相机轨迹完全决定输出；无其他动作通道。
+    - 是否专用环境：专用于 HY-World 2.0 世界生成管线，作为其轨迹渲染阶段。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`pending`.
+    Runner parity notes recorded in the catalog:
+    - Dedicated camera.json point-cloud rendering route is wired.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=待验证（pending）。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - Dedicated camera.json point-cloud rendering route is wired.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks: []

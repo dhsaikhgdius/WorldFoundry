@@ -30,3 +30,55 @@ runner_parity:
 catalog_category: world_models
 catalog_scope: World-model catalog entries. Integrated entries expose in-tree WorldFoundry runtimes; blocked entries retain
   upstream provenance without runnable backends.
+docs:
+  overview: |
+    SANA-WM (NVlabs/Sana) is a camera-controlled world model route built on NVIDIA's SANA efficient generation stack: recorded modalities are world-model, camera-controlled-video, and controllable-world-generation. WorldFoundry registers an in-tree resident pipeline with configurable multi-GPU component placement, and the quality profile keeps the bidirectional stage and the LTX-2 refiner enabled. The repository also ships a dedicated `sana-wm-bench` benchmark id in the evaluation catalog for this route.
+
+    Within the WorldFoundry model catalog this entry is tracked as `sana-wm` in the `world_models` category.
+    Official sources recorded in this catalog file: official GitHub repository https://github.com/NVlabs/Sana.
+  overview_zh: |
+    SANA-WM（NVlabs/Sana）是基于 NVIDIA SANA 高效生成栈的相机控制世界模型路线：记录模态为 world-model、camera-controlled-video 与 controllable-world-generation。WorldFoundry 注册树内常驻管线，支持可配置的多 GPU 组件放置；质量配置保持双向阶段与 LTX-2 精炼器启用。仓库评测目录还为该路线提供专用的 `sana-wm-bench` 基准 id。
+
+    在 WorldFoundry 模型目录中，该条目以 `sana-wm` 收录于 `world_models` 分类。
+    本目录文件记录的官方来源：官方 GitHub 仓库 https://github.com/NVlabs/Sana。
+  architecture: |
+    The route combines the SANA lineage (linear-attention diffusion transformer with a deep-compression autoencoder, known for efficient high-resolution generation) with a world-model pipeline that includes a bidirectional generation stage and an LTX-2 refiner stage. Beyond this pipeline composition, the repository does not record architecture details (parameter count, camera-conditioning mechanism) for this entry.
+  architecture_zh: |
+    该路线将 SANA 谱系（线性注意力扩散 transformer 加深度压缩自编码器，以高效高分辨率生成著称）与包含双向生成阶段和 LTX-2 精炼阶段的世界模型管线组合。除该管线组成外，仓库未记录该条目的架构细节（参数量、相机条件机制）。
+  usage_notes: |
+    WorldFoundry wires this model through the runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` with pipeline binding `sana-wm` and runtime profile `runtime-profile:sana-wm`.
+    Catalog integration status: `runnable`.
+    Integration notes recorded in the catalog:
+    - WorldFoundry registers an in-tree resident pipeline with configurable multi-GPU component placement.
+
+    Embodiment contract:
+    - Simulator: the model itself is the learned world simulator: it generates future world states as video, so no external physics or game engine is required at inference time.
+    - Sensors: an initial image (and optionally a text prompt) plus a camera trajectory / pose sequence as the control signal.
+    - Action space: the action channel is the camera trajectory (extrinsics/pose sequence); the model renders the world consistently along the requested path.
+    - Dedicated environment: not tied to a dedicated external environment; outputs are generated video artifacts consumed by downstream evaluation.
+  usage_notes_zh: |
+    WorldFoundry 通过 runner target `worldfoundry.evaluation.models.runners.pipeline:WorldFoundryPipelineRunner` 接入该模型，pipeline 绑定为 `sana-wm`，运行时配置为 `runtime-profile:sana-wm`。
+    目录集成状态：`runnable`。
+    目录中记录的集成备注（保留原文）：
+    - WorldFoundry registers an in-tree resident pipeline with configurable multi-GPU component placement.
+
+    具身接口（embodiment contract）：
+    - 仿真器：模型本身就是学习得到的世界模拟器：以视频形式生成未来世界状态，推理时不需要外部物理引擎或游戏引擎。
+    - 传感器：初始图像（可选文本提示）加相机轨迹/位姿序列作为控制信号。
+    - 动作空间：动作通道为相机轨迹（外参/位姿序列）；模型沿请求路径一致地渲染世界。
+    - 是否专用环境：不绑定专用外部环境；输出为供下游评测使用的生成视频 artifact。
+  limitations: |
+    Parity fields recorded in this catalog file: runner_parity=`implemented`.
+    Runner parity notes recorded in the catalog:
+    - The quality profile keeps the bidirectional stage and LTX-2 refiner enabled.
+
+    This documentation only restates metadata already recorded in the catalog; it claims no GPU execution evidence beyond the parity fields above.
+  limitations_zh: |
+    本目录文件记录的一致性字段：runner_parity=`implemented`。
+    目录中记录的 runner 一致性备注（保留原文）：
+    - The quality profile keeps the bidirectional stage and LTX-2 refiner enabled.
+
+    本文档仅整理目录内已记录的元数据，不声称任何超出上述 parity 字段之外的 GPU 实测证据。
+  recommended_benchmarks:
+  - sana-wm-bench
+  - camerabench
