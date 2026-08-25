@@ -151,6 +151,7 @@ ALL CONSISTENCY CHECKS PASSED (registries aligned)
 改动：
 
 - ET-17（`catalog/schema.py`）：`_normalize_source_status` / `_normalize_integration_status` 遇到不认识的非空状态串降级前调用 `_warn_unrecognized_status`（模块级去重集合，每个 `(kind, value)` 只警告一次）。降级取值本身不变（`unknown`/`planned`），纯可观测性增强。运行既有测试时已观察到真实 manifest 中 `official_runtime_start_ready` 等未收录状态触发该 warning（证明其价值）。
+- ET-17 后续（分支 `cursor/eval-catalog-test-contracts-2f62`）：warning 暴露的词表漂移已收敛——catalog 数据中有意的状态值已注册进两侧 schema（models 侧 integration/demo-parity 别名族；tasks 侧 open_source/maturity 别名族 + manifest 顶层 runtime-readiness `status:` 回落值登记为 `unknown` 无源码信号）。catalog 全量加载（models 283 条、benchmarks video 49 + embodied 23 条）已无 WARNING；`test_eval_tasks_fix_catalog_hygiene.py` 改用合成未知值继续守护 unknown 路径（值 `confirmed_official_code_in_github` 现为已注册 open_source 别名）。
 - ET-18（`catalog/benchmark_catalog.py`）：新增 `_entry_benchmark_id()` 同时认 `benchmark_id:` 与 `id:` 两种键，`_catalog_benchmark_path_index` 与 `benchmark_catalog_ids` 统一走它——修复"只写 `benchmark_id:` 的 shard 在 ids 列表里消失"的不一致。
 - ET-19（`catalog/benchmark_catalog.py`）：shard 解析的 `except Exception` 收窄为 `except (OSError, TypeError, ValueError, yaml.YAMLError)` 并对每个被跳过的坏 shard 记 `warning`（含路径与异常），坏 YAML 不再无声消失。
 - ET-19 附注（lru_cache 缓存陈旧/共享可变实例）：报告建议"缓存键纳入 mtime **或**提供显式失效接口"——两处缓存族均已有显式失效接口（`benchmark_catalog.clear_benchmark_catalog_cache()`、`zoo_registry.clear_benchmark_zoo_registry_cache()`），满足其一，**无需改动**。
@@ -212,7 +213,7 @@ docs 状态表（`docs/fumadocs/lib/benchmark-catalog-status.json` 缺 3 个 id�
 3. **静态验证**：全部改动文件 `py_compile` 通过；关键模块 `PYTHONPATH=. python -c "import ..."` 导入通过（official_runner、runner_registry、workspace_registry、metrics.registry、benchmark_catalog、schema、各 runtime wrapper）。
 4. **一致性脚本**：`/tmp/wf_registry_consistency_check.py` 全绿（三注册表 50=50=50，catalog/task/profile 72=72=72，vbench id 规范形统一，`validate_workspace_registry` 无 issue）。
 5. **既有测试回归**（触及模块的定向回归）：`test_benchmark_registry.py` / `test_metric_registry.py` / `test_catalog_core.py` / `test_benchmark_zoo_schema.py` / `test_phygenbench_official_runner.py` 合跑 35 passed / 10 failed——10 个失败**全部为既有漂移**，与本次改动无关，证据如下：
-   - `test_benchmark_zoo_schema.py` 8 个失败：断言 `from_dict` 合成 `contract_validation_command`、顶层证据位为 true、robotwin run_command 指向旧脚本等——涉及字段均非本次触碰（本次 schema.py 改动仅 +22 行 warning）；修复前同一会话已记录同批失败。
+   - `test_benchmark_zoo_schema.py` 8 个失败：断言 `from_dict` 合成 `contract_validation_command`、顶层证据位为 true、robotwin run_command 指向旧脚本等——涉及字段均非本次触碰（本次 schema.py 改动仅 +22 行 warning）；修复前同一会话已记录同批失败。**后续已在分支 `cursor/eval-catalog-test-contracts-2f62` 按现行 `BenchmarkZooEntry`/catalog YAML 修订，8 个用例全部转绿。**
    - `test_benchmark_registry.py::test_benchmark_zoo_exports_catalog_v2_specs`：期望 `schema_version == "worldfoundry-catalog-benchmark"`，当前值 `"worldfoundry-benchmark"`——该常量不在本次任何改动文件中（并行改动所致）。
    - `test_phygenbench_official_runner.py::test_phygenbench_official_run_with_mock_backend_writes_scorecard`：期望 `evaluation.kind == "phygenbench_official_in_tree"`，该字符串在 `worldfoundry/` 全库 rg 零命中（只存在于测试文件），runner 从未产出过此值；本次对 phygenbench 仅加 `timeout=default_benchmark_timeout()`（env 未设时 = None，与旧行为逐字节一致）。
    - `test_benchmark_zoo_scripts.py::test_videoscore_runner_patches_transformers_dynamic_cache_api`：import 不存在的 `framework.script_paths` 模块失败（测试侧引用未落地的模块，属测试修复 agent 范围）；本次对 `patch_transformers_dynamic_cache_api` 的返回值变更与该测试的"调用后忽略返回值"形态兼容。
