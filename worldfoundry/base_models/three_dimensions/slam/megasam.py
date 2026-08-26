@@ -15,6 +15,7 @@ from pathlib import Path
 import numpy as np
 
 from worldfoundry.base_models.capabilities import BASE_MODEL_CAPABILITIES
+from worldfoundry.core.process import run_logged_subprocess
 
 RUNTIME_ROOT = Path(__file__).resolve().parent / "mega_sam_runtime"
 
@@ -144,49 +145,74 @@ def run_single(
         n_frames = extract_frames(video_path, frames_dir, stride)
         print(f"[TIME] extract: {time.time() - t0:.1f}s ({n_frames} frames)")
 
-        def run_cmd(cmd: list[str]) -> None:
+        def run_cmd(cmd: list[str], *, step: str) -> None:
             if has_taskset and cpu_list:
                 cmd = ["taskset", "-c", cpu_list] + cmd
-            subprocess.run(cmd, cwd=str(runtime), env=env, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+            stdout_path = tmp / f"{step}.stdout.log"
+            stderr_path = tmp / f"{step}.stderr.log"
+            completed = run_logged_subprocess(
+                cmd,
+                stdout_path=stdout_path,
+                stderr_path=stderr_path,
+                cwd=str(runtime),
+                env=env,
+            )
+            if completed.returncode != 0:
+                err_tail = ""
+                if stderr_path.is_file():
+                    err_tail = stderr_path.read_text(encoding="utf-8", errors="replace")[-500:]
+                raise RuntimeError(
+                    f"MegaSAM step '{step}' failed with code {completed.returncode}; "
+                    f"see {stdout_path} and {stderr_path}\n{err_tail}"
+                )
 
-        run_cmd([
-            sys.executable,
-            "Depth-Anything/run_videos.py",
-            "--encoder",
-            "vitl",
-            "--load-from",
-            str(depth_anything_checkpoint_path()),
-            "--img-path",
-            str(frames_dir),
-            "--outdir",
-            str(mono_dir),
-            "--localhub",
-        ])
-        run_cmd([
-            sys.executable,
-            "UniDepth/scripts/demo_mega-sam.py",
-            "--scene-name",
-            scene_name,
-            "--img-path",
-            str(frames_dir),
-            "--outdir",
-            str(metric_root),
-        ])
-        run_cmd([
-            sys.executable,
-            "camera_tracking_scripts/test_demo.py",
-            "--datapath",
-            str(frames_dir),
-            "--weights",
-            str(checkpoint_path()),
-            "--scene_name",
-            scene_name,
-            "--mono_depth_path",
-            str(mono_root),
-            "--metric_depth_path",
-            str(metric_root),
-            "--disable_vis",
-        ])
+        run_cmd(
+            [
+                sys.executable,
+                "Depth-Anything/run_videos.py",
+                "--encoder",
+                "vitl",
+                "--load-from",
+                str(depth_anything_checkpoint_path()),
+                "--img-path",
+                str(frames_dir),
+                "--outdir",
+                str(mono_dir),
+                "--localhub",
+            ],
+            step="depth_anything",
+        )
+        run_cmd(
+            [
+                sys.executable,
+                "UniDepth/scripts/demo_mega-sam.py",
+                "--scene-name",
+                scene_name,
+                "--img-path",
+                str(frames_dir),
+                "--outdir",
+                str(metric_root),
+            ],
+            step="unidepth",
+        )
+        run_cmd(
+            [
+                sys.executable,
+                "camera_tracking_scripts/test_demo.py",
+                "--datapath",
+                str(frames_dir),
+                "--weights",
+                str(checkpoint_path()),
+                "--scene_name",
+                scene_name,
+                "--mono_depth_path",
+                str(mono_root),
+                "--metric_depth_path",
+                str(metric_root),
+                "--disable_vis",
+            ],
+            step="camera_tracking",
+        )
 
         npz_path = runtime / "outputs" / f"{scene_name}_droid.npz"
         if not npz_path.exists():
