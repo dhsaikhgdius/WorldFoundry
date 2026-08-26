@@ -17,6 +17,7 @@
 
 import base64
 import hashlib
+import json
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import urlparse
@@ -31,6 +32,10 @@ from worldfoundry.core.io.disk import (
     raise_if_disk_space_error,
 )
 from worldfoundry.core.io.s3_filesystem import S3FileSystem
+
+# Sidecar stamp written after a successful size/checksum validation so warm
+# syncs can skip HEAD + SHA256 when the local bytes are unchanged (CA-05).
+_S3_SYNC_STAMP_SUFFIX = ".wf-s3-stamp.json"
 
 
 class ValidationError(RuntimeError):
@@ -59,6 +64,63 @@ def _compute_file_sha256_b64(file_path: str) -> str:
     return base64.b64encode(sha256.digest()).decode("ascii")
 
 
+def _stamp_path_for(local_path: str) -> str:
+    return f"{local_path}{_S3_SYNC_STAMP_SUFFIX}"
+
+
+def _local_identity(local_path: str) -> dict[str, int]:
+    stat = os.stat(local_path)
+    return {
+        "local_size": int(stat.st_size),
+        "local_mtime_ns": int(getattr(stat, "st_mtime_ns", int(stat.st_mtime * 1e9))),
+    }
+
+
+def _read_validation_stamp(local_path: str) -> dict[str, object] | None:
+    stamp_path = _stamp_path_for(local_path)
+    if not os.path.isfile(stamp_path):
+        return None
+    try:
+        with open(stamp_path, encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except (OSError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _write_validation_stamp(
+    local_path: str,
+    *,
+    content_length: int,
+    checksum_sha256: str | None,
+    etag: str | None,
+) -> None:
+    identity = _local_identity(local_path)
+    payload = {
+        **identity,
+        "content_length": int(content_length),
+        "checksum_sha256": checksum_sha256,
+        "etag": etag,
+    }
+    stamp_path = _stamp_path_for(local_path)
+    tmp_path = f"{stamp_path}.{os.getpid()}.tmp"
+    with open(tmp_path, "w", encoding="utf-8") as handle:
+        json.dump(payload, handle, sort_keys=True)
+    os.replace(tmp_path, stamp_path)
+
+
+def _validation_stamp_matches(local_path: str, stamp: dict[str, object]) -> bool:
+    identity = _local_identity(local_path)
+    try:
+        return (
+            int(stamp.get("local_size", -1)) == identity["local_size"]
+            and int(stamp.get("local_mtime_ns", -1)) == identity["local_mtime_ns"]
+            and int(stamp.get("content_length", -1)) == identity["local_size"]
+        )
+    except (TypeError, ValueError):
+        return False
+
+
 def _get_world_rank_robust() -> int:
     """Return the current torch-distributed rank, or 0 when distributed is not initialized."""
     if dist.is_available() and dist.is_initialized():
@@ -85,6 +147,9 @@ def sync_s3_dir_to_local(
 
     Only rank 0 downloads; other ranks block on a barrier so the cache is
     fully populated before they read it. Local paths are a no-op.
+
+    Warm syncs reuse a sidecar validation stamp (size/mtime + remote length /
+    checksum) so unchanged local files skip HEAD + SHA256 (CA-05).
 
     Args:
         s3_dir: ``s3://`` prefix to mirror, or a local path (no-op).
@@ -130,6 +195,9 @@ def sync_s3_dir_to_local(
         """Validate local file using remote size and optional FULL_OBJECT SHA256 checksum."""
         if not verify_checksum:
             return
+        stamp = _read_validation_stamp(local_path)
+        if stamp is not None and _validation_stamp_matches(local_path, stamp):
+            return
         assert s3_fs is not None
         metadata = s3_fs.head_object(s3_uri=f"s3://{bucket}/{key}", checksum_mode=True)
 
@@ -146,6 +214,12 @@ def sync_s3_dir_to_local(
                 raise ValidationError(
                     f"SHA256 checksum mismatch for {local_path}, expected {remote_sha256}, got {local_sha256}"
                 )
+        _write_validation_stamp(
+            local_path,
+            content_length=remote_size,
+            checksum_sha256=remote_sha256 if checksum_type == "FULL_OBJECT" else None,
+            etag=metadata.get("ETag"),
+        )
 
     def _download_one(obj_suffix: str, retries_left: int = 1) -> None:
         """Download one object and validate. Retry once on ValidationError."""
@@ -173,6 +247,9 @@ def sync_s3_dir_to_local(
         try:
             _validate_local_file(local_path=dest_path, key=key)
         except ValidationError as exc:
+            stamp_path = _stamp_path_for(dest_path)
+            if os.path.exists(stamp_path):
+                os.remove(stamp_path)
             if retries_left > 0:
                 if os.path.exists(dest_path):
                     os.remove(dest_path)
