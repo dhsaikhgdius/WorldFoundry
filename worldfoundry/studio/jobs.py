@@ -359,6 +359,8 @@ class StudioJobStore:
                     del job.logs[: len(job.logs) - self.max_log_lines]
                 job.completed_at = job.completed_at or utc_now_iso()
                 job._completed_monotonic = monotonic()
+                if self.max_jobs is not None:
+                    self._prune_unlocked(max_jobs=self.max_jobs)
                 self._persist()
 
 
