@@ -23,6 +23,7 @@ class _FakeProcess:
 def _worker(key: tuple[str, ...], *, last_used_at: float, in_use: int = 0) -> conda_dispatch._ResidentWorker:
     return conda_dispatch._ResidentWorker(
         key=key,
+        base_key=key,
         model_id=key[0],
         process=_FakeProcess(),  # type: ignore[arg-type]
         lock=threading.RLock(),
@@ -34,12 +35,13 @@ def _worker(key: tuple[str, ...], *, last_used_at: float, in_use: int = 0) -> co
     )
 
 
-def _context(key: tuple[str, ...]) -> conda_dispatch._ResidentRunContext:
+def _context(key: tuple[str, ...], *, automatic_cuda_device_count: int = 0) -> conda_dispatch._ResidentRunContext:
     return conda_dispatch._ResidentRunContext(
         child_run_kwargs={},
         payload_run_kwargs={},
         env={},
         key=key,
+        automatic_cuda_device_count=automatic_cuda_device_count,
     )
 
 
@@ -421,3 +423,50 @@ def test_start_log_callback_runs_outside_lifecycle_lock_and_cannot_leak_lease(mo
         )
 
     assert started.in_use == 0
+
+
+def test_gpu_lease_acquire_runs_outside_lifecycle_lock(monkeypatch, tmp_path):
+    key = ("model",)
+    started = _worker(key, last_used_at=10.0)
+    acquire_saw_lock_free = {"ok": False}
+
+    class _FakeLease:
+        def __init__(self) -> None:
+            self.visible_devices = "0"
+            self.tokens = ("0",)
+
+        def release(self) -> None:
+            return None
+
+    class _FakePool:
+        def acquire(self, count: int = 1, *, cancel_requested=None, poll_interval: float = 0.1):
+            del count, cancel_requested, poll_interval
+            acquire_saw_lock_free["ok"] = conda_dispatch._RESIDENT_WORKERS_LIFECYCLE_LOCK.acquire(
+                blocking=False
+            )
+            if acquire_saw_lock_free["ok"]:
+                conda_dispatch._RESIDENT_WORKERS_LIFECYCLE_LOCK.release()
+            return _FakeLease()
+
+    monkeypatch.setenv(conda_dispatch.RESIDENT_WORKER_IDLE_TTL_ENV, "0")
+    monkeypatch.setattr(conda_dispatch, "_automatic_gpu_pool", lambda: _FakePool())
+    monkeypatch.setattr(
+        conda_dispatch,
+        "_retire_idle_resident_workers_for_new_resident_key",
+        lambda *args, **kwargs: 0,
+    )
+    monkeypatch.setattr(conda_dispatch, "_start_resident_worker", lambda **kwargs: started)
+    monkeypatch.setattr(conda_dispatch, "_ensure_resident_worker_reaper", lambda: None)
+
+    context = _context(key, automatic_cuda_device_count=1)
+
+    result = conda_dispatch._resident_worker_for(
+        model_id="model",
+        spec=RuntimeCondaEnvSpec(model_id="model", env_name="test", env_root=tmp_path),
+        workspace_root=str(tmp_path),
+        context=context,
+        log_callback=None,
+    )
+
+    assert result is started
+    assert acquire_saw_lock_free["ok"] is True

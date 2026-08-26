@@ -1729,6 +1729,7 @@ def _resident_worker_for(
     workspace_root: str,
     context: _ResidentRunContext,
     log_callback: LogCallback | None,
+    cancel_requested: CancelCallback | None = None,
 ) -> _ResidentWorker:
     retired_workers: list[_ResidentWorker] = []
     worker: _ResidentWorker | None = None
@@ -1740,6 +1741,10 @@ def _resident_worker_for(
             base_key,
             context.automatic_cuda_device_count,
         )
+
+    # Phase 1: registry bookkeeping + optional reuse under the lifecycle lock.
+    # Do NOT wait on GPU leases here — acquire can block for a long time and would
+    # stall every other resident worker start/stop.
     with _RESIDENT_WORKERS_LIFECYCLE_LOCK:
         try:
             max_workers = _resident_worker_max_workers()
@@ -1807,34 +1812,69 @@ def _resident_worker_for(
             for retired_worker in retired_workers:
                 _shutdown_resident_worker(retired_worker, force=False)
 
-        if worker is None:
-            if context.automatic_cuda_device_count:
-                device_lease = _automatic_gpu_pool().acquire(context.automatic_cuda_device_count)
-                allocated_env = dict(context.env)
-                allocated_env["CUDA_VISIBLE_DEVICES"] = device_lease.visible_devices
-                context = replace(
-                    context,
-                    env=allocated_env,
-                    key=(*base_key, f"auto-cuda:{device_lease.visible_devices}"),
-                )
-            try:
-                worker = _start_resident_worker(
-                    model_id=model_id,
-                    spec=spec,
-                    workspace_root=workspace_root,
-                    context=context,
-                    log_callback=log_callback,
-                    base_key=base_key,
-                    device_lease=device_lease,
-                )
-            except Exception:
-                if device_lease is not None:
-                    device_lease.release()
-                raise
-            started_worker = True
-            with _RESIDENT_WORKERS_LOCK:
-                worker.in_use = 1
-                _RESIDENT_WORKERS[worker.key] = worker
+    # Phase 2: GPU lease wait happens outside the lifecycle lock.
+    if worker is None and context.automatic_cuda_device_count:
+        device_lease = _automatic_gpu_pool().acquire(
+            context.automatic_cuda_device_count,
+            cancel_requested=cancel_requested,
+        )
+        allocated_env = dict(context.env)
+        allocated_env["CUDA_VISIBLE_DEVICES"] = device_lease.visible_devices
+        context = replace(
+            context,
+            env=allocated_env,
+            key=(*base_key, f"auto-cuda:{device_lease.visible_devices}"),
+        )
+
+    # Phase 3: start/register the new worker under the lifecycle lock again.
+    if worker is None:
+        try:
+            with _RESIDENT_WORKERS_LIFECYCLE_LOCK:
+                max_workers = _resident_worker_max_workers()
+                with _RESIDENT_WORKERS_LOCK:
+                    existing = next(
+                        (
+                            candidate
+                            for candidate in _RESIDENT_WORKERS.values()
+                            if candidate.base_key == base_key and candidate.process.poll() is None
+                        ),
+                        None,
+                    )
+                    if existing is not None:
+                        existing.in_use += 1
+                        worker = existing
+                    else:
+                        while len(_RESIDENT_WORKERS) >= max_workers:
+                            idle_workers = [
+                                candidate for candidate in _RESIDENT_WORKERS.values() if candidate.in_use == 0
+                            ]
+                            if not idle_workers:
+                                raise _ResidentWorkerUnavailable(
+                                    f"all {max_workers} resident worker slots are busy"
+                                )
+                            victim = min(idle_workers, key=lambda candidate: candidate.last_used_at)
+                            _RESIDENT_WORKERS.pop(victim.key, None)
+                            _shutdown_resident_worker(victim, force=False)
+
+                if worker is None:
+                    worker = _start_resident_worker(
+                        model_id=model_id,
+                        spec=spec,
+                        workspace_root=workspace_root,
+                        context=context,
+                        log_callback=log_callback,
+                        base_key=base_key,
+                        device_lease=device_lease,
+                    )
+                    started_worker = True
+                    with _RESIDENT_WORKERS_LOCK:
+                        worker.in_use = 1
+                        _RESIDENT_WORKERS[worker.key] = worker
+                    # Ownership of the lease transferred to the worker.
+                    device_lease = None
+        finally:
+            if device_lease is not None:
+                device_lease.release()
 
     if worker is None:  # pragma: no cover - all paths above assign or raise
         raise _ResidentWorkerUnavailable("resident worker allocation failed")
@@ -2104,6 +2144,7 @@ def _run_manager_payload_in_resident_conda(
         workspace_root=workspace_root,
         context=context,
         log_callback=log_callback,
+        cancel_requested=cancel_requested,
     )
     lock_acquired = False
     try:
