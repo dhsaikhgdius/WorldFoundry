@@ -27,6 +27,10 @@ from worldfoundry.core.io.paths import (
     local_data_root_path,
     local_model_root_path,
 )
+from worldfoundry.core.secret_patterns import (
+    SENSITIVE_ENV_SUBSTRING_MARKERS as _SENSITIVE_MARKERS,
+    is_sensitive_env_name,
+)
 
 EnvMapping = TypingMapping[str, str]
 
@@ -56,7 +60,6 @@ RUNTIME_ENV_KEYS = (
     "CONDA_DEFAULT_ENV",
     "VIRTUAL_ENV",
 )
-_SENSITIVE_MARKERS = ("TOKEN", "API_KEY", "SECRET", "PASSWORD", "CREDENTIAL")
 
 # ── Sourceable environment templates ─────────────────────────────────────────
 
@@ -71,7 +74,7 @@ SOURCEABLE_ENV_BASE_LINES = (
     'export WORLDFOUNDRY_MODEL_SOURCE_DIR="${WORLDFOUNDRY_MODEL_SOURCE_DIR:-${WORLDFOUNDRY_CACHE_DIR}/official_runtime_repos}"',
     'export WORLDFOUNDRY_LOCAL_ASSET_MANIFEST="${WORLDFOUNDRY_LOCAL_ASSET_MANIFEST:-${WORLDFOUNDRY_CACHE_DIR}/manifests/local_assets_manifest.yaml}"',
 )
-_SOURCEABLE_SENSITIVE_MARKERS = (*_SENSITIVE_MARKERS, "ACCESS_KEY")
+_SOURCEABLE_SENSITIVE_MARKERS = _SENSITIVE_MARKERS
 _MANUAL_ENV_NAMES = {"WORLDFOUNDRY_WORLDMODELBENCH_JUDGE"}
 
 
@@ -235,8 +238,7 @@ def _is_sensitive_key(name: str) -> bool:
         name: Environment variable name.
     """
 
-    upper = name.upper()
-    return any(marker in upper for marker in _SENSITIVE_MARKERS)
+    return is_sensitive_env_name(name)
 
 
 def first_env_value(names: Sequence[str], env: EnvMapping | None = None) -> str | None:
