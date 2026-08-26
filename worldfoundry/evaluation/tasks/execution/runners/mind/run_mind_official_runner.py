@@ -21,22 +21,18 @@ import sys
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-REPO_ROOT = Path(__file__).resolve().parents[6]
-if str(REPO_ROOT) not in sys.path:  # pragma: no cover - direct script execution
-    sys.path.insert(0, str(REPO_ROOT))
-
-from worldfoundry.core.io.paths import checkpoint_root_path  # noqa: E402
-from worldfoundry.core.time import utc_now_iso  # noqa: E402
-from worldfoundry.evaluation.reporting.scorecard import SCORECARD_SCHEMA_VERSION  # noqa: E402
-from worldfoundry.evaluation.tasks.execution.framework.benchmark_assets import (  # noqa: E402
+from worldfoundry.core.io.paths import checkpoint_root_path, project_root
+from worldfoundry.core.time import utc_now_iso
+from worldfoundry.evaluation.reporting.scorecard import SCORECARD_SCHEMA_VERSION
+from worldfoundry.evaluation.tasks.execution.framework.benchmark_assets import (
     bundled_benchmark_asset,
 )
-from worldfoundry.evaluation.tasks.execution.framework.io import (  # noqa: E402
+from worldfoundry.evaluation.tasks.execution.framework.io import (
     env_path,
     write_json,
     write_jsonl,
 )
-from worldfoundry.evaluation.tasks.execution.runners.mind.mind_metrics import (  # noqa: E402
+from worldfoundry.evaluation.tasks.execution.runners.mind.mind_metrics import (
     COMPONENT_METRIC_IDS,
     METRIC_ORDER,
     MindResultError,
@@ -49,10 +45,11 @@ from worldfoundry.evaluation.tasks.execution.runners.mind.mind_metrics import ( 
     sample_records,
     sample_summary,
 )
-from worldfoundry.runtime.jobs import run_bounded_command  # noqa: E402
+from worldfoundry.runtime.jobs import run_bounded_command
 
 BENCHMARK_NAME = "MIND"
 RUNNER_NAME = "benchmark_zoo_mind_official_runner"
+REPO_ROOT = project_root(__file__)
 RUNNER_ROOT = Path(__file__).resolve().parent
 DEFAULT_MIND_ROOT = RUNNER_ROOT / "runtime" / "mind"
 FIXTURE_PATH = bundled_benchmark_asset("mind", "fixtures", "mind_result_fixture.json")
