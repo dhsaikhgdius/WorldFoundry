@@ -21,6 +21,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, TypeAlias, cast
 
+from worldfoundry.core.io.paths import project_root
+
 PERFORMANCE_MANIFEST_SCHEMA_VERSION = "worldfoundry-performance-v1"
 
 JsonScalar: TypeAlias = None | bool | int | float | str
@@ -514,7 +516,7 @@ def capture_runtime_fingerprint(
             device = _optional_string(name or getattr(properties, "name", None)) or device
             memory_bytes = _optional_int(getattr(properties, "total_memory", None))
 
-    root = Path(repo_root) if repo_root is not None else Path(__file__).resolve().parents[2]
+    root = Path(repo_root) if repo_root is not None else project_root(__file__)
     commit = _git_commit(root) if probe_git else None
     extensions: dict[str, JsonValue] = {
         "system": stdlib_platform.system() or None,
