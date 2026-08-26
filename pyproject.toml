@@ -520,7 +520,7 @@ ignore = [
 ]
 
 [tool.setuptools]
-packages = { find = { where = ["."], include = ["worldfoundry*"], exclude = [
+packages = { find = { where = ["."], namespaces = true, include = ["worldfoundry*"], exclude = [
     "worldfoundry.pipelines.*.runtime*",
     "worldfoundry.synthesis.visual_generation.*.runtime*",
     "worldfoundry.synthesis.visual_generation.*.*_runtime*",
