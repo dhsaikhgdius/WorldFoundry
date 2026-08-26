@@ -17,6 +17,7 @@ from functools import partial
 from pathlib import Path
 from typing import Any
 
+from worldfoundry.core.process import run_logged_subprocess
 from worldfoundry.evaluation.tasks.execution.framework.benchmark_data import (
     VIDEO_EXTENSIONS,
     build_generated_video_manifest,
@@ -37,6 +38,7 @@ from worldfoundry.evaluation.tasks.execution.runners.t2v_compbench.t2v_compbench
     materialize_t2v_compbench_official_layout,
 )
 from worldfoundry.evaluation.utils import REPO_ROOT
+from worldfoundry.runtime.jobs import run_bounded_command
 
 DEFAULT_T2V_COMPBENCH_ROOT = (
     REPO_ROOT
@@ -1026,6 +1028,16 @@ def build_official_env(root: Path, base_env: dict[str, str] | None = None) -> di
     return env
 
 
+def _ensure_trailing_newline(path: Path) -> None:
+    with path.open("rb+") as handle:
+        handle.seek(0, os.SEEK_END)
+        if handle.tell() == 0:
+            return
+        handle.seek(-1, os.SEEK_END)
+        if handle.read(1) != b"\n":
+            handle.write(b"\n")
+
+
 def run_command_sequence(
     commands: list[tuple[Path, list[str]]],
     *,
@@ -1043,25 +1055,21 @@ def run_command_sequence(
     final_returncode = 0
     for cwd, command in commands:
         command_lines.append(command)
-        completed = subprocess.run(
+        header = "$ " + " ".join(command) + "\n"
+        for log_path in (stdout_path, stderr_path):
+            with log_path.open("a", encoding="utf-8") as handle:
+                handle.write(header)
+        completed = run_logged_subprocess(
             command,
+            stdout_path=stdout_path,
+            stderr_path=stderr_path,
             cwd=cwd,
             env=env,
-            capture_output=True,
-            text=True,
             timeout=timeout,
-            check=False,
+            append=True,
         )
-        with stdout_path.open("a", encoding="utf-8") as handle:
-            handle.write("$ " + " ".join(command) + "\n")
-            handle.write(completed.stdout)
-            if completed.stdout and not completed.stdout.endswith("\n"):
-                handle.write("\n")
-        with stderr_path.open("a", encoding="utf-8") as handle:
-            handle.write("$ " + " ".join(command) + "\n")
-            handle.write(completed.stderr)
-            if completed.stderr and not completed.stderr.endswith("\n"):
-                handle.write("\n")
+        _ensure_trailing_newline(stdout_path)
+        _ensure_trailing_newline(stderr_path)
         if completed.returncode != 0 and final_returncode == 0:
             final_returncode = completed.returncode
             break
@@ -1131,18 +1139,14 @@ for module in modules:
                 results.append(item)
         return results
 
-    try:
-        completed = subprocess.run(
-            [args.python, "-c", code, json.dumps(list(modules))],
-            cwd=args.t2v_compbench_root,
-            env=build_official_env(args.t2v_compbench_root),
-            capture_output=True,
-            text=True,
-            timeout=args.preflight_timeout,
-            check=False,
-        )
-    except subprocess.TimeoutExpired as exc:
-        module_results = parse_module_results(exc.stdout)
+    completed = run_bounded_command(
+        [args.python, "-c", code, json.dumps(list(modules))],
+        cwd=args.t2v_compbench_root,
+        env=build_official_env(args.t2v_compbench_root),
+        timeout=args.preflight_timeout,
+    )
+    if completed["timed_out"]:
+        module_results = parse_module_results(completed["stdout"])
         completed_modules = {item.get("module") for item in module_results}
         module_results.extend(
             {
@@ -1158,9 +1162,9 @@ for module in modules:
             "ok": False,
             "returncode": None,
             "modules": module_results,
-            "stderr": (exc.stderr or "")[-4000:] if isinstance(exc.stderr, str) else "",
+            "stderr": str(completed["stderr"])[-4000:],
         }
-    module_results = parse_module_results(completed.stdout)
+    module_results = parse_module_results(completed["stdout"])
     if not module_results:
         module_results = [
             {
@@ -1172,10 +1176,10 @@ for module in modules:
         ]
     return {
         "group": group,
-        "ok": completed.returncode == 0 and all(item.get("ok") for item in module_results),
-        "returncode": completed.returncode,
+        "ok": completed["returncode"] == 0 and all(item.get("ok") for item in module_results),
+        "returncode": completed["returncode"],
         "modules": module_results,
-        "stderr": completed.stderr.strip()[-4000:],
+        "stderr": str(completed["stderr"]).strip()[-4000:],
     }
 
 
