@@ -258,8 +258,6 @@ class StudioJobStore:
     ) -> StudioJob:
         """Enqueue a new job and execute ``run_callable(job)`` on the thread pool."""
         with self._lock:
-            if self.max_jobs is not None:
-                self._prune_unlocked(max_jobs=self.max_jobs)
             self._counter += 1
             job_id = f"studio-{self._counter:05d}"
             job = StudioJob(
@@ -273,6 +271,8 @@ class StudioJobStore:
             )
             self._jobs[job.job_id] = job
             job._future = self._executor.submit(self._execute, job.job_id, run_callable)
+            if self.max_jobs is not None:
+                self._prune_unlocked(max_jobs=self.max_jobs)
             self._persist()
             return job
 
