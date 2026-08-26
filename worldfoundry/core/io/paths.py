@@ -21,6 +21,36 @@ from importlib.util import find_spec
 from pathlib import Path
 from typing import Mapping, Sequence
 
+# Env keys that participate in ``worldfoundry_path_tokens`` resolution. The
+# process-wide memo uses a snapshot of these values so hot resolve paths do
+# not rebuild the token dict on every call when nothing changed.
+_PATH_TOKEN_ENV_KEYS: tuple[str, ...] = (
+    "HOME",
+    "WORLDFOUNDRY_HOME",
+    "WORLDFOUNDRY_CACHE_DIR",
+    "WORLDFOUNDRY_DATA_DIR",
+    "WORLDFOUNDRY_BENCHMARK_DATA_ROOT",
+    "WORLDFOUNDRY_ARTIFACT_DIR",
+    "WORLDFOUNDRY_GENERATED_ARTIFACT_DIR",
+    "WORLDFOUNDRY_MODEL_DIR",
+    "WORLDFOUNDRY_MODEL_SOURCE_DIR",
+    "WORLDFOUNDRY_CKPT_DIR",
+    "WORLDFOUNDRY_HFD_ROOT",
+    "WORLDFOUNDRY_CONDA_ROOT",
+    "WORLDFOUNDRY_CONDA_ENVS_ROOT",
+    "WORLDFOUNDRY_CONDA_ENV_ROOT",
+)
+_path_token_cache: dict[tuple[tuple[str, str], ...], dict[str, str]] = {}
+# (resolved_dir, dir_mtime_ns, manifest_mtime_ns|None, manifest_size|None) -> complete?
+_hfd_complete_cache: dict[tuple[str, int, int | None, int | None], bool] = {}
+
+
+def clear_path_resolution_caches() -> None:
+    """Drop memoized path tokens and hfd completeness results (tests / env changes)."""
+
+    _path_token_cache.clear()
+    _hfd_complete_cache.clear()
+
 
 def package_root() -> Path:
     """Returns the resolved absolute path of the installed `worldfoundry` package root."""
@@ -85,6 +115,10 @@ def worldfoundry_path_tokens(env: Mapping[str, str] | None = None) -> dict[str, 
     Prioritizes explicit environment overrides (such as `WORLDFOUNDRY_HOME` or `WORLDFOUNDRY_CACHE_DIR`)
     and falls back to user-home cache directories when variables are unset.
 
+    When ``env`` is ``None`` (the common ``os.environ`` path), the result is
+    memoized against the relevant WorldFoundry env keys so hot resolve loops
+    do not rebuild the dict on every call.
+
     Args:
         env: Environment mapping to resolve instead of ``os.environ``. Passing
             a mapping makes resolution deterministic in tests.
@@ -92,7 +126,18 @@ def worldfoundry_path_tokens(env: Mapping[str, str] | None = None) -> dict[str, 
     Returns:
         Token name to expanded path-string mapping.
     """
-    environ = dict(os.environ if env is None else env)
+    if env is None:
+        cache_key = tuple((name, os.environ.get(name, "")) for name in _PATH_TOKEN_ENV_KEYS)
+        cached = _path_token_cache.get(cache_key)
+        if cached is not None:
+            return dict(cached)
+        tokens = _build_worldfoundry_path_tokens(dict(os.environ))
+        _path_token_cache[cache_key] = tokens
+        return dict(tokens)
+    return _build_worldfoundry_path_tokens(dict(env))
+
+
+def _build_worldfoundry_path_tokens(environ: dict[str, str]) -> dict[str, str]:
     root = project_root()
     package = package_root()
     project_parent = root.parent
@@ -252,6 +297,67 @@ def hfd_root_path(*parts: str | Path, env: Mapping[str, str] | None = None) -> P
     return resolve_worldfoundry_path("${WORLDFOUNDRY_HFD_ROOT}", env).joinpath(*(Path(part) for part in parts))
 
 
+def hfd_download_complete(directory: Path) -> bool:
+    """Reject hfd snapshots that are still being transferred or truncated.
+
+    Results are memoized against the directory mtime and, when present, the
+    ``.hfd/manifest`` mtime/size so repeated resolvers do not re-``rglob`` a
+    large finished tree on every lookup.
+    """
+
+    try:
+        resolved = directory.resolve()
+        dir_stat = resolved.stat()
+    except OSError:
+        return False
+    manifest = resolved / ".hfd" / "manifest"
+    manifest_mtime: int | None = None
+    manifest_size: int | None = None
+    if manifest.is_file():
+        try:
+            manifest_stat = manifest.stat()
+            manifest_mtime = manifest_stat.st_mtime_ns
+            manifest_size = manifest_stat.st_size
+        except OSError:
+            return False
+    cache_key = (str(resolved), dir_stat.st_mtime_ns, manifest_mtime, manifest_size)
+    cached = _hfd_complete_cache.get(cache_key)
+    if cached is not None:
+        return cached
+    result = _hfd_download_complete_uncached(resolved)
+    _hfd_complete_cache[cache_key] = result
+    return result
+
+
+def _hfd_download_complete_uncached(directory: Path) -> bool:
+    try:
+        for candidate in directory.rglob("*"):
+            if candidate.name.endswith((".aria2", ".incomplete", ".gstmp")):
+                return False
+            if (
+                candidate.name == "._____temp"
+                and candidate.is_dir()
+                and next(candidate.iterdir(), None) is not None
+            ):
+                return False
+    except OSError:
+        return False
+    manifest = directory / ".hfd" / "manifest"
+    if not manifest.is_file():
+        return True
+    try:
+        for line in manifest.read_text(encoding="utf-8").splitlines():
+            size_text, separator, relative_name = line.partition("\t")
+            if not separator or not size_text.isdigit() or not relative_name:
+                return False
+            target = directory / relative_name
+            if not target.is_file() or target.stat().st_size != int(size_text):
+                return False
+    except OSError:
+        return False
+    return True
+
+
 def resolve_local_hf_model_path(
     model_id_or_path: str | Path,
     *,
@@ -266,36 +372,6 @@ def resolve_local_hf_model_path(
     contacts the network, which keeps model initialization deterministic and
     works in inference environments that do not install PyTorch.
     """
-
-    def hfd_download_complete(directory: Path) -> bool:
-        """Reject hfd snapshots that are still being transferred or truncated."""
-
-        try:
-            for candidate in directory.rglob("*"):
-                if candidate.name.endswith((".aria2", ".incomplete", ".gstmp")):
-                    return False
-                if (
-                    candidate.name == "._____temp"
-                    and candidate.is_dir()
-                    and next(candidate.iterdir(), None) is not None
-                ):
-                    return False
-        except OSError:
-            return False
-        manifest = directory / ".hfd" / "manifest"
-        if not manifest.is_file():
-            return True
-        try:
-            for line in manifest.read_text(encoding="utf-8").splitlines():
-                size_text, separator, relative_name = line.partition("\t")
-                if not separator or not size_text.isdigit() or not relative_name:
-                    return False
-                target = directory / relative_name
-                if not target.is_file() or target.stat().st_size != int(size_text):
-                    return False
-        except OSError:
-            return False
-        return True
 
     value = str(model_id_or_path)
     direct = resolve_worldfoundry_path(value, env)
@@ -456,8 +532,10 @@ __all__ = [
     "checkpoint_root_path",
     "artifact_root_path",
     "cache_root_path",
+    "clear_path_resolution_caches",
     "conda_envs_root_path",
     "conda_root_path",
+    "hfd_download_complete",
     "hfd_root_path",
     "local_data_root_path",
     "local_model_root_path",
