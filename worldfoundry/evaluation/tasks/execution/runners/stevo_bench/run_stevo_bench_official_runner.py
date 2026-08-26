@@ -11,6 +11,7 @@ videos, upstream ``runs/`` directories, logs, manifests) is written under
 from __future__ import annotations
 
 
+from worldfoundry.core.io.paths import checkpoint_root_path, project_root
 from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
 
 import argparse
@@ -20,15 +21,10 @@ import sys
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-REPO_ROOT = Path(__file__).resolve().parents[6]
-if str(REPO_ROOT) not in sys.path:  # pragma: no cover - direct script execution
-    sys.path.insert(0, str(REPO_ROOT))
-
-from worldfoundry.core.io.paths import checkpoint_root_path  # noqa: E402
-from worldfoundry.core.time import utc_now_iso  # noqa: E402
-from worldfoundry.evaluation.reporting.scorecard import SCORECARD_SCHEMA_VERSION  # noqa: E402
-from worldfoundry.evaluation.tasks.execution.framework.io import env_path, write_json, write_jsonl  # noqa: E402
-from worldfoundry.evaluation.tasks.execution.runners.stevo_bench.stevo_bench_metrics import (  # noqa: E402
+from worldfoundry.core.time import utc_now_iso
+from worldfoundry.evaluation.reporting.scorecard import SCORECARD_SCHEMA_VERSION
+from worldfoundry.evaluation.tasks.execution.framework.io import env_path, write_json, write_jsonl
+from worldfoundry.evaluation.tasks.execution.runners.stevo_bench.stevo_bench_metrics import (
     METRIC_ORDER,
     METRIC_SPECS,
     PRIMARY_METRIC_ID,
@@ -38,8 +34,9 @@ from worldfoundry.evaluation.tasks.execution.runners.stevo_bench.stevo_bench_met
     metric_rows,
     summarize_run,
 )
-from worldfoundry.runtime.jobs import run_bounded_command  # noqa: E402
+from worldfoundry.runtime.jobs import run_bounded_command
 
+REPO_ROOT = project_root(__file__)
 RUNNER_ROOT = Path(__file__).resolve().parent
 DEFAULT_RUNTIME_ROOT = RUNNER_ROOT / "runtime" / "stevo_bench"
 FIXTURE_ROOT = REPO_ROOT / "worldfoundry/data/benchmarks/assets/stevo-bench/sample_run"

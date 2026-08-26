@@ -13,12 +13,16 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
+
 from typing import Any, Iterable, Mapping
 
 import yaml
 
+from worldfoundry.core.io.paths import project_root
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+REPO_ROOT = project_root(__file__)
 WORKSPACE_ROOT = REPO_ROOT.parent
 MODEL_CATALOG_ROOT = REPO_ROOT / "worldfoundry" / "data" / "models" / "catalog" / "vla_va_wam"
 MODEL_PROFILE_ROOT = REPO_ROOT / "worldfoundry" / "data" / "models" / "runtime" / "profiles"

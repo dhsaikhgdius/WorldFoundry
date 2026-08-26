@@ -5,9 +5,9 @@ import sys
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from worldfoundry.core.io.paths import package_module_root as package_root
 from worldfoundry.core.io import write_json
-from worldfoundry.core.io.paths import hfd_root_path
+from worldfoundry.core.io.paths import hfd_root_path, project_root
+from worldfoundry.core.io.paths import package_module_root as package_root
 
 
 def _resolve_hfd_root() -> Path:
@@ -78,7 +78,7 @@ class DreamDojoRuntime:
 
     @staticmethod
     def _repo_src_root() -> Path:
-        return Path(__file__).resolve().parents[5]
+        return project_root(__file__)
 
     def _checkpoint_path(self) -> Path:
         checkpoints_dir = Path(self.checkpoints_dir).expanduser().resolve()

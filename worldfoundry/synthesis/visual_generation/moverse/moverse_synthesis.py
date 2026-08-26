@@ -9,7 +9,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from worldfoundry.core.io.paths import resolve_data_path, resolve_local_hf_model_path
+from worldfoundry.core.io.paths import project_root, resolve_data_path, resolve_local_hf_model_path
 from worldfoundry.runtime.in_tree_cli import execute_in_tree
 from worldfoundry.synthesis.base_synthesis import BaseSynthesis
 
@@ -147,7 +147,7 @@ class MoVerseSynthesis(BaseSynthesis):
             command.extend(["--traj", trajectory])
 
         input_errors = _input_errors(image, prompt, trajectory, required=not plan_only)
-        package_root = Path(__file__).resolve().parents[3]
+        package_root = project_root(__file__) / "worldfoundry"
         required_runtime_files = (
             runtime_root() / "scripts" / "infer.py",
             config_path,
@@ -258,7 +258,7 @@ class MoVerseSynthesis(BaseSynthesis):
             output_path=output,
             search_roots=(stage_dir,),
             env=env,
-            python_paths=(runtime_root(), Path(__file__).resolve().parents[4]),
+            python_paths=(runtime_root(), project_root(__file__)),
             preferred_names=("video.mp4", output.name),
         )
         side_by_side = stage_dir / "video_side_by_side.mp4"

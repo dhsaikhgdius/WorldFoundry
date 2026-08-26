@@ -7,6 +7,7 @@ from pathlib import Path
 import sys
 from typing import Iterable, Sequence
 
+from worldfoundry.core.io.paths import project_root as resolve_project_root
 from worldfoundry.core.io.paths import resolve_local_hf_model_path
 
 
@@ -30,11 +31,9 @@ WAN22_LORA_LOW_NAME = "Wan2.2-Fun-A14B-InP-low-noise-HPS2.1.safetensors"
 
 
 def project_root() -> Path:
-    current = Path(__file__).resolve()
-    return next(
-        (parent for parent in current.parents if (parent / "pyproject.toml").is_file()),
-        current.parents[4],
-    )
+    """Return the WorldFoundry repository root (``paths.project_root``)."""
+
+    return resolve_project_root(__file__)
 
 
 def checkpoint_root() -> Path:
