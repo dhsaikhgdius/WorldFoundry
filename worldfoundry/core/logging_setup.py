@@ -56,6 +56,7 @@ __all__ = [
     "is_configured",
     "log_context_environment",
     "log_context",
+    "redact_sensitive_text",
     "write_jsonl_event",
 ]
 
@@ -192,6 +193,12 @@ def _redact_text(value: str) -> str:
     value = _BEARER_TOKEN.sub(r"\1[REDACTED]", value)
     value = _SENSITIVE_ASSIGNMENT.sub(r"\1[REDACTED]", value)
     return _KNOWN_TOKEN.sub("[REDACTED]", value)
+
+
+def redact_sensitive_text(value: str) -> str:
+    """Public alias for unstructured credential scrubbing used by manifests/jobs."""
+
+    return _redact_text(value)
 
 
 def _json_safe(value: Any, *, field_name: str | None = None) -> Any:

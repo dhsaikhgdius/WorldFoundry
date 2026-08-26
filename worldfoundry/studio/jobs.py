@@ -20,6 +20,7 @@ from threading import RLock
 from time import monotonic
 from typing import Any
 
+from worldfoundry.core.logging_setup import redact_sensitive_text
 from worldfoundry.core.time import utc_now_iso
 from worldfoundry.runtime.jobs import TERMINAL_JOB_STATUSES
 
@@ -58,7 +59,9 @@ class StudioJob:
     def append_log(self, stream: str, text: str) -> None:
         """Append a timestamped log line from stdout/stderr/system."""
         if text:
-            self.logs.append({"time": utc_now_iso(), "stream": stream, "text": text})
+            self.logs.append(
+                {"time": utc_now_iso(), "stream": stream, "text": redact_sensitive_text(text)}
+            )
 
     def log_text(self, *, limit: int | None = None) -> str:
         """Render recent log lines as plain text for the UI log panel."""
