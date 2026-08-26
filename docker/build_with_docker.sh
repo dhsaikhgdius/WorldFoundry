@@ -21,6 +21,8 @@ Environment overrides:
   WORLDFOUNDRY_DOCKER_PUSH=1
   WORLDFOUNDRY_DOCKER_PLATFORMS=linux/amd64,linux/arm64
   WORLDFOUNDRY_DOCKER_CUDA_IMAGE=nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04
+  WORLDFOUNDRY_DOCKER_BUILD_HOST_NETWORK=1
+                         Opt into BuildKit host networking (off by default).
 
 Examples:
   bash docker/build_with_docker.sh worldfoundry:dev
@@ -34,6 +36,7 @@ cd "${REPO_ROOT}"
 PUSH="${WORLDFOUNDRY_DOCKER_PUSH:-0}"
 PLATFORMS="${WORLDFOUNDRY_DOCKER_PLATFORMS:-}"
 CUDA_IMAGE="${WORLDFOUNDRY_DOCKER_CUDA_IMAGE:-nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04}"
+HOST_NETWORK="${WORLDFOUNDRY_DOCKER_BUILD_HOST_NETWORK:-0}"
 TAGS=()
 
 while (($#)); do
@@ -100,10 +103,14 @@ for tag in "${TAGS[@]}"; do
   TAG_ARGS+=(-t "${tag}")
 done
 
+NETWORK_ARGS=()
+if [[ "${HOST_NETWORK}" == "1" ]]; then
+  NETWORK_ARGS+=(--allow network.host --network host)
+fi
+
 docker buildx build \
   --platform "${PLATFORMS}" \
-  --allow network.host \
-  --network host \
+  "${NETWORK_ARGS[@]}" \
   --build-arg "CUDA_IMAGE=${CUDA_IMAGE}" \
   "${ACTION_ARGS[@]}" \
   "${TAG_ARGS[@]}" \
