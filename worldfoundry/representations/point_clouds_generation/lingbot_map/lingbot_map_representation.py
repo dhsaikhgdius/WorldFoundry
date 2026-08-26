@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
+
+from worldfoundry.core.io.paths import package_root
 from typing import Any, Dict, Iterable, Optional
 
 import numpy as np
@@ -27,7 +29,7 @@ DEFAULT_CHECKPOINT_CANDIDATES = (
 
 def _runtime_root() -> Path:
     return (
-        Path(__file__).resolve().parents[3]
+        package_root()
         / "base_models"
         / "three_dimensions"
         / "point_clouds"

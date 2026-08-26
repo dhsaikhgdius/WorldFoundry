@@ -10,6 +10,7 @@ from typing import Any, Mapping, Sequence
 
 from worldfoundry.base_models.three_dimensions.point_clouds.pi3 import SOURCE_ROOT as PI3_SOURCE_ROOT
 from worldfoundry.core.io import file_sha256
+from worldfoundry.core.io.paths import project_root
 
 from .variants import (
     WARP_AS_HISTORY_VARIANTS,
@@ -94,11 +95,7 @@ class WarpAsHistoryRuntime:
 
     @staticmethod
     def _project_root() -> Path:
-        current = Path(__file__).resolve()
-        for parent in current.parents:
-            if (parent / "pyproject.toml").is_file():
-                return parent
-        return current.parents[5]
+        return project_root(__file__)
 
     @staticmethod
     def _runtime_root() -> Path:
@@ -112,7 +109,7 @@ class WarpAsHistoryRuntime:
             return src_root
         if (root / "worldfoundry").is_dir():
             return root
-        return Path(__file__).resolve().parents[5]
+        return project_root(__file__)
 
     def _resolve_runtime_path(self, value: str | Path) -> Path:
         path = Path(str(value)).expanduser()
