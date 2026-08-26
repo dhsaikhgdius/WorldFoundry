@@ -11,7 +11,7 @@ Validation evidence should be proportional to the changed surface: small enough 
 
 | Change | Minimum evidence | Extra evidence when promoted |
 | --- | --- | --- |
-| Docs only | `npm run types:check`, `npm run build`, affected route returns 200 | Browser screenshot for layout or interaction changes. |
+| Docs only | `npm run api:check`, `npm run types:check`, `npm run build`, affected route returns 200 | Browser screenshot for layout or interaction changes. |
 | CLI or runner | Focused `test/eval_core` test plus a representative evaluate command | Existing-results and model-mode runs if output contracts changed. |
 | Model manifest | `zoo model-show`, `zoo model-download --check-local` | Clone, checkpoint, demo parity, runner parity, benchmark run. |
 | Model runtime integration | In-tree runtime import, no machine-local source checkout dependency, runtime profile with `backend_stage`, and focused regression | Checkpoint-backed run and one normalized benchmark scorecard. |
@@ -37,6 +37,7 @@ conda run -p "${WORLDFOUNDRY_UNIFIED_ENV_PREFIX}" worldfoundry-eval zoo benchmar
 
 ```bash
 cd docs/fumadocs
+npm run api:check
 npm run types:check
 npm run build
 curl -I http://localhost:8013/docs
