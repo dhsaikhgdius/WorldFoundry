@@ -33,6 +33,7 @@ from worldfoundry.core.io.paths import (
     checkpoint_root_path,
     local_data_root_path,
     official_runtime_repo_path,
+    package_root,
     project_root,
 )
 from worldfoundry.pipelines.gen3c.constants import (
@@ -77,8 +78,8 @@ def _read_text_file_or_default(path: str | Path, default: str) -> str:
     return value or default
 
 
-_TEST_CASES_ROOT = Path(__file__).resolve().parents[1] / "data" / "test_cases"
-_RUNTIME_CONFIGS_ROOT = Path(__file__).resolve().parents[1] / "data" / "models" / "runtime" / "configs"
+_TEST_CASES_ROOT = package_root() / "data" / "test_cases"
+_RUNTIME_CONFIGS_ROOT = package_root() / "data" / "models" / "runtime" / "configs"
 _PROJECT_ROOT = project_root(__file__)
 _WORKSPACE_ROOT = _PROJECT_ROOT.parent
 GENERIC_IMAGE_FIXTURE = str(_TEST_CASES_ROOT / "studio_demo" / "00" / "image.jpg")
@@ -774,7 +775,7 @@ WARP_AS_HISTORY_INFERENCE_SPEC = ModelInferenceSpec(
     notes=("Custom Warp-as-History runs can still pass images plus runtime kwargs through advanced CLI/API paths.",),
 )
 
-GEN3C_OFFICIAL_FIXTURE = str(Path(__file__).resolve().parents[1] / "data" / "test_cases" / "gen3c" / "image.png")
+GEN3C_OFFICIAL_FIXTURE = str(package_root() / "data" / "test_cases" / "gen3c" / "image.png")
 FANTASYWORLD_CAMERA_FIXTURE = str(_TEST_CASES_ROOT / "fantasyworld" / "camera_forward.json")
 FANTASYWORLD_PROMPT = "A coherent fantasy harbor world with stable geometry during a forward camera move."
 
@@ -3125,7 +3126,7 @@ HY_WORLDPLAY_INFERENCE_SPEC = ModelInferenceSpec(
 
 CAMERACTRL_OFFICIAL_PROMPT = "A serene mountain lake at sunrise, with mist hovering over the water."
 CAMERACTRL_OFFICIAL_TRAJECTORY = _first_existing_path(
-    Path(__file__).resolve().parents[1] / "data" / "test_cases" / "cameractrl" / "pose_files" / "0f47577ab3441480.txt",
+    package_root() / "data" / "test_cases" / "cameractrl" / "pose_files" / "0f47577ab3441480.txt",
     _official_repo_path("CameraCtrl", "assets", "pose_files", "0f47577ab3441480.txt"),
 )
 
@@ -3196,7 +3197,7 @@ CAMERACTRL_INFERENCE_SPEC = ModelInferenceSpec(
 )
 
 DEPTH_ANYTHING3_OFFICIAL_FIXTURE = str(
-    Path(__file__).resolve().parents[1] / "data" / "test_cases" / "depth_anything_v3" / "examples" / "SOH"
+    package_root() / "data" / "test_cases" / "depth_anything_v3" / "examples" / "SOH"
 )
 
 DEPTH_ANYTHING3_INFERENCE_SPEC = ModelInferenceSpec(
@@ -3311,7 +3312,7 @@ WAN2P2_INFERENCE_SPEC = ModelInferenceSpec(
     notes=("Keep validation jobs tiny by overriding frame_num/sample_steps from the frontend when needed.",),
 )
 
-CUT3R_OFFICIAL_FIXTURE = str(Path(__file__).resolve().parents[1] / "data" / "test_cases" / "cut3r" / "examples" / "001")
+CUT3R_OFFICIAL_FIXTURE = str(package_root() / "data" / "test_cases" / "cut3r" / "examples" / "001")
 
 CUT3R_INFERENCE_SPEC = ModelInferenceSpec(
     model_family_id="cut3r",

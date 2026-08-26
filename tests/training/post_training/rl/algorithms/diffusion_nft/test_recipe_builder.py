@@ -3,6 +3,8 @@ from __future__ import annotations
 import copy
 from pathlib import Path
 
+from worldfoundry.core.io.paths import project_root
+
 import pytest
 
 torch = pytest.importorskip("torch")
@@ -260,7 +262,7 @@ def test_diffusion_nft_builder_rejects_reward_contract_and_reference_mismatch() 
 
 def test_checked_in_diffusion_nft_recipe_parses_and_public_exports_are_canonical() -> None:
     pytest.importorskip("yaml")
-    root = Path(__file__).resolve().parents[6]
+    root = project_root(__file__)
     recipe = PostTrainingRecipe.from_file(root / "configs/post_training/wan_1p3b_diffusion_nft.yaml")
 
     assert isinstance(recipe.algorithm, DiffusionNFTAlgorithmSpec)
