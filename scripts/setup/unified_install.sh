@@ -54,6 +54,7 @@ Options:
   --torchvision SPEC    Torchvision package spec. Default: torchvision>=0.22,<0.27.0.
   --torchaudio SPEC     Torchaudio package spec. Default: torchaudio>=2.7,<2.12.0.
   --allow-no-cuda       Do not fail verification when CUDA is not visible.
+  --unlocked            Forward --unlocked to conda_install (skip lockfile).
   --verify-only         Only verify imports/CUDA in the env.
   -h, --help            Show this help.
 
@@ -142,6 +143,10 @@ while (($#)); do
       ;;
     --allow-no-cuda)
       INSTALL_ARGS+=(--allow-no-cuda)
+      shift
+      ;;
+    --unlocked)
+      INSTALL_ARGS+=(--unlocked)
       shift
       ;;
     --verify-only)
