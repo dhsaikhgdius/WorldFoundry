@@ -39,3 +39,15 @@ checkout_only_provenance:
 - worldfoundry/synthesis/visual_generation/matrix_game/matrix_game_2_runtime
 - worldfoundry/synthesis/visual_generation/open_sora/open_sora_runtime
 - worldfoundry/synthesis/visual_generation/open_sora_plan/open_sora_plan_runtime
+- worldfoundry/synthesis/visual_generation/hunyuan_world/hy_world_2p0_panogen_runtime
+- worldfoundry/synthesis/visual_generation/hunyuan_world/hy_world_2p0_worldgen_runtime
+- worldfoundry/synthesis/visual_generation/irasim/irasim_runtime
+- worldfoundry/synthesis/visual_generation/kairos/kairos_runtime
+- worldfoundry/synthesis/visual_generation/krea_realtime/krea_runtime
+- worldfoundry/synthesis/visual_generation/longcat_video/longcat_video_runtime
+- worldfoundry/synthesis/visual_generation/longvie/longvie_runtime
+- worldfoundry/synthesis/visual_generation/magi/magi_runtime
+- worldfoundry/synthesis/visual_generation/magic_world/magic_world_runtime
+- worldfoundry/synthesis/visual_generation/matrix_game/matrix_game_1_runtime
+- worldfoundry/synthesis/visual_generation/matrix_game/matrix_game_3_runtime
+- worldfoundry/synthesis/visual_generation/minwm/minwm_runtime
