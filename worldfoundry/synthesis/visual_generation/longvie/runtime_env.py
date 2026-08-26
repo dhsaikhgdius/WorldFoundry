@@ -13,6 +13,7 @@ import sys
 from pathlib import Path
 from typing import Iterable, Sequence
 
+from worldfoundry.core.io.paths import project_root as resolve_project_root
 from worldfoundry.runtime.assets import expand_worldfoundry_path
 from worldfoundry.runtime.env import resolve_hfd_root
 
@@ -54,20 +55,9 @@ def video_depth_anything_runtime_root() -> Path:
 
 
 def project_root() -> Path:
-    """
-    Attempts to find the root directory of the current project by searching for 'pyproject.toml'.
-    It traverses parent directories upwards from the current file's location.
-    If 'pyproject.toml' is not found, it falls back to a predefined depth (6 parents up).
+    """Return the WorldFoundry repository root (``paths.project_root``)."""
 
-    Returns:
-        Path: The determined project root directory.
-    """
-    # Iterate through parent directories to find the one containing 'pyproject.toml'.
-    for parent in Path(__file__).resolve().parents:
-        if (parent / "pyproject.toml").is_file():
-            return parent
-    # Fallback if 'pyproject.toml' is not found within a reasonable ancestor.
-    return Path(__file__).resolve().parents[6]
+    return resolve_project_root(__file__)
 
 
 def ensure_longvie_runtime() -> Path:

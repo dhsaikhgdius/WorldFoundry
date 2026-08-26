@@ -47,3 +47,71 @@ def test_more_adapters_use_paths_project_root() -> None:
     assert wah.WarpAsHistoryRuntime._project_root() == expected
     assert wah_variants.project_root() == expected
     assert dreamdojo.DreamDojoRuntime._repo_src_root() == expected
+
+
+def test_batch3_runtime_env_project_roots_use_paths_helper() -> None:
+    import importlib.util
+    import sys
+
+    expected = project_root(__file__)
+    repo = Path(__file__).resolve().parents[2]
+
+    def load_file(rel: str, name: str):
+        path = repo / rel
+        spec = importlib.util.spec_from_file_location(name, path)
+        assert spec is not None and spec.loader is not None
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[name] = module
+        spec.loader.exec_module(module)
+        return module
+
+    neoverse = load_file(
+        "worldfoundry/synthesis/visual_generation/neoverse/runtime_env.py",
+        "wf_sy09_neoverse_runtime_env",
+    )
+    vmem = load_file(
+        "worldfoundry/synthesis/visual_generation/vmem/runtime_env.py",
+        "wf_sy09_vmem_runtime_env",
+    )
+    longvie = load_file(
+        "worldfoundry/synthesis/visual_generation/longvie/runtime_env.py",
+        "wf_sy09_longvie_runtime_env",
+    )
+    fantasy = load_file(
+        "worldfoundry/synthesis/visual_generation/fantasy_world/runtime_env.py",
+        "wf_sy09_fantasy_runtime_env",
+    )
+    multiworld = load_file(
+        "worldfoundry/synthesis/visual_generation/multiworld/runtime_env.py",
+        "wf_sy09_multiworld_runtime_env",
+    )
+    solaris = load_file(
+        "worldfoundry/synthesis/visual_generation/solaris/runtime_env.py",
+        "wf_sy09_solaris_runtime_env",
+    )
+
+    assert neoverse.project_root() == expected
+    assert vmem.project_root() == expected
+    assert longvie.project_root() == expected
+    assert fantasy.project_root() == expected
+    assert multiworld.project_root() == expected
+    assert solaris.project_root() == expected
+
+    for rel in (
+        "worldfoundry/synthesis/visual_generation/kairos/runtime.py",
+        "worldfoundry/synthesis/visual_generation/lingbot_video/runtime.py",
+        "worldfoundry/synthesis/visual_generation/pusa_vidgen/adapter.py",
+        "worldfoundry/synthesis/visual_generation/hunyuan_world/hy_world_2p0_worldgen_runtime.py",
+        "worldfoundry/synthesis/visual_generation/lingbot_world/runtime.py",
+        "worldfoundry/synthesis/visual_generation/magi/worldfoundry_runner.py",
+        "worldfoundry/synthesis/visual_generation/official_video_runtime.py",
+        "worldfoundry/synthesis/visual_generation/neoverse/runtime_env.py",
+        "worldfoundry/synthesis/visual_generation/vmem/runtime_env.py",
+        "worldfoundry/synthesis/visual_generation/longvie/runtime_env.py",
+        "worldfoundry/synthesis/visual_generation/fantasy_world/runtime_env.py",
+        "worldfoundry/synthesis/visual_generation/multiworld/runtime_env.py",
+        "worldfoundry/synthesis/visual_generation/solaris/runtime_env.py",
+    ):
+        text = (repo / rel).read_text(encoding="utf-8")
+        assert "project_root" in text, rel
+        assert "from worldfoundry.core.io.paths import" in text, rel

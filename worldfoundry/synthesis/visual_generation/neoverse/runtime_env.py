@@ -13,6 +13,9 @@ import sys
 from pathlib import Path
 from typing import Iterable, Optional, Sequence
 
+from worldfoundry.core.io.paths import project_root as resolve_project_root
+
+
 DEFAULT_NEOVERSE_REPO = "Yuppie1204/NeoVerse"
 DEFAULT_NEOVERSE_LORA_NAME = "Wan21_T2V_14B_lightx2v_cfg_step_distill_lora_rank64.safetensors"
 
@@ -34,21 +37,9 @@ _NEOVERSE_ALLOW_PATTERNS = (
 
 
 def project_root() -> Path:
-    """Discovers and returns the root directory of the current project.
+    """Return the WorldFoundry repository root (``paths.project_root``)."""
 
-    The project root is determined by searching parent directories for a
-    'pyproject.toml' file. If not found, it falls back to a fixed
-    ancestor path relative to the current file.
-
-    Returns:
-        Path: The absolute path to the project root directory.
-    """
-    # Iterate through parent directories to find 'pyproject.toml', indicating the project root.
-    for parent in Path(__file__).resolve().parents:
-        if (parent / "pyproject.toml").is_file():
-            return parent
-    # Fallback if pyproject.toml is not found, assuming a fixed project structure.
-    return Path(__file__).resolve().parents[6]
+    return resolve_project_root(__file__)
 
 
 def cache_root() -> Path:
