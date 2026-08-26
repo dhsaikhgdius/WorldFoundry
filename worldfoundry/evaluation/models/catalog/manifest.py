@@ -19,7 +19,12 @@ import yaml
 from ...api import WorldModelManifest
 from ...api.registry import ModelRegistry
 from ...utils import DATA_ROOT
-from .schema import ModelZooEntry, load_entries, select_default_variant
+from .schema import (
+    ModelZooEntry,
+    _normalize_integration_status,
+    load_entries,
+    select_default_variant,
+)
 
 
 # ── Type aliases and constants ───────────────────────────────
@@ -216,6 +221,15 @@ class ModelCatalogManifest:
     def from_mapping(cls, data: Mapping[str, Any]) -> "ModelCatalogManifest":
         """Instantiate a ModelCatalogManifest from a mapping dictionary representation."""
         model_id = str(data.get("model_id") or data.get("id") or "")
+        integration = _mapping_or_empty(data.get("integration"))
+        # Schema v2 YAML keeps rich evidence strings in ``integration.status``;
+        # normalize to the canonical {integrated,planned,blocked} vocabulary
+        # before validate() so alias-bearing packaged catalogs load cleanly.
+        if integration.get("status"):
+            integration = {
+                **integration,
+                "status": _normalize_integration_status(integration.get("status")),
+            }
         manifest = cls(
             schema_version=data.get("schema_version", 2),
             model_id=model_id,
@@ -226,7 +240,7 @@ class ModelCatalogManifest:
             availability=_mapping_or_empty(data.get("availability") or data.get("source")),
             sources=_mapping_or_empty(data.get("sources") or data.get("official_sources")),
             checkpoints=_mapping_or_empty(data.get("checkpoints") or data.get("checkpoint")),
-            integration=_mapping_or_empty(data.get("integration")),
+            integration=integration,
             evidence=_mapping_or_empty(data.get("evidence")),
             aliases=_tuple_of_str(data.get("aliases") or data.get("alias")),
         )

@@ -160,6 +160,25 @@ def test_model_catalog_loader_prefers_target_schema_over_legacy_duplicate(tmp_pa
     assert manifests[0].integration["pipeline_binding"] == "alpha"
 
 
+def test_model_catalog_v2_normalizes_integration_status_aliases() -> None:
+    manifest = catalog_manifest_from_mapping(
+        {
+            "schema_version": 2,
+            "model_id": "alias-status",
+            "name": "Alias Status",
+            "capabilities": {"task_family": "world_model"},
+            "integration": {"status": "in_tree_checkpoint_runtime"},
+        }
+    )
+    assert manifest.integration["status"] == "integrated"
+
+
+def test_packaged_model_catalog_manifests_all_load() -> None:
+    manifests = load_model_catalog_manifests()
+    assert len(manifests) >= 279
+    assert all(manifest.integration.get("status", "planned") in {"integrated", "planned", "blocked"} for manifest in manifests)
+
+
 def test_packaged_model_catalog_uses_target_matrix_game_manifest() -> None:
     manifests = [manifest for manifest in load_model_catalog_manifests() if manifest.model_id == "matrix-game-1"]
 
