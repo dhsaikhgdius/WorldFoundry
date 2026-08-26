@@ -10,6 +10,7 @@ starved by a stream of smaller ones.
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 import shutil
@@ -25,6 +26,7 @@ _DISABLED_DEVICE_VALUES = frozenset({"", "-1", "none", "void"})
 _ALL_DEVICE_VALUES = frozenset({"all"})
 _FALSEY = frozenset({"0", "false", "no", "off"})
 _TOKEN_SAFE = re.compile(r"[^A-Za-z0-9._-]+")
+_logger = logging.getLogger(__name__)
 
 
 def _worldfoundry_home() -> Path:
@@ -37,6 +39,92 @@ def _worldfoundry_home() -> Path:
 def _cross_process_lock_enabled() -> bool:
     raw = str(os.environ.get("WORLDFOUNDRY_GPU_CROSS_PROCESS_LOCK", "1")).strip().lower()
     return raw not in _FALSEY
+
+
+def _gpu_memory_warn_enabled() -> bool:
+    raw = str(os.environ.get("WORLDFOUNDRY_GPU_MEMORY_WARN", "1")).strip().lower()
+    return raw not in _FALSEY
+
+
+def _gpu_memory_warn_ratio() -> float:
+    raw = str(os.environ.get("WORLDFOUNDRY_GPU_MEMORY_WARN_RATIO", "0.9")).strip()
+    try:
+        value = float(raw)
+    except ValueError:
+        return 0.9
+    return min(max(value, 0.0), 1.0)
+
+
+def warn_if_gpu_memory_high(
+    tokens: Sequence[str],
+    *,
+    timeout_seconds: float = 2.0,
+) -> list[dict[str, float | str]]:
+    """Warn when leased GPU tokens already exceed a used-memory ratio.
+
+    Uses ``nvidia-smi`` (no Torch / NVML import). Disabled with
+    ``WORLDFOUNDRY_GPU_MEMORY_WARN=0``. Ratio threshold defaults to ``0.9``
+    (``WORLDFOUNDRY_GPU_MEMORY_WARN_RATIO``).
+    """
+
+    if not tokens or not _gpu_memory_warn_enabled():
+        return []
+    nvidia_smi = shutil.which("nvidia-smi")
+    if not nvidia_smi:
+        return []
+    try:
+        completed = subprocess.run(
+            [
+                nvidia_smi,
+                "--query-gpu=index,uuid,memory.used,memory.total",
+                "--format=csv,noheader,nounits",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=max(float(timeout_seconds), 0.1),
+        )
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return []
+    if completed.returncode != 0:
+        return []
+
+    wanted = {str(token).strip() for token in tokens if str(token).strip()}
+    threshold = _gpu_memory_warn_ratio()
+    hits: list[dict[str, float | str]] = []
+    for line in completed.stdout.splitlines():
+        parts = [part.strip() for part in line.split(",")]
+        if len(parts) < 4:
+            continue
+        index, uuid, used_raw, total_raw = parts[0], parts[1], parts[2], parts[3]
+        if index not in wanted and uuid not in wanted:
+            continue
+        try:
+            used = float(used_raw)
+            total = float(total_raw)
+        except ValueError:
+            continue
+        if total <= 0:
+            continue
+        ratio = used / total
+        if ratio < threshold:
+            continue
+        payload = {
+            "token": index if index in wanted else uuid,
+            "used_mib": used,
+            "total_mib": total,
+            "ratio": ratio,
+        }
+        hits.append(payload)
+        _logger.warning(
+            "CUDA device %s memory high before lease use: %.0f/%.0f MiB (%.0f%% >= %.0f%%)",
+            payload["token"],
+            used,
+            total,
+            ratio * 100.0,
+            threshold * 100.0,
+        )
+    return hits
 
 
 def _lock_path_for_token(token: str, *, locks_dir: Path | None = None) -> Path:
@@ -236,6 +324,7 @@ class CudaDeviceLeasePool:
                         tokens, handles = claimed
                         self._ticket_queue.popleft()
                         self._condition.notify_all()
+                        warn_if_gpu_memory_high(tokens)
                         return CudaDeviceLease(self, tokens, _flock_handles=handles)
                     self._condition.wait(timeout=max(float(poll_interval), 0.01))
             finally:
@@ -369,4 +458,5 @@ __all__ = [
     "default_cuda_device_groups",
     "discover_cuda_device_tokens",
     "normalize_cuda_device_groups",
+    "warn_if_gpu_memory_high",
 ]
