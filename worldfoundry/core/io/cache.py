@@ -21,7 +21,28 @@ def _storage_options(backend_args: dict[str, Any] | None) -> dict[str, Any]:
 
 def _cache_path(source_path, cache_fp=None, cache_dir=None) -> Path:
     if cache_dir is None:
-        cache_dir = os.environ.get("TORCH_HOME") or os.environ.get("WORLDFOUNDRY_CACHE_DIR", "~/.cache/worldfoundry")
+        # Prefer the canonical WorldFoundry cache root (WORLDFOUNDRY_CACHE_DIR /
+        # WORLDFOUNDRY_HOME via paths.cache_root_path). TORCH_HOME used to win and
+        # could point at a different disk than disk-preflight checks (CA-02); keep
+        # it only as a deprecated fallback when no WorldFoundry root env is set.
+        if os.environ.get("WORLDFOUNDRY_CACHE_DIR") or os.environ.get("WORLDFOUNDRY_HOME"):
+            from worldfoundry.core.io.paths import cache_root_path
+
+            cache_dir = str(cache_root_path())
+        elif os.environ.get("TORCH_HOME"):
+            import warnings
+
+            warnings.warn(
+                "Using TORCH_HOME for WorldFoundry asset cache is deprecated; "
+                "set WORLDFOUNDRY_CACHE_DIR (or WORLDFOUNDRY_HOME) instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            cache_dir = os.environ["TORCH_HOME"]
+        else:
+            from worldfoundry.core.io.paths import cache_root_path
+
+            cache_dir = str(cache_root_path())
     root = Path(os.path.expanduser(str(cache_dir)))
     target = (
         Path(os.path.expanduser(str(cache_fp)))
