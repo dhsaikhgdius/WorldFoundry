@@ -124,7 +124,11 @@ def sync_s3_dir_to_local(
     )
 
     should_download = world_rank == 0
-    s3_fs = S3FileSystem(credential_path=s3_credential_path) if should_download else None
+    s3_fs = (
+        S3FileSystem(credential_path=s3_credential_path, max_pool_connections=max_workers)
+        if should_download
+        else None
+    )
 
     def _validate_local_file(local_path: str, key: str) -> None:
         """Validate local file using remote size and optional FULL_OBJECT SHA256 checksum."""
