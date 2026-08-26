@@ -84,20 +84,17 @@ def test_optimized_core_extra_declares_flashdreams_runtime_dependencies() -> Non
 def test_sdist_manifest_excludes_generated_downloaded_and_large_artifacts() -> None:
     manifest = (REPO_ROOT / "MANIFEST.in").read_text(encoding="utf-8")
 
-    # Model runtime profiles moved from data/models/runtime_profiles to
-    # data/models/runtime (+ environments/), and the cosmos vendored trees are
-    # covered by the global binary/notebook excludes instead of per-path prunes.
+    # Model runtime profiles live under data/models/runtime (+ configs/environments/).
+    # DA-06: one recursive-include on runtime covers nested configs/environments;
+    # eval_configs must be listed explicitly (not only via package-data globs).
     required_snippets = (
         "include worldfoundry/data/benchmarks/*.md",
         "recursive-include worldfoundry/data/benchmarks/catalog *.yaml",
         "recursive-include worldfoundry/data/benchmarks/runtime_profiles *.yaml",
+        "recursive-include worldfoundry/data/benchmarks/eval_configs *.yaml *.yml",
         "recursive-include worldfoundry/data/models/catalog *.yaml",
-        "recursive-include worldfoundry/data/models/runtime *.yaml",
         "recursive-include worldfoundry/data/models/bindings *.yaml",
-        "recursive-include worldfoundry/data/models/runtime/configs *.yaml",
-        "recursive-include worldfoundry/data/models/runtime/configs *.yml",
-        "recursive-include worldfoundry/data/models/runtime/configs *.json",
-        "recursive-include worldfoundry/data/models/runtime/environments *.yaml",
+        "recursive-include worldfoundry/data/models/runtime *.yaml *.yml *.json",
         "prune tmp",
         "prune cache",
         "prune data/hfd_datasets",
@@ -112,6 +109,14 @@ def test_sdist_manifest_excludes_generated_downloaded_and_large_artifacts() -> N
     )
     for snippet in required_snippets:
         assert snippet in manifest
+    # Nested runtime paths must not be re-listed (SSOT: one runtime include).
+    for redundant in (
+        "recursive-include worldfoundry/data/models/runtime/configs",
+        "recursive-include worldfoundry/data/models/runtime/environments",
+        "recursive-include worldfoundry/data/models/runtime *.yaml\n",
+        "recursive-include worldfoundry/data/models/runtime *.json\n",
+    ):
+        assert redundant not in manifest
     for pattern in (
         "*.gif",
         "*.ipynb",
@@ -124,3 +129,20 @@ def test_sdist_manifest_excludes_generated_downloaded_and_large_artifacts() -> N
         "*.onnx",
     ):
         assert pattern in manifest
+
+
+def test_package_data_ssot_covers_benchmark_eval_configs() -> None:
+    """Wheel SSOT: broad benchmarks/** globs must ship eval_configs YAML."""
+    package_data = _package_data()
+    data_globs = package_data["worldfoundry.data"]
+    assert "benchmarks/**/*.yaml" in data_globs
+    assert "benchmarks/**/*.yml" in data_globs
+    assert "models/**/*.yaml" in data_globs
+
+    eval_configs_root = REPO_ROOT / "worldfoundry" / "data" / "benchmarks" / "eval_configs"
+    assert eval_configs_root.is_dir()
+    sample = eval_configs_root / "embodied" / "libero" / "spatial.yaml"
+    assert sample.is_file()
+    # Positive sdist contract: MANIFEST lists eval_configs (not package-data alone).
+    manifest = (REPO_ROOT / "MANIFEST.in").read_text(encoding="utf-8")
+    assert "recursive-include worldfoundry/data/benchmarks/eval_configs" in manifest

@@ -553,6 +553,8 @@ packages = { find = { where = ["."], include = ["worldfoundry*"], exclude = [
 ] } }
 include-package-data = true
 
+# Wheel SSOT for non-Python package assets. Keep MANIFEST.in data-tree includes
+# aligned (see DA-06); do not list the same leaf paths twice under package-data.
 [tool.setuptools.package-data]
 "worldfoundry.cli" = [
     "assets/openenvision_logo.png",
@@ -567,6 +569,7 @@ include-package-data = true
     "benchmarks/**/*.yml",
     "benchmarks/**/*.md",
     "benchmarks/**/*.png",
+    # Covers benchmarks/eval_configs/** (embodied YAML); also asserted in MANIFEST.in.
     "models/**/*.yaml",
     "models/**/*.yml",
     "models/**/*.json",
