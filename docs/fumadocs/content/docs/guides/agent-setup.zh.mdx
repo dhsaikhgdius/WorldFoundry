@@ -1,0 +1,42 @@
+---
+title: Agent 配置
+description: 为 agent 配置 WorldFoundry 表面——MCP、CLI 发现与 Studio workspace URL。
+---
+
+在 IDE、自动化 runner 或自定义编排器接入 WorldFoundry 时使用本页。
+
+## 最小安装
+
+```bash
+python -m pip install -e ".[mcp]"
+worldfoundry-mcp
+```
+
+可选表面：
+
+```bash
+python -m pip install -e ".[tui,ui]"
+```
+
+## evaluate 前自检
+
+1. 调用 `server_info`，确认 `tools` 非空。
+2. 用 `list_models` / `list_benchmarks` / `list_tasks` / `list_metrics` 解析 id。
+3. 用 `preview_run` 检查编译出的 CLI 命令。
+4. 再调用 `evaluate`（建议 `wait=auto`）。
+
+## 环境变量提示
+
+| 变量 | 作用 |
+| --- | --- |
+| `WORLDFOUNDRY_MCP_RUN_ROOT` | MCP run / artifact 默认根目录 |
+| `WORLDFOUNDRY_STUDIO_WORKSPACE_URL` | Studio workspace 基址（作业类工具） |
+| `WORLDFOUNDRY_BENCHMARK_DATA_ROOT` | 未使用默认值时的 benchmark 数据根 |
+
+Catalog 发现与 `--plan-only` 路径在 CPU 上可安全使用；依赖 checkpoint 的 evaluate 仍需各 profile 声明的资产。
+
+## 相关
+
+- [MCP server](/zh/docs/reference/mcp)
+- [CLI 参考](/zh/docs/reference/cli)
+- [Studio 指南](/zh/docs/guides/studio)

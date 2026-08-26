@@ -3,6 +3,7 @@
   "defaultOpen": true,
   "pages": [
     "index",
+    "quickstart",
     "benchmark-hub",
     "metrics",
     "embodied-official-runtime"

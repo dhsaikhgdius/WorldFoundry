@@ -1,0 +1,27 @@
+---
+title: Docker
+description: WorldFoundry 何时使用 Docker——具身 official runtime、镜像拉取与 host 前置条件。
+---
+
+Catalog 发现、CLI help 与仅 CPU 的 Studio 浏览不需要 Docker。当具身 benchmark profile 声明容器化 official evaluator 或 simulator harness 时才会用到 Docker。
+
+## Host 前置条件
+
+- host 上的 Docker Engine（或兼容运行时）
+- 能拉取 benchmark profile 中的镜像（`docker.image`）
+- host 上具备统一 WorldFoundry 环境，用于 CLI / 结果归一化
+
+## 典型流程
+
+```bash
+# 示例 — 替换为 zoo benchmark-show / profile 文档中的镜像
+docker pull ghcr.io/allenai/vla-evaluation-harness/robotwin:latest
+worldfoundry-eval zoo benchmark-run --mode official-run ...
+```
+
+当配置提供 `docker.image` 时，由 `worldfoundry/evaluation/tasks/embodied/docker_runner.py` 启动容器。
+
+## 相关
+
+- [环境参考](/zh/docs/reference/environments) — 具身 Docker 与 conda 说明
+- [具身 official runtime](/zh/docs/evaluation/embodied-official-runtime) — checkpoint 与资产布局

@@ -1,0 +1,28 @@
+---
+title: MCP server
+description: Agent-facing Model Context Protocol entrypoints, tools, and install notes for WorldFoundry.
+---
+
+WorldFoundry exposes the same catalogs and evaluation contracts through an MCP server so agents can discover models, benchmarks, metrics, and runs without a private backend.
+
+## Install
+
+```bash
+python -m pip install -e ".[mcp]"
+```
+
+## Start
+
+```bash
+worldfoundry-mcp
+# or
+worldfoundry-eval mcp
+```
+
+`server_info` lists tool names, output roots, and documentation paths. Prefer discovery tools (`list_models`, `list_benchmarks`, `list_tasks`, `list_metrics`) before `evaluate`.
+
+## Related
+
+- [CLI reference](/docs/reference/cli) — `mcp` command and console entrypoints
+- [Agent setup](/docs/guides/agent-setup) — first-run checklist for agent hosts
+- [Capabilities](/docs/overview/capabilities) — how MCP fits the surface layer
