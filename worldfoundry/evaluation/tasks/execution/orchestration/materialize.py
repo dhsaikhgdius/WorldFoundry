@@ -260,9 +260,7 @@ def materialize_requests_from_dataset_manifest(
         else DatasetManifest.from_dict(manifest)
     )
     samples_path = resolve_dataset_samples_path(dataset_manifest, manifest_path=manifest_path)
-    samples = read_dataset_samples(samples_path)
-    if limit is not None:
-        samples = samples[: int(limit)]
+    samples = read_dataset_samples(samples_path, limit=None if limit is None else int(limit))
     request_split = split or dataset_manifest.split
     requests = materialize_generation_requests(
         samples,
