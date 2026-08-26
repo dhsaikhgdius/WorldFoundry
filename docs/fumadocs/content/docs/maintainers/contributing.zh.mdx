@@ -41,6 +41,7 @@ Fumadocs 是唯一维护的文档面。新增或修改页面时，在 `docs/fuma
 - **新模型或 runtime profile** — `guides/supported-models`、`reference/environments`，行为变化时更新模型指南。
 - **新 benchmark** — `evaluation/benchmark-hub/<benchmark-id>`、benchmark 指南；内部实现变化时同步维护者架构页。
 - **CLI 或输出 schema** — `reference/cli`，以及拥有相关行为的 architecture 页面。
+- **公开 Python API docstring** — 在 `docs/fumadocs` 下用 `npm run api:generate` 重新生成，并用 `npm run api:check` 保持树干净。
 - **内部 workflow** — `maintainers/architecture`（尤其是 workflow 与 evaluation-core）。
 
 ## 本地验证
@@ -49,7 +50,7 @@ Fumadocs 是唯一维护的文档面。新增或修改页面时，在 `docs/fuma
 bash scripts/setup/conda_install.sh --preset slim --env-name worldfoundry
 make lint
 make docs-check
-cd docs/fumadocs && npm run types:check && npm run build
+cd docs/fumadocs && npm run api:check && npm run types:check && npm run build
 ```
 
 模型/profile audit：

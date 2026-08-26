@@ -11,7 +11,7 @@ description: 代码、文档、runner 和 benchmark facade 的发布门禁。
 
 | 变更 | 最小证据 | 提升状态时的额外证据 |
 | --- | --- | --- |
-| 只改文档 | `npm run types:check`、`npm run build`、受影响 route 返回 200 | 布局或交互变化需要浏览器截图。 |
+| 只改文档 | `npm run api:check`、`npm run types:check`、`npm run build`、受影响 route 返回 200 | 布局或交互变化需要浏览器截图。 |
 | CLI 或 runner | 聚焦 `test/eval_core` 测试加代表性 evaluate 命令 | 如果输出契约变化，再跑 existing-results 和 model-mode runs。 |
 | Model manifest | `zoo model-show`、`zoo model-download --check-local` | Clone、checkpoint、demo parity、runner parity、benchmark run。 |
 | Model runtime integration | 仓内 runtime import、无机器本地 source checkout 依赖、带 `backend_stage` 的 runtime profile，以及聚焦回归 | Checkpoint-backed run 和一份 normalized benchmark scorecard。 |
@@ -37,6 +37,7 @@ conda run -p "${WORLDFOUNDRY_UNIFIED_ENV_PREFIX}" worldfoundry-eval zoo benchmar
 
 ```bash
 cd docs/fumadocs
+npm run api:check
 npm run types:check
 npm run build
 curl -I http://localhost:8013/docs
