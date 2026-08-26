@@ -9,6 +9,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from worldfoundry.core.io.serialization import iter_jsonl
 from worldfoundry.evaluation.utils import jsonable, read_json, read_json_or_jsonl, write_json
 
 
@@ -73,17 +74,30 @@ def _coerce_rows(payload: Any, *, source_path: Path) -> list[dict[str, Any]]:
     return rows
 
 
-def read_dataset_samples(path: str | Path) -> list[dict[str, Any]]:
+def read_dataset_samples(path: str | Path, *, limit: int | None = None) -> list[dict[str, Any]]:
     """Read and validate sample rows from a JSON or JSONL file.
 
     Args:
         path: Path to the JSON/JSONL dataset file.
+        limit: Optional maximum number of sample rows to return. For ``.jsonl``
+            sources this stops reading after ``limit`` non-empty lines (DS-07).
 
     Returns:
         List of parsed sample dictionaries.
     """
     source_path = Path(path)
-    return _coerce_rows(read_json_or_jsonl(source_path), source_path=source_path)
+    capped = None if limit is None else max(0, int(limit))
+    if source_path.suffix.lower() == ".jsonl" and capped is not None:
+        rows: list[dict[str, Any]] = []
+        for index, item in enumerate(iter_jsonl(source_path)):
+            if not isinstance(item, Mapping):
+                raise TypeError(f"dataset sample row {index} must be an object: {source_path}")
+            rows.append(dict(item))
+            if len(rows) >= capped:
+                break
+        return rows
+    rows = _coerce_rows(read_json_or_jsonl(source_path), source_path=source_path)
+    return rows if capped is None else rows[:capped]
 
 
 def _sample_id(row: Mapping[str, Any], index: int) -> str:
