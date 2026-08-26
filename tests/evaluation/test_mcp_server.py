@@ -8,9 +8,11 @@ import sys
 from unittest.mock import patch
 
 import pytest
-from jsonschema.validators import validator_for
 
+pytest.importorskip("jsonschema")
 pytest.importorskip("mcp")
+
+from jsonschema.validators import validator_for
 
 from worldfoundry.mcp.client import MCPClient
 from worldfoundry.mcp.server import create_mcp_server, run_server
