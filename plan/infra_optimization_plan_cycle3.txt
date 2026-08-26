@@ -1,0 +1,21 @@
+WorldFoundry 基础设施评审 · Cycle 3（增量落地）
+================================================
+日期：2026-08-26
+说明：Goal 持续运行；云端 Task 一度 resource_exhausted，主会话本地落地多 PR。
+
+已开 draft PR
+-------------
+#23 cursor/infra-p0-impl-4569     UI pin / lint / GPU pool / path hygiene / fallback lease
+#24 cursor/infra-dlc-sanitize-4569  DLC 去账户硬编码
+#25 cursor/infra-ci-modernize-4569  setup-python / 分层门禁 / ruff== / Node 24
+#26 cursor/infra-embodied-auth-4569 model_server 回环+token / MCP Bearer
+#27 cursor/infra-install-cuda-tier-4569 auto 无驱动 fail-loud / torch constraint / UI pin
+#28 cursor/infra-studio-jobs-4569   StudioJobStore 上限+持久化 / MAX_JOBS 自适应
+
+仍待（下一轮优先）
+-----------------
+- docker_runner：argv 凭证、:ro、shm/init、digest；mirror 1/17 命名空间
+- .gitmodules 失效 flash-attention；download_hfd 对齐 WORLDFOUNDRY_HOME
+- Makefile 死变量 + test_docs_quickstart open-source-infer-repro 脱节
+- model_server 协议 ping 就绪；acquire 挪出 lifecycle 锁
+- 完整 lockfile / dependabot / actions SHA pin
