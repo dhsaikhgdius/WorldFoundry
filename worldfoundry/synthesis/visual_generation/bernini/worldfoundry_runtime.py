@@ -6,7 +6,6 @@ import importlib.util
 import json
 import os
 import struct
-import sys
 import tempfile
 from collections import Counter
 from dataclasses import dataclass
@@ -19,6 +18,7 @@ from worldfoundry.core.io.paths import (
     hfd_root_path,
     resolve_local_hf_model_path,
 )
+from worldfoundry.runtime.conda import resolve_model_python
 
 UPSTREAM_REVISION = "82d573e9a553dccb1405dde4cb0f26466f9df6c5"
 
@@ -718,7 +718,7 @@ class BerniniRuntime:
                 nproc_per_node=nproc_per_node,
                 args=("--payload", str(payload_path)),
                 env=env,
-                python_executable=sys.executable,
+                python_executable=resolve_model_python(self.variant.model_id),
             )
             if completed.returncode:
                 detail = (completed.stderr or completed.stdout).strip()

@@ -15,8 +15,9 @@ import yaml
 
 from worldfoundry.evaluation.models.runtime.profiles import load_runtime_profile
 from worldfoundry.evaluation.utils import REPO_ROOT
-from worldfoundry.synthesis.base_synthesis import BaseSynthesis
+from worldfoundry.runtime.conda import resolve_model_python
 from worldfoundry.studio.visualization.core.geometry import depth_to_world_points
+from worldfoundry.synthesis.base_synthesis import BaseSynthesis
 
 
 @dataclass(frozen=True)
@@ -526,7 +527,7 @@ class ThreeDFourDRuntimeSynthesis(BaseSynthesis):
         return env
 
     def _build_command(self, context: Mapping[str, Any], options: Mapping[str, Any]) -> list[str]:
-        python = str(options.get("python_executable") or sys.executable)
+        python = resolve_model_python(self.model_id, explicit=options.get("python_executable"))
         if os.getenv("WORLDFOUNDRY_STUDIO_CONDA_CHILD", "").strip().lower() in {"1", "true", "yes", "on"}:
             python = sys.executable
         entrypoint = str(context.get("entrypoint") or self.spec.entrypoint)

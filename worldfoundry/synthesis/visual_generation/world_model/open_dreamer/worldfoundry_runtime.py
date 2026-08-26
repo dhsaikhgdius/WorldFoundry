@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from worldfoundry.core.io.paths import checkpoint_root_path, official_runtime_repo_path
+from worldfoundry.runtime.conda import resolve_model_python
 from worldfoundry.synthesis.visual_generation.world_model.runtime_manifest import command_settings, plan_payload
 
 from .vpt_actions import (
@@ -165,7 +166,7 @@ def _python_executable(options: Mapping[str, Any], runtime_root_path: Path) -> s
     venv_python = runtime_root_path / ".venv" / "bin" / "python"
     if venv_python.is_file():
         return str(venv_python)
-    return sys.executable
+    return resolve_model_python("open-dreamer")
 
 
 def _uses_worldfoundry_interpreter(options: Mapping[str, Any], runtime_root_path: Path) -> bool:

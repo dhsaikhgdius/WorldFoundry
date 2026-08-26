@@ -74,3 +74,22 @@ def test_sy02_batch2_adapters_wire_resolve_model_python() -> None:
         text = (root / rel).read_text(encoding="utf-8")
         assert "resolve_model_python" in text, rel
         assert "from worldfoundry.runtime.conda import resolve_model_python" in text, rel
+
+
+def test_sy02_batch3_adapters_wire_resolve_model_python() -> None:
+    root = Path(__file__).resolve().parents[2]
+    paths = (
+        "worldfoundry/synthesis/visual_generation/video_x_fun/worldfoundry_runtime.py",
+        "worldfoundry/synthesis/visual_generation/animatediff/animatediff_synthesis.py",
+        "worldfoundry/synthesis/visual_generation/moverse/moverse_synthesis.py",
+        "worldfoundry/synthesis/visual_generation/uni3c/uni3c_synthesis.py",
+        "worldfoundry/synthesis/visual_generation/hunyuan_world/hy_world_2p0_worldgen_runtime.py",
+        "worldfoundry/synthesis/visual_generation/three_d_four_d/runtime.py",
+        "worldfoundry/synthesis/visual_generation/multiworld/ittakestwo_runtime.py",
+        "worldfoundry/synthesis/visual_generation/bernini/worldfoundry_runtime.py",
+        "worldfoundry/synthesis/visual_generation/world_model/open_dreamer/worldfoundry_runtime.py",
+    )
+    for rel in paths:
+        text = (root / rel).read_text(encoding="utf-8")
+        assert "resolve_model_python" in text, rel
+        assert "from worldfoundry.runtime.conda import resolve_model_python" in text, rel

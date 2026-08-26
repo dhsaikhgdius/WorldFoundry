@@ -10,10 +10,11 @@ configuration options and fallback mechanisms.
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from worldfoundry.evaluation.models.runtime.profiles import RuntimeProfileSynthesis
+from worldfoundry.runtime.conda import resolve_model_python
 from worldfoundry.synthesis.visual_generation.animatediff.worldfoundry_runtime import (
     DEFAULT_ANIMATEDIFF_HF_HUB_CACHE,
     DEFAULT_ANIMATEDIFF_INFERENCE_CONFIG,
@@ -23,7 +24,6 @@ from worldfoundry.synthesis.visual_generation.animatediff.worldfoundry_runtime i
     DEFAULT_SD15_ROOT,
     AnimateDiffRuntime,
 )
-from worldfoundry.evaluation.models.runtime.profiles import RuntimeProfileSynthesis
 
 
 class AnimateDiffSynthesis(RuntimeProfileSynthesis):
@@ -105,7 +105,7 @@ class AnimateDiffSynthesis(RuntimeProfileSynthesis):
             or options.get("dreambooth_path")
             or DEFAULT_ANIMATEDIFF_REALISTIC_VISION
         )
-        instance.official_python = str(options.get("official_python") or sys.executable)
+        instance.official_python = resolve_model_python(cls.MODEL_ID, explicit=options.get("official_python"))
         instance.hf_hub_cache = str(options.get("hf_hub_cache") or DEFAULT_ANIMATEDIFF_HF_HUB_CACHE)
         instance.integrated_runtime_root = str(
             options.get("integrated_runtime_root") or DEFAULT_ANIMATEDIFF_INTEGRATED_ROOT
