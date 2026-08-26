@@ -26,7 +26,7 @@ from .generic_collectives import (
     is_master as is_main_process,
 )
 
-logger = getLogger()
+logger = getLogger(__name__)
 
 # Original builtins.print, captured the first time setup_for_distributed patches it.
 _ORIGINAL_BUILTINS_PRINT = None
@@ -92,12 +92,23 @@ def builtins_print_unpatched():
             builtins.print = patched_print
 
 
+def export_slurm_rank_environment(*, rank: int, world_size: int, local_rank: int) -> None:
+    """Export torchrun-style RANK/WORLD_SIZE/LOCAL_RANK from SLURM identity.
+
+    Leaves existing values alone (``setdefault``) so explicit launcher env wins.
+    """
+
+    os.environ.setdefault("RANK", str(rank))
+    os.environ.setdefault("WORLD_SIZE", str(world_size))
+    os.environ.setdefault("LOCAL_RANK", str(local_rank))
+
+
 def init_distributed(port=37124, rank_and_world_size=(None, None)):
     rank, world_size = rank_and_world_size
     gpu = None
     dist_url = "env://"
     os.environ["MASTER_PORT"] = os.environ.get("MASTER_PORT", str(port))
-    print("Using port", os.environ["MASTER_PORT"])
+    logger.info("Using port %s", os.environ["MASTER_PORT"])
 
     if "RANK" in os.environ and "WORLD_SIZE" in os.environ:
         try:
@@ -116,6 +127,7 @@ def init_distributed(port=37124, rank_and_world_size=(None, None)):
             rank = int(os.environ["SLURM_PROCID"])
             gpu = rank % max(torch.cuda.device_count(), 1)
             os.environ["MASTER_ADDR"] = os.environ.get("HOSTNAME", "127.0.0.1")
+            export_slurm_rank_environment(rank=rank, world_size=world_size, local_rank=gpu)
         except Exception as exc:
             raise RuntimeError(
                 "SLURM_PROCID is set but the SLURM environment is incomplete or invalid "
@@ -263,7 +275,7 @@ class MetricLogger:
                 eta_seconds = iter_time.global_avg * (len(iterable) - index)
                 eta_string = str(datetime.timedelta(seconds=int(eta_seconds)))
                 if torch.cuda.is_available():
-                    print(
+                    logger.info(
                         log_msg.format(
                             index,
                             len(iterable),
@@ -275,7 +287,7 @@ class MetricLogger:
                         )
                     )
                 else:
-                    print(
+                    logger.info(
                         log_msg.format(
                             index,
                             len(iterable),
@@ -289,7 +301,7 @@ class MetricLogger:
             end = time.time()
         total_time = time.time() - start_time
         total_time_str = str(datetime.timedelta(seconds=int(total_time)))
-        print(f"{header} Total time: {total_time_str} ({total_time / len(iterable):.4f} s / it)")
+        logger.info("%s Total time: %s (%.4f s / it)", header, total_time_str, total_time / len(iterable))
         self.update(total_time=total_time)
 
 
