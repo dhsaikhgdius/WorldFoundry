@@ -122,6 +122,28 @@ standard HF cache variables) for public checkpoints. Use `WORLDFOUNDRY_CKPT_DIR`
 for upstream runtimes that require a fixed directory layout or for local soft
 links that preserve official paths without duplicating large files.
 
+## Log redaction and rotation
+
+Structured logging (`configure_logging`, JSONL file sinks, field serializers)
+redacts sensitive **keys** (segment match such as `api_key` / `hf_token`) and
+known **value prefixes** (OpenAI/HF `sk-`/`hf-`, GitHub `ghp_`/`github_pat_`,
+Slack `xox*`, AWS `AKIA…`, compact JWTs starting with `eyJ…`). Use
+`redact_sensitive_text` for the same policy outside the logger.
+
+**Raw stdout/stderr capture is intentionally fidelity-preserving** and is **not**
+passed through that scrubber. Job/console tee paths may apply a separate
+argv/line redactor; do not assume every byte on disk is redacted.
+
+File rotation knobs (`rotation` / `retention` on `configure_logging`):
+
+| Backend | `rotation` | `retention` |
+| --- | --- | --- |
+| loguru (default when installed) | size string such as `10 MB` | time or count string (loguru semantics) |
+| stdlib fallback | parsed to `RotatingFileHandler.maxBytes` | parsed to a **backup file count** only (`1 week` → `7`); not mtime-based expiry |
+
+Keep both backends size-oriented for rotation; treat retention wording as
+backend-specific until a shared mtime policy lands.
+
 ## Dedicated model environment exceptions
 
 Start from `worldfoundry-unified-<cuda-tier>` for every model. Create a

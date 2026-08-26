@@ -52,7 +52,8 @@ SENSITIVE_ENV_SUBSTRING_MARKERS: tuple[str, ...] = (
 
 _CAMEL_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
 
-# OpenAI/HF style plus GitHub PATs, Slack bot tokens, AWS access key ids.
+# OpenAI/HF style plus GitHub PATs, Slack bot tokens, AWS access key ids,
+# and compact JWT payloads (header.payload.signature, header starts with eyJ).
 KNOWN_SECRET_VALUE_RE = re.compile(
     r"\b(?:"
     r"sk[_-][A-Za-z0-9_-]{8,}"
@@ -61,6 +62,7 @@ KNOWN_SECRET_VALUE_RE = re.compile(
     r"|github_pat_[A-Za-z0-9_]{20,}"
     r"|xox[baprs]-[A-Za-z0-9-]{10,}"
     r"|AKIA[0-9A-Z]{16}"
+    r"|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+"
     r")\b"
 )
 

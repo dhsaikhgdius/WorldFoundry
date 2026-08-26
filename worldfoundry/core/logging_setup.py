@@ -728,8 +728,9 @@ def configure_logging(
         json: When true the file sink emits JSON Lines (the console stays
             colored text). ``None`` falls back to ``WORLDFOUNDRY_LOG_JSON``.
         rotation: Size threshold for file rotation (e.g. ``"10 MB"``).
-        retention: How many rotated files to keep (e.g. ``"1 week"`` → 7
-            backups; only the count is honoured by the stdlib path).
+        retention: Retention hint. Loguru keeps its native time/count semantics;
+            the stdlib fallback only honours a **backup file count**
+            (e.g. ``"1 week"`` → 7), not mtime-based expiry.
         colorize: Override console colorization (loguru path only).
         force: Reconfigure even if already configured.
     """

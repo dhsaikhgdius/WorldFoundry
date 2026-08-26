@@ -21,6 +21,7 @@ def test_known_secret_value_patterns_cover_cloud_prefixes() -> None:
         "AKIAIOSFODNN7EXAMPLE",
         "sk-abcdefghijklmnop",
         "hf_abcdefghijklmnop",
+        "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0In0.signaturepadpadpad",
     )
     for sample in samples:
         redacted = redact_sensitive_text(f"value={sample}")
