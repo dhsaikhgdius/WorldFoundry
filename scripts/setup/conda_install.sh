@@ -15,9 +15,10 @@ CONDA_ENVIRONMENT_FILE="${WORLDFOUNDRY_CONDA_ENVIRONMENT_FILE:-environment.yml}"
 INSTALL_PRESET="${WORLDFOUNDRY_INSTALL_PRESET:-max-infer}"
 INSTALL_FLASH_ATTN=1
 FLASH_ATTN_BUCKET="${WORLDFOUNDRY_FLASH_ATTN_BUCKET:-flash_attn_fa25}"
-TORCH_SPEC="${WORLDFOUNDRY_TORCH_SPEC:-torch>=2.7,<2.12.0}"
-TORCHVISION_SPEC="${WORLDFOUNDRY_TORCHVISION_SPEC:-torchvision>=0.22,<0.27.0}"
-TORCHAUDIO_SPEC="${WORLDFOUNDRY_TORCHAUDIO_SPEC:-torchaudio>=2.7,<2.12.0}"
+# Empty until CUDA tier resolves; filled from TIER_TORCH_SPECS unless overridden.
+TORCH_SPEC="${WORLDFOUNDRY_TORCH_SPEC:-}"
+TORCHVISION_SPEC="${WORLDFOUNDRY_TORCHVISION_SPEC:-}"
+TORCHAUDIO_SPEC="${WORLDFOUNDRY_TORCHAUDIO_SPEC:-}"
 VERIFY_ONLY=0
 ALLOW_NO_CUDA="${WORLDFOUNDRY_ALLOW_NO_CUDA:-0}"
 CUDA_NVCC_DRY_RUN=0
@@ -44,9 +45,10 @@ Options:
   --skip-three-d-core   Legacy compatibility option; ignored.
   --flash-attn BUCKET   flash-attn bucket: flash_attn_fa25 or flash_attn_fa28.
   --skip-flash-attn     Do not install flash-attn.
-  --torch SPEC          Torch package spec. Default: torch>=2.7,<2.12.0.
-  --torchvision SPEC    Torchvision package spec. Default: torchvision>=0.22,<0.27.0.
-  --torchaudio SPEC     Torchaudio package spec. Default: torchaudio>=2.7,<2.12.0.
+  --torch SPEC          Torch package spec. Default: from TIER_TORCH_SPECS for the
+                        resolved CUDA tier (cu121 <2.6, cu124 <2.7, cu128 >=2.7).
+  --torchvision SPEC    Torchvision package spec (tier default unless set).
+  --torchaudio SPEC     Torchaudio package spec (tier default unless set).
   --verify-only         Only run import and CUDA verification in the env.
   --allow-no-cuda       Do not fail verification when CUDA is not visible.
   --cuda-nvcc-dry-run   Print the tier-aware nvcc install command and exit.
@@ -160,6 +162,16 @@ if ! CUDA_REPORT="$(PYTHONPATH="$WORLDFOUNDRY_SOURCE_ROOT" "$PYTHON_BIN" -m worl
 fi
 CUDA_PROFILE="$(printf '%s' "$CUDA_REPORT" | "$PYTHON_BIN" -c 'import json, sys; print(json.load(sys.stdin)["tier"])')"
 DETECTED_DRIVER_CUDA="$(printf '%s' "$CUDA_REPORT" | "$PYTHON_BIN" -c 'import json, sys; print(json.load(sys.stdin).get("driver_cuda") or "")')"
+
+if [[ -z "$TORCH_SPEC" ]]; then
+  TORCH_SPEC="$(printf '%s' "$CUDA_REPORT" | "$PYTHON_BIN" -c 'import json, sys; print(json.load(sys.stdin)["torch_specs"]["torch"])')"
+fi
+if [[ -z "$TORCHVISION_SPEC" ]]; then
+  TORCHVISION_SPEC="$(printf '%s' "$CUDA_REPORT" | "$PYTHON_BIN" -c 'import json, sys; print(json.load(sys.stdin)["torch_specs"]["torchvision"])')"
+fi
+if [[ -z "$TORCHAUDIO_SPEC" ]]; then
+  TORCHAUDIO_SPEC="$(printf '%s' "$CUDA_REPORT" | "$PYTHON_BIN" -c 'import json, sys; print(json.load(sys.stdin)["torch_specs"]["torchaudio"])')"
+fi
 
 case "$CUDA_PROFILE" in
   cu121) CUDA_NVCC_VERSION="12.1" ;;
