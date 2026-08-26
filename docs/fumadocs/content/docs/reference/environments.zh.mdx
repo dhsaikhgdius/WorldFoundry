@@ -115,10 +115,17 @@ env 文件。这个文件应保留在本机；里面是路径，不应包含密�
 | `WORLDFOUNDRY_CUDA_PROFILE` | 是 | 解析出的 CUDA wheel tier；CUDA 12.8+ 主机通常是 `cu128`。 |
 | `HF_HOME`, `HF_HUB_CACHE`, `HF_DATASETS_CACHE` | 是 | 使用 WorldFoundry 管理 HF cache 时的 Hugging Face cache 根目录。 |
 | `HF_TOKEN`, `HUGGING_FACE_HUB_TOKEN` | 否 | 用户自行提供的 gated asset 凭据。不要提交这些变量。 |
+| `WORLDFOUNDRY_HF_DOWNLOAD_LOCK_TIMEOUT` | 否 | 跨进程 HF 下载 `FileLock` 等待秒数（默认 `7200`；`-1` 表示一直等）。 |
+| `WORLDFOUNDRY_HF_DOWNLOAD_LOCK_WAIT_LOG_SECONDS` | 否 | 等待该锁时的日志间隔秒数（默认 `30`）。 |
 
 公开 checkpoint 优先使用 Hugging Face 原生加载策略：`from_pretrained`、
 `snapshot_download` 和标准 HF cache 变量。`WORLDFOUNDRY_CKPT_DIR` 用于上游
 runtime 需要固定目录布局的情况，或用软链保持官方路径而不重复复制大文件。
+
+多 rank 任务若走 `maybe_download_hf_repo_on_rank0`，会在默认进程组上
+broadcast 下载成败。大体积 Hub 拉取常会超过默认 NCCL collective 超时——下载
+协调请优先用长超时的 Gloo（或提高进程组 / `NCCL_TIMEOUT`），并保证参与
+broadcast 的各 rank 在结束后都能读到同一份 HF cache（共享文件系统前提）。
 
 ## 模型专用环境例外
 
