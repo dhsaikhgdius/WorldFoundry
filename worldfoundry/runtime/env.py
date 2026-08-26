@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 from typing import Mapping as TypingMapping
 
+from worldfoundry.core import secret_patterns as _secret_patterns
 from worldfoundry.core.io.paths import (
     artifact_root_path,
     cache_root_path,
@@ -27,10 +28,9 @@ from worldfoundry.core.io.paths import (
     local_data_root_path,
     local_model_root_path,
 )
-from worldfoundry.core.secret_patterns import (
-    SENSITIVE_ENV_SUBSTRING_MARKERS as _SENSITIVE_MARKERS,
-    is_sensitive_env_name,
-)
+
+_SENSITIVE_MARKERS = _secret_patterns.SENSITIVE_ENV_SUBSTRING_MARKERS
+is_sensitive_env_name = _secret_patterns.is_sensitive_env_name
 
 EnvMapping = TypingMapping[str, str]
 
