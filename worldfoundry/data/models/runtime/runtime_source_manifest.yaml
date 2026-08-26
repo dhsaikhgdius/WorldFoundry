@@ -13,3 +13,18 @@ packaged:
 - worldfoundry/synthesis/visual_generation/uni3c/uni3c_runtime
 # All other discovered ``*_runtime`` directories default to checkout_only.
 # Nested dirs (e.g. matrix_game_2_runtime/utils/vae_runtime) inherit the parent.
+
+# First SY-06 checkout_only cohort that must carry UPSTREAM + license artifacts.
+checkout_only_provenance:
+- worldfoundry/synthesis/visual_generation/ac3d/ac3d_runtime
+- worldfoundry/synthesis/visual_generation/allegro/allegro_runtime
+- worldfoundry/synthesis/visual_generation/ati/ati_runtime
+- worldfoundry/synthesis/visual_generation/cameractrl/cameractrl_runtime
+- worldfoundry/synthesis/visual_generation/ctrl_world/ctrl_world_runtime
+- worldfoundry/synthesis/visual_generation/dreamdojo/dreamdojo_runtime
+- worldfoundry/synthesis/visual_generation/easyanimate/easyanimate_runtime
+- worldfoundry/synthesis/visual_generation/echo_infinity/echo_infinity_runtime
+- worldfoundry/synthesis/visual_generation/forcing/self_forcing_runtime
+- worldfoundry/synthesis/visual_generation/forcing/causal_forcing_runtime
+- worldfoundry/synthesis/visual_generation/framepack/framepack_runtime
+- worldfoundry/synthesis/visual_generation/genie_envisioner/genie_envisioner_runtime

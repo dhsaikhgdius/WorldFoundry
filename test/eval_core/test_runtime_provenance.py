@@ -1,4 +1,4 @@
-"""SY-06: packaged ``*_runtime`` trees must carry UPSTREAM + license artifacts."""
+"""SY-06: ``*_runtime`` trees must carry UPSTREAM + license artifacts."""
 
 from __future__ import annotations
 
@@ -19,15 +19,22 @@ _LICENSE_NAMES = (
 )
 
 
+def _manifest() -> dict:
+    return yaml.safe_load(RUNTIME_SOURCE.read_text(encoding="utf-8"))
+
+
 def _packaged_runtime_dirs() -> list[Path]:
-    payload = yaml.safe_load(RUNTIME_SOURCE.read_text(encoding="utf-8"))
-    return [REPO_ROOT / item for item in payload["packaged"]]
+    return [REPO_ROOT / item for item in _manifest()["packaged"]]
 
 
-def test_packaged_runtimes_have_upstream_and_license_artifacts():
+def _checkout_only_provenance_dirs() -> list[Path]:
+    return [REPO_ROOT / item for item in _manifest().get("checkout_only_provenance") or ()]
+
+
+def _assert_provenance(runtime_dirs: list[Path], *, label: str) -> None:
     missing: list[str] = []
-    for runtime_dir in _packaged_runtime_dirs():
-        assert runtime_dir.is_dir(), f"missing packaged runtime: {runtime_dir}"
+    for runtime_dir in runtime_dirs:
+        assert runtime_dir.is_dir(), f"missing {label} runtime: {runtime_dir}"
         upstream = runtime_dir / "UPSTREAM.md"
         if not upstream.is_file():
             missing.append(f"{runtime_dir.relative_to(REPO_ROOT)}: missing UPSTREAM.md")
@@ -36,4 +43,17 @@ def test_packaged_runtimes_have_upstream_and_license_artifacts():
                 f"{runtime_dir.relative_to(REPO_ROOT)}: missing license artifact "
                 f"(one of {_LICENSE_NAMES})"
             )
-    assert not missing, "SY-06 provenance gaps:\n" + "\n".join(missing)
+    assert not missing, f"SY-06 {label} provenance gaps:\n" + "\n".join(missing)
+
+
+def test_packaged_runtimes_have_upstream_and_license_artifacts():
+    _assert_provenance(_packaged_runtime_dirs(), label="packaged")
+
+
+def test_checkout_only_provenance_cohort_has_upstream_and_license_artifacts():
+    dirs = _checkout_only_provenance_dirs()
+    assert dirs, "checkout_only_provenance cohort must be non-empty"
+    packaged = {path.resolve() for path in _packaged_runtime_dirs()}
+    overlap = [path for path in dirs if path.resolve() in packaged]
+    assert not overlap, f"checkout_only_provenance overlaps packaged: {overlap}"
+    _assert_provenance(dirs, label="checkout_only")

@@ -61,6 +61,18 @@ def test_every_discovered_runtime_is_classified():
     assert packaged <= discovered
 
 
+def test_checkout_only_provenance_cohort_paths_exist_and_are_not_packaged():
+    payload = yaml.safe_load(MANIFEST_PATH.read_text(encoding="utf-8"))
+    cohort = [Path(item) for item in payload.get("checkout_only_provenance") or ()]
+    assert cohort, "checkout_only_provenance cohort must be declared"
+    packaged = {Path(item).as_posix() for item in payload.get("packaged") or ()}
+    discovered = {path.as_posix() for path in _discover_runtime_dirs()}
+    for path in cohort:
+        assert path.as_posix() not in packaged, path
+        assert (REPO_ROOT / path).is_dir(), path
+        assert path.as_posix() in discovered, path
+
+
 def test_packaged_runtimes_appear_in_package_data_and_manifest_in():
     manifest = _load_manifest()
     package_data = _package_data_text()
