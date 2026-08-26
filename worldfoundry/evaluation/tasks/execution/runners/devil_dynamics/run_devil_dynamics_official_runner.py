@@ -8,14 +8,11 @@ from pathlib import Path
 import sys
 from typing import Any
 
-REPO_ROOT = Path(__file__).resolve().parents[6]
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
-
+from worldfoundry.core.io.paths import project_root
 from worldfoundry.evaluation.tasks.execution.framework import official_runner as ors
 from worldfoundry.evaluation.tasks.execution.framework.io import normalize_unit_score, scalar_number
 
-
+REPO_ROOT = project_root(__file__)
 
 CONFIG = ors.BenchRunnerConfig(
     benchmark_id='devil-dynamics',
