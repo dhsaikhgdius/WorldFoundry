@@ -453,36 +453,40 @@ ignore = [
 ]
 
 [tool.setuptools]
+# Every pattern below must match at least one discoverable package; dead rules
+# are rejected by `make packaging-check` (scripts/setup/check_packaging_license_gate.py,
+# code_review VI-16). License-gated vendored trees are additionally deny-listed
+# from the MANIFEST.in "License-gated upstream runtimes" block, so a tree that
+# becomes importable (e.g. gains an __init__.py) without an exclude fails CI
+# instead of silently shipping in the wheel.
 packages = { find = { where = ["."], include = ["worldfoundry*"], exclude = [
-    "worldfoundry.pipelines.*.runtime*",
+    # Structural: upstream runtime mirrors never ship in wheels.
     "worldfoundry.synthesis.visual_generation.*.runtime*",
     "worldfoundry.synthesis.visual_generation.*.*_runtime*",
-    "worldfoundry.synthesis.action_generation.*.runtime*",
-    "worldfoundry.synthesis.action_generation.*.*_runtime*",
-    "worldfoundry.representations.*.*_official*",
-    "worldfoundry.base_models.*.*.third_party*",
-    "worldfoundry.base_models.*.*.*_runtime.third_party*",
-    "worldfoundry.base_models.*.*.*_runtime.submodules*",
-    "worldfoundry.base_models.*.*.*_runtime.src*",
-    "worldfoundry.base_models.*.*.*_runtime.*.src*",
-    "worldfoundry.base_models.*.depth_anything",
-    "worldfoundry.base_models.*.depth_anything.*",
-    "worldfoundry.base_models.*.*.dvlt_runtime.src*",
-    "worldfoundry.base_models.*.*.pixelsplat.src*",
-    "worldfoundry.base_models.*.vggt.vggt",
-    "worldfoundry.base_models.*.vggt.vggt.*",
-    "worldfoundry.base_models.*.vggt_omega.vggt_omega",
-    "worldfoundry.base_models.*.vggt_omega.vggt_omega.*",
-    "worldfoundry.base_models.*.vggt_fantasy_world.vggt",
-    "worldfoundry.base_models.*.vggt_fantasy_world.vggt.*",
-    "worldfoundry.base_models.*.pixelsplat",
-    "worldfoundry.base_models.*.gaussian_splatting.arguments",
-    "worldfoundry.base_models.*.gaussian_splatting.scene",
-    "worldfoundry.base_models.*.gaussian_splatting.gaussian_renderer",
-    "worldfoundry.base_models.*.eastern_journalist.utils3d",
-    "worldfoundry.base_models.*.eastern_journalist.utils3d.*",
     "worldfoundry.base_models.*.*_runtime",
     "worldfoundry.base_models.*.*_runtime.*",
+    "worldfoundry.base_models.*.pixelsplat",
+    "worldfoundry.base_models.*.vggt_omega.vggt_omega",
+    "worldfoundry.base_models.*.vggt_omega.vggt_omega.*",
+    # License-gated vendored trees (local checkouts only; see MANIFEST.in).
+    "worldfoundry.base_models.three_dimensions.depth.unidepth",
+    "worldfoundry.base_models.three_dimensions.depth.unidepth.*",
+    "worldfoundry.base_models.three_dimensions.depth.unik3d",
+    "worldfoundry.base_models.three_dimensions.depth.unik3d.*",
+    "worldfoundry.base_models.three_dimensions.general_3d.dust3r",
+    "worldfoundry.base_models.three_dimensions.general_3d.dust3r.*",
+    "worldfoundry.base_models.three_dimensions.general_3d.mast3r",
+    "worldfoundry.base_models.three_dimensions.general_3d.mast3r.*",
+    "worldfoundry.base_models.three_dimensions.point_clouds.cut3r",
+    "worldfoundry.base_models.three_dimensions.point_clouds.cut3r.*",
+    "worldfoundry.base_models.three_dimensions.point_clouds.pi3",
+    "worldfoundry.base_models.three_dimensions.point_clouds.pi3.*",
+    "worldfoundry.synthesis.visual_generation.hunyuan_world.hunyuan_game_craft",
+    "worldfoundry.synthesis.visual_generation.hunyuan_world.hunyuan_game_craft.*",
+    "worldfoundry.synthesis.visual_generation.hunyuan_world.hunyuan_world_voyager",
+    "worldfoundry.synthesis.visual_generation.hunyuan_world.hunyuan_world_voyager.*",
+    "worldfoundry.synthesis.visual_generation.hunyuan_world.hunyuan_worldplay",
+    "worldfoundry.synthesis.visual_generation.hunyuan_world.hunyuan_worldplay.*",
 ] } }
 include-package-data = true
 
