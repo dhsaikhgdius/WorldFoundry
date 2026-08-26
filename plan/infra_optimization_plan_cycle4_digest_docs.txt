@@ -1,0 +1,10 @@
+# Cycle 4 note — profile digest docs / floating-image checker
+
+Landed alongside runtime digest helpers (PR #30 / `image_refs`):
+
+- Docs: embodied official runtime EN/ZH sections on pinning digests without inventing them.
+- `scripts/embodied/list_floating_image_refs.py`: inventory floating official profile refs;
+  fail only when explicitly requested.
+- Unit tests under `test/eval_core/test_list_floating_image_refs.py`.
+
+Official YAML tags remain `:latest` until operators capture real registry digests.

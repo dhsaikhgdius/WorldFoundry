@@ -194,6 +194,35 @@ Rollout 前建议记录：benchmark ID、上游 commit、simulator 版本、data
 
 ---
 
+## Docker 镜像 digest 固定
+
+官方 runtime profile（`worldfoundry/data/benchmarks/runtime_profiles/official/`）仍发布浮动的 `:latest` 标签。**不要在仓库里编造 digest。** 只有在你镜像并记录到真实 digest 之后再写入。
+
+| 机制 | 行为 |
+| --- | --- |
+| profile 中的 `docker.digest` / `docker.image_digest` | Runner 将 `docker.image` 解析为 `repository@sha256:...`（见 `image_refs` 辅助模块落地后） |
+| `WORLDFOUNDRY_EMBODIED_REQUIRE_PINNED_IMAGES=1` | 可选：在解析阶段拒绝浮动 `:latest` / 无 tag 引用 |
+| `scripts/embodied/list_floating_image_refs.py` | 列出浮动的 `docker.image` / `source_image`；仅在 `--fail` 或 `WORLDFOUNDRY_EMBODIED_FAIL_ON_FLOATING_IMAGES=1` 时以退出码 `1` 失败 |
+| `scripts/embodied/mirror_docker_images.py` | 将上游镜像镜像到你的命名空间；从 registry 取 digest 后再写回 profile |
+
+典型操作流程：
+
+```bash
+# 1) 盘点浮动引用（默认仅报告）
+PYTHONPATH=. python scripts/embodied/list_floating_image_refs.py
+
+# 2) mirror 后从 registry 记录 digest（示例）
+#    docker buildx imagetools inspect <mirrored-image:tag> --format '{{json .Manifest}}'
+#    在对应 official/*.yaml 写入 docker.digest: sha256:<hex> — 禁止猜测。
+
+# 3) profile 钉死后可选运行时强制
+export WORLDFOUNDRY_EMBODIED_REQUIRE_PINNED_IMAGES=1
+```
+
+在运营侧写入真实 digest 之前，CI 不应因官方 `:latest` 硬失败；list 脚本用作 dry-run / 渐进门禁。
+
+---
+
 ## 发版维护说明
 
 Maintainer 的 release gate 与 `official_benchmark_verified` 标注流程见 [验证证据](/zh/docs/reference/validation)。
