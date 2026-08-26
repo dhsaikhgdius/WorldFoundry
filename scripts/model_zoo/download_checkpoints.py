@@ -11,11 +11,9 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
-
 from typing import Any
 
 from worldfoundry.core.io.paths import project_root
-
 
 REPO_ROOT = project_root(__file__)
 SRC_ROOT = REPO_ROOT

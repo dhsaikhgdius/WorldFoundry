@@ -6,11 +6,8 @@ import importlib.util
 import json
 import subprocess
 import sys
-from pathlib import Path
 
 from worldfoundry.core.io.paths import project_root
-
-
 
 REPO_ROOT = project_root(__file__)
 SRC_ROOT = REPO_ROOT
