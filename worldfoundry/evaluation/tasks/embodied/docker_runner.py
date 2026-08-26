@@ -109,6 +109,24 @@ def write_docker_config(config: Mapping[str, Any], output_dir: Path) -> Path:
     return Path(temp_path)
 
 
+def _network_flags(docker_cfg: Mapping[str, Any]) -> list[str]:
+    """Resolve container network mode.
+
+    Official harness parity defaults to ``host``. Operators can isolate with
+    ``WORLDFOUNDRY_EMBODIED_DOCKER_NETWORK=bridge`` (or any docker network name),
+    or set ``none`` / ``omit`` to skip ``--network`` entirely. Config key
+    ``docker.network`` overrides the environment default.
+    """
+
+    configured = docker_cfg.get("network")
+    if configured is None or str(configured).strip() == "":
+        configured = os.getenv("WORLDFOUNDRY_EMBODIED_DOCKER_NETWORK", "host")
+    value = str(configured).strip()
+    if value.lower() in {"", "omit", "none", "default"}:
+        return []
+    return ["--network", value]
+
+
 def build_docker_run_command(
     config: Mapping[str, Any],
     *,
@@ -135,8 +153,7 @@ def build_docker_run_command(
         shutil.which("docker") or "docker",
         "run",
         "--rm",
-        "--network",
-        "host",
+        *_network_flags(docker_cfg),
         "-v",
         f"{output_dir}:/workspace/results",
         "-v",
@@ -148,7 +165,7 @@ def build_docker_run_command(
         "-e",
         "PYTHONPATH=/workspace/WorldFoundry:/workspace/WorldFoundry/src",
         "-e",
-        f"WORLDFOUNDRY_REPO_ROOT=/workspace/WorldFoundry",
+        "WORLDFOUNDRY_REPO_ROOT=/workspace/WorldFoundry",
         "-e",
         f"WORLDFOUNDRY_HOST_OUTPUT_DIR={output_dir}",
     ]
