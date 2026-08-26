@@ -205,9 +205,14 @@ ui = [
     "fastapi",
     "flask",
     "flask-socketio",
-    "gradio",
-    "gradio-imageslider",
+    # workspace_app still uses FastAPI.add_event_handler (removed in Starlette 1.0 /
+    # Gradio 6). Keep the Studio UI stack on Gradio 5 until that migrates to lifespan.
+    "gradio>=5.50,<6",
+    "gradio-imageslider>=0.0.20,<0.0.21",
+    "numpy>=1.26,<3",
+    "pillow>=10",
     "pydantic",
+    "starlette<1.0",
     "textual",
     "uvicorn",
 ]
@@ -319,10 +324,22 @@ studio_plot = [
     "plotly",
     "pillow",
 ]
+test = [
+    "pytest>=8,<10",
+    "pytest-cov>=5,<7",
+    "numpy",
+    "pillow",
+    "pandas",
+    "einops",
+    "safetensors",
+    "joblib",
+    "pyyaml",
+]
 dev = [
     "build",
     "pre-commit>=4.0",
-    "ruff>=0.12.7",
+    "ruff==0.12.7",
+    "worldfoundry[test]",
 ]
 all = [
     "accelerate",
@@ -348,8 +365,8 @@ all = [
     "ftfy",
     "gdown",
     "google-genai>=1.60.0,<2",
-    "gradio",
-    "gradio-imageslider",
+    "gradio>=5.50,<6",
+    "gradio-imageslider>=0.0.20,<0.0.21",
     "h5py",
     "hf-transfer",
     "huggingface-hub[cli]",
@@ -396,6 +413,7 @@ all = [
     "setuptools<81",
     "sortedcontainers",
     "spacy",
+    "starlette<1.0",
     "structlog",
     "supervision",
     "submitit",
@@ -421,7 +439,7 @@ Issues = "https://github.com/OpenEnvision/WorldFoundry/issues"
 [dependency-groups]
 lint = [
     "pre-commit>=4.0",
-    "ruff>=0.12.7",
+    "ruff==0.12.7",
 ]
 flash_attn_fa25 = [
     "flash-attn",
