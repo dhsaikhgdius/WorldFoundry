@@ -14,8 +14,9 @@ recursive-include worldfoundry/synthesis/visual_generation/stable_video_infinity
 include worldfoundry/synthesis/visual_generation/moverse/UPSTREAM.md
 recursive-include worldfoundry/synthesis/visual_generation/moverse/moverse_runtime *
 recursive-include worldfoundry/synthesis/visual_generation/uni3c/uni3c_runtime *
-recursive-include worldfoundry/synthesis/visual_generation/world_model/mira_wm *.py *.md *.txt LICENSE .worldfoundry_upstream_commit
+recursive-include worldfoundry/synthesis/visual_generation/matrix_game/matrix_game_3p5_runtime *
 recursive-include worldfoundry/synthesis/visual_generation/rcm/rcm_runtime *.py *.md
+recursive-include worldfoundry/synthesis/visual_generation/world_model/mira_wm *.py *.md *.txt LICENSE .worldfoundry_upstream_commit
 recursive-include worldfoundry/evaluation/tasks/execution/runners/physics_iq/official *.py
 recursive-include worldfoundry/evaluation/tasks/execution/runners/chronomagic_bench/runtime/chronomagic_bench/MTScore/configs *.json
 include worldfoundry/evaluation/tasks/execution/runners/devil_dynamics/runtime/official/cal_temporal_info.sh
