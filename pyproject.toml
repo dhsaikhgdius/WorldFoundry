@@ -620,6 +620,9 @@ include-package-data = true
 "worldfoundry.synthesis.visual_generation.uni3c" = [
     "uni3c_runtime/**/*",
 ]
+"worldfoundry.synthesis.visual_generation.rcm" = [
+    "rcm_runtime/**/*",
+]
 
 [tool.setuptools.exclude-package-data]
 "*" = [
