@@ -80,15 +80,28 @@ jobs:
       - name: Eval-core hard gate (stable cuda-tier subset)
         # test_cli_ux.py still carries catalog contract drift on main; keep it out of
         # the hard gate until those assertions are repaired in a content PR.
-        run: >
-          PYTHONPATH=. python -m pytest
-          test/eval_core/test_cuda_tiers.py
-          -q -p no:cacheprovider
-          -m "not gpu and not network"
+        run: |
+          mkdir -p tmp/ci
+          PYTHONPATH=. python -m pytest \
+            test/eval_core/test_cuda_tiers.py \
+            -q -p no:cacheprovider \
+            -m "not gpu and not network" \
+            --junitxml=tmp/ci/junit-eval-core-hard.xml
 
       - name: Eval-core full suite (allow failure until contract backlog clears)
         continue-on-error: true
-        run: make test-eval-core PYTEST_ARGS='-m "not gpu and not network"'
+        run: |
+          mkdir -p tmp/ci
+          make test-eval-core PYTEST_ARGS='-m "not gpu and not network" --junitxml=tmp/ci/junit-eval-core-full.xml'
+
+      - name: Upload eval-core junit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-core-junit
+          path: tmp/ci/junit-eval-core-*.xml
+          if-no-files-found: ignore
+          retention-days: 7
 
   training-tests:
     runs-on: ubuntu-latest
@@ -112,4 +125,15 @@ jobs:
 
       - name: Run training unit tests
         continue-on-error: true
-        run: make test-training PYTEST_ARGS='-m "not gpu and not network"'
+        run: |
+          mkdir -p tmp/ci
+          make test-training PYTEST_ARGS='-m "not gpu and not network" --junitxml=tmp/ci/junit-training.xml'
+
+      - name: Upload training junit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: training-junit
+          path: tmp/ci/junit-training.xml
+          if-no-files-found: ignore
+          retention-days: 7
