@@ -14,6 +14,7 @@ CONDA_EXE_PATH="${CONDA_EXE:-conda}"
 CONDA_ENVIRONMENT_FILE="${WORLDFOUNDRY_CONDA_ENVIRONMENT_FILE:-environment.yml}"
 INSTALL_PRESET="${WORLDFOUNDRY_INSTALL_PRESET:-max-infer}"
 INSTALL_FLASH_ATTN=1
+FLASH_ATTN_CLI_SET=0
 FLASH_ATTN_BUCKET="${WORLDFOUNDRY_FLASH_ATTN_BUCKET:-flash_attn_fa25}"
 TORCH_SPEC="${WORLDFOUNDRY_TORCH_SPEC:-torch>=2.7,<2.12.0}"
 TORCHVISION_SPEC="${WORLDFOUNDRY_TORCHVISION_SPEC:-torchvision>=0.22,<0.27.0}"
@@ -36,8 +37,9 @@ Options:
   --environment-file PATH
                        Conda environment YAML. Default: environment.yml.
   --preset NAME         max-infer or slim. Default: max-infer.
-                       Both install requirements/worldfoundry-unified.txt; slim
-                       is retained as a compatibility alias.
+                       max-infer installs requirements/worldfoundry-unified.txt;
+                       slim installs editable extras .[tui,ui,api,hf] only and
+                       skips flash-attn unless --flash-attn is passed.
   --pytorch-bundle NAME Legacy compatibility option; ignored.
   --transformers NAME   Legacy compatibility option; ignored.
   --three-d-core        Legacy compatibility option; ignored.
@@ -91,10 +93,12 @@ while (($#)); do
     --flash-attn)
       FLASH_ATTN_BUCKET="$2"
       INSTALL_FLASH_ATTN=1
+      FLASH_ATTN_CLI_SET=1
       shift 2
       ;;
     --skip-flash-attn)
       INSTALL_FLASH_ATTN=0
+      FLASH_ATTN_CLI_SET=1
       shift
       ;;
     --torch)
@@ -140,6 +144,10 @@ case "$INSTALL_PRESET" in
     exit 2
     ;;
 esac
+
+if [[ "$INSTALL_PRESET" == "slim" && "$FLASH_ATTN_CLI_SET" != "1" ]]; then
+  INSTALL_FLASH_ATTN=0
+fi
 
 PYTHON_BIN="${PYTHON:-}"
 if [[ -z "$PYTHON_BIN" ]]; then
@@ -271,9 +279,15 @@ if [[ "$VERIFY_ONLY" != "1" ]]; then
     python -m pip install --no-cache-dir --index-url "$TORCH_INDEX_URL" --extra-index-url "$PYPI_INDEX_URL" \
     "$TORCH_SPEC" "$TORCHVISION_SPEC" "$TORCHAUDIO_SPEC"
 
-  PIP_CONFIG_FILE="${WORLDFOUNDRY_PIP_CONFIG_FILE:-/dev/null}" conda_run \
-    python -m pip install --no-cache-dir --index-url "$PYPI_INDEX_URL" \
-    -r requirements/worldfoundry-unified.txt
+  if [[ "$INSTALL_PRESET" == "slim" ]]; then
+    PIP_CONFIG_FILE="${WORLDFOUNDRY_PIP_CONFIG_FILE:-/dev/null}" conda_run \
+      python -m pip install --no-cache-dir --index-url "$PYPI_INDEX_URL" \
+      -e ".[tui,ui,api,hf]"
+  else
+    PIP_CONFIG_FILE="${WORLDFOUNDRY_PIP_CONFIG_FILE:-/dev/null}" conda_run \
+      python -m pip install --no-cache-dir --index-url "$PYPI_INDEX_URL" \
+      -r requirements/worldfoundry-unified.txt
+  fi
 
   if [[ "$INSTALL_FLASH_ATTN" == "1" ]]; then
     run_cmd bash scripts/setup/install_flash_attn.sh "$FLASH_ATTN_BUCKET"
