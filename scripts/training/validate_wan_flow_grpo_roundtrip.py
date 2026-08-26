@@ -17,18 +17,15 @@ import time
 from collections.abc import Mapping
 from pathlib import Path
 
-
 import torch
 
 from worldfoundry.base_models.diffusion_model.assembly import NativeDiffusionAssembler
 from worldfoundry.base_models.diffusion_model.loaders import CheckpointSpec
 from worldfoundry.base_models.diffusion_model.recipes.registry import (
-
-from worldfoundry.core.io.paths import project_root
-
     default_native_diffusion_registry,
 )
 from worldfoundry.core.io.integrity import canonical_json
+from worldfoundry.core.io.paths import project_root
 from worldfoundry.training.data import (
     RolloutPromptDataset,
     RolloutPromptRecord,
