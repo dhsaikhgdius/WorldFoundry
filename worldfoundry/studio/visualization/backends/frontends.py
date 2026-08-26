@@ -24,6 +24,7 @@ from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
+from worldfoundry.core.io.paths import package_root
 from worldfoundry.studio.catalog import CatalogEntry
 from worldfoundry.studio.launch_config import StudioLaunchConfig, env_first
 from worldfoundry.studio.serving import (
@@ -199,7 +200,7 @@ NATIVE_FRONTENDS = STUDIO_VISUALIZATIONS.native_modes
 DEFAULT_FRONTEND_PORTS = STUDIO_VISUALIZATIONS.default_ports
 SPARK_ASSET_EXTS = {".ply", ".spz", ".splat", ".ksplat", ".sog"}
 MEDIA_ASSET_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".mp4", ".mov", ".webm", ".mkv", ".avi", ".wav", ".mp3", ".flac", ".ogg"}
-STUDIO_ASSET_DIR = Path(__file__).resolve().parents[2] / "assets"
+STUDIO_ASSET_DIR = package_root() / "studio" / "assets"
 VENDOR_DIR = STUDIO_ASSET_DIR / "vendor"
 SPARK_VENDOR_DIR = VENDOR_DIR / "spark"
 THREE_VENDOR_DIR = VENDOR_DIR / "three"
