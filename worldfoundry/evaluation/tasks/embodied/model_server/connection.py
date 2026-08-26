@@ -4,11 +4,22 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from typing import Any
 
-from .protocol import Message, MessageType, hello_payload, pack_message, unpack_message
+from .protocol import (
+    Message,
+    MessageType,
+    assert_compatible_protocol_version,
+    hello_payload,
+    pack_message,
+    unpack_message,
+)
 
 logger = logging.getLogger(__name__)
+
+_DEFAULT_PING_INTERVAL_S = float(os.getenv("WF_EMBODIED_WS_PING_INTERVAL_S", "20") or "20")
+_DEFAULT_MAX_MESSAGE_BYTES = int(os.getenv("WF_EMBODIED_WS_MAX_SIZE", str(64 * 1024 * 1024)))
 
 
 class EmbodiedWebSocketConnection:
@@ -22,12 +33,16 @@ class EmbodiedWebSocketConnection:
         max_retries: int = 5,
         backoff_base: float = 2.0,
         benchmark: str | None = None,
+        ping_interval: float | None = None,
+        max_size: int | None = None,
     ) -> None:
         self.url = str(url)
         self.timeout = float(timeout)
         self.max_retries = int(max_retries)
         self.backoff_base = float(backoff_base)
         self.benchmark = benchmark
+        self.ping_interval = _DEFAULT_PING_INTERVAL_S if ping_interval is None else float(ping_interval)
+        self.max_size = _DEFAULT_MAX_MESSAGE_BYTES if max_size is None else int(max_size)
         self.server_info: dict[str, Any] = {}
         self._seq = 0
         self._ws: Any = None
@@ -83,12 +98,31 @@ class EmbodiedWebSocketConnection:
             logger.warning("policy server seq mismatch: sent %s got %s", seq, response.seq)
         return response.payload
 
+    async def ping(self, *, echo: Any = None) -> dict[str, Any]:
+        """Application-level readiness probe (PING → PONG)."""
+
+        payload: dict[str, Any] = {}
+        if echo is not None:
+            payload["echo"] = echo
+        seq = await self.send(MessageType.PING, payload)
+        reply = await self.recv(timeout=self.timeout)
+        if reply.type == MessageType.ERROR:
+            raise RuntimeError(f"policy server error: {reply.payload}")
+        if reply.type != MessageType.PONG:
+            raise RuntimeError(f"expected PONG reply, got {reply.type.value}")
+        if reply.seq != seq:
+            logger.warning("policy server ping seq mismatch: sent %s got %s", seq, reply.seq)
+        return dict(reply.payload or {})
+
     async def _hello(self) -> None:
         payload = hello_payload(role="client", **({"benchmark": self.benchmark} if self.benchmark else {}))
         await self.send(MessageType.HELLO, payload)
         reply = await self.recv(timeout=self.timeout)
+        if reply.type == MessageType.ERROR:
+            raise RuntimeError(f"policy server HELLO error: {reply.payload}")
         if reply.type != MessageType.HELLO:
             raise RuntimeError(f"expected HELLO reply, got {reply.type.value}")
+        assert_compatible_protocol_version(reply.payload, peer="server")
         self.server_info = dict(reply.payload or {})
 
     async def _connect_with_backoff(self) -> None:
@@ -101,8 +135,8 @@ class EmbodiedWebSocketConnection:
                     websockets.connect(
                         self.url,
                         compression=None,
-                        max_size=None,
-                        ping_interval=None,
+                        max_size=self.max_size if self.max_size > 0 else None,
+                        ping_interval=self.ping_interval if self.ping_interval > 0 else None,
                     ),
                     timeout=self.timeout,
                 )

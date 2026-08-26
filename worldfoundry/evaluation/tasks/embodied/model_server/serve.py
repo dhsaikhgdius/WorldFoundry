@@ -6,6 +6,7 @@ import argparse
 import asyncio
 import inspect
 import logging
+import os
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -17,9 +18,22 @@ from worldfoundry.evaluation.tasks.embodied.policy_adapter import (
     normalize_action_payload,
 )
 
-from .protocol import Message, MessageType, hello_payload, pack_message, unpack_message
+from .protocol import (
+    PROTOCOL_VERSION,
+    Message,
+    MessageType,
+    assert_compatible_protocol_version,
+    hello_payload,
+    pack_message,
+    unpack_message,
+)
 
 logger = logging.getLogger(__name__)
+
+# WebSocket-level keepalive; disabled previously (ping_interval=None) which hides
+# half-open connections during long embodied rollouts.
+DEFAULT_PING_INTERVAL_S = float(os.getenv("WF_EMBODIED_WS_PING_INTERVAL_S", "20") or "20")
+DEFAULT_MAX_MESSAGE_BYTES = int(os.getenv("WF_EMBODIED_WS_MAX_SIZE", str(64 * 1024 * 1024)))
 
 
 def _serializable_spec(spec: Mapping[str, Any]) -> dict[str, Any]:
@@ -49,15 +63,44 @@ async def _handle_connection(ws: Any, adapter: EmbodiedPolicyAdapter) -> None:
 
         try:
             if message.type == MessageType.HELLO:
+                try:
+                    assert_compatible_protocol_version(message.payload, peer="client")
+                except RuntimeError as exc:
+                    await ws.send(
+                        pack_message(
+                            Message(
+                                MessageType.ERROR,
+                                {"error": str(exc)},
+                                seq=message.seq,
+                            )
+                        )
+                    )
+                    await ws.close(code=1002, reason="protocol version mismatch")
+                    return
                 await ws.send(
                     pack_message(
                         Message(
                             MessageType.HELLO,
                             hello_payload(
                                 role="server",
+                                ready=True,
                                 action_spec=_serializable_spec(adapter.get_action_spec()),
                                 observation_spec=_serializable_spec(adapter.get_observation_spec()),
                             ),
+                            seq=message.seq,
+                        )
+                    )
+                )
+            elif message.type == MessageType.PING:
+                await ws.send(
+                    pack_message(
+                        Message(
+                            MessageType.PONG,
+                            {
+                                "ready": True,
+                                "protocol_version": PROTOCOL_VERSION,
+                                "echo": message.payload.get("echo") if isinstance(message.payload, Mapping) else None,
+                            },
                             seq=message.seq,
                         )
                     )
@@ -118,7 +161,14 @@ async def serve_async(adapter: EmbodiedPolicyAdapter, *, host: str = "0.0.0.0", 
     async def handler(ws: Any) -> None:
         await _handle_connection(ws, adapter)
 
-    async with websockets.serve(handler, host, int(port), compression=None, max_size=None, ping_interval=None):
+    async with websockets.serve(
+        handler,
+        host,
+        int(port),
+        compression=None,
+        max_size=DEFAULT_MAX_MESSAGE_BYTES if DEFAULT_MAX_MESSAGE_BYTES > 0 else None,
+        ping_interval=DEFAULT_PING_INTERVAL_S if DEFAULT_PING_INTERVAL_S > 0 else None,
+    ):
         logger.info("Serving embodied policy adapter on ws://%s:%s", host, port)
         await asyncio.Future()
 
