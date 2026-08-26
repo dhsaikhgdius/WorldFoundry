@@ -128,7 +128,25 @@ MODEL_RUNTIME_ENVIRONMENTS_ROOT = MODEL_RUNTIME_ROOT / "environments"
 MODEL_RUNTIME_ASSETS_ROOT = MODEL_RUNTIME_ROOT / "assets"
 TMP_ROOT = REPO_ROOT / "tmp"
 CACHE_ROOT = REPO_ROOT / "cache"
-HFD_DATASET_CACHE_ROOT = resolve_worldfoundry_path("${WORLDFOUNDRY_CACHE_DIR}/data/hfd_datasets")
+
+
+def hfd_dataset_cache_root() -> Path:
+    """Resolve the legacy HF dataset cache root under ``WORLDFOUNDRY_CACHE_DIR`` (DS-10).
+
+    Prefer :func:`worldfoundry_hfd_dataset_root` for new call sites. This helper
+    remains for runners that still probe the older ``cache/data/hfd_datasets``
+    layout and must not freeze the path at import time.
+    """
+
+    return resolve_worldfoundry_path("${WORLDFOUNDRY_CACHE_DIR}/data/hfd_datasets")
+
+
+def __getattr__(name: str) -> Path:
+    # Keep ``from worldfoundry.evaluation.utils import HFD_DATASET_CACHE_ROOT``
+    # working without binding an import-time absolute path (DS-10).
+    if name == "HFD_DATASET_CACHE_ROOT":
+        return hfd_dataset_cache_root()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def benchmark_task_sample_path(benchmark_id: str) -> Path | None:
@@ -165,7 +183,7 @@ def worldfoundry_hfd_dataset_root() -> Path:
         root = Path(data_dir).expanduser()
         return root if root.name == "hfd_datasets" else root / "hfd_datasets"
 
-    return HFD_DATASET_CACHE_ROOT
+    return hfd_dataset_cache_root()
 
 
 def ensure_repo_root_on_sys_path() -> Path:
