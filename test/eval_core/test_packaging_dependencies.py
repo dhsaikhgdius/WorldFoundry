@@ -124,3 +124,12 @@ def test_sdist_manifest_excludes_generated_downloaded_and_large_artifacts() -> N
         "*.onnx",
     ):
         assert pattern in manifest
+
+
+def test_test_extra_declares_pytest_timeout_and_xdist() -> None:
+    """TE-01: CPU test extra must ship timeout + xdist plugins used by CI/Makefile."""
+
+    optional = _optional_dependencies()
+    joined = "\n".join(optional["test"])
+    assert "pytest-timeout" in joined
+    assert "pytest-xdist" in joined

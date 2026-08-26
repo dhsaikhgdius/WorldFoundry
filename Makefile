@@ -38,6 +38,7 @@ help:
 		'  make lint              Run lightweight source and catalog checks.' \
 		'  make preflight         Run the public runtime preflight.' \
 		'  make test-eval-core    Run the eval_core release-gate pytest suite (CPU).' \
+		'                         Optional: EVAL_CORE_XDIST=\"-n auto\" for pytest-xdist.' \
 		'  make test-training     Run the tests/training pytest suite (CPU subset).'
 
 install-core:
@@ -99,8 +100,14 @@ preflight:
 		--output-dir $(PREFLIGHT_OUTPUT) \
 		--json
 
+# Optional extra pytest flags, e.g. PYTEST_ARGS='-m "not gpu and not network"'
+PYTEST_ARGS ?=
+# TE-01: opt-in xdist workers for eval_core (CI sets -n auto). Keep empty locally
+# unless tests are known isolation-safe; mark shared-tmp cases with @pytest.mark.serial.
+EVAL_CORE_XDIST ?=
+
 test-eval-core:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest test/eval_core -q -p no:cacheprovider
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest test/eval_core -q -p no:cacheprovider $(EVAL_CORE_XDIST) $(PYTEST_ARGS)
 
 test-training:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest tests/training -q -p no:cacheprovider
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest tests/training -q -p no:cacheprovider $(PYTEST_ARGS)
