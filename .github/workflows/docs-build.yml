@@ -1,0 +1,48 @@
+# Docs build gate (plan C-04): build the Fumadocs site on pull requests that
+# touch the documentation tree, so docs breakage surfaces at review time
+# instead of at deploy time. Deploy Docs (deploy-docs.yml) still owns the
+# Pages build + publish on main pushes; this workflow never uploads or
+# deploys anything, and the path filter keeps the npm install off unrelated
+# PRs.
+name: docs-build
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "docs/**"
+      - "scripts/docs/**"
+      - ".github/workflows/docs-build.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: docs-build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      # node-version stays aligned with deploy-docs.yml so the PR gate
+      # exercises the same toolchain that later publishes the site.
+      - name: Set up Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: docs/fumadocs/package-lock.json
+
+      # Same entry point as the Deploy Docs build job (npm ci, types:check,
+      # next build). The fumadocs pre-build codegen shells out to the
+      # runner-provided python3; no extra Python dependencies are needed.
+      - name: Build Fumadocs site
+        run: bash scripts/docs/build.sh

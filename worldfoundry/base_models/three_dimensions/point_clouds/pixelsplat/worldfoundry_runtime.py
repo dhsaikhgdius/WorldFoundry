@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from worldfoundry.core.io.paths import package_module_root as package_root
 from worldfoundry.core.io.paths import hfd_root_path
+from worldfoundry.core.io.paths import package_module_root as package_root
+from worldfoundry.core.process import run_logged_subprocess
 from worldfoundry.evaluation.utils import worldfoundry_data_path
 
 
@@ -217,7 +217,20 @@ class PixelSplatRuntime:
 
         python = str(kwargs.get("python_executable") or sys.executable)
         command = [python, "-m", "src.inference", *overrides]
-        subprocess.run(command, cwd=str(runtime_root), env=self._runtime_env(), check=True)
+        log_stdout = output_dir / "pixelsplat.stdout.log"
+        log_stderr = output_dir / "pixelsplat.stderr.log"
+        completed = run_logged_subprocess(
+            command,
+            stdout_path=log_stdout,
+            stderr_path=log_stderr,
+            cwd=str(runtime_root),
+            env=self._runtime_env(),
+        )
+        if completed.returncode != 0:
+            raise RuntimeError(
+                f"pixelSplat inference failed with code {completed.returncode}; "
+                f"see {log_stdout} and {log_stderr}"
+            )
 
         model_candidates = [
             path
