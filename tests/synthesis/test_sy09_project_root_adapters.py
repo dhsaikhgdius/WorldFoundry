@@ -207,3 +207,23 @@ def test_batch7_pipelines_studio_use_paths_project_root() -> None:
         assert "Path(__file__).resolve().parents[" not in text, rel
         assert "current.parents[" not in text, rel
 
+
+def test_batch8_training_tests_use_paths_project_root() -> None:
+    """Training test helpers climb via project_root, not Path.parents[N]."""
+    repo = Path(__file__).resolve().parents[2]
+    paths = sorted(
+        str(p.relative_to(repo))
+        for p in (repo / "tests/training").rglob("*.py")
+        if "Path(__file__).resolve().parents[" in p.read_text(encoding="utf-8")
+    )
+    assert paths == [], paths
+    # Spot-check known former climbers still import the helper.
+    for rel in (
+        "tests/training/post_training/agentic/test_qwen_ray_formal.py",
+        "tests/training/recipes/test_post_training_recipe_architecture.py",
+        "tests/training/post_training/rl/algorithms/bagel_flow_unigrpo/test_recipe_builder.py",
+    ):
+        text = (repo / rel).read_text(encoding="utf-8")
+        assert "from worldfoundry.core.io.paths import" in text, rel
+        assert "project_root" in text, rel
+
