@@ -50,7 +50,7 @@ The detailed maintainer guide lives in
 
 - Update `docs/fumadocs/content/docs/reference/cli.mdx` when public behavior changes.
 - Preserve JSON output compatibility or document the breaking change.
-- Run `make docs-check` and document help, error handling, and no-heavy-import behavior.
+- Run `make docs-check` (CLI help, zoo catalog JSON, and fumadocs `generate-python-api.py` smoke) and document help, error handling, and no-heavy-import behavior. After docstring edits under the public API surface, also run `cd docs/fumadocs && npm run api:check`.
 
 ## Synthesis Is Infer-Only
 
