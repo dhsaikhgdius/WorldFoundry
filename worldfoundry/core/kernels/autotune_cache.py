@@ -40,8 +40,17 @@ def _env_flag(name: str, *, default: bool) -> bool:
 
 
 def persistent_autotune_cache_enabled() -> bool:
-    """Return whether successful numerical autotune decisions may be reused."""
+    """Return whether successful numerical autotune decisions may be reused.
 
+    ``WORLDFOUNDRY_KERNEL_AUTOTUNE_CACHE_ENABLED`` takes precedence; the
+    legacy ``WORLDFOUNDRY_KERNEL_AUTOTUNE_CACHE`` name remains supported as a
+    fallback so existing deployments keep working
+    (plan/code_review/12_cross_cutting.md [XC-9]).
+    """
+
+    configured = os.getenv("WORLDFOUNDRY_KERNEL_AUTOTUNE_CACHE_ENABLED")
+    if configured is not None and configured.strip():
+        return _env_flag("WORLDFOUNDRY_KERNEL_AUTOTUNE_CACHE_ENABLED", default=True)
     return _env_flag("WORLDFOUNDRY_KERNEL_AUTOTUNE_CACHE", default=True)
 
 

@@ -515,9 +515,18 @@ KERNEL_REGISTRY = KernelRegistry()
 
 
 def kernel_autotune_enabled() -> bool:
-    """Return whether first-use eager kernel measurements are enabled."""
+    """Return whether first-use eager kernel measurements are enabled.
 
-    return os.getenv("WORLDFOUNDRY_KERNEL_AUTOTUNE", "").strip().casefold() in {
+    ``WORLDFOUNDRY_KERNEL_AUTOTUNE_ENABLED`` takes precedence; the legacy
+    ``WORLDFOUNDRY_KERNEL_AUTOTUNE`` name remains supported as a fallback so
+    existing deployments keep working (plan/code_review/12_cross_cutting.md
+    [XC-9]).
+    """
+
+    configured = os.getenv("WORLDFOUNDRY_KERNEL_AUTOTUNE_ENABLED")
+    if configured is None or not configured.strip():
+        configured = os.getenv("WORLDFOUNDRY_KERNEL_AUTOTUNE", "")
+    return configured.strip().casefold() in {
         "1",
         "true",
         "yes",
