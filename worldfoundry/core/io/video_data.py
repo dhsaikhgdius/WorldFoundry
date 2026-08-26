@@ -9,11 +9,13 @@ from __future__ import annotations
 
 import os
 import shutil
-import subprocess
+from pathlib import Path
 
 import numpy as np
 from PIL import Image
 from tqdm import tqdm
+
+from worldfoundry.core.process import run_logged_subprocess
 
 
 class LowMemoryVideo:
@@ -212,9 +214,17 @@ def merge_video_audio(video_path: str, audio_path: str) -> None:
             "-shortest",
             temp_output,
         ]
-        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        log_dir = Path(temp_output).resolve().parent / "ffmpeg_logs"
+        stdout_path = log_dir / "merge_audio.stdout.log"
+        stderr_path = log_dir / "merge_audio.stderr.log"
+        result = run_logged_subprocess(
+            command,
+            stdout_path=stdout_path,
+            stderr_path=stderr_path,
+        )
         if result.returncode != 0:
-            raise RuntimeError(f"FFmpeg execute failed: {result.stderr}")
+            err = stderr_path.read_text(encoding="utf-8", errors="replace") if stderr_path.is_file() else ""
+            raise RuntimeError(f"FFmpeg execute failed: {err}")
         shutil.move(temp_output, video_path)
         print(f"Merge completed, saved to {video_path}")
     finally:
