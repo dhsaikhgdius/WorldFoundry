@@ -154,3 +154,22 @@ def test_batch4_adapters_use_paths_project_root() -> None:
     depth_root = longvie.video_depth_anything_runtime_root()
     assert depth_root == expected / "worldfoundry/base_models/three_dimensions/depth/video_depth_anything_longvie"
     assert depth_root.is_dir()
+
+
+def test_batch5_orchestration_runners_use_paths_project_root() -> None:
+    """Official runners / orchestration: no Path(__file__).parents[N] climbs."""
+    repo = Path(__file__).resolve().parents[2]
+    for rel in (
+        "worldfoundry/evaluation/tasks/execution/orchestration/benchmark_runner.py",
+        "worldfoundry/evaluation/tasks/execution/orchestration/runtime_preflight.py",
+        "worldfoundry/evaluation/tasks/execution/runners/mind/run_mind_official_runner.py",
+        "worldfoundry/evaluation/tasks/execution/runners/sana_wm_bench/run_sana_wm_bench_official_runner.py",
+        "worldfoundry/evaluation/tasks/execution/runners/stevo_bench/run_stevo_bench_official_runner.py",
+        "worldfoundry/evaluation/tasks/execution/runners/wbench/run_wbench_official_runner.py",
+        "worldfoundry/evaluation/tasks/execution/runners/worldarena/run_worldarena_official_runner.py",
+        "worldfoundry/evaluation/tasks/execution/runners/devil_dynamics/run_devil_dynamics_official_runner.py",
+    ):
+        text = (repo / rel).read_text(encoding="utf-8")
+        assert "from worldfoundry.core.io.paths import" in text, rel
+        assert "project_root" in text, rel
+        assert "Path(__file__).resolve().parents[" not in text, rel
