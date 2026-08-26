@@ -1,4 +1,4 @@
-.PHONY: help install-core install-dev docs-check lint ruff-check ruff-format-check syntax-check shell-check data-check runtime-registry-check compile-eval cli-check precommit precommit-install preflight test-eval-core test-training
+.PHONY: help install-core install-dev docs-check lint ruff-check ruff-format-check syntax-check shell-check data-check runtime-registry-check check-cuda-constraints compile-eval cli-check precommit precommit-install preflight test-eval-core test-training
 
 PYTHON ?= python
 PIP ?= $(PYTHON) -m pip
@@ -38,7 +38,8 @@ help:
 		'  make lint              Run lightweight source and catalog checks.' \
 		'  make preflight         Run the public runtime preflight.' \
 		'  make test-eval-core    Run the eval_core release-gate pytest suite (CPU).' \
-		'  make test-training     Run the tests/training pytest suite (CPU subset).'
+		'  make test-training     Run the tests/training pytest suite (CPU subset).' \
+		'  make check-cuda-constraints  Dry-run: verify per-tier torch constraint stubs.'
 
 install-core:
 	$(PIP) install -e .
@@ -78,6 +79,10 @@ data-check:
 
 runtime-registry-check:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -c 'from worldfoundry.evaluation.models.runtime.validate import validate_runtime_registry; errors = [issue for issue in validate_runtime_registry() if issue.severity == "error"]; assert not errors, "\\n".join(f"[{issue.code}] {issue.message}" for issue in errors)'
+
+# I-03: verify per-CUDA-tier torch constraint stubs match TIER_TORCH_SPECS (no downloads).
+check-cuda-constraints:
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) scripts/setup/check_cuda_torch_constraints.py
 
 compile-eval:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m compileall -q worldfoundry/evaluation scripts

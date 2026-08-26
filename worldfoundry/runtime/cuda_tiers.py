@@ -24,6 +24,26 @@ TIER_MINIMUM_DRIVER = {
     "cu124": (12, 4),
     "cu128": (12, 8),
 }
+# Plan I-03: keep install pins inside what each CUDA wheel index actually publishes.
+# cu121 tops out at torch 2.5.x; cu124 at 2.6.x; cu128 tracks current >=2.7.
+TIER_TORCH_SPECS: dict[str, dict[str, str]] = {
+    "cu121": {
+        "torch": "torch>=2.4,<2.6",
+        "torchvision": "torchvision>=0.19,<0.21",
+        "torchaudio": "torchaudio>=2.4,<2.6",
+    },
+    "cu124": {
+        "torch": "torch>=2.4,<2.7",
+        "torchvision": "torchvision>=0.19,<0.22",
+        "torchaudio": "torchaudio>=2.4,<2.7",
+    },
+    "cu128": {
+        "torch": "torch>=2.7,<2.12.0",
+        "torchvision": "torchvision>=0.22,<0.27.0",
+        "torchaudio": "torchaudio>=2.7,<2.12.0",
+    },
+}
+
 
 _LEGACY_PROFILE_TO_TIER = {
     "cu113": "cu128",
@@ -173,6 +193,15 @@ def torch_wheel_index_url(tier: str = DEFAULT_CUDA_TIER) -> str:
     return TORCH_WHEEL_INDEX_TEMPLATE.format(tier=normalized)
 
 
+def torch_specs_for_tier(tier: str = DEFAULT_CUDA_TIER) -> dict[str, str]:
+    """Return torch/vision/audio requirement specs for *tier* (plan I-03)."""
+
+    normalized = normalize_cuda_profile(tier)
+    if normalized not in TIER_TORCH_SPECS:
+        normalized = DEFAULT_CUDA_TIER
+    return dict(TIER_TORCH_SPECS[normalized])
+
+
 def _unified_env_prefix(tier: str = DEFAULT_CUDA_TIER) -> Path:
     """Resolve the filesystem prefix for the unified-tier conda environment."""
     override = os.environ.get("WORLDFOUNDRY_UNIFIED_ENV_PREFIX")
@@ -243,6 +272,7 @@ def cuda_tier_report(requested: str | None = None, *, driver_cuda: str | None = 
         "minimum_driver_cuda": ".".join(str(part) for part in _tier_minimum_driver(tier)),
         "env_name": unified_env_name(tier),
         "torch_index_url": torch_wheel_index_url(tier),
+        "torch_specs": torch_specs_for_tier(tier),
         "supported_tiers": list(SUPPORTED_CUDA_TIERS),
     }
 
@@ -266,6 +296,7 @@ __all__ = [
     "DEFAULT_CUDA_TIER",
     "SUPPORTED_CUDA_TIERS",
     "TIER_MINIMUM_DRIVER",
+    "TIER_TORCH_SPECS",
     "UNIFIED_ENV_NAME_TEMPLATE",
     "TORCH_WHEEL_INDEX_TEMPLATE",
     "best_cuda_tier_for_driver",
@@ -276,6 +307,7 @@ __all__ = [
     "preferred_unified_tier",
     "resolve_install_tier",
     "resolve_cuda_tier",
+    "torch_specs_for_tier",
     "torch_wheel_index_url",
     "unified_env_enabled",
     "unified_env_exists",
