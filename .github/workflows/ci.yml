@@ -88,7 +88,30 @@ jobs:
 
       - name: Eval-core full suite (allow failure until contract backlog clears)
         continue-on-error: true
-        run: make test-eval-core PYTEST_ARGS='-m "not gpu and not network"'
+        # --cov-report= suppresses the terminal table but still writes .coverage
+        # for the job-summary step below (plan C-06; codecov deferred).
+        run: >
+          make test-eval-core PYTEST_ARGS='-m "not gpu and not network"
+          --cov=worldfoundry/evaluation --cov-report='
+
+      - name: Write evaluation coverage to job summary
+        if: always()
+        run: |
+          if [ -f .coverage ]; then
+            {
+              echo "### eval-core coverage: worldfoundry/evaluation"
+              echo ""
+              echo "Total line coverage: $(python -m coverage report --format=total)%"
+              echo ""
+              echo "<details><summary>Per-file report (covered/empty files skipped)</summary>"
+              echo ""
+              python -m coverage report --format=markdown --skip-covered --skip-empty
+              echo ""
+              echo "</details>"
+            } >> "$GITHUB_STEP_SUMMARY" || echo "coverage report failed" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No .coverage data produced by the eval-core suite." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   training-tests:
     runs-on: ubuntu-latest
