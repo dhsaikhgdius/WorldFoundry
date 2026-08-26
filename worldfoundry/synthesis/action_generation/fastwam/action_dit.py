@@ -131,9 +131,12 @@ class ActionDiT(nn.Module):
             logger.info("No `action_dit_pretrained_path` provided, initializing ActionDiT with random weights.")
             return cls(**action_dit_config).to(device=device, dtype=torch_dtype)
         from pathlib import Path
+
+        from worldfoundry.core.io.paths import project_root
+
         p = Path(action_dit_pretrained_path)
         if not p.is_absolute():
-            p = Path(__file__).resolve().parents[4] / p
+            p = project_root(__file__) / p
         action_dit_pretrained_path = str(p)
         if not os.path.isfile(action_dit_pretrained_path):
             raise FileNotFoundError(

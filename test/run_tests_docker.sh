@@ -18,7 +18,8 @@ Examples:
   test/run_tests_docker.sh make:test-training
 
 Environment overrides:
-  WORLDFOUNDRY_TEST_IMAGE         Docker image. Default: nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04
+  WORLDFOUNDRY_TEST_IMAGE         Docker image. Default: ghcr.io/openenvision/worldfoundry:base
+                                  (override with nvidia/cuda:... if the published base is unavailable)
   WORLDFOUNDRY_DOCKER_GPUS        Docker --gpus value. Default: all. Use none for CPU-only tests.
   WORLDFOUNDRY_DOCKER_EXTRAS      Editable install extras. Default: tui,optimized_core
   WORLDFOUNDRY_BENCHMARK_DATA_ROOT Host benchmark data root mounted into the container.
@@ -40,7 +41,7 @@ if ! command -v docker >/dev/null 2>&1; then
 fi
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-IMAGE="${WORLDFOUNDRY_TEST_IMAGE:-nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04}"
+IMAGE="${WORLDFOUNDRY_TEST_IMAGE:-ghcr.io/openenvision/worldfoundry:base}"
 GPU_SELECTOR="${WORLDFOUNDRY_DOCKER_GPUS:-all}"
 EXTRAS="${WORLDFOUNDRY_DOCKER_EXTRAS:-tui,optimized_core}"
 

@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Iterable, Optional
 
 from worldfoundry.core import cuda_visible_devices_from_device
+from worldfoundry.core.io.paths import project_root as resolve_project_root
 
 # Defines specifications for different evaluation types, including their Hydra key
 # and corresponding dataset directory name.
@@ -57,21 +58,9 @@ DEFAULT_JAX_CACHE_DIRNAME = "jax_cache"
 
 
 def project_root() -> Path:
-    """Discovers the project root directory by searching for `pyproject.toml`.
+    """Return the WorldFoundry repository root (``paths.project_root``)."""
 
-    It traverses up the directory tree from the current file's location until it
-    finds a `pyproject.toml` file, which is typically indicative of a project root.
-
-    Returns:
-        Path: The discovered project root directory.
-    """
-    current = Path(__file__).resolve()
-    for parent in current.parents:
-        if (parent / "pyproject.toml").is_file():
-            return parent
-    # Fallback if pyproject.toml is not found within a reasonable depth,
-    # assuming a specific project structure.
-    return current.parents[5]
+    return resolve_project_root(__file__)
 
 
 def _candidate_runtime(path_value: Path) -> Optional[Path]:
