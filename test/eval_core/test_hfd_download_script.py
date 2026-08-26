@@ -225,3 +225,24 @@ def test_public_model_zoo_exposes_gated_foundation_dependencies() -> None:
     assert gr00t_refs["nvidia/Cosmos-Reason2-2B"].requires_auth is True
     assert gr00t_refs["nvidia/Cosmos-Reason2-2B"].gated == "auto"
     assert gr00t_refs["nvidia/Cosmos-Reason2-2B"].revision == "9ce19a195e423419c349abfc86fd07178b230561"
+
+
+def test_download_hfd_models_exports_username_and_retries() -> None:
+    """DS-08: --hf_username must export, backends share proxy strip, retries exist."""
+
+    script = (REPO_ROOT / "scripts" / "download_hfd_models.sh").read_text(encoding="utf-8")
+    assert "export HF_USERNAME" in script
+    assert "HUGGING_FACE_HUB_USERNAME" in script
+    assert "HF_DOWNLOAD_RETRIES" in script
+    assert script.count("env -u all_proxy -u ALL_PROXY") >= 2
+    completed = subprocess.run(
+        ["bash", str(REPO_ROOT / "scripts" / "download_hfd_models.sh"), "--help"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+    assert completed.returncode == 0
+    assert "--hf-retries" in completed.stdout
+    assert "--hf-username" in completed.stdout or "--hf_username" in completed.stdout

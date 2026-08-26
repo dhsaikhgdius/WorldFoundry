@@ -9,6 +9,7 @@ DOWNLOAD_ROOT="${WORLDFOUNDRY_HFD_ROOT:-${DEFAULT_CKPT_ROOT}/hfd}"
 MAX_PARALLEL=4
 HF_USERNAME="${HF_USERNAME:-}"
 HF_TOKEN="${HF_TOKEN:-}"
+HF_DOWNLOAD_RETRIES="${HF_DOWNLOAD_RETRIES:-3}"
 LIST_ONLY=0
 PYTHON_BIN="${PYTHON:-}"
 
@@ -187,13 +188,16 @@ Selections:
 Options:
   --download-root PATH   Override download root (default: ${DOWNLOAD_ROOT})
   --parallel N           Max concurrent repos to download (default: 4)
-  --hf_username USER     Hugging Face username for gated repos
+  --hf_username USER     Hugging Face username for gated repos (also --hf-username)
   --hf_token TOKEN       Deprecated; prefer HF_TOKEN env var so tokens do not appear in process listings
+  --hf-retries N         Retry each repo download up to N times (default: ${HF_DOWNLOAD_RETRIES})
   --list                 Print model/component mapping and exit
   -h, --help             Show this help
 
 Notes:
   - The script uses `hf download` when available and falls back to Python `huggingface_hub.snapshot_download`.
+  - Both backends export HF_USERNAME/HF_TOKEN and strip SOCKS ``all_proxy``/``ALL_PROXY`` the same way
+    (HTTP(S)_PROXY are left intact for corporate egress).
   - Cosmos3 Nano/Super generator checkpoints are public. Its default safety checker separately
     downloads gated nvidia/Cosmos-1.0-Guardrail plus public Qwen/Qwen3Guard-Gen-0.6B at first use,
     so fresh machines need an approved HF_TOKEN unless safety is explicitly disabled.
@@ -330,6 +334,8 @@ download_repo() {
     local revision="${2:-}"
     local local_dir
     local log_path
+    local attempt
+    local status
     local_dir="$(repo_dir "$repo_id")"
     log_path="$(repo_log "$repo_id")"
 
@@ -340,26 +346,47 @@ download_repo() {
     fi
 
     echo "[start] ${repo_id}${revision:+@${revision}} -> ${local_dir}"
+    # Export credentials for both hf CLI and huggingface_hub (DS-08).
     if [[ -n "${HF_TOKEN}" ]]; then
         export HF_TOKEN
+        export HUGGING_FACE_HUB_TOKEN="${HF_TOKEN}"
     fi
-    if [[ "${HF_DOWNLOAD_BACKEND}" == "cli" ]]; then
-        local -a cmd=(
-            "${HF_CLI[@]}"
-            "${repo_id}"
-            --repo-type model
-            --local-dir "${local_dir}"
-        )
-        if [[ -n "$revision" ]]; then
-            cmd+=(--revision "$revision")
+    if [[ -n "${HF_USERNAME}" ]]; then
+        export HF_USERNAME
+        export HUGGING_FACE_HUB_USERNAME="${HF_USERNAME}"
+    fi
+
+    attempt=1
+    status=1
+    while ((attempt <= HF_DOWNLOAD_RETRIES)); do
+        : > "${log_path}"
+        if ((attempt > 1)); then
+            echo "[retry] ${repo_id} attempt ${attempt}/${HF_DOWNLOAD_RETRIES}" | tee -a "${log_path}"
+            sleep "$((attempt - 1))"
         fi
-        env -u all_proxy -u ALL_PROXY "${cmd[@]}" > "${log_path}" 2>&1
-    else
-        if [[ -z "${PYTHON_BIN}" ]]; then
-            echo "No Hugging Face CLI found and PYTHON is unset." > "${log_path}"
-            return 1
-        fi
-        REPO_ID="${repo_id}" REVISION="${revision}" LOCAL_DIR="${local_dir}" "${PYTHON_BIN}" <<'PY' > "${log_path}" 2>&1
+        if [[ "${HF_DOWNLOAD_BACKEND}" == "cli" ]]; then
+            local -a cmd=(
+                "${HF_CLI[@]}"
+                "${repo_id}"
+                --repo-type model
+                --local-dir "${local_dir}"
+            )
+            if [[ -n "$revision" ]]; then
+                cmd+=(--revision "$revision")
+            fi
+            # Strip SOCKS proxies only — same as the Python backend below.
+            if env -u all_proxy -u ALL_PROXY "${cmd[@]}" >> "${log_path}" 2>&1; then
+                status=0
+                break
+            fi
+        else
+            if [[ -z "${PYTHON_BIN}" ]]; then
+                echo "No Hugging Face CLI found and PYTHON is unset." > "${log_path}"
+                return 1
+            fi
+            if env -u all_proxy -u ALL_PROXY \
+                REPO_ID="${repo_id}" REVISION="${revision}" LOCAL_DIR="${local_dir}" \
+                "${PYTHON_BIN}" <<'PY' >> "${log_path}" 2>&1
 import os
 from huggingface_hub import snapshot_download
 
@@ -371,6 +398,16 @@ snapshot_download(
     token=os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN") or None,
 )
 PY
+            then
+                status=0
+                break
+            fi
+        fi
+        attempt=$((attempt + 1))
+    done
+
+    if ((status != 0)); then
+        return 1
     fi
     record_download_revision "$repo_id" "$revision" "$local_dir" >>"${log_path}" 2>&1
 }
@@ -402,13 +439,22 @@ while (($# > 0)); do
             MAX_PARALLEL="$2"
             shift 2
             ;;
-        --hf_username)
+        --hf_username|--hf-username)
             HF_USERNAME="$2"
+            export HF_USERNAME
             shift 2
             ;;
-        --hf_token)
+        --hf_token|--hf-token)
             HF_TOKEN="$2"
             export HF_TOKEN
+            shift 2
+            ;;
+        --hf-retries|--hf_retries)
+            HF_DOWNLOAD_RETRIES="$2"
+            if ! [[ "${HF_DOWNLOAD_RETRIES}" =~ ^[1-9][0-9]*$ ]]; then
+                echo "[error] --hf-retries must be a positive integer, got: ${HF_DOWNLOAD_RETRIES}" >&2
+                exit 1
+            fi
             shift 2
             ;;
         --list)
