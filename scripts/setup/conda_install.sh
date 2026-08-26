@@ -40,10 +40,6 @@ Options:
                        max-infer installs requirements/worldfoundry-unified.txt;
                        slim installs editable extras .[tui,ui,api,hf] only and
                        skips flash-attn unless --flash-attn is passed.
-  --pytorch-bundle NAME Legacy compatibility option; ignored.
-  --transformers NAME   Legacy compatibility option; ignored.
-  --three-d-core        Legacy compatibility option; ignored.
-  --skip-three-d-core   Legacy compatibility option; ignored.
   --flash-attn BUCKET   flash-attn bucket: flash_attn_fa25 or flash_attn_fa28.
   --skip-flash-attn     Do not install flash-attn.
   --torch SPEC          Torch package spec. Default: torch>=2.7,<2.12.0.
@@ -77,18 +73,6 @@ while (($#)); do
     --preset)
       INSTALL_PRESET="$2"
       shift 2
-      ;;
-    --pytorch-bundle)
-      shift 2
-      ;;
-    --transformers)
-      shift 2
-      ;;
-    --three-d-core)
-      shift
-      ;;
-    --skip-three-d-core)
-      shift
       ;;
     --flash-attn)
       FLASH_ATTN_BUCKET="$2"

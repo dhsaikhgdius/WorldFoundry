@@ -5,5 +5,5 @@ forwarded ignored ``--pytorch-bundle`` / ``--transformers`` / ``--three-d-core``
 flags into ``conda_install.sh``).
 
 Also removed those no-op legacy CLI flags from ``conda_install.sh`` and
-``unified_install.sh``. ``--preset slim`` remains as a documented compatibility
-alias (still installs the same unified requirements file).
+``unified_install.sh``. ``--preset slim`` is a real path (see tip-stack of #49): editable
+``.[tui,ui,api,hf]`` rather than unified.txt.

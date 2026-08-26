@@ -48,8 +48,6 @@ Options:
   --preset NAME         max-infer or slim. Default: max-infer.
                         max-infer installs requirements/worldfoundry-unified.txt;
                         slim installs editable extras .[tui,ui,api,hf] only.
-  --pytorch-bundle NAME Accepted for older command lines; currently ignored.
-  --transformers NAME   Accepted for older command lines; currently ignored.
   --skip-flash-attn     Skip flash-attn install.
   --torch SPEC          Torch package spec. Default: torch>=2.7,<2.12.0.
   --torchvision SPEC    Torchvision package spec. Default: torchvision>=0.22,<0.27.0.
@@ -115,14 +113,6 @@ while (($#)); do
       ;;
     --preset)
       INSTALL_PRESET="$2"
-      shift 2
-      ;;
-    --pytorch-bundle)
-      INSTALL_ARGS+=(--pytorch-bundle "$2")
-      shift 2
-      ;;
-    --transformers)
-      INSTALL_ARGS+=(--transformers "$2")
       shift 2
       ;;
     --skip-flash-attn)
