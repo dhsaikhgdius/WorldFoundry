@@ -13,7 +13,7 @@ ENV_ROOT="${WORLDFOUNDRY_CONDA_ENVS_ROOT:-${WORLDFOUNDRY_CONDA_ENV_ROOT:-}}"
 DATA_ROOT="${WORLDFOUNDRY_DATA_DIR:-}"
 MODEL_ROOT="${WORLDFOUNDRY_MODEL_DIR:-}"
 ARTIFACT_ROOT="${WORLDFOUNDRY_ARTIFACT_DIR:-}"
-ENV_FILE="${WORLDFOUNDRY_ENV_FILE:-tmp/worldfoundry_unified_env.sh}"
+ENV_FILE="${WORLDFOUNDRY_ENV_FILE:-}"
 WORKSPACE_PORT="${WORLDFOUNDRY_WORKSPACE_PORT:-7870}"
 WORKSPACE_HOST="${WORLDFOUNDRY_WORKSPACE_HOST:-127.0.0.1}"
 MAX_JOBS="${WORLDFOUNDRY_WORKSPACE_MAX_JOBS:-8}"
@@ -32,9 +32,10 @@ usage() {
 Usage: bash scripts/setup/bootstrap_worldfoundry.sh [options]
 
 Bootstrap a fresh WorldFoundry checkout. The default path creates the
-single unified GPU conda environment, writes tmp/worldfoundry_unified_env.sh, and
-verifies imports plus the model catalog. Model-specific environments and
-checkpoint preparation are opt-in.
+single unified GPU conda environment, writes a sourceable env file under
+WORLDFOUNDRY_HOME (default ~/.cache/worldfoundry), and verifies imports plus
+the model catalog. Model-specific environments and checkpoint preparation are
+opt-in.
 
 Common examples:
   bash scripts/setup/bootstrap_worldfoundry.sh
@@ -51,7 +52,7 @@ Options:
   --data-root PATH         Data root forwarded to unified_install.sh.
   --model-root PATH        Model/checkpoint root forwarded to unified_install.sh.
   --artifact-root PATH     Artifact root forwarded to unified_install.sh.
-  --env-file PATH          Sourceable env exports. Default: tmp/worldfoundry_unified_env.sh.
+  --env-file PATH          Sourceable env exports. Default: ${WORLDFOUNDRY_HOME:-~/.cache/worldfoundry}/worldfoundry_unified_env.sh.
   --with-model MODEL       Install or verify a model/benchmark resolved conda env. May be repeated.
   --prepare-model MODEL    Print checkpoint/HF preparation plan. May be repeated.
   --download-model-assets  Execute public model asset downloads for --prepare-model.
@@ -164,6 +165,27 @@ while (($#)); do
       ;;
   esac
 done
+
+# CPU hosts: do not default into auto→cu128 flash-attn source builds (I-04).
+if ! command -v nvidia-smi >/dev/null 2>&1; then
+  if [[ "$ALLOW_NO_CUDA" != "1" || "$SKIP_FLASH_ATTN" != "1" ]]; then
+    echo "WARNING: nvidia-smi not found; enabling --allow-no-cuda --skip-flash-attn for CPU bootstrap." >&2
+  fi
+  ALLOW_NO_CUDA=1
+  SKIP_FLASH_ATTN=1
+  if [[ "$CUDA_TIER" == "auto" ]]; then
+    # Keep an explicit wheel-index tier so installers do not silently "auto" to
+    # cu128 via missing-driver fallback; verification still allows no CUDA.
+    echo "WARNING: no driver detected; using --cuda cu128 only as the torch wheel index (CPU verification allowed)." >&2
+    CUDA_TIER=cu128
+  fi
+fi
+
+# Resolved after option parsing so a --home override moves the default env
+# file along with the rest of the runtime state (R-08).
+if [[ -z "$ENV_FILE" ]]; then
+  ENV_FILE="${HOME_ROOT}/worldfoundry_unified_env.sh"
+fi
 
 source_env_file() {
   if [[ ! -f "$ENV_FILE" ]]; then

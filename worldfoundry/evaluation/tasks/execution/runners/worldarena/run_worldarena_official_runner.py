@@ -12,21 +12,19 @@ import sys
 from pathlib import Path
 from typing import Any
 
-REPO_ROOT = Path(__file__).resolve().parents[6]
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
-
-from worldfoundry.base_models.capabilities import vbench_asset_path  # noqa: E402
-from worldfoundry.core.time import utc_now_iso  # noqa: E402
-from worldfoundry.evaluation.reporting.scorecard import SCORECARD_SCHEMA_VERSION  # noqa: E402
-from worldfoundry.evaluation.tasks.catalog.zoo_registry import load_benchmark_zoo_registry  # noqa: E402
-from worldfoundry.evaluation.tasks.execution.framework.io import env_path, write_json  # noqa: E402
-from worldfoundry.evaluation.tasks.execution.framework.official_runner import default_benchmark_timeout  # noqa: E402
-from worldfoundry.evaluation.tasks.execution.framework.result_normalizer import (  # noqa: E402
+from worldfoundry.base_models.capabilities import vbench_asset_path
+from worldfoundry.core.io.paths import project_root
+from worldfoundry.core.time import utc_now_iso
+from worldfoundry.evaluation.reporting.scorecard import SCORECARD_SCHEMA_VERSION
+from worldfoundry.evaluation.tasks.catalog.zoo_registry import load_benchmark_zoo_registry
+from worldfoundry.evaluation.tasks.execution.framework.io import env_path, write_json
+from worldfoundry.evaluation.tasks.execution.framework.official_runner import default_benchmark_timeout
+from worldfoundry.evaluation.tasks.execution.framework.result_normalizer import (
     OfficialResultsNormalizer,
 )
-from worldfoundry.evaluation.utils import BENCHMARK_ZOO_DIR  # noqa: E402
+from worldfoundry.evaluation.utils import BENCHMARK_ZOO_DIR
 
+REPO_ROOT = project_root(__file__)
 RUNNER_ROOT = Path(__file__).resolve().parent
 DEFAULT_WORLDARENA_ROOT = RUNNER_ROOT / "runtime" / "video_quality"
 DEFAULT_DIMENSIONS = (
