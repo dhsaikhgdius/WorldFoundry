@@ -16,6 +16,7 @@ from functools import partial
 from pathlib import Path
 from typing import Any
 
+from worldfoundry.core.process import read_text_tail, run_logged_subprocess  # noqa: E402
 from worldfoundry.evaluation.tasks.execution.framework.io import (  # noqa: E402
     env_path,
     load_json,
@@ -211,22 +212,25 @@ def run_vendored_official_scripts(
         # The upstream scripts import matplotlib for optional plots; force a
         # headless backend so the subprocess never needs a display.
         env.setdefault("MPLBACKEND", "Agg")
-        completed = subprocess.run(
+        item_stdout_path = output_dir / f"camerabench_{item}.stdout.log"
+        item_stderr_path = output_dir / f"camerabench_{item}.stderr.log"
+        completed = run_logged_subprocess(
             command,
+            stdout_path=item_stdout_path,
+            stderr_path=item_stderr_path,
             cwd=str(runtime_root),
             env=env,
-            text=True,
-            capture_output=True,
             timeout=timeout,
-            check=False,
+            start_new_session=False,
         )
-        stdout_chunks.append(f"===== {item} =====\n{completed.stdout}")
-        stderr_chunks.append(f"===== {item} =====\n{completed.stderr}")
+        stdout_chunks.append(f"===== {item} =====\n{read_text_tail(item_stdout_path, max_lines=200)}")
+        stderr_chunks.append(f"===== {item} =====\n{read_text_tail(item_stderr_path, max_lines=200)}")
         commands.append(command)
         if completed.returncode != 0:
+            detail = read_text_tail(item_stderr_path) or read_text_tail(item_stdout_path)
             raise RuntimeError(
                 f"vendored CameraBench {item} evaluation failed with exit code {completed.returncode}: "
-                f"{completed.stderr.strip()[-2000:]}"
+                f"{detail}"
             )
         if output_file.is_file():
             payload = load_json(output_file)
