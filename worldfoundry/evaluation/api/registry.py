@@ -8,7 +8,6 @@ from typing import Any, Callable, Generic, Iterable, Iterator, Mapping, TypeVar
 from .metrics import MetricSpec
 from .world_model_manifest import WorldModelManifest
 
-
 ItemT = TypeVar("ItemT")
 
 
