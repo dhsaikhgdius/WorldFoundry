@@ -38,7 +38,17 @@ def _resolve_secret_refs(value: Any) -> Any:
     if isinstance(value, dict):
         if set(value) == {SECRET_ENV_REF_KEY}:
             return os.getenv(str(value[SECRET_ENV_REF_KEY]), "")
-        return {str(key): _resolve_secret_refs(item) for key, item in value.items()}
+        resolved = {str(key): _resolve_secret_refs(item) for key, item in value.items()}
+        for text_key in ("load_kwargs_text", "call_kwargs_text"):
+            raw = resolved.get(text_key)
+            if not isinstance(raw, str) or not raw.strip():
+                continue
+            try:
+                nested = json.loads(raw)
+            except json.JSONDecodeError:
+                continue
+            resolved[text_key] = json.dumps(_resolve_secret_refs(nested))
+        return resolved
     if isinstance(value, list):
         return [_resolve_secret_refs(item) for item in value]
     return value

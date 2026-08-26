@@ -705,7 +705,13 @@ def init_distributed_mode(args):
                 args.world_size, args.rank, args.local_rank
             )
         )
-        print(json.dumps(dict(os.environ), indent=2))
+        # Do not dump os.environ (may contain HF_TOKEN / API keys). Presence-only.
+        try:
+            from worldfoundry.runtime.env import redact_env_for_manifest
+
+            print(json.dumps(redact_env_for_manifest(os.environ), indent=2))
+        except Exception:
+            print(json.dumps({"WORLDFOUNDRY_ENV_REDACTED": True}, indent=2))
     elif "SLURM_PROCID" in os.environ:
         args.rank = int(os.environ["SLURM_PROCID"])
         args.gpu = args.local_rank = int(os.environ["SLURM_LOCALID"])

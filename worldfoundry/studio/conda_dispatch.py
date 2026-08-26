@@ -66,6 +66,7 @@ RESIDENT_WORKER_REQUEST_TIMEOUT_ENV = "WORLDFOUNDRY_STUDIO_RESIDENT_WORKER_REQUE
 DEFAULT_RESIDENT_WORKER_REQUEST_TIMEOUT_SECONDS = 6 * 60 * 60
 AUTO_GPU_PLACEMENT_ENV = "WORLDFOUNDRY_STUDIO_AUTO_GPU_PLACEMENT"
 DISPATCH_API_KEY_ENV = "WORLDFOUNDRY_STUDIO_DISPATCH_API_KEY"
+DISPATCH_SECRET_ENV_PREFIX = "WORLDFOUNDRY_STUDIO_DISPATCH_SECRET_"
 CHILD_PYTHONPATH_PREPEND_ENV = "WORLDFOUNDRY_STUDIO_CHILD_PYTHONPATH_PREPEND"
 # Placeholder key in serialized payload; actual secret is passed via env.
 SECRET_ENV_REF_KEY = "__worldfoundry_secret_env__"
@@ -1382,12 +1383,51 @@ def _json_safe(value: Any) -> Any:
 
 
 def _payload_run_kwargs_with_secret_refs(run_kwargs: Mapping[str, Any]) -> tuple[dict[str, Any], dict[str, str]]:
+    """Lift secret-like values out of the child payload into env refs.
+
+    Top-level ``api_key`` keeps the historical ``DISPATCH_API_KEY_ENV`` name.
+    Nested ``load_kwargs_text`` / ``call_kwargs_text`` objects are walked
+    recursively so nested ``api_key`` / ``hf_token`` fields are not left in the
+    on-disk payload JSON.
+    """
+
+    from worldfoundry.evaluation.reporting.run_manifest import _is_sensitive_key
+
     payload_kwargs = dict(run_kwargs)
     secret_env: dict[str, str] = {}
+    counter = 0
+
+    def _replace(value: Any) -> Any:
+        nonlocal counter
+        if isinstance(value, Mapping):
+            out: dict[str, Any] = {}
+            for key, item in value.items():
+                key_s = str(key)
+                if isinstance(item, str) and item and _is_sensitive_key(key_s):
+                    counter += 1
+                    env_name = f"{DISPATCH_SECRET_ENV_PREFIX}{counter}"
+                    secret_env[env_name] = item
+                    out[key_s] = {SECRET_ENV_REF_KEY: env_name}
+                else:
+                    out[key_s] = _replace(item)
+            return out
+        if isinstance(value, list):
+            return [_replace(item) for item in value]
+        return value
+
     api_key = payload_kwargs.get("api_key")
     if isinstance(api_key, str) and api_key:
         payload_kwargs["api_key"] = {SECRET_ENV_REF_KEY: DISPATCH_API_KEY_ENV}
         secret_env[DISPATCH_API_KEY_ENV] = api_key
+
+    for text_key in ("load_kwargs_text", "call_kwargs_text"):
+        nested = _json_object_from_text(payload_kwargs.get(text_key))
+        if not nested:
+            continue
+        rewritten = _replace(nested)
+        if rewritten != nested:
+            payload_kwargs[text_key] = json.dumps(rewritten)
+
     return payload_kwargs, secret_env
 
 
