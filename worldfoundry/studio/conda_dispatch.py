@@ -46,7 +46,12 @@ from worldfoundry.runtime.device_pool import (
     discover_cuda_device_tokens,
     ensure_cuda_device_order,
 )
-from worldfoundry.runtime.env import resolve_ckpt_dir, resolve_hf_cache_dir, resolve_hfd_root
+from worldfoundry.runtime.env import (
+    apply_hf_endpoint_override,
+    resolve_ckpt_dir,
+    resolve_hf_cache_dir,
+    resolve_hfd_root,
+)
 
 from .execution import TORCHRUN_DISTRIBUTED_ENV, RunRecord
 from .launch_config import (
@@ -1561,7 +1566,9 @@ def _runtime_env(spec: RuntimeCondaEnvSpec, device: str | None = None) -> dict[s
     hfd_root = resolve_hfd_root(env)
     env.setdefault("WORLDFOUNDRY_CKPT_DIR", str(ckpt_dir))
     env.setdefault("WORLDFOUNDRY_HFD_ROOT", str(hfd_root))
-    env.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
+    # ST-01: never redirect child Hugging Face traffic to a third-party mirror
+    # by default; mirrors are opt-in via WORLDFOUNDRY_HF_ENDPOINT.
+    apply_hf_endpoint_override(env)
     local_hf_home = ckpt_dir / "huggingface"
     if local_hf_home.is_dir():
         env.setdefault("HF_HOME", str(local_hf_home))
