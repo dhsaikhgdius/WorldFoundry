@@ -84,7 +84,8 @@ if [[ "${GPU_SELECTOR}" != "none" ]]; then
   DOCKER_ARGS+=(--gpus "${GPU_SELECTOR}")
 fi
 
-if [[ -f "${HOME}/.netrc" ]]; then
+# Opt-in only: mounting ~/.netrc exposes credentials inside the container.
+if [[ "${WORLDFOUNDRY_DOCKER_MOUNT_NETRC:-0}" == "1" && -f "${HOME}/.netrc" ]]; then
   DOCKER_ARGS+=(-v "${HOME}/.netrc:/root/.netrc:ro")
 fi
 
@@ -102,7 +103,7 @@ if ! command -v python3 >/dev/null 2>&1 || ! command -v git >/dev/null 2>&1; the
 fi
 
 if ! command -v uv >/dev/null 2>&1; then
-  curl -LsSf https://astral.sh/uv/install.sh | sh
+  curl -LsSf https://astral.sh/uv/0.12.6/install.sh | sh
   export PATH="${HOME}/.local/bin:${PATH}"
 fi
 
