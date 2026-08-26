@@ -17,11 +17,11 @@ def test_spatia_runtime_project_root_matches_paths_helper() -> None:
 
 
 def test_longcat_and_lingbot_source_roots_use_project_root() -> None:
-    from worldfoundry.synthesis.visual_generation import longcat_video, lingbot_world_v2
+    from worldfoundry.synthesis.visual_generation import lingbot_world_v2, longcat_video
+    from worldfoundry.synthesis.visual_generation.lingbot_world_v2 import runtime as lingbot
 
     # Import modules that define SRC_ROOT / SOURCE_ROOT.
     from worldfoundry.synthesis.visual_generation.longcat_video import worldfoundry_runtime as longcat
-    from worldfoundry.synthesis.visual_generation.lingbot_world_v2 import runtime as lingbot
 
     del longcat_video, lingbot_world_v2
     expected = project_root(__file__)
@@ -243,7 +243,7 @@ def test_batch9_representation_adapters_use_paths_helpers() -> None:
         (panogen, "project_root"),
         (lingbot, "package_root"),
     ):
-        assert f"from worldfoundry.core.io.paths import" in text
+        assert "from worldfoundry.core.io.paths import" in text
         assert needle in text
         assert "Path(__file__).resolve().parents[" not in text
 
@@ -298,3 +298,18 @@ def test_batch12_fumadocs_scripts_use_paths_project_root() -> None:
         text = (root / name).read_text(encoding="utf-8")
         assert "from worldfoundry.core.io.paths import project_root" in text, name
         assert "ensure_repo_importable" in text, name
+
+
+def test_batch13_studio_assets_use_package_root() -> None:
+    """Studio asset/demo roots use package_root, not Path parents climbs."""
+    repo = Path(__file__).resolve().parents[2]
+    paths = (
+        "worldfoundry/studio/visualization/backends/world.py",
+        "worldfoundry/studio/visualization/backends/frontends.py",
+        "worldfoundry/studio/ui/tray.py",
+    )
+    for rel in paths:
+        text = (repo / rel).read_text(encoding="utf-8")
+        assert "from worldfoundry.core.io.paths import package_root" in text, rel
+        assert "package_root()" in text, rel
+        assert "Path(__file__).resolve().parents[" not in text, rel
