@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import pytest
+
+pytest.importorskip("torch")
+
 from worldfoundry.synthesis.visual_generation.lingbot_world.lingbot_world_synthesis import LingBotSynthesis
 
 

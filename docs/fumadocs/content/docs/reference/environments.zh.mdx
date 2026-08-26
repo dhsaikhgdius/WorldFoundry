@@ -120,6 +120,30 @@ env 文件。这个文件应保留在本机；里面是路径，不应包含密�
 `snapshot_download` 和标准 HF cache 变量。`WORLDFOUNDRY_CKPT_DIR` 用于上游
 runtime 需要固定目录布局的情况，或用软链保持官方路径而不重复复制大文件。
 
+### 编译器缓存
+
+`worldfoundry.runtime.compile_cache` 会在每个进程内配置一次持久化的
+`torch.compile` 缓存（Inductor、Triton、CUDA 驱动 JIT 缓存和 torch C++/CUDA
+扩展）。根目录优先取 `WORLDFOUNDRY_COMPILE_CACHE_DIR`，否则为
+`${WORLDFOUNDRY_CACHE_DIR}/compile`。生成代码缓存按
+torch/Triton/cuDNN/Python/加速器指纹分区；显式设置的
+`TORCHINDUCTOR_CACHE_DIR`、`TRITON_CACHE_DIR`、`TORCH_EXTENSIONS_DIR` 和
+`CUDA_CACHE_PATH` 会原样保留。
+
+**共享文件系统（NFS）风险**：指纹只区分不兼容的软件栈，不能隔离并发写入者。
+多节点集群上请把 `WORLDFOUNDRY_COMPILE_CACHE_DIR` 指向每节点本地盘，而不是共享
+NFS home 或项目挂载——多个节点的编译作业会争抢同一批目录，NFS 上文件锁不可靠，
+缓存写入可能相互覆盖或损坏：
+
+```bash
+export WORLDFOUNDRY_COMPILE_CACHE_DIR=/local-ssd/${USER}/worldfoundry-compile
+```
+
+Autotune 缓存默认值通过 `setdefault` 写入，启动前导出的值优先生效。WorldFoundry
+默认 `TORCHINDUCTOR_AUTOTUNE_LOCAL_CACHE=1`、
+`TORCHINDUCTOR_AUTOTUNE_REMOTE_CACHE=0`；如集群提供远端 autotune 缓存，可导出
+`TORCHINDUCTOR_AUTOTUNE_REMOTE_CACHE=1` 显式打开。
+
 ## 模型专用环境例外
 
 所有模型默认都先从 `worldfoundry-unified-<cuda-tier>` 开始。只有下表这些 profile
