@@ -5,7 +5,7 @@ WorldFoundry 基础设施优化计划（第 7 轮）
 承接：plan/infra_optimization_plan.txt、round2~round6
 方法：主会话编排 + 3 个云端子代理（claude-fable-5-thinking-xhigh）并行
   - synthesis / pipelines 包装与加载 — 已并入
-  - data catalog / assets — 云端进行中
+  - data catalog / assets — 已并入
   - core/io 存储 / HF / S3 缓存 — 已并入
   + 主会话：test 基建 / 打包 / realtime（TE/PK/RT）
 
@@ -16,7 +16,8 @@ WorldFoundry 基础设施优化计划（第 7 轮）
 --------------
 ``worldfoundry/pipelines/`` 因缺 ``__init__.py`` 整层不进 wheel，而 293 份 binding YAML 随包指向它；
 synthesis 约 28 个适配器各自默认 ``sys.executable``、自造 checkpoint 表；``resolve_hf_path`` 绕过
-rank-0/锁/磁盘预检。另：Spark/Three vendor 404、eval-core 无套件内超时。data catalog 待回报。
+rank-0/锁/磁盘预检。另：Spark/Three vendor 404、eval-core 无套件内超时；
+``test_cases`` 338MB 已被 git 跟踪且 4 个模型 catalog YAML 加载器直接抛错。
 
 
 1. 不建议改的地方
@@ -24,6 +25,8 @@ rank-0/锁/磁盘预检。另：Spark/Three vendor 404、eval-core 无套件内�
 - 不要把 synthesis subprocess 适配器改成 in-process；不要动 _EXPORTS 懒加载；不要批量重命名
   vendored 顶层通用名；conda 自动安装留 scripts/setup（见 SY 边界）。
 - fsspec 降级、cache size>0 命中门、S3 显式凭证等：见 CA 边界。
+- 不要拆 ``worldfoundry/data`` 出主 wheel；不要现在重写 git 历史清 test_cases blob（先 DA-01 防增长）；
+  不要合并一文件一 ID 的 catalog YAML；不要动 ``MANIFEST.in`` 的 ``prune …/test_cases``。
 - collect_ignore 排除 demo；Studio 进程组骨架：round1/6。
 - 第 1–6 轮边界继续有效。
 
@@ -32,21 +35,25 @@ rank-0/锁/磁盘预检。另：Spark/Three vendor 404、eval-core 无套件内�
 ----------
 P0
   1) [SY-01] pipelines/ 整层不进 wheel；14 个 visual_generation 目录同病
+  2) [DA-01] test_cases 338MB 被跟踪与 .gitignore 矛盾
+  3) [DA-02] 4 个模型 catalog YAML integration.status 枚举越界 → 加载器失败
 
 P1
-  2) [SY-02] Studio 外 conda 派发死基建（124 env manifest 几乎无人消费）
-  3) [SY-03] synthesis 子进程零卫生（无进程组/无日志文件）
-  4) [SY-04] checkpoint 解析适配器各自造表 vs profile 已声明
-  5) [CA-01~04] resolve_hf_path；cache 双轨；download 截断；S3 BytesIO
-  6) [PK-01][TE-01][RT-01] vendor JS；eval-core 超时；world_realtime SIGKILL
+  4) [SY-02] Studio 外 conda 派发死基建（124 env manifest 几乎无人消费）
+  5) [SY-03] synthesis 子进程零卫生（无进程组/无日志文件）
+  6) [SY-04] checkpoint 解析适配器各自造表 vs profile 已声明
+  7) [CA-01~04] resolve_hf_path；cache 双轨；download 截断；S3 BytesIO
+  8) [DA-03~05] 基准 dataset 契约；embodied 三清单；物化源无 pin
+  9) [PK-01][TE-01][RT-01] vendor JS；eval-core 超时；world_realtime SIGKILL
 
 P2
-  7) [SY-05~07] runtime 发货契约；*_runtime 溯源；vmem sys.modules purge
-  8) [CA-05~11] S3 热启动；连接池；NCCL；local-rank；paths rglob
-  9) [TE-02/03][RT-02/03]
+  10) [SY-05~07] runtime 发货契约；*_runtime 溯源；vmem sys.modules purge
+  11) [CA-05~11] S3 热启动；连接池；NCCL；local-rank；paths rglob
+  12) [DA-06~09] 打包双轨；local_assets 覆盖；runtime 词表；孤儿 eval_configs
+  13) [TE-02/03][RT-02/03]
 
 P3
-  10) [SY-08/09][CA-12~14][TE-04][PK-02][RT-04]
+  14) [SY-08/09][CA-12~14][DA-10~12][TE-04][PK-02][RT-04]
 3. Synthesis / pipelines 包装
 -----------------------------
 来源：[synthesis 云端子代理](bc-46ecb1e4-f58d-5a31-8529-eac32f97e88b)
@@ -91,10 +98,65 @@ P3
 
 4. Data catalog / assets
 ------------------------
-（[云端子代理](bc-13b2c87a-a9e9-5e32-a8b4-6e6fd3e9d5ef) 进行中 — 回报后 enrich DA-*）
+来源：[data catalog 云端子代理](bc-13b2c87a-a9e9-5e32-a8b4-6e6fd3e9d5ef)
+勿重复 reproduction_profiles、runner-kind、docs JSON drift、round6 EM prepare、round8 DS 路径根。
 
-占位主题：models/benchmarks catalog 体积与校验；local_assets / eval_configs 契约；
-scripts/setup 资产物化。勿重复 reproduction_profiles、runner-kind、docs JSON drift。
+[DA-01] P0 test_cases 338MB 被跟踪与 ignore 矛盾
+  问题：约 500 文件已入库，``.gitignore`` 对已跟踪文件无效；违反 no_large_files_in_repo。
+  改法：CI 防增长门（≤500 文件 / 338MB 基线）+ plan 记录后续 LFS/HF 迁移；勿立刻 rewrite 历史。
+  文件：``worldfoundry/data/test_cases/``、``.gitignore``
+
+[DA-02] P0 4 个模型 catalog YAML 加载器抛错
+  问题：``integration.status`` 枚举越界，``load_model_catalog_manifests()`` 在 main 直接失败。
+  改法：修枚举或扩 schema；加「全部 catalog 可加载」轻量门。
+  文件：``models/catalog/vla_va_wam/{ahawam,giga-world-policy-0.5,rise,tinyvla}.yaml``、``manifest.py``
+
+[DA-03] P1 基准 dataset 引用契约缺口
+  问题：5 个基准缺 ``hf_dataset_id`` 或 ``not_applicable+reason``（约 10 failed）。
+  改法：逐条补齐；目标 ``test_benchmark_zoo_dataset_contracts.py`` 全绿。
+  文件：``benchmarks/catalog/{video,embodied}/``（4dworldbench、memobench、phyfps-bench-gen、physics-iq、visual-chronometer）
+
+[DA-04] P1 三个 embodied 脚本、三份硬编码清单
+  问题：21/17 ID vs catalog 23；平行实现 + 各自 env 默认。
+  改法：清单从 ``catalog/embodied/*.yaml`` 派生；setup 版唯一入口，embodied 版薄封装或删。
+  文件：``scripts/setup/prepare_embodied_official_assets.py``、``scripts/embodied/prepare_official_assets.py``、
+        ``scripts/setup/download_embodied_action_official_assets.py``
+
+[DA-05] P1 物化脚本源无 pin
+  问题：``REPO_ASSETS`` 约 36 条无 revision/sha256；重现依赖本地 checkout。
+  改法：逐条 pin + 不符即 fail；出处清单入库；文档化 EXTERNAL 手工步骤。
+  文件：``scripts/setup/materialize_workspace_demo_assets.py``
+
+[DA-06] P2 打包声明双轨 + 冗余/漏列
+  问题：``MANIFEST.in`` ↔ ``pyproject.toml`` 重复；eval_configs 仅靠 package-data 侥幸进包。
+  改法：删冗余；单一事实源；sdist 正向断言。
+  文件：``MANIFEST.in``、``pyproject.toml``、``test/eval_core/test_packaging_dependencies.py``
+
+[DA-07] P2 local_assets 覆盖 17/73 且无覆盖测试
+  问题：最终回退链缺口静默降级；``prepare_benchmark_assets.py`` family 硬编码。
+  改法：补行或显式豁免 + 覆盖测试；路径改用 evaluation utils 常量。交叉：round8 DS-01。
+  文件：``local_assets.example.yaml``、``runtime/assets.py``、``scripts/setup/prepare_benchmark_assets.py``
+
+[DA-08] P2 模型 runtime profile 词表失控 + 越界摆放
+  问题：``task_family`` 约 17 种取值/11 缺失；benchmark profile 混入 models；configs 目录与同名 YAML 并存。
+  改法：封闭词表 + 摆放规则进 schema 测试。
+  文件：``models/runtime/profiles/``、``models/runtime/configs/``
+
+[DA-09] P2 孤儿 ``models/eval_configs/``
+  问题：``openvla_libero_spatial.yaml`` 全仓库零引用却打进发行版。
+  改法：接线或删除（连同目录）。
+  文件：``worldfoundry/data/models/eval_configs/openvla_libero_spatial.yaml``
+
+[DA-10] P3 catalog 内嵌 SHA 无刷新工具
+  改法：dry-run ``refresh_catalog_pins``（只报不改）。
+
+[DA-11] P3 发行版数据载荷两图集占半
+  问题：wrbench ~18MB + iworld-bench ~14MB 随 pip 分发。
+  改法：迁为带 checksum 物化资产（挂 DA-05）；小夹具保留入库。
+
+[DA-12] P3 数据根 token 不统一
+  问题：脚本自定 ``HFD_ROOT``/相对默认；包内可写数据根与 pip 只读冲突。
+  改法：以 ``paths.py`` token 为唯一规范。交叉：round8 DS-01/02。
 
 
 5. Storage / HF / S3 缓存
@@ -206,10 +268,16 @@ P2
   MANIFEST.in / pyproject package-data           SY-05/06
   vmem/runtime_env.py                            SY-07
   s3_sync / paths / storage                      CA-05~11
-  （DA 待补）
+  local_assets / runtime profiles / eval_configs DA-06~09
 
 P3
-  SY-08/09；CA-12~14；TE-04；PK-02；RT-04
+  SY-08/09；CA-12~14；DA-10~12；TE-04；PK-02；RT-04
+
+另 P0/P1（DA）
+  worldfoundry/data/test_cases/ + .gitignore     DA-01
+  models/catalog/vla_va_wam/*.yaml               DA-02
+  benchmarks/catalog + embodied prepare 脚本     DA-03/04
+  materialize_workspace_demo_assets.py           DA-05
 
 
 8. 验收（已并入条目）
@@ -217,6 +285,9 @@ P3
 - SY-01：wheel 可 ``import worldfoundry.pipelines.wan...``；缺 __init__ 目录 CI 红。
 - SY-02：env 未创建时日志写明 env 名，不静默 sys.executable。
 - SY-03：kill manager 后无 orphan GPU；超时 60s 可杀挂死子进程。
+- DA-01：``git ls-files …/test_cases`` 不超基线；CI 防增长门绿。
+- DA-02：``load_model_catalog_manifests()`` 退出 0 且 ≥283；``test_model_catalog_layering.py`` 绿。
+- DA-03~05：dataset contracts 0 failed；三脚本清单 == catalog/embodied；materialize --check 带 pin。
 - CA-01~04 / PK-01 / TE-01 / RT-01：同既有验收。
 
 
@@ -227,12 +298,13 @@ conda 派发：round6 Studio ST；本轮 SY-02 是 Studio 外适配器。
 subprocess 卫生：round5 IO-04 torchrun；本轮 SY-03 synthesis。
 HF_ENDPOINT：round6 ST-01；CA 不重复。
 vendored LICENSE：round5 DE-02 thirdparty；本轮 SY-06 包内 *_runtime。
+catalog/物化：round6 EM；本轮 DA；路径根默认值分歧见 round8 DS。
 
 
 10. 子代理索引
 --------------
   [synthesis](bc-46ecb1e4-f58d-5a31-8529-eac32f97e88b)  §3 SY-01~09 已并入
-  [data catalog](bc-13b2c87a-a9e9-5e32-a8b4-6e6fd3e9d5ef)  §4 待 enrich
+  [data catalog](bc-13b2c87a-a9e9-5e32-a8b4-6e6fd3e9d5ef)  §4 DA-01~12 已并入
   [storage/HF/S3](bc-420abcea-2a4e-59e8-89af-cfc627288af8)  §5 CA-01~14 已并入
   TE/PK/RT（主会话）  §6 已并入
 续篇：plan/infra_optimization_plan_round8.txt（logging / workflows / HFD / secrets·api·MCP）

@@ -14,8 +14,8 @@ WorldFoundry 基础设施优化计划
         plan/infra_optimization_plan_round4.txt（MCP 工具、配置运行时、metrics 注册、pipeline 加载）；
         plan/infra_optimization_plan_round5.txt（core I/O 落盘、reporting/manifest、official_runner 框架、docs 门禁）；
         plan/infra_optimization_plan_round6.txt（Studio / CLI / training sessions / embodied）；
-        plan/infra_optimization_plan_round7.txt（synthesis/data/HF-S3、test/packaging/realtime）；
-        plan/infra_optimization_plan_round8.txt（logging/CI/HFD、密钥脱敏/api 契约/MCP docs）。
+        plan/infra_optimization_plan_round7.txt（SY/DA/CA + TE/PK/RT 已并入）；
+        plan/infra_optimization_plan_round8.txt（WF/DS + SE/AP/MC 已并入；LG 待回报）。
 结论：骨架建议多数已落地，但门禁仍无绿色基线；安装/镜像/集群侧仍有一批可独立落地的止血项。
 
 
