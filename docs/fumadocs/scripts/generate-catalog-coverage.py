@@ -66,7 +66,7 @@ def model_items(path: Path) -> list[dict]:
     return []
 
 
-def main() -> None:
+def main(*, check: bool = False) -> None:
     families = []
     for fam, (label, blurb) in FAMILY_META.items():
         raw = []
@@ -150,9 +150,30 @@ def main() -> None:
         ],
         "benchmarkGroups": bench_groups,
     }
-    OUT.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
+    rendered = json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
+    if check:
+        if not OUT.is_file():
+            raise SystemExit(f"missing generated catalog coverage: {OUT}")
+        current = OUT.read_text(encoding="utf-8")
+        if current != rendered:
+            raise SystemExit(
+                f"{OUT} is stale; run: npm run catalog:generate "
+                f"(or python3 scripts/generate-catalog-coverage.py)"
+            )
+        print(f"ok {OUT} modelsTotal={payload['modelsTotal']} listed={payload['modelsListed']}")
+        return
+    OUT.write_text(rendered, encoding="utf-8")
     print(f"wrote {OUT} modelsTotal={payload['modelsTotal']} listed={payload['modelsListed']}")
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="exit non-zero when lib/catalog-coverage-data.json is stale",
+    )
+    args = parser.parse_args()
+    main(check=args.check)
