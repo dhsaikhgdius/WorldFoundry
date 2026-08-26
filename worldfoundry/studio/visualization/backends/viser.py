@@ -604,8 +604,20 @@ def _colors_from_npz(data: Any, row_count: int) -> Any | None:
     return None
 
 
-def _load_xyz_rgb(path: Path) -> tuple[Any, Any]:
-    """Load XYZ positions and uint8 RGB triplets from supported geometry files."""
+def _load_trimesh_asset(path: Path) -> Any:
+    """Load a geometry file once via trimesh for downstream point/mesh splits."""
+
+    import trimesh
+
+    return trimesh.load(str(path), process=False, validate=False)
+
+
+def _load_xyz_rgb(path: Path, *, loaded: Any | None = None) -> tuple[Any, Any]:
+    """Load XYZ positions and uint8 RGB triplets from supported geometry files.
+
+    Pass ``loaded`` when the caller already ran :func:`_load_trimesh_asset` so
+    ``present_geometry`` does not re-parse the same file for mesh vs points.
+    """
 
     import numpy as np
     import trimesh
@@ -625,7 +637,8 @@ def _load_xyz_rgb(path: Path) -> tuple[Any, Any]:
             if points is None:
                 raise ValueError(f"{path.name} does not contain supported geometry NPZ keys.")
     else:
-        loaded: Any = trimesh.load(str(path), process=False, validate=False)
+        if loaded is None:
+            loaded = _load_trimesh_asset(path)
         geometries = _scene_geometries(loaded) if isinstance(loaded, trimesh.Scene) else [loaded]
         point_geometries = [geom for geom in geometries if isinstance(geom, trimesh.points.PointCloud)]
         geometries = point_geometries or geometries
@@ -654,15 +667,19 @@ def _load_xyz_rgb(path: Path) -> tuple[Any, Any]:
     return points.astype(np.float32), colors
 
 
-def _load_mesh(path: Path) -> Any | None:
-    """Load a mesh-like asset for Viser when faces are available."""
+def _load_mesh(path: Path, *, loaded: Any | None = None) -> Any | None:
+    """Load a mesh-like asset for Viser when faces are available.
+
+    Reuse ``loaded`` from :func:`_load_trimesh_asset` when provided.
+    """
 
     import numpy as np
     import trimesh
 
     if path.suffix.lower() == ".npz":
         return None
-    loaded: Any = trimesh.load(str(path), process=False, validate=False)
+    if loaded is None:
+        loaded = _load_trimesh_asset(path)
     if isinstance(loaded, trimesh.Scene):
         geometries = _scene_geometries(loaded)
         geometries = [geom for geom in geometries if isinstance(geom, trimesh.Trimesh)]
@@ -678,14 +695,18 @@ def _load_mesh(path: Path) -> Any | None:
     return loaded
 
 
-def _has_explicit_point_cloud(path: Path) -> bool:
-    """Return whether a geometry asset contains a dedicated point-cloud layer."""
+def _has_explicit_point_cloud(path: Path, *, loaded: Any | None = None) -> bool:
+    """Return whether a geometry asset contains a dedicated point-cloud layer.
+
+    Reuse ``loaded`` from :func:`_load_trimesh_asset` when provided.
+    """
 
     import trimesh
 
     if path.suffix.lower() in {".pcd", ".xyz", ".npz"}:
         return True
-    loaded: Any = trimesh.load(str(path), process=False, validate=False)
+    if loaded is None:
+        loaded = _load_trimesh_asset(path)
     geometries = _scene_geometries(loaded) if isinstance(loaded, trimesh.Scene) else [loaded]
     return any(isinstance(geometry, trimesh.points.PointCloud) for geometry in geometries)
 
@@ -897,16 +918,22 @@ class StudioViserService:
                     "up_direction", _default_up_direction_for_preset(coordinate_preset)
                 ),
             )
-            has_point_cloud = _has_explicit_point_cloud(geometry_path)
-            if geometry_path.suffix.lower() not in {".pcd", ".xyz", ".npz"}:
+            # Parse mesh-capable assets once; helpers reuse ``loaded`` so we do
+            # not call trimesh.load three times for the same path (RT-03).
+            loaded_geometry = None
+            suffix = geometry_path.suffix.lower()
+            if suffix not in {".pcd", ".xyz", ".npz"}:
+                loaded_geometry = _load_trimesh_asset(geometry_path)
+            has_point_cloud = _has_explicit_point_cloud(geometry_path, loaded=loaded_geometry)
+            if suffix not in {".pcd", ".xyz", ".npz"}:
                 try:
-                    mesh = _load_mesh(geometry_path)
+                    mesh = _load_mesh(geometry_path, loaded=loaded_geometry)
                 except Exception:
                     mesh = None
                 if mesh is not None:
                     _apply_mesh_transform(mesh, full_transform)
             if mesh is None or has_point_cloud:
-                points, colors = _load_xyz_rgb(geometry_path)
+                points, colors = _load_xyz_rgb(geometry_path, loaded=loaded_geometry)
                 points = _transform_points(points, full_transform)
                 points, colors = _subsample(points, colors, limit)
                 if point_size is None:
