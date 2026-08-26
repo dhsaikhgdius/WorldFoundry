@@ -9,11 +9,9 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-
 from typing import Any
 
 from worldfoundry.core.io.paths import project_root
-
 
 REPO_ROOT = project_root(__file__)
 SRC_ROOT = REPO_ROOT

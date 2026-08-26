@@ -7,11 +7,9 @@ import argparse
 import json
 import sys
 from pathlib import Path
-
 from typing import Any
 
 from worldfoundry.core.io.paths import project_root
-
 
 REPO_ROOT = project_root(__file__)
 if str(REPO_ROOT) not in sys.path:
