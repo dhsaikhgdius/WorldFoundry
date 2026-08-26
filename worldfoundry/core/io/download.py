@@ -60,6 +60,10 @@ def download_to_cache(
     failure leaves the cache slot empty so the next call retries cleanly
     instead of reusing a half-written file.
 
+    Cache hits require ``st_size > 0``. When the response advertises
+    ``Content-Length``, the written byte count must match or the partial
+    temp file is discarded (CA-03).
+
     Args:
         url: The ``http(s)://`` URL to fetch.
         cache_dir: Directory to download into; created if missing.
@@ -77,14 +81,18 @@ def download_to_cache(
         Absolute path to the cached file (existing or newly written).
 
     Raises:
-        RuntimeError: if the download fails, times out, or the validator
-            rejects the response. The original exception is chained.
+        RuntimeError: if the download fails, times out, length check
+            fails, or the validator rejects the response. The original
+            exception is chained.
     """
     cache_dir = cache_dir.expanduser()
     filename = filename or Path(urlsplit(url).path).name or "downloaded_file.bin"
     local_path = cache_dir / filename
     if local_path.exists():
-        return local_path
+        if local_path.stat().st_size > 0:
+            return local_path
+        # Empty placeholder from a prior truncated publish — force retry.
+        local_path.unlink(missing_ok=True)
 
     min_bytes = cache_min_free_bytes()
     ensure_free_disk(
@@ -99,12 +107,26 @@ def download_to_cache(
     # Stream into a sibling temp file, validate, then atomic-rename;
     # keeping the temp file on the same filesystem makes ``os.replace``
     # atomic, so a partial download cannot poison the cache slot.
+    cache_dir.mkdir(parents=True, exist_ok=True)
     tmp_fd, tmp_path_str = tempfile.mkstemp(prefix=f".{filename}.", suffix=".part", dir=cache_dir)
     tmp_path = Path(tmp_path_str)
     try:
         with os.fdopen(tmp_fd, "wb") as out:
             with urllib.request.urlopen(url, timeout=timeout) as resp:
+                expected_length = resp.headers.get("Content-Length")
                 shutil.copyfileobj(resp, out)
+        written = tmp_path.stat().st_size
+        if written <= 0:
+            raise RuntimeError(f"downloaded empty body from {url!r}")
+        if expected_length is not None and str(expected_length).strip():
+            try:
+                declared = int(str(expected_length).strip())
+            except ValueError as exc:
+                raise RuntimeError(f"invalid Content-Length {expected_length!r} from {url!r}") from exc
+            if declared >= 0 and written != declared:
+                raise RuntimeError(
+                    f"incomplete download from {url!r}: wrote {written} bytes, Content-Length declared {declared}"
+                )
         if validator is not None:
             # Run the caller-provided decoder check before publishing so
             # the cache only ever contains files the consumer accepts.
@@ -119,6 +141,8 @@ def download_to_cache(
             env_vars=("WORLDFOUNDRY_CACHE_DIR", CACHE_MIN_FREE_ENV),
             settings={"url": url},
         )
+        if isinstance(exc, RuntimeError):
+            raise
         raise RuntimeError(f"Failed to download {url!r} into {local_path}: {exc}") from exc
     try:
         os.replace(tmp_path, local_path)
