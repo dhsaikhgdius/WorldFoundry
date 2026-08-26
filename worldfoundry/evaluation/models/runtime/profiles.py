@@ -21,8 +21,6 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 from urllib.parse import urlparse
 
-import yaml
-
 from worldfoundry.evaluation.models.catalog.schema import iter_model_zoo_payloads
 from worldfoundry.evaluation.utils import DATA_ROOT, REPO_ROOT, load_manifest, load_manifest_collection, manifest_paths
 from worldfoundry.runtime.conda import load_runtime_conda_env_specs_with_overrides
