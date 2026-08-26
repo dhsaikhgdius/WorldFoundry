@@ -1,6 +1,10 @@
-# Torch wheel constraints for the cu124 CUDA bucket.
-# See cu121-torch.txt for policy notes.
+# Torch wheel constraints for the cu124 CUDA bucket (plan I-03).
+#
+# Stubs for dry-run / drift checks. Bounds must match
+# ``worldfoundry.runtime.cuda_tiers.TIER_TORCH_SPECS`` and what
+# https://download.pytorch.org/whl/cu124 actually publishes (torch<=2.6.x).
+# NOT full lockfiles — see requirements/lock/ for I-05.
 
-torch>=2.7,<2.12.0
-torchvision>=0.22,<0.27.0
-torchaudio>=2.7,<2.12.0
+torch>=2.4,<2.7
+torchvision>=0.19,<0.22
+torchaudio>=2.4,<2.7

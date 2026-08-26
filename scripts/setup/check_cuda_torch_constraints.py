@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Dry-run check that per-CUDA-tier torch constraint stubs exist and parse.
+"""Dry-run check that per-CUDA-tier torch constraint stubs match TIER_TORCH_SPECS.
 
-Does not download wheels. Exit 0 when all expected tiers are present and each
-file lists torch/torchvision/torchaudio pins.
+Does not download wheels. Exit 0 when stubs exist and each pin equals the
+SSOT in ``worldfoundry.runtime.cuda_tiers.TIER_TORCH_SPECS`` (plan I-03).
 """
 
 from __future__ import annotations
@@ -12,20 +12,24 @@ import re
 import sys
 from pathlib import Path
 
-EXPECTED_TIERS = ("cu121", "cu124", "cu128")
-REQUIRED_PACKAGES = ("torch", "torchvision", "torchaudio")
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from worldfoundry.runtime.cuda_tiers import SUPPORTED_CUDA_TIERS, TIER_TORCH_SPECS
+
 PIN_RE = re.compile(r"^(torch|torchvision|torchaudio)\s*([<>=!~].+)$")
 
 
 def _repo_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    return _REPO_ROOT
 
 
-def check_tier(path: Path) -> list[str]:
+def check_tier(path: Path, *, expected: dict[str, str] | None = None) -> list[str]:
     errors: list[str] = []
     if not path.is_file():
         return [f"missing constraint stub: {path}"]
-    found: set[str] = set()
+    found: dict[str, str] = {}
     for line in path.read_text(encoding="utf-8").splitlines():
         text = line.strip()
         if not text or text.startswith("#"):
@@ -34,10 +38,18 @@ def check_tier(path: Path) -> list[str]:
         if not match:
             errors.append(f"{path}: unexpected line {text!r}")
             continue
-        found.add(match.group(1))
-    for name in REQUIRED_PACKAGES:
-        if name not in found:
+        name, spec = match.group(1), match.group(0)
+        found[name] = spec
+    expected = expected or {}
+    for name, want in expected.items():
+        got = found.get(name)
+        if got is None:
             errors.append(f"{path}: missing pin for {name}")
+        elif got != want:
+            errors.append(f"{path}: {name} pin {got!r} != SSOT {want!r}")
+    for name in found:
+        if name not in expected:
+            errors.append(f"{path}: unexpected package pin {name}")
     return errors
 
 
@@ -53,13 +65,18 @@ def main(argv: list[str] | None = None) -> int:
     root = args.root or _repo_root()
     constraint_dir = root / "requirements" / "cuda"
     errors: list[str] = []
-    for tier in EXPECTED_TIERS:
-        errors.extend(check_tier(constraint_dir / f"{tier}-torch.txt"))
+    for tier in SUPPORTED_CUDA_TIERS:
+        errors.extend(
+            check_tier(
+                constraint_dir / f"{tier}-torch.txt",
+                expected=TIER_TORCH_SPECS[tier],
+            )
+        )
     if errors:
         for err in errors:
             print(f"error: {err}", file=sys.stderr)
         return 1
-    print(f"ok: CUDA torch constraint stubs present for {', '.join(EXPECTED_TIERS)}")
+    print(f"ok: CUDA torch constraint stubs match TIER_TORCH_SPECS for {', '.join(SUPPORTED_CUDA_TIERS)}")
     return 0
 
 
