@@ -7,13 +7,13 @@ import argparse
 import json
 import math
 import os
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 
 from worldfoundry.base_models.capabilities import vbench_asset_path
 from worldfoundry.core.io.paths import project_root
+from worldfoundry.core.process import read_text_tail, run_logged_subprocess
 from worldfoundry.core.time import utc_now_iso
 from worldfoundry.evaluation.reporting.scorecard import SCORECARD_SCHEMA_VERSION
 from worldfoundry.evaluation.tasks.catalog.zoo_registry import load_benchmark_zoo_registry
@@ -256,19 +256,23 @@ def run_official_worldarena(args: argparse.Namespace, output_dir: Path) -> Path:
         command.append("--overwrite")
     env = os.environ.copy()
     env["PYTHONPATH"] = str(runtime_root) + os.pathsep + env.get("PYTHONPATH", "")
-    proc = subprocess.run(
+    stdout_path = output_dir / "worldarena_official_runtime.stdout.log"
+    stderr_path = output_dir / "worldarena_official_runtime.stderr.log"
+    proc = run_logged_subprocess(
         command,
+        stdout_path=stdout_path,
+        stderr_path=stderr_path,
         cwd=str(runtime_root),
         env=env,
-        text=True,
-        capture_output=True,
-        check=False,
         timeout=default_benchmark_timeout(),
+        start_new_session=False,
     )
-    log_path = output_dir / "worldarena_official_runtime.log"
-    log_path.write_text((proc.stdout or "") + ("\n[stderr]\n" + proc.stderr if proc.stderr else ""), encoding="utf-8")
     if proc.returncode != 0:
-        raise RuntimeError(f"WorldArena official runtime failed with code {proc.returncode}; see {log_path}")
+        detail = read_text_tail(stderr_path) or read_text_tail(stdout_path)
+        raise RuntimeError(
+            f"WorldArena official runtime failed with code {proc.returncode}; "
+            f"see {stderr_path}: {detail}"
+        )
     return _latest_result_file(config_path, list(dimensions))
 
 

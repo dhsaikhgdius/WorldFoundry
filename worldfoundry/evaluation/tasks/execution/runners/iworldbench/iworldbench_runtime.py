@@ -5,12 +5,12 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from worldfoundry.core.process import read_text_tail, run_logged_subprocess
 from worldfoundry.evaluation.tasks.execution.framework.runner_common import VIDEO_SUFFIXES
 from worldfoundry.evaluation.tasks.execution.runners.iworldbench.iworldbench_metrics import METRIC_ORDER
 from worldfoundry.evaluation.tasks.execution.runners.iworldbench.iworldbench_prompts import (
@@ -217,15 +217,15 @@ def run_iworldbench_evaluator(
         upstream_output_dir=upstream_output_dir,
         config=config,
     )
-    completed = subprocess.run(
+    stdout_path = output_dir / "upstream_stdout.log"
+    stderr_path = output_dir / "upstream_stderr.log"
+    completed = run_logged_subprocess(
         command,
+        stdout_path=stdout_path,
+        stderr_path=stderr_path,
         cwd=str(repo_root.resolve()),
-        text=True,
-        capture_output=True,
-        check=False,
         timeout=config.timeout,
         env={
-            **os.environ.copy(),
             "PYTHONPATH": os.pathsep.join(
                 part
                 for part in (
@@ -236,18 +236,20 @@ def run_iworldbench_evaluator(
                 if part
             ),
         },
+        start_new_session=False,
     )
     command_record = {
         "command": command,
         "returncode": completed.returncode,
-        "stdout": completed.stdout,
-        "stderr": completed.stderr,
+        "stdout_path": str(stdout_path.resolve()),
+        "stderr_path": str(stderr_path.resolve()),
     }
     (output_dir / "upstream_command.json").write_text(json.dumps(command_record, indent=2), encoding="utf-8")
     if completed.returncode != 0:
+        detail = read_text_tail(stderr_path) or read_text_tail(stdout_path)
         raise RuntimeError(
             "iWorld-Bench official command failed "
-            f"(exit={completed.returncode}): {completed.stderr.strip() or completed.stdout.strip()}"
+            f"(exit={completed.returncode}): {detail}"
         )
     reports_dir = upstream_output_dir / "reports"
     discovered = discover_report_results([reports_dir, upstream_output_dir, output_dir])
