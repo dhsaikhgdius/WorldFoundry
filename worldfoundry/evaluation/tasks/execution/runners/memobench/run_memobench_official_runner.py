@@ -28,6 +28,7 @@ import time
 from pathlib import Path
 from typing import Any, Mapping
 
+from worldfoundry.core.process import read_text_tail, run_logged_subprocess
 from worldfoundry.evaluation.tasks.execution.framework.io import utc_now_iso, write_json, write_jsonl
 from worldfoundry.evaluation.tasks.execution.runners.memobench.memobench_metrics import (
     METRIC_ORDER,
@@ -129,28 +130,30 @@ def _run_step1(args: argparse.Namespace, runtime_root: Path) -> tuple[Path | Non
     env["PYTHONPATH"] = os.pathsep.join(
         part for part in (str(runtime_root), env.get("PYTHONPATH")) if part
     )
+    stdout_path = args.output_dir / "upstream_stdout.log"
+    stderr_path = args.output_dir / "upstream_stderr.log"
     start = time.monotonic()
-    completed = subprocess.run(
+    completed = run_logged_subprocess(
         command,
+        stdout_path=stdout_path,
+        stderr_path=stderr_path,
         cwd=str(runtime_root),
         env=env,
-        text=True,
-        capture_output=True,
         timeout=args.timeout,
-        check=False,
     )
     duration = time.monotonic() - start
-    (args.output_dir / "upstream_stdout.log").write_text(completed.stdout, encoding="utf-8")
-    (args.output_dir / "upstream_stderr.log").write_text(completed.stderr, encoding="utf-8")
     summary = {
         "command": command,
         "returncode": completed.returncode,
         "duration_seconds": duration,
-        "stdout_path": str((args.output_dir / "upstream_stdout.log").resolve()),
-        "stderr_path": str((args.output_dir / "upstream_stderr.log").resolve()),
+        "stdout_path": str(stdout_path.resolve()),
+        "stderr_path": str(stderr_path.resolve()),
     }
     if completed.returncode != 0:
-        raise RuntimeError(f"MemoBench Step 1 failed with exit code {completed.returncode}")
+        detail = read_text_tail(stderr_path) or read_text_tail(stdout_path)
+        raise RuntimeError(
+            f"MemoBench Step 1 failed with exit code {completed.returncode}: {detail}"
+        )
     return out_csv, summary
 
 
