@@ -18,7 +18,7 @@ Options:
   --data-dir PATH      Benchmark/data root. Default order: explicit env, repo-sibling data/, env-file, ~/.cache/worldfoundry/data.
                       Most model weights are resolved by Hugging Face from repo ids; set HF_HOME or
                       HF_HUB_CACHE when you want a specific local HF cache.
-  --env-file PATH      Sourceable env exports. Default: WORLDFOUNDRY_ENV_FILE or tmp/worldfoundry_unified_env.sh.
+  --env-file PATH      Sourceable env exports. Default: WORLDFOUNDRY_ENV_FILE or ${WORLDFOUNDRY_HOME:-~/.cache/worldfoundry}/worldfoundry_unified_env.sh.
   --python PATH        Python executable. Defaults to the unified env python when available.
   -h, --help           Show this help.
 
@@ -41,7 +41,8 @@ PORT="${WORLDFOUNDRY_WORKSPACE_PORT:-7870}"
 MAX_JOBS="${WORLDFOUNDRY_WORKSPACE_MAX_JOBS:-8}"
 CKPT_DIR_OVERRIDE=""
 DATA_DIR_OVERRIDE=""
-ENV_FILE="${WORLDFOUNDRY_ENV_FILE:-tmp/worldfoundry_unified_env.sh}"
+WF_CACHE_HOME="${WORLDFOUNDRY_HOME:-${XDG_CACHE_HOME:-$HOME/.cache}/worldfoundry}"
+ENV_FILE="${WORLDFOUNDRY_ENV_FILE:-${WF_CACHE_HOME}/worldfoundry_unified_env.sh}"
 PYTHON_BIN="${PYTHON:-}"
 
 while (($#)); do

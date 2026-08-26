@@ -13,7 +13,8 @@ ENV_ROOT="${WORLDFOUNDRY_CONDA_ENVS_ROOT:-${WORLDFOUNDRY_CONDA_ENV_ROOT:-}}"
 DATA_ROOT="${WORLDFOUNDRY_DATA_DIR:-}"
 MODEL_ROOT="${WORLDFOUNDRY_MODEL_DIR:-}"
 ARTIFACT_ROOT="${WORLDFOUNDRY_ARTIFACT_DIR:-}"
-ENV_FILE="${WORLDFOUNDRY_ENV_FILE:-tmp/worldfoundry_unified_env.sh}"
+WF_CACHE_HOME="${WORLDFOUNDRY_HOME:-${XDG_CACHE_HOME:-$HOME/.cache}/worldfoundry}"
+ENV_FILE="${WORLDFOUNDRY_ENV_FILE:-${WF_CACHE_HOME}/worldfoundry_unified_env.sh}"
 WORKSPACE_PORT="${WORLDFOUNDRY_WORKSPACE_PORT:-7870}"
 WORKSPACE_HOST="${WORLDFOUNDRY_WORKSPACE_HOST:-127.0.0.1}"
 MAX_JOBS="${WORLDFOUNDRY_WORKSPACE_MAX_JOBS:-8}"
@@ -32,7 +33,7 @@ usage() {
 Usage: bash scripts/setup/bootstrap_worldfoundry.sh [options]
 
 Bootstrap a fresh WorldFoundry checkout. The default path creates the
-single unified GPU conda environment, writes tmp/worldfoundry_unified_env.sh, and
+single unified GPU conda environment, writes a sourceable env file under WORLDFOUNDRY_HOME (default ~/.cache/worldfoundry), and
 verifies imports plus the model catalog. Model-specific environments and
 checkpoint preparation are opt-in.
 
@@ -51,7 +52,7 @@ Options:
   --data-root PATH         Data root forwarded to unified_install.sh.
   --model-root PATH        Model/checkpoint root forwarded to unified_install.sh.
   --artifact-root PATH     Artifact root forwarded to unified_install.sh.
-  --env-file PATH          Sourceable env exports. Default: tmp/worldfoundry_unified_env.sh.
+  --env-file PATH          Sourceable env exports. Default: ${WORLDFOUNDRY_HOME:-~/.cache/worldfoundry}/worldfoundry_unified_env.sh.
   --with-model MODEL       Install or verify a model/benchmark resolved conda env. May be repeated.
   --prepare-model MODEL    Print checkpoint/HF preparation plan. May be repeated.
   --download-model-assets  Execute public model asset downloads for --prepare-model.

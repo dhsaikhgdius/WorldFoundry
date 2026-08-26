@@ -15,7 +15,8 @@ DATA_ROOT_OVERRIDE="${WORLDFOUNDRY_DATA_DIR:-}"
 MODEL_ROOT_OVERRIDE="${WORLDFOUNDRY_MODEL_DIR:-}"
 ARTIFACT_ROOT_OVERRIDE="${WORLDFOUNDRY_ARTIFACT_DIR:-}"
 ENV_ROOT_OVERRIDE="${WORLDFOUNDRY_CONDA_ENVS_ROOT:-${WORLDFOUNDRY_CONDA_ENV_ROOT:-}}"
-ENV_FILE="${WORLDFOUNDRY_ENV_FILE:-tmp/worldfoundry_unified_env.sh}"
+WF_CACHE_HOME="${WORLDFOUNDRY_HOME:-${XDG_CACHE_HOME:-$HOME/.cache}/worldfoundry}"
+ENV_FILE="${WORLDFOUNDRY_ENV_FILE:-${WF_CACHE_HOME}/worldfoundry_unified_env.sh}"
 CONDA_ENVIRONMENT_FILE="${WORLDFOUNDRY_CONDA_ENVIRONMENT_FILE:-environment.yml}"
 WRITE_ENV_FILE=1
 INSTALL_PRESET="${WORLDFOUNDRY_INSTALL_PRESET:-max-infer}"
@@ -43,7 +44,7 @@ Options:
   --data-root PATH      Benchmark/data root. Default: ${WORLDFOUNDRY_HOME}/data.
   --model-root PATH     Model/checkpoint root. Default: ${WORLDFOUNDRY_HOME}/models.
   --artifact-root PATH  Generated artifact root. Default: ${WORLDFOUNDRY_HOME}/artifacts.
-  --env-file PATH       Write sourceable exports. Default: tmp/worldfoundry_unified_env.sh.
+  --env-file PATH       Write sourceable exports. Default: ${WORLDFOUNDRY_HOME:-~/.cache/worldfoundry}/worldfoundry_unified_env.sh.
   --no-env-file         Do not write the env export file.
   --preset NAME         max-infer or slim. Default: max-infer.
                         Both currently install requirements/worldfoundry-unified.txt.
@@ -264,6 +265,15 @@ bash "$ROOT/scripts/setup/conda_install.sh" \
   --preset "$INSTALL_PRESET" \
   "${INSTALL_ARGS[@]}"
 
+# Why hand-written wrappers instead of pip console scripts (plan I-13):
+# conda_install.sh installs torch + requirements/worldfoundry-unified.txt but
+# never `pip install -e .`, so pip does not generate the [project.scripts]
+# entry points inside the unified env. These wrappers are the only providers
+# of the `worldfoundry*` commands there; they pin the repo checkout via
+# WORLDFOUNDRY_REPO_ROOT/PYTHONPATH and would intentionally shadow pip entry
+# points if the package were ever installed into the env. The name -> module
+# map below must stay in sync with [project.scripts] in pyproject.toml;
+# test/eval_core/test_unified_install_wrappers.py enforces that contract.
 install_worldfoundry_wrapper() {
   local name="$1"
   local module="$2"
