@@ -53,22 +53,32 @@ def test_allow_patterns_cover_directory_subtrees() -> None:
     assert _allow_patterns_for_subpath("") is None
 
 
+@patch("worldfoundry.core.io.hf.maybe_download_hf_repo_on_rank0")
 @patch("worldfoundry.core.io.hf._snapshot_download", return_value="/cache/repo-root")
-def test_resolve_hf_path_downloads_hf_uri(mock_snapshot) -> None:
+def test_resolve_hf_path_downloads_hf_uri(mock_snapshot, mock_rank0) -> None:
     resolved = resolve_hf_path("hf://owner/repo/checkpoints/model.pth")
 
+    allow = ["checkpoints/model.pth", "checkpoints/model.pth/*", "checkpoints/model.pth/**"]
+    mock_rank0.assert_called_once_with("owner/repo", allow_patterns=allow)
     mock_snapshot.assert_called_once_with(
         repo_id="owner/repo",
-        allow_patterns=["checkpoints/model.pth", "checkpoints/model.pth/*", "checkpoints/model.pth/**"],
+        allow_patterns=allow,
+        local_files_only=True,
     )
     assert resolved == "/cache/repo-root/checkpoints/model.pth"
 
 
+@patch("worldfoundry.core.io.hf.maybe_download_hf_repo_on_rank0")
 @patch("worldfoundry.core.io.hf._snapshot_download", return_value="/cache/repo-root")
-def test_hf_download_or_fpath_is_alias(mock_snapshot) -> None:
+def test_hf_download_or_fpath_is_alias(mock_snapshot, mock_rank0) -> None:
     resolved = hf_download_or_fpath("hf://owner/repo")
 
-    mock_snapshot.assert_called_once_with(repo_id="owner/repo", allow_patterns=None)
+    mock_rank0.assert_called_once_with("owner/repo", allow_patterns=None)
+    mock_snapshot.assert_called_once_with(
+        repo_id="owner/repo",
+        allow_patterns=None,
+        local_files_only=True,
+    )
     assert resolved == "/cache/repo-root"
 
 
