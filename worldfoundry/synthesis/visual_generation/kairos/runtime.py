@@ -23,7 +23,7 @@ import imageio.v3 as iio
 import numpy as np
 
 from worldfoundry.core.io.paths import checkpoint_root_path
-
+from worldfoundry.runtime.conda import resolve_model_python
 
 DEFAULT_NEGATIVE_PROMPT = (
     "bright tones, overexposed, static, blurred details, subtitles, style, works, paintings, images, static, "
@@ -281,7 +281,7 @@ class KairosRuntime:
         self.models_root = str(Path(models_root or _default_models_root()).expanduser())
         self.config_path = str(config_path or _default_config_path(self.runtime_root, self.variant))
         self.device = device
-        self.python_executable = python_executable or sys.executable
+        self.python_executable = resolve_model_python(self.model_id, explicit=python_executable)
         self.torchrun_executable = torchrun_executable
         # Define default generation parameters that can be overridden
         self.defaults = {

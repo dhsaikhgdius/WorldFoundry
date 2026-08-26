@@ -5,11 +5,11 @@ from __future__ import annotations
 import json
 import os
 import subprocess
-import sys
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from worldfoundry.core.io.paths import checkpoint_root_path, hfd_root_path, resolve_data_path
+from worldfoundry.runtime.conda import resolve_model_python
 from worldfoundry.runtime.in_tree_cli import ensure_in_tree_runtime, execute_in_tree, require_path
 
 
@@ -36,7 +36,7 @@ class VerseCrafterRuntime:
         ).expanduser()
         self.base_model_path = Path(base_model_path or checkpoints / "Wan2.1-T2V-14B").expanduser()
         self.moge_model_path = Path(moge_model_path or hfd / "Ruicheng--moge-2-vitl-normal").expanduser()
-        self.python_executable = str(python_executable or sys.executable)
+        self.python_executable = resolve_model_python("versecrafter", explicit=python_executable)
         self.device = device
         self.env = dict(env or {})
 

@@ -20,10 +20,12 @@ DEFAULT_MODEL_DIR = DEFAULT_MODEL_DIR_CANDIDATES[0]
 
 def _registered_python_executable() -> str | None:
     try:
-        from worldfoundry.runtime.conda import resolve_conda_executable
+        from worldfoundry.runtime.conda import resolve_model_python
     except Exception:
         return None
-    return resolve_conda_executable("scope", "python")
+    # Prefer conda when present; None signals callers to keep their own fallback.
+    resolved = resolve_model_python("scope", warn_on_missing_env=False)
+    return resolved if resolved != sys.executable else None
 
 
 def runtime_root() -> Path:

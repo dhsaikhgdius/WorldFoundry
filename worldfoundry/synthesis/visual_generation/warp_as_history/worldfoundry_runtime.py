@@ -10,6 +10,7 @@ from typing import Any, Mapping, Sequence
 
 from worldfoundry.base_models.three_dimensions.point_clouds.pi3 import SOURCE_ROOT as PI3_SOURCE_ROOT
 from worldfoundry.core.io import file_sha256
+from worldfoundry.runtime.conda import resolve_model_python
 
 from .variants import (
     WARP_AS_HISTORY_VARIANTS,
@@ -48,7 +49,7 @@ class WarpAsHistoryRuntime:
         self.demo_csv_path = str(demo_csv_path or self.variant.demo_csv_path)
         self.device = str(device)
         self.dtype = str(dtype or self.variant.default_dtype)
-        self.python_executable = str(python_executable or sys.executable)
+        self.python_executable = resolve_model_python("warp-as-history", explicit=python_executable)
         self.default_work_dir = (
             Path(default_work_dir).expanduser()
             if default_work_dir is not None
