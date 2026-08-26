@@ -77,12 +77,15 @@ jobs:
           python -m pip install --index-url https://download.pytorch.org/whl/cpu torch torchvision
           python -m pip install -e ".[test]"
 
-      - name: Eval-core hard gate (stable cuda-tier subset)
+      - name: Eval-core hard gate (stable cuda-tier + I-05 lock contracts)
         # test_cli_ux.py still carries catalog contract drift on main; keep it out of
         # the hard gate until those assertions are repaired in a content PR.
+        # I-05: populated cu128 lock + tier-index guard unit tests (no network marker).
         run: >
           PYTHONPATH=. python -m pytest
           test/eval_core/test_cuda_tiers.py
+          tests/runtime/test_unified_lockfile_populated.py
+          tests/runtime/test_validate_unified_lock_tier.py
           -q -p no:cacheprovider
           -m "not gpu and not network"
 
