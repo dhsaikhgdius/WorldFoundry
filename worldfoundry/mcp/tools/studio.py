@@ -498,6 +498,10 @@ def _request_json(
     url = _api_url(base_url, path, query=query)
     data = None
     headers = {"Accept": "application/json"}
+    # Match Studio fail-closed auth: non-loopback Workspace requires this token.
+    studio_token = os.environ.get("WORLDFOUNDRY_STUDIO_AUTH_TOKEN", "").strip()
+    if studio_token:
+        headers["Authorization"] = f"Bearer {studio_token}"
     if payload is not None:
         data = json.dumps(payload).encode("utf-8")
         headers["Content-Type"] = "application/json"

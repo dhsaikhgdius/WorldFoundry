@@ -20,12 +20,12 @@ import sys
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
-
 from worldfoundry.core.io.paths import project_root, resolve_worldfoundry_path, worldfoundry_path_tokens
 from worldfoundry.core.io.serialization import load_serialized
+
+REPO_ROOT = project_root(__file__)
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 ENV_RE = re.compile(r"\b(?:WORLDFOUNDRY_[A-Z0-9_]+|OPENAI_API_KEY|DASHSCOPE_API_KEY|HF_TOKEN|HUGGINGFACE_HUB_TOKEN|GOOGLE_API_KEY|GEMINI_API_KEY)\b")
 SECRET_RE = re.compile(r"(?:API_KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL)", re.IGNORECASE)
@@ -340,7 +340,10 @@ def build_plan(benchmark_id: str, *, repo_root: Path | None = None) -> dict[str,
         "--json",
     ]
     commands = {
-        "bootstrap": "bash scripts/setup/bootstrap_worldfoundry.sh && source tmp/worldfoundry_unified_env.sh",
+        "bootstrap": (
+            "bash scripts/setup/bootstrap_worldfoundry.sh"
+            ' && source "${WORLDFOUNDRY_HOME:-$HOME/.cache/worldfoundry}/worldfoundry_unified_env.sh"'
+        ),
         "asset_plan": f"python scripts/setup/prepare_benchmark_assets.py --benchmark-id {benchmark_id} --json",
         "official_result_import": " ".join(_shell_quote(part) for part in normalize),
     }
