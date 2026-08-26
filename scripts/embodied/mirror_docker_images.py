@@ -4,11 +4,10 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
-from pathlib import Path
-
 import subprocess
 import sys
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Iterable
 
 import yaml
@@ -16,10 +15,7 @@ import yaml
 from worldfoundry.core.io.paths import project_root
 
 
-
 DEFAULT_PROFILE_DIR = Path("worldfoundry/data/benchmarks/runtime_profiles/official")
-
-
 @dataclass(frozen=True)
 class ImageMapping:
     profile_id: str
