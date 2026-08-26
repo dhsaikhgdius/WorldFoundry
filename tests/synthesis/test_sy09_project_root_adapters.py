@@ -259,3 +259,17 @@ def test_batch10_studio_catalog_uses_paths_helpers() -> None:
     assert "Path(__file__).resolve().parents[" not in text
     assert "for parent in current.parents" not in text
 
+
+def test_batch11_scripts_use_paths_project_root() -> None:
+    """scripts/**/*.py repo climbs use project_root, not parents[2]."""
+    import re
+
+    repo = Path(__file__).resolve().parents[2]
+    deep = re.compile(r"Path\(__file__\)\.resolve\(\)\.parents\[2\]")
+    paths = sorted(
+        str(p.relative_to(repo))
+        for p in (repo / "scripts").rglob("*.py")
+        if deep.search(p.read_text(encoding="utf-8"))
+    )
+    assert paths == [], paths
+

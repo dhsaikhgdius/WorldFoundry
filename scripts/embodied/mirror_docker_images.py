@@ -6,11 +6,15 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 from pathlib import Path
+
 import subprocess
 import sys
 from typing import Iterable
 
 import yaml
+
+from worldfoundry.core.io.paths import project_root
+
 
 
 DEFAULT_PROFILE_DIR = Path("worldfoundry/data/benchmarks/runtime_profiles/official")
@@ -24,7 +28,7 @@ class ImageMapping:
 
 
 def _repo_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    return project_root(__file__)
 
 
 def _replace_tag(image: str, tag: str | None) -> str:

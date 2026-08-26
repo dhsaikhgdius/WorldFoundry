@@ -9,9 +9,13 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+
 from typing import Any
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+from worldfoundry.core.io.paths import project_root
+
+
+REPO_ROOT = project_root(__file__)
 SRC_ROOT = REPO_ROOT
 WORKER_SCRIPT = REPO_ROOT / "scripts" / "model_zoo" / "matrix_game_parity_worker.py"
 DEFAULT_REPO_ROOT = REPO_ROOT / "tmp" / "model_zoo" / "repos" / "github.com_SkyworkAI_Matrix-Game" / "Matrix-Game-2"
