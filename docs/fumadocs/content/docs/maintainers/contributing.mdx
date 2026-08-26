@@ -52,6 +52,10 @@ make docs-check
 cd docs/fumadocs && npm run types:check && npm run build
 ```
 
+For the CPU `test/eval_core` release gate on a fresh machine, install
+`pip install -e ".[eval_core]"` (CPU torch from
+`https://download.pytorch.org/whl/cpu` when needed), then `make test-eval-core`.
+
 For model/profile audits:
 
 ```bash
