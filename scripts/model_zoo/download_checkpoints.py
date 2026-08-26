@@ -7,13 +7,17 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+from worldfoundry.core.io.paths import project_root
+from worldfoundry.core.process import run_logged_subprocess
+
+REPO_ROOT = project_root(__file__)
 SRC_ROOT = REPO_ROOT
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
@@ -493,21 +497,30 @@ def run_download_command(
             "command": command,
             "timeout_seconds": timeout_seconds,
         }
-        try:
-            completed = subprocess.run(command, env=env, text=True, check=False, timeout=timeout_seconds)
-            attempt["returncode"] = completed.returncode
-            if getattr(completed, "stdout", None):
-                attempt["stdout"] = completed.stdout
-            if getattr(completed, "stderr", None):
-                attempt["stderr"] = completed.stderr
-        except subprocess.TimeoutExpired as exc:
-            attempt["returncode"] = None
-            attempt["timed_out"] = True
-            attempt["error"] = f"download command timed out after {timeout_seconds} seconds"
-            if exc.stdout:
-                attempt["stdout"] = exc.stdout.decode("utf-8", errors="replace") if isinstance(exc.stdout, bytes) else exc.stdout
-            if exc.stderr:
-                attempt["stderr"] = exc.stderr.decode("utf-8", errors="replace") if isinstance(exc.stderr, bytes) else exc.stderr
+        with tempfile.TemporaryDirectory(prefix="wf-download-") as tmp:
+            stdout_path = Path(tmp) / "download.stdout.log"
+            stderr_path = Path(tmp) / "download.stderr.log"
+            try:
+                completed = run_logged_subprocess(
+                    command,
+                    stdout_path=stdout_path,
+                    stderr_path=stderr_path,
+                    env=env,
+                    timeout=timeout_seconds,
+                )
+                attempt["returncode"] = completed.returncode
+                if stdout_path.is_file():
+                    attempt["stdout"] = stdout_path.read_text(encoding="utf-8", errors="replace")
+                if stderr_path.is_file():
+                    attempt["stderr"] = stderr_path.read_text(encoding="utf-8", errors="replace")
+            except subprocess.TimeoutExpired:
+                attempt["returncode"] = None
+                attempt["timed_out"] = True
+                attempt["error"] = f"download command timed out after {timeout_seconds} seconds"
+                if stdout_path.is_file():
+                    attempt["stdout"] = stdout_path.read_text(encoding="utf-8", errors="replace")
+                if stderr_path.is_file():
+                    attempt["stderr"] = stderr_path.read_text(encoding="utf-8", errors="replace")
         attempt["duration_seconds"] = round(time.monotonic() - start, 3)
         attempts.append(attempt)
         if attempt.get("returncode") == 0:

@@ -7,10 +7,14 @@ import os
 import shlex
 import sys
 from pathlib import Path
+
 from typing import Any, Iterable, Mapping
 
+from worldfoundry.core.io.paths import project_root
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+REPO_ROOT = project_root(__file__)
 SRC_ROOT = REPO_ROOT
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))

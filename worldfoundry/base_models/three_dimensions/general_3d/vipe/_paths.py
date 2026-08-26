@@ -19,7 +19,8 @@ def get_config_path() -> Path:
     data_configs = worldfoundry_data_path("models", "runtime", "configs", "vipe")
     if (data_configs / "default.yaml").is_file():
         return data_configs
-    repo_configs = Path(__file__).resolve().parents[1] / "configs"
+    # Prefer the in-package ViPE config tree when packaged data is absent.
+    repo_configs = Path(__file__).resolve().parent / "configs"
     if repo_configs.is_dir():
         return repo_configs
     return Path(__file__).resolve().parent / "_configs"

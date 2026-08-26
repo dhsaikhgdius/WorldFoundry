@@ -271,9 +271,56 @@ if [[ "$VERIFY_ONLY" != "1" ]]; then
     python -m pip install --no-cache-dir --index-url "$TORCH_INDEX_URL" --extra-index-url "$PYPI_INDEX_URL" \
     "$TORCH_SPEC" "$TORCHVISION_SPEC" "$TORCHAUDIO_SPEC"
 
+  # I-02: pin the exact CUDA-index torch stack so the second PyPI pass cannot
+  # silently replace it (e.g. via unpinned xformers/torchao).
+  TORCH_CONSTRAINT_FILE="$(mktemp "${TMPDIR:-/tmp}/worldfoundry-torch-constraint.XXXXXX")"
+  PIP_CONFIG_FILE="${WORLDFOUNDRY_PIP_CONFIG_FILE:-/dev/null}" conda_run \
+    python - "$TORCH_CONSTRAINT_FILE" <<'PY'
+import importlib
+import sys
+
+constraint_path = sys.argv[1]
+lines = []
+for name in ("torch", "torchvision", "torchaudio"):
+    module = importlib.import_module(name)
+    version = getattr(module, "__version__", None)
+    if not version:
+        raise SystemExit(f"missing version for {name} after CUDA-index install")
+    lines.append(f"{name}=={version}")
+open(constraint_path, "w", encoding="utf-8").write("\n".join(lines) + "\n")
+print("wrote torch constraint:", constraint_path)
+print("\n".join(lines))
+PY
+
   PIP_CONFIG_FILE="${WORLDFOUNDRY_PIP_CONFIG_FILE:-/dev/null}" conda_run \
     python -m pip install --no-cache-dir --index-url "$PYPI_INDEX_URL" \
+    --constraint "$TORCH_CONSTRAINT_FILE" \
     -r requirements/worldfoundry-unified.txt
+  rm -f "$TORCH_CONSTRAINT_FILE"
+
+  PIP_CONFIG_FILE="${WORLDFOUNDRY_PIP_CONFIG_FILE:-/dev/null}" conda_run \
+    python - "$CUDA_PROFILE" "${ALLOW_NO_CUDA:-0}" <<'PY'
+import sys
+import torch
+
+expected_tier = sys.argv[1]
+allow_no_cuda = sys.argv[2] == "1"
+torch_cuda = (torch.version.cuda or "").strip()
+if not torch_cuda:
+    if allow_no_cuda:
+        print("torch.version.cuda is empty; allowed by --allow-no-cuda")
+        raise SystemExit(0)
+    raise SystemExit("torch.version.cuda is empty after CUDA-index install")
+expected = {"cu128": "12.8", "cu124": "12.4", "cu121": "12.1"}.get(expected_tier)
+if expected:
+    major_minor = ".".join(torch_cuda.split(".")[:2])
+    if major_minor != expected:
+        raise SystemExit(
+            f"torch.version.cuda={torch_cuda!r} does not match selected tier {expected_tier} "
+            f"(expected CUDA {expected}). A later pip install may have replaced the CUDA wheel."
+        )
+print(f"torch CUDA OK: version={torch.__version__} cuda={torch_cuda} tier={expected_tier}")
+PY
 
   if [[ "$INSTALL_FLASH_ATTN" == "1" ]]; then
     run_cmd bash scripts/setup/install_flash_attn.sh "$FLASH_ATTN_BUCKET"
