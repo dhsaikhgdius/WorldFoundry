@@ -21,6 +21,7 @@ from typing import Any
 
 import yaml
 
+from worldfoundry.evaluation.reporting.run_manifest import _is_sensitive_key
 from worldfoundry.evaluation.utils import write_json
 
 SCHEMA_VERSION = "worldfoundry-runtime-preflight-v1"
@@ -31,7 +32,8 @@ _ENV_PATTERN = re.compile(
     r"|\$\{(?P<braced>[A-Za-z_][A-Za-z0-9_]*)(?::-(?P<default>[^}]*))?\}"
 )
 _ENV_NAME_PATTERN = re.compile(r"\b[A-Z][A-Z0-9_]+\b")
-_SECRET_PARTS = ("API_KEY", "AUTH", "CREDENTIAL", "PASSWORD", "PRIVATE", "SECRET", "TOKEN")
+# Skip tiny env values (booleans, single digits) that would over-redact logs.
+_MIN_SECRET_VALUE_LEN = 8
 
 
 def _expand_env(value: str, environ: Mapping[str, str]) -> tuple[str, tuple[str, ...]]:
@@ -54,10 +56,19 @@ def _expand_env(value: str, environ: Mapping[str, str]) -> tuple[str, tuple[str,
 
 
 def _redact_text(value: str, environ: Mapping[str, str]) -> str:
+    """Replace secret env values in unstructured text.
+
+    Key matching reuses run_manifest segment rules so names like
+    ``MAX_NEW_TOKENS`` / ``TOKENIZER_PATH`` are not treated as credentials.
+    """
+
     redacted = value
     for name, secret in environ.items():
-        if secret and any(part in name.upper() for part in _SECRET_PARTS):
-            redacted = redacted.replace(secret, "<redacted>")
+        if not secret or len(secret) < _MIN_SECRET_VALUE_LEN:
+            continue
+        if not _is_sensitive_key(name):
+            continue
+        redacted = redacted.replace(secret, "<redacted>")
     return redacted
 
 
