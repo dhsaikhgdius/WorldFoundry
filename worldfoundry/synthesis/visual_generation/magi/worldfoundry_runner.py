@@ -8,7 +8,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from worldfoundry.core.io.paths import resolve_data_path
+from worldfoundry.core.io.paths import project_root, resolve_data_path
 
 
 VARIANT_CONFIGS = {
@@ -135,7 +135,7 @@ def main() -> None:
 
     env = os.environ.copy()
     compat_path = Path(__file__).resolve().parent / "torch_compat"
-    worldfoundry_root = Path(__file__).resolve().parents[4]
+    worldfoundry_root = project_root(__file__)
     env["PYTHONPATH"] = os.pathsep.join(
         item for item in (str(worldfoundry_root), str(compat_path), str(repo_root), env.get("PYTHONPATH", "")) if item
     )
