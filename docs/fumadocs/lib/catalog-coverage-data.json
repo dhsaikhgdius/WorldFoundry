@@ -1,7 +1,7 @@
 {
   "modelsTotal": 283,
   "modelsListed": 282,
-  "benchmarksTotal": 70,
+  "benchmarksTotal": 73,
   "modelFamilies": [
     {
       "id": "video",
@@ -1355,19 +1355,19 @@
           ]
         },
         {
-          "id": "depth-anything-v3-prior",
-          "name": "Depth Anything 3",
-          "status": "integrated",
-          "aliases": [
-            "depth-anything-v3-prior"
-          ]
-        },
-        {
           "id": "depth-anything-v3",
           "name": "Depth Anything 3",
           "status": "runtime_ported",
           "aliases": [
             "depth-anything-v3"
+          ]
+        },
+        {
+          "id": "depth-anything-v3-prior",
+          "name": "Depth Anything 3 Metric Prior",
+          "status": "integrated",
+          "aliases": [
+            "depth-anything-v3-prior"
           ]
         },
         {
@@ -2305,7 +2305,7 @@
     {
       "id": "video",
       "label": "Video & world",
-      "count": 47,
+      "count": 50,
       "entries": [
         {
           "id": "4dworldbench",
@@ -2406,6 +2406,13 @@
           ]
         },
         {
+          "id": "mind",
+          "name": "MIND",
+          "aliases": [
+            "mind"
+          ]
+        },
+        {
           "id": "mirabench",
           "name": "MiraBench",
           "aliases": [
@@ -2473,6 +2480,20 @@
           "name": "RBench",
           "aliases": [
             "rbench"
+          ]
+        },
+        {
+          "id": "sana-wm-bench",
+          "name": "SANA-WM 80-Scene Benchmark",
+          "aliases": [
+            "sana-wm-bench"
+          ]
+        },
+        {
+          "id": "stevo-bench",
+          "name": "STEVO-Bench",
+          "aliases": [
+            "stevo-bench"
           ]
         },
         {

@@ -42,6 +42,7 @@ When you change behavior, update the page that owns it:
 - **New benchmark** — `evaluation/benchmark-hub/<benchmark-id>`, the benchmark guide, and maintainer architecture pages when internals change.
 - **CLI or output schema** — `reference/cli` and architecture pages that own the changed behavior.
 - **Internal workflow** — `maintainers/architecture` (especially workflow and evaluation-core).
+- **Catalog homepage coverage** — after model/benchmark catalog YAML changes, refresh with `cd docs/fumadocs && npm run catalog:generate`, then `npm run catalog:check`.
 
 ## Local validation
 

@@ -42,6 +42,7 @@ Fumadocs 是唯一维护的文档面。新增或修改页面时，在 `docs/fuma
 - **新 benchmark** — `evaluation/benchmark-hub/<benchmark-id>`、benchmark 指南；内部实现变化时同步维护者架构页。
 - **CLI 或输出 schema** — `reference/cli`，以及拥有相关行为的 architecture 页面。
 - **内部 workflow** — `maintainers/architecture`（尤其是 workflow 与 evaluation-core）。
+- **Catalog 首页覆盖** — 变更 model/benchmark catalog YAML 后，执行 `cd docs/fumadocs && npm run catalog:generate`，再用 `npm run catalog:check` 校验。
 
 ## 本地验证
 

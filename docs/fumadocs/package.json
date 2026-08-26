@@ -12,6 +12,8 @@
     "dev:local": "bash scripts/dev-local-ssd.sh dev",
     "mdx:generate": "fumadocs-mdx",
     "models:generate": "python3 scripts/generate-model-recipes.py",
+    "catalog:generate": "python3 scripts/generate-catalog-coverage.py",
+    "catalog:check": "python3 scripts/generate-catalog-coverage.py --check",
     "prebuild": "npm run mdx:generate && npm run api:generate",
     "predev": "npm run mdx:generate && npm run api:generate",
     "pretypes:check": "npm run api:generate",
