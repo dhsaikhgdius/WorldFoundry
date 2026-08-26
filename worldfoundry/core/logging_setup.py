@@ -64,6 +64,8 @@ _LOG_LEVEL_ENV = "WORLDFOUNDRY_LOG_LEVEL"
 _LOG_FILE_ENV = "WORLDFOUNDRY_LOG_FILE"
 _LOG_JSON_ENV = "WORLDFOUNDRY_LOG_JSON"
 _LOG_CONTEXT_ENV = "WORLDFOUNDRY_LOG_CONTEXT"
+# Comma-separated ``logger.name=LEVEL`` overrides, e.g. ``urllib3=WARNING,asyncio=ERROR``.
+_LOG_LEVELS_ENV = "WORLDFOUNDRY_LOG_LEVELS"
 # The sequence-parallel stack (adapted from vLLM) reconfigures the *root*
 # logger via ``logging.config.dictConfig`` when this is truthy (its default).
 # Setting it to "0" before ``sp.logger`` is imported makes that takeover a
@@ -472,6 +474,39 @@ def _resolve_level(level: str | int | None, default: int = logging.INFO) -> int:
     )
 
 
+def _parse_logger_level_overrides(raw: str | None) -> dict[str, int]:
+    """Parse ``name=LEVEL`` pairs from ``WORLDFOUNDRY_LOG_LEVELS``."""
+
+    if not raw or not str(raw).strip():
+        return {}
+    overrides: dict[str, int] = {}
+    for part in str(raw).split(","):
+        item = part.strip()
+        if not item:
+            continue
+        if "=" not in item:
+            raise ValueError(
+                f"Invalid {_LOG_LEVELS_ENV} entry {item!r}; expected logger.name=LEVEL"
+            )
+        name, level_text = item.split("=", 1)
+        name = name.strip()
+        if not name:
+            raise ValueError(f"Invalid {_LOG_LEVELS_ENV} entry {item!r}; empty logger name")
+        overrides[name] = _resolve_level(level_text.strip(), logging.INFO)
+    return overrides
+
+
+def _apply_logger_level_overrides(raw: str | None = None) -> dict[str, int]:
+    """Apply per-logger level overrides to the stdlib hierarchy."""
+
+    if raw is None:
+        raw = os.environ.get(_LOG_LEVELS_ENV)
+    overrides = _parse_logger_level_overrides(raw)
+    for name, level in overrides.items():
+        logging.getLogger(name).setLevel(level)
+    return overrides
+
+
 # --------------------------------------------------------------------------- #
 # stdlib -> loguru bridge (only used when loguru is available).                #
 # --------------------------------------------------------------------------- #
@@ -771,6 +806,7 @@ def configure_logging(
             )
 
         _apply_distributed_logger(resolved)
+        _apply_logger_level_overrides()
 
         _CONFIGURED = True
         _CONFIGURED_LEVEL = resolved
