@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 
 import pytest
 
@@ -124,3 +125,59 @@ def test_sdist_manifest_excludes_generated_downloaded_and_large_artifacts() -> N
         "*.onnx",
     ):
         assert pattern in manifest
+
+
+def _requirement_name_and_specifier(req: str) -> tuple[str, str]:
+    # Strip extras markers like "huggingface-hub[cli]".
+    base = req.split(";", 1)[0].strip()
+    name = re.split(r"[<>=!~\[]", base, maxsplit=1)[0].strip().lower()
+    spec = base[len(name) :].strip()
+    if spec.startswith("["):
+        # name[extra]...version
+        closing = spec.find("]")
+        spec = spec[closing + 1 :].strip() if closing >= 0 else ""
+    return name, spec
+
+
+def test_all_av_pin_aligns_with_train_video() -> None:
+    """EX-03: ``[all]`` must share train_video's av upper bound."""
+
+    optional = _optional_dependencies()
+    assert "av>=12,<20" in optional["all"]
+    assert "av>=12,<20" in optional["train_video"]
+
+
+def test_all_and_train_core_transformers_intersect() -> None:
+    """EX-03: ``[all,train_core]`` transformers pins must have a non-empty intersection."""
+
+    packaging = pytest.importorskip("packaging")
+    from packaging.specifiers import SpecifierSet
+
+    optional = _optional_dependencies()
+
+    def transformers_spec(extra: str) -> SpecifierSet:
+        for req in optional[extra]:
+            name, spec = _requirement_name_and_specifier(req)
+            if name == "transformers":
+                return SpecifierSet(spec or ">=0")
+        raise AssertionError(f"{extra} missing transformers pin")
+
+    intersection = transformers_spec("all") & transformers_spec("train_core")
+    assert list(intersection.filter(["4.57.0", "4.58.0", "4.59.0"]))
+
+
+def test_molmoact2_transformers_is_stricter_than_all() -> None:
+    """EX-03: molmoact2 caps transformers at <4.58; prefer an isolated env vs stacking on all."""
+
+    packaging = pytest.importorskip("packaging")
+    from packaging.specifiers import SpecifierSet
+
+    optional = _optional_dependencies()
+    all_tf = next(SpecifierSet(_requirement_name_and_specifier(r)[1]) for r in optional["all"] if r.startswith("transformers"))
+    molmo_tf = next(
+        SpecifierSet(_requirement_name_and_specifier(r)[1]) for r in optional["molmoact2"] if r.startswith("transformers")
+    )
+    # Intersection exists (pip can resolve), but all alone allows 4.58+ which molmoact2 rejects.
+    assert "4.57.1" in all_tf and "4.57.1" in molmo_tf
+    assert "4.58.0" in all_tf
+    assert "4.58.0" not in molmo_tf
