@@ -89,7 +89,7 @@ def test_existing_results_runner_scores_api_contract_objects(tmp_path: Path) -> 
         assert (output_dir / relative_path).exists()
 
     results_rows = _read_jsonl(output_dir / "results.jsonl")
-    assert results_rows[0]["schema_version"] == "worldfoundry-generation-result"
+    assert results_rows[0]["schema_version"] == "worldfoundry-generation-result-v1"
     assert results_rows[0]["artifacts"]["video"]["uri"] == "outputs/a.mp4"
 
     summary = json.loads((output_dir / "metrics" / "summary.json").read_text(encoding="utf-8"))

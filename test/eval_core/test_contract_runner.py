@@ -206,10 +206,10 @@ def test_contract_runner_executes_model_metric_and_writes_scorecard(tmp_path: Pa
         assert (output_dir / relative_path).exists()
 
     results_rows = _read_jsonl(output_dir / "results.jsonl")
-    assert results_rows[0]["schema_version"] == "worldfoundry-generation-result"
+    assert results_rows[0]["schema_version"] == "worldfoundry-generation-result-v1"
 
     artifact_row = _read_jsonl(output_dir / "artifacts.jsonl")[0]
-    assert artifact_row["schema_version"] == "worldfoundry-artifact-ref"
+    assert artifact_row["schema_version"] == "worldfoundry-artifact-ref-v1"
     assert artifact_row["name"] == "generated_video"
     assert artifact_row["kind"] == "video"
     assert artifact_row["size_bytes"] == len(b"video-sample-a")

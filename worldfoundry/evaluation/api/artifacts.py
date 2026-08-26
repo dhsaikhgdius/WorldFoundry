@@ -14,9 +14,16 @@ from pathlib import Path
 from typing import Any, Mapping
 from urllib.parse import unquote, urlparse
 
-from worldfoundry.evaluation.api.json_contract import JsonContract, copy_mapping, sha256_bytes, sha256_file
+from worldfoundry.evaluation.api.json_contract import (
+    JsonContract,
+    copy_mapping,
+    require_schema_version,
+    sha256_bytes,
+    sha256_file,
+    supported_schema_versions,
+)
 
-ARTIFACT_REF_SCHEMA_VERSION = "worldfoundry-artifact-ref"
+ARTIFACT_REF_SCHEMA_VERSION = "worldfoundry-artifact-ref-v1"
 REMOTE_URI_SCHEMES = frozenset({"http", "https", "s3", "gs", "hf", "memory"})
 
 
@@ -67,8 +74,9 @@ class ArtifactRef(JsonContract):
     ) -> None:
         if not kind:
             raise ValueError("ArtifactRef requires kind.")
-        if schema_version != ARTIFACT_REF_SCHEMA_VERSION:
-            raise ValueError(f"Unsupported ArtifactRef schema_version: {schema_version}")
+        schema_version = require_schema_version(
+            schema_version, current=ARTIFACT_REF_SCHEMA_VERSION, label="ArtifactRef"
+        )
         object.__setattr__(self, "uri", str(uri))
         object.__setattr__(self, "kind", str(kind))
         object.__setattr__(self, "sha256", sha256)
@@ -185,7 +193,7 @@ def restore_artifact_refs(value: Any) -> Any:
     if isinstance(value, ArtifactRef):
         return value
     if isinstance(value, Mapping):
-        if value.get("schema_version") == ARTIFACT_REF_SCHEMA_VERSION:
+        if value.get("schema_version") in supported_schema_versions(ARTIFACT_REF_SCHEMA_VERSION):
             return ArtifactRef.from_dict(value)
         return {str(key): restore_artifact_refs(item) for key, item in value.items()}
     if isinstance(value, tuple):

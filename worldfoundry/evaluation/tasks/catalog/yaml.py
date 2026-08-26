@@ -22,6 +22,7 @@ BENCHMARK_YAML_SCHEMA_VERSION = "worldfoundry-benchmark"
 SUPPORTED_TASK_YAML_SCHEMA_VERSIONS = frozenset(
     {
         TASK_YAML_SCHEMA_VERSION,
+        f"{TASK_YAML_SCHEMA_VERSION}-v1",
         CATALOG_TASK_SCHEMA_VERSION,
     }
 )
@@ -29,6 +30,7 @@ SUPPORTED_TASK_YAML_SCHEMA_VERSIONS = frozenset(
 SUPPORTED_BENCHMARK_YAML_SCHEMA_VERSIONS = frozenset(
     {
         BENCHMARK_YAML_SCHEMA_VERSION,
+        f"{BENCHMARK_YAML_SCHEMA_VERSION}-v1",
         "worldfoundry-catalog-benchmark",
     }
 )

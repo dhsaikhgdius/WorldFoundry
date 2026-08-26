@@ -6,14 +6,14 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Protocol, Sequence, runtime_checkable
 
-from worldfoundry.evaluation.api.json_contract import JsonContract, copy_mapping, tuple_of_str
+from worldfoundry.evaluation.api.json_contract import JsonContract, copy_mapping, require_schema_version, tuple_of_str
 
 from .artifacts import ArtifactRef, coerce_artifact_refs
 from .generation import GenerationRequest, GenerationResult
 
-METRIC_SPEC_SCHEMA_VERSION = "worldfoundry-metric-spec"
-METRIC_RESULT_SCHEMA_VERSION = "worldfoundry-metric-result"
-AGGREGATE_RESULT_SCHEMA_VERSION = "worldfoundry-aggregate-result"
+METRIC_SPEC_SCHEMA_VERSION = "worldfoundry-metric-spec-v1"
+METRIC_RESULT_SCHEMA_VERSION = "worldfoundry-metric-result-v1"
+AGGREGATE_RESULT_SCHEMA_VERSION = "worldfoundry-aggregate-result-v1"
 
 
 @dataclass(frozen=True, init=False)
@@ -70,8 +70,9 @@ class MetricSpec(JsonContract):
         resolved_id = id if id is not None else metric_id
         if not resolved_id:
             raise ValueError("MetricSpec requires id or metric_id.")
-        if schema_version != METRIC_SPEC_SCHEMA_VERSION:
-            raise ValueError(f"Unsupported MetricSpec schema_version: {schema_version}")
+        schema_version = require_schema_version(
+            schema_version, current=METRIC_SPEC_SCHEMA_VERSION, label="MetricSpec"
+        )
         object.__setattr__(self, "id", str(resolved_id))
         object.__setattr__(self, "aliases", tuple_of_str(aliases))
         object.__setattr__(self, "display_name", str(display_name))
@@ -143,8 +144,9 @@ class MetricResult(JsonContract):
     __hash__ = JsonContract.__hash__
 
     def __post_init__(self) -> None:
-        if self.schema_version != METRIC_RESULT_SCHEMA_VERSION:
-            raise ValueError(f"Unsupported MetricResult schema_version: {self.schema_version}")
+        object.__setattr__(self, "schema_version", require_schema_version(
+            self.schema_version, current=METRIC_RESULT_SCHEMA_VERSION, label="MetricResult"
+        ))
         object.__setattr__(self, "sample_id", str(self.sample_id))
         object.__setattr__(self, "metric_id", str(self.metric_id))
         object.__setattr__(self, "components", copy_mapping(self.components))
@@ -191,8 +193,9 @@ class AggregateResult(JsonContract):
     __hash__ = JsonContract.__hash__
 
     def __post_init__(self) -> None:
-        if self.schema_version != AGGREGATE_RESULT_SCHEMA_VERSION:
-            raise ValueError(f"Unsupported AggregateResult schema_version: {self.schema_version}")
+        object.__setattr__(self, "schema_version", require_schema_version(
+            self.schema_version, current=AGGREGATE_RESULT_SCHEMA_VERSION, label="AggregateResult"
+        ))
         object.__setattr__(self, "metric_id", str(self.metric_id))
         object.__setattr__(self, "n_total", int(self.n_total))
         object.__setattr__(self, "n_valid", int(self.n_valid))
