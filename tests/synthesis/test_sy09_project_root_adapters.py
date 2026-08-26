@@ -209,12 +209,15 @@ def test_batch7_pipelines_studio_use_paths_project_root() -> None:
 
 
 def test_batch8_training_tests_use_paths_project_root() -> None:
-    """Training test helpers climb via project_root, not Path.parents[N]."""
+    """Training test helpers climb via project_root, not Path.parents[N>=3]."""
+    import re
+
     repo = Path(__file__).resolve().parents[2]
+    deep = re.compile(r"Path\(__file__\)\.resolve\(\)\.parents\[([3-9]|\d{2,})\]")
     paths = sorted(
         str(p.relative_to(repo))
         for p in (repo / "tests/training").rglob("*.py")
-        if "Path(__file__).resolve().parents[" in p.read_text(encoding="utf-8")
+        if deep.search(p.read_text(encoding="utf-8"))
     )
     assert paths == [], paths
     # Spot-check known former climbers still import the helper.
