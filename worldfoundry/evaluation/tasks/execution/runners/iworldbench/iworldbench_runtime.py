@@ -5,12 +5,12 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from worldfoundry.core.process import run_logged_subprocess
 from worldfoundry.evaluation.tasks.execution.framework.runner_common import VIDEO_SUFFIXES
 from worldfoundry.evaluation.tasks.execution.runners.iworldbench.iworldbench_metrics import METRIC_ORDER
 from worldfoundry.evaluation.tasks.execution.runners.iworldbench.iworldbench_prompts import (
@@ -217,12 +217,13 @@ def run_iworldbench_evaluator(
         upstream_output_dir=upstream_output_dir,
         config=config,
     )
-    completed = subprocess.run(
+    stdout_path = output_dir / "upstream_stdout.log"
+    stderr_path = output_dir / "upstream_stderr.log"
+    completed = run_logged_subprocess(
         command,
+        stdout_path=stdout_path,
+        stderr_path=stderr_path,
         cwd=str(repo_root.resolve()),
-        text=True,
-        capture_output=True,
-        check=False,
         timeout=config.timeout,
         env={
             **os.environ.copy(),
@@ -240,8 +241,10 @@ def run_iworldbench_evaluator(
     command_record = {
         "command": command,
         "returncode": completed.returncode,
-        "stdout": completed.stdout,
-        "stderr": completed.stderr,
+        "stdout": stdout_path.read_text(encoding="utf-8"),
+        "stderr": stderr_path.read_text(encoding="utf-8"),
+        "stdout_path": str(stdout_path.resolve()),
+        "stderr_path": str(stderr_path.resolve()),
     }
     (output_dir / "upstream_command.json").write_text(json.dumps(command_record, indent=2), encoding="utf-8")
     if completed.returncode != 0:
