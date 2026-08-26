@@ -1561,7 +1561,7 @@ def command_data(model_id: str, runtime_model_id: str, default_task: dict[str, A
     }
 
 
-def main() -> None:
+def main(*, check: bool = False) -> None:
     profiles = manifest_index(PROFILE_ROOT, ("model_id", "id"))
     environments = manifest_index(ENVIRONMENT_ROOT, ("model_id", "id"))
     bindings = manifest_index(BINDING_ROOT, ("binding_id", "model_id", "id"))
@@ -1679,7 +1679,7 @@ def main() -> None:
         ],
         "recipes": recipes,
     }
-    OUT.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
+    data_text = json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
     index_payload = {
         "total": payload["total"],
         "categories": payload["categories"],
@@ -1710,9 +1710,30 @@ def main() -> None:
             for recipe in recipes
         ],
     }
-    INDEX_OUT.write_text(json.dumps(index_payload, ensure_ascii=False, separators=(",", ":")) + "\n")
+    index_text = json.dumps(index_payload, ensure_ascii=False, separators=(",", ":")) + "\n"
+    if check:
+        current_data = OUT.read_text(encoding="utf-8") if OUT.is_file() else ""
+        current_index = INDEX_OUT.read_text(encoding="utf-8") if INDEX_OUT.is_file() else ""
+        if current_data != data_text or current_index != index_text:
+            raise SystemExit(
+                f"stale model recipes; run: npm run models:generate "
+                f"(or python3 scripts/generate-model-recipes.py)"
+            )
+        print(f"ok {OUT} and {INDEX_OUT} recipes={len(recipes)}")
+        return
+    OUT.write_text(data_text, encoding="utf-8")
+    INDEX_OUT.write_text(index_text, encoding="utf-8")
     print(f"wrote {OUT} and {INDEX_OUT} recipes={len(recipes)}")
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="exit non-zero when model-recipes JSON outputs are stale",
+    )
+    args = parser.parse_args()
+    main(check=args.check)

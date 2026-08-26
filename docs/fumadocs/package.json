@@ -12,6 +12,7 @@
     "dev:local": "bash scripts/dev-local-ssd.sh dev",
     "mdx:generate": "fumadocs-mdx",
     "models:generate": "python3 scripts/generate-model-recipes.py",
+    "models:check": "python3 scripts/generate-model-recipes.py --check",
     "prebuild": "npm run mdx:generate && npm run api:generate",
     "predev": "npm run mdx:generate && npm run api:generate",
     "pretypes:check": "npm run api:generate",
