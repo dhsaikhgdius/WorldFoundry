@@ -19,12 +19,15 @@ mkdir -p \
   "$CODEX_HOME/sessions" \
   "$CODEX_HOME/state/sqlite"
 
-# Drop stale symlinks to the shared shell-config Codex home.
-_persist="${CODEX_PERSIST_HOME:-/mnt/cpfs/yangboxue/visual_generation/juanxi/shell-config/codex/.codex}"
+# Drop stale symlinks to a previously shared Codex home (if any).
+# Never hardcode a host-specific absolute path here; only honor an explicit override.
+_persist="${CODEX_PERSIST_HOME:-}"
 for _item in auth.json config.toml sessions skills; do
   if [[ -L "$CODEX_HOME/$_item" ]]; then
     _target="$(readlink "$CODEX_HOME/$_item" || true)"
-    if [[ "$_target" == "$_persist/"* || "$_target" == "$_persist" || "$_target" == "$CODEX_HOME/$_item" || "$_target" == "$CODEX_HOME/$_item/"* ]]; then
+    if [[ -n "$_persist" && ( "$_target" == "$_persist/"* || "$_target" == "$_persist" ) ]]; then
+      rm "$CODEX_HOME/$_item"
+    elif [[ "$_target" == "$CODEX_HOME/$_item" || "$_target" == "$CODEX_HOME/$_item/"* ]]; then
       rm "$CODEX_HOME/$_item"
     fi
   fi

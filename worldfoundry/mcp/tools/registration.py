@@ -16,7 +16,6 @@ from __future__ import annotations
 from typing import Any
 
 from .context import MCPToolContext, get_default_context
-from .responses import invoke_tool, invoke_tool_async
 from .discovery import (
     get_benchmark_info_payload,
     get_model_info_payload,
@@ -27,6 +26,7 @@ from .discovery import (
 )
 from .metrics import list_metrics_payload, show_metric_payload
 from .readiness import check_benchmark_datasets_payload
+from .responses import invoke_tool, invoke_tool_async
 from .runs import (
     cancel_run_payload,
     get_run_result_payload,
