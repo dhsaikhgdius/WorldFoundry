@@ -206,7 +206,7 @@ def test_write_run_comparison_outputs_json_and_markdown(tmp_path: Path) -> None:
     markdown = output_md.read_text(encoding="utf-8")
     assert "# WorldFoundry Run Comparison" in markdown
     assert "quality delta" in markdown
-    assert "| model-b | succeeded | compare-benchmark | model-b | 2 | 0 | true | false | 0.75 | 0.25 |" in markdown
+    assert "| model-b | succeeded | compare-benchmark | model-b |  | 2 | 0 | true | false | 0.75 | 0.25 |" in markdown
 
 
 def test_build_markdown_comparison_handles_no_metrics(tmp_path: Path) -> None:
@@ -220,4 +220,4 @@ def test_build_markdown_comparison_handles_no_metrics(tmp_path: Path) -> None:
     markdown = build_markdown_comparison(comparison)
 
     assert comparison["metric_ids"] == []
-    assert "| Run | Status | Benchmark | Model | Samples | Failed | Score Valid | Leaderboard Valid |" in markdown
+    assert "| Run | Status | Benchmark | Model | Backend | Samples | Failed | Score Valid | Leaderboard Valid |" in markdown

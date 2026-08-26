@@ -124,3 +124,16 @@ def test_sdist_manifest_excludes_generated_downloaded_and_large_artifacts() -> N
         "*.onnx",
     ):
         assert pattern in manifest
+
+
+def test_ui_extra_pins_gradio_below_v6() -> None:
+    """Studio [ui]/[all] must stay on Gradio 5 / Starlette <1 (AGENTS.md)."""
+    optional = _optional_dependencies()
+    ui = optional["ui"]
+    all_extra = optional["all"]
+
+    assert any(dep.startswith("gradio>") or dep.startswith("gradio=") for dep in ui)
+    assert any("<6" in dep for dep in ui if dep.startswith("gradio"))
+    assert any(dep.startswith("starlette<1") for dep in ui)
+    assert any("<6" in dep for dep in all_extra if dep.startswith("gradio"))
+    assert any(dep.startswith("starlette<1") for dep in all_extra)
