@@ -11,13 +11,15 @@ from typing import Any, Mapping
 
 import yaml
 
+from worldfoundry.core.io.paths import project_root
+
 
 def inside_docker() -> bool:
     return Path("/.dockerenv").exists()
 
 
 def _repo_root() -> Path:
-    return Path(__file__).resolve().parents[4]
+    return project_root(__file__)
 
 
 def _docker_available(docker: str) -> None:
@@ -109,6 +111,45 @@ def write_docker_config(config: Mapping[str, Any], output_dir: Path) -> Path:
     return Path(temp_path)
 
 
+def _network_flags(docker_cfg: Mapping[str, Any]) -> list[str]:
+    """Resolve container network mode.
+
+    Official harness parity defaults to ``host``. Operators can isolate with
+    ``WORLDFOUNDRY_EMBODIED_DOCKER_NETWORK=bridge`` (or any docker network name),
+    or set ``none`` / ``omit`` to skip ``--network`` entirely. Config key
+    ``docker.network`` overrides the environment default.
+    """
+
+    configured = docker_cfg.get("network")
+    if configured is None or str(configured).strip() == "":
+        configured = os.getenv("WORLDFOUNDRY_EMBODIED_DOCKER_NETWORK", "host")
+    value = str(configured).strip()
+    if value.lower() in {"", "omit", "none", "default"}:
+        return []
+    return ["--network", value]
+
+
+def _repo_mount_suffix(docker_cfg: Mapping[str, Any]) -> str:
+    """Return ``:ro`` / empty for the host checkout bind mount.
+
+    Official harness images may write into the mounted tree, so the default stays
+    read-write. Operators can harden with ``docker.repo_mount_mode=ro`` or
+    ``WORLDFOUNDRY_EMBODIED_DOCKER_REPO_MOUNT=ro`` after verifying parity.
+    """
+
+    configured = docker_cfg.get("repo_mount_mode")
+    if configured is None or str(configured).strip() == "":
+        configured = os.getenv("WORLDFOUNDRY_EMBODIED_DOCKER_REPO_MOUNT", "rw")
+    mode = str(configured).strip().lower().lstrip(":")
+    if mode in {"ro", "readonly", "read-only"}:
+        return ":ro"
+    if mode in {"rw", "readwrite", "read-write", ""}:
+        return ""
+    raise ValueError(
+        f"unsupported docker.repo_mount_mode={configured!r}; expected 'ro' or 'rw'"
+    )
+
+
 def build_docker_run_command(
     config: Mapping[str, Any],
     *,
@@ -130,25 +171,25 @@ def build_docker_run_command(
         docker_cfg,
         _inner_run_args(shard_id=shard_id, num_shards=num_shards, eval_id=eval_id, no_save=no_save),
     )
+    repo_mount = f"{repo_root}:/workspace/WorldFoundry{_repo_mount_suffix(docker_cfg)}"
 
     cmd = [
         shutil.which("docker") or "docker",
         "run",
         "--rm",
-        "--network",
-        "host",
+        *_network_flags(docker_cfg),
         "-v",
         f"{output_dir}:/workspace/results",
         "-v",
         f"{docker_config_path}:/tmp/eval_config.yaml:ro",
         "-v",
-        f"{repo_root}:/workspace/WorldFoundry",
+        repo_mount,
         "-w",
         "/workspace/WorldFoundry",
         "-e",
         "PYTHONPATH=/workspace/WorldFoundry:/workspace/WorldFoundry/src",
         "-e",
-        f"WORLDFOUNDRY_REPO_ROOT=/workspace/WorldFoundry",
+        "WORLDFOUNDRY_REPO_ROOT=/workspace/WorldFoundry",
         "-e",
         f"WORLDFOUNDRY_HOST_OUTPUT_DIR={output_dir}",
     ]
