@@ -14,7 +14,7 @@ import imageio.v3 as iio
 import numpy as np
 
 from worldfoundry.core.io import file_sha256
-from worldfoundry.core.io.paths import checkpoint_root_path
+from worldfoundry.core.io.paths import checkpoint_root_path, project_root
 from worldfoundry.core.io.video import materialize_video_input
 
 DEFAULT_AC3D_REPO_ID = "snap-research/ac3d"
@@ -478,7 +478,7 @@ class AC3DRuntime:
 
     def _subprocess_env(self) -> dict[str, str]:
         env = os.environ.copy()
-        src_root = Path(__file__).resolve().parents[4]
+        src_root = project_root(__file__)
         pythonpath = [str(src_root), self.runtime_root, env.get("PYTHONPATH", "")]
         env["PYTHONPATH"] = os.pathsep.join(item for item in pythonpath if item)
         if self.device.startswith("cuda:"):

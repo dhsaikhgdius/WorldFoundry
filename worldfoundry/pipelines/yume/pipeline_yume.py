@@ -5,12 +5,13 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+from worldfoundry.core.io.paths import project_root
 from worldfoundry.runtime.env import resolve_ckpt_dir
 
 from ..pipeline_utils import PipelineABC
 
 
-_REPO_ROOT = Path(__file__).resolve().parents[4]
+_REPO_ROOT = project_root(__file__)
 _DEFAULT_CKPT_ROOT = resolve_ckpt_dir()
 _DEFAULT_YUME_CKPT = _DEFAULT_CKPT_ROOT / "Yume-I2V-540P"
 _INTERNAL_RUNTIME_ROOT = _REPO_ROOT / "worldfoundry" / "synthesis" / "visual_generation" / "yume"

@@ -49,6 +49,8 @@ def test_resolve_install_tier_supports_auto_and_driver_cap() -> None:
     assert resolve_install_tier("cu128", driver_cuda="12.5") == "cu124"
     assert resolve_install_tier("cu129", driver_cuda="13.0") == "cu128"
     assert resolve_install_tier("cu128", driver_cuda=None) == "cu128"
+    with pytest.raises(ValueError, match="No NVIDIA driver CUDA version detected"):
+        resolve_install_tier("auto", driver_cuda="")
 
 
 def test_cuda_tier_report_is_user_facing() -> None:
