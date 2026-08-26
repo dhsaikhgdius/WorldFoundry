@@ -64,6 +64,8 @@ _LOG_LEVEL_ENV = "WORLDFOUNDRY_LOG_LEVEL"
 _LOG_FILE_ENV = "WORLDFOUNDRY_LOG_FILE"
 _LOG_JSON_ENV = "WORLDFOUNDRY_LOG_JSON"
 _LOG_CONTEXT_ENV = "WORLDFOUNDRY_LOG_CONTEXT"
+# When truthy, text console sinks append compact ``event=`` / field suffixes.
+_LOG_CONSOLE_FIELDS_ENV = "WORLDFOUNDRY_LOG_CONSOLE_FIELDS"
 # The sequence-parallel stack (adapted from vLLM) reconfigures the *root*
 # logger via ``logging.config.dictConfig`` when this is truthy (its default).
 # Setting it to "0" before ``sp.logger`` is imported makes that takeover a
@@ -326,12 +328,47 @@ def write_jsonl_event(
     return payload
 
 
+def _console_fields_enabled() -> bool:
+    return os.environ.get(_LOG_CONSOLE_FIELDS_ENV, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _format_console_field_suffix(fields: Mapping[str, Any] | None) -> str:
+    """Build a compact `` | event=… key=value`` suffix for text consoles."""
+
+    if not fields:
+        return ""
+    values = dict(fields)
+    parts: list[str] = []
+    event = values.pop("event", None)
+    if event not in (None, ""):
+        parts.append(f"event={event}")
+    for key in _CONTEXT_FIELDS:
+        if key == "rank":
+            continue
+        value = values.pop(key, None)
+        if value not in (None, ""):
+            parts.append(f"{key}={value}")
+    for key in sorted(str(k) for k in values):
+        value = values.get(key)
+        if value in (None, ""):
+            continue
+        if key.startswith("_"):
+            continue
+        parts.append(f"{key}={value}")
+    if not parts:
+        return ""
+    return " | " + " ".join(parts)
+
+
 class _RedactingTextFormatter(logging.Formatter):
     """Normal text formatter that also redacts exception bodies."""
 
     def format(self, record: logging.LogRecord) -> str:
         _sanitize_record(record)
-        return _redact_text(super().format(record))
+        text = _redact_text(super().format(record))
+        if _console_fields_enabled():
+            text = text + _format_console_field_suffix(_record_fields(record))
+        return text
 
 
 class WorldFoundryLoggerAdapter(logging.LoggerAdapter):
@@ -563,6 +600,24 @@ def _loguru_json_format(record: Mapping[str, Any]) -> str:
     return json.dumps(payload, ensure_ascii=False, sort_keys=True) + "\n"
 
 
+def _loguru_console_format(record: dict[str, Any]) -> str:
+    """Loguru console format; optionally append structured field suffixes."""
+
+    extra = record.get("extra")
+    if not isinstance(extra, dict):
+        extra = {}
+        record["extra"] = extra
+    suffix = ""
+    if _console_fields_enabled():
+        fields = dict(_LOG_CONTEXT.get())
+        bound = extra.get("_worldfoundry_fields")
+        if isinstance(bound, Mapping):
+            fields.update(bound)
+        suffix = _format_console_field_suffix(fields)
+    extra["worldfoundry_console_suffix"] = suffix
+    return _LOGURU_FORMAT + "{extra[worldfoundry_console_suffix]}"
+
+
 def _redact_loguru_record(record: dict[str, Any]) -> bool:
     """Apply the same redaction policy to direct Loguru sink records."""
 
@@ -670,7 +725,7 @@ def _configure_loguru(
     _loguru_logger.add(  # type: ignore[union-attr]
         sys.stderr,
         level=level_name,
-        format=_LOGURU_FORMAT,
+        format=_loguru_console_format,
         colorize=console_color,
         filter=_redact_loguru_record,
     )

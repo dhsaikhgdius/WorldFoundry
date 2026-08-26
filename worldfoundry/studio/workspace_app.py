@@ -5502,6 +5502,12 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument("--port", type=int, default=int(os.getenv("WORLDFOUNDRY_WORKSPACE_PORT", "7870") or "7870"))
     args = parser.parse_args(list(argv) if argv is not None else None)
 
+    # Wire Studio into the central logging pipeline (LG-01): without this, INFO
+    # records fall through to lastResort and job lifecycle lacks JSONL context.
+    from worldfoundry.core.logging_setup import configure_logging
+
+    configure_logging()
+
     auth_token = require_auth_token_for_host(args.host, server_name="OpenEnvision Workspace")
     warning = bind_security_warning(args.host)
     if warning:
