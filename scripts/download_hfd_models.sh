@@ -34,6 +34,7 @@ declare -a SELECTIONS=()
 declare -a FAILED_REPOS=()
 declare -a ACTIVE_PIDS=()
 declare -a ACTIVE_REPOS=()
+declare -A PID_TO_REPO=()
 
 # group|model_alias|component_key|repo_id|revision(optional)
 MODEL_COMPONENTS=(
@@ -376,6 +377,7 @@ PY
 }
 
 wait_for_oldest() {
+    # FIFO fallback when ``wait -n -p`` is unavailable.
     local pid="${ACTIVE_PIDS[0]}"
     local repo_id="${ACTIVE_REPOS[0]}"
     local log_path
@@ -388,8 +390,60 @@ wait_for_oldest() {
         FAILED_REPOS+=("${repo_id}")
     fi
 
+    unset "PID_TO_REPO[${pid}]"
     ACTIVE_PIDS=("${ACTIVE_PIDS[@]:1}")
     ACTIVE_REPOS=("${ACTIVE_REPOS[@]:1}")
+}
+
+_remove_active_pid() {
+    local finished_pid="$1"
+    local new_pids=()
+    local new_repos=()
+    local index
+    for index in "${!ACTIVE_PIDS[@]}"; do
+        if [[ "${ACTIVE_PIDS[$index]}" != "${finished_pid}" ]]; then
+            new_pids+=("${ACTIVE_PIDS[$index]}")
+            new_repos+=("${ACTIVE_REPOS[$index]}")
+        fi
+    done
+    ACTIVE_PIDS=("${new_pids[@]}")
+    ACTIVE_REPOS=("${new_repos[@]}")
+    unset "PID_TO_REPO[${finished_pid}]"
+}
+
+wait_for_any() {
+    # Prefer wait -n so a finished short download unblocks the queue immediately
+    # instead of stalling behind the oldest (possibly long) PID.
+    local pid=""
+    local status=0
+    local repo_id=""
+    local log_path=""
+
+    if wait -n -p pid 2>/dev/null; then
+        status=0
+    else
+        status=$?
+    fi
+
+    if [[ -z "${pid}" ]]; then
+        wait_for_oldest
+        return
+    fi
+
+    repo_id="${PID_TO_REPO[${pid}]:-}"
+    if [[ -z "${repo_id}" ]]; then
+        echo "[warn]  finished pid ${pid} has no repo mapping" >&2
+        _remove_active_pid "${pid}"
+        return
+    fi
+    log_path="$(repo_log "$repo_id")"
+    if ((status == 0)); then
+        echo "[done]  ${repo_id}"
+    else
+        echo "[fail]  ${repo_id} (see ${log_path})"
+        FAILED_REPOS+=("${repo_id}")
+    fi
+    _remove_active_pid "${pid}"
 }
 
 while (($# > 0)); do
@@ -400,6 +454,10 @@ while (($# > 0)); do
             ;;
         --parallel)
             MAX_PARALLEL="$2"
+            if ! [[ "${MAX_PARALLEL}" =~ ^[1-9][0-9]*$ ]]; then
+                echo "[error] --parallel must be a positive integer (got: ${MAX_PARALLEL})" >&2
+                exit 2
+            fi
             shift 2
             ;;
         --hf_username)
@@ -505,14 +563,15 @@ for repo_id in "${ORDERED_REPOS[@]}"; do
     download_repo "${repo_id}" "${REPO_REVISIONS[${repo_id}]:-}" &
     ACTIVE_PIDS+=("$!")
     ACTIVE_REPOS+=("${repo_id}")
+    PID_TO_REPO["$!"]="${repo_id}"
 
     if ((${#ACTIVE_PIDS[@]} >= MAX_PARALLEL)); then
-        wait_for_oldest
+        wait_for_any
     fi
 done
 
 while ((${#ACTIVE_PIDS[@]} > 0)); do
-    wait_for_oldest
+    wait_for_any
 done
 
 if ((${#FAILED_REPOS[@]} > 0)); then

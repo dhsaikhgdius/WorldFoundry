@@ -67,6 +67,27 @@ def test_hfd_metadata_refresh_failure_preserves_cached_metadata(tmp_path: Path) 
     assert "metadata refresh failed at 100%" in completed.stderr
 
 
+def test_download_hfd_models_rejects_non_positive_parallel() -> None:
+    for value in ("0", "-1", "abc"):
+        completed = subprocess.run(
+            [
+                "bash",
+                str(REPO_ROOT / "scripts" / "download_hfd_models.sh"),
+                "--parallel",
+                value,
+                "--list",
+                "gr00t",
+            ],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=20,
+            check=False,
+        )
+        assert completed.returncode == 2, value
+        assert "--parallel must be a positive integer" in completed.stderr, value
+
+
 def test_download_hfd_models_exposes_gr00t_gated_reasoner(tmp_path: Path) -> None:
     completed = subprocess.run(
         [
