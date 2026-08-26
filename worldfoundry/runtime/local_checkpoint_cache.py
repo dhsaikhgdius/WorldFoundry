@@ -16,7 +16,7 @@ import shutil
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Iterable, Iterator
+from typing import Any, Iterable, Iterator, Mapping
 
 logger = logging.getLogger(__name__)
 
@@ -137,7 +137,18 @@ def _is_ready(target: Path, source: Path, required_paths: tuple[str, ...]) -> bo
         return False
     if payload.get("source") != str(source):
         return False
-    return all((target / relative).exists() for relative in required_paths)
+    if not all((target / relative).exists() for relative in required_paths):
+        return False
+    size_bytes = payload.get("size_bytes")
+    if isinstance(size_bytes, int) and size_bytes > 0:
+        try:
+            actual = _directory_size(target)
+        except OSError:
+            return False
+        # Allow small metadata overhead from the ready file itself.
+        if actual + 4096 < size_bytes:
+            return False
+    return True
 
 
 def _stage_rank_zero(
@@ -259,4 +270,131 @@ def stage_checkpoint_for_realtime(
     return target
 
 
-__all__ = ["stage_checkpoint_for_realtime"]
+def resolve_local_checkpoint_cache_root(environ: Mapping[str, str] | None = None) -> Path | None:
+    """Return the configured staging root, or ``None`` when staging is unset."""
+
+    env = os.environ if environ is None else environ
+    raw = str(env.get("WORLDFOUNDRY_REALTIME_LOCAL_CHECKPOINT_CACHE") or "").strip()
+    return Path(raw).expanduser() if raw else None
+
+
+def _publish_lock_held(cache_root: Path, target_name: str) -> bool:
+    """Return True when another process currently holds the publish flock."""
+
+    try:
+        import fcntl
+    except ImportError:  # pragma: no cover - non-POSIX platforms
+        return False
+    lock_path = cache_root / f".{target_name}.lock"
+    if not lock_path.exists():
+        return False
+    try:
+        with open(lock_path, "w", encoding="utf-8") as handle:
+            try:
+                fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except OSError:
+                return True
+            fcntl.flock(handle, fcntl.LOCK_UN)
+    except OSError:
+        return True
+    return False
+
+
+def gc_local_checkpoint_cache(
+    *,
+    cache_root: Path | None = None,
+    keep_newest: int | None = None,
+    dry_run: bool = False,
+    environ: Mapping[str, str] | None = None,
+) -> dict[str, Any]:
+    """Remove stale staged checkpoint trees, oldest first (LRU by mtime).
+
+    ``keep_newest`` retains the N most recently modified trees (default from
+    ``WORLDFOUNDRY_LOCAL_CHECKPOINT_CACHE_KEEP`` or 2). Dot-entries (ready /
+    lock / tmp sidecars) are never candidates, and trees whose publish flock
+    is currently held by another process are skipped rather than deleted.
+    """
+
+    env = os.environ if environ is None else environ
+    root = cache_root or resolve_local_checkpoint_cache_root(env)
+    if keep_newest is None:
+        try:
+            keep_newest = max(int(env.get("WORLDFOUNDRY_LOCAL_CHECKPOINT_CACHE_KEEP", "2") or "2"), 0)
+        except ValueError:
+            keep_newest = 2
+    report: dict[str, Any] = {
+        "cache_root": None if root is None else str(root),
+        "kept": [],
+        "removed": [],
+        "locked": [],
+        "errors": [],
+        "dry_run": dry_run,
+        "keep_newest": keep_newest,
+    }
+    if root is None or not root.is_dir():
+        return report
+
+    candidates: list[tuple[float, Path]] = []
+    for child in sorted(root.iterdir()):
+        if not child.is_dir() or child.name.startswith("."):
+            continue
+        try:
+            mtime = child.stat().st_mtime
+        except OSError as exc:
+            report["errors"].append(f"{child}: {exc}")
+            continue
+        candidates.append((mtime, child))
+    candidates.sort(key=lambda item: item[0], reverse=True)
+    for index, (_, path) in enumerate(candidates):
+        if index < keep_newest:
+            report["kept"].append(str(path))
+            continue
+        if _publish_lock_held(root, path.name):
+            report["locked"].append(str(path))
+            continue
+        if dry_run:
+            report["removed"].append(str(path))
+            continue
+        try:
+            shutil.rmtree(path)
+            report["removed"].append(str(path))
+        except OSError as exc:
+            report["errors"].append(f"{path}: {exc}")
+    return report
+
+
+def _main(argv: list[str] | None = None) -> int:
+    import argparse
+    import sys
+
+    parser = argparse.ArgumentParser(description="WorldFoundry local checkpoint cache utilities")
+    parser.add_argument("--gc", action="store_true", help="Garbage-collect stale staged checkpoint trees")
+    parser.add_argument("--dry-run", action="store_true", help="Report candidates without deleting")
+    parser.add_argument("--keep-newest", type=int, default=None, help="Retain the N newest trees")
+    parser.add_argument("--json", action="store_true", help="Emit a JSON report")
+    args = parser.parse_args(argv)
+    if not args.gc:
+        parser.error("specify --gc")
+    report = gc_local_checkpoint_cache(keep_newest=args.keep_newest, dry_run=args.dry_run)
+    if args.json:
+        print(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        print(f"cache root: {report['cache_root']}")
+        for label in ("kept", "removed", "locked"):
+            print(f"{label} ({len(report[label])}):")
+            for path in report[label]:
+                print(f"  - {path}")
+        for err in report["errors"]:
+            print(f"error: {err}", file=sys.stderr)
+    return 1 if report["errors"] else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(_main())
+
+
+__all__ = [
+    "gc_local_checkpoint_cache",
+    "resolve_local_checkpoint_cache_root",
+    "stage_checkpoint_for_realtime",
+]
