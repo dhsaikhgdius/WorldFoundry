@@ -123,6 +123,12 @@ def worldfoundry_path_tokens(env: Mapping[str, str] | None = None) -> dict[str, 
     )
     ckpt_dir = Path(environ.get("WORLDFOUNDRY_CKPT_DIR") or default_ckpt_dir).expanduser()
     hfd_root = Path(environ.get("WORLDFOUNDRY_HFD_ROOT") or ckpt_dir / "hfd").expanduser()
+    hfd_dataset_root = Path(
+        environ.get("WORLDFOUNDRY_HFD_DATASET_ROOT")
+        or environ.get("WORLDFOUNDRY_LOCAL_DATA_ROOT")
+        or environ.get("WORLDFOUNDRY_BENCHMARK_DATA_ROOT")
+        or (data_dir / "datasets")
+    ).expanduser()
     default_conda_root = (
         adjacent_conda if adjacent_conda.is_dir() else (home / "conda" if explicit_home else cache / "conda")
     )
@@ -149,6 +155,7 @@ def worldfoundry_path_tokens(env: Mapping[str, str] | None = None) -> dict[str, 
         "WORLDFOUNDRY_MODEL_SOURCE_DIR": str(model_source),
         "WORLDFOUNDRY_CKPT_DIR": str(ckpt_dir),
         "WORLDFOUNDRY_HFD_ROOT": str(hfd_root),
+        "WORLDFOUNDRY_HFD_DATASET_ROOT": str(hfd_dataset_root),
         "WORLDFOUNDRY_CONDA_ROOT": str(conda_root),
         "WORLDFOUNDRY_CONDA_ENVS_ROOT": str(conda_envs_root),
     }
@@ -250,6 +257,19 @@ def checkpoint_root_path(
 def hfd_root_path(*parts: str | Path, env: Mapping[str, str] | None = None) -> Path:
     """Resolves the hfd-style local downloader checkpoint directory."""
     return resolve_worldfoundry_path("${WORLDFOUNDRY_HFD_ROOT}", env).joinpath(*(Path(part) for part in parts))
+
+
+def hfd_dataset_root_path(*parts: str | Path, env: Mapping[str, str] | None = None) -> Path:
+    """Resolve the shared Hugging Face *dataset* mirror root (DS-01).
+
+    Prefers ``WORLDFOUNDRY_HFD_DATASET_ROOT``, then legacy local/benchmark data
+    roots, then ``${WORLDFOUNDRY_DATA_DIR}/datasets`` (aligned with
+    ``unified_install.sh``).
+    """
+
+    return resolve_worldfoundry_path("${WORLDFOUNDRY_HFD_DATASET_ROOT}", env).joinpath(
+        *(Path(part) for part in parts)
+    )
 
 
 def resolve_local_hf_model_path(

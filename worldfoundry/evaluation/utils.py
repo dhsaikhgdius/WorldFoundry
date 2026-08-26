@@ -128,7 +128,7 @@ MODEL_RUNTIME_ENVIRONMENTS_ROOT = MODEL_RUNTIME_ROOT / "environments"
 MODEL_RUNTIME_ASSETS_ROOT = MODEL_RUNTIME_ROOT / "assets"
 TMP_ROOT = REPO_ROOT / "tmp"
 CACHE_ROOT = REPO_ROOT / "cache"
-HFD_DATASET_CACHE_ROOT = resolve_worldfoundry_path("${WORLDFOUNDRY_CACHE_DIR}/data/hfd_datasets")
+HFD_DATASET_CACHE_ROOT = resolve_worldfoundry_path("${WORLDFOUNDRY_HFD_DATASET_ROOT}")
 
 
 def benchmark_task_sample_path(benchmark_id: str) -> Path | None:
@@ -149,23 +149,13 @@ def worldfoundry_hfd_dataset_root() -> Path:
 
     Explicit command-line arguments should still take precedence. This helper is
     only for defaults shared by benchmark download, data probes, and audits.
+    Delegates to :func:`worldfoundry.core.io.paths.hfd_dataset_root_path` so
+    ``WORLDFOUNDRY_HFD_DATASET_ROOT`` is honored (DS-01).
     """
 
-    for name in (
-        "WORLDFOUNDRY_BENCHMARK_DATA_ROOT",
-        "WORLDFOUNDRY_LOCAL_DATA_ROOT",
-        "WORLDFOUNDRY_LOCAL_CACHE_DATA_ROOT",
-    ):
-        value = os.environ.get(name)
-        if value:
-            return Path(value).expanduser()
+    from worldfoundry.core.io.paths import hfd_dataset_root_path
 
-    data_dir = os.environ.get("WORLDFOUNDRY_DATA_DIR")
-    if data_dir:
-        root = Path(data_dir).expanduser()
-        return root if root.name == "hfd_datasets" else root / "hfd_datasets"
-
-    return HFD_DATASET_CACHE_ROOT
+    return hfd_dataset_root_path()
 
 
 def ensure_repo_root_on_sys_path() -> Path:

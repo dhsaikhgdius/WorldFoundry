@@ -16,6 +16,7 @@ from typing import Any
 
 from worldfoundry.core.io.manifests import load_manifest
 from worldfoundry.core.io.paths import (
+    hfd_dataset_root_path,
     package_data_root,
     project_root,
     resolve_worldfoundry_path,
@@ -177,9 +178,7 @@ def worldfoundry_path_tokens(env: EnvMapping | None = None) -> dict[str, str]:
         "WORLDFOUNDRY_ARTIFACT_DIR": str(resolve_artifact_dir(environ)),
         "WORLDFOUNDRY_CKPT_DIR": str(resolve_ckpt_dir(environ)),
         "WORLDFOUNDRY_HFD_ROOT": str(resolve_hfd_root(environ)),
-        "WORLDFOUNDRY_HFD_DATASET_ROOT": str(
-            Path(environ.get("WORLDFOUNDRY_HFD_DATASET_ROOT") or resolve_data_dir(environ)).expanduser()
-        ),
+        "WORLDFOUNDRY_HFD_DATASET_ROOT": str(hfd_dataset_root_path(env=environ)),
         "WORLDFOUNDRY_BENCHMARK_REPO_ROOT": str(benchmark_repo_cache_root(environ)),
     })
     return tokens
