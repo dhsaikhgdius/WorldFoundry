@@ -27,6 +27,7 @@ Environment overrides:
   WORLDFOUNDRY_HF_CACHE_DIR       Host Hugging Face cache. Default: ${HOME}/.cache/huggingface
   WORLDFOUNDRY_CACHE_DIR          Host WorldFoundry cache. Default: ${HOME}/.cache/worldfoundry
   WORLDFOUNDRY_TRITON_CACHE_DIR   Host Triton cache. Default: ${HOME}/.cache/triton
+  WORLDFOUNDRY_DOCKER_MOUNT_NETRC Set to 1 to mount ~/.netrc read-only (off by default).
 EOF
 }
 
@@ -85,7 +86,7 @@ if [[ "${GPU_SELECTOR}" != "none" ]]; then
   DOCKER_ARGS+=(--gpus "${GPU_SELECTOR}")
 fi
 
-if [[ -f "${HOME}/.netrc" ]]; then
+if [[ "${WORLDFOUNDRY_DOCKER_MOUNT_NETRC:-0}" == "1" && -f "${HOME}/.netrc" ]]; then
   DOCKER_ARGS+=(-v "${HOME}/.netrc:/root/.netrc:ro")
 fi
 
