@@ -1,0 +1,9 @@
+# Cycle note — remove dead conda_profile_install + ignored legacy flags
+
+Deleted ``scripts/setup/conda_profile_install.sh`` (no in-repo callers; only
+forwarded ignored ``--pytorch-bundle`` / ``--transformers`` / ``--three-d-core``
+flags into ``conda_install.sh``).
+
+Also removed those no-op legacy CLI flags from ``conda_install.sh`` and
+``unified_install.sh``. ``--preset slim`` remains as a documented compatibility
+alias (still installs the same unified requirements file).
