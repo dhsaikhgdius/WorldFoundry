@@ -1,5 +1,7 @@
 server:
-  host: 0.0.0.0
+  # Loopback by default. A non-loopback host (e.g. 0.0.0.0) additionally
+  # requires WF_REWARD_SERVICE_TOKEN; trainers send Authorization: Bearer.
+  host: 127.0.0.1
   port: 8080
   fail_fast: true
 

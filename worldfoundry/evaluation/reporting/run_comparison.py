@@ -20,7 +20,9 @@ from worldfoundry.evaluation.utils import (
 
 from .comparison_identity import compare_identities, comparison_identity_from_summary
 from .run_report import (
+    MOCK_BACKEND_BLOCKING_REASON,
     dedupe_labels as _dedupe_labels,
+    is_mock_backend,
     load_run_summary,
     number_or_none as _number_or_none,
     resolve_run_summary_path as _run_summary_path,
@@ -39,6 +41,7 @@ def build_markdown_comparison(comparison: Mapping[str, Any]) -> str:
         "",
         f"- Runs: {_format_value(comparison.get('run_count'))}",
         f"- Benchmarks: {_format_value(comparison.get('benchmarks') or [])}",
+        f"- Backends: {_format_value(comparison.get('backends') or [])}",
         f"- Metrics: {_format_value(metric_ids)}",
         f"- Compatibility: {_format_value(_mapping(comparison.get('compatibility')).get('status'))}",
         "",
@@ -49,6 +52,7 @@ def build_markdown_comparison(comparison: Mapping[str, Any]) -> str:
         "Status",
         "Benchmark",
         "Model",
+        "Backend",
         "Samples",
         "Failed",
         "Score Valid",
@@ -77,6 +81,7 @@ def build_markdown_comparison(comparison: Mapping[str, Any]) -> str:
             row.get("status"),
             row.get("benchmark"),
             row.get("model_id") or row.get("model_name"),
+            row.get("backend"),
             row.get("sample_count"),
             row.get("failed_samples"),
             row.get("score_valid"),
@@ -110,6 +115,11 @@ def build_markdown_comparison(comparison: Mapping[str, Any]) -> str:
     if compatibility_warnings:
         lines.extend(["", "## Compatibility Warnings", ""])
         lines.extend(f"- {_format_value(warning)}" for warning in compatibility_warnings)
+
+    issues = [str(issue) for issue in comparison.get("issues") or ()]
+    if issues:
+        lines.extend(["", "## Issues", ""])
+        lines.extend(f"- {_format_value(issue)}" for issue in issues)
 
     return "\n".join(lines).rstrip() + "\n"
 
@@ -275,6 +285,12 @@ def build_run_comparison(
             }
     benchmarks = sorted({str(row["benchmark"]) for row in rows if row.get("benchmark")})
     datasets = sorted({str(row["dataset_id"]) for row in rows if row.get("dataset_id")})
+    backends = sorted({str(row["backend"]) for row in rows if row.get("backend")})
+    mock_backend_issues = [
+        f"mock backend: {row.get('label')} ({MOCK_BACKEND_BLOCKING_REASON})"
+        for row in rows
+        if is_mock_backend(row.get("backend"))
+    ]
     comparison_keys = sorted(
         {str(identity["comparison_key"]) for identity in identities if identity.get("comparison_key")}
     )
@@ -285,6 +301,7 @@ def build_run_comparison(
         "baseline": baseline_label,
         "benchmarks": benchmarks,
         "datasets": datasets,
+        "backends": backends,
         "metric_ids": selected_metric_ids,
         "available_metric_ids": sorted(available_metric_ids),
         "common_metric_ids": sorted(common_metric_ids),
@@ -299,6 +316,7 @@ def build_run_comparison(
         "metrics": metric_matrix,
         "best_by_metric": _best_by_metric(rows=rows, summaries=summaries, metric_ids=selected_metric_ids),
         "issues": [
+            *mock_backend_issues,
             *[f"metric not found in any run: {metric_id}" for metric_id in unknown_metric_ids],
             *[
                 f"metric not found in every run: {metric_id}"

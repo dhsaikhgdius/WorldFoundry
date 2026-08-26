@@ -5,14 +5,12 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
-import sys
 import time
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
 from worldfoundry.core.io import file_sha256
-
-from .jobs import _decode_process_text, _kill_process_group
+from worldfoundry.core.process import run_logged_subprocess
 
 MEDIA_SUFFIXES = frozenset({".mp4", ".mov", ".webm", ".gif", ".png", ".jpg", ".jpeg"})
 
@@ -133,44 +131,26 @@ def execute_in_tree(
     effective_timeout = timeout if timeout is not None else _default_cli_timeout()
     started = time.time()
     timed_out = False
-    if effective_timeout is None:
-        completed = subprocess.run(
+    stdout_path = log_path.with_suffix(log_path.suffix + ".stdout")
+    stderr_path = log_path.with_suffix(log_path.suffix + ".stderr")
+    # Model CLIs are the subprocesses most likely to hang (CUDA deadlocks,
+    # NCCL waits, stuck downloads). run_logged_subprocess uses a dedicated
+    # process group so the whole tree can be killed on timeout.
+    try:
+        completed = run_logged_subprocess(
             rendered,
+            stdout_path=stdout_path,
+            stderr_path=stderr_path,
             cwd=workdir,
             env=process_env,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            check=False,
+            timeout=effective_timeout,
         )
-        stdout, stderr = completed.stdout, completed.stderr
         returncode = completed.returncode
-    else:
-        # Model CLIs are the subprocesses most likely to hang (CUDA deadlocks,
-        # NCCL waits, stuck downloads). Run them in their own session so the
-        # whole process group can be killed on timeout.
-        process = subprocess.Popen(
-            rendered,
-            cwd=workdir,
-            env=process_env,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            start_new_session=sys.platform != "win32",
-        )
-        try:
-            stdout, stderr = process.communicate(timeout=effective_timeout)
-        except subprocess.TimeoutExpired as exc:
-            timed_out = True
-            _kill_process_group(process)
-            try:
-                stdout, stderr = process.communicate(timeout=5)
-            except subprocess.TimeoutExpired as kill_exc:
-                stdout = _decode_process_text(kill_exc.stdout or exc.stdout)
-                stderr = _decode_process_text(kill_exc.stderr or exc.stderr)
-        stdout = _decode_process_text(stdout)
-        stderr = _decode_process_text(stderr)
-        returncode = 124 if timed_out else process.returncode
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        returncode = 124
+    stdout = stdout_path.read_text(encoding="utf-8", errors="replace") if stdout_path.is_file() else ""
+    stderr = stderr_path.read_text(encoding="utf-8", errors="replace") if stderr_path.is_file() else ""
     log_path.write_text(stdout + "\n" + stderr, encoding="utf-8")
     if timed_out:
         return {
