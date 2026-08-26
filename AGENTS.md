@@ -18,7 +18,7 @@ The startup update script already installs everything below (editable core, `.[u
 
 ### Non-obvious caveats
 
-- **`python` symlink**: the `Makefile` and workspace scripts invoke `python` (not `python3`). The VM only ships `python3`, so a `/usr/local/bin/python -> /usr/bin/python3` symlink was created during setup and persists in the snapshot. If `python` is ever missing, either recreate it (`sudo ln -sf /usr/bin/python3 /usr/local/bin/python`) or pass `make PYTHON=python3 ...`.
+- **`python` symlink**: the `Makefile` and workspace scripts invoke `python` (not `python3`). The VM only ships `python3`, so a `/usr/local/bin/python -> /usr/bin/python3` symlink was created during setup and persists in the snapshot. The Makefile also auto-falls back to `python3` when `python` is missing on `PATH`. If `python` is ever missing for non-Make scripts, either recreate it (`sudo ln -sf /usr/bin/python3 /usr/local/bin/python`) or pass `make PYTHON=python3 ...`.
 - **Pinned dependency versions (do not "upgrade" blindly)**:
   - `ruff==0.12.7` — matches `.pre-commit-config.yaml`; newer ruff changes import-sort output and reports spurious lint diffs.
   - `gradio<6` (5.50) + `starlette<1.0` — the Studio `workspace_app` uses `app.add_event_handler`, which was removed in Starlette 1.0. The `[ui]` extra is unpinned, so a bare install pulls gradio 6 / starlette ≥1.0 and the Studio server fails on startup with `'FastAPI' object has no attribute 'add_event_handler'`. Keep gradio pinned below 6.
