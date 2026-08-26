@@ -160,7 +160,7 @@ metrics = [
 ]
 distribution_metrics = [
     "numpy",
-    "peft>=0.2.0",
+    "peft>=0.14,<1",
     "piq>=0.8.0",
     "pillow",
     "rke-score>=0.1.0",
@@ -319,10 +319,22 @@ studio_plot = [
     "plotly",
     "pillow",
 ]
+test = [
+    "pytest>=8,<10",
+    "pytest-cov>=5,<7",
+    "numpy",
+    "pillow",
+    "pandas",
+    "einops",
+    "safetensors",
+    "joblib",
+    "pyyaml",
+]
 dev = [
     "build",
     "pre-commit>=4.0",
-    "ruff>=0.12.7",
+    "ruff==0.12.7",
+    "worldfoundry[test]",
 ]
 all = [
     "accelerate",
@@ -330,7 +342,7 @@ all = [
     "aiohttp>=3.10,<4",
     "aiortc>=1.9,<2",
     "albumentations",
-    "av",
+    "av>=12,<20",
     "boto3",
     "dashscope",
     "decord",
