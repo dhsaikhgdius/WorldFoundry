@@ -7,20 +7,17 @@ import os
 import re
 import shutil
 import subprocess
-import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-
 from typing import Any, Iterable, Mapping
 
 import yaml
 
 from worldfoundry.core.io.paths import project_root
-
-
+from worldfoundry.core.process import run_logged_subprocess
 
 REPO_ROOT = project_root(__file__)
 WORKSPACE_ROOT = REPO_ROOT.parent
@@ -436,18 +433,20 @@ def tool_path(name: str) -> str | None:
 
 def run_command(command: list[str], *, env: Mapping[str, str], log_path: Path, timeout: int) -> tuple[int, float]:
     log_path.parent.mkdir(parents=True, exist_ok=True)
+    stdout_path = log_path.with_suffix(log_path.suffix + ".stdout")
+    stderr_path = log_path.with_suffix(log_path.suffix + ".stderr")
     start = time.monotonic()
-    completed = subprocess.run(
+    completed = run_logged_subprocess(
         command,
+        stdout_path=stdout_path,
+        stderr_path=stderr_path,
         env=dict(env),
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
         timeout=timeout,
-        check=False,
     )
     duration = time.monotonic() - start
-    log_path.write_text(completed.stdout or "", encoding="utf-8", errors="replace")
+    out = stdout_path.read_text(encoding="utf-8", errors="replace") if stdout_path.is_file() else ""
+    err = stderr_path.read_text(encoding="utf-8", errors="replace") if stderr_path.is_file() else ""
+    log_path.write_text(out + err, encoding="utf-8", errors="replace")
     return completed.returncode, duration
 
 

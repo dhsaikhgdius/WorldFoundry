@@ -4,10 +4,10 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
-import subprocess
 import sys
 
 from worldfoundry.core.io.paths import project_root
+from worldfoundry.core.process import run_logged_subprocess
 
 REPO_ROOT = project_root(__file__)
 SRC_ROOT = REPO_ROOT
@@ -60,14 +60,32 @@ def main(argv: list[str] | None = None) -> int:
     plan = base_model_materialization_plan(args.capability)
     executed = []
     if args.execute_downloads:
-        for command in plan["download_command_argvs"]:
-            completed = subprocess.run([str(item) for item in command], text=True, capture_output=True, check=False)
+        log_root = REPO_ROOT / "tmp" / "model_zoo" / "base_model_download_logs"
+        for index, command in enumerate(plan["download_command_argvs"]):
+            log_dir = log_root / f"cmd-{index:03d}"
+            stdout_path = log_dir / "download.stdout.log"
+            stderr_path = log_dir / "download.stderr.log"
+            completed = run_logged_subprocess(
+                [str(item) for item in command],
+                stdout_path=stdout_path,
+                stderr_path=stderr_path,
+            )
+            stdout_text = (
+                stdout_path.read_text(encoding="utf-8", errors="replace")[-4000:]
+                if stdout_path.is_file()
+                else ""
+            )
+            stderr_text = (
+                stderr_path.read_text(encoding="utf-8", errors="replace")[-4000:]
+                if stderr_path.is_file()
+                else ""
+            )
             executed.append(
                 {
                     "command": command,
                     "returncode": completed.returncode,
-                    "stdout": completed.stdout[-4000:],
-                    "stderr": completed.stderr[-4000:],
+                    "stdout": stdout_text,
+                    "stderr": stderr_text,
                 }
             )
         plan["executed_downloads"] = executed

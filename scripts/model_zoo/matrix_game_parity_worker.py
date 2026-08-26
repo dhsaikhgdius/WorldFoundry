@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from worldfoundry.core.io.paths import project_root
+from worldfoundry.core.process import run_logged_subprocess
 
 REPO_ROOT = project_root(__file__)
 SRC_ROOT = REPO_ROOT
@@ -94,7 +95,16 @@ def _run_official(case: dict[str, Any], output_root: Path, device: str) -> dict[
     ]
     env = os.environ.copy()
     env.setdefault("PYTHONUNBUFFERED", "1")
-    subprocess.run(command, cwd=repo_root, env=env, check=True)
+    log_dir = output_root / "_logs"
+    completed = run_logged_subprocess(
+        command,
+        stdout_path=log_dir / "official_infer.stdout.log",
+        stderr_path=log_dir / "official_infer.stderr.log",
+        cwd=repo_root,
+        env=env,
+    )
+    if completed.returncode != 0:
+        raise subprocess.CalledProcessError(completed.returncode, command)
     video_path = output_root / "demo.mp4"
     summary = {
         "variant": "official",

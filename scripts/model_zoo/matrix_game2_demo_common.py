@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from worldfoundry.core.io.paths import project_root
+from worldfoundry.core.process import run_logged_subprocess
 
 REPO_ROOT = project_root(__file__)
 SRC_ROOT = REPO_ROOT
@@ -166,7 +167,16 @@ def run_worker(case_json: Path, output_root: Path, variant: str, device: str) ->
     ]
     env = os.environ.copy()
     env.setdefault("PYTHONUNBUFFERED", "1")
-    subprocess.run(command, cwd=REPO_ROOT, env=env, check=True)
+    log_dir = output_root / "_logs"
+    completed = run_logged_subprocess(
+        command,
+        stdout_path=log_dir / "parity_worker.stdout.log",
+        stderr_path=log_dir / "parity_worker.stderr.log",
+        cwd=REPO_ROOT,
+        env=env,
+    )
+    if completed.returncode != 0:
+        raise subprocess.CalledProcessError(completed.returncode, command)
     return json.loads((output_root / "summary.json").read_text(encoding="utf-8"))
 
 
