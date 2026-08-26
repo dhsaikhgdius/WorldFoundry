@@ -342,7 +342,7 @@ all = [
     "aiohttp>=3.10,<4",
     "aiortc>=1.9,<2",
     "albumentations",
-    "av",
+    "av>=12,<20",
     "boto3",
     "dashscope",
     "decord",
