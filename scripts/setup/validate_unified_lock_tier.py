@@ -3,7 +3,7 @@
 
 ``uv pip compile`` with ``--extra-index-url`` PyPI can silently resolve a torch
 build that is *not* published on the requested CUDA wheel index (e.g. compiling
-``cu121`` while ``worldfoundry-unified.txt`` needs torch>=2.7). This helper
+``cu121`` without ``--constraint`` and picking a PyPI-only torch). This helper
 refuses such locks so we never commit misleading pins.
 """
 

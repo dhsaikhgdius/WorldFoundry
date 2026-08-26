@@ -12,17 +12,12 @@ Per-CUDA-tier lockfiles for `requirements/worldfoundry-unified.txt` (plan I-05).
 
 As of 2026-08-26, `worldfoundry-unified.cu128.lock.txt` is populated via
 `uv pip compile` against the cu128 torch index. `cu121` / `cu124` remain
-placeholders: those indexes do not publish torch>=2.7 that current
-`worldfoundry-unified.txt` needs, and a naive compile would silently fall
-through to PyPI (wrong CUDA). Align the tier matrix (plan I-03) before
-compiling them. `compile_unified_lock.sh` now refuses locks whose `torch==`
-pin is absent from the CUDA index listing.
-
-As of 2026-08-26, `worldfoundry-unified.cu128.lock.txt` is populated via
-`uv pip compile` against the cu128 torch index. `cu121` / `cu124` remain
-placeholders. Compiles pass `requirements/cuda/<tier>-torch.txt` as
-`--constraint` (I-03) so older tiers fail closed instead of PyPI fall-through;
-post-compile validation also checks the CUDA index listing.
+placeholders until a real compile is run on a machine that can resolve those
+CUDA indexes. `optimized_core` / `profiling` extras now use `torch>=2.4,<2.12.0`
+so they intersect cu121/cu124/cu128 floors (I-03); compiles still pass
+`requirements/cuda/<tier>-torch.txt` as `--constraint` and post-compile
+validation checks the CUDA index listing. Do **not** invent placeholder lock
+bodies.
 
 Lock bodies are **not** invented in-repo. Generate them on a machine that can
 resolve the CUDA torch index:
