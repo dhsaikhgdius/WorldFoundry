@@ -36,8 +36,13 @@ def test_pipeline_plugin_discovery_loads_env_binding_and_skips_broken_entries(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    from worldfoundry.evaluation.models.pipelines.discovery import ENV_VAR, discover_pipeline_bindings
+    from worldfoundry.evaluation.models.pipelines.discovery import (
+        ENV_VAR,
+        clear_pipeline_binding_discovery_cache,
+        discover_pipeline_bindings,
+    )
 
+    clear_pipeline_binding_discovery_cache()
     _write_plugin_module(tmp_path)
     monkeypatch.syspath_prepend(str(tmp_path))
     monkeypatch.setenv(
@@ -54,13 +59,48 @@ def test_pipeline_plugin_discovery_loads_env_binding_and_skips_broken_entries(
     assert "broken" not in bindings
 
 
+def test_pipeline_plugin_discovery_caches_by_env_and_clears(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    from worldfoundry.evaluation.models.pipelines import discovery as discovery_mod
+    from worldfoundry.evaluation.models.pipelines.discovery import (
+        ENV_VAR,
+        clear_pipeline_binding_discovery_cache,
+        discover_pipeline_bindings,
+    )
+
+    clear_pipeline_binding_discovery_cache()
+    _write_plugin_module(tmp_path)
+    monkeypatch.syspath_prepend(str(tmp_path))
+    monkeypatch.setenv(ENV_VAR, "fixture=fixture_pipeline_plugin:BINDING")
+
+    first = discover_pipeline_bindings()
+    second = discover_pipeline_bindings()
+    assert first["fixture"].binding_id == second["fixture"].binding_id
+    assert discovery_mod._discover_pipeline_bindings_cached.cache_info().hits >= 1
+
+    monkeypatch.setenv(ENV_VAR, "factory=fixture_pipeline_plugin:binding_factory")
+    # New env string → separate cache entry without an explicit clear.
+    third = discover_pipeline_bindings()
+    assert "fixture" not in third
+    assert third["factory"].pipeline_target == "json:dumps"
+
+    clear_pipeline_binding_discovery_cache()
+    assert discovery_mod._discover_pipeline_bindings_cached.cache_info().currsize == 0
+
+
 def test_pipeline_binding_resolution_includes_env_plugins(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
     from worldfoundry.evaluation.models.pipelines.bindings import resolve_pipeline_binding
-    from worldfoundry.evaluation.models.pipelines.discovery import ENV_VAR
+    from worldfoundry.evaluation.models.pipelines.discovery import (
+        ENV_VAR,
+        clear_pipeline_binding_discovery_cache,
+    )
 
+    clear_pipeline_binding_discovery_cache()
     _write_plugin_module(tmp_path)
     monkeypatch.syspath_prepend(str(tmp_path))
     monkeypatch.setenv(ENV_VAR, "fixture=fixture_pipeline_plugin:BINDING")
@@ -74,8 +114,12 @@ def test_pipeline_plugin_binding_does_not_shadow_builtin_binding(
     monkeypatch,
 ) -> None:
     from worldfoundry.evaluation.models.pipelines.bindings import resolve_pipeline_binding
-    from worldfoundry.evaluation.models.pipelines.discovery import ENV_VAR
+    from worldfoundry.evaluation.models.pipelines.discovery import (
+        ENV_VAR,
+        clear_pipeline_binding_discovery_cache,
+    )
 
+    clear_pipeline_binding_discovery_cache()
     binding_root = tmp_path / "bindings" / "pipelines"
     binding_root.mkdir(parents=True)
     (binding_root / "fixture-plugin.yaml").write_text(
