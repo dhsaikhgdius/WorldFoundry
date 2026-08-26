@@ -4,14 +4,48 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import os
 import time
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Protocol, runtime_checkable
 
+from worldfoundry.studio.serving.auth import is_loopback_host, request_token_valid
+
 from ..contracts import RewardRequest, RewardResult
 from .codec import decode_wire_value, encode_wire_value
+
+REWARD_SERVICE_TOKEN_ENV = "WF_REWARD_SERVICE_TOKEN"
+DEFAULT_HOST = "127.0.0.1"
+
+
+def configured_reward_service_token() -> str:
+    """Return the operator-configured shared token ("" when unset)."""
+
+    return os.getenv(REWARD_SERVICE_TOKEN_ENV, "").strip()
+
+
+def require_reward_auth_token_for_host(host: str) -> str:
+    """Fail closed when binding a non-loopback host without a shared token.
+
+    Loopback binds keep the historical unauthenticated behavior and return "".
+    Non-loopback binds require ``WF_REWARD_SERVICE_TOKEN``; when it is missing
+    this raises ``SystemExit`` so the unauthenticated ``/score`` endpoint is
+    never exposed beyond the local host.
+    """
+
+    if is_loopback_host(host):
+        return ""
+    token = configured_reward_service_token()
+    if not token:
+        raise SystemExit(
+            f"reward service refuses to bind non-loopback host {host!r} without authentication. "
+            f"Set {REWARD_SERVICE_TOKEN_ENV} to a shared secret (trainers must send "
+            "'Authorization: Bearer <token>' on every request), "
+            f"or bind host {DEFAULT_HOST}."
+        )
+    return token
 
 
 @dataclass(frozen=True, slots=True)
@@ -184,14 +218,34 @@ def _result_to_wire(result: RewardResult) -> dict[str, object]:
     }
 
 
-def create_reward_service_app(service: NativeRewardService) -> object:
-    """Build a FastAPI application without importing web dependencies at package import."""
+def create_reward_service_app(service: NativeRewardService, *, auth_token: str = "") -> object:
+    """Build a FastAPI application without importing web dependencies at package import.
+
+    When ``auth_token`` is non-empty every route requires
+    ``Authorization: Bearer <token>`` (or ``?token=<token>``) and rejects other
+    requests with 401 before any handler runs.
+    """
 
     if not isinstance(service, NativeRewardService):
         raise TypeError("service must be NativeRewardService")
     from fastapi import FastAPI
 
     app = FastAPI(title="WorldFoundry Reward Service")
+    required_token = str(auth_token or "").strip()
+
+    if required_token:
+        from fastapi import Request
+        from fastapi.responses import JSONResponse
+
+        @app.middleware("http")
+        async def _require_bearer_token(request: Request, call_next):  # type: ignore[no-untyped-def]
+            if request_token_valid(
+                required_token,
+                authorization_header=request.headers.get("authorization"),
+                query_token=request.query_params.get("token"),
+            ):
+                return await call_next(request)
+            return JSONResponse({"detail": "Unauthorized"}, status_code=401)
 
     @app.get("/health")
     async def health() -> dict[str, object]:
@@ -216,27 +270,36 @@ def create_reward_service_app(service: NativeRewardService) -> object:
 def serve_reward_service(
     service: NativeRewardService,
     *,
-    host: str = "127.0.0.1",
+    host: str = DEFAULT_HOST,
     port: int = 8080,
+    auth_token: str | None = None,
 ) -> None:
     """Run the HTTP gateway; model-level parallelism belongs inside scorers.
 
-    The ``/score`` endpoint is unauthenticated, so the default binding is
-    loopback-only.  Pass ``host="0.0.0.0"`` explicitly to serve trainers on
-    other nodes, and restrict reachability at the network layer when doing so.
+    The default binding is loopback-only and unauthenticated.  Binding a
+    non-loopback host (for trainers on other nodes) additionally requires
+    ``WF_REWARD_SERVICE_TOKEN``: the process refuses to start without it, and
+    every request must then carry ``Authorization: Bearer <token>``.  Pass
+    ``auth_token`` explicitly to override the environment lookup ("" disables
+    auth for loopback-style deployments behind an external guard).
     """
+
+    required_token = auth_token if auth_token is not None else require_reward_auth_token_for_host(host)
 
     import uvicorn
 
-    uvicorn.run(create_reward_service_app(service), host=host, port=port)
+    uvicorn.run(create_reward_service_app(service, auth_token=required_token), host=host, port=port)
 
 
 __all__ = [
+    "REWARD_SERVICE_TOKEN_ENV",
     "NativeRewardService",
     "RewardComponentOutput",
     "RewardComponentScorer",
     "RewardScorerRegistry",
     "WorkerGroupRewardScorer",
+    "configured_reward_service_token",
     "create_reward_service_app",
+    "require_reward_auth_token_for_host",
     "serve_reward_service",
 ]

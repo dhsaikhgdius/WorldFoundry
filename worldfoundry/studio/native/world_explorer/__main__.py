@@ -5,12 +5,14 @@ from __future__ import annotations
 import argparse
 import asyncio
 import os
-import subprocess
 from pathlib import Path
+
+from worldfoundry.core.io.paths import project_root
+from worldfoundry.core.process import run_logged_subprocess
 
 from . import NATIVE_EXPLORER_ROOT
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
+REPOSITORY_ROOT = project_root(__file__)
 RUNTIME_ROOT = (
 	REPOSITORY_ROOT
 	/ "worldfoundry"
@@ -42,11 +44,39 @@ def _build(args: argparse.Namespace) -> None:
 	]
 	if args.cuda_architectures:
 		configure.append(f"-DTCNN_CUDA_ARCHITECTURES={args.cuda_architectures}")
-	subprocess.run(configure, check=True)
-	subprocess.run(
-		("cmake", "--build", str(build_dir), "--config", args.build_type, "-j", str(args.jobs)),
-		check=True,
+	log_dir = build_dir / "worldfoundry_cmake_logs"
+	configure_out = log_dir / "cmake_configure.stdout.log"
+	configure_err = log_dir / "cmake_configure.stderr.log"
+	build_out = log_dir / "cmake_build.stdout.log"
+	build_err = log_dir / "cmake_build.stderr.log"
+	completed = run_logged_subprocess(
+		configure,
+		stdout_path=configure_out,
+		stderr_path=configure_err,
 	)
+	if completed.returncode != 0:
+		raise RuntimeError(
+			f"cmake configure failed with code {completed.returncode}; "
+			f"see {configure_out} and {configure_err}"
+		)
+	completed = run_logged_subprocess(
+		(
+			"cmake",
+			"--build",
+			str(build_dir),
+			"--config",
+			args.build_type,
+			"-j",
+			str(args.jobs),
+		),
+		stdout_path=build_out,
+		stderr_path=build_err,
+	)
+	if completed.returncode != 0:
+		raise RuntimeError(
+			f"cmake build failed with code {completed.returncode}; "
+			f"see {build_out} and {build_err}"
+		)
 
 
 def _configure_model_environment(args: argparse.Namespace) -> None:

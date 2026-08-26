@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from worldfoundry.core.io.paths import project_root
+
 import pytest
 
 torch = pytest.importorskip("torch")
@@ -177,7 +179,7 @@ def test_mixgrpo_session_trains_from_component_advantages_not_scalarized_rewards
 
 
 def test_mixgrpo_recipe_dispatches_to_windowed_native_runtime() -> None:
-    root = Path(__file__).resolve().parents[6]
+    root = project_root(__file__)
     recipe = PostTrainingRecipe.from_file(
         root / "configs/post_training/wan_1p3b_mix_grpo.yaml"
     )

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import time
 from collections.abc import Mapping
 from typing import Any
@@ -10,6 +11,7 @@ import requests
 
 from ..contracts import RewardRequest, RewardResult
 from .codec import decode_wire_value, encode_wire_value
+from .service import REWARD_SERVICE_TOKEN_ENV
 
 
 def _request_payload(request: RewardRequest) -> dict[str, object]:
@@ -36,6 +38,7 @@ class HTTPRewardEvaluator:
         retry_backoff_seconds: float = 0.5,
         trust_environment: bool = False,
         session: requests.Session | None = None,
+        auth_token: str | None = None,
     ) -> None:
         url = str(base_url).strip().rstrip("/")
         if not url:
@@ -50,9 +53,20 @@ class HTTPRewardEvaluator:
             session = requests.Session()
             session.trust_env = bool(trust_environment)
         self.session = session
+        # Remote services bound to non-loopback hosts enforce a shared token;
+        # default to the same env var the server reads so call sites need no
+        # plumbing. Kept per-request instead of mutating a caller-owned session.
+        if auth_token is None:
+            auth_token = os.getenv(REWARD_SERVICE_TOKEN_ENV, "")
+        token = str(auth_token).strip()
+        self._request_headers: dict[str, str] = {"Authorization": f"Bearer {token}"} if token else {}
 
     def health(self) -> Mapping[str, object]:
-        response = self.session.get(f"{self.base_url}/health", timeout=self.timeout_seconds)
+        response = self.session.get(
+            f"{self.base_url}/health",
+            timeout=self.timeout_seconds,
+            headers=self._request_headers or None,
+        )
         response.raise_for_status()
         payload = response.json()
         if not isinstance(payload, dict):
@@ -79,6 +93,7 @@ class HTTPRewardEvaluator:
                     f"{self.base_url}/score",
                     json=payload,
                     timeout=self.timeout_seconds,
+                    headers=self._request_headers or None,
                 )
                 response.raise_for_status()
                 break

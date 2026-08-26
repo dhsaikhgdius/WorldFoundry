@@ -15,12 +15,14 @@ from worldfoundry.core.io.paths import (
     hfd_root_path,
     local_data_root_path,
     official_runtime_repo_path,
+    package_root,
+    project_root,
 )
 
 from .runtime_paths import studio_hfd_cache_roots
 
-PIPELINES_ROOT = Path(__file__).resolve().parents[1] / "pipelines"
-ACTION_SYNTHESIS_ROOT = Path(__file__).resolve().parents[1] / "synthesis" / "action_generation"
+PIPELINES_ROOT = package_root() / "pipelines"
+ACTION_SYNTHESIS_ROOT = package_root() / "synthesis" / "action_generation"
 NESTED_PIPELINE_DIRS: tuple[str, ...] = ()
 DISPATCH_LOAD_PARAMS: tuple[str, ...] = (
     "cuda_visible_devices",
@@ -67,11 +69,7 @@ STUDIO_HIDDEN_CATALOG_MODEL_IDS: frozenset[str] = frozenset(
 
 @lru_cache(maxsize=1)
 def _project_root() -> Path:
-    current = Path(__file__).resolve()
-    for parent in current.parents:
-        if (parent / "pyproject.toml").is_file():
-            return parent
-    return current.parents[4]
+    return project_root(__file__)
 
 
 def _project_root_candidates() -> tuple[Path, ...]:
@@ -96,7 +94,7 @@ def _source_root() -> Path:
 
 
 def _package_root() -> Path:
-    return Path(__file__).resolve().parents[1]
+    return package_root()
 
 
 def _data_path(*parts: str | Path) -> Path:
@@ -2141,7 +2139,7 @@ def _in_tree_repo_ref(repo_name: str) -> str:
     if parts is None:
         known = ", ".join(sorted(_IN_TREE_REPO_PARTS))
         raise ValueError(f"Unknown in-tree repo {repo_name!r}; known repos: {known}")
-    return str(Path(__file__).resolve().parents[1] / Path(*parts))
+    return str(package_root() / Path(*parts))
 
 
 def _three_d_four_d_runtime_call_params(*model_params: str) -> tuple[str, ...]:

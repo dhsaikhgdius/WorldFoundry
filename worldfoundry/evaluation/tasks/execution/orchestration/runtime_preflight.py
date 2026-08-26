@@ -13,7 +13,6 @@ import json
 import os
 import re
 import shutil
-import subprocess
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -21,10 +20,12 @@ from typing import Any
 
 import yaml
 
+from worldfoundry.core.io.paths import project_root
 from worldfoundry.evaluation.utils import write_json
+from worldfoundry.runtime.jobs import run_bounded_command
 
 SCHEMA_VERSION = "worldfoundry-runtime-preflight-v1"
-REPO_ROOT = Path(__file__).resolve().parents[5]
+REPO_ROOT = project_root(__file__)
 DEFAULT_PROFILE_DIR = REPO_ROOT / "worldfoundry/data/benchmarks/runtime_profiles/official"
 _ENV_PATTERN = re.compile(
     r"\$(?P<plain>[A-Za-z_][A-Za-z0-9_]*)"
@@ -187,23 +188,19 @@ def _run_python(
     timeout: float,
     environ: Mapping[str, str],
 ) -> dict[str, Any]:
-    try:
-        completed = subprocess.run(
-            [executable, "-c", code, *args],
-            check=False,
-            capture_output=True,
-            text=True,
-            env=dict(child_env),
-            timeout=timeout,
-        )
-    except subprocess.TimeoutExpired:
+    completed = run_bounded_command(
+        [executable, "-c", code, *args],
+        env=dict(child_env),
+        timeout=timeout,
+    )
+    if completed["timed_out"]:
         return {"ok": False, "returncode": None, "error": f"timed out after {timeout:g}s"}
-    stderr = _redact_text(completed.stderr.strip(), environ)
+    stderr = _redact_text(str(completed["stderr"]).strip(), environ)
     return {
-        "ok": completed.returncode == 0,
-        "returncode": completed.returncode,
+        "ok": completed["returncode"] == 0,
+        "returncode": completed["returncode"],
         "error": stderr[-2000:] if stderr else None,
-        "stdout": _redact_text(completed.stdout.strip(), environ)[-2000:] or None,
+        "stdout": _redact_text(str(completed["stdout"]).strip(), environ)[-2000:] or None,
     }
 
 
