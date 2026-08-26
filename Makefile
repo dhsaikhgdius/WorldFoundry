@@ -1,4 +1,4 @@
-.PHONY: help install-core install-dev docs-check lint ruff-check format-check shell-check data-check runtime-registry-check compile-eval cli-check precommit precommit-install preflight test-eval-core test-training
+.PHONY: help install-core install-dev docs-check lint ruff-check ruff-format-check syntax-check shell-check data-check runtime-registry-check compile-eval cli-check precommit precommit-install preflight test-eval-core test-training
 
 PYTHON ?= python
 PIP ?= $(PYTHON) -m pip
@@ -50,13 +50,22 @@ docs-check:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m worldfoundry.cli --help >/dev/null
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m worldfoundry.cli zoo benchmarks --json >/dev/null
 
-lint: ruff-check format-check shell-check data-check runtime-registry-check
+lint: ruff-check syntax-check shell-check data-check runtime-registry-check
 
 ruff-check:
 	$(PYTHON) -m ruff check $(RUFF_SOURCES)
 
-format-check:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m compileall -q $(CANONICAL_DIFFUSION_SOURCES) worldfoundry/evaluation scripts
+# Optional until RUFF_SOURCES are format-clean (many pre-existing diffs on main).
+ruff-format-check:
+	$(PYTHON) -m ruff format --check $(RUFF_SOURCES)
+
+# Byte-compile the canonical diffusion package sources only (plan C-05).
+# Formerly misnamed format-check.
+syntax-check:
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m compileall -q $(CANONICAL_DIFFUSION_SOURCES)
+
+# Compatibility alias for older CI/docs that still call format-check.
+format-check: syntax-check
 
 shell-check:
 	# D-08: cover docker / embodied / test / fumadocs / scripts/dev, not only setup.
