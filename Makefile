@@ -1,4 +1,4 @@
-.PHONY: help install-core install-dev docs-check lint ruff-check format-check shell-check data-check runtime-registry-check compile-eval cli-check precommit precommit-install preflight test-eval-core test-training
+.PHONY: help install-core install-dev docs-check lint ruff-check format-check shell-check docker-smoke data-check runtime-registry-check compile-eval cli-check precommit precommit-install preflight test-eval-core test-training
 
 PYTHON ?= python
 PIP ?= $(PYTHON) -m pip
@@ -38,7 +38,8 @@ help:
 		'  make lint              Run lightweight source and catalog checks.' \
 		'  make preflight         Run the public runtime preflight.' \
 		'  make test-eval-core    Run the eval_core release-gate pytest suite (CPU).' \
-		'  make test-training     Run the tests/training pytest suite (CPU subset).'
+		'  make test-training     Run the tests/training pytest suite (CPU subset).' \
+		'  make docker-smoke      Syntax-check docker/embodied shell scripts (no image build).'
 
 install-core:
 	$(PIP) install -e .
@@ -51,7 +52,7 @@ docs-check:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m worldfoundry.cli --help >/dev/null
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m worldfoundry.cli zoo benchmarks --json >/dev/null
 
-lint: ruff-check format-check shell-check data-check runtime-registry-check
+lint: ruff-check format-check shell-check docker-smoke data-check runtime-registry-check
 
 ruff-check:
 	$(PYTHON) -m ruff check $(RUFF_SOURCES)
@@ -60,7 +61,13 @@ format-check:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m compileall -q $(CANONICAL_DIFFUSION_SOURCES) worldfoundry/evaluation scripts
 
 shell-check:
-	find scripts/setup -type f -name '*.sh' -exec bash -n {} +
+	find scripts/setup docker scripts/embodied test -type f -name '*.sh' -exec bash -n {} +
+
+docker-smoke:
+	# CPU-friendly smoke: syntax-check docker/embodied scripts and require
+	# .dockerignore to use **/ prefixes for large nested trees. Does not build images.
+	bash -n docker/build_with_docker.sh
+	$(PYTHON) -c 'from pathlib import Path; text=Path(".dockerignore").read_text(); assert "**/data/" in text and "worldfoundry/data/test_cases/" in text, ".dockerignore missing nested excludes"'
 
 data-check:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m worldfoundry.cli zoo models --json >/dev/null
@@ -99,8 +106,11 @@ preflight:
 		--output-dir $(PREFLIGHT_OUTPUT) \
 		--json
 
+# Optional extra pytest flags, e.g. PYTEST_ARGS='-m "not gpu and not network"'
+PYTEST_ARGS ?=
+
 test-eval-core:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest test/eval_core -q -p no:cacheprovider
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest test/eval_core -q -p no:cacheprovider $(PYTEST_ARGS)
 
 test-training:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest tests/training -q -p no:cacheprovider
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest tests/training -q -p no:cacheprovider $(PYTEST_ARGS)
