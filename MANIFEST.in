@@ -87,6 +87,10 @@ prune thirdparty/depth-diff-gaussian-rasterization-min
 prune thirdparty/diff-gaussian-rasterization
 prune thirdparty/simple-knn
 
+# Optional ABI-qualified native kernels are a separate package/wheel — never
+# fold them into the main worldfoundry sdist (round9 NK boundary).
+prune packages/worldfoundry-native-kernels
+
 # Upstream runtime mirrors should ship source code, not demo galleries, notebooks,
 # eval question dumps, or bundled sample media.
 prune worldfoundry/synthesis/visual_generation/pandora/pandora_runtime/ChatUniVi/eval
