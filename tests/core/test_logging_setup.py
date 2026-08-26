@@ -12,9 +12,11 @@ import pytest
 from worldfoundry.core.logging_setup import (
     clear_log_context,
     configure_logging,
+    get_log_context,
     get_logger,
     is_configured,
     log_context,
+    write_jsonl_event,
 )
 
 _LOG_LEVEL_ENV = "WORLDFOUNDRY_LOG_LEVEL"
@@ -47,6 +49,7 @@ def isolated_logging():
     saved_handlers = list(root.handlers)
     saved_level = root.level
     saved_configured = _ls._CONFIGURED
+    saved_env_bound = _ls._ENV_CONTEXT_BOUND
     saved_context = _ls.get_log_context()
     saved_env = {k: os.environ.get(k) for k in _TRACKED_ENV}
     # The distributed ``log`` facade is a process-global singleton that
@@ -62,11 +65,15 @@ def isolated_logging():
     except Exception:
         saved_dist = None
     try:
+        # Reset lazy env import so each test can exercise child-worker behavior.
+        _ls._ENV_CONTEXT_BOUND = False
+        _ls.clear_log_context()
         yield
     finally:
         root.handlers = list(saved_handlers)
         root.setLevel(saved_level)
         _ls._CONFIGURED = saved_configured
+        _ls._ENV_CONTEXT_BOUND = saved_env_bound
         _ls.clear_log_context()
         if saved_context:
             _ls.bind_log_context(**saved_context)
@@ -366,3 +373,30 @@ def test_cli_logging_flag_pre_scan():
     assert level is None and log_file is None and log_json is None
     assert verbose is True
     assert rest == ["zoo", "benchmark-run"]
+
+
+def test_write_jsonl_event_imports_log_context_without_configure(isolated_logging, tmp_path):
+    """LG-05: child workers that only write events still inherit run_id."""
+
+    import worldfoundry.core.logging_setup as _ls
+
+    os.environ["WORLDFOUNDRY_LOG_CONTEXT"] = json.dumps(
+        {"run_id": "run-child-1", "job_id": "job-9"},
+        sort_keys=True,
+    )
+    _ls._ENV_CONTEXT_BOUND = False
+    _ls.clear_log_context()
+    assert not is_configured()
+
+    path = tmp_path / "worker.events.jsonl"
+    payload = write_jsonl_event(
+        path,
+        level="INFO",
+        event="subprocess.started",
+        message="worker started without configure_logging",
+    )
+    assert payload["run_id"] == "run-child-1"
+    assert payload["job_id"] == "job-9"
+    assert get_log_context()["run_id"] == "run-child-1"
+    rows = [json.loads(line) for line in path.read_text().splitlines() if line]
+    assert rows[0]["run_id"] == "run-child-1"
