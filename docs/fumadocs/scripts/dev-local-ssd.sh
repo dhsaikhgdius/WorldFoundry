@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# Mirror docs/fumadocs onto local SSD for faster Next.js dev.
-# Keeps a minimal WorldFoundry tree under /tmp with worldfoundry/ + scripts/
-# symlinked back to the CPFS repo so generate scripts still resolve paths.
+# Mirror docs/fumadocs onto a fast local working tree for Next.js dev.
+# Keeps a minimal WorldFoundry tree under the local root with worldfoundry/ +
+# scripts/ symlinked back to the source checkout so generate scripts still
+# resolve paths. Useful when the git checkout lives on a slow network volume
+# (e.g. shared FS) and you want node_modules / .next on local disk.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -30,7 +32,8 @@ sync_repo_links() {
     ln -sfn "${REPO_ROOT}/${name}" "${target}"
   done
 
-  # Logos are regenerated on CPFS; symlink avoids stale SSD copies and 404 storms in dev.
+  # Logos stay sourced from the git checkout; symlink avoids stale local copies
+  # and 404 storms in dev after logo regeneration.
   mkdir -p "${LOCAL_FUMADOCS}/public"
   local logo_link="${LOCAL_FUMADOCS}/public/org-logos"
   if [[ -e "${logo_link}" && ! -L "${logo_link}" ]]; then
@@ -49,7 +52,12 @@ clean_local_caches() {
 }
 
 sync_to_local() {
-  echo "Syncing fumadocs to local SSD: ${LOCAL_FUMADOCS}"
+  if [[ "$(cd "${LOCAL_ROOT}" 2>/dev/null && pwd -P || true)" == "$(cd "${REPO_ROOT}" && pwd -P)" ]]; then
+    echo "WF_DOCS_LOCAL_ROOT points at the source checkout; nothing to mirror." >&2
+    echo "Set WF_DOCS_LOCAL_ROOT to a different path (default: /tmp/wf-docs-dev/WorldFoundry)." >&2
+    exit 1
+  fi
+  echo "Syncing fumadocs to local working tree: ${LOCAL_FUMADOCS}"
   mkdir -p "${LOCAL_FUMADOCS}"
   rsync -a --delete "${RSYNC_EXCLUDES[@]}" "${FUMADOCS_SRC}/" "${LOCAL_FUMADOCS}/"
   sync_repo_links
@@ -71,7 +79,7 @@ sync_to_local() {
 }
 
 sync_back() {
-  echo "Syncing local edits back to CPFS: ${FUMADOCS_SRC}"
+  echo "Syncing local edits back to source checkout: ${FUMADOCS_SRC}"
   rsync -a "${RSYNC_EXCLUDES[@]}" \
     --exclude 'node_modules' \
     "${LOCAL_FUMADOCS}/" "${FUMADOCS_SRC}/"
@@ -93,8 +101,8 @@ usage() {
 Usage: $(basename "$0") <command>
 
 Commands:
-  sync   Copy docs/fumadocs to local SSD (${LOCAL_FUMADOCS})
-  back   Sync local source edits back to CPFS (excludes node_modules)
+  sync   Copy docs/fumadocs to a local working tree (${LOCAL_FUMADOCS})
+  back   Sync local source edits back to the git checkout (excludes node_modules)
   clean  Remove local Next.js/webpack dev caches
   dev    Ensure local mirror exists, then run npm run dev:fast
 
@@ -102,6 +110,10 @@ Environment:
   WF_DOCS_LOCAL_ROOT  Override local repo root (default: /tmp/wf-docs-dev/WorldFoundry)
   WF_DOCS_NODE_BIN    Optional directory containing node/npm executables
   WF_DOCS_NPM_BIN     Optional directory containing global npm executables
+
+Notes:
+  Designed for checkouts on slow/shared filesystems. On a fast local disk you
+  can usually run \`npm run dev\` from docs/fumadocs directly and skip this script.
 EOF
 }
 
