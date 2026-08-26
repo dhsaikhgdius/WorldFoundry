@@ -1,9 +1,7 @@
 name: worldfoundry
 channels:
   - conda-forge
-  - pytorch
   - nvidia
-  - defaults
 dependencies:
   - python=3.11
   - pip
