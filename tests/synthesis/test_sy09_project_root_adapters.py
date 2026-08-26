@@ -115,3 +115,42 @@ def test_batch3_runtime_env_project_roots_use_paths_helper() -> None:
         text = (repo / rel).read_text(encoding="utf-8")
         assert "project_root" in text, rel
         assert "from worldfoundry.core.io.paths import" in text, rel
+
+
+def test_batch4_adapters_use_paths_project_root() -> None:
+    """geometry_priors / moverse / pandora / fastwam / longvie depth root."""
+    import importlib.util
+    import sys
+
+    expected = project_root(__file__)
+    repo = Path(__file__).resolve().parents[2]
+
+    def load_file(rel: str, name: str):
+        path = repo / rel
+        spec = importlib.util.spec_from_file_location(name, path)
+        assert spec is not None and spec.loader is not None
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[name] = module
+        spec.loader.exec_module(module)
+        return module
+
+    # Source contracts avoid heavy imports (torch / imageio) via package __init__.
+    for rel in (
+        "worldfoundry/synthesis/visual_generation/geometry_priors.py",
+        "worldfoundry/synthesis/visual_generation/moverse/moverse_synthesis.py",
+        "worldfoundry/synthesis/visual_generation/pandora/pandora_synthesis.py",
+        "worldfoundry/synthesis/action_generation/fastwam/action_dit.py",
+        "worldfoundry/synthesis/visual_generation/longvie/runtime_env.py",
+    ):
+        text = (repo / rel).read_text(encoding="utf-8")
+        assert "from worldfoundry.core.io.paths import" in text, rel
+        assert "project_root" in text, rel
+        assert "Path(__file__).resolve().parents[" not in text, rel
+
+    longvie = load_file(
+        "worldfoundry/synthesis/visual_generation/longvie/runtime_env.py",
+        "wf_sy09_longvie_runtime_env_batch4",
+    )
+    depth_root = longvie.video_depth_anything_runtime_root()
+    assert depth_root == expected / "worldfoundry/base_models/three_dimensions/depth/video_depth_anything_longvie"
+    assert depth_root.is_dir()

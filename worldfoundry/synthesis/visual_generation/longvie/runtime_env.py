@@ -47,7 +47,9 @@ def video_depth_anything_runtime_root() -> Path:
     then down into a specific `three_dimensions` structure.
     """
     return (
-        Path(__file__).resolve().parents[3]
+        resolve_project_root(__file__)
+        / "worldfoundry"
+        / "base_models"
         / "three_dimensions"
         / "depth"
         / "video_depth_anything_longvie"
