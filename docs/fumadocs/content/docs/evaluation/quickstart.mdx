@@ -1,0 +1,42 @@
+---
+title: Evaluation quickstart
+description: Clean-clone open-source inference gate for matrix-game-2 and shared HFD layouts.
+---
+
+# Evaluation quickstart
+
+This page documents the clean-clone open-source inference contract for `matrix-game-2`
+(public Hugging Face repo `Skywork/Matrix-Game-2.0`, revision
+`f1729d99a80e0f07993a77d7dad4a3190e23c2c8`).
+
+## Stage checkpoints
+
+```bash
+export WORLDFOUNDRY_HFD_ROOT="${WORLDFOUNDRY_HFD_ROOT:-${HOME}/.cache/worldfoundry/checkpoints/hfd}"
+
+worldfoundry-eval zoo model-download --model-id matrix-game-2 --cache-dir "${WORLDFOUNDRY_HFD_ROOT}" --check-local
+worldfoundry-eval zoo model-validate --model-id matrix-game-2 --cache-dir "${WORLDFOUNDRY_HFD_ROOT}" --check-local
+```
+
+Shared trees can be linked instead of copied:
+
+```bash
+ln -s /shared/Skywork--Matrix-Game-2.0 "${WORLDFOUNDRY_HFD_ROOT}/Skywork--Matrix-Game-2.0"
+ln -s /shared/models--Skywork--Matrix-Game-2.0 "${WORLDFOUNDRY_HFD_ROOT}/models--Skywork--Matrix-Game-2.0"
+```
+
+## Repro gate
+
+```bash
+make open-source-infer-repro OPEN_SOURCE_INFER_HFD_ROOT="${WORLDFOUNDRY_HFD_ROOT}"
+# Require a populated local cache:
+make open-source-infer-repro OPEN_SOURCE_INFER_STRICT_LOCAL=1 OPEN_SOURCE_INFER_HFD_ROOT="${WORLDFOUNDRY_HFD_ROOT}"
+```
+
+## Smoke inference
+
+```bash
+bash scripts/inference/test_nav_video_gen.sh matrix-game-2 --output-dir tmp/matrix_game2_first_run
+```
+
+Successful runs write `scorecard.json` under the output directory.
