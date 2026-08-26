@@ -387,3 +387,16 @@ def test_batch19_vipe_modules_use_paths_package_root() -> None:
     )
     assert 'Path(__file__).resolve().parent / "configs"' in paths
     assert "Path(__file__).resolve().parents[" not in paths
+
+
+def test_batch20_qwen_captioner_uses_package_root() -> None:
+    """World Explorer Qwen default checkpoint root uses package_root (tip-stack of #224)."""
+    repo = Path(__file__).resolve().parents[2]
+    rel = "worldfoundry/studio/native/world_explorer/api/qwen_captioner.py"
+    text = (repo / rel).read_text(encoding="utf-8")
+    assert "from worldfoundry.core.io.paths import package_root" in text
+    assert (
+        'package_root() / "studio" / "native" / "checkpoints" / "qwen" / "Qwen3-VL-4B-Instruct"'
+        in text
+    )
+    assert "Path(__file__).resolve().parents[" not in text
