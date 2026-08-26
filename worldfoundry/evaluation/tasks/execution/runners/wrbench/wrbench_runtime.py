@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import os
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 
+from worldfoundry.core.process import read_text_tail, run_logged_subprocess
 from worldfoundry.evaluation.tasks.execution.framework.official_runner import default_benchmark_timeout
 
 from .wrbench_paths import resolve_wrbench_root
@@ -73,22 +73,20 @@ def run_wrbench_evaluator(
     ]
     env = os.environ.copy()
     env["PYTHONPATH"] = os.pathsep.join(part for part in (str(root), env.get("PYTHONPATH")) if part)
-    completed = subprocess.run(
-        command,
-        cwd=str(root),
-        env=env,
-        text=True,
-        capture_output=True,
-        check=False,
-        timeout=default_benchmark_timeout(),
-    )
     stdout_path = output_dir / "wrbench_runtime_stdout.log"
     stderr_path = output_dir / "wrbench_runtime_stderr.log"
-    stdout_path.write_text(completed.stdout, encoding="utf-8")
-    stderr_path.write_text(completed.stderr, encoding="utf-8")
+    completed = run_logged_subprocess(
+        command,
+        stdout_path=stdout_path,
+        stderr_path=stderr_path,
+        cwd=str(root),
+        env=env,
+        timeout=default_benchmark_timeout(),
+    )
     if completed.returncode != 0:
+        detail = read_text_tail(stderr_path) or read_text_tail(stdout_path)
         raise RuntimeError(
-            f"WRBench D1-D6 runtime failed (exit={completed.returncode}); see {stderr_path}"
+            f"WRBench D1-D6 runtime failed (exit={completed.returncode}); see {stderr_path}: {detail}"
         )
     results_path = eval_dir / "main_table.csv"
     if not results_path.is_file():

@@ -11,13 +11,13 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
-import subprocess
 import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
+from worldfoundry.core.process import read_text_tail, run_logged_subprocess
 from worldfoundry.evaluation.tasks.execution.runners.vmbench.vmbench_prompts import (
     materialize_vmbench_meta_info,
 )
@@ -269,18 +269,15 @@ def _run_command(command: list[str], *, output_dir: Path, name: str, config: VMB
     stdout_path = output_dir / f"{name}.stdout.log"
     stderr_path = output_dir / f"{name}.stderr.log"
     started = time.monotonic()
-    with stdout_path.open("w", encoding="utf-8") as stdout, stderr_path.open("w", encoding="utf-8") as stderr:
-        completed = subprocess.run(
-            command,
-            cwd=OFFICIAL_RUNTIME_ROOT,
-            env=_runtime_env(),
-            stdout=stdout,
-            stderr=stderr,
-            text=True,
-            timeout=config.timeout_seconds,
-            check=False,
-        )
-    return {
+    completed = run_logged_subprocess(
+        command,
+        stdout_path=stdout_path,
+        stderr_path=stderr_path,
+        cwd=OFFICIAL_RUNTIME_ROOT,
+        env=_runtime_env(),
+        timeout=config.timeout_seconds,
+    )
+    result: dict[str, Any] = {
         "name": name,
         "command": command,
         "returncode": completed.returncode,
@@ -288,6 +285,9 @@ def _run_command(command: list[str], *, output_dir: Path, name: str, config: VMB
         "stdout_path": str(stdout_path),
         "stderr_path": str(stderr_path),
     }
+    if completed.returncode != 0:
+        result["stderr_tail"] = read_text_tail(stderr_path) or read_text_tail(stdout_path)
+    return result
 
 
 def run_official_vmbench_runtime(

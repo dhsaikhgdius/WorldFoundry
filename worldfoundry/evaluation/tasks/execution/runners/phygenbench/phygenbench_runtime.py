@@ -210,7 +210,6 @@ def _run_upstream_overall(*, repo_root: Path, model_name: str) -> Path:
         stderr_path=stderr_path,
         cwd=str(repo_root.resolve()),
         env=env,
-        check=False,
         timeout=default_benchmark_timeout(),
     )
     if completed.returncode != 0:

@@ -5,7 +5,6 @@ from __future__ import annotations
 import csv
 import json
 import os
-import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,6 +12,7 @@ from typing import Any, Mapping
 
 from worldfoundry.base_models.capabilities import get_base_model_capability
 from worldfoundry.base_models.llm_mllm_core.mllm.videophy2_autoeval import runtime_root as autoeval_runtime_root
+from worldfoundry.core.process import read_text_tail, run_logged_subprocess
 from worldfoundry.evaluation.tasks.execution.framework.official_runner import default_benchmark_timeout
 from worldfoundry.evaluation.tasks.execution.framework.runner_common import VIDEO_SUFFIXES
 from worldfoundry.evaluation.tasks.execution.runners.videophy2.videophy2_prompts import (
@@ -233,19 +233,21 @@ def _run_autoeval_task(
     env = os.environ.copy()
     existing_pythonpath = env.get("PYTHONPATH", "")
     env["PYTHONPATH"] = str(config.runtime_root) if not existing_pythonpath else f"{config.runtime_root}{os.pathsep}{existing_pythonpath}"
-    log_path.parent.mkdir(parents=True, exist_ok=True)
-    with log_path.open("w", encoding="utf-8") as log_handle:
-        process = subprocess.run(
-            command,
-            cwd=str(config.runtime_root),
-            env=env,
-            stdout=log_handle,
-            stderr=subprocess.STDOUT,
-            check=False,
-            timeout=default_benchmark_timeout(),
-        )
+    stderr_path = log_path.with_name(f"{log_path.stem}.stderr{log_path.suffix}")
+    process = run_logged_subprocess(
+        command,
+        stdout_path=log_path,
+        stderr_path=stderr_path,
+        cwd=str(config.runtime_root),
+        env=env,
+        timeout=default_benchmark_timeout(),
+    )
     if process.returncode != 0:
-        raise RuntimeError(f"VideoPhy2 AutoEval task {task!r} failed with code {process.returncode}; log: {log_path}")
+        detail = read_text_tail(stderr_path) or read_text_tail(log_path)
+        raise RuntimeError(
+            f"VideoPhy2 AutoEval task {task!r} failed with code {process.returncode}; "
+            f"log: {log_path}: {detail}"
+        )
 
 
 def _score_value(row: Mapping[str, Any]) -> int | None:
