@@ -11,6 +11,8 @@ Covers:
 
 from __future__ import annotations
 
+import os
+
 import pytest
 import torch
 
@@ -64,6 +66,28 @@ def test_metric_sync_init_distributed_raises_on_incomplete_torchrun_env(monkeypa
     monkeypatch.delenv("SLURM_PROCID", raising=False)
     with pytest.raises(RuntimeError, match="LOCAL_RANK"):
         metric_sync.init_distributed()
+
+
+def test_metric_sync_exports_slurm_rank_environment(monkeypatch):
+    from worldfoundry.core.distributed import metric_sync
+
+    monkeypatch.delenv("RANK", raising=False)
+    monkeypatch.delenv("WORLD_SIZE", raising=False)
+    monkeypatch.delenv("LOCAL_RANK", raising=False)
+    metric_sync.export_slurm_rank_environment(rank=2, world_size=8, local_rank=1)
+    assert os.environ["RANK"] == "2"
+    assert os.environ["WORLD_SIZE"] == "8"
+    assert os.environ["LOCAL_RANK"] == "1"
+    # Existing values win.
+    monkeypatch.setenv("RANK", "9")
+    metric_sync.export_slurm_rank_environment(rank=0, world_size=1, local_rank=0)
+    assert os.environ["RANK"] == "9"
+
+
+def test_metric_sync_module_logger_is_named():
+    from worldfoundry.core.distributed import metric_sync
+
+    assert metric_sync.logger.name == "worldfoundry.core.distributed.metric_sync"
 
 
 def test_configure_torch_backends_touches_real_tf32_attributes():
