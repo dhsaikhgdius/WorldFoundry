@@ -3,6 +3,9 @@
 Provides subprocess-based probes for Python module importability, Torch+CUDA
 functionality, and low-level CUDA driver memory allocation, plus helpers that
 assemble aggregate reports for diagnostic dashboards and preflight manifests.
+
+Candidate conda env lists live in ``probe_envs.yaml`` (override with
+``WORLDFOUNDRY_PROBE_ENVS_MANIFEST``).
 """
 
 from __future__ import annotations
@@ -14,16 +17,104 @@ import os
 import subprocess
 import sys
 import time
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from worldfoundry.core.io.paths import project_root
+
 # ── Constants ────────────────────────────────────────────────────────────────
 
-# This file lives at <repo>/worldfoundry/runtime/probes.py, so the repository
-# root is two levels above the containing package (parents[2]).
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = project_root(__file__)
 STRICT_IMPORT_MODULES = frozenset({"pkg_resources", "droid_backends", "groundingdino._C", "sam2._C"})
 TORCH_FIRST_STRICT_IMPORT_MODULES = frozenset({"droid_backends", "groundingdino._C", "sam2._C"})
+_DEFAULT_PROBE_MANIFEST = Path(__file__).resolve().with_name("probe_envs.yaml")
+
+
+@lru_cache(maxsize=4)
+def _load_probe_env_manifest(path_str: str) -> dict[str, Any]:
+    import yaml
+
+    path = Path(path_str)
+    with path.open("r", encoding="utf-8") as handle:
+        payload = yaml.safe_load(handle) or {}
+    if not isinstance(payload, dict):
+        raise ValueError(f"probe env manifest must be a mapping: {path}")
+    return payload
+
+
+def load_probe_env_manifest(path: Path | None = None) -> dict[str, Any]:
+    """Load the probe conda-env manifest (default: packaged ``probe_envs.yaml``)."""
+
+    if path is None:
+        override = str(os.environ.get("WORLDFOUNDRY_PROBE_ENVS_MANIFEST") or "").strip()
+        path = Path(override).expanduser() if override else _DEFAULT_PROBE_MANIFEST
+    return _load_probe_env_manifest(str(path.resolve()))
+
+
+def _format_probe_path(template: str, **slots: Path | str) -> Path:
+    rendered = str(template).format(**{key: str(value) for key, value in slots.items()})
+    return Path(rendered)
+
+
+def resolve_gpu_probe_candidates(
+    conda_root: Path,
+    conda_envs_root: Path,
+    *,
+    manifest: dict[str, Any] | None = None,
+) -> dict[str, Path]:
+    """Return ordered GPU probe python paths from the runtime manifest."""
+
+    payload = manifest if manifest is not None else load_probe_env_manifest()
+    raw = payload.get("gpu_candidates") or {}
+    if not isinstance(raw, dict):
+        raise ValueError("probe_envs.yaml gpu_candidates must be a mapping")
+    return {
+        str(probe_id): _format_probe_path(
+            str(template),
+            conda_root=conda_root,
+            conda_envs_root=conda_envs_root,
+            repo_root=REPO_ROOT,
+            sys_executable=sys.executable,
+        )
+        for probe_id, template in raw.items()
+    }
+
+
+def resolve_environment_probe_specs(
+    conda_root: Path,
+    conda_envs_root: Path,
+    model_root: Path,
+    *,
+    manifest: dict[str, Any] | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Return environment module-probe specs from the runtime manifest."""
+
+    payload = manifest if manifest is not None else load_probe_env_manifest()
+    raw = payload.get("environment_specs") or {}
+    if not isinstance(raw, dict):
+        raise ValueError("probe_envs.yaml environment_specs must be a mapping")
+    slots = {
+        "conda_root": conda_root,
+        "conda_envs_root": conda_envs_root,
+        "model_root": model_root,
+        "repo_root": REPO_ROOT,
+        "sys_executable": sys.executable,
+    }
+    specs: dict[str, dict[str, Any]] = {}
+    for env_id, entry in raw.items():
+        if not isinstance(entry, dict):
+            raise ValueError(f"environment_specs.{env_id} must be a mapping")
+        modules = tuple(str(module) for module in (entry.get("modules") or ()))
+        pythonpath = [
+            _format_probe_path(str(item), **slots) for item in (entry.get("pythonpath") or ())
+        ]
+        specs[str(env_id)] = {
+            "python": _format_probe_path(str(entry.get("python") or ""), **slots),
+            "modules": modules,
+            "pythonpath": pythonpath,
+        }
+    return specs
 
 
 def python_module_probe(python: Path, modules: tuple[str, ...], *, pythonpath: list[Path], timeout: int) -> dict[str, Any]:
@@ -267,13 +358,7 @@ def build_gpu_report(conda_root: Path, conda_envs_root: Path, timeout: int, *, p
         A dict with ``ok``, ``selected_probe``, ``driver_ok``, ``benchmark_env_ok``, and
         per-environment ``probes`` entries.
     """
-    candidates = {
-        "benchmark_cu113": conda_envs_root / "worldfoundry-zeroscope-cu113" / "bin" / "python",
-        "benchmark_worldplay": conda_root / "worldplay" / "bin" / "python",
-        "benchmark_worldscore": conda_root / "worldscore" / "bin" / "python",
-        "benchmark_cu113_animatediff": conda_envs_root / "worldfoundry-animatediff-official-cu113" / "bin" / "python",
-        "benchmark_cu113_zeroscope": conda_envs_root / "worldfoundry-zeroscope-cu113" / "bin" / "python",
-    }
+    candidates = resolve_gpu_probe_candidates(conda_root, conda_envs_root)
     probes: dict[str, Any] = {}
     selected: str | None = None
     benchmark_env_ok = False
@@ -318,100 +403,7 @@ def build_environment_report(conda_root: Path, conda_envs_root: Path, model_root
         A dict with ``conda_root``, ``conda_envs_root``, and per-environment
         ``envs`` entries describing module import status.
     """
-    vbench_root = model_root / "VBench"
-    specs = {
-        "base_current": {
-            "python": Path(sys.executable),
-            "modules": ("numpy", "torch", "cv2", "decord"),
-            "pythonpath": [REPO_ROOT],
-        },
-        "worldplay_vbench": {
-            "python": conda_root / "worldplay" / "bin" / "python",
-            "modules": ("torch", "torchvision", "numpy", "cv2", "decord", "sentencepiece", "vbench", "pkg_resources", "clip"),
-            "pythonpath": [vbench_root, REPO_ROOT],
-        },
-        "worldscore": {
-            "python": conda_root / "worldscore" / "bin" / "python",
-            "modules": (
-                "numpy",
-                "torch",
-                "cv2",
-                "decord",
-                "fire",
-                "mmengine",
-                "omegaconf",
-                "structlog",
-                "submitit",
-                "pyiqa",
-                "pytorch_lightning",
-                "lietorch",
-                "spacy",
-                "cvxpy",
-                "clip",
-                "transformers",
-                "huggingface_hub",
-                "h5py",
-                "pycocotools",
-                "supervision",
-                "yacs",
-                "loguru",
-                "einops",
-                "timm",
-                "imageio",
-                "iopath",
-                "torchmetrics",
-                "mamba_ssm",
-                "causal_conv1d",
-                "droid_backends",
-                "groundingdino._C",
-                "sam2._C",
-            ),
-            "pythonpath": [model_root / "WorldScore", REPO_ROOT],
-        },
-        "worldplay_worldscore": {
-            "python": conda_root / "worldplay" / "bin" / "python",
-            "modules": (
-                "numpy",
-                "torch",
-                "cv2",
-                "decord",
-                "fire",
-                "mmengine",
-                "omegaconf",
-                "structlog",
-                "submitit",
-                "pyiqa",
-                "pytorch_lightning",
-                "lietorch",
-                "spacy",
-                "cvxpy",
-                "clip",
-                "transformers",
-                "huggingface_hub",
-                "h5py",
-                "pycocotools",
-                "supervision",
-                "yacs",
-                "loguru",
-                "einops",
-                "timm",
-                "imageio",
-                "iopath",
-                "torchmetrics",
-                "mamba_ssm",
-                "causal_conv1d",
-                "droid_backends",
-                "groundingdino._C",
-                "sam2._C",
-            ),
-            "pythonpath": [model_root / "WorldScore", REPO_ROOT],
-        },
-        "benchmark_cu113": {
-            "python": conda_envs_root / "worldfoundry-zeroscope-cu113" / "bin" / "python",
-            "modules": ("torch", "torchvision", "numpy", "cv2", "decord", "sentencepiece", "vbench", "pkg_resources", "clip", "fire", "mmengine", "omegaconf", "structlog", "submitit"),
-            "pythonpath": [vbench_root, model_root / "WorldScore", REPO_ROOT],
-        },
-    }
+    specs = resolve_environment_probe_specs(conda_root, conda_envs_root, model_root)
     envs: dict[str, Any] = {}
     for env_id, spec in specs.items():
         envs[env_id] = python_module_probe(
