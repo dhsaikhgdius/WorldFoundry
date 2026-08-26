@@ -131,3 +131,51 @@ def test_sy03_batch3_adapters_wire_run_logged_subprocess() -> None:
         text = (root / rel).read_text(encoding="utf-8")
         assert "run_logged_subprocess" in text, rel
         assert "synthesis_timeout_seconds" in text, rel
+
+
+def test_sy03_batch4_adapters_wire_run_logged_subprocess() -> None:
+    root = Path(__file__).resolve().parents[2]
+    paths = (
+        "worldfoundry/synthesis/visual_generation/magi/worldfoundry_runner.py",
+        "worldfoundry/synthesis/visual_generation/pusa_vidgen/adapter.py",
+        "worldfoundry/synthesis/visual_generation/unianimate_dit/worldfoundry_runner.py",
+    )
+    for rel in paths:
+        text = (root / rel).read_text(encoding="utf-8")
+        assert "run_logged_subprocess" in text, rel
+        assert "synthesis_timeout_seconds" in text, rel
+        assert "subprocess.run(" not in text, rel
+
+
+def test_pusa_run_plan_uses_run_logged_subprocess(monkeypatch, tmp_path):
+    from worldfoundry.synthesis.visual_generation.pusa_vidgen import adapter as pusa
+
+    calls: list[dict] = []
+
+    def fake_logged(command, **kwargs):
+        calls.append({"command": list(command), **kwargs})
+        out = Path(kwargs["stdout_path"]).parent
+        (out / "clip.mp4").write_bytes(b"mp4")
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(pusa, "run_logged_subprocess", fake_logged)
+    monkeypatch.setattr(pusa, "synthesis_timeout_seconds", lambda default=None: default)
+
+    out = tmp_path / "out.mp4"
+    plan = pusa.PusaVidGenRuntimePlan(
+        command=("python", "-c", "pass"),
+        env={},
+        workdir=str(tmp_path),
+        checkpoint_root=str(tmp_path),
+        output_dir=str(tmp_path),
+        output_path=str(out),
+    )
+    result = pusa.PusaVidGenRuntime(
+        model_id="pusa",
+        checkpoint_root=tmp_path,
+        base_model_root=tmp_path,
+    ).run_plan(plan, timeout_seconds=45, log_dir=tmp_path)
+    assert calls
+    assert calls[0]["timeout"] == 45.0
+    assert Path(calls[0]["stdout_path"]).name == "pusa_vidgen_stdout.log"
+    assert result["ok"] is True

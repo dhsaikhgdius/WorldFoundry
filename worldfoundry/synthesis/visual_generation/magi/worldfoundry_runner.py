@@ -4,11 +4,11 @@ import argparse
 import json
 import os
 import shutil
-import subprocess
 import sys
 from pathlib import Path
 
 from worldfoundry.core.io.paths import resolve_data_path
+from worldfoundry.core.process import run_logged_subprocess, synthesis_timeout_seconds
 
 
 VARIANT_CONFIGS = {
@@ -154,17 +154,16 @@ def main() -> None:
     if ffmpeg_dir:
         env["PATH"] = os.pathsep.join(item for item in (ffmpeg_dir, env.get("PATH", "")) if item)
 
-    completed = subprocess.run(
+    log_path = output_path.with_suffix(output_path.suffix + ".magi.log")
+    stderr_path = output_path.with_suffix(output_path.suffix + ".magi.stderr.log")
+    completed = run_logged_subprocess(
         command,
+        stdout_path=log_path,
+        stderr_path=stderr_path,
         cwd=str(repo_root),
         env=env,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        check=False,
+        timeout=synthesis_timeout_seconds(),
     )
-    log_path = output_path.with_suffix(output_path.suffix + ".magi.log")
-    log_path.write_text(completed.stdout + "\n" + completed.stderr, encoding="utf-8")
     if completed.returncode != 0:
         raise RuntimeError(f"MAGI official runner failed with code {completed.returncode}; see {log_path}")
     if not output_path.is_file():
