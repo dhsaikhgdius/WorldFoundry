@@ -17,6 +17,30 @@ from worldfoundry.base_models.perception_core.general_perception.dino_embeddings
 )
 
 
+def _rewrite_legacy_uri(source: str, *, env: Mapping[str, str] | None = None) -> str:
+    """Normalize legacy HDFS URIs without silently inventing a host mount.
+
+    Historical LARYBench configs used ``hdfs:///...`` and rewrote to
+    ``/mnt/hdfs/...``. That mapping is cluster-specific and must be opt-in.
+    """
+
+    values = os.environ if env is None else env
+    if not source.startswith("hdfs:///"):
+        return source
+    allow = str(values.get("WORLDFOUNDRY_ALLOW_HDFS_MNT_REWRITE", "")).strip().lower()
+    if allow not in {"1", "true", "yes", "on"}:
+        raise ValueError(
+            "refusing silent rewrite of hdfs:/// URI to a host mount. "
+            "Point DINO_V2_PATH / SIGLIP2_PATH (etc.) at a local path or HF repo id, "
+            "or set WORLDFOUNDRY_ALLOW_HDFS_MNT_REWRITE=1 "
+            "(optional WORLDFOUNDRY_HDFS_LOCAL_PREFIX, default /mnt/hdfs/)."
+        )
+    prefix = str(values.get("WORLDFOUNDRY_HDFS_LOCAL_PREFIX", "/mnt/hdfs/")).strip() or "/mnt/hdfs/"
+    if not prefix.endswith("/"):
+        prefix += "/"
+    return source.replace("hdfs:///", prefix, 1)
+
+
 def _source(
     legacy_env: str,
     capability_id: str,
@@ -27,7 +51,7 @@ def _source(
     values = os.environ if env is None else env
     legacy = values.get(legacy_env)
     if legacy:
-        return legacy.replace("hdfs:///", "/mnt/hdfs/")
+        return _rewrite_legacy_uri(legacy, env=values)
     return _preferred_hf_model_source(
         capability_id, asset_id, fallback_repo_id, values
     )
@@ -113,7 +137,7 @@ def get_siglip2_tokenizer(
             "SigLIP2 checkpoint directory."
         )
     model = AutoModel.from_pretrained(
-        source.replace("hdfs:///", "/mnt/hdfs/"),
+        _rewrite_legacy_uri(source, env=values),
         low_cpu_mem_usage=True,
         trust_remote_code=True,
     ).vision_model
