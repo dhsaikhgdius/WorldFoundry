@@ -19,6 +19,10 @@ ARG CUDA_IMAGE=nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04
 ARG PYTHON_VERSION=3.11
 ARG UV_VERSION=0.12.6
 
+# Named stage so COPY --from can resolve uv (BuildKit does not expand
+# ${UV_VERSION} inside a COPY --from=registry/image:${ARG} reference).
+FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv
+
 # ---------------------------------------------------------------------------
 # base-runtime: lean GPU runtime (no nvcc / no interactive toolbox)
 # ---------------------------------------------------------------------------
@@ -61,7 +65,7 @@ RUN apt-get update -qq \
         unzip \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=ghcr.io/astral-sh/uv:${UV_VERSION} /uv /uvx /usr/local/bin/
+COPY --from=uv /uv /uvx /usr/local/bin/
 
 RUN uv python install "${PYTHON_VERSION}" \
     && PY="$(uv python find "${PYTHON_VERSION}")" \
@@ -128,7 +132,7 @@ RUN apt-get update -qq \
         xz-utils \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=ghcr.io/astral-sh/uv:${UV_VERSION} /uv /uvx /usr/local/bin/
+COPY --from=uv /uv /uvx /usr/local/bin/
 
 RUN uv python install "${PYTHON_VERSION}" \
     && PY="$(uv python find "${PYTHON_VERSION}")" \
@@ -164,8 +168,6 @@ CMD ["/bin/bash"]
 # ---------------------------------------------------------------------------
 FROM python:3.11-slim AS cpu
 
-ARG UV_VERSION=0.12.6
-
 LABEL org.opencontainers.image.source="https://github.com/OpenEnvision/WorldFoundry" \
       org.opencontainers.image.title="worldfoundry-cpu" \
       org.opencontainers.image.description="WorldFoundry CPU-only slim base"
@@ -186,7 +188,7 @@ RUN apt-get update -qq \
         git-lfs \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=ghcr.io/astral-sh/uv:${UV_VERSION} /uv /uvx /usr/local/bin/
+COPY --from=uv /uv /uvx /usr/local/bin/
 
 CMD ["/bin/bash"]
 
