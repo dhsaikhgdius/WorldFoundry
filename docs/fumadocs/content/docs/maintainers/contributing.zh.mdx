@@ -43,6 +43,10 @@ Fumadocs 是唯一维护的文档面。新增或修改页面时，在 `docs/fuma
 - **CLI 或输出 schema** — `reference/cli`，以及拥有相关行为的 architecture 页面。
 - **内部 workflow** — `maintainers/architecture`（尤其是 workflow 与 evaluation-core）。
 
+文档 codegen（`npm run predev` / `prebuild` → `api:generate`、`models:generate` 等）经
+`docs/fumadocs/scripts/run-python.sh` 调用解释器。主机 PATH 没有 `python3` 时，可用
+`WF_DOCS_PYTHON`（其次 `PYTHON`，再 `python3` / `python`）覆盖。
+
 ## 本地验证
 
 ```bash
