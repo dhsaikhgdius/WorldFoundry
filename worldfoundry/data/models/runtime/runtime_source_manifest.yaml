@@ -51,3 +51,15 @@ checkout_only_provenance:
 - worldfoundry/synthesis/visual_generation/matrix_game/matrix_game_1_runtime
 - worldfoundry/synthesis/visual_generation/matrix_game/matrix_game_3_runtime
 - worldfoundry/synthesis/visual_generation/minwm/minwm_runtime
+- worldfoundry/synthesis/visual_generation/motionctrl/motionctrl_runtime
+- worldfoundry/synthesis/visual_generation/open_magvit2/open_magvit2_runtime
+- worldfoundry/synthesis/visual_generation/pandora/pandora_runtime
+- worldfoundry/synthesis/visual_generation/sama/sama_runtime
+- worldfoundry/synthesis/visual_generation/scope/scope_runtime
+- worldfoundry/synthesis/visual_generation/show_o/show_o_runtime
+- worldfoundry/synthesis/visual_generation/solaris/solaris_runtime
+- worldfoundry/synthesis/visual_generation/spatia/spatia_runtime
+- worldfoundry/synthesis/visual_generation/tesseract/tesseract_runtime
+- worldfoundry/synthesis/visual_generation/unianimate_dit/unianimate_dit_runtime
+- worldfoundry/synthesis/visual_generation/versecrafter/versecrafter_runtime
+- worldfoundry/synthesis/visual_generation/video_x_fun/video_x_fun_runtime
