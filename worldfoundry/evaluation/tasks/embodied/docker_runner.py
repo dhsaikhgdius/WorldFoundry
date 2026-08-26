@@ -109,6 +109,27 @@ def write_docker_config(config: Mapping[str, Any], output_dir: Path) -> Path:
     return Path(temp_path)
 
 
+def _repo_mount_suffix(docker_cfg: Mapping[str, Any]) -> str:
+    """Return ``:ro`` / empty for the host checkout bind mount.
+
+    Official harness images may write into the mounted tree, so the default stays
+    read-write. Operators can harden with ``docker.repo_mount_mode=ro`` or
+    ``WORLDFOUNDRY_EMBODIED_DOCKER_REPO_MOUNT=ro`` after verifying parity.
+    """
+
+    configured = docker_cfg.get("repo_mount_mode")
+    if configured is None or str(configured).strip() == "":
+        configured = os.getenv("WORLDFOUNDRY_EMBODIED_DOCKER_REPO_MOUNT", "rw")
+    mode = str(configured).strip().lower().lstrip(":")
+    if mode in {"ro", "readonly", "read-only"}:
+        return ":ro"
+    if mode in {"rw", "readwrite", "read-write", ""}:
+        return ""
+    raise ValueError(
+        f"unsupported docker.repo_mount_mode={configured!r}; expected 'ro' or 'rw'"
+    )
+
+
 def build_docker_run_command(
     config: Mapping[str, Any],
     *,
@@ -130,6 +151,7 @@ def build_docker_run_command(
         docker_cfg,
         _inner_run_args(shard_id=shard_id, num_shards=num_shards, eval_id=eval_id, no_save=no_save),
     )
+    repo_mount = f"{repo_root}:/workspace/WorldFoundry{_repo_mount_suffix(docker_cfg)}"
 
     cmd = [
         shutil.which("docker") or "docker",
@@ -142,13 +164,13 @@ def build_docker_run_command(
         "-v",
         f"{docker_config_path}:/tmp/eval_config.yaml:ro",
         "-v",
-        f"{repo_root}:/workspace/WorldFoundry",
+        repo_mount,
         "-w",
         "/workspace/WorldFoundry",
         "-e",
         "PYTHONPATH=/workspace/WorldFoundry:/workspace/WorldFoundry/src",
         "-e",
-        f"WORLDFOUNDRY_REPO_ROOT=/workspace/WorldFoundry",
+        "WORLDFOUNDRY_REPO_ROOT=/workspace/WorldFoundry",
         "-e",
         f"WORLDFOUNDRY_HOST_OUTPUT_DIR={output_dir}",
     ]

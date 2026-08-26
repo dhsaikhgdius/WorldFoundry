@@ -137,6 +137,19 @@ def test_docker_runner_forwards_configured_runtime(tmp_path: Path) -> None:
 
     assert "--runtime" in cmd
     assert cmd[cmd.index("--runtime") + 1] == "nvidia"
+    assert any(item.endswith(":/workspace/WorldFoundry") for item in cmd)
+
+
+def test_docker_runner_repo_mount_can_be_readonly(tmp_path: Path) -> None:
+    docker_config_path = tmp_path / "eval_config.yaml"
+    docker_config_path.write_text("id: test\n", encoding="utf-8")
+
+    cmd = build_docker_run_command(
+        {"docker": {"image": "example/bench:latest", "repo_mount_mode": "ro"}},
+        docker_config_path=docker_config_path,
+        output_dir=tmp_path / "out",
+    )
+    assert any(item.endswith(":/workspace/WorldFoundry:ro") for item in cmd)
 
 
 def test_embodied_asset_scaffold_covers_harness_benchmarks(tmp_path: Path) -> None:
