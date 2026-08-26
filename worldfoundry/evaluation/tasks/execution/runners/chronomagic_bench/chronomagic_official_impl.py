@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 
+from worldfoundry.core.process import run_logged_subprocess
 from worldfoundry.evaluation.utils import REPO_ROOT
 
 from worldfoundry.evaluation.tasks.execution.framework.benchmark_data import (
@@ -780,28 +781,23 @@ def run_component_commands(
     stdout_path: Path,
     stderr_path: Path,
 ) -> tuple[int, float]:
-    stdout_parts: list[str] = []
-    stderr_parts: list[str] = []
     start = time.monotonic()
     for command in commands:
         header = "$ " + shlex.join(command) + "\n"
-        completed = subprocess.run(
+        for log_path in (stdout_path, stderr_path):
+            with log_path.open("a", encoding="utf-8") as handle:
+                handle.write(header)
+        completed = run_logged_subprocess(
             command,
+            stdout_path=stdout_path,
+            stderr_path=stderr_path,
             cwd=args.chronomagic_root,
-            capture_output=True,
-            text=True,
             timeout=args.timeout,
-            check=False,
+            append=True,
         )
-        stdout_parts.append(header + completed.stdout)
-        stderr_parts.append(header + completed.stderr)
         if completed.returncode != 0:
-            stdout_path.write_text("\n".join(stdout_parts), encoding="utf-8")
-            stderr_path.write_text("\n".join(stderr_parts), encoding="utf-8")
             return completed.returncode, time.monotonic() - start
 
-    stdout_path.write_text("\n".join(stdout_parts), encoding="utf-8")
-    stderr_path.write_text("\n".join(stderr_parts), encoding="utf-8")
     return 0, time.monotonic() - start
 
 
