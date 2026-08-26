@@ -9,10 +9,35 @@ import json
 from pathlib import Path
 from typing import Any
 
+from worldfoundry.core.io.paths import resolve_worldfoundry_path
 from worldfoundry.evaluation.utils import jsonable, read_json, read_json_or_jsonl, write_json
 
 
 DATASET_MANIFEST_SCHEMA_VERSION = "worldfoundry-dataset-manifest"
+
+
+def _is_worldfoundry_token_path(value: str | Path | None) -> bool:
+    """Return True when ``value`` embeds a ``$WORLDFOUNDRY_*`` / ``${WORLDFOUNDRY_*}`` token."""
+
+    if value is None:
+        return False
+    text = str(value)
+    return "${WORLDFOUNDRY_" in text or "$WORLDFOUNDRY_" in text
+
+
+def _storage_path(value: str | Path, *, resolved: Path) -> str:
+    """Prefer the caller-supplied token form so manifests stay host-portable (DS-06)."""
+
+    text = str(value)
+    if _is_worldfoundry_token_path(text):
+        return text
+    return str(resolved)
+
+
+def _resolve_manifest_path(value: str | Path) -> Path:
+    """Expand WorldFoundry path tokens before treating a manifest path as filesystem input."""
+
+    return resolve_worldfoundry_path(value)
 
 
 def file_sha256(path: str | Path) -> str:
@@ -139,6 +164,7 @@ def _relative_or_absolute(path: Path, root: Path | None) -> str:
     try:
         return str(path.resolve().relative_to(root.resolve()))
     except ValueError:
+        # Keep absolute samples paths portable when they still carry tokens.
         return str(path)
 
 
@@ -264,17 +290,20 @@ def build_dataset_manifest(
     Returns:
         The generated DatasetManifest.
     """
-    source_path = Path(samples_path)
-    root_path = None if root is None else Path(root)
+    root_path = None if root is None else _resolve_manifest_path(root)
+    source_path = _resolve_manifest_path(samples_path)
     if not source_path.is_absolute() and root_path is not None and not source_path.exists():
         source_path = root_path / source_path
     rows = read_dataset_samples(source_path)
     id_stats = _sample_id_stats(rows)
+    stored_samples = _relative_or_absolute(source_path, root_path)
+    if root_path is None and _is_worldfoundry_token_path(samples_path):
+        stored_samples = str(samples_path)
     return DatasetManifest(
         dataset_id=dataset_id or source_path.stem,
         split=split,
-        root=None if root_path is None else str(root_path.resolve()),
-        samples_path=_relative_or_absolute(source_path, root_path),
+        root=None if root is None or root_path is None else _storage_path(root, resolved=root_path.resolve()),
+        samples_path=stored_samples,
         sample_count=len(rows),
         sha256=file_sha256(source_path),
         source_uri=source_uri,
@@ -334,11 +363,11 @@ def resolve_dataset_samples_path(
         Resolved Path of the samples file.
     """
     item = manifest if isinstance(manifest, DatasetManifest) else DatasetManifest.from_dict(manifest)
-    samples_path = Path(item.samples_path)
+    samples_path = _resolve_manifest_path(item.samples_path)
     if samples_path.is_absolute():
         return samples_path
     if item.root:
-        root = Path(item.root)
+        root = _resolve_manifest_path(item.root)
         if not root.is_absolute() and manifest_path is not None:
             root = Path(manifest_path).parent / root
         return root / samples_path
