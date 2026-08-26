@@ -50,6 +50,7 @@ Options:
   --pytorch-bundle NAME Accepted for older command lines; currently ignored.
   --transformers NAME   Accepted for older command lines; currently ignored.
   --skip-flash-attn     Skip flash-attn install.
+  --with-native-kernels Forward optional native-kernels build to conda_install.
   --torch SPEC          Torch package spec. Default: torch>=2.7,<2.12.0.
   --torchvision SPEC    Torchvision package spec. Default: torchvision>=0.22,<0.27.0.
   --torchaudio SPEC     Torchaudio package spec. Default: torchaudio>=2.7,<2.12.0.
@@ -126,6 +127,10 @@ while (($#)); do
       ;;
     --skip-flash-attn)
       INSTALL_ARGS+=(--skip-flash-attn)
+      shift
+      ;;
+    --with-native-kernels)
+      INSTALL_ARGS+=(--with-native-kernels)
       shift
       ;;
     --torch)
