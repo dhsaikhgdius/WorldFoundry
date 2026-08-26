@@ -15,6 +15,8 @@ import sys
 from pathlib import Path
 from typing import Any, Optional
 
+from worldfoundry.core.process import run_logged_subprocess, synthesis_timeout_seconds
+
 from .runtime_env import (
     build_eval_dataset_overrides,
     build_inference_env,
@@ -405,9 +407,13 @@ class SolarisRuntime:
             num_frames_eval=effective_num_frames_eval,
             enable_jax_cache=effective_enable_jax_cache,
         )
-        # Configure stdout and stderr for the subprocess based on `show_progress`.
-        stdout = None if show_progress else subprocess.DEVNULL
-        stderr = None if show_progress else subprocess.STDOUT
+        # Always capture stdout/stderr to files (process group + timeout + lifecycle).
+        # ``show_progress`` previously inherited the console; logs remain under the
+        # experiment output directory for Studio / CI inspection.
+        del show_progress
+        log_dir = Path(resolved_output_dir).expanduser() / experiment_name / "logs"
+        stdout_path = log_dir / "solaris_inference.stdout.log"
+        stderr_path = log_dir / "solaris_inference.stderr.log"
 
         try:
             # Build the environment variables required for the inference subprocess.
@@ -421,19 +427,23 @@ class SolarisRuntime:
             if existing_pythonpath:
                 pythonpath_parts.append(existing_pythonpath)
             inference_env["PYTHONPATH"] = os.pathsep.join(pythonpath_parts)
-            # Execute the inference script.
-            subprocess.run(
+            completed = run_logged_subprocess(
                 command,
-                check=True,  # Raise CalledProcessError if the command returns a non-zero exit code.
-                cwd=self.runtime_root,  # Run the command from the Solaris runtime root directory.
+                stdout_path=stdout_path,
+                stderr_path=stderr_path,
+                cwd=self.runtime_root,
                 env=inference_env,
-                stdout=stdout,
-                stderr=stderr,
+                timeout=synthesis_timeout_seconds(),
             )
-        except subprocess.CalledProcessError as error:
+            if completed.returncode != 0:
+                raise RuntimeError(
+                    "Solaris inference failed. Check the in-tree Solaris runtime, dataset paths, "
+                    f"checkpoint layout, and its Python environment; see {stdout_path} and {stderr_path}."
+                )
+        except subprocess.TimeoutExpired as error:
             raise RuntimeError(
-                "Solaris inference failed. Check the in-tree Solaris runtime, dataset paths, "
-                "checkpoint layout, and its Python environment."
+                "Solaris inference timed out. Check WORLDFOUNDRY_SYNTHESIS_TIMEOUT_SECONDS "
+                f"and logs under {log_dir}."
             ) from error
 
         # After successful inference, collect the paths to the generated videos.

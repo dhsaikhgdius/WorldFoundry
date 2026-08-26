@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import shutil
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -10,6 +9,7 @@ from typing import Any, Mapping, Sequence
 from worldfoundry.core import jsonable
 from worldfoundry.core.io import file_sha256
 from worldfoundry.core.io.paths import package_module_root as package_root
+from worldfoundry.core.process import run_logged_subprocess, synthesis_timeout_seconds
 
 DEFAULT_MODEL_DIR_CANDIDATES = (
     "${WORLDFOUNDRY_HFD_ROOT}/SCOPE",
@@ -292,20 +292,21 @@ class SCOPERuntime:
             num_inference_steps=num_inference_steps,
             seed=seed,
         )
-        completed = subprocess.run(
+        log_path = target.with_suffix(target.suffix + ".scope.log")
+        stderr_path = target.with_suffix(target.suffix + ".scope.stderr.log")
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        completed = run_logged_subprocess(
             argv,
+            stdout_path=log_path,
+            stderr_path=stderr_path,
             cwd=str(runtime_root()),
             env=self._subprocess_env(),
-            check=False,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
+            timeout=synthesis_timeout_seconds(),
         )
-        log_path = target.with_suffix(target.suffix + ".scope.log")
-        log_path.parent.mkdir(parents=True, exist_ok=True)
-        log_path.write_text(completed.stdout or "", encoding="utf-8")
         if completed.returncode != 0:
-            raise RuntimeError(f"SCOPE runtime failed with code {completed.returncode}; see {log_path}")
+            raise RuntimeError(
+                f"SCOPE runtime failed with code {completed.returncode}; see {log_path} and {stderr_path}"
+            )
 
         generated = sorted(output_dir.glob("*.mp4"), key=lambda item: item.stat().st_mtime, reverse=True)
         if not generated:

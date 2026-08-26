@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import os
 import shutil
-import subprocess
 import sys
 import time
 from dataclasses import dataclass
@@ -11,6 +10,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from worldfoundry.core import cuda_visible_devices_from_device, jsonable
+from worldfoundry.core.process import run_logged_subprocess, synthesis_timeout_seconds
 from worldfoundry.runtime.assets import expand_worldfoundry_path
 
 
@@ -295,16 +295,13 @@ class LongCatVideoRuntime:
         env = os.environ.copy()
         env.update(jsonable(plan.env))
         try:
-            with stdout_path.open("w", encoding="utf-8") as stdout, stderr_path.open("w", encoding="utf-8") as stderr:
-                completed = subprocess.run(
-                    command,
-                    cwd=plan.workdir,
-                    env=env,
-                    stdout=stdout,
-                    stderr=stderr,
-                    text=True,
-                    timeout=timeout_seconds,
-                    check=False,
+            completed = run_logged_subprocess(
+                command,
+                stdout_path=stdout_path,
+                stderr_path=stderr_path,
+                cwd=plan.workdir,
+                env=env,
+                timeout=synthesis_timeout_seconds(float(timeout_seconds)),
             )
             returncode = completed.returncode
             runtime_output_dir = Path(plan.workdir).expanduser().resolve()

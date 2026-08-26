@@ -3,6 +3,7 @@ from __future__ import annotations
 
 
 
+from worldfoundry.core.process import run_logged_subprocess
 from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
 
 import argparse
@@ -783,18 +784,19 @@ def run_component_commands(
     stdout_parts: list[str] = []
     stderr_parts: list[str] = []
     start = time.monotonic()
-    for command in commands:
+    for index, command in enumerate(commands):
         header = "$ " + shlex.join(command) + "\n"
-        completed = subprocess.run(
+        part_stdout = stdout_path.with_name(f"{stdout_path.stem}.{index}.part.log")
+        part_stderr = stderr_path.with_name(f"{stderr_path.stem}.{index}.part.log")
+        completed = run_logged_subprocess(
             command,
+            stdout_path=part_stdout,
+            stderr_path=part_stderr,
             cwd=args.chronomagic_root,
-            capture_output=True,
-            text=True,
             timeout=args.timeout,
-            check=False,
         )
-        stdout_parts.append(header + completed.stdout)
-        stderr_parts.append(header + completed.stderr)
+        stdout_parts.append(header + part_stdout.read_text(encoding="utf-8"))
+        stderr_parts.append(header + part_stderr.read_text(encoding="utf-8"))
         if completed.returncode != 0:
             stdout_path.write_text("\n".join(stdout_parts), encoding="utf-8")
             stderr_path.write_text("\n".join(stderr_parts), encoding="utf-8")

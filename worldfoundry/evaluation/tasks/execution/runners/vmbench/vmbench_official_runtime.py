@@ -8,10 +8,11 @@ VMBench checkout.
 
 from __future__ import annotations
 
+from worldfoundry.core.process import run_logged_subprocess
+
 import importlib.util
 import json
 import os
-import subprocess
 import sys
 import time
 from dataclasses import dataclass
@@ -269,17 +270,14 @@ def _run_command(command: list[str], *, output_dir: Path, name: str, config: VMB
     stdout_path = output_dir / f"{name}.stdout.log"
     stderr_path = output_dir / f"{name}.stderr.log"
     started = time.monotonic()
-    with stdout_path.open("w", encoding="utf-8") as stdout, stderr_path.open("w", encoding="utf-8") as stderr:
-        completed = subprocess.run(
-            command,
-            cwd=OFFICIAL_RUNTIME_ROOT,
-            env=_runtime_env(),
-            stdout=stdout,
-            stderr=stderr,
-            text=True,
-            timeout=config.timeout_seconds,
-            check=False,
-        )
+    completed = run_logged_subprocess(
+        command,
+        stdout_path=stdout_path,
+        stderr_path=stderr_path,
+        cwd=OFFICIAL_RUNTIME_ROOT,
+        env=_runtime_env(),
+        timeout=config.timeout_seconds,
+    )
     return {
         "name": name,
         "command": command,

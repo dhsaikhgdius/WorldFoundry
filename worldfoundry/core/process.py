@@ -85,6 +85,28 @@ def terminate_process_tree(process: subprocess.Popen[Any], *, grace_seconds: flo
             psutil.wait_procs(alive, timeout=max(float(grace_seconds), 0.0))
 
 
+def synthesis_timeout_seconds(default: float | None = None) -> float | None:
+    """Resolve ``WORLDFOUNDRY_SYNTHESIS_TIMEOUT_SECONDS`` with an optional default.
+
+    Empty / unset keeps ``default``. Zero disables the deadline (returns ``None``).
+    """
+
+    raw = os.getenv("WORLDFOUNDRY_SYNTHESIS_TIMEOUT_SECONDS", "").strip()
+    if not raw:
+        return default
+    try:
+        timeout_s = float(raw)
+    except ValueError as exc:
+        raise ValueError(
+            "WORLDFOUNDRY_SYNTHESIS_TIMEOUT_SECONDS must be a non-negative number of seconds."
+        ) from exc
+    if timeout_s < 0.0:
+        raise ValueError(
+            f"WORLDFOUNDRY_SYNTHESIS_TIMEOUT_SECONDS must be non-negative, got {timeout_s}."
+        )
+    return timeout_s or None
+
+
 def run_logged_subprocess(
     command: str | Sequence[str],
     *,
@@ -265,6 +287,7 @@ __all__ = [
     "read_text_tail",
     "run_logged_subprocess",
     "run_torchrun_module",
+    "synthesis_timeout_seconds",
     "terminate_process_group",
     "terminate_process_tree",
     "torchrun_module_command",

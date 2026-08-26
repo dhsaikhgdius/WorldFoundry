@@ -4,13 +4,13 @@ import importlib
 import json
 import os
 import shutil
-import subprocess
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping
 
 from worldfoundry.core.io.paths import project_root
+from worldfoundry.core.process import run_logged_subprocess, synthesis_timeout_seconds
 from worldfoundry.evaluation.models.runtime.profiles import load_runtime_profile
 from worldfoundry.runtime.assets import expand_worldfoundry_path
 
@@ -738,18 +738,17 @@ class WorldModelRuntimeSynthesis(BaseSynthesis):
 
         command = self._command(output_path=output, prompt=prompt, plan_path=plan_path)
         log_path = output.with_suffix(output.suffix + ".log")
-        completed = subprocess.run(
+        stderr_path = output.with_suffix(output.suffix + ".stderr.log")
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        default_timeout = float(kwargs.pop("timeout_seconds", 21600))
+        completed = run_logged_subprocess(
             command,
+            stdout_path=log_path,
+            stderr_path=stderr_path,
             cwd=str(self.runtime_root),
             env=self._subprocess_env(output_path=output, prompt=prompt, plan_path=plan_path),
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            timeout=int(kwargs.pop("timeout_seconds", 21600)),
-            check=False,
+            timeout=synthesis_timeout_seconds(default=default_timeout),
         )
-        log_path.parent.mkdir(parents=True, exist_ok=True)
-        log_path.write_text(completed.stdout or "", encoding="utf-8")
         if completed.returncode != 0:
             return {
                 "status": "failed",
