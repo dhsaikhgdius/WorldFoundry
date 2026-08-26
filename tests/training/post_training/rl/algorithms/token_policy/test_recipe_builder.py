@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from worldfoundry.core.io.paths import project_root
+
 import pytest
 
 torch = pytest.importorskip("torch")
@@ -370,7 +372,7 @@ def test_recipe_bound_session_rejects_wrong_group_size_before_rollout() -> None:
 
 def test_token_policy_stack_fixtures_and_public_exports_are_canonical() -> None:
     pytest.importorskip("yaml")
-    root = Path(__file__).resolve().parents[6]
+    root = project_root(__file__)
     for algorithm_type, spec_type in _SPEC_TYPES.items():
         path = root / (f"tests/training/fixtures/recipes/qwen3_4b_{algorithm_type.replace('-', '_')}_stack.yaml")
         recipe = PostTrainingRecipe.from_file(path)

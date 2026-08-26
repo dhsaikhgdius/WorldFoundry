@@ -13,7 +13,11 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+from worldfoundry.core.io.paths import project_root
+
+
+
+REPO_ROOT = project_root(__file__)
 DEFAULT_REPOS_ROOT = REPO_ROOT / ".upstream_sources"
 DEFAULT_CKPT_ROOT = REPO_ROOT.parent / "ckpt"
 DEFAULT_OUTPUT_ROOT = REPO_ROOT / "worldfoundry" / "data" / "test_cases"
