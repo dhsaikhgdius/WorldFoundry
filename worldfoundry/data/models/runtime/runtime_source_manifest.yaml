@@ -72,3 +72,13 @@ checkout_only_provenance:
 - worldfoundry/synthesis/visual_generation/worldgen/worldgen_runtime
 - worldfoundry/synthesis/visual_generation/wow/wow_runtime
 - worldfoundry/synthesis/visual_generation/yume/yume_runtime
+- worldfoundry/base_models/perception_core/general_perception/openai_clip_runtime
+- worldfoundry/base_models/perception_core/video_quality/dreamsim_runtime
+- worldfoundry/base_models/perception_core/video_quality/hpsv3_runtime
+- worldfoundry/base_models/three_dimensions/depth/dvlt/dvlt_runtime
+- worldfoundry/base_models/three_dimensions/general_3d/four_d_gaussians/four_d_gaussians_runtime
+- worldfoundry/base_models/three_dimensions/general_3d/lagernvs/lagernvs_runtime
+- worldfoundry/base_models/three_dimensions/general_3d/mvdiffusion/mvdiffusion_runtime
+- worldfoundry/base_models/three_dimensions/general_3d/shape_of_motion/shape_of_motion_runtime
+- worldfoundry/base_models/three_dimensions/general_3d/splatt3r/splatt3r_runtime
+- worldfoundry/base_models/three_dimensions/general_3d/stable_virtual_camera/stable_virtual_camera_runtime
