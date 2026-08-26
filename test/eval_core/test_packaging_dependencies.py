@@ -124,3 +124,39 @@ def test_sdist_manifest_excludes_generated_downloaded_and_large_artifacts() -> N
         "*.onnx",
     ):
         assert pattern in manifest
+
+
+def _spec_for_requirement(extra_reqs: list[str], package: str):
+    packaging = pytest.importorskip("packaging")
+    from packaging.requirements import Requirement
+    from packaging.specifiers import SpecifierSet
+
+    for raw in extra_reqs:
+        req = Requirement(raw)
+        if req.name.lower() == package.lower():
+            return SpecifierSet(str(req.specifier))
+    raise AssertionError(f"{package} not declared in extra")
+
+
+def test_all_and_train_core_torch_intersect() -> None:
+    """EX-03: ``[all,train_core]`` torch pins must share a non-empty intersection."""
+
+    optional = _optional_dependencies()
+    all_torch = _spec_for_requirement(optional["all"], "torch")
+    train_torch = _spec_for_requirement(optional["train_core"], "torch")
+    intersection = all_torch & train_torch
+    # train_core floors at 2.9; all floors at 2.7 — intersection starts at 2.9.
+    assert "2.9.0" in intersection
+    assert "2.8.0" not in intersection
+    assert "2.11.0" in intersection
+
+
+def test_train_core_torch_floor_is_stricter_than_all() -> None:
+    """EX-03: document that train_core raises the torch floor above ``[all]``."""
+
+    optional = _optional_dependencies()
+    all_torch = _spec_for_requirement(optional["all"], "torch")
+    train_torch = _spec_for_requirement(optional["train_core"], "torch")
+    assert "2.8.0" in all_torch
+    assert "2.8.0" not in train_torch
+    assert "2.9.0" in all_torch and "2.9.0" in train_torch
