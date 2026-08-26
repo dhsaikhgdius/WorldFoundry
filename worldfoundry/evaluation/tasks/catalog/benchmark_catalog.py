@@ -203,6 +203,12 @@ def load_benchmark_catalog_shard_entries(shard: str, root: str | Path | None = N
     return tuple(entries)
 
 
+def embodied_benchmark_ids(root: str | Path | None = None) -> tuple[str, ...]:
+    """Return sorted embodied catalog benchmark ids (excludes ``_manifest`` shards)."""
+
+    return tuple(sorted({str(entry.benchmark_id) for entry in load_benchmark_catalog_shard_entries("embodied", root)}))
+
+
 def formal_benchmark_ids(catalog_dir: str | Path | None = None) -> list[str]:
     """Return benchmark ids declared in benchmark-zoo catalog manifests."""
     root = Path(catalog_dir or BENCHMARK_ZOO_DIR)

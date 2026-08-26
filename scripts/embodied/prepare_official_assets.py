@@ -17,38 +17,28 @@ from typing import Any, Iterable, Mapping
 
 import yaml
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from worldfoundry.evaluation.tasks.catalog.benchmark_catalog import embodied_benchmark_ids  # noqa: E402
+
 WORKSPACE_ROOT = REPO_ROOT.parent
 MODEL_CATALOG_ROOT = REPO_ROOT / "worldfoundry" / "data" / "models" / "catalog" / "vla_va_wam"
 MODEL_PROFILE_ROOT = REPO_ROOT / "worldfoundry" / "data" / "models" / "runtime" / "profiles"
 BENCHMARK_PROFILE_ROOT = REPO_ROOT / "worldfoundry" / "data" / "benchmarks" / "runtime_profiles" / "official"
 LOCAL_ASSETS_TEMPLATE = REPO_ROOT / "worldfoundry" / "data" / "benchmarks" / "local_assets.example.yaml"
 
-ACTIVE_BENCHMARK_IDS: tuple[str, ...] = (
-    "behavior1k",
-    "calvin",
-    "kinetix",
-    "libero",
-    "libero-mem",
-    "libero-plus",
-    "libero-pro",
-    "maniskill2",
-    "mikasa",
-    "molmospaces",
-    "rlbench",
-    "robocasa",
-    "robocerebra",
-    "robomme",
-    "robotwin",
-    "simpler-env",
-    "vlabench",
-)
+# Prefer scripts/setup/prepare_embodied_official_assets.py for scaffold generation.
+# This module keeps download/materialize helpers but shares the catalog ID SSOT.
+ACTIVE_BENCHMARK_IDS: tuple[str, ...] = embodied_benchmark_ids()
 
 BENCHMARK_REPO_URLS: dict[str, str] = {
+    "ai2thor": "https://github.com/allenai/ai2thor",
     "behavior1k": "https://github.com/StanfordVL/OmniGibson",
     "calvin": "https://github.com/mees/calvin",
     "kinetix": "https://github.com/FLAIROx/Kinetix",
+    "larybench": "https://github.com/meituan-longcat/LARYBench",
     "libero": "https://github.com/Lifelong-Robot-Learning/LIBERO",
     "libero-mem": "https://github.com/Lifelong-Robot-Learning/LIBERO",
     "libero-plus": "https://github.com/Lifelong-Robot-Learning/LIBERO",

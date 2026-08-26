@@ -16,34 +16,14 @@ if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
 from worldfoundry.evaluation.tasks.execution.framework.io import utc_now_iso, write_json  # noqa: E402
+from worldfoundry.evaluation.tasks.catalog.benchmark_catalog import embodied_benchmark_ids  # noqa: E402
 from worldfoundry.runtime.assets import expand_worldfoundry_path  # noqa: E402
 
 
 DEFAULT_SOURCE_MANIFEST = REPO_ROOT / "worldfoundry" / "data" / "benchmarks" / "local_assets.example.yaml"
 DEFAULT_OUTPUT_ROOT = REPO_ROOT / "tmp" / "benchmark_zoo" / "embodied_official_assets"
-EMBODIED_BENCHMARK_IDS: tuple[str, ...] = (
-    "behavior1k",
-    "libero",
-    "libero-mem",
-    "libero-plus",
-    "libero-pro",
-    "libero-para",
-    "simpler-env",
-    "robocasa",
-    "calvin",
-    "maniskill",
-    "maniskill2",
-    "kinetix",
-    "mikasa",
-    "molmospaces",
-    "rlbench",
-    "metaworld",
-    "bridgedata-v2",
-    "robocerebra",
-    "robomme",
-    "robotwin",
-    "vlabench",
-)
+# SSOT: catalog/embodied/*.yaml — do not hardcode a parallel ID list.
+EMBODIED_BENCHMARK_IDS: tuple[str, ...] = embodied_benchmark_ids()
 BASE_ENV_DEFAULTS = {
     "WORLDFOUNDRY_CACHE_DIR": "cache/worldfoundry",
     "WORLDFOUNDRY_DATA_DIR": "cache/worldfoundry/data",
@@ -173,6 +153,28 @@ ADDITIONAL_EMBODIED_ASSET_TEMPLATES: dict[str, dict[str, Any]] = {
         "policy_env": "WORLDFOUNDRY_VLABENCH_POLICY_CHECKPOINT",
         "results_env": "WORLDFOUNDRY_VLABENCH_RESULTS_PATH",
         "note": "VLABench full execution requires its SAPIEN-compatible simulator runtime and task assets.",
+    },
+    "ai2thor": {
+        "repo_url": "https://github.com/allenai/ai2thor",
+        "root_env": "WORLDFOUNDRY_AI2THOR_ROOT",
+        "data_env": "WORLDFOUNDRY_AI2THOR_ASSET_ROOT",
+        "split_env": "WORLDFOUNDRY_AI2THOR_TASK_SPLIT",
+        "default_split": "eval",
+        "allowed_splits": ("eval",),
+        "policy_env": "WORLDFOUNDRY_AI2THOR_POLICY_CHECKPOINT",
+        "results_env": "WORLDFOUNDRY_AI2THOR_RESULTS_PATH",
+        "note": "Stage AI2-THOR simulator builds and the FloorPlan eval configs used by the in-tree runner.",
+    },
+    "larybench": {
+        "repo_url": "https://github.com/meituan-longcat/LARYBench",
+        "root_env": "WORLDFOUNDRY_LARYBENCH_ROOT",
+        "data_env": "WORLDFOUNDRY_LARYBENCH_ASSET_ROOT",
+        "split_env": "WORLDFOUNDRY_LARYBENCH_TASK_SPLIT",
+        "default_split": "eval",
+        "allowed_splits": ("eval",),
+        "policy_env": "WORLDFOUNDRY_LARYBENCH_POLICY_CHECKPOINT",
+        "results_env": "WORLDFOUNDRY_LARYBENCH_RESULTS_PATH",
+        "note": "Stage LARYBench assets after accepting upstream dataset terms.",
     },
 }
 
