@@ -23,9 +23,14 @@ from typing import Any, Generator, Union
 from urllib.parse import urlparse
 
 import boto3
+from botocore.config import Config
 from botocore.exceptions import ClientError
 from torch.distributed.checkpoint import FileSystemReader, FileSystemWriter
 from torch.distributed.checkpoint.filesystem import FileSystemBase
+
+# Default matches sync_s3_dir_to_local's max_workers so ThreadPoolExecutor
+# workers are not starved by botocore's default pool of 10 (CA-06).
+DEFAULT_S3_MAX_POOL_CONNECTIONS = 32
 
 
 class S3FileSystem(FileSystemBase):
@@ -42,10 +47,37 @@ class S3FileSystem(FileSystemBase):
       ...     data = f.read()
     """
 
-    def __init__(self, credential_path: str) -> None:
+    def __init__(
+        self,
+        credential_path: str,
+        *,
+        max_pool_connections: int | None = None,
+    ) -> None:
         with open(credential_path, "r") as f:
             config = json.load(f)
-        self.s3_client = boto3.client("s3", **config)
+        if not isinstance(config, dict):
+            raise TypeError(f"S3 credential file must contain a JSON object: {credential_path}")
+        client_kwargs = dict(config)
+        pool_size = (
+            DEFAULT_S3_MAX_POOL_CONNECTIONS
+            if max_pool_connections is None
+            else max(1, int(max_pool_connections))
+        )
+        existing_config = client_kwargs.pop("config", None)
+        if existing_config is None:
+            client_kwargs["config"] = Config(max_pool_connections=pool_size)
+        elif isinstance(existing_config, Config):
+            # Honor an explicit botocore Config from credentials, but never shrink
+            # the pool below the requested worker parallelism.
+            configured = int(getattr(existing_config, "max_pool_connections", 0) or 0)
+            if configured < pool_size:
+                client_kwargs["config"] = existing_config.merge(Config(max_pool_connections=pool_size))
+            else:
+                client_kwargs["config"] = existing_config
+        else:
+            client_kwargs["config"] = Config(max_pool_connections=pool_size)
+        self.max_pool_connections = pool_size
+        self.s3_client = boto3.client("s3", **client_kwargs)
 
     @contextmanager
     def create_stream(self, path: Union[str, os.PathLike], mode: str) -> Generator[io.IOBase, None, None]:
