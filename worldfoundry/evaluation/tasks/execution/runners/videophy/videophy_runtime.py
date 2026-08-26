@@ -17,6 +17,7 @@ from worldfoundry.base_models.llm_mllm_core.mllm.videocon_physics.constants impo
     PROMPT_PHYSICS,
     PROMPT_VTA,
 )
+from worldfoundry.core.io.paths import project_root
 from worldfoundry.evaluation.tasks.execution.framework.official_runner import default_benchmark_timeout
 from worldfoundry.evaluation.tasks.execution.framework.runner_common import VIDEO_SUFFIXES
 from worldfoundry.evaluation.tasks.execution.runners.videophy.videophy_prompts import (
@@ -234,7 +235,7 @@ def _run_videocon_entailment(
         str(config.num_frames),
     ]
     env = os.environ.copy()
-    repo_root = Path(__file__).resolve().parents[6]
+    repo_root = project_root(__file__)
     existing_pythonpath = env.get("PYTHONPATH", "")
     env["PYTHONPATH"] = str(repo_root) if not existing_pythonpath else f"{repo_root}{os.pathsep}{existing_pythonpath}"
     log_path.parent.mkdir(parents=True, exist_ok=True)
