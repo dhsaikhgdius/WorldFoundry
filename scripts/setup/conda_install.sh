@@ -21,6 +21,7 @@ TORCHAUDIO_SPEC="${WORLDFOUNDRY_TORCHAUDIO_SPEC:-torchaudio>=2.7,<2.12.0}"
 VERIFY_ONLY=0
 ALLOW_NO_CUDA="${WORLDFOUNDRY_ALLOW_NO_CUDA:-0}"
 CUDA_NVCC_DRY_RUN=0
+UNLOCKED_DEPS=0
 
 usage() {
   cat <<'EOF'
@@ -49,6 +50,8 @@ Options:
   --torchaudio SPEC     Torchaudio package spec. Default: torchaudio>=2.7,<2.12.0.
   --verify-only         Only run import and CUDA verification in the env.
   --allow-no-cuda       Do not fail verification when CUDA is not visible.
+  --unlocked            Install from requirements/worldfoundry-unified.txt even
+                       when a per-tier lockfile exists under requirements/lock/.
   --cuda-nvcc-dry-run   Print the tier-aware nvcc install command and exit.
   -h, --help            Show this help.
 EOF
@@ -115,6 +118,10 @@ while (($#)); do
       ;;
     --allow-no-cuda)
       ALLOW_NO_CUDA=1
+      shift
+      ;;
+    --unlocked)
+      UNLOCKED_DEPS=1
       shift
       ;;
     --cuda-nvcc-dry-run)
@@ -271,9 +278,21 @@ if [[ "$VERIFY_ONLY" != "1" ]]; then
     python -m pip install --no-cache-dir --index-url "$TORCH_INDEX_URL" --extra-index-url "$PYPI_INDEX_URL" \
     "$TORCH_SPEC" "$TORCHVISION_SPEC" "$TORCHAUDIO_SPEC"
 
+  UNIFIED_REQ="requirements/worldfoundry-unified.txt"
+  LOCK_REQ="requirements/lock/worldfoundry-unified.${CUDA_PROFILE}.lock.txt"
+  if [[ "$UNLOCKED_DEPS" != "1" && -f "$LOCK_REQ" ]] \
+    && grep -Eqv '^[[:space:]]*(#|$)' "$LOCK_REQ"; then
+    echo "Installing unified deps from lockfile: ${LOCK_REQ}"
+    UNIFIED_REQ="$LOCK_REQ"
+  elif [[ "$UNLOCKED_DEPS" == "1" ]]; then
+    echo "Installing unified deps unlocked from ${UNIFIED_REQ}"
+  elif [[ -f "$LOCK_REQ" ]]; then
+    echo "Lockfile ${LOCK_REQ} has no resolved pins yet; using ${UNIFIED_REQ}"
+  fi
+
   PIP_CONFIG_FILE="${WORLDFOUNDRY_PIP_CONFIG_FILE:-/dev/null}" conda_run \
     python -m pip install --no-cache-dir --index-url "$PYPI_INDEX_URL" \
-    -r requirements/worldfoundry-unified.txt
+    -r "$UNIFIED_REQ"
 
   if [[ "$INSTALL_FLASH_ATTN" == "1" ]]; then
     run_cmd bash scripts/setup/install_flash_attn.sh "$FLASH_ATTN_BUCKET"
