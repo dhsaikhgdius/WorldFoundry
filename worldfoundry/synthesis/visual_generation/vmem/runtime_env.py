@@ -157,31 +157,56 @@ def _iter_runtime_module_names() -> Iterable[str]:
             yield module_name
 
 
+def _module_path_under_root(module_path: Path, root: Path) -> bool:
+    """Return True when ``module_path`` is the runtime root or a descendant."""
+
+    try:
+        module_path.relative_to(root)
+        return True
+    except ValueError:
+        return False
+
+
+def _looks_like_vmem_runtime_path(module_path: Path) -> bool:
+    """Heuristic: prior VMem checkouts are safe to drop; global utils/models are not."""
+
+    parts = {part.casefold() for part in module_path.parts}
+    return "vmem_runtime" in parts or "vmem" in parts
+
+
 def _purge_conflicting_runtime_modules(root: Path) -> None:
-    """
-    Removes loaded modules from `sys.modules` that are identified as VMem runtime modules
-    but are loaded from a path *outside* the specified VMem runtime root.
+    """Scope VMem ``sys.modules`` cleanup to this runtime (or prior VMem trees).
 
-    This prevents conflicts when switching or reloading the VMem runtime environment.
-
-    Args:
-        root (Path): The designated VMem runtime root directory.
+    Generic top-level names like ``utils`` / ``models`` must not be deleted when
+    they were imported from WorldFoundry or site-packages.  In that case fail
+    fast so callers can fix import order instead of silently breaking the
+    process-wide module table.
     """
+
+    resolved_root = root.resolve()
     for module_name in _iter_runtime_module_names():
         module = sys.modules.get(module_name)
-        # Skip modules without a __file__ attribute (e.g., built-in modules).
         module_file = getattr(module, "__file__", None)
         if module_file is None:
             continue
         try:
-            # Resolve the actual path of the module file.
             module_path = Path(module_file).resolve()
         except OSError:
-            # Handle cases where the module file might not exist or be accessible.
             continue
-        # If the module's path is not within the specified runtime root, remove it from sys.modules.
-        if root not in module_path.parents:
+        if _module_path_under_root(module_path, resolved_root):
+            # Drop in-root copies so the next import reloads against the active root.
             sys.modules.pop(module_name, None)
+            continue
+        if _looks_like_vmem_runtime_path(module_path):
+            sys.modules.pop(module_name, None)
+            continue
+        top_level = module_name.split(".", maxsplit=1)[0]
+        raise RuntimeError(
+            f"VMem runtime cannot activate: top-level module {top_level!r} is already "
+            f"loaded from {module_path}, outside the VMem runtime root {resolved_root}. "
+            f"Import/activate VMem before importing {top_level!r}, or unload the "
+            "conflicting module."
+        )
 
 
 def _purge_module_tree(prefix: str) -> None:
