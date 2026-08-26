@@ -13,19 +13,27 @@ Options:
   --load                 Load a single-platform image into the local Docker daemon.
   --platform PLATFORMS   Build platform list. Default: linux/amd64 for both
                          --load and --push (override for multi-arch).
-  --cuda-image IMAGE     Base CUDA image. Default:
+  --target STAGE         Dockerfile stage: base-runtime | base-devel | cpu.
+                         Default: base-devel (compile-capable image).
+  --cuda-image IMAGE     Devel CUDA base (stage base-devel). Default:
                          nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04.
+  --cuda-runtime-image IMAGE
+                         Runtime CUDA base (stage base-runtime). Default:
+                         nvidia/cuda:12.8.1-cudnn-runtime-ubuntu22.04.
   -h, --help             Show this help.
 
 Environment overrides:
   WORLDFOUNDRY_DOCKER_PUSH=1
   WORLDFOUNDRY_DOCKER_PLATFORMS=linux/amd64   # or linux/amd64,linux/arm64
+  WORLDFOUNDRY_DOCKER_TARGET=base-devel
   WORLDFOUNDRY_DOCKER_CUDA_IMAGE=nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04
+  WORLDFOUNDRY_DOCKER_CUDA_RUNTIME_IMAGE=nvidia/cuda:12.8.1-cudnn-runtime-ubuntu22.04
   WORLDFOUNDRY_DOCKER_BUILD_HOST_NETWORK=1
                          Opt into BuildKit host networking (off by default).
 
 Examples:
   bash docker/build_with_docker.sh worldfoundry:dev
+  bash docker/build_with_docker.sh --target base-runtime worldfoundry:runtime
   bash docker/build_with_docker.sh --push ghcr.io/openenvision/worldfoundry:base
 EOF
 }
@@ -35,7 +43,9 @@ cd "${REPO_ROOT}"
 
 PUSH="${WORLDFOUNDRY_DOCKER_PUSH:-0}"
 PLATFORMS="${WORLDFOUNDRY_DOCKER_PLATFORMS:-}"
+TARGET="${WORLDFOUNDRY_DOCKER_TARGET:-base-devel}"
 CUDA_IMAGE="${WORLDFOUNDRY_DOCKER_CUDA_IMAGE:-nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04}"
+CUDA_RUNTIME_IMAGE="${WORLDFOUNDRY_DOCKER_CUDA_RUNTIME_IMAGE:-nvidia/cuda:12.8.1-cudnn-runtime-ubuntu22.04}"
 HOST_NETWORK="${WORLDFOUNDRY_DOCKER_BUILD_HOST_NETWORK:-0}"
 TAGS=()
 
@@ -53,8 +63,16 @@ while (($#)); do
       PLATFORMS="$2"
       shift 2
       ;;
+    --target)
+      TARGET="$2"
+      shift 2
+      ;;
     --cuda-image)
       CUDA_IMAGE="$2"
+      shift 2
+      ;;
+    --cuda-runtime-image)
+      CUDA_RUNTIME_IMAGE="$2"
       shift 2
       ;;
     -h|--help)
@@ -108,8 +126,11 @@ fi
 
 docker buildx build \
   --platform "${PLATFORMS}" \
+  --target "${TARGET}" \
   "${NETWORK_ARGS[@]}" \
   --build-arg "CUDA_IMAGE=${CUDA_IMAGE}" \
+  --build-arg "CUDA_DEVEL_IMAGE=${CUDA_IMAGE}" \
+  --build-arg "CUDA_RUNTIME_IMAGE=${CUDA_RUNTIME_IMAGE}" \
   "${ACTION_ARGS[@]}" \
   "${TAG_ARGS[@]}" \
   -f docker/Dockerfile .
