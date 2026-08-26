@@ -9,6 +9,8 @@ from .assets import (
     load_runtime_asset_profile,
     load_runtime_asset_profile_by_id,
     load_runtime_asset_profiles,
+    resolve_profile_checkpoint,
+    resolve_profile_checkpoints,
     resolve_runtime_asset_profile,
 )
 from .environments import (
@@ -58,6 +60,8 @@ __all__ = [
     "load_runtime_profile_manifest",
     "load_runtime_profile_manifests",
     "load_runtime_profiles",
+    "resolve_profile_checkpoint",
+    "resolve_profile_checkpoints",
     "resolve_runtime_asset_profile",
     "resolve_runtime_environment_profile",
     "validate_pipeline_aliases_against_bindings",
