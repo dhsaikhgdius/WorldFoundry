@@ -230,3 +230,20 @@ def test_batch8_training_tests_use_paths_project_root() -> None:
         assert "from worldfoundry.core.io.paths import" in text, rel
         assert "project_root" in text, rel
 
+
+def test_batch9_representation_adapters_use_paths_helpers() -> None:
+    """worldfm/panogen use project_root; lingbot_map uses package_root."""
+    repo = Path(__file__).resolve().parents[2]
+    pkg = 'representations'
+    worldfm = (repo / "worldfoundry" / pkg / "point_clouds_generation/worldfm/worldfm_representation.py").read_text(encoding="utf-8")
+    panogen = (repo / "worldfoundry" / pkg / "point_clouds_generation/worldfm/panogen.py").read_text(encoding="utf-8")
+    lingbot = (repo / "worldfoundry" / pkg / "point_clouds_generation/lingbot_map/lingbot_map_representation.py").read_text(encoding="utf-8")
+    for text, needle in (
+        (worldfm, "project_root"),
+        (panogen, "project_root"),
+        (lingbot, "package_root"),
+    ):
+        assert f"from worldfoundry.core.io.paths import" in text
+        assert needle in text
+        assert "Path(__file__).resolve().parents[" not in text
+
