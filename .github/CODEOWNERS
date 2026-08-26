@@ -1,0 +1,11 @@
+# Review coverage for high-impact infra surfaces (plan WF-11).
+# Users without write access are ignored by GitHub CODEOWNERS matching.
+
+.github/workflows/ @dhsaikhgdius
+.github/dependabot.yml @dhsaikhgdius
+.github/CODEOWNERS @dhsaikhgdius
+
+worldfoundry/data/ @dhsaikhgdius
+pyproject.toml @dhsaikhgdius
+requirements/ @dhsaikhgdius
+docker/ @dhsaikhgdius
