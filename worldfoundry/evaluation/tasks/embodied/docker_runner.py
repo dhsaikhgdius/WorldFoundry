@@ -3,14 +3,21 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import tempfile
+from pathlib import Path
 from typing import Any, Mapping
 
 import yaml
 
+from worldfoundry.runtime.jobs import run_bounded_command
+
+# Host checkout stays read-write for upstream harness parity; flip to :ro only after
+# verifying official images do not write into the mounted repo tree.
+_REPO_MOUNT_MODE = ""  # empty => rw; set ":ro" when parity allows
+_DEFAULT_SHM_SIZE = os.getenv("WORLDFOUNDRY_EMBODIED_DOCKER_SHM_SIZE", "8g")
+_DEFAULT_TIMEOUT_S = int(os.getenv("WORLDFOUNDRY_EMBODIED_DOCKER_TIMEOUT_S", "0") or "0")
 
 def inside_docker() -> bool:
     return Path("/.dockerenv").exists()
@@ -47,7 +54,38 @@ def _ensure_image(docker: str, image: str, *, source_image: str | None = None, p
 def _gpu_flags(gpus: Any) -> list[str]:
     if gpus in (None, "", False):
         return []
+    # Prefer the host's CUDA_VISIBLE_DEVICES when present so Studio/DLC leases
+    # are honored instead of always exposing every GPU.
+    visible = os.getenv("CUDA_VISIBLE_DEVICES", "").strip()
+    if visible and str(gpus) in {"all", "All", "ALL"}:
+        return ["--gpus", f"device={visible}"]
     return ["--gpus", str(gpus)]
+
+
+def _env_flags(env_entries: Any) -> list[str]:
+    """Build ``-e`` flags without putting secret values into argv when possible.
+
+    Entries may be ``KEY``, ``KEY=``, or ``KEY=value``. Empty / env-expanded-empty
+    values become ``-e KEY`` so Docker inherits from the host environment.
+    """
+
+    flags: list[str] = []
+    for raw in env_entries or ():
+        expanded = os.path.expandvars(str(raw)).strip()
+        if not expanded:
+            continue
+        if "=" not in expanded:
+            flags.extend(["-e", expanded])
+            continue
+        key, _, value = expanded.partition("=")
+        key = key.strip()
+        if not key:
+            continue
+        if value == "":
+            flags.extend(["-e", key])
+        else:
+            flags.extend(["-e", f"{key}={value}"])
+    return flags
 
 
 def _inner_run_args(
@@ -99,14 +137,19 @@ def write_docker_config(config: Mapping[str, Any], output_dir: Path) -> Path:
     docker_config = dict(config)
     docker_config["output_dir"] = "/workspace/results"
     fd, temp_path = tempfile.mkstemp(prefix="wf-embodied-docker-", suffix=".yaml")
+    path = Path(temp_path)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
             yaml.safe_dump(docker_config, handle, sort_keys=False)
     except Exception:
-        os.close(fd)
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+        path.unlink(missing_ok=True)
         raise
     output_dir.mkdir(parents=True, exist_ok=True)
-    return Path(temp_path)
+    return path
 
 
 def build_docker_run_command(
@@ -131,26 +174,36 @@ def build_docker_run_command(
         _inner_run_args(shard_id=shard_id, num_shards=num_shards, eval_id=eval_id, no_save=no_save),
     )
 
+    shm_size = str(docker_cfg.get("shm_size") or _DEFAULT_SHM_SIZE).strip()
+    repo_mount = f"{repo_root}:/workspace/WorldFoundry{_REPO_MOUNT_MODE}"
+    # Keep `/src` on PYTHONPATH for historical harness contracts even though the
+    # path does not exist in-tree; removing it breaks some official images.
+    python_path = "/workspace/WorldFoundry:/workspace/WorldFoundry/src"
+
     cmd = [
         shutil.which("docker") or "docker",
         "run",
         "--rm",
+        "--init",
         "--network",
         "host",
+        f"--shm-size={shm_size}",
         "-v",
         f"{output_dir}:/workspace/results",
         "-v",
         f"{docker_config_path}:/tmp/eval_config.yaml:ro",
         "-v",
-        f"{repo_root}:/workspace/WorldFoundry",
+        repo_mount,
         "-w",
         "/workspace/WorldFoundry",
         "-e",
-        "PYTHONPATH=/workspace/WorldFoundry:/workspace/WorldFoundry/src",
+        f"PYTHONPATH={python_path}",
         "-e",
-        f"WORLDFOUNDRY_REPO_ROOT=/workspace/WorldFoundry",
+        "WORLDFOUNDRY_REPO_ROOT=/workspace/WorldFoundry",
         "-e",
         f"WORLDFOUNDRY_HOST_OUTPUT_DIR={output_dir}",
+        "-e",
+        "PYTHONDONTWRITEBYTECODE=1",
     ]
 
     entrypoint = docker_cfg.get("entrypoint")
@@ -159,16 +212,17 @@ def build_docker_run_command(
     if entrypoint is not None:
         cmd.extend(["--entrypoint", str(entrypoint)])
 
-    if docker_cfg.get("name"):
-        cmd.extend(["--name", str(docker_cfg["name"])])
+    container_name = docker_cfg.get("name")
+    if container_name:
+        suffix = f"-{eval_id}" if eval_id else ""
+        cmd.extend(["--name", f"{container_name}{suffix}"])
     if docker_cfg.get("user") == "host" and hasattr(os, "getuid"):
         cmd.extend(["--user", f"{os.getuid()}:{os.getgid()}"])
     elif docker_cfg.get("user"):
         cmd.extend(["--user", str(docker_cfg["user"])])
     for volume in docker_cfg.get("volumes") or ():
         cmd.extend(["-v", os.path.expandvars(str(volume))])
-    for env_value in docker_cfg.get("env") or ():
-        cmd.extend(["-e", os.path.expandvars(str(env_value))])
+    cmd.extend(_env_flags(docker_cfg.get("env")))
     if docker_cfg.get("cpus"):
         cmd.extend(["--cpus", str(docker_cfg["cpus"])])
     if docker_cfg.get("runtime"):
@@ -212,6 +266,10 @@ def run_embodied_via_docker(
             eval_id=eval_id,
             no_save=no_save,
         )
+        timeout_s = int(docker_cfg.get("timeout_s") or _DEFAULT_TIMEOUT_S or 0)
+        if timeout_s > 0:
+            result = run_bounded_command(cmd, timeout=timeout_s)
+            return int(result["returncode"] or 0)
         return subprocess.call(cmd)
     finally:
         docker_config_path.unlink(missing_ok=True)
