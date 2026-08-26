@@ -75,3 +75,60 @@ collect_ignore = [
     "test_yume.py",
     "test_yume_1p5.py",
 ]
+
+
+# ---------------------------------------------------------------------------
+# Optional-dependency collection guards (infra plan C-09).
+# ---------------------------------------------------------------------------
+import importlib.util
+
+
+def _torch_usable() -> bool:
+    """True when a real torch package is importable (not an empty namespace)."""
+    spec = importlib.util.find_spec("torch")
+    if spec is None or spec.loader is None:
+        return False
+    try:
+        import torch
+
+        return hasattr(torch, "Tensor")
+    except Exception:
+        return False
+
+
+def pytest_ignore_collect(collection_path: Path, config) -> bool | None:  # noqa: ARG001
+    """Skip torch-heavy test modules when torch is unavailable.
+
+    Return None (not False) when not ignoring so the default pytest hook can
+    still honor ``collect_ignore`` for demo scripts.
+    """
+    if collection_path.suffix != ".py":
+        return None
+    name = collection_path.name
+    if name in {"conftest.py"}:
+        return None
+    if _torch_usable():
+        return None
+    # eval_core release-gate modules import torch at collection time; skip the
+    # whole package for bare ``pytest`` without the CPU torch install.
+    if "eval_core" in collection_path.parts:
+        return True
+    if not name.startswith("test_"):
+        return None
+    # Conservative: only skip modules that historically ERROR without torch.
+    torch_heavy_prefixes = (
+        "test_core_compute_",
+        "test_core_foundation_",
+        "test_infinite_world_torch_",
+        "test_lingbot_torch_",
+        "test_matrix_game_",
+        "test_neoverse_registry",
+        "test_solaris_pipeline",
+        "test_wow",
+        "test_lingbot_map_integration",
+    )
+    if name.startswith(torch_heavy_prefixes) or name in {
+        "test_lingbot_runtime_paths.py",  # imports torch-backed synthesis
+    }:
+        return True
+    return None
