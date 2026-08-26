@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import subprocess
-import sys
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from worldfoundry.core.io.paths import package_module_root as package_root
 from worldfoundry.core.io import write_json
 from worldfoundry.core.io.paths import hfd_root_path
+from worldfoundry.core.io.paths import package_module_root as package_root
+from worldfoundry.runtime.conda import resolve_model_python
 
 
 def _resolve_hfd_root() -> Path:
@@ -95,7 +95,7 @@ class DreamDojoRuntime:
         if distcp_dir.is_dir():
             subprocess.run(
                 [
-                    sys.executable,
+                    resolve_model_python(self.model_id),
                     "-m",
                     "worldfoundry.synthesis.visual_generation.dreamdojo.convert_distcp",
                     str(distcp_dir),
@@ -151,7 +151,7 @@ infer_args = ActionConditionedInferenceArguments()
 infer_args.end = {int(kwargs.get("num_samples", 1))!r}
 inference(setup, infer_args, Path({str(checkpoint_path)!r}))
 """
-        python = str(kwargs.get("python_executable") or sys.executable)
+        python = resolve_model_python(self.model_id, explicit=kwargs.get("python_executable"))
         subprocess.run([python, "-c", code], cwd=str(runtime_root), check=True)
         payload = {
             "status": "success",

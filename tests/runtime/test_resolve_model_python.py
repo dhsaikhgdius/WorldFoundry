@@ -52,3 +52,25 @@ def test_resolve_model_python_unknown_model_returns_fallback_quietly(caplog):
 
     assert resolved == str(Path("/tmp/fallback-py"))
     assert not caplog.records
+
+
+def test_sy02_batch2_adapters_wire_resolve_model_python() -> None:
+    root = Path(__file__).resolve().parents[2]
+    paths = (
+        "worldfoundry/synthesis/visual_generation/minwm/worldfoundry_runtime.py",
+        "worldfoundry/synthesis/visual_generation/kairos/runtime.py",
+        "worldfoundry/synthesis/visual_generation/lingbot_video/runtime.py",
+        "worldfoundry/synthesis/visual_generation/forcing/runtime.py",
+        "worldfoundry/synthesis/visual_generation/solaris/worldfoundry_runtime.py",
+        "worldfoundry/synthesis/visual_generation/hydra/worldfoundry_runtime.py",
+        "worldfoundry/synthesis/visual_generation/magic_world/worldfoundry_runtime.py",
+        "worldfoundry/synthesis/visual_generation/versecrafter/worldfoundry_runtime.py",
+        "worldfoundry/synthesis/visual_generation/lingbot_world_v2/runtime.py",
+        "worldfoundry/synthesis/visual_generation/pusa_vidgen/adapter.py",
+        "worldfoundry/synthesis/visual_generation/liveworld/worldfoundry_runtime.py",
+        "worldfoundry/synthesis/visual_generation/dreamdojo/worldfoundry_runtime.py",
+    )
+    for rel in paths:
+        text = (root / rel).read_text(encoding="utf-8")
+        assert "resolve_model_python" in text, rel
+        assert "from worldfoundry.runtime.conda import resolve_model_python" in text, rel
