@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pytest
 
+pytest.importorskip("joblib")
+
 from worldfoundry.evaluation.reporting.validation import validate_contract_file
 from worldfoundry.evaluation.tasks.execution.framework.benchmark_assets import bundled_benchmark_asset
 from worldfoundry.evaluation.tasks.execution.runners.physics_iq import physics_iq_runtime

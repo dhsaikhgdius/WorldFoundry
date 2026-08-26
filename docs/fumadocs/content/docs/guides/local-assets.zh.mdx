@@ -37,6 +37,8 @@ export HF_ENDPOINT=https://hf-mirror.com
 
 也可设置 `HF_ENDPOINT=https://hf-mirror.com` 后继续用 `hf download`。Gated repo 需先在 Hugging Face 官网申请许可，再用 `--hf_token "${HF_TOKEN}"`。
 
+镜像始终是显式 opt-in。Studio 派发的子进程只继承你 shell 中导出的 `HF_ENDPOINT`，默认不会被重定向到任何第三方镜像。若只想让 WorldFoundry 管理的子进程走镜像，导出 `WORLDFOUNDRY_HF_ENDPOINT=https://hf-mirror.com`；对这些子进程它优先于继承的 `HF_ENDPOINT`。
+
 ## 1. 初始化目录与环境变量
 
 这些目录是 runtime state，不是源码。放在容量足够的本地盘或共享文件系统上。
