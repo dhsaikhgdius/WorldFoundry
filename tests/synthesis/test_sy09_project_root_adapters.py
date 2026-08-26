@@ -27,3 +27,23 @@ def test_longcat_and_lingbot_source_roots_use_project_root() -> None:
     expected = project_root(__file__)
     assert longcat.SRC_ROOT == expected
     assert lingbot.SOURCE_ROOT == expected
+
+
+def test_more_adapters_use_paths_project_root() -> None:
+    from worldfoundry.synthesis.visual_generation.dreamdojo import worldfoundry_runtime as dreamdojo
+    from worldfoundry.synthesis.visual_generation.hydra import worldfoundry_runtime as hydra
+    from worldfoundry.synthesis.visual_generation.magic_world import worldfoundry_runtime as magic
+    from worldfoundry.synthesis.visual_generation.minwm import worldfoundry_runtime as minwm
+    from worldfoundry.synthesis.visual_generation.scope import worldfoundry_runtime as scope
+    from worldfoundry.synthesis.visual_generation.warp_as_history import variants as wah_variants
+    from worldfoundry.synthesis.visual_generation.warp_as_history import worldfoundry_runtime as wah
+
+    expected = project_root(__file__)
+    assert minwm._PROJECT_ROOT == expected
+    assert hydra._PROJECT_ROOT == expected
+    assert magic._PROJECT_ROOT == expected
+    assert magic.MagicWorldRuntime.video_x_fun_root().is_relative_to(expected)
+    assert scope._project_root() == expected
+    assert wah.WarpAsHistoryRuntime._project_root() == expected
+    assert wah_variants.project_root() == expected
+    assert dreamdojo.DreamDojoRuntime._repo_src_root() == expected
