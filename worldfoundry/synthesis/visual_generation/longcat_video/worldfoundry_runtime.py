@@ -12,7 +12,7 @@ from typing import Any, Mapping, Sequence
 
 from worldfoundry.core import cuda_visible_devices_from_device, jsonable
 from worldfoundry.runtime.assets import expand_worldfoundry_path
-
+from worldfoundry.runtime.conda import resolve_model_python
 
 SRC_ROOT = Path(__file__).resolve().parents[4]
 RUNTIME_ROOT = SRC_ROOT / "worldfoundry" / "synthesis" / "visual_generation" / "longcat_video" / "longcat_video_runtime"
@@ -117,11 +117,13 @@ class LongCatVideoRuntime:
         self.task_type = task_type
         self.device = str(device)
         self.runtime_root = _expand_path(runtime_root) or RUNTIME_ROOT
-        self.python_executable = (
-            Path(python_executable).expanduser()
-            if python_executable is not None
-            else Path(os.environ.get("PYTHON") or sys.executable).expanduser()
-        )
+        self.python_executable = Path(
+            resolve_model_python(
+                "longcat-video",
+                explicit=python_executable,
+                fallback=os.environ.get("PYTHON") or sys.executable,
+            )
+        ).expanduser()
         self.loaded = bool(loaded)
         self.options = {
             "checkpoint_dir": str(self.checkpoint_dir) if self.checkpoint_dir is not None else "",

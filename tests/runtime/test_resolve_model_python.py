@@ -1,0 +1,54 @@
+from __future__ import annotations
+
+import logging
+import sys
+from pathlib import Path
+
+import pytest
+
+from worldfoundry.runtime.conda import (
+    clear_runtime_conda_env_cache,
+    resolve_model_python,
+)
+
+
+@pytest.fixture(autouse=True)
+def _clear_conda_cache():
+    clear_runtime_conda_env_cache()
+    yield
+    clear_runtime_conda_env_cache()
+
+
+def test_resolve_model_python_prefers_explicit(tmp_path):
+    explicit = tmp_path / "custom-python"
+    explicit.write_text("#!/bin/sh\n", encoding="utf-8")
+
+    assert resolve_model_python("ac3d", explicit=explicit, env_root=tmp_path) == str(explicit)
+
+
+def test_resolve_model_python_uses_ready_conda_env(tmp_path, monkeypatch):
+    monkeypatch.setenv("WORLDFOUNDRY_CONDA_ENVS_ROOT", str(tmp_path))
+    clear_runtime_conda_env_cache()
+    env_bin = tmp_path / "ac3d" / "bin"
+    env_bin.mkdir(parents=True)
+    python = env_bin / "python"
+    python.write_text("#!/bin/sh\n", encoding="utf-8")
+    python.chmod(0o755)
+
+    assert resolve_model_python("ac3d", env_root=tmp_path) == str(python)
+
+
+def test_resolve_model_python_warns_when_env_declared_but_missing(tmp_path, caplog):
+    with caplog.at_level(logging.WARNING, logger="worldfoundry.runtime.conda"):
+        resolved = resolve_model_python("ac3d", env_root=tmp_path, fallback=sys.executable)
+
+    assert resolved == sys.executable
+    assert any("ac3d" in record.getMessage() for record in caplog.records)
+
+
+def test_resolve_model_python_unknown_model_returns_fallback_quietly(caplog):
+    with caplog.at_level(logging.WARNING, logger="worldfoundry.runtime.conda"):
+        resolved = resolve_model_python("definitely-not-a-registered-model", fallback="/tmp/fallback-py")
+
+    assert resolved == str(Path("/tmp/fallback-py"))
+    assert not caplog.records

@@ -8,8 +8,10 @@ possible.
 
 from __future__ import annotations
 
+import logging
 import os
 import re
+import sys
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
@@ -596,6 +598,9 @@ def resolve_conda_env_context(
     return data
 
 
+LOGGER = logging.getLogger(__name__)
+
+
 def resolve_conda_executable(
     model_id: str,
     executable: str,
@@ -620,6 +625,52 @@ def resolve_conda_executable(
     candidate = spec.executable(executable)
     return str(candidate) if candidate.is_file() else None
 
+
+def resolve_model_python(
+    model_id: str,
+    *,
+    explicit: str | Path | None = None,
+    fallback: str | Path | None = None,
+    manifest_path: str | Path | None = None,
+    env_root: str | Path | None = None,
+    warn_on_missing_env: bool = True,
+) -> str:
+    """Resolve the interpreter for a model, preferring its registered conda env.
+
+    Explicit ``python_executable`` wins.  Otherwise, when a runtime conda spec
+    exists and its env is usable, return that env's ``python``.  If the env is
+    declared but missing, log the env name (no silent ``sys.executable`` swap)
+    and fall back.
+
+    Args:
+        model_id: Catalog / profile model id (e.g. ``scope``, ``ac3d``).
+        explicit: Caller-provided interpreter path.
+        fallback: Interpreter used when no conda env is ready (default: ``sys.executable``).
+        manifest_path: Optional conda env manifest override.
+        env_root: Optional conda envs root override.
+        warn_on_missing_env: Emit a warning when falling back because the env is absent.
+    """
+
+    if explicit is not None and str(explicit).strip():
+        return str(Path(str(explicit)).expanduser())
+    fallback_exe = str(Path(fallback or sys.executable).expanduser())
+    spec = load_runtime_conda_env_spec(model_id, manifest_path, env_root=env_root)
+    if spec is None:
+        return fallback_exe
+    if spec.exists and spec.python_executable.is_file():
+        return str(spec.python_executable)
+    if warn_on_missing_env:
+        LOGGER.warning(
+            "Conda env %r for model %r is not ready at %s; falling back to %s. "
+            "Create the env (or pass python_executable) to avoid the silent shared interpreter.",
+            spec.env_name,
+            model_id,
+            spec.env_prefix,
+            fallback_exe,
+        )
+    return fallback_exe
+
+
 __all__ = [
     "RuntimeCondaEnvSpec",
     "apply_unified_env_override",
@@ -632,5 +683,6 @@ __all__ = [
     "load_runtime_conda_env_specs_with_overrides",
     "resolve_conda_env_context",
     "resolve_conda_executable",
+    "resolve_model_python",
     "unified_env_blocker",
 ]
