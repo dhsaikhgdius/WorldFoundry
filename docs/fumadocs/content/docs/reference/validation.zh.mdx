@@ -21,6 +21,13 @@ description: 代码、文档、runner 和 benchmark facade 的发布门禁。
 
 ## 发布门禁
 
+脚本尚未回仓前的已知软跳过（**DS-03**）：
+
+- `tools/hfd.sh` — 缺失时跳过 `test_hfd_metadata_refresh_failure_preserves_cached_metadata`
+- `scripts/vla_va_wam_acquire.py` — 缺失时跳过整个 `test_vla_va_wam_acquire` 模块
+
+其余依赖 `scripts/download_hfd_models.sh` 的 `test_hfd_download_script` 用例仍是硬门禁。
+
 <Tabs items={['core', 'docs', 'model', 'benchmark']}>
   <Tab>
 
