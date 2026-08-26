@@ -20,7 +20,8 @@ BOOTSTRAP=${WF_EMBODIED_BOOTSTRAP:-0}
 BOOTSTRAP_PACKAGES=${WF_EMBODIED_BOOTSTRAP_PACKAGES:-pyyaml msgpack packaging tqdm websockets}
 SERVER_URL=${WF_EMBODIED_SERVER_URL:-}
 SERVE_CONFIG=${WF_EMBODIED_SERVE_CONFIG:-}
-SERVE_HOST=${WF_EMBODIED_SERVE_HOST:-0.0.0.0}
+# Default to loopback; non-loopback requires WF_EMBODIED_SERVER_TOKEN in model_server.
+SERVE_HOST=${WF_EMBODIED_SERVE_HOST:-127.0.0.1}
 SERVE_PORT=${WF_EMBODIED_SERVE_PORT:-8000}
 READY_TIMEOUT=${WF_EMBODIED_SERVE_READY_TIMEOUT:-1800}
 PLAN_ONLY=${WF_EMBODIED_PLAN_ONLY:-0}
@@ -59,19 +60,33 @@ fi
 SERVER_PID=
 cleanup() {
   if [[ -n "${SERVER_PID}" ]]; then
-    kill "${SERVER_PID}" >/dev/null 2>&1 || true
-    wait "${SERVER_PID}" >/dev/null 2>&1 || true
+    # Kill the process group started via setsid when available.
+    if kill -0 -- "-${SERVER_PID}" >/dev/null 2>&1; then
+      kill -- "-${SERVER_PID}" >/dev/null 2>&1 || true
+      wait "${SERVER_PID}" >/dev/null 2>&1 || true
+    else
+      kill "${SERVER_PID}" >/dev/null 2>&1 || true
+      wait "${SERVER_PID}" >/dev/null 2>&1 || true
+    fi
   fi
 }
 trap cleanup EXIT
 
 if [[ -n "${SERVE_CONFIG}" ]]; then
-  "${PYTHON_BIN}" -m worldfoundry.evaluation.tasks.embodied.model_server.serve \
-    --config "${SERVE_CONFIG}" \
-    --host "${SERVE_HOST}" \
-    --port "${SERVE_PORT}" &
+  if command -v setsid >/dev/null 2>&1; then
+    setsid "${PYTHON_BIN}" -m worldfoundry.evaluation.tasks.embodied.model_server.serve \
+      --config "${SERVE_CONFIG}" \
+      --host "${SERVE_HOST}" \
+      --port "${SERVE_PORT}" &
+  else
+    "${PYTHON_BIN}" -m worldfoundry.evaluation.tasks.embodied.model_server.serve \
+      --config "${SERVE_CONFIG}" \
+      --host "${SERVE_HOST}" \
+      --port "${SERVE_PORT}" &
+  fi
   SERVER_PID=$!
   SERVER_URL=${SERVER_URL:-ws://127.0.0.1:${SERVE_PORT}}
+  # TCP connect readiness; protocol HELLO ping is a follow-up improvement.
   "${PYTHON_BIN}" - "${SERVE_PORT}" "${READY_TIMEOUT}" <<'PY'
 import socket
 import sys

@@ -89,7 +89,9 @@ class ScorerServiceConfig:
             AgenticToolSuccessConfig,
         )
         return cls(
-            host=str(server.get("host", "0.0.0.0")),
+            # Loopback by default: the /score endpoint only requires a token on
+            # non-loopback binds, so an omitted server.host must not expose it.
+            host=str(server.get("host", "127.0.0.1")),
             port=int(server.get("port", 8080)),
             fail_fast=bool(server.get("fail_fast", True)),
             videopickscore=video_config,

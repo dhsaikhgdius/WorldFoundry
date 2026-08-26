@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import enum
 import time
-from typing import Any
+from typing import Any, Mapping
 
 
 PROTOCOL_VERSION = 1
@@ -13,6 +13,8 @@ PROTOCOL_VERSION = 1
 
 class MessageType(str, enum.Enum):
     HELLO = "hello"
+    PING = "ping"
+    PONG = "pong"
     OBSERVATION = "observation"
     ACTION = "action"
     EPISODE_START = "episode_start"
@@ -101,10 +103,29 @@ def hello_payload(**extra: Any) -> dict[str, Any]:
     }
 
 
+def assert_compatible_protocol_version(payload: Mapping[str, Any] | None, *, peer: str) -> None:
+    """Raise ``RuntimeError`` when a peer advertises an incompatible protocol version."""
+
+    if not isinstance(payload, Mapping):
+        return
+    raw = payload.get("protocol_version")
+    if raw is None:
+        return
+    try:
+        version = int(raw)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(f"invalid {peer} protocol_version: {raw!r}") from exc
+    if version != int(PROTOCOL_VERSION):
+        raise RuntimeError(
+            f"protocol_version mismatch: {peer}={version} local={PROTOCOL_VERSION}"
+        )
+
+
 __all__ = [
     "PROTOCOL_VERSION",
     "Message",
     "MessageType",
+    "assert_compatible_protocol_version",
     "hello_payload",
     "pack_message",
     "unpack_message",

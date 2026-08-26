@@ -1,0 +1,133 @@
+# Candidate conda environments for runtime/probes.py (plan R-09).
+# Path templates may use: {conda_root}, {conda_envs_root}, {model_root},
+# {repo_root}, {sys_executable}.
+
+gpu_candidates:
+  benchmark_cu113: "{conda_envs_root}/worldfoundry-zeroscope-cu113/bin/python"
+  benchmark_worldplay: "{conda_root}/worldplay/bin/python"
+  benchmark_worldscore: "{conda_root}/worldscore/bin/python"
+  benchmark_cu113_animatediff: "{conda_envs_root}/worldfoundry-animatediff-official-cu113/bin/python"
+  benchmark_cu113_zeroscope: "{conda_envs_root}/worldfoundry-zeroscope-cu113/bin/python"
+
+environment_specs:
+  base_current:
+    python: "{sys_executable}"
+    modules:
+      - numpy
+      - torch
+      - cv2
+      - decord
+    pythonpath:
+      - "{repo_root}"
+  worldplay_vbench:
+    python: "{conda_root}/worldplay/bin/python"
+    modules:
+      - torch
+      - torchvision
+      - numpy
+      - cv2
+      - decord
+      - sentencepiece
+      - vbench
+      - pkg_resources
+      - clip
+    pythonpath:
+      - "{model_root}/VBench"
+      - "{repo_root}"
+  worldscore:
+    python: "{conda_root}/worldscore/bin/python"
+    modules:
+      - numpy
+      - torch
+      - cv2
+      - decord
+      - fire
+      - mmengine
+      - omegaconf
+      - structlog
+      - submitit
+      - pyiqa
+      - pytorch_lightning
+      - lietorch
+      - spacy
+      - cvxpy
+      - clip
+      - transformers
+      - huggingface_hub
+      - h5py
+      - pycocotools
+      - supervision
+      - yacs
+      - loguru
+      - einops
+      - timm
+      - imageio
+      - iopath
+      - torchmetrics
+      - mamba_ssm
+      - causal_conv1d
+      - droid_backends
+      - groundingdino._C
+      - sam2._C
+    pythonpath:
+      - "{model_root}/WorldScore"
+      - "{repo_root}"
+  worldplay_worldscore:
+    python: "{conda_root}/worldplay/bin/python"
+    modules:
+      - numpy
+      - torch
+      - cv2
+      - decord
+      - fire
+      - mmengine
+      - omegaconf
+      - structlog
+      - submitit
+      - pyiqa
+      - pytorch_lightning
+      - lietorch
+      - spacy
+      - cvxpy
+      - clip
+      - transformers
+      - huggingface_hub
+      - h5py
+      - pycocotools
+      - supervision
+      - yacs
+      - loguru
+      - einops
+      - timm
+      - imageio
+      - iopath
+      - torchmetrics
+      - mamba_ssm
+      - causal_conv1d
+      - droid_backends
+      - groundingdino._C
+      - sam2._C
+    pythonpath:
+      - "{model_root}/WorldScore"
+      - "{repo_root}"
+  benchmark_cu113:
+    python: "{conda_envs_root}/worldfoundry-zeroscope-cu113/bin/python"
+    modules:
+      - torch
+      - torchvision
+      - numpy
+      - cv2
+      - decord
+      - sentencepiece
+      - vbench
+      - pkg_resources
+      - clip
+      - fire
+      - mmengine
+      - omegaconf
+      - structlog
+      - submitit
+    pythonpath:
+      - "{model_root}/VBench"
+      - "{model_root}/WorldScore"
+      - "{repo_root}"
