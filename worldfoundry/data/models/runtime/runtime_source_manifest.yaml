@@ -13,8 +13,7 @@ packaged:
 - worldfoundry/synthesis/visual_generation/uni3c/uni3c_runtime
 # All other discovered ``*_runtime`` directories default to checkout_only.
 # Nested dirs (e.g. matrix_game_2_runtime/utils/vae_runtime) inherit the parent.
-
-# First SY-06 checkout_only cohort that must carry UPSTREAM + license artifacts.
+# SY-06 checkout_only cohorts that must carry UPSTREAM + license artifacts.
 checkout_only_provenance:
 - worldfoundry/synthesis/visual_generation/ac3d/ac3d_runtime
 - worldfoundry/synthesis/visual_generation/allegro/allegro_runtime
@@ -28,3 +27,15 @@ checkout_only_provenance:
 - worldfoundry/synthesis/visual_generation/forcing/causal_forcing_runtime
 - worldfoundry/synthesis/visual_generation/framepack/framepack_runtime
 - worldfoundry/synthesis/visual_generation/genie_envisioner/genie_envisioner_runtime
+- worldfoundry/synthesis/visual_generation/giga_world_0/giga_world_0_runtime
+- worldfoundry/synthesis/visual_generation/hydra/hydra_runtime
+- worldfoundry/synthesis/visual_generation/infinite_world/infinite_world_runtime
+- worldfoundry/synthesis/visual_generation/inspatio_world/inspatio_world_runtime
+- worldfoundry/synthesis/visual_generation/kling/astra_runtime
+- worldfoundry/synthesis/visual_generation/kling/recammaster_runtime
+- worldfoundry/synthesis/visual_generation/lingbot_world/lingbot_world_runtime
+- worldfoundry/synthesis/visual_generation/liveworld/liveworld_runtime
+- worldfoundry/synthesis/visual_generation/lyra_1/lyra1_runtime
+- worldfoundry/synthesis/visual_generation/matrix_game/matrix_game_2_runtime
+- worldfoundry/synthesis/visual_generation/open_sora/open_sora_runtime
+- worldfoundry/synthesis/visual_generation/open_sora_plan/open_sora_plan_runtime
