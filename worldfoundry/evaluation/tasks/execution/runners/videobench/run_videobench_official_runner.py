@@ -23,7 +23,7 @@ from worldfoundry.evaluation.tasks.execution.framework.io import (
     write_json,
     write_jsonl,
 )
-from worldfoundry.evaluation.utils import HFD_DATASET_CACHE_ROOT, REPO_ROOT, worldfoundry_hfd_dataset_root
+from worldfoundry.evaluation.utils import REPO_ROOT, hfd_dataset_cache_root, worldfoundry_hfd_dataset_root
 from worldfoundry.runtime.env import (  # type: ignore[reportMissingImports]  # noqa: E402
     resolve_data_dir,
     resolve_hf_cache_dir,
@@ -161,7 +161,7 @@ def common_dataset_candidates(repo_id: str) -> list[Path]:
         data_dir / owner / name,
         data_dir / hfd_name,
         data_dir / "hfd_datasets" / hfd_name,
-        HFD_DATASET_CACHE_ROOT / hfd_name,
+        hfd_dataset_cache_root() / hfd_name,
         REPO_ROOT / "worldfoundry" / "data" / "benchmarks" / "external" / owner / name,
         REPO_ROOT / "data" / "benchmark_zoo" / owner / name,
         REPO_ROOT / "tmp" / "benchmark_zoo" / "datasets" / owner / name,

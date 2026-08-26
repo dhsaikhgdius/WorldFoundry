@@ -24,7 +24,7 @@ from worldfoundry.evaluation.tasks.execution.framework.io import (
     write_json,
     write_jsonl,
 )
-from worldfoundry.evaluation.utils import HFD_DATASET_CACHE_ROOT, REPO_ROOT, worldfoundry_hfd_dataset_root
+from worldfoundry.evaluation.utils import REPO_ROOT, hfd_dataset_cache_root, worldfoundry_hfd_dataset_root
 from worldfoundry.runtime.env import (  # type: ignore[reportMissingImports]  # noqa: E402
     first_env_value,
     resolve_hf_cache_dir,
@@ -97,7 +97,7 @@ def local_worldscore_data_paths(cache_dir: Path) -> list[Path]:
         worldfoundry_hfd_dataset_root() / WORLDSCORE_HFD_DIR_NAME,
         cache_dir / WORLDSCORE_HFD_DIR_NAME,
         REPO_ROOT / "cache" / "worldfoundry" / "assets" / "worldscore_official" / "data",
-        HFD_DATASET_CACHE_ROOT / WORLDSCORE_HFD_DIR_NAME,
+        hfd_dataset_cache_root() / WORLDSCORE_HFD_DIR_NAME,
     ]
     selected: list[Path] = []
     seen: set[str] = set()
