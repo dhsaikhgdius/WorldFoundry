@@ -15,7 +15,7 @@
 """DepthAnything v3 depth/feature visualization and export helpers."""
 
 import os
-import subprocess
+from pathlib import Path
 
 import cv2
 import imageio
@@ -27,7 +27,10 @@ from tqdm.auto import tqdm
 
 from worldfoundry.base_models.three_dimensions.depth.depth_anything.depth_anything_v3.specs import Prediction
 from worldfoundry.base_models.three_dimensions.depth.depth_anything.depth_anything_v3.utils.logger import logger
-from worldfoundry.base_models.three_dimensions.depth.depth_anything.depth_anything_v3.utils.pca_utils import PCARGBVisualizer
+from worldfoundry.base_models.three_dimensions.depth.depth_anything.depth_anything_v3.utils.pca_utils import (
+    PCARGBVisualizer,
+)
+from worldfoundry.core.process import run_logged_subprocess
 from worldfoundry.core.utils.parallel_execution import async_call
 
 
@@ -155,7 +158,8 @@ def export_to_feat_vis(
             imageio.imwrite(save_path, save, quality=95)
         input_pattern = os.path.join(out_dir, k, "%06d.jpg")
         output_path = os.path.join(out_dir, f"{k}.mp4")
-        subprocess.run(
+        log_dir = Path(out_dir) / "ffmpeg_logs"
+        completed = run_logged_subprocess(
             [
                 "ffmpeg",
                 "-loglevel",
@@ -174,5 +178,11 @@ def export_to_feat_vis(
                 "yuv420p",
                 output_path,
             ],
-            check=True,
+            stdout_path=log_dir / f"{k}.stdout.log",
+            stderr_path=log_dir / f"{k}.stderr.log",
         )
+        if completed.returncode != 0:
+            raise RuntimeError(
+                f"ffmpeg failed exporting {output_path} with code {completed.returncode}; "
+                f"see {log_dir / f'{k}.stdout.log'} and {log_dir / f'{k}.stderr.log'}"
+            )

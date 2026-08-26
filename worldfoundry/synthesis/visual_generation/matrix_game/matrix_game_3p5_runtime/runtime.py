@@ -19,6 +19,7 @@ from worldfoundry.core.io.paths import (
     resolve_local_checkpoint_file,
     resolve_local_hf_model_path,
 )
+from worldfoundry.core.process import run_logged_subprocess
 
 from .config_paths import MATRIX_GAME_35_CONFIG_ROOT, matrix_game_35_infer_config_path
 from .specs import MatrixGame35ModelSpec, get_matrix_game_35_model_spec
@@ -652,7 +653,8 @@ class MatrixGame35Runtime:
         run_root = Path(tempfile.mkdtemp(prefix=f"worldfoundry_{self.model_id}_"))
         input_dir = run_root / "inputs"
         input_dir.mkdir(parents=True, exist_ok=True)
-        log_path = run_root / "infer.log"
+        log_path = run_root / "infer.stdout.log"
+        stderr_path = run_root / "infer.stderr.log"
         run_name = f"wf_{uuid.uuid4().hex}"
         succeeded = False
         launched = False
@@ -685,23 +687,21 @@ class MatrixGame35Runtime:
                 keep_workspace=preserve_workspace,
                 extra_args=pipeline_args,
             )
-            with log_path.open("w", encoding="utf-8") as log_handle:
-                launched = True
-                completed = subprocess.run(
-                    plan.command,
-                    cwd=plan.workdir,
-                    env=dict(plan.env),
-                    stdout=log_handle,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                    timeout=timeout,
-                    check=False,
-                )
+            launched = True
+            completed = run_logged_subprocess(
+                plan.command,
+                stdout_path=log_path,
+                stderr_path=stderr_path,
+                cwd=plan.workdir,
+                env=dict(plan.env),
+                timeout=timeout,
+            )
             if completed.returncode != 0:
                 tail = _log_tail(log_path)
+                err_tail = _log_tail(stderr_path)
                 raise RuntimeError(
                     f"Matrix-Game 3.5 inference failed with exit code {completed.returncode}. "
-                    f"Preserved run directory: {run_root}\n{tail}"
+                    f"Preserved run directory: {run_root}\n{tail}\n{err_tail}"
                 )
             if not plan.result_path.is_file() or plan.result_path.stat().st_size <= 0:
                 raise RuntimeError(
