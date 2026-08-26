@@ -118,6 +118,10 @@ def resolve_hf_path(path: str | PathLike[str] | None) -> str | Any:
       WorldFoundry-local snapshot, otherwise downloads only the requested
       subtree through the configured Hugging Face endpoint.
 
+    Remote misses go through :func:`maybe_download_hf_repo_on_rank0` (rank-0
+    download + FileLock + disk preflight) and then reopen with
+    ``local_files_only=True``, matching :func:`materialize_hf_snapshot`.
+
     Set ``HF_HUB_OFFLINE=1`` when runtime I/O must remain strictly offline.
     """
     if not isinstance(path, str) or not path:
@@ -133,10 +137,13 @@ def resolve_hf_path(path: str | PathLike[str] | None) -> str | Any:
     try:
         local_root = resolve_local_hf_model_path(repo_id)
     except FileNotFoundError:
+        allow_patterns = _allow_patterns_for_subpath(subpath)
+        maybe_download_hf_repo_on_rank0(repo_id, allow_patterns=allow_patterns)
         local_root = Path(
             _snapshot_download(
                 repo_id=repo_id,
-                allow_patterns=_allow_patterns_for_subpath(subpath),
+                allow_patterns=allow_patterns,
+                local_files_only=True,
             )
         )
     resolved = local_root / subpath if subpath else local_root
