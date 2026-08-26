@@ -6,15 +6,19 @@ configure WorldFoundry without loading an accelerator runtime.
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import importlib
 import importlib.metadata
+import json
 import logging
 import os
 import re
+import shutil
 import sys
 import tempfile
 import threading
+import time
 import warnings
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -443,10 +447,149 @@ def compile_callable_cached(
         return compiled
 
 
+def resolve_compile_cache_base(*, environ: Mapping[str, str] | None = None) -> Path:
+    """Return the process compile-cache root (parent of fingerprint dirs)."""
+
+    env = os.environ if environ is None else environ
+    configured_root = str(env.get("WORLDFOUNDRY_COMPILE_CACHE_DIR", "") or "").strip()
+    if configured_root:
+        return Path(configured_root).expanduser()
+    return resolve_cache_dir(env) / "compile"
+
+
+def gc_compile_cache(
+    *,
+    keep_current: bool = True,
+    max_age_days: float | None = None,
+    dry_run: bool = False,
+    environ: MutableMapping[str, str] | None = None,
+) -> dict[str, Any]:
+    """Remove stale fingerprint directories under the compile cache base.
+
+    Fingerprint directories are direct children of the cache base (excluding the
+    shared ``cuda`` driver cache). By default the currently configured
+    fingerprint is retained; pass ``keep_current=False`` to consider all
+    fingerprint trees eligible. When ``max_age_days`` is set, only directories
+    whose mtime is older than that age are removed.
+    """
+
+    env = os.environ if environ is None else environ
+    base = resolve_compile_cache_base(environ=env)
+    keep: set[str] = set()
+    if keep_current:
+        layout = configure_persistent_compile_cache(environ=env)
+        keep.add(layout.fingerprint)
+        # Shared driver cache must never be treated as a fingerprint tree.
+        if layout.cuda is not None:
+            keep.add(layout.cuda.name)
+
+    removed: list[str] = []
+    skipped: list[str] = []
+    errors: list[str] = []
+    now = time.time()
+    max_age_seconds = None if max_age_days is None else float(max_age_days) * 86400.0
+
+    if not base.is_dir():
+        return {
+            "base": str(base),
+            "removed": removed,
+            "skipped": skipped,
+            "errors": errors,
+            "dry_run": dry_run,
+        }
+
+    for child in sorted(base.iterdir()):
+        if not child.is_dir():
+            continue
+        name = child.name
+        if name == "cuda" or name in keep:
+            skipped.append(str(child))
+            continue
+        if max_age_seconds is not None:
+            try:
+                age = now - child.stat().st_mtime
+            except OSError as exc:
+                errors.append(f"{child}: {exc}")
+                continue
+            if age < max_age_seconds:
+                skipped.append(str(child))
+                continue
+        if dry_run:
+            removed.append(str(child))
+            continue
+        try:
+            shutil.rmtree(child)
+            removed.append(str(child))
+        except OSError as exc:
+            errors.append(f"{child}: {exc}")
+
+    return {
+        "base": str(base),
+        "removed": removed,
+        "skipped": skipped,
+        "errors": errors,
+        "dry_run": dry_run,
+        "kept": sorted(keep),
+    }
+
+
+def _main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="WorldFoundry torch.compile cache utilities")
+    parser.add_argument(
+        "--gc",
+        action="store_true",
+        help="Garbage-collect stale fingerprint directories under the compile cache root",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Report directories that would be removed without deleting them",
+    )
+    parser.add_argument(
+        "--max-age-days",
+        type=float,
+        default=None,
+        help="Only remove fingerprint dirs older than this many days",
+    )
+    parser.add_argument(
+        "--all-fingerprints",
+        action="store_true",
+        help="Do not retain the current process fingerprint (still skips shared cuda/)",
+    )
+    parser.add_argument("--json", action="store_true", help="Emit GC report as JSON")
+    args = parser.parse_args(argv)
+    if not args.gc:
+        parser.error("specify --gc (other subcommands are not implemented yet)")
+    report = gc_compile_cache(
+        keep_current=not args.all_fingerprints,
+        max_age_days=args.max_age_days,
+        dry_run=args.dry_run,
+    )
+    if args.json:
+        print(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        print(f"compile cache base: {report['base']}")
+        print(f"removed ({len(report['removed'])}):")
+        for path in report["removed"]:
+            print(f"  - {path}")
+        if report["errors"]:
+            print("errors:", file=sys.stderr)
+            for err in report["errors"]:
+                print(f"  - {err}", file=sys.stderr)
+            return 1
+    return 1 if report["errors"] else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(_main())
+
+
 __all__ = [
     "CompileCacheLayout",
     "CompilePolicy",
     "compile_callable_cached",
     "compile_module_cached",
     "configure_persistent_compile_cache",
+    "gc_compile_cache",
+    "resolve_compile_cache_base",
 ]

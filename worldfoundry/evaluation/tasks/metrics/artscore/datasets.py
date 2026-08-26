@@ -23,7 +23,7 @@ def get_dataset(args, dataset_class):
 
     try:
         drop_ratio = args.drop_ratio
-    except:
+    except Exception:
         drop_ratio = 0
     for idx, line in enumerate(table):
         if idx > 0:

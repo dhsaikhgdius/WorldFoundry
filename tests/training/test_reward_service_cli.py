@@ -198,5 +198,11 @@ def test_train_reward_service_cli_starts_agentic_scorers(monkeypatch) -> None:
     service = call["service"]
     assert isinstance(service, NativeRewardService)
     assert service.registry.names == ("correctness", "tool-success")
-    assert call["host"] == "0.0.0.0"
+    assert call["host"] == "127.0.0.1"
     assert call["port"] == 8080
+
+
+def test_reward_service_config_defaults_to_loopback_host() -> None:
+    config = ScorerServiceConfig.from_mapping({"scorers": {"correctness": {}}})
+    assert config.host == "127.0.0.1"
+    assert config.port == 8080

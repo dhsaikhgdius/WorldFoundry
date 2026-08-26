@@ -274,7 +274,8 @@ class Config(object):
             }
 
         elif filepath.endswith((".yml", ".yaml")):
-            cfg_dict = yaml.load(open(filepath, "r"), Loader=yaml.Loader)
+            with open(filepath, "r") as handle:
+                cfg_dict = yaml.safe_load(handle)
         elif filepath.endswith(".json"):
             cfg_dict = json.load(open(filepath, "r"))
         else:

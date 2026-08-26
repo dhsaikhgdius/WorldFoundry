@@ -37,6 +37,8 @@ export HF_ENDPOINT=https://hf-mirror.com
 
 You can also keep using `hf download` after setting `HF_ENDPOINT=https://hf-mirror.com`. For gated repos, accept the license on huggingface.co first, then pass `--hf_token "${HF_TOKEN}"`.
 
+Mirrors are always opt-in. Studio-dispatched child processes inherit whatever `HF_ENDPOINT` your shell exports and are never redirected to a third-party mirror by default. To route only WorldFoundry-managed child processes through a mirror, export `WORLDFOUNDRY_HF_ENDPOINT=https://hf-mirror.com`; it takes precedence over an inherited `HF_ENDPOINT` for those children.
+
 ## 1. Initialize directories and env vars
 
 These directories are runtime state, not source code. Put them on durable storage with enough capacity for checkpoints, datasets, metric weights, generated videos, and result bundles.

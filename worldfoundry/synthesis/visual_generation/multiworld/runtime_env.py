@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Optional
 
 from worldfoundry.core.io.paths import package_module_root as package_root
+from worldfoundry.core.io.paths import project_root as resolve_project_root
 
 
 DEFAULT_ITTAKESTWO_CONFIG_RELATIVE_PATH = "ittakestwo/configs/inference_480P_toy.yaml"
@@ -34,23 +35,9 @@ MULTIWORLD_CONFIG_DIR = package_root("worldfoundry") / "data" / "models" / "runt
 
 
 def project_root() -> Path:
-    """
-    Determines the root directory of the current Python project.
+    """Return the WorldFoundry repository root (``paths.project_root``)."""
 
-    It searches upwards from the current file's location for a 'pyproject.toml' file.
-    If 'pyproject.toml' is not found within a reasonable depth, it falls back
-    to a predefined parent level, assuming a specific project structure.
-
-    Returns:
-        Path: The resolved path to the project root directory.
-    """
-    current = Path(__file__).resolve()
-    # Iterate through parent directories to find 'pyproject.toml' indicating the project root.
-    for parent in current.parents:
-        if (parent / "pyproject.toml").is_file():
-            return parent
-    # Fallback if 'pyproject.toml' is not found after searching, assuming a specific project structure.
-    return current.parents[6]
+    return resolve_project_root(__file__)
 
 
 def _candidate_runtime_root(path_value: Path) -> Optional[Path]:

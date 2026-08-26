@@ -160,7 +160,9 @@ def blipscore(config_path, args):
         blip_retrieval,
     )
 
-    config = yaml.load(open(config_path, 'r'), Loader=yaml.Loader)
+    yaml_loader = yaml.YAML(typ="safe")
+    with open(config_path, "r") as handle:
+        config = yaml_loader.load(handle)
 
     #### Dataset #### 
     print("Creating BLIP dataset")
