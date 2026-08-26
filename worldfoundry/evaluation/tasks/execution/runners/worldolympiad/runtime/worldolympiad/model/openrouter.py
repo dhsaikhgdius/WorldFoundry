@@ -6,6 +6,22 @@ import time
 import json
 
 
+_OPENROUTER_API_KEY_ENV_NAMES = (
+    "OPENROUTER_API_KEY",
+    "WORLDFOUNDRY_OPENROUTER_API_KEY",
+    "api_key",  # legacy lowercase name; kept for backward compatibility
+)
+
+
+def openrouter_api_key() -> str | None:
+    """Resolve the OpenRouter bearer token from conventional env names."""
+    for name in _OPENROUTER_API_KEY_ENV_NAMES:
+        value = os.getenv(name)
+        if value and str(value).strip():
+            return str(value).strip()
+    return None
+
+
 def clean_json_content(content: str) -> str:
     content = content.strip()
     if content.startswith("```json"):
@@ -71,7 +87,7 @@ def text_openrouter_call(system_prompt: str, user_content: str, model_name: str)
         ],
     }
     headers = {
-        "Authorization": f"Bearer {os.getenv('api_key')}",
+        "Authorization": f"Bearer {openrouter_api_key()}",
         "Content-Type": "application/json",
     }
     url = "https://openrouter.ai/api/v1/chat/completions"
@@ -130,7 +146,7 @@ def video_openrouter_call(data_url, system_prompt: str, user_content: str, model
     }
     url = "https://openrouter.ai/api/v1/chat/completions"
     headers = {
-        "Authorization": f"Bearer {os.getenv('api_key')}",
+        "Authorization": f"Bearer {openrouter_api_key()}",
         "Content-Type": "application/json"
     }
     resp_json = _post_with_retry(url, headers, payload, timeout=180, max_retries=3)
@@ -149,7 +165,7 @@ def chat_openrouter_call(
     payload = {"model": model_name, "messages": messages}
     url = "https://openrouter.ai/api/v1/chat/completions"
     headers = {
-        "Authorization": f"Bearer {os.getenv('api_key')}",
+        "Authorization": f"Bearer {openrouter_api_key()}",
         "Content-Type": "application/json",
     }
     return _post_with_retry(url, headers, payload, timeout=timeout, max_retries=max_retries)
