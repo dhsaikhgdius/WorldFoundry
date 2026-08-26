@@ -1,6 +1,18 @@
 .PHONY: help install-core install-dev docs-check lint ruff-check format-check shell-check data-check runtime-registry-check compile-eval cli-check precommit precommit-install preflight test-eval-core test-training
 
-PYTHON ?= python
+# Prefer an explicit PYTHON= override. Otherwise use `python` when present, else
+# fall back to `python3` (common on minimal VMs that only ship python3).
+ifeq ($(origin PYTHON),command line)
+  # keep caller-provided PYTHON=
+else
+  ifeq ($(shell command -v python >/dev/null 2>&1 && echo yes),yes)
+    PYTHON := python
+  else ifeq ($(shell command -v python3 >/dev/null 2>&1 && echo yes),yes)
+    PYTHON := python3
+  else
+    PYTHON := python
+  endif
+endif
 PIP ?= $(PYTHON) -m pip
 PRE_COMMIT ?= $(PYTHON) -m pre_commit
 PYTHONPATH ?= .
