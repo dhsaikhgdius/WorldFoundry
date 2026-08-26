@@ -173,3 +173,19 @@ def test_batch5_orchestration_runners_use_paths_project_root() -> None:
         assert "from worldfoundry.core.io.paths import" in text, rel
         assert "project_root" in text, rel
         assert "Path(__file__).resolve().parents[" not in text, rel
+
+
+def test_batch6_more_runners_use_paths_project_root() -> None:
+    """docker_runner / fetv / videophy / worldolympiad / worldreasonbench."""
+    repo = Path(__file__).resolve().parents[2]
+    for rel in (
+        "worldfoundry/evaluation/tasks/embodied/docker_runner.py",
+        "worldfoundry/evaluation/tasks/execution/runners/fetv/fetv_official_runtime.py",
+        "worldfoundry/evaluation/tasks/execution/runners/videophy/videophy_runtime.py",
+        "worldfoundry/evaluation/tasks/execution/runners/worldolympiad/run_worldolympiad_official_runner.py",
+        "worldfoundry/evaluation/tasks/execution/runners/worldreasonbench/run_worldreasonbench_official_runner.py",
+    ):
+        text = (repo / rel).read_text(encoding="utf-8")
+        assert "from worldfoundry.core.io.paths import" in text, rel
+        assert "project_root" in text, rel
+        assert "Path(__file__).resolve().parents[" not in text, rel
