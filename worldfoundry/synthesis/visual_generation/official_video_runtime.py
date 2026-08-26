@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from worldfoundry.core.io import file_sha256, load_serialized, resolve_data_path
+from worldfoundry.core.io.paths import project_root
 from worldfoundry.runtime.assets import expand_worldfoundry_path
 
 
@@ -468,7 +469,7 @@ class OfficialVideoRuntime:
         if isinstance(cwd_template, str) and cwd_template.strip():
             cwd = str(Path(cwd_template.format(**{name: str(item) for name, item in variables.items()})).expanduser())
         env = os.environ.copy()
-        src_root = Path(__file__).resolve().parents[3]
+        src_root = project_root(__file__) / "worldfoundry"
         prepend_repo_root = bool(self.runtime.get("prepend_repo_root_to_pythonpath", True))
         env["PYTHONPATH"] = os.pathsep.join(
             item

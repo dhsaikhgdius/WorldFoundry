@@ -16,6 +16,8 @@ import importlib.util
 import os
 import sys
 from pathlib import Path
+
+from worldfoundry.core.io.paths import project_root
 from types import ModuleType
 
 import cv2
@@ -83,11 +85,7 @@ DeepCacheHelper = None
 
 
 def _project_root() -> Path:
-    current = Path(__file__).resolve()
-    for parent in current.parents:
-        if (parent / "pyproject.toml").is_file():
-            return parent
-    return current.parents[5] if len(current.parents) > 5 else current.parent
+    return project_root(__file__)
 
 
 def _checkpoint_root() -> Path:
