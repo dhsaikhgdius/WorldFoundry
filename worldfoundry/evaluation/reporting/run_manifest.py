@@ -59,6 +59,11 @@ _SENSITIVE_KEY_SEGMENT_PAIRS = frozenset(
     }
 )
 _CAMEL_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
+# CLI argv flags whose *following* value must be redacted in list payloads.
+_CLI_SECRET_FLAG = re.compile(
+    r"^--?[A-Za-z0-9_-]*(?:api[_-]?key|access[_-]?token|auth(?:orization)?|password|passwd|secret|token|credential)[A-Za-z0-9_-]*$",
+    re.IGNORECASE,
+)
 
 
 def _is_sensitive_key(key: str) -> bool:
@@ -83,7 +88,11 @@ def redact_secrets(value: Any) -> Any:
 
     Args:
         value: Configuration payload that may contain token, API key, password, or secret fields.
+            String leaves are scrubbed with :func:`redact_sensitive_text`. List payloads also
+            redact the value following ``--*-api-key`` / ``--*-token`` style CLI flags.
     """
+
+    from worldfoundry.core.logging_setup import redact_sensitive_text
 
     payload = jsonable(value)
     if isinstance(payload, Mapping):
@@ -92,7 +101,21 @@ def redact_secrets(value: Any) -> Any:
             for key, item in payload.items()
         }
     if isinstance(payload, list):
-        return [redact_secrets(item) for item in payload]
+        out: list[Any] = []
+        redact_next = False
+        for item in payload:
+            if redact_next:
+                out.append("<redacted>")
+                redact_next = False
+                continue
+            if isinstance(item, str) and _CLI_SECRET_FLAG.match(item.strip()):
+                out.append(item)
+                redact_next = True
+                continue
+            out.append(redact_secrets(item))
+        return out
+    if isinstance(payload, str):
+        return redact_sensitive_text(payload)
     return payload
 
 

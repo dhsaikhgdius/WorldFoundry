@@ -73,3 +73,34 @@ def test_redact_secrets_recurses_nested_config() -> None:
             "items": [{"auth_token": "<redacted>"}],
         },
     }
+
+
+def test_redact_secrets_scrubs_string_leaves_and_cli_argv_pairs() -> None:
+    redacted = redact_secrets(
+        {
+            "command": [
+                "python",
+                "run.py",
+                "--api-key",
+                "sk-live-should-hide",
+                "--hf-token",
+                "hf_should_hide_too",
+                "--temperature",
+                "0.2",
+            ],
+            "note": "Authorization: Bearer leaky-bearer-token-value",
+        }
+    )
+
+    assert redacted["command"] == [
+        "python",
+        "run.py",
+        "--api-key",
+        "<redacted>",
+        "--hf-token",
+        "<redacted>",
+        "--temperature",
+        "0.2",
+    ]
+    assert "leaky-bearer-token-value" not in redacted["note"]
+    assert "[REDACTED]" in redacted["note"]

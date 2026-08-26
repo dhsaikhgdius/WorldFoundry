@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from worldfoundry.core.logging_setup import redact_sensitive_text
 from worldfoundry.core.time import utc_now_iso as _utc_now_iso
 
 TERMINAL_JOB_STATUSES = frozenset({"completed", "failed", "cancelled"})
@@ -230,7 +231,9 @@ class CommandJob:
     def append_log(self, stream: str, text: str) -> None:
         """Append a timestamped log entry for *stream* (stdout or stderr)."""
         if text:
-            self.logs.append({"time": _utc_now_iso(), "stream": stream, "text": text})
+            self.logs.append(
+                {"time": _utc_now_iso(), "stream": stream, "text": redact_sensitive_text(text)}
+            )
 
     def log_text(self, *, stream: str | None = None, limit: int | None = None) -> str:
         """Return concatenated text from log entries, optionally filtered by stream."""
