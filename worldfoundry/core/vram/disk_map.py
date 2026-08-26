@@ -115,7 +115,9 @@ class DiskMap(Mapping):
         param = self.files[file_id].get_tensor(name)
         if self.torch_dtype is not None and isinstance(param, torch.Tensor):
             param = param.to(self.torch_dtype)
-        if isinstance(param, torch.Tensor) and param.device == "cpu":
+        # torch.device never equals the plain string "cpu"; compare the device
+        # type so CPU tensors are actually detached from the mmapped file.
+        if isinstance(param, torch.Tensor) and getattr(param.device, "type", None) == "cpu":
             param = param.clone()
         if isinstance(param, torch.Tensor):
             self.num_params += param.numel()

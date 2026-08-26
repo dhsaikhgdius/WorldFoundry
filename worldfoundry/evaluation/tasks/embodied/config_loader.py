@@ -57,6 +57,7 @@ def _load_runtime_profile(benchmark_id: str) -> dict[str, Any]:
 
 def _docker_defaults_for_benchmarks(benchmarks: list[Mapping[str, Any]]) -> dict[str, Any]:
     defaults: dict[str, Any] = {}
+    first_docker_benchmark_id = ""
     for bench in benchmarks:
         benchmark_id = str(bench.get("benchmark_id") or bench.get("id") or "")
         profile_docker = dict(_load_runtime_profile(benchmark_id).get("docker") or {})
@@ -64,9 +65,19 @@ def _docker_defaults_for_benchmarks(benchmarks: list[Mapping[str, Any]]) -> dict
             continue
         if not defaults:
             defaults = profile_docker
+            first_docker_benchmark_id = benchmark_id
             continue
         if profile_docker.get("image") != defaults.get("image"):
-            return {}
+            # Returning {} here would silently drop the docker defaults and run
+            # every benchmark on the host, which is never what the profiles
+            # requested. Fail loudly instead.
+            raise ValueError(
+                "embodied benchmarks in one config require different docker images: "
+                f"{first_docker_benchmark_id!r} uses {defaults.get('image')!r} but "
+                f"{benchmark_id!r} uses {profile_docker.get('image')!r}. "
+                "Split the config so each benchmark (or group sharing one image) "
+                "runs from its own config file."
+            )
         defaults = _deep_merge(defaults, profile_docker)
     return defaults
 

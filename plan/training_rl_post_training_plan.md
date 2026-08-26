@@ -605,23 +605,23 @@ tests/training/
 ### 13.1 已有真实证据
 
 仓库外 gate report
-`/mnt/cpfsB/yangboxue/visual_generation/juanxi/.cache/worldfoundry/wan21-real-dmd-gate-20260730f/gate_result.json`
+`<WORKSPACE_PARENT>/.cache/worldfoundry/wan21-real-dmd-gate-20260730f/gate_result.json`
 记录了一次 Wan2.1 T2V 1.3B、单张 A100-SXM4-80GB 的 native DMD update、DCP immediate/continuous resume 与 fresh-base PEFT reload。但该报告早于本轮 FastVideo cadence 审计：当时 student 在第 1 次 iteration 更新且 accumulation=1，不能作为当前修正后发布 profile 的真权重证据，只保留为历史工程记录，并由下述修正后报告取代。
 
 仓库外 gate report
-`/mnt/cpfsB/yangboxue/visual_generation/juanxi/.cache/worldfoundry/wan21-real-dmd-gate-20260809-official-resume-oracle/gate_result.json`
+`<WORKSPACE_PARENT>/.cache/worldfoundry/wan21-real-dmd-gate-20260809-official-resume-oracle/gate_result.json`
 记录了修正后 FastVideo profile 的 Wan2.1 T2V 1.3B 单卡门禁：student 与 fake-score 的 gradient accumulation 均为 8，前 4 次 logical iteration 只更新 fake-score，第 5 次提交一次 student 更新后再更新 fake-score。student 的 240 个 LoRA tensor 与 fake-score 的 480 个 LoRA tensor 全部发生变化；step-5 checkpoint immediate resume、从同一 live step-5 boundary 分叉的 step-6 continuation、以及 fresh-base student PEFT reload 都逐 tensor/状态精确一致。continuation 对照明确复用同一个训练分支，而不是比较两次独立 CUDA 初始化。峰值 CUDA allocation 为 14,506,540,544 bytes，运行 138.5 秒。该报告取代上一段历史报告作为当前单卡 profile 证据，但不外推到 full tuning、2+ GPU 或长程质量。
 
 仓库外 gate report
-`/mnt/cpfsB/yangboxue/visual_generation/juanxi/.cache/worldfoundry/wan21-real-flow-grpo-gate-20260801f/gate_result.json`
+`<WORKSPACE_PARENT>/.cache/worldfoundry/wan21-real-flow-grpo-gate-20260801f/gate_result.json`
 记录了一次 Wan2.1 T2V 1.3B、固定 Qwen2-VL/VideoReward、64×64×5、group size 2、单张 A100-SXM4-80GB 的 native Flow-GRPO rollout→VAE decode→VideoAlign→replay→LoRA update→DCP immediate resume→PEFT export。240 个 LoRA 参数张量发生变化；恢复时 480 个 trainable-state 张量以及 engine、progress、data cursor、generator state 精确一致；峰值 CUDA allocation 为 10,905,873,920 bytes，运行 209.1 秒。该证据不外推到其他分辨率、group size、reward、拓扑或训练时长。
 
 仓库外报告
-`/mnt/cpfsB/yangboxue/visual_generation/juanxi/.cache/worldfoundry/anyflow-real-far-gate-20260809a/summary.json`
+`<WORKSPACE_PARENT>/.cache/worldfoundry/anyflow-real-far-gate-20260809a/summary.json`
 记录了 AnyFlow FAR 官方 1.3B checkpoint 在单张 A100 上的 native load 与 BF16 finite forward：1,422,147,136 个参数，输入输出均为 `[1,16,9,4,4]`，峰值显存约 2.67 GiB。
 
 仓库外报告
-`/mnt/cpfsB/yangboxue/visual_generation/juanxi/.cache/worldfoundry/anyflow-real-bidirectional-gate-20260809a/summary.json`
+`<WORKSPACE_PARENT>/.cache/worldfoundry/anyflow-real-bidirectional-gate-20260809a/summary.json`
 记录了 AnyFlow 双向官方 1.3B checkpoint 的 native load、两次真实 optimizer update、DCP step-1 恢复和 resumed step-2。连续与恢复后的 loss 都是 `2.4771006107330322`；model、optimizer、engine、progress 与 RNG 状态直接逐字段/逐 tensor 比较一致，98,304 个被跟踪参数元素发生变化，峰值显存约 10.67 GiB。该证据只覆盖双向 pretrain 的单卡短跑。
 
 本仓软件生命周期 gate 另覆盖以下新增执行面，但证据层级仍是 CPU/tiny/native graph：
