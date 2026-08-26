@@ -352,3 +352,21 @@ def test_batch17_core_inference_uses_paths_package_root() -> None:
     assert "from worldfoundry.core.io.paths import" in text
     assert "package_root()" in text
     assert "Path(__file__).resolve().parents[" not in text
+
+
+def test_batch18_perception_modules_use_paths_package_root() -> None:
+    """dreamsim/dvlt cross-package roots use package_root, not Path parents climbs."""
+    repo = Path(__file__).resolve().parents[2]
+    dreamsim = (repo / "worldfoundry/base_models/perception_core/video_quality/dreamsim.py").read_text(
+        encoding="utf-8"
+    )
+    assert "from worldfoundry.core.io.paths import package_root" in dreamsim
+    assert 'package_root() / "base_models" / "perception_core" / "general_perception"' in dreamsim
+    assert "Path(__file__).resolve().parents[" not in dreamsim
+
+    dvlt = (
+        repo / "worldfoundry/base_models/perception_core/general_perception/dinov2/variants/dvlt.py"
+    ).read_text(encoding="utf-8")
+    assert "from worldfoundry.core.io.paths import package_root" in dvlt
+    assert 'package_root() / "base_models" / "three_dimensions" / "depth" / "dvlt"' in dvlt
+    assert "Path(__file__).resolve().parents[" not in dvlt
