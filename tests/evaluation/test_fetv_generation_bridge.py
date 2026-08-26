@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import copy
 
-import cv2
 import numpy as np
 import pytest
 from PIL import Image
+
+cv2 = pytest.importorskip("cv2")
 
 from worldfoundry.core.io.serialization import read_jsonl_objects, write_jsonl
 from worldfoundry.evaluation.api import ArtifactRef, GenerationResult
