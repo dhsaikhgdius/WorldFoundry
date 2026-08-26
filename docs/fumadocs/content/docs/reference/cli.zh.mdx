@@ -309,7 +309,21 @@ Data root、score directory、prompt manifest、judge credential、metric subset
 
 ## 输出与可复现性
 
-Evaluation 命令把持久化文件写入 `--output-dir`。各 benchmark 可能追加自己的文件，但共享 run surface 使用下列 artifact：
+全局日志标志适用于所有命令（另见 [环境 → Logging](/zh/docs/reference/environments#logging)）：
+
+```bash
+worldfoundry-eval --log-level DEBUG --log-json --log-file tmp/wf.log zoo models --json
+```
+
+| 标志 | 等价环境变量 | 说明 |
+| --- | --- | --- |
+| `--log-level` | `WORLDFOUNDRY_LOG_LEVEL` | 不区分大小写的级别名。 |
+| `--log-file` | `WORLDFOUNDRY_LOG_FILE` | 可选文件 sink；否则 CLI 可能创建每次 run 的 `events.jsonl`。 |
+| `--log-json` | `WORLDFOUNDRY_LOG_JSON` | 文件 sink 使用 JSON Lines。 |
+
+CLI 还会导出 `WORLDFOUNDRY_RUN_ID` 与 `WORLDFOUNDRY_LOG_CONTEXT` 供子进程使用。结构化继承优先使用 `LOG_CONTEXT`。
+
+评测命令会在 `--output-dir` 下写入持久文件。具体 benchmark 额外产物会有差异，但共享 run 表面使用这些工件：
 
 | Artifact | 用途 |
 | --- | --- |

@@ -120,6 +120,22 @@ env 文件。这个文件应保留在本机；里面是路径，不应包含密�
 `snapshot_download` 和标准 HF cache 变量。`WORLDFOUNDRY_CKPT_DIR` 用于上游
 runtime 需要固定目录布局的情况，或用软链保持官方路径而不重复复制大文件。
 
+## Logging
+
+CLI 标志与环境变量共用同一套日志管线（`worldfoundry.core.logging_setup.configure_logging`）。
+显式 CLI 标志优先于环境变量。
+
+| 旋钮 | CLI | 环境变量 | 作用 |
+| --- | --- | --- | --- |
+| 级别 | `--log-level` | `WORLDFOUNDRY_LOG_LEVEL` | 控制台与文件 sink 阈值（`DEBUG`/`INFO`/…）。 |
+| 文件 sink | `--log-file` | `WORLDFOUNDRY_LOG_FILE` | 可选旋转日志路径；CLI 可能默认写到每次 run 的 `events.jsonl`。 |
+| JSON Lines | `--log-json` | `WORLDFOUNDRY_LOG_JSON` | 为真时文件 sink 输出 JSON Lines（控制台仍为文本）。 |
+| 关联字段 | （由 CLI 绑定） | `WORLDFOUNDRY_LOG_CONTEXT` | 含 `run_id` / `job_id` / … 的 JSON，供子进程继承。 |
+| Run id 导出 | （由 CLI 写入） | `WORLDFOUNDRY_RUN_ID` | 面向运维可见的 run id；上下文无 `run_id` 时 `get_log_context` 会读取它。 |
+
+框架托管的子进程通过 `log_context_environment()` 获得 `WORLDFOUNDRY_LOG_CONTEXT`。
+若子进程要写结构化生命周期事件，优先传该变量，而不是只复制 `WORLDFOUNDRY_RUN_ID`。
+
 ## 模型专用环境例外
 
 所有模型默认都先从 `worldfoundry-unified-<cuda-tier>` 开始。只有下表这些 profile

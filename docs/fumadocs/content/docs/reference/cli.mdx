@@ -309,6 +309,20 @@ Benchmark-specific inputs such as data roots, score directories, prompt manifest
 
 ## Outputs and reproducibility
 
+Global logging flags apply to every command (also see [Environments → Logging](/docs/reference/environments#logging)):
+
+```bash
+worldfoundry-eval --log-level DEBUG --log-json --log-file tmp/wf.log zoo models --json
+```
+
+| Flag | Equivalent env | Notes |
+| --- | --- | --- |
+| `--log-level` | `WORLDFOUNDRY_LOG_LEVEL` | Case-insensitive level name. |
+| `--log-file` | `WORLDFOUNDRY_LOG_FILE` | Optional file sink; otherwise CLI may create a per-run `events.jsonl`. |
+| `--log-json` | `WORLDFOUNDRY_LOG_JSON` | JSON Lines for the file sink. |
+
+The CLI also exports `WORLDFOUNDRY_RUN_ID` and `WORLDFOUNDRY_LOG_CONTEXT` for child workers. Prefer `LOG_CONTEXT` for structured inheritance.
+
 Evaluation commands write durable files below `--output-dir`. Exact benchmark-owned extras vary, but the shared run surface uses these artifacts:
 
 | Artifact | Purpose |
