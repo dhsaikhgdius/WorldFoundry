@@ -6,9 +6,10 @@ import sys
 from pathlib import Path
 
 from worldfoundry.base_models.capabilities import BASE_MODEL_CAPABILITIES
+from worldfoundry.core.io.paths import package_root
 
 RUNTIME_ROOT = Path(__file__).resolve().parent / "dreamsim_runtime"
-GENERAL_PERCEPTION_ROOT = Path(__file__).resolve().parents[1] / "general_perception"
+GENERAL_PERCEPTION_ROOT = package_root() / "base_models" / "perception_core" / "general_perception"
 
 
 def add_runtime_to_path() -> Path:

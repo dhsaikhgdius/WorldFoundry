@@ -1,17 +1,27 @@
 from __future__ import annotations
 
 import importlib.util
+import json
+import tempfile
 from argparse import Namespace
 from pathlib import Path
 
 import pytest
 import yaml
 
-from worldfoundry.evaluation.tasks.catalog.zoo_registry import clear_benchmark_zoo_registry_cache, load_benchmark_zoo_registry
+from worldfoundry.evaluation.tasks.catalog.zoo_registry import (
+    clear_benchmark_zoo_registry_cache,
+    load_benchmark_zoo_registry,
+)
 from worldfoundry.evaluation.tasks.contracts.external import get_external_benchmark_contract
 from worldfoundry.evaluation.tasks.embodied import EmbodiedClosedLoopRunner
 from worldfoundry.evaluation.tasks.embodied.config_loader import load_canonical_embodied_config
-from worldfoundry.evaluation.tasks.embodied.docker_runner import build_docker_run_command
+from worldfoundry.evaluation.tasks.embodied.docker_runner import build_docker_run_command, write_docker_config
+from worldfoundry.evaluation.tasks.embodied.image_refs import (
+    apply_digest,
+    image_ref_is_floating,
+    repository_name,
+)
 from worldfoundry.evaluation.tasks.embodied.simulators import (
     SIMULATOR_ENTRIES,
     get_simulator_entry,
@@ -20,15 +30,14 @@ from worldfoundry.evaluation.tasks.embodied.simulators import (
 )
 from worldfoundry.evaluation.tasks.embodied.simulators.base import BaseSimulator
 from worldfoundry.evaluation.tasks.embodied.simulators.specs import (
-    DimSpec,
     GRIPPER_CLOSE_NEG,
     GRIPPER_CLOSE_POS,
     POSITION_DELTA,
     ROTATION_AA,
     ROTATION_EULER,
+    DimSpec,
     check_specs,
 )
-
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 HARNESS_EMBODIED_BENCHMARK_IDS = (
@@ -109,13 +118,37 @@ def test_harness_embodied_benchmarks_have_contracts_and_catalog_entries() -> Non
         assert entry.leaderboard_valid is False
 
 
+_OWNED_IMAGE_PREFIXES = (
+    "ghcr.io/openenvision/",
+    "registry.cn-wulanchabu.aliyuncs.com/worldfoundry/",
+)
+
+
 def test_harness_docker_images_match_official_runtime_profiles() -> None:
     profile_root = REPO_ROOT / "worldfoundry" / "data" / "benchmarks" / "runtime_profiles" / "official"
+    digest_map = json.loads(
+        (profile_root / "docker_image_digests.json").read_text(encoding="utf-8")
+    )["images"]
     for profile_id, expected_image in HARNESS_DOCKER_IMAGES.items():
         payload = yaml.safe_load((profile_root / f"{profile_id}.yaml").read_text(encoding="utf-8"))
         docker = payload["docker"]
-        assert docker["image"] == expected_image
-        assert docker["source_image"] == expected_image
+        # D-01: sources may be digest-pinned, but the repository must stay the
+        # official harness repo and any pin must match the registry-resolved map.
+        source = str(docker["source_image"])
+        assert repository_name(source) == repository_name(expected_image), profile_id
+        if image_ref_is_floating(source):
+            assert source == expected_image, profile_id
+        else:
+            mapped = digest_map[expected_image]["digest"]
+            assert source == apply_digest(expected_image, mapped), profile_id
+        # Retag targets must stay identity (mirroring is skipped) or live in a
+        # WorldFoundry-owned namespace so `--push` passes the mirror allowlist.
+        image = str(docker["image"])
+        assert (
+            image == expected_image
+            or image == source
+            or any(image.startswith(prefix) for prefix in _OWNED_IMAGE_PREFIXES)
+        ), f"{profile_id}: unexpected retag target {image!r}"
 
 
 def test_runtime_profiles_canonicalize_to_their_own_benchmark_ids() -> None:
@@ -125,7 +158,8 @@ def test_runtime_profiles_canonicalize_to_their_own_benchmark_ids() -> None:
         assert config["benchmarks"][0]["benchmark_id"] == profile_id
 
 
-def test_docker_runner_forwards_configured_runtime(tmp_path: Path) -> None:
+def test_docker_runner_forwards_configured_runtime(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("WORLDFOUNDRY_EMBODIED_DOCKER_NETWORK", raising=False)
     docker_config_path = tmp_path / "eval_config.yaml"
     docker_config_path.write_text("id: test\n", encoding="utf-8")
 
@@ -137,6 +171,156 @@ def test_docker_runner_forwards_configured_runtime(tmp_path: Path) -> None:
 
     assert "--runtime" in cmd
     assert cmd[cmd.index("--runtime") + 1] == "nvidia"
+    assert cmd[cmd.index("--network") + 1] == "host"
+    assert any(item.endswith(":/workspace/WorldFoundry") for item in cmd)
+
+
+def test_docker_runner_hardening_defaults(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("CUDA_VISIBLE_DEVICES", raising=False)
+    monkeypatch.delenv("WORLDFOUNDRY_EMBODIED_DOCKER_SHM_SIZE", raising=False)
+    docker_config_path = tmp_path / "eval_config.yaml"
+    docker_config_path.write_text("id: test\n", encoding="utf-8")
+
+    cmd = build_docker_run_command(
+        {"docker": {"image": "example/bench:latest"}},
+        docker_config_path=docker_config_path,
+        output_dir=tmp_path / "out",
+    )
+
+    assert "--init" in cmd
+    assert "--shm-size=8g" in cmd
+    assert "PYTHONPATH=/workspace/WorldFoundry" in cmd
+    assert not any("/workspace/WorldFoundry/src" in item for item in cmd)
+    assert "PYTHONDONTWRITEBYTECODE=1" in cmd
+    assert cmd[cmd.index("--gpus") + 1] == "all"
+
+
+def test_docker_runner_shm_size_override_via_config(tmp_path: Path) -> None:
+    docker_config_path = tmp_path / "eval_config.yaml"
+    docker_config_path.write_text("id: test\n", encoding="utf-8")
+
+    cmd = build_docker_run_command(
+        {"docker": {"image": "example/bench:latest", "shm_size": "16g"}},
+        docker_config_path=docker_config_path,
+        output_dir=tmp_path / "out",
+    )
+    assert "--shm-size=16g" in cmd
+
+
+def test_docker_runner_honors_cuda_visible_devices_for_gpus_all(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("CUDA_VISIBLE_DEVICES", "2,3")
+    docker_config_path = tmp_path / "eval_config.yaml"
+    docker_config_path.write_text("id: test\n", encoding="utf-8")
+
+    cmd = build_docker_run_command(
+        {"docker": {"image": "example/bench:latest"}},
+        docker_config_path=docker_config_path,
+        output_dir=tmp_path / "out",
+    )
+    assert cmd[cmd.index("--gpus") + 1] == "device=2,3"
+
+    explicit = build_docker_run_command(
+        {"docker": {"image": "example/bench:latest", "gpus": "device=0"}},
+        docker_config_path=docker_config_path,
+        output_dir=tmp_path / "out",
+    )
+    assert explicit[explicit.index("--gpus") + 1] == "device=0"
+
+
+def test_docker_runner_env_entries_inherit_empty_values(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("WF_TEST_EMPTY_SECRET", "")
+    docker_config_path = tmp_path / "eval_config.yaml"
+    docker_config_path.write_text("id: test\n", encoding="utf-8")
+
+    cmd = build_docker_run_command(
+        {
+            "docker": {
+                "image": "example/bench:latest",
+                "env": ["HF_TOKEN", "STATIC=1", "EXPANDED=$WF_TEST_EMPTY_SECRET"],
+            }
+        },
+        docker_config_path=docker_config_path,
+        output_dir=tmp_path / "out",
+    )
+
+    env_values = [cmd[i + 1] for i, item in enumerate(cmd) if item == "-e"]
+    assert "HF_TOKEN" in env_values
+    assert "STATIC=1" in env_values
+    # Empty expanded values inherit from the host env instead of leaking "" into argv.
+    assert "EXPANDED" in env_values
+    assert not any(value.startswith("EXPANDED=") for value in env_values)
+
+
+def test_docker_runner_network_override_via_config(tmp_path: Path) -> None:
+    docker_config_path = tmp_path / "eval_config.yaml"
+    docker_config_path.write_text("id: test\n", encoding="utf-8")
+
+    cmd = build_docker_run_command(
+        {"docker": {"image": "example/bench:latest", "network": "bridge"}},
+        docker_config_path=docker_config_path,
+        output_dir=tmp_path / "out",
+    )
+    assert cmd[cmd.index("--network") + 1] == "bridge"
+
+
+def test_docker_runner_network_can_be_omitted(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("WORLDFOUNDRY_EMBODIED_DOCKER_NETWORK", "omit")
+    docker_config_path = tmp_path / "eval_config.yaml"
+    docker_config_path.write_text("id: test\n", encoding="utf-8")
+
+    cmd = build_docker_run_command(
+        {"docker": {"image": "example/bench:latest"}},
+        docker_config_path=docker_config_path,
+        output_dir=tmp_path / "out",
+    )
+    assert "--network" not in cmd
+
+
+def test_docker_runner_repo_mount_can_be_readonly(tmp_path: Path) -> None:
+    docker_config_path = tmp_path / "eval_config.yaml"
+    docker_config_path.write_text("id: test\n", encoding="utf-8")
+
+    cmd = build_docker_run_command(
+        {"docker": {"image": "example/bench:latest", "repo_mount_mode": "ro"}},
+        docker_config_path=docker_config_path,
+        output_dir=tmp_path / "out",
+    )
+    assert any(item.endswith(":/workspace/WorldFoundry:ro") for item in cmd)
+
+
+def test_docker_runner_container_name_gets_eval_id_suffix(tmp_path: Path) -> None:
+    docker_config_path = tmp_path / "eval_config.yaml"
+    docker_config_path.write_text("id: test\n", encoding="utf-8")
+
+    cmd = build_docker_run_command(
+        {"docker": {"image": "example/bench:latest", "name": "wf-embodied"}},
+        docker_config_path=docker_config_path,
+        output_dir=tmp_path / "out",
+        eval_id="run42",
+    )
+    assert cmd[cmd.index("--name") + 1] == "wf-embodied-run42"
+
+
+def test_write_docker_config_removes_temp_file_on_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    created: list[Path] = []
+    real_mkstemp = tempfile.mkstemp
+
+    def recording_mkstemp(*args: object, **kwargs: object):
+        fd, path = real_mkstemp(*args, **kwargs)  # type: ignore[arg-type]
+        created.append(Path(path))
+        return fd, path
+
+    monkeypatch.setattr(tempfile, "mkstemp", recording_mkstemp)
+    with pytest.raises(yaml.representer.RepresenterError):
+        write_docker_config({"bad": object()}, tmp_path / "out")
+    assert created
+    assert not created[0].exists()
 
 
 def test_embodied_asset_scaffold_covers_harness_benchmarks(tmp_path: Path) -> None:

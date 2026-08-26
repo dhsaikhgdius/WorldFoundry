@@ -17,20 +17,6 @@ SKIP_FLASH_ATTN=0
 LIST_ONLY=0
 MODELS=()
 
-canonical_model_id() {
-  case "$1" in
-    lyra1)
-      printf '%s\n' "lyra-1"
-      ;;
-    cosmos3-nano|cosmos3-super|cosmos-3|cosmos-3-nano|cosmos-3-super)
-      printf '%s\n' "cosmos3"
-      ;;
-    *)
-      printf '%s\n' "$1"
-      ;;
-  esac
-}
-
 usage() {
   cat <<'EOF'
 Usage: bash scripts/setup/model_env_install.sh --model MODEL [--model MODEL ...] [options]
@@ -69,7 +55,7 @@ EOF
 while (($#)); do
   case "$1" in
     --model)
-      MODELS+=("$(canonical_model_id "$2")")
+      MODELS+=("$2")
       shift 2
       ;;
     --list)
@@ -127,6 +113,13 @@ fi
 if ! command -v "$CONDA_EXE_PATH" >/dev/null 2>&1 && [[ "$LIST_ONLY" != "1" ]]; then
   echo "conda executable not found. Install Miniconda/Anaconda or set CONDA_EXE." >&2
   exit 1
+fi
+
+# Legacy model-id aliases live only in worldfoundry.runtime.conda (I-12);
+# resolve them there instead of keeping a second table in bash.
+if [[ "${#MODELS[@]}" -gt 0 ]]; then
+  CANONICAL_MODELS="$(PYTHONPATH="$WORLDFOUNDRY_SOURCE_ROOT" "$PYTHON_BIN" -m worldfoundry.runtime.conda --canonical-model-id "${MODELS[@]}")"
+  mapfile -t MODELS <<<"$CANONICAL_MODELS"
 fi
 
 CUDA_REPORT="$(PYTHONPATH="$WORLDFOUNDRY_SOURCE_ROOT" "$PYTHON_BIN" -m worldfoundry.runtime.cuda_tiers --requested "$CUDA_TIER_REQUEST" --field json)"
