@@ -18,6 +18,11 @@
 Remote repos are preloaded before ``from_pretrained(..., local_files_only=True)``
 so multi-rank jobs do not race to download the same snapshot or treat a partial
 cache entry as complete.
+
+Cross-process serialization uses a ``FileLock`` under the HF cache
+``.worldfoundry_locks/`` directory. After a successful critical section the lock
+file is best-effort unlinked so abandoned empty lock files do not accumulate;
+concurrent waiters recreate the path on the next acquire.
 """
 
 from __future__ import annotations
@@ -256,6 +261,13 @@ def _download_snapshot(
         if disk_error is not None:
             raise disk_error from exc
         raise
+    else:
+        # Best-effort reclaim: empty lock files otherwise linger forever under
+        # the HF cache (CA-14). Ignore races with concurrent acquirers.
+        try:
+            lock_file.unlink(missing_ok=True)
+        except OSError:
+            pass
 
 
 def maybe_download_hf_repo_on_rank0(
