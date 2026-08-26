@@ -114,14 +114,6 @@ while (($#)); do
       INSTALL_PRESET="$2"
       shift 2
       ;;
-    --pytorch-bundle)
-      INSTALL_ARGS+=(--pytorch-bundle "$2")
-      shift 2
-      ;;
-    --transformers)
-      INSTALL_ARGS+=(--transformers "$2")
-      shift 2
-      ;;
     --skip-flash-attn)
       INSTALL_ARGS+=(--skip-flash-attn)
       shift
