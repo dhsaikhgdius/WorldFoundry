@@ -80,15 +80,18 @@ jobs:
       - name: Eval-core hard gate (stable cuda-tier subset)
         # test_cli_ux.py still carries catalog contract drift on main; keep it out of
         # the hard gate until those assertions are repaired in a content PR.
+        # TE-01: per-test timeout + durations come from pytest.ini; -n auto is safe for
+        # this isolated module.
         run: >
           PYTHONPATH=. python -m pytest
           test/eval_core/test_cuda_tiers.py
           -q -p no:cacheprovider
+          -n auto
           -m "not gpu and not network"
 
       - name: Eval-core full suite (allow failure until contract backlog clears)
         continue-on-error: true
-        run: make test-eval-core PYTEST_ARGS='-m "not gpu and not network"'
+        run: make test-eval-core EVAL_CORE_XDIST='-n auto' PYTEST_ARGS='-m "not gpu and not network"'
 
   training-tests:
     runs-on: ubuntu-latest

@@ -322,6 +322,8 @@ studio_plot = [
 test = [
     "pytest>=8,<10",
     "pytest-cov>=5,<7",
+    "pytest-timeout>=2.3,<3",
+    "pytest-xdist>=3.6,<4",
     "numpy",
     "pillow",
     "pandas",
