@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from worldfoundry.core.io.paths import project_root
+
 import pytest
 
 torch = pytest.importorskip("torch")
@@ -150,7 +152,7 @@ def test_flow_policy_builder_dispatches_grpo_guard_runtime() -> None:
 
 def test_checked_in_grpo_guard_config_and_public_exports_are_canonical() -> None:
     pytest.importorskip("yaml")
-    root = Path(__file__).resolve().parents[6]
+    root = project_root(__file__)
     recipe = PostTrainingRecipe.from_file(root / "configs/post_training/wan_1p3b_grpo_guard.yaml")
 
     assert isinstance(recipe.algorithm, GRPOGuardAlgorithmSpec)
