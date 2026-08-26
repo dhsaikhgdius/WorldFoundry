@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import os
 import shutil
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -19,6 +18,7 @@ from worldfoundry.core.io.paths import (
 from worldfoundry.core.io.paths import (
     package_module_root as package_root,
 )
+from worldfoundry.core.process import run_logged_subprocess, synthesis_timeout_seconds
 
 DEFAULT_PROMPT = "A cinematic video with coherent motion, rich detail, and realistic lighting."
 TORCHVISION_VIDEO_COMPAT_DIR = Path(__file__).resolve().parent / "torchvision_video_compat"
@@ -615,17 +615,21 @@ class _ForcingRuntime:
                 extended_prompt_path=extended_prompt_path,
                 i2v=i2v,
             )
-            completed = subprocess.run(
+            log_path = output_dir / f"{self.model_id}.stdout.log"
+            stderr_path = output_dir / f"{self.model_id}.stderr.log"
+            completed = run_logged_subprocess(
                 command,
-                check=False,
+                stdout_path=log_path,
+                stderr_path=stderr_path,
                 cwd=str(runtime_cwd),
                 env=self._subprocess_env(compat_dir=compat_dir),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
+                timeout=synthesis_timeout_seconds(),
             )
             if completed.returncode != 0:
-                tail = "\n".join((completed.stdout or "").splitlines()[-40:])
+                try:
+                    tail = "\n".join(log_path.read_text(encoding="utf-8").splitlines()[-40:])
+                except OSError:
+                    tail = f"(unable to read {log_path})"
                 raise RuntimeError(
                     f"{self.model_name} command failed with exit code {completed.returncode}.\n{tail}"
                 )

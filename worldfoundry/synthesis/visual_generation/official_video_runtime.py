@@ -5,7 +5,6 @@ import json
 import os
 import shutil
 import socket
-import subprocess
 import sys
 import time
 from contextlib import nullcontext
@@ -15,6 +14,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from worldfoundry.core.io import file_sha256, load_serialized, resolve_data_path
+from worldfoundry.core.process import run_logged_subprocess, synthesis_timeout_seconds
 from worldfoundry.runtime.assets import expand_worldfoundry_path
 
 
@@ -500,18 +500,17 @@ class OfficialVideoRuntime:
                 }
             )
         started_at = time.time()
-        completed = subprocess.run(
+        log_path = output_path.with_suffix(output_path.suffix + ".log")
+        stderr_path = output_path.with_suffix(output_path.suffix + ".stderr.log")
+        completed = run_logged_subprocess(
             rendered,
+            stdout_path=log_path,
+            stderr_path=stderr_path,
             cwd=cwd,
             env=env,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            check=False,
+            timeout=synthesis_timeout_seconds(),
         )
         if completed.returncode != 0:
-            log_path = output_path.with_suffix(output_path.suffix + ".log")
-            log_path.write_text(completed.stdout + "\n" + completed.stderr, encoding="utf-8")
             return {
                 "status": "failed",
                 "runtime": "official_cli",
@@ -520,8 +519,6 @@ class OfficialVideoRuntime:
                 "error": f"official CLI exited with code {completed.returncode}; see {log_path}",
                 "metadata": {"command": rendered, "log_path": str(log_path)},
             }
-        log_path = output_path.with_suffix(output_path.suffix + ".log")
-        log_path.write_text(completed.stdout + "\n" + completed.stderr, encoding="utf-8")
         produced = self._resolve_produced_artifact(
             output_path,
             search_dirs=(variables.get("output_dir"), output_path.parent),

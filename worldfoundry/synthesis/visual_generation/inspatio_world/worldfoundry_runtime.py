@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -21,6 +20,7 @@ from worldfoundry.core.io.paths import (
     hfd_root_path,
     resolve_local_hf_model_path,
 )
+from worldfoundry.core.process import run_logged_subprocess, synthesis_timeout_seconds
 from worldfoundry.evaluation.utils import worldfoundry_data_path
 
 
@@ -645,17 +645,21 @@ class InspatioWorldRuntime:
             command.append("--compile_dit")
 
         env = self._build_runtime_env()
-        stdout = None if show_progress else subprocess.DEVNULL
-        stderr = None if show_progress else subprocess.STDOUT
-
-        subprocess.run(
+        log_path = resolved_output_root / "inspatio_world.stdout.log"
+        stderr_path = resolved_output_root / "inspatio_world.stderr.log"
+        completed = run_logged_subprocess(
             command,
-            check=True,
+            stdout_path=log_path,
+            stderr_path=stderr_path,
             cwd=self.repo_root,
             env=env,
-            stdout=stdout,
-            stderr=stderr,
+            timeout=synthesis_timeout_seconds(),
         )
+        if completed.returncode != 0:
+            raise RuntimeError(
+                f"InSpatio-World generation failed with exit code {completed.returncode}; "
+                f"see {log_path} and {stderr_path}"
+            )
 
         generated_video_paths = sorted(
             path.resolve()

@@ -18,6 +18,7 @@ REPO_ROOT = Path(__file__).resolve().parents[6]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from worldfoundry.core.process import run_logged_subprocess
 from worldfoundry.core.time import utc_now_iso  # noqa: E402
 from worldfoundry.evaluation.reporting.scorecard import SCORECARD_SCHEMA_VERSION  # noqa: E402
 from worldfoundry.evaluation.tasks.execution.framework.io import env_path, write_json  # noqa: E402
@@ -666,17 +667,22 @@ def run_official_wbench(args: argparse.Namespace) -> dict[str, Any]:
     if args.weights_dir is not None:
         env["WBENCH_WEIGHTS_DIR"] = str(args.weights_dir.expanduser().resolve())
     started = utc_now_iso()
-    proc = subprocess.run(
+    stdout_path = output_dir / "wbench_official_runtime.stdout.log"
+    stderr_path = output_dir / "wbench_official_runtime.stderr.log"
+    proc = run_logged_subprocess(
         command,
+        stdout_path=stdout_path,
+        stderr_path=stderr_path,
         cwd=str(root),
         env=env,
-        text=True,
-        capture_output=True,
-        check=False,
         timeout=default_benchmark_timeout(),
     )
     log_path = output_dir / "wbench_official_runtime.log"
-    log_path.write_text((proc.stdout or "") + ("\n[stderr]\n" + proc.stderr if proc.stderr else ""), encoding="utf-8")
+    stderr_text = stderr_path.read_text(encoding="utf-8")
+    log_path.write_text(
+        stdout_path.read_text(encoding="utf-8") + ("\n[stderr]\n" + stderr_text if stderr_text else ""),
+        encoding="utf-8",
+    )
     eval_dir = Path(work_dir).expanduser().resolve() / model / "evaluation"
     report_path = eval_dir / "report.json"
     args.official_results_path = report_path if report_path.is_file() else eval_dir
