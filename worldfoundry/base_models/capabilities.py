@@ -34,11 +34,7 @@ def _path_tokens(env: Mapping[str, str] | None = None) -> dict[str, str]:
     cache_root = Path(core_tokens["WORLDFOUNDRY_CACHE_DIR"]).expanduser()
     data_root = Path(core_tokens["WORLDFOUNDRY_DATA_DIR"]).expanduser()
     hfd_root = Path(core_tokens["WORLDFOUNDRY_HFD_ROOT"]).expanduser()
-    hfd_dataset_root = Path(
-        environ.get("WORLDFOUNDRY_HFD_DATASET_ROOT")
-        or environ.get("WORLDFOUNDRY_LOCAL_DATA_ROOT")
-        or data_root / "hfd_datasets"
-    ).expanduser()
+    hfd_dataset_root = Path(core_tokens["WORLDFOUNDRY_HFD_DATASET_ROOT"]).expanduser()
     default_workspace_root = hfd_root.parent
     workspace_root = str(
         Path(

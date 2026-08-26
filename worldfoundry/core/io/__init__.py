@@ -161,6 +161,7 @@ _EXPORT_MODULES = {
     "host_id": "worldfoundry.core.io.file_utils",
     "host_name": "worldfoundry.core.io.file_utils",
     "hfd_root_path": "worldfoundry.core.io.paths",
+    "hfd_dataset_root_path": "worldfoundry.core.io.paths",
     "hydra_config": "worldfoundry.core.io.config_utils",
     "hydra_original_dir": "worldfoundry.core.io.config_utils",
     "hydra_override_arg_list": "worldfoundry.core.io.config_utils",
