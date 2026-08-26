@@ -57,6 +57,7 @@ from .conda_dispatch import (
 )
 from .execution import RunRecord, StudioManager, _is_gaussian_splat_ply
 from .jobs import StudioJob, StudioJobStore, format_elapsed
+from .launch_config import resolve_workspace_max_jobs
 from .serving import (
     bind_security_warning,
     path_allowed,
@@ -86,8 +87,10 @@ def _initial_studio_job_counter(workspace_root: str) -> int:
 
 
 JOBS = StudioJobStore(
-    max_workers=int(os.getenv("WORLDFOUNDRY_WORKSPACE_MAX_JOBS", "8") or "8"),
+    max_workers=resolve_workspace_max_jobs(),
     initial_counter=_initial_studio_job_counter(MANAGER.workspace_root),
+    state_dir=Path(MANAGER.workspace_root) / "studio_jobs",
+    max_terminal_jobs=int(os.getenv("WORLDFOUNDRY_STUDIO_MAX_TERMINAL_JOBS", "500") or "500"),
 )
 OPENENVISION_LOGO_PATH = Path(__file__).with_name("assets") / "openenvision-logo.png"
 EVALUATION_VALIDATION_RESULTS_PATH = (

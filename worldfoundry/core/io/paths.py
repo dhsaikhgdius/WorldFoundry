@@ -95,10 +95,6 @@ def worldfoundry_path_tokens(env: Mapping[str, str] | None = None) -> dict[str, 
     environ = dict(os.environ if env is None else env)
     root = project_root()
     package = package_root()
-    project_parent = root.parent
-    adjacent_ckpt = project_parent / "ckpt"
-    adjacent_conda = project_parent / "conda"
-    adjacent_conda_envs = adjacent_conda / "envs"
     explicit_home = environ.get("WORLDFOUNDRY_HOME")
     home = Path(explicit_home or Path.home() / ".cache" / "worldfoundry").expanduser()
     cache_default = home / "cache" if explicit_home else home
@@ -118,23 +114,17 @@ def worldfoundry_path_tokens(env: Mapping[str, str] | None = None) -> dict[str, 
     ).expanduser()
     default_model_source = cache / "official_runtime_repos"
     model_source = Path(environ.get("WORLDFOUNDRY_MODEL_SOURCE_DIR") or default_model_source).expanduser()
-    default_ckpt_dir = (
-        adjacent_ckpt if adjacent_ckpt.is_dir() else (home / "checkpoints" if explicit_home else cache / "checkpoints")
-    )
+    # Authoritative layout: ${WORLDFOUNDRY_HOME}/models/checkpoints (no adjacent
+    # ../ckpt or ../conda discovery — set WORLDFOUNDRY_* overrides explicitly).
+    default_ckpt_dir = model_dir / "checkpoints"
     ckpt_dir = Path(environ.get("WORLDFOUNDRY_CKPT_DIR") or default_ckpt_dir).expanduser()
     hfd_root = Path(environ.get("WORLDFOUNDRY_HFD_ROOT") or ckpt_dir / "hfd").expanduser()
-    default_conda_root = (
-        adjacent_conda if adjacent_conda.is_dir() else (home / "conda" if explicit_home else cache / "conda")
-    )
+    default_conda_root = home / "conda" if explicit_home else cache / "conda"
     conda_root = Path(environ.get("WORLDFOUNDRY_CONDA_ROOT") or default_conda_root).expanduser()
-    default_conda_envs_root = (
-        adjacent_conda_envs
-        if adjacent_conda_envs.is_dir()
-        else (home / "conda_envs" if explicit_home else cache / "conda_envs")
-    )
+    default_conda_envs_root = home / "conda_envs" if explicit_home else cache / "conda_envs"
     conda_envs_root = Path(
         environ.get("WORLDFOUNDRY_CONDA_ENVS_ROOT")
-        or environ.get("WORLDFOUNDRY_CONDA_ENV_ROOT")
+        or environ.get("WORLDFOUNDRY_CONDA_ENV_ROOT")  # legacy alias (read-only)
         or default_conda_envs_root
     ).expanduser()
     return {
