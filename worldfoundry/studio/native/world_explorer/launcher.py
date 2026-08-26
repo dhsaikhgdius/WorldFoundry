@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import glob
 import os
-import subprocess
 import sys
 from pathlib import Path
 
+from worldfoundry.core.process import run_logged_subprocess
 from worldfoundry.core.world_explorer import WORLD_EXPLORER_TAG
 
 from . import NATIVE_EXPLORER_ROOT
@@ -63,7 +63,21 @@ def launch_from_studio(entry, launch_config) -> None:
 		client_command.extend(("--negative-prompt", str(required["negative_prompt_path"])))
 	if required.get("da3_model_path_custom"):
 		client_command.extend(("--da3-checkpoint", str(required["da3_model_path_custom"])))
-	subprocess.run(client_command, cwd=NATIVE_EXPLORER_ROOT, env=os.environ.copy(), check=True)
+	log_dir = build_dir / "worldfoundry_launch_logs"
+	stdout_path = log_dir / "client.stdout.log"
+	stderr_path = log_dir / "client.stderr.log"
+	completed = run_logged_subprocess(
+		client_command,
+		stdout_path=stdout_path,
+		stderr_path=stderr_path,
+		cwd=NATIVE_EXPLORER_ROOT,
+		env=os.environ.copy(),
+	)
+	if completed.returncode != 0:
+		raise SystemExit(
+			f"Native World Explorer client exited with code {completed.returncode}; "
+			f"see {stdout_path} and {stderr_path}"
+		)
 
 
 __all__ = ["launch_from_studio"]

@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from worldfoundry.core.io.paths import checkpoint_root_path, hfd_root_path, resolve_data_path
+from worldfoundry.core.io.paths import checkpoint_root_path, hfd_root_path, project_root, resolve_data_path
 from worldfoundry.runtime.in_tree_cli import ensure_in_tree_runtime, execute_in_tree, require_path
 
 
@@ -60,7 +60,7 @@ class VerseCrafterRuntime:
         }
 
     def _python_paths(self) -> tuple[Path, ...]:
-        worldfoundry_root = Path(__file__).resolve().parents[3]
+        worldfoundry_root = project_root(__file__) / "worldfoundry"
         return (
             worldfoundry_root.parent,
             self.repo_root,

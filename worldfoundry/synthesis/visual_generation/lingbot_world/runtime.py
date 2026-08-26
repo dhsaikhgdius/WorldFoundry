@@ -12,6 +12,7 @@ import numpy as np
 import torch
 from PIL import Image
 
+from worldfoundry.core.io.paths import project_root
 from worldfoundry.synthesis.visual_generation.lingbot_world.lingbot_world_runtime import (
     runtime_root as lingbot_runtime_root,
 )
@@ -20,7 +21,7 @@ from worldfoundry.synthesis.visual_generation.lingbot_world.lingbot_world_runtim
 DEFAULT_LINGBOT_BASE_REPO = "robbyant/lingbot-world-base-cam"
 DEFAULT_LINGBOT_FAST_REPO = "robbyant/lingbot-world-fast"
 DEFAULT_LINGBOT_ACT_REPO = "robbyant/lingbot-world-base-act-preview"
-DEFAULT_LINGBOT_HFD_ROOT = Path(__file__).resolve().parents[6] / "cache" / "hfd"
+DEFAULT_LINGBOT_HFD_ROOT = project_root(__file__) / "cache" / "hfd"
 SUPPORTED_LINGBOT_TASKS = frozenset({"i2v-A14B"})
 
 
