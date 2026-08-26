@@ -43,7 +43,21 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           # packaging is required by runtime-registry-check → worldfoundry.runtime.conda
-          python -m pip install PyYAML packaging "ruff==0.12.7"
+          python -m pip install PyYAML packaging "ruff==0.12.7" pre-commit
+
+      - name: Cache pre-commit environments
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+
+      - name: Run pre-commit safe gates (WF-05 subset)
+        # Full `pre-commit run --all-files` still fails on trailing-whitespace/EOF across
+        # vendored + catalog assets, and ruff-format has tree-wide drift. Enforce
+        # merge-conflict + symlink hooks; skip lint (covered by `make lint`) and formatters.
+        env:
+          SKIP: worldfoundry-lightweight-lint,ruff-format,ruff-import-sort,trailing-whitespace,end-of-file-fixer
+        run: python -m pre_commit run --all-files
 
       - name: Run lightweight quality gates
         run: make lint
