@@ -264,6 +264,15 @@ bash "$ROOT/scripts/setup/conda_install.sh" \
   --preset "$INSTALL_PRESET" \
   "${INSTALL_ARGS[@]}"
 
+# Why hand-written wrappers instead of pip console scripts (plan I-13):
+# conda_install.sh installs torch + requirements/worldfoundry-unified.txt but
+# never `pip install -e .`, so pip does not generate the [project.scripts]
+# entry points inside the unified env. These wrappers are the only providers
+# of the `worldfoundry*` commands there; they pin the repo checkout via
+# WORLDFOUNDRY_REPO_ROOT/PYTHONPATH and would intentionally shadow pip entry
+# points if the package were ever installed into the env. The name -> module
+# map below must stay in sync with [project.scripts] in pyproject.toml;
+# test/eval_core/test_unified_install_wrappers.py enforces that contract.
 install_worldfoundry_wrapper() {
   local name="$1"
   local module="$2"

@@ -6,9 +6,11 @@ checkpoints, demo data, and other runtime artifacts.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import os
+from dataclasses import dataclass
 from pathlib import Path
+
+from worldfoundry.core.io.paths import project_root as resolve_project_root
 
 
 @dataclass(frozen=True)
@@ -61,21 +63,9 @@ def runtime_root() -> Path:
 
 
 def project_root() -> Path:
-    """
-    Identifies and returns the root directory of the current project.
-    It does this by searching upwards from the current file for a 'pyproject.toml' file.
-    If 'pyproject.toml' is not found, it falls back to a predefined parent level.
+    """Return the WorldFoundry repository root (``pyproject.toml`` marker)."""
 
-    Returns:
-        Path: The absolute path to the project root directory.
-    """
-    current = Path(__file__).resolve()
-    # Iterate through parent directories to find the project root marked by 'pyproject.toml'.
-    for parent in current.parents:
-        if (parent / "pyproject.toml").is_file():
-            return parent
-    # Fallback to a fixed parent level if 'pyproject.toml' is not found, assuming a specific project structure.
-    return current.parents[6]
+    return resolve_project_root(__file__)
 
 
 def _prefer_existing_path(*candidates: str | Path) -> str:
