@@ -340,7 +340,10 @@ def build_plan(benchmark_id: str, *, repo_root: Path | None = None) -> dict[str,
         "--json",
     ]
     commands = {
-        "bootstrap": "bash scripts/setup/bootstrap_worldfoundry.sh && source tmp/worldfoundry_unified_env.sh",
+        "bootstrap": (
+            "bash scripts/setup/bootstrap_worldfoundry.sh"
+            ' && source "${WORLDFOUNDRY_HOME:-$HOME/.cache/worldfoundry}/worldfoundry_unified_env.sh"'
+        ),
         "asset_plan": f"python scripts/setup/prepare_benchmark_assets.py --benchmark-id {benchmark_id} --json",
         "official_result_import": " ".join(_shell_quote(part) for part in normalize),
     }

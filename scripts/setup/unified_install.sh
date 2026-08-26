@@ -15,7 +15,7 @@ DATA_ROOT_OVERRIDE="${WORLDFOUNDRY_DATA_DIR:-}"
 MODEL_ROOT_OVERRIDE="${WORLDFOUNDRY_MODEL_DIR:-}"
 ARTIFACT_ROOT_OVERRIDE="${WORLDFOUNDRY_ARTIFACT_DIR:-}"
 ENV_ROOT_OVERRIDE="${WORLDFOUNDRY_CONDA_ENVS_ROOT:-${WORLDFOUNDRY_CONDA_ENV_ROOT:-}}"
-ENV_FILE="${WORLDFOUNDRY_ENV_FILE:-tmp/worldfoundry_unified_env.sh}"
+ENV_FILE="${WORLDFOUNDRY_ENV_FILE:-}"
 CONDA_ENVIRONMENT_FILE="${WORLDFOUNDRY_CONDA_ENVIRONMENT_FILE:-environment.yml}"
 WRITE_ENV_FILE=1
 INSTALL_PRESET="${WORLDFOUNDRY_INSTALL_PRESET:-max-infer}"
@@ -43,7 +43,7 @@ Options:
   --data-root PATH      Benchmark/data root. Default: ${WORLDFOUNDRY_HOME}/data.
   --model-root PATH     Model/checkpoint root. Default: ${WORLDFOUNDRY_HOME}/models.
   --artifact-root PATH  Generated artifact root. Default: ${WORLDFOUNDRY_HOME}/artifacts.
-  --env-file PATH       Write sourceable exports. Default: tmp/worldfoundry_unified_env.sh.
+  --env-file PATH       Write sourceable exports. Default: ${WORLDFOUNDRY_HOME:-~/.cache/worldfoundry}/worldfoundry_unified_env.sh.
   --no-env-file         Do not write the env export file.
   --preset NAME         max-infer or slim. Default: max-infer.
                         Both currently install requirements/worldfoundry-unified.txt.
@@ -58,7 +58,7 @@ Options:
   -h, --help            Show this help.
 
 After install:
-  source tmp/worldfoundry_unified_env.sh
+  source the env exports file printed by the installer
   conda activate <printed env prefix>
 EOF
 }
@@ -159,6 +159,12 @@ while (($#)); do
       ;;
   esac
 done
+
+# Resolved after option parsing so a --home override moves the default env
+# file along with the rest of the runtime state (R-08).
+if [[ -z "$ENV_FILE" ]]; then
+  ENV_FILE="${HOME_ROOT}/worldfoundry_unified_env.sh"
+fi
 
 PYTHON_BIN="${PYTHON:-}"
 if [[ -z "$PYTHON_BIN" ]]; then
