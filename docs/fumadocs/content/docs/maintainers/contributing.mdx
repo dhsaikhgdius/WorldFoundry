@@ -38,7 +38,7 @@ Fumadocs is the only maintained documentation surface. Add or update paired Engl
 
 When you change behavior, update the page that owns it:
 
-- **New model or runtime profile** — `guides/supported-models`, `reference/environments`, and the model guide if behavior changes.
+- **New model or runtime profile** — `guides/supported-models`, `reference/environments`, and the model guide if behavior changes. Refresh homepage recipes with `cd docs/fumadocs && npm run models:generate`, then `npm run models:check`.
 - **New benchmark** — `evaluation/benchmark-hub/<benchmark-id>`, the benchmark guide, and maintainer architecture pages when internals change.
 - **CLI or output schema** — `reference/cli` and architecture pages that own the changed behavior.
 - **Internal workflow** — `maintainers/architecture` (especially workflow and evaluation-core).
