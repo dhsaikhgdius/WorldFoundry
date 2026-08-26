@@ -1,0 +1,15 @@
+# SY-05: how each ``*_runtime`` tree is shipped.
+#
+# packaged      — listed in setuptools package-data and/or MANIFEST.in so the
+#                 wheel/sdist carries the tree.
+# checkout_only — excluded from find_packages / not in package-data; local
+#                 editable checkouts and SCM-only trees stay out of the release
+#                 artifact unless explicitly promoted here.
+schema_version: 1
+packaged:
+- worldfoundry/synthesis/visual_generation/matrix_game/matrix_game_3p5_runtime
+- worldfoundry/synthesis/visual_generation/moverse/moverse_runtime
+- worldfoundry/synthesis/visual_generation/rcm/rcm_runtime
+- worldfoundry/synthesis/visual_generation/uni3c/uni3c_runtime
+# All other discovered ``*_runtime`` directories default to checkout_only.
+# Nested dirs (e.g. matrix_game_2_runtime/utils/vae_runtime) inherit the parent.
