@@ -4,7 +4,6 @@ import hashlib
 import json
 import os
 import shutil
-import subprocess
 import sys
 import tempfile
 from dataclasses import dataclass, field
@@ -15,6 +14,7 @@ import yaml
 
 from worldfoundry.evaluation.models.runtime.profiles import load_runtime_profile
 from worldfoundry.evaluation.utils import REPO_ROOT
+from worldfoundry.core.process import run_logged_subprocess, synthesis_timeout_seconds
 from worldfoundry.synthesis.base_synthesis import BaseSynthesis
 from worldfoundry.studio.visualization.core.geometry import depth_to_world_points
 
@@ -326,17 +326,16 @@ class ThreeDFourDRuntimeSynthesis(BaseSynthesis):
             }
 
         log_path = run_dir / "subprocess_runtime.log"
+        stderr_path = run_dir / "subprocess_runtime.stderr.log"
         env = self._subprocess_env(kwargs)
         try:
-            completed = subprocess.run(
+            completed = run_logged_subprocess(
                 command,
+                stdout_path=log_path,
+                stderr_path=stderr_path,
                 cwd=str(self.source_root),
                 env=env,
-                text=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                timeout=timeout_seconds,
-                check=False,
+                timeout=synthesis_timeout_seconds(default=float(timeout_seconds) if timeout_seconds else None),
             )
         except Exception as exc:  # pragma: no cover - runtime/environment dependent.
             return {
@@ -351,7 +350,6 @@ class ThreeDFourDRuntimeSynthesis(BaseSynthesis):
                 "error": f"{type(exc).__name__}: {exc}",
                 "metadata": plan_payload,
             }
-        log_path.write_text(completed.stdout or "", encoding="utf-8")
         if completed.returncode != 0:
             return {
                 "status": "failed",
