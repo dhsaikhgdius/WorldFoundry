@@ -21,6 +21,7 @@ import socket
 import struct
 import threading
 import time
+import types
 from dataclasses import dataclass, field, fields, FrozenInstanceError
 from html import escape
 from pathlib import Path
@@ -248,6 +249,42 @@ class TestViserFunctions:
         }):
             port = _pick_pool_port("test-env-override")
             assert 30000 <= port < 30004
+
+    def test_start_viser_server_retries_eaddrinuse(self):
+        import errno
+        from worldfoundry.studio.visualization.backends.viser import _start_viser_server
+
+        class _FakeServer:
+            def __init__(self, host, port, verbose=False):
+                self._port = port
+
+            def get_port(self):
+                return self._port
+
+        attempts: list[int] = []
+
+        def factory(host, port, verbose=False):
+            attempts.append(port)
+            if len(attempts) == 1:
+                raise OSError(errno.EADDRINUSE, "Address already in use")
+            return _FakeServer(host, port, verbose=verbose)
+
+        with patch.dict(
+            os.environ,
+            {
+                "WORLDFOUNDRY_STUDIO_VISER_PORT_BASE": "31000",
+                "WORLDFOUNDRY_STUDIO_VISER_PORT_COUNT": "3",
+            },
+        ):
+            server, port = _start_viser_server(
+                host="127.0.0.1",
+                port=None,
+                run_id="rt04-retry",
+                viser_module=types.SimpleNamespace(ViserServer=factory),
+            )
+        assert attempts[0] != port
+        assert port == attempts[1]
+        assert server.get_port() == port
 
     def test_env_float_rejects_invalid_values(self):
         from worldfoundry.studio.visualization.backends.viser import _env_float

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import errno
 import hashlib
 import importlib.util
 import json
@@ -384,6 +385,50 @@ def _resolve_viser_port(run_id: str, *, host: str, requested_port: int | None) -
     if requested_port is not None:
         return int(requested_port)
     return _pick_pool_port(run_id, host=host)
+
+
+def _is_addr_in_use(exc: BaseException) -> bool:
+    """Return True when ``exc`` indicates the TCP bind address is already taken."""
+
+    if isinstance(exc, OSError) and getattr(exc, "errno", None) in {errno.EADDRINUSE, 98, 10048}:
+        return True
+    text = str(exc).casefold()
+    return "address already in use" in text or "eaddrinuse" in text
+
+
+def _iter_pool_ports(run_id: str) -> list[int]:
+    """Return the deterministic pool order used by ``_pick_pool_port``."""
+
+    base = _env_int("WORLDFOUNDRY_STUDIO_VISER_PORT_BASE", DEFAULT_VISER_PORT_BASE)
+    count = _env_int("WORLDFOUNDRY_STUDIO_VISER_PORT_COUNT", DEFAULT_VISER_PORT_COUNT)
+    start = _stable_port_offset(run_id or "studio", count)
+    return [base + ((start + step) % count) for step in range(count)]
+
+
+def _start_viser_server(*, host: str, port: int | None, run_id: str, viser_module: Any) -> tuple[Any, int]:
+    """Construct ``ViserServer``, retrying the next pool port on EADDRINUSE (TOCTOU).
+
+    ``_port_is_free`` can race with another process between the probe and
+    ``ViserServer`` bind; when the requested port is from the pool, walk the
+    remaining candidates instead of failing the presentation.
+    """
+
+    if port is not None:
+        candidates = [int(port)]
+    else:
+        candidates = _iter_pool_ports(run_id)
+    errors: list[str] = []
+    for candidate in candidates:
+        try:
+            server = viser_module.ViserServer(host=host, port=candidate, verbose=False)
+            return server, int(server.get_port())
+        except Exception as exc:
+            if port is not None or not _is_addr_in_use(exc):
+                raise
+            errors.append(f"{candidate}: {exc}")
+            continue
+    detail = "; ".join(errors) or "no candidates"
+    raise OSError(f"No free Viser ports in pool for run_id={run_id!r} ({detail})")
 
 
 def _geometry_imports_available() -> bool:
@@ -923,9 +968,15 @@ class StudioViserService:
             if self._server is not None:
                 self._server.stop()
                 self._server = None
-            port = _resolve_viser_port(run_id, host=host, requested_port=port)
-            server = viser.ViserServer(host=host, port=port, verbose=False)
-            port = int(server.get_port())
+            # Honor an explicit port when provided; otherwise walk the pool and
+            # retry on EADDRINUSE so a TOCTOU race after _port_is_free cannot
+            # fail the presentation.
+            server, port = _start_viser_server(
+                host=host,
+                port=port,
+                run_id=run_id,
+                viser_module=viser,
+            )
             server.scene.set_up_direction(up_direction)
             camera_position, camera_target, camera_up = _initial_camera_pose(points, mesh, up_direction)
             server.initial_camera.position = camera_position
