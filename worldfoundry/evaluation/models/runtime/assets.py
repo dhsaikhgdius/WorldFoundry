@@ -399,6 +399,91 @@ def load_runtime_asset_profile_by_id(model_id: str, **kwargs: Any) -> RuntimeAss
 resolve_runtime_asset_profile = load_runtime_asset_profile_by_id
 
 
+def _checkpoint_entry_candidates(item: Mapping[str, Any]) -> tuple[str, ...]:
+    """Expand one profile ``checkpoints[]`` mapping into ordered path/URI strings."""
+
+    local_dir = _expand_asset_path(item.get("local_dir"))
+    if local_dir:
+        return (local_dir,)
+    local_path = _expand_asset_path(item.get("local_path") or item.get("path"))
+    if local_path and not local_path.startswith(("http://", "https://", "hf://", "s3://", "hdfs://")):
+        return (local_path,)
+    repo_id = item.get("repo_id")
+    if isinstance(repo_id, str) and repo_id.strip():
+        filename = item.get("filename")
+        if isinstance(filename, str) and filename.strip():
+            return (f"hf://{repo_id.strip()}/{filename.strip()}",)
+        return (f"hf://{repo_id.strip()}",)
+    uri = item.get("uri") or item.get("url") or item.get("path")
+    if isinstance(uri, str) and uri.strip():
+        return (uri.strip(),)
+    return ()
+
+
+def resolve_profile_checkpoints(
+    model_id: str | RuntimeProfile,
+    *,
+    role: str | None = None,
+    check_conda_env_exists: bool = False,
+) -> tuple[str, ...]:
+    """Return ordered checkpoint path/URI candidates from a runtime profile.
+
+    Prefers expanded ``local_dir`` / ``local_path`` entries, then ``hf://`` /
+    URI forms declared on the profile.  Adapters should call this instead of
+    hardcoding ``parents[N]/ckpt`` fallback trees.
+    """
+
+    from worldfoundry.evaluation.models.runtime.profiles import load_runtime_profile
+
+    profile = (
+        model_id
+        if isinstance(model_id, RuntimeProfile)
+        else load_runtime_profile(str(model_id), check_conda_env_exists=check_conda_env_exists)
+    )
+    paths: list[str] = []
+    for item in profile.checkpoints:
+        if not isinstance(item, Mapping):
+            continue
+        if role is not None and str(item.get("role") or "") != role:
+            continue
+        for candidate in _checkpoint_entry_candidates(item):
+            if candidate and candidate not in paths:
+                paths.append(candidate)
+    return tuple(paths)
+
+
+def resolve_profile_checkpoint(
+    model_id: str | RuntimeProfile,
+    *,
+    role: str | None = None,
+    prefer_existing: bool = True,
+    check_conda_env_exists: bool = False,
+) -> str | None:
+    """Resolve one checkpoint for *model_id* from its runtime profile.
+
+    When ``prefer_existing`` is true, return the first local path that exists on
+    disk; otherwise (or when none exist) return the first candidate (which may
+    be an ``hf://`` URI).  Returns ``None`` when the profile declares no
+    checkpoints.
+    """
+
+    candidates = resolve_profile_checkpoints(
+        model_id,
+        role=role,
+        check_conda_env_exists=check_conda_env_exists,
+    )
+    if not candidates:
+        return None
+    if prefer_existing:
+        for candidate in candidates:
+            if "://" in candidate:
+                continue
+            path = Path(candidate).expanduser()
+            if path.exists():
+                return str(path)
+    return candidates[0]
+
+
 __all__ = [
     "DEFAULT_RUNTIME_ASSETS_ROOT",
     "RuntimeAsset",
@@ -406,5 +491,7 @@ __all__ = [
     "load_runtime_asset_profile",
     "load_runtime_asset_profile_by_id",
     "load_runtime_asset_profiles",
+    "resolve_profile_checkpoint",
+    "resolve_profile_checkpoints",
     "resolve_runtime_asset_profile",
 ]

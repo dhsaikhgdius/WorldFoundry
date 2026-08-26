@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
@@ -11,6 +10,8 @@ import numpy as np
 import torch
 from PIL import Image
 
+from worldfoundry.core.io.paths import checkpoint_root_path
+from worldfoundry.evaluation.models.runtime.assets import resolve_profile_checkpoints
 from worldfoundry.evaluation.models.runtime.profiles import load_runtime_profile
 from worldfoundry.synthesis.base_synthesis import BaseSynthesis
 
@@ -36,12 +37,7 @@ _PROFILE_ID_OVERRIDES: Mapping[str, str] = {
 
 
 def _checkpoint_root() -> Path:
-    return Path(
-        os.environ.get(
-            "WORLDFOUNDRY_CKPT_DIR",
-            str(Path(__file__).resolve().parents[5] / "ckpt"),
-        )
-    ).expanduser()
+    return checkpoint_root_path()
 
 
 def _known_checkpoint_candidates(model_id: str) -> tuple[str, ...]:
@@ -176,33 +172,7 @@ class GeometryPriorSynthesis(BaseSynthesis):
         )
 
     def _checkpoint_paths(self) -> list[str]:
-        paths: list[str] = []
-        for item in self.profile.checkpoints:
-            if not isinstance(item, Mapping):
-                continue
-            local_dir = self._expand_path(item.get("local_dir"))
-            if local_dir:
-                paths.append(local_dir)
-                continue
-            local_path = self._expand_path(item.get("local_path") or item.get("path"))
-            if local_path and not str(local_path).startswith(("http://", "https://")):
-                paths.append(local_path)
-                continue
-            repo_id = item.get("repo_id")
-            if isinstance(repo_id, str) and repo_id.strip():
-                filename = item.get("filename")
-                paths.append(f"hf://{repo_id.strip()}/{filename}" if filename else f"hf://{repo_id.strip()}")
-                continue
-            uri = item.get("uri") or item.get("path")
-            if isinstance(uri, str) and uri.strip():
-                paths.append(uri.strip())
-        return paths
-
-    @staticmethod
-    def _expand_path(value: Any) -> str:
-        if not isinstance(value, str) or not value.strip():
-            return ""
-        return os.path.expandvars(os.path.expanduser(value))
+        return list(resolve_profile_checkpoints(self.profile))
 
     def _existing_checkpoint(self, *, directory_ok: bool = False) -> str:
         explicit = (
