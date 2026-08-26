@@ -44,6 +44,7 @@ from worldfoundry.runtime.device_pool import (
     CudaDeviceLease,
     CudaDeviceLeasePool,
     discover_cuda_device_tokens,
+    ensure_cuda_device_order,
 )
 from worldfoundry.runtime.env import resolve_ckpt_dir, resolve_hf_cache_dir, resolve_hfd_root
 
@@ -53,6 +54,15 @@ from .launch_config import (
     resolve_lingbot_fast_num_procs,
     wmfactory_interactive_model_spec,
 )
+
+
+def _assign_cuda_visible_devices(env: dict[str, str], value: str) -> None:
+    """Write ``CUDA_VISIBLE_DEVICES`` after pinning ``CUDA_DEVICE_ORDER``."""
+
+    ensure_cuda_device_order(env)
+    ensure_cuda_device_order(os.environ)
+    env["CUDA_VISIBLE_DEVICES"] = value
+
 
 # Environment variable set in child processes to prevent recursive dispatch.
 STUDIO_CONDA_CHILD_ENV = "WORLDFOUNDRY_STUDIO_CONDA_CHILD"
@@ -1590,7 +1600,7 @@ def _runtime_env(spec: RuntimeCondaEnvSpec, device: str | None = None) -> dict[s
     if device and device.startswith("cuda"):
         gpu_idx = device.split(":")[1] if ":" in device else None
         if gpu_idx is not None and gpu_idx.isdigit():
-            env["CUDA_VISIBLE_DEVICES"] = gpu_idx
+            _assign_cuda_visible_devices(env, gpu_idx)
     return env
 
 
@@ -1638,9 +1648,9 @@ def _prepare_resident_run_context(
     )
     env = _runtime_env(spec, device=None if wmfactory_visible_devices else str(run_kwargs.get("device", "")))
     if explicit_cuda_visible_devices:
-        env["CUDA_VISIBLE_DEVICES"] = explicit_cuda_visible_devices
+        _assign_cuda_visible_devices(env, explicit_cuda_visible_devices)
     elif wmfactory_visible_devices:
-        env["CUDA_VISIBLE_DEVICES"] = wmfactory_visible_devices
+        _assign_cuda_visible_devices(env, wmfactory_visible_devices)
     _apply_wmfactory_env_hints(model_id, run_kwargs, env)
 
     key = (
@@ -1810,7 +1820,7 @@ def _resident_worker_for(
             if context.automatic_cuda_device_count:
                 device_lease = _automatic_gpu_pool().acquire(context.automatic_cuda_device_count)
                 allocated_env = dict(context.env)
-                allocated_env["CUDA_VISIBLE_DEVICES"] = device_lease.visible_devices
+                _assign_cuda_visible_devices(allocated_env, device_lease.visible_devices)
                 context = replace(
                     context,
                     env=allocated_env,
@@ -2292,9 +2302,9 @@ def _run_manager_payload_in_conda_impl(
         ),
     )
     if explicit_cuda_visible_devices:
-        env["CUDA_VISIBLE_DEVICES"] = explicit_cuda_visible_devices
+        _assign_cuda_visible_devices(env, explicit_cuda_visible_devices)
     elif wmfactory_visible_devices:
-        env["CUDA_VISIBLE_DEVICES"] = wmfactory_visible_devices
+        _assign_cuda_visible_devices(env, wmfactory_visible_devices)
     env.update(secret_env)
     _apply_wmfactory_env_hints(model_id, run_kwargs, env)
     if torchrun_nproc > 1:
