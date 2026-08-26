@@ -1,4 +1,4 @@
-.PHONY: help install-core install-dev docs-check lint ruff-check format-check shell-check data-check runtime-registry-check compile-eval cli-check precommit precommit-install preflight test-eval-core test-training lock-unified
+.PHONY: help install-core install-dev docs-check lint ruff-check format-check shell-check data-check runtime-registry-check compile-eval cli-check precommit precommit-install preflight test-eval-core test-training lock-unified validate-unified-lock
 
 PYTHON ?= python
 PIP ?= $(PYTHON) -m pip
@@ -36,6 +36,7 @@ help:
 		'  make install-dev       Install lightweight development dependencies.' \
 		'  make docs-check        Validate documented CLI entrypoints.' \
 		'  make lint              Run lightweight source and catalog checks.' \
+		'  make validate-unified-lock  Verify cu128 lock torch pin is on CUDA index.' \
 		'  make preflight         Run the public runtime preflight.' \
 		'  make test-eval-core    Run the eval_core release-gate pytest suite (CPU).' \
 		'  make test-training     Run the tests/training pytest suite (CPU subset).'
@@ -51,7 +52,7 @@ docs-check:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m worldfoundry.cli --help >/dev/null
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m worldfoundry.cli zoo benchmarks --json >/dev/null
 
-lint: ruff-check format-check shell-check data-check runtime-registry-check
+lint: ruff-check format-check shell-check data-check runtime-registry-check validate-unified-lock
 
 ruff-check:
 	$(PYTHON) -m ruff check $(RUFF_SOURCES)
@@ -106,6 +107,17 @@ TIER ?= cu128
 
 lock-unified:
 	bash scripts/setup/compile_unified_lock.sh $(TIER)
+
+# I-05: refuse committing a cu128 lock whose torch pin is absent from the CUDA index.
+# Placeholder stubs (still containing "Do not invent") are skipped until populated.
+validate-unified-lock:
+	@lock="requirements/lock/worldfoundry-unified.cu128.lock.txt"; \
+	if [ ! -f "$$lock" ]; then echo "missing $$lock" >&2; exit 1; fi; \
+	if grep -q 'Do not invent' "$$lock"; then \
+	  echo "validate-unified-lock: cu128 lock still placeholder; skip"; \
+	else \
+	  PYTHONPATH=$(PYTHONPATH) $(PYTHON) scripts/setup/validate_unified_lock_tier.py "$$lock" --tier cu128; \
+	fi
 
 test-eval-core:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest test/eval_core -q -p no:cacheprovider $(PYTEST_ARGS)
