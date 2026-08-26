@@ -21,6 +21,7 @@ Environment overrides:
   WORLDFOUNDRY_TEST_IMAGE         Docker image. Default: nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04
   WORLDFOUNDRY_DOCKER_GPUS        Docker --gpus value. Default: all. Use none for CPU-only tests.
   WORLDFOUNDRY_DOCKER_EXTRAS      Editable install extras. Default: tui,optimized_core
+  WORLDFOUNDRY_UV_VERSION         uv installer pin when the image lacks uv. Default: 0.12.6
   WORLDFOUNDRY_BENCHMARK_DATA_ROOT Host benchmark data root mounted into the container.
   WORLDFOUNDRY_UV_CACHE_DIR       Host uv cache. Default: ${HOME}/.cache/uv
   WORLDFOUNDRY_HF_CACHE_DIR       Host Hugging Face cache. Default: ${HOME}/.cache/huggingface
@@ -43,6 +44,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 IMAGE="${WORLDFOUNDRY_TEST_IMAGE:-nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04}"
 GPU_SELECTOR="${WORLDFOUNDRY_DOCKER_GPUS:-all}"
 EXTRAS="${WORLDFOUNDRY_DOCKER_EXTRAS:-tui,optimized_core}"
+UV_VERSION="${WORLDFOUNDRY_UV_VERSION:-0.12.6}"
 
 UV_CACHE_HOST="${WORLDFOUNDRY_UV_CACHE_DIR:-${HOME}/.cache/uv}"
 HF_CACHE_HOST="${WORLDFOUNDRY_HF_CACHE_DIR:-${HOME}/.cache/huggingface}"
@@ -77,6 +79,7 @@ DOCKER_ARGS=(
   -e UV_LINK_MODE=copy
   -e UV_PROJECT_ENVIRONMENT=/tmp/worldfoundry-venv
   -e WORLDFOUNDRY_DOCKER_EXTRAS="${EXTRAS}"
+  -e WORLDFOUNDRY_UV_VERSION="${UV_VERSION}"
   -w /workspace/WorldFoundry
 )
 
@@ -102,7 +105,8 @@ if ! command -v python3 >/dev/null 2>&1 || ! command -v git >/dev/null 2>&1; the
 fi
 
 if ! command -v uv >/dev/null 2>&1; then
-  curl -LsSf https://astral.sh/uv/install.sh | sh
+  UV_VERSION="${WORLDFOUNDRY_UV_VERSION:-0.12.6}"
+  curl -LsSf "https://astral.sh/uv/${UV_VERSION}/install.sh" | sh
   export PATH="${HOME}/.local/bin:${PATH}"
 fi
 
