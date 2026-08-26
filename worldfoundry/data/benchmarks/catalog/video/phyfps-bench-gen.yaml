@@ -164,6 +164,9 @@ data_refs:
   task_yaml: worldfoundry/data/benchmarks/tasks/external/phyfps-bench-gen.yaml
   in_tree_runtime_paths:
   - worldfoundry/evaluation/tasks/execution/runners/phyfps_bench_gen/runtime/visual_chronometer
+dataset:
+  not_applicable: true
+  reason: PhyFPS scoring uses the Visual Chronometer metric checkpoint and caller-provided generated videos; no Hugging Face dataset is required for this contract entry.
 validation_command:
 - worldfoundry-eval
 - zoo

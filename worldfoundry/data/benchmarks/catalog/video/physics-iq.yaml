@@ -105,8 +105,8 @@ runner_availability:
   normalizer_verified: true
   surface: physics_iq_official_in_tree
 dataset:
-  not_applicable: false
-  reason: Official reference videos and real masks must be downloaded separately.
+  not_applicable: true
+  reason: Official reference videos and real masks must be downloaded separately; no Hugging Face dataset id is published for this contract entry.
 validation_command: [worldfoundry-eval, zoo, benchmark-run, --benchmark-id, physics-iq, --mode, official-validation, --official-results-path, <raw_metrics.csv>, --output-dir, <out>, --json]
 checkpoint_refs: []
 artifact_layout:
