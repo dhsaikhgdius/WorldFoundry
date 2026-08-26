@@ -5,6 +5,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 TIER="${1:-}"
 UV_BIN="${UV:-uv}"
+PYTHON_BIN="${PYTHON:-python3}"
 
 usage() {
   cat <<'EOF'
@@ -12,6 +13,9 @@ Usage: bash scripts/setup/compile_unified_lock.sh <cu121|cu124|cu128>
 
 Requires uv on PATH (or set UV=/path/to/uv). Writes:
   requirements/lock/worldfoundry-unified.<tier>.lock.txt
+
+After compile, validates that the resolved torch== pin exists on the CUDA
+wheel index so PyPI fall-through cannot produce a misleading lock.
 EOF
 }
 
@@ -60,6 +64,11 @@ trap 'rm -f "${tmp}"' EXIT
     --no-strip-extras \
     "${ROOT}/requirements/worldfoundry-unified.txt"
 } >"${tmp}"
+
+"${PYTHON_BIN}" "${ROOT}/scripts/setup/validate_unified_lock_tier.py" \
+  "${tmp}" \
+  --tier "${TIER}" \
+  --index-url "${INDEX_URL}"
 
 mv "${tmp}" "${OUT}"
 trap - EXIT
