@@ -118,9 +118,10 @@ def run_logged_subprocess(
     if env is not None:
         process_env.update(env)
     process_env.update(log_context_environment())
-    # Avoid concurrent workers rotating the parent CLI's event file.  A child
-    # that enters WorldFoundry's CLI/configuration gets its own structured
-    # worker sink; third-party scripts simply ignore these variables.
+    # LG-04: never point the child at the parent CLI's WORLDFOUNDRY_LOG_FILE.
+    # Concurrent loguru rotation on a shared JSONL races parent write_jsonl_event
+    # writers. Framework-owned workers get a dedicated sibling sink; third-party
+    # scripts simply ignore these variables.
     process_env["WORLDFOUNDRY_LOG_FILE"] = str(lifecycle_path)
     process_env["WORLDFOUNDRY_LOG_JSON"] = "1"
     command_name = (

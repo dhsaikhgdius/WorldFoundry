@@ -520,9 +520,10 @@ class AsyncCommandJobStore:
 
             process_env.update(log_context_environment(run_id=job.run_id, job_id=job.job_id, phase="job"))
             if job.event_log_path:
-                # Give framework-owned child CLIs a per-job sink.  Their
-                # stdout/stderr remain in the separate raw artifact files.
-                process_env["WORLDFOUNDRY_LOG_FILE"] = job.event_log_path
+                # Parent lifecycle events stay on events.jsonl; the child CLI gets
+                # a sibling sink so loguru rotation cannot race the parent's writes.
+                child_event_log = str(Path(job.event_log_path).with_name("worker.events.jsonl"))
+                process_env["WORLDFOUNDRY_LOG_FILE"] = child_event_log
                 process_env["WORLDFOUNDRY_LOG_JSON"] = "1"
             self._write_lifecycle_event(job, "INFO", "job.started", "WorldFoundry job started")
             job._process = await asyncio.create_subprocess_exec(
