@@ -12,6 +12,12 @@ from typing import Iterable
 
 import yaml
 
+from worldfoundry.evaluation.tasks.embodied.image_refs import (
+    assert_image_ref_pinned,
+    require_pinned_images,
+    resolve_docker_image,
+)
+
 
 DEFAULT_PROFILE_DIR = Path("worldfoundry/data/benchmarks/runtime_profiles/official")
 
@@ -55,7 +61,16 @@ def _load_mapping(path: Path, *, tag: str | None, target_prefix: str | None) -> 
     target = docker.get("image")
     if not source or not target:
         return None
-    target_image = _target_from_prefix(str(source), target_prefix, tag=tag) if target_prefix else _replace_tag(str(target), tag)
+    try:
+        resolved_target = resolve_docker_image(docker, require_pinned=False)
+    except ValueError:
+        resolved_target = str(target)
+    if target_prefix:
+        target_image = _target_from_prefix(str(source), target_prefix, tag=tag)
+    elif "@" in resolved_target and not tag:
+        target_image = resolved_target
+    else:
+        target_image = _replace_tag(str(target), tag)
     return ImageMapping(
         profile_id=str(payload.get("id") or path.stem),
         source_image=str(source),
@@ -93,7 +108,10 @@ def _run(cmd: list[str], *, plan_only: bool) -> None:
 
 
 def mirror_images(mappings: Iterable[ImageMapping], *, push: bool, plan_only: bool = False) -> None:
+    require = require_pinned_images()
     for mapping in mappings:
+        assert_image_ref_pinned(mapping.source_image, require=require, what="source_image")
+        assert_image_ref_pinned(mapping.target_image, require=require, what="image")
         _run(["docker", "pull", mapping.source_image], plan_only=plan_only)
         _run(["docker", "tag", mapping.source_image, mapping.target_image], plan_only=plan_only)
         if push:
