@@ -31,6 +31,8 @@ clip @ git+https://github.com/openai/CLIP.git
 timm
 torchao
 torchdata>=0.11,<0.12
+# Sequence-parallel helper claimed by environments/_unified.yaml.
+xfuser
 # GEN3C imports NVIDIA Warp as `warp` for ray-triangle intersection.
 warp-lang
 iopath
