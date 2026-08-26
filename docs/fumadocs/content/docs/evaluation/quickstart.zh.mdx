@@ -1,0 +1,38 @@
+---
+title: 评测快速开始
+description: 从 catalog 发现到首次评测 plan 或 existing-results scorecard 的短路径。
+---
+
+当你目标是评测（而非训练或浏览 Studio）时，从本页开始。
+
+## 1. 发现 id
+
+```bash
+worldfoundry-eval zoo models --json
+worldfoundry-eval zoo benchmarks --json
+worldfoundry-eval zoo metrics --json
+```
+
+## 2. 检查一个单元
+
+```bash
+worldfoundry-eval zoo model-show <model-id>
+worldfoundry-eval zoo benchmark-show <benchmark-id>
+worldfoundry-eval run --model <model-id> --benchmark <benchmark-id> --plan-only --json
+```
+
+`--plan-only` 在 CPU 上可安全使用，不会加载权重。
+
+## 3. 选择模式
+
+| 模式 | 适用场景 |
+| --- | --- |
+| Existing results | 已有产物 / official dump，只需归一化 |
+| Official validation / run | Profile 提供 official evaluator 路径 |
+| Model generate + metrics | 先跑 in-tree generation 再打分 |
+
+## 下一步
+
+- [评测概览](/zh/docs/evaluation) — 模式、scorecard、reporting
+- [指标](/zh/docs/evaluation/metrics) — 指标族与用法
+- [全局快速开始](/zh/docs/quickstart) — 从克隆到第一条命令

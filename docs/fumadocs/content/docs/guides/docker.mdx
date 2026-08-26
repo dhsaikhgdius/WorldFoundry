@@ -1,0 +1,27 @@
+---
+title: Docker
+description: Where WorldFoundry uses Docker — embodied official runtimes, image pulls, and host prerequisites.
+---
+
+WorldFoundry does not require Docker for catalog discovery, CLI help, or CPU-only Studio browsing. Docker shows up when an embodied benchmark profile declares a containerized official evaluator or simulator harness.
+
+## Host prerequisites
+
+- Docker Engine (or compatible runtime) on the host
+- Ability to pull the image named in the benchmark profile (`docker.image`)
+- Unified WorldFoundry environment on the host for CLI / normalization
+
+## Typical flow
+
+```bash
+# Example — replace with the image from zoo benchmark-show / profile docs
+docker pull ghcr.io/allenai/vla-evaluation-harness/robotwin:latest
+worldfoundry-eval zoo benchmark-run --mode official-run ...
+```
+
+Container launch is handled by `worldfoundry/evaluation/tasks/embodied/docker_runner.py` when the config provides `docker.image`.
+
+## Related
+
+- [Environments reference](/docs/reference/environments) — embodied Docker + conda notes
+- [Embodied official runtime](/docs/evaluation/embodied-official-runtime) — checkpoint and asset layout

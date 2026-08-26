@@ -1,0 +1,42 @@
+---
+title: Agent setup
+description: Install and verify WorldFoundry surfaces that agents use — MCP, CLI discovery, and Studio workspace URL.
+---
+
+Use this page when wiring an agent host (IDE, automation runner, or custom orchestrator) to WorldFoundry.
+
+## Minimum install
+
+```bash
+python -m pip install -e ".[mcp]"
+worldfoundry-mcp
+```
+
+Optional surfaces:
+
+```bash
+python -m pip install -e ".[tui,ui]"
+```
+
+## Verify before evaluate
+
+1. Call `server_info` and confirm `tools` is non-empty.
+2. Resolve ids with `list_models` / `list_benchmarks` / `list_tasks` / `list_metrics`.
+3. Use `preview_run` to inspect the compiled CLI command.
+4. Only then call `evaluate` (prefer `wait=auto`).
+
+## Environment hints
+
+| Variable | Role |
+| --- | --- |
+| `WORLDFOUNDRY_MCP_RUN_ROOT` | Default MCP run / artifact root |
+| `WORLDFOUNDRY_STUDIO_WORKSPACE_URL` | Studio workspace base URL for job tools |
+| `WORLDFOUNDRY_BENCHMARK_DATA_ROOT` | Benchmark dataset root when not using defaults |
+
+Catalog discovery and `--plan-only` paths stay CPU-safe; checkpoint-backed evaluate still needs the assets declared by each profile.
+
+## Related
+
+- [MCP server](/docs/reference/mcp)
+- [CLI reference](/docs/reference/cli)
+- [Studio guide](/docs/guides/studio)

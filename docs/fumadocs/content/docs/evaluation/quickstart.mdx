@@ -1,0 +1,38 @@
+---
+title: Evaluation quickstart
+description: Short path from catalog discovery to a first evaluation plan or existing-results scorecard.
+---
+
+Start here when you already know you want to evaluate, not train or browse Studio.
+
+## 1. Discover ids
+
+```bash
+worldfoundry-eval zoo models --json
+worldfoundry-eval zoo benchmarks --json
+worldfoundry-eval zoo metrics --json
+```
+
+## 2. Inspect one cell
+
+```bash
+worldfoundry-eval zoo model-show <model-id>
+worldfoundry-eval zoo benchmark-show <benchmark-id>
+worldfoundry-eval run --model <model-id> --benchmark <benchmark-id> --plan-only --json
+```
+
+`--plan-only` stays CPU-safe and does not load weights.
+
+## 3. Choose a mode
+
+| Mode | When |
+| --- | --- |
+| Existing results | You already have artifacts / official dumps to normalize |
+| Official validation / run | Profile provides an official evaluator path |
+| Model generate + metrics | You will run in-tree generation then score |
+
+## Next
+
+- [Evaluation overview](/docs/evaluation) — modes, scorecards, reporting
+- [Metrics](/docs/evaluation/metrics) — metric families and usage
+- [Global quickstart](/docs/quickstart) — clone-to-first-command walkthrough

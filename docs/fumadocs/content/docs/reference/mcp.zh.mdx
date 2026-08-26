@@ -1,0 +1,28 @@
+---
+title: MCP server
+description: WorldFoundry 面向 agent 的 Model Context Protocol 入口、工具与安装说明。
+---
+
+WorldFoundry 通过 MCP server 暴露与 CLI/Studio 相同的 catalog 与评测契约，便于 agent 发现模型、benchmark、指标与 run，而无需私有 backend。
+
+## 安装
+
+```bash
+python -m pip install -e ".[mcp]"
+```
+
+## 启动
+
+```bash
+worldfoundry-mcp
+# 或
+worldfoundry-eval mcp
+```
+
+`server_info` 会列出工具名、输出根目录与文档路径。调用 `evaluate` 前，优先使用发现类工具（`list_models`、`list_benchmarks`、`list_tasks`、`list_metrics`）。
+
+## 相关
+
+- [CLI 参考](/zh/docs/reference/cli) — `mcp` 命令与 console 入口
+- [Agent 配置](/zh/docs/guides/agent-setup) — agent host 首次运行清单
+- [能力概览](/zh/docs/overview/capabilities) — MCP 在使用界面层中的位置

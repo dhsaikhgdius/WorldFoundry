@@ -8,6 +8,8 @@
     "training",
     "supported-models",
     "studio",
+    "agent-setup",
+    "docker",
     "add-model",
     "add-benchmark"
   ]
