@@ -43,6 +43,10 @@ When you change behavior, update the page that owns it:
 - **CLI or output schema** — `reference/cli` and architecture pages that own the changed behavior.
 - **Internal workflow** — `maintainers/architecture` (especially workflow and evaluation-core).
 
+Docs codegen (`npm run predev` / `prebuild` → `api:generate`, `models:generate`, …) goes through
+`docs/fumadocs/scripts/run-python.sh`. Override the interpreter with `WF_DOCS_PYTHON` (then
+`PYTHON`, then `python3` / `python`) when the host PATH has no `python3`.
+
 ## Local validation
 
 ```bash
