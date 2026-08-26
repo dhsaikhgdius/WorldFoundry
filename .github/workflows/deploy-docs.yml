@@ -22,6 +22,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
       NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
       NEXT_PUBLIC_SITE_URL: https://openenvision.github.io
@@ -58,6 +59,7 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: build
     environment:
       name: github-pages
