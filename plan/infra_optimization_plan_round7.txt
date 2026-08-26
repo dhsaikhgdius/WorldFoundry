@@ -4,56 +4,90 @@ WorldFoundry 基础设施优化计划（第 7 轮）
 性质：建议修改（本文件只记录计划，不直接改代码）
 承接：plan/infra_optimization_plan.txt、round2~round6
 方法：主会话编排 + 3 个云端子代理（claude-fable-5-thinking-xhigh）并行
-  - synthesis / pipelines 包装与加载 — 云端进行中
+  - synthesis / pipelines 包装与加载 — 已并入
   - data catalog / assets — 云端进行中
   - core/io 存储 / HF / S3 缓存 — 已并入
-  + 主会话：test 基建 / 打包 / realtime 可视化进程（TE/PK/RT）
+  + 主会话：test 基建 / 打包 / realtime（TE/PK/RT）
 
 禁止重复第 1–6 轮已写条目。交叉最多一行。
 
 
 0. 现状一句话
 --------------
-URI/缓存架构大体健康，但 ``resolve_hf_path`` 绕过 rank-0/锁/磁盘预检；cache 根与 paths
-双轨；download 截断可永久占槽；S3 checkpoint 流全量驻内存。另：Spark/Three vendor 404、
-eval-core 无套件内超时、world_realtime 关停常 SIGKILL。synthesis/data 两路待回报。
+``worldfoundry/pipelines/`` 因缺 ``__init__.py`` 整层不进 wheel，而 293 份 binding YAML 随包指向它；
+synthesis 约 28 个适配器各自默认 ``sys.executable``、自造 checkpoint 表；``resolve_hf_path`` 绕过
+rank-0/锁/磁盘预检。另：Spark/Three vendor 404、eval-core 无套件内超时。data catalog 待回报。
 
 
 1. 不建议改的地方
 ------------------
-- test/conftest collect_ignore 继续排除 demo；只加守卫（TE-04）。
-- fsspec 可选降级、cache size>0 命中门、append_jsonl 每行 fsync、extract_tar CVE 防护、
-  S3 显式凭证、disk 20GiB 默认、hf rank-0 两阶段模式本体、FICLONE ioctl：见 CA 边界。
-- Studio 进程组终止骨架：round6；RT 只修 realtime 自清理。
+- 不要把 synthesis subprocess 适配器改成 in-process；不要动 _EXPORTS 懒加载；不要批量重命名
+  vendored 顶层通用名；conda 自动安装留 scripts/setup（见 SY 边界）。
+- fsspec 降级、cache size>0 命中门、S3 显式凭证等：见 CA 边界。
+- collect_ignore 排除 demo；Studio 进程组骨架：round1/6。
 - 第 1–6 轮边界继续有效。
 
 
 2. 优先级
 ----------
+P0
+  1) [SY-01] pipelines/ 整层不进 wheel；14 个 visual_generation 目录同病
+
 P1
-  1) [CA-01] resolve_hf_path 绕过 rank-0/FileLock/磁盘预检
-  2) [CA-02] cache.py 与 paths.cache_root_path 双轨（TORCH_HOME 越权）
-  3) [CA-03] download_to_cache 无 Content-Length；0 字节永久命中
-  4) [CA-04] S3FileSystem.create_stream 全量 BytesIO（训练 OOM）
-  5) [PK-01] Spark/Three vendor JS 必 404
-  6) [TE-01] eval-core 无 xdist/timeout
-  7) [RT-01] world_realtime 关停 → SIGKILL
+  2) [SY-02] Studio 外 conda 派发死基建（124 env manifest 几乎无人消费）
+  3) [SY-03] synthesis 子进程零卫生（无进程组/无日志文件）
+  4) [SY-04] checkpoint 解析适配器各自造表 vs profile 已声明
+  5) [CA-01~04] resolve_hf_path；cache 双轨；download 截断；S3 BytesIO
+  6) [PK-01][TE-01][RT-01] vendor JS；eval-core 超时；world_realtime SIGKILL
 
 P2
-  8) [CA-05~11] S3 热启动重哈希；boto3 连接池；NCCL 超时；local-rank 选举；
-     paths rglob 风暴；cache 缺预检；TMPDIR 物化
-  9) [TE-02/03][RT-02/03] importlib；fixture；rerun 进程组；viser 三遍 load
+  7) [SY-05~07] runtime 发货契约；*_runtime 溯源；vmem sys.modules purge
+  8) [CA-05~11] S3 热启动；连接池；NCCL；local-rank；paths rglob
+  9) [TE-02/03][RT-02/03]
 
 P3
-  10) [CA-12~14][TE-04][PK-02][RT-04] 等
-
+  10) [SY-08/09][CA-12~14][TE-04][PK-02][RT-04]
 3. Synthesis / pipelines 包装
 -----------------------------
-（[云端子代理](bc-46ecb1e4-f58d-5a31-8529-eac32f97e88b) 进行中 — 回报后 enrich SY-*）
+来源：[synthesis 云端子代理](bc-46ecb1e4-f58d-5a31-8529-eac32f97e88b)
+勿重复 Studio conda_dispatch ST-*、RuntimeVideoSynthesis L-*、wheel P-03/DE-06、kairos DE-*。
 
-占位主题：synthesis 插件加载与 conda env；pipelines 大树 wheel 卫生；
-checkpoint 解析与 Studio 外路径；勿重复 round4 VRAM / round6 Studio dispatch。
+[SY-01] P0 pipelines/ 整层不进 wheel
+  问题：缺 ``__init__.py``，``find_packages()`` 对 worldfoundry.pipelines 收集 0 包；
+        313 份 binding YAML 随包发，其中 293 份 runner 指向不存在模块；
+        visual_generation 另有 14 个目录缺 ``__init__.py``（含全部 hosted-API）。
+  改法：补 ``__init__.py`` 或 ``find_namespace_packages``；eval_core 断言 binding target ∈ find_packages。
 
+[SY-02] P1 Studio 外 conda 派发死基建
+  问题：124 份 env manifest + runtime/conda.py 齐备，约 25/28 适配器默认 sys.executable；
+        rcm/matrix_game 手搓路径绕过半装标记；profile_synthesis env 不存在静默回退。
+  改法：``resolve_model_python(model_id)`` 统一接入；删私有拼接。
+
+[SY-03] P1 synthesis 子进程零卫生共性
+  问题：28 适配器各写 subprocess.run；仅 5 处 timeout；0 处进程组；PIPE 全量缓冲；
+        ``run_logged_subprocess`` 全树零引用。交叉：round5 IO-04 是 torchrun。
+  改法：统一走 run_logged_subprocess；WORLDFOUNDRY_SYNTHESIS_TIMEOUT_SECONDS 兜底。
+
+[SY-04] P1 checkpoint 适配器各自造表
+  问题：geometry_priors 硬编码 12 模型 + parents[5]/ckpt；SCOPE 变体与 profile 漂移；
+        约 25 个模型级 env var 无规范。
+  改法：``resolve_profile_checkpoint``；CI grep 禁 parents[N]/ckpt。
+
+[SY-05] P2 61 个 *_runtime 发货契约分裂
+  问题：package-data 与 MANIFEST.in 白名单不一致；~55 树靠 scm 漏进 sdist。
+  改法：runtime_source: packaged|checkout_only；契约测试白名单自洽。
+
+[SY-06] P2 包内 vendored 仅 1 LICENSE、零溯源（thirdparty DE-02 未覆盖）
+  改法：每 *_runtime 补 UPSTREAM.md + LICENSE；枚举契约测试。
+
+[SY-07] P2 vmem runtime_env purge 误清全局 utils/models
+  改法：只清本 runtime root；冲突 fail-fast。交叉：round4 N-04 metrics sys.path。
+
+[SY-08] P3 插件发现每次全量重跑
+  改法：按 WORLDFOUNDRY_PIPELINE_BINDINGS 缓存；clear_*_cache。交叉：round2 K-08。
+
+[SY-09] P3 20+ 适配器拷贝 _project_root/parents[N]
+  改法：统一 core.io.paths.project_root()。交叉：round5 RP-10。
 
 4. Data catalog / assets
 ------------------------
@@ -160,43 +194,44 @@ scripts/setup 资产物化。勿重复 reproduction_profiles、runner-kind、doc
 7. 文件级改动总表
 ----------------
 P1
-  core/io/hf.py                    CA-01
-  core/io/cache.py                 CA-02/10
-  core/io/download.py              CA-03
-  core/io/s3_filesystem.py         CA-04/06
-  .gitignore + studio/assets/vendor/  PK-01
-  Makefile / pytest.ini            TE-01
-  world_realtime.py                RT-01
+  worldfoundry/pipelines/ + visual_generation/  SY-01
+  runtime/conda.py + 28 adapters               SY-02/03
+  geometry_priors / profile checkpoint           SY-04
+  core/io/hf.py / cache / download / s3          CA-01~04
+  .gitignore + studio/assets/vendor/             PK-01
+  Makefile / pytest.ini                          TE-01
+  world_realtime.py                              RT-01
 
 P2
-  s3_sync.py / paths.py / storage.py  CA-05~11
-  test/eval_core、frontends、viser     TE/RT
-  （SY/DA 待补）
+  MANIFEST.in / pyproject package-data           SY-05/06
+  vmem/runtime_env.py                            SY-07
+  s3_sync / paths / storage                      CA-05~11
+  （DA 待补）
 
 P3
-  CA-12~14；TE-04；PK-02；RT-04
+  SY-08/09；CA-12~14；TE-04；PK-02；RT-04
 
 
 8. 验收（已并入条目）
 --------------------
-- CA-01：hf:// 未命中经 rank-0+锁；磁盘满 → DiskSpaceError。
-- CA-02：_cache_path 根 == paths.cache_root_path()（含 WORLDFOUNDRY_HOME）。
-- CA-03：截断响应不发布；0 字节触发重下。
-- CA-04：大对象 RSS 增量 << 对象大小。
-- PK-01 / TE-01 / RT-01：同草稿验收。
+- SY-01：wheel 可 ``import worldfoundry.pipelines.wan...``；缺 __init__ 目录 CI 红。
+- SY-02：env 未创建时日志写明 env 名，不静默 sys.executable。
+- SY-03：kill manager 后无 orphan GPU；超时 60s 可杀挂死子进程。
+- CA-01~04 / PK-01 / TE-01 / RT-01：同既有验收。
 
 
 9. 与前轮衔接
 --------------
-CI 套件内分片：round1/4 job 结构 + 本轮 TE-01。
-HF_ENDPOINT 默认：round6 ST-01；CA 不重复。
-download 原子：round5 IO-03 遗留 URL；CA-03 是 download_to_cache。
-Studio 关停：round6 ST-02；RT-01 专指 realtime backend。
+wheel 断：round5 OR-09 scripts；本轮 SY-01 pipelines 层。
+conda 派发：round6 Studio ST；本轮 SY-02 是 Studio 外适配器。
+subprocess 卫生：round5 IO-04 torchrun；本轮 SY-03 synthesis。
+HF_ENDPOINT：round6 ST-01；CA 不重复。
+vendored LICENSE：round5 DE-02 thirdparty；本轮 SY-06 包内 *_runtime。
 
 
 10. 子代理索引
 --------------
-  [synthesis](bc-46ecb1e4-f58d-5a31-8529-eac32f97e88b)  §3 待 enrich
+  [synthesis](bc-46ecb1e4-f58d-5a31-8529-eac32f97e88b)  §3 SY-01~09 已并入
   [data catalog](bc-13b2c87a-a9e9-5e32-a8b4-6e6fd3e9d5ef)  §4 待 enrich
   [storage/HF/S3](bc-420abcea-2a4e-59e8-89af-cfc627288af8)  §5 CA-01~14 已并入
   TE/PK/RT（主会话）  §6 已并入
