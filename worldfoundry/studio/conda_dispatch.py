@@ -33,7 +33,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
-from worldfoundry.core.io.paths import project_root, resolve_worldfoundry_path, worldfoundry_path_tokens
+from worldfoundry.core.io.paths import package_root, project_root, resolve_worldfoundry_path, worldfoundry_path_tokens
 from worldfoundry.runtime.conda import (
     RuntimeCondaEnvSpec,
     apply_unified_env_override,
@@ -51,6 +51,7 @@ from .execution import TORCHRUN_DISTRIBUTED_ENV, RunRecord
 from .launch_config import (
     MATRIX_GAME3_MODEL_ID,
     resolve_lingbot_fast_num_procs,
+    resolve_workspace_max_jobs,
     wmfactory_interactive_model_spec,
 )
 
@@ -239,18 +240,18 @@ def _resident_worker_request_timeout() -> float:
 
 def _resident_worker_max_workers() -> int:
     # Keep the resident pool aligned with the Workspace scheduler unless an
-    # operator explicitly chooses a different cap.  A hard-coded default of 2
-    # made jobs 3..N fall back to one-shot processes even when Workspace was
-    # launched with (for example) ``--max-jobs 8``.  Large checkpoints then
-    # paid their multi-minute cold-load cost again and could never reuse the
-    # pipeline that had just been loaded.
+    # operator explicitly chooses a different cap via
+    # WORLDFOUNDRY_STUDIO_RESIDENT_WORKER_MAX_WORKERS. When unset, share the
+    # same WORLDFOUNDRY_WORKSPACE_MAX_JOBS / GPU-adaptive default as StudioJobStore
+    # (previously this path hardcoded a fallback of 2 while the UI defaulted to 8).
     raw_value = os.getenv(RESIDENT_WORKER_MAX_WORKERS_ENV)
-    if raw_value is None:
-        raw_value = os.getenv("WORLDFOUNDRY_WORKSPACE_MAX_JOBS", "2")
-    try:
-        return max(int(raw_value or "2"), 0)
-    except ValueError:
-        return 2
+    if raw_value is not None and str(raw_value).strip() != "":
+        try:
+            return max(int(raw_value), 0)
+        except ValueError:
+            return resolve_workspace_max_jobs()
+    return resolve_workspace_max_jobs()
+
 
 
 def _resident_worker_idle_ttl() -> float:
@@ -1396,7 +1397,7 @@ def _repo_root() -> Path:
 
 
 def _package_root() -> Path:
-    return Path(__file__).resolve().parents[1]
+    return package_root()
 
 
 def _runtime_pythonpath(spec: RuntimeCondaEnvSpec, env: Mapping[str, str]) -> str:

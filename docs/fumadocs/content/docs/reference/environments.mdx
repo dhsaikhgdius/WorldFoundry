@@ -122,6 +122,34 @@ standard HF cache variables) for public checkpoints. Use `WORLDFOUNDRY_CKPT_DIR`
 for upstream runtimes that require a fixed directory layout or for local soft
 links that preserve official paths without duplicating large files.
 
+### Compiler caches
+
+`worldfoundry.runtime.compile_cache` configures persistent `torch.compile`
+caches (Inductor, Triton, the CUDA driver JIT cache, and torch C++/CUDA
+extensions) once per process. The root is `WORLDFOUNDRY_COMPILE_CACHE_DIR` when
+set, otherwise `${WORLDFOUNDRY_CACHE_DIR}/compile`. Generated-code caches are
+partitioned by a torch/Triton/cuDNN/Python/accelerator fingerprint, and any
+explicitly set `TORCHINDUCTOR_CACHE_DIR`, `TRITON_CACHE_DIR`,
+`TORCH_EXTENSIONS_DIR`, or `CUDA_CACHE_PATH` is respected as-is.
+
+**Shared-filesystem (NFS) warning**: the fingerprint separates incompatible
+software stacks, not concurrent writers. On multi-node clusters, point
+`WORLDFOUNDRY_COMPILE_CACHE_DIR` at a node-local disk instead of a shared NFS
+home or project mount — concurrent compile jobs from several nodes contend on
+the same directories, file locking is unreliable on NFS, and cache writes can
+thrash or corrupt entries:
+
+```bash
+export WORLDFOUNDRY_COMPILE_CACHE_DIR=/local-ssd/${USER}/worldfoundry-compile
+```
+
+Autotune caching defaults are applied with `setdefault`, so values exported
+before launch win. WorldFoundry defaults to
+`TORCHINDUCTOR_AUTOTUNE_LOCAL_CACHE=1` and
+`TORCHINDUCTOR_AUTOTUNE_REMOTE_CACHE=0`; export
+`TORCHINDUCTOR_AUTOTUNE_REMOTE_CACHE=1` to opt in to Inductor's remote
+autotune cache on clusters that provide one.
+
 ## Dedicated model environment exceptions
 
 Start from `worldfoundry-unified-<cuda-tier>` for every model. Create a

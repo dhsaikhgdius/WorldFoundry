@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Iterator, Mapping
 
-from worldfoundry.core.io.paths import resolve_worldfoundry_path
+from worldfoundry.core.io.paths import project_root, resolve_worldfoundry_path
 from worldfoundry.core.io.serialization import write_json
 from worldfoundry.core.logging_setup import get_logger, log_context
 from worldfoundry.core.process import run_logged_subprocess
@@ -62,7 +62,7 @@ from .run_mode import (
 # ---------------------------------------------------------------------------
 
 JsonValue = Any
-REPO_ROOT = Path(__file__).resolve().parents[5]
+REPO_ROOT = project_root(__file__)
 DEFAULT_MANIFEST_PATH = BENCHMARK_ZOO_DIR
 SCORECARD_SCHEMA_VERSION = "worldfoundry-scorecard"
 

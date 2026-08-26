@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 import os
-from pathlib import Path
 from typing import Iterable
 
 import numpy as np
@@ -15,9 +14,10 @@ from PIL import Image
 import torch
 from transformers import AutoModelForImageTextToText, AutoProcessor
 
+from worldfoundry.core.io.paths import package_root
 
 DEFAULT_QWEN_MODEL = str(
-	Path(__file__).resolve().parents[2] / "checkpoints" / "qwen" / "Qwen3-VL-4B-Instruct"
+	package_root() / "studio" / "native" / "checkpoints" / "qwen" / "Qwen3-VL-4B-Instruct"
 )
 
 CAPTION_SYSTEM_PROMPT = """You are a video captioning specialist writing one English prompt for a
