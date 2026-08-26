@@ -59,7 +59,9 @@ format-check:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m compileall -q $(CANONICAL_DIFFUSION_SOURCES) worldfoundry/evaluation scripts
 
 shell-check:
-	find scripts/setup -type f -name '*.sh' -exec bash -n {} +
+	# D-08: cover docker / embodied / test / fumadocs / scripts/dev, not only setup.
+	find scripts/setup docker scripts/embodied test scripts/dev docs/fumadocs/scripts \
+		-type f -name '*.sh' -print0 2>/dev/null | xargs -0 -r bash -n
 
 data-check:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m worldfoundry.cli zoo models --json >/dev/null
