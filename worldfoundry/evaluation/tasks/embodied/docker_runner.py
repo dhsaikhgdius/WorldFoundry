@@ -11,13 +11,15 @@ from typing import Any, Mapping
 
 import yaml
 
+from worldfoundry.core.io.paths import project_root
+
 
 def inside_docker() -> bool:
     return Path("/.dockerenv").exists()
 
 
 def _repo_root() -> Path:
-    return Path(__file__).resolve().parents[4]
+    return project_root(__file__)
 
 
 def _docker_available(docker: str) -> None:
