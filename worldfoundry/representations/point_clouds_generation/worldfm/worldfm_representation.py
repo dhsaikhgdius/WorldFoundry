@@ -6,6 +6,8 @@ import os
 import sys
 import tempfile
 from pathlib import Path
+
+from worldfoundry.core.io.paths import project_root
 from typing import Any, Dict, List, Optional, Sequence
 
 import cv2
@@ -32,7 +34,7 @@ DEFAULT_MOGE_REPO = DEFAULT_WORLDFM_MOGE2_REPO
 
 
 def _project_root() -> Path:
-    return Path(__file__).resolve().parents[5]
+    return project_root(__file__)
 
 
 def _local_moge_model_path_candidates(source_value: str) -> list[Path]:
