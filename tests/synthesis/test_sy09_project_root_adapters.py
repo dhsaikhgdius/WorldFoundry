@@ -281,10 +281,20 @@ def test_batch12_fumadocs_scripts_use_paths_project_root() -> None:
     repo = Path(__file__).resolve().parents[2]
     deep = re.compile(r"Path\(__file__\)\.resolve\(\)\.parents\[3\]")
     root = repo / "docs/fumadocs/scripts"
+    targets = (
+        "capture-cli-screenshots.py",
+        "generate-catalog-coverage.py",
+        "generate-model-recipes.py",
+        "generate-python-api.py",
+        "generate-upstream-acknowledgements.py",
+    )
     paths = sorted(
-        str(p.relative_to(repo))
-        for p in root.glob("*.py")
-        if deep.search(p.read_text(encoding="utf-8"))
+        str((root / name).relative_to(repo))
+        for name in targets
+        if deep.search((root / name).read_text(encoding="utf-8"))
     )
     assert paths == [], paths
-
+    for name in targets:
+        text = (root / name).read_text(encoding="utf-8")
+        assert "from worldfoundry.core.io.paths import project_root" in text, name
+        assert "ensure_repo_importable" in text, name

@@ -85,15 +85,16 @@ from pathlib import Path
 from typing import Any, Iterable
 
 import yaml
+from _repo_path import ensure_repo_importable
 
-from worldfoundry.core.io.paths import project_root
+ensure_repo_importable(__file__)
+from worldfoundry.core.io.paths import project_root  # noqa: E402
 
 ROOT = project_root(__file__)
 DOCS_ROOT = Path(__file__).resolve().parents[1]
 OUT = DOCS_ROOT / "lib" / "model-recipes-data.json"
 INDEX_OUT = DOCS_ROOT / "lib" / "model-recipes-index.json"
 
-sys.path.insert(0, str(ROOT))
 from worldfoundry.core.inference import get_model_inference_spec  # noqa: E402
 
 CATALOG_ROOT = ROOT / "worldfoundry/data/models/catalog"
