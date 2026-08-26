@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 from typing import Any, Mapping
 
-from worldfoundry.runtime.in_tree_cli import ensure_in_tree_runtime, execute_in_tree, require_path
 from worldfoundry.core.io.paths import hfd_root_path, resolve_local_hf_model_path
+from worldfoundry.runtime.conda import resolve_model_python
+from worldfoundry.runtime.in_tree_cli import ensure_in_tree_runtime, execute_in_tree, require_path
 
 
 def _checkpoint_file(root: Path, names: tuple[str, ...], label: str) -> Path:
@@ -50,7 +50,7 @@ class SpatiaRuntime:
         self.base_model_path = Path(base_model_path or hfd / "Wan-AI--Wan2.2-TI2V-5B").expanduser()
         self.lora_path = Path(lora_path).expanduser() if lora_path else None
         self.map_model_path = Path(map_model_path or hfd / "facebook--map-anything").expanduser()
-        self.python_executable = str(python_executable or sys.executable)
+        self.python_executable = resolve_model_python("spatia", explicit=python_executable)
         self.device = device
         self.env = dict(env or {})
 
