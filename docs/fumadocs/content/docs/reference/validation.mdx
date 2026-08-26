@@ -21,6 +21,13 @@ Validation evidence should be proportional to the changed surface: small enough 
 
 ## Release gate
 
+Known soft-skips until the scripts are restored in-tree (**DS-03**):
+
+- `tools/hfd.sh` — `test_hfd_metadata_refresh_failure_preserves_cached_metadata` skips when missing
+- `scripts/vla_va_wam_acquire.py` — the whole `test_vla_va_wam_acquire` module skips when missing
+
+Other `test_hfd_download_script` cases that exercise `scripts/download_hfd_models.sh` remain hard gates.
+
 <Tabs items={['core', 'docs', 'model', 'benchmark']}>
   <Tab>
 
