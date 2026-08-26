@@ -174,12 +174,24 @@ def write_text_file(path: str | Path, payload: str, *, atomic: bool = True) -> P
 def write_json(path: str | Path, payload: Any, *, atomic: bool = True) -> Path:
     """Write an indented JSON object with stable key ordering."""
 
-    text = json.dumps(jsonable(payload), ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    text = (
+        json.dumps(
+            jsonable(payload),
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+            allow_nan=False,
+        )
+        + "\n"
+    )
     return _atomic_write_text(Path(path), text, atomic=atomic)
 
 
 def _write_jsonl_rows(handle: IO[str], rows: Iterable[Mapping[str, Any]]) -> None:
-    handle.writelines(json.dumps(jsonable(row), ensure_ascii=False, sort_keys=True) + "\n" for row in rows)
+    handle.writelines(
+        json.dumps(jsonable(row), ensure_ascii=False, sort_keys=True, allow_nan=False) + "\n"
+        for row in rows
+    )
 
 
 def _resolve_jsonl_flush_interval(value: int | None) -> int:

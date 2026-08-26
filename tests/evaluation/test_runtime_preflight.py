@@ -99,6 +99,25 @@ def test_import_errors_are_secret_redacted(tmp_path: Path) -> None:
     assert "<redacted>" in encoded
 
 
+def test_redact_skips_tokenizer_env_substring_false_positives() -> None:
+    from worldfoundry.evaluation.tasks.execution.orchestration.runtime_preflight import _redact_text
+
+    harmless = "tokenizer-vocab-path-value"
+    secret = "real-hf-token-value-xx"
+    text = f"using {harmless} and {secret}"
+    redacted = _redact_text(
+        text,
+        {
+            "TOKENIZER_PATH": harmless,
+            "MAX_NEW_TOKENS": "128",
+            "HF_TOKEN": secret,
+        },
+    )
+    assert harmless in redacted
+    assert secret not in redacted
+    assert "<redacted>" in redacted
+
+
 def test_optional_path_does_not_make_preflight_fail(tmp_path: Path) -> None:
     report = check_profile(
         _profile(required_paths=[{"id": "optional", "path": "absent", "required_for_env": False}]),
