@@ -47,8 +47,6 @@ Options:
   --no-env-file         Do not write the env export file.
   --preset NAME         max-infer or slim. Default: max-infer.
                         Both currently install requirements/worldfoundry-unified.txt.
-  --pytorch-bundle NAME Accepted for older command lines; currently ignored.
-  --transformers NAME   Accepted for older command lines; currently ignored.
   --skip-flash-attn     Skip flash-attn install.
   --torch SPEC          Torch package spec. Default: torch>=2.7,<2.12.0.
   --torchvision SPEC    Torchvision package spec. Default: torchvision>=0.22,<0.27.0.
@@ -114,14 +112,6 @@ while (($#)); do
       ;;
     --preset)
       INSTALL_PRESET="$2"
-      shift 2
-      ;;
-    --pytorch-bundle)
-      INSTALL_ARGS+=(--pytorch-bundle "$2")
-      shift 2
-      ;;
-    --transformers)
-      INSTALL_ARGS+=(--transformers "$2")
       shift 2
       ;;
     --skip-flash-attn)
