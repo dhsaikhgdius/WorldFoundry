@@ -10,6 +10,7 @@ from typing import Any, Mapping, Sequence
 from worldfoundry.core import jsonable
 from worldfoundry.core.io import file_sha256
 from worldfoundry.core.io.paths import package_module_root as package_root
+from worldfoundry.core.io.paths import project_root
 
 DEFAULT_MODEL_DIR_CANDIDATES = (
     "${WORLDFOUNDRY_HFD_ROOT}/SCOPE",
@@ -33,11 +34,7 @@ def runtime_root() -> Path:
 
 
 def _project_root() -> Path:
-    current = Path(__file__).resolve()
-    for parent in current.parents:
-        if (parent / "pyproject.toml").is_file():
-            return parent
-    return current.parents[6]
+    return project_root(__file__)
 
 
 def _repo_src_root() -> Path:

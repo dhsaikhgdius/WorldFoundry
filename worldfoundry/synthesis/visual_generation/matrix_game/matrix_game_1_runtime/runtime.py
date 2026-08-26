@@ -11,9 +11,9 @@ from typing import Any, Mapping, Sequence
 
 from worldfoundry.core import jsonable
 from worldfoundry.core.io.paths import conda_envs_root_path, conda_root_path, project_root, resolve_worldfoundry_path
+from worldfoundry.core.process import run_logged_subprocess
 from worldfoundry.evaluation.utils import worldfoundry_data_path
 from worldfoundry.runtime.env import resolve_ckpt_dir, resolve_hfd_root
-
 
 RUNTIME_ROOT = Path(__file__).resolve().parent
 REPO_ROOT = project_root(RUNTIME_ROOT)
@@ -437,17 +437,28 @@ class MatrixGame1Runtime:
         stderr_path = target_log_dir / "matrix_game_1_stderr.log"
         env = os.environ.copy()
         env.update(plan.env)
-        with stdout_path.open("w", encoding="utf-8") as stdout, stderr_path.open("w", encoding="utf-8") as stderr:
-            completed = subprocess.run(
+        try:
+            completed = run_logged_subprocess(
                 list(plan.command),
+                stdout_path=stdout_path,
+                stderr_path=stderr_path,
                 cwd=plan.workdir,
                 env=env,
-                stdout=stdout,
-                stderr=stderr,
-                text=True,
-                timeout=timeout_seconds,
-                check=False,
+                timeout=float(timeout_seconds) if timeout_seconds is not None else None,
             )
+        except subprocess.TimeoutExpired:
+            return {
+                "ok": False,
+                "status": "failed",
+                "returncode": None,
+                "duration_seconds": round(time.monotonic() - started, 3),
+                "generated_count": 0,
+                "generated_files": [],
+                "stdout_path": str(stdout_path),
+                "stderr_path": str(stderr_path),
+                "runtime_plan": plan.to_dict(),
+                "error": f"timed out after {timeout_seconds}s",
+            }
         generated_files = sorted(str(path) for path in Path(plan.output_dir).expanduser().resolve().rglob("*.mp4"))
         ok = completed.returncode == 0 and bool(generated_files)
         return {

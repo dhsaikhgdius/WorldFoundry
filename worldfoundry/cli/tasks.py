@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 from pathlib import Path
 
 from worldfoundry.evaluation.utils import BENCHMARK_TASK_ROOT, write_json, write_jsonl
 
-from .utils import CliUsageError, json_dump, task_roots_from_args as _task_roots_from_args
+from .utils import CliUsageError, json_dump
+from .utils import task_roots_from_args as _task_roots_from_args
 
 DEFAULT_TASK_ROOT = BENCHMARK_TASK_ROOT
 DEFAULT_BENCHMARK_TASK_ROOT = DEFAULT_TASK_ROOT
