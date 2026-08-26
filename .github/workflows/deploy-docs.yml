@@ -8,6 +8,10 @@ on:
       - ".github/workflows/deploy-docs.yml"
       - "docs/**"
       - "scripts/docs/build.sh"
+      # Site content is partly generated from catalog / API surfaces.
+      - "worldfoundry/data/models/**"
+      - "worldfoundry/data/benchmarks/**"
+      - "worldfoundry/evaluation/api/**"
   workflow_dispatch:
 
 permissions:
@@ -24,8 +28,11 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
-      NEXT_PUBLIC_SITE_URL: https://openenvision.github.io
-      NEXT_PUBLIC_DEMO_ASSET_BASE_URL: https://media.githubusercontent.com/media/${{ github.repository }}/${{ github.ref_name }}/docs/fumadocs/public
+      # Prefer the owning org/user rather than a hard-coded Pages host.
+      NEXT_PUBLIC_SITE_URL: https://${{ github.repository_owner }}.github.io
+      # Pin demo media to the repository default branch so PR/ref builds do not
+      # 404 against floating github.ref_name paths.
+      NEXT_PUBLIC_DEMO_ASSET_BASE_URL: https://media.githubusercontent.com/media/${{ github.repository }}/${{ github.event.repository.default_branch }}/docs/fumadocs/public
 
     steps:
       - name: Checkout
