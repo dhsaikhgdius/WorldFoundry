@@ -17,7 +17,8 @@ permissions:
 
 concurrency:
   group: github-pages
-  cancel-in-progress: true
+  # Do not cancel an in-flight Pages deploy (plan C-08 / tip-stack of #52).
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -48,9 +49,9 @@ jobs:
           enablement: true
 
       - name: Build Fumadocs site
-        run: bash scripts/docs/build.sh --skip-bootstrap
+        run: bash scripts/docs/build.sh
 
-      - name: Preserve Next.js assets
+      - name: Drop demos from Pages artifact and add .nojekyll
         run: |
           rm -rf docs/fumadocs/out/demos
           touch docs/fumadocs/out/.nojekyll

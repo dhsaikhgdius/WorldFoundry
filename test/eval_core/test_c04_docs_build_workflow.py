@@ -27,4 +27,6 @@ def test_c04_docs_build_workflow_path_filter() -> None:
 def test_c04_docs_build_pins_action_shas() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
     assert not TAG_RE.search(text)
-    assert "bash scripts/docs/build.sh --skip-bootstrap" in text
+    assert "bash scripts/docs/build.sh" in text
+    # --skip-bootstrap is a historical no-op; callers may omit it (C-08).
+    assert "--skip-bootstrap" not in text

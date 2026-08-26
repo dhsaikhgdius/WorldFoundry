@@ -37,7 +37,7 @@ jobs:
           cache-dependency-path: docs/fumadocs/package-lock.json
 
       - name: Build docs
-        run: bash scripts/docs/build.sh --skip-bootstrap
+        run: bash scripts/docs/build.sh
 
       - name: Install quality gate dependencies
         run: |

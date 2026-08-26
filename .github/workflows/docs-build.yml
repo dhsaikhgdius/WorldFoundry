@@ -45,4 +45,4 @@ jobs:
       # next build). The fumadocs pre-build codegen shells out to the
       # runner-provided python3; no extra Python dependencies are needed.
       - name: Build Fumadocs site
-        run: bash scripts/docs/build.sh --skip-bootstrap
+        run: bash scripts/docs/build.sh
