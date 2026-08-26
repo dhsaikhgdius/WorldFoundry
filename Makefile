@@ -34,7 +34,7 @@ help:
 		'WorldFoundry development targets:' \
 		'  make install-core      Install the editable core package.' \
 		'  make install-dev       Install lightweight development dependencies.' \
-		'  make docs-check        Validate documented CLI entrypoints.' \
+		'  make docs-check        Validate CLI help, zoo catalog JSON, and fumadocs API metadata generation.' \
 		'  make lint              Run lightweight source and catalog checks.' \
 		'  make preflight         Run the public runtime preflight.' \
 		'  make test-eval-core    Run the eval_core release-gate pytest suite (CPU).' \
@@ -50,6 +50,8 @@ install-dev:
 docs-check:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m worldfoundry.cli --help >/dev/null
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m worldfoundry.cli zoo benchmarks --json >/dev/null
+	# AST-only fumadocs API metadata smoke (same generator as npm run api:generate / api:check).
+	cd docs/fumadocs && $(PYTHON) scripts/generate-python-api.py >/dev/null
 
 lint: ruff-check format-check shell-check data-check runtime-registry-check
 
