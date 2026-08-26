@@ -6,6 +6,7 @@ import argparse
 import asyncio
 import inspect
 import logging
+import os
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -16,10 +17,57 @@ from worldfoundry.evaluation.tasks.embodied.policy_adapter import (
     build_policy_adapter,
     normalize_action_payload,
 )
+from worldfoundry.studio.serving.auth import is_loopback_host, token_matches
 
-from .protocol import Message, MessageType, hello_payload, pack_message, unpack_message
+from .protocol import (
+    PROTOCOL_VERSION,
+    Message,
+    MessageType,
+    hello_payload,
+    pack_message,
+    unpack_message,
+)
 
 logger = logging.getLogger(__name__)
+
+EMBODIED_SERVER_TOKEN_ENV = "WF_EMBODIED_SERVER_TOKEN"
+DEFAULT_HOST = "127.0.0.1"
+DEFAULT_MAX_MESSAGE_BYTES = 64 * 1024 * 1024
+DEFAULT_PING_INTERVAL_S = 20.0
+
+
+def _configured_embodied_token() -> str:
+    return os.getenv(EMBODIED_SERVER_TOKEN_ENV, "").strip()
+
+
+def require_embodied_auth_token_for_host(host: str) -> str:
+    """Fail closed when binding a non-loopback host without a shared token."""
+
+    if is_loopback_host(host):
+        return ""
+    token = _configured_embodied_token()
+    if not token:
+        raise SystemExit(
+            f"embodied model_server refuses to bind non-loopback host {host!r} without authentication. "
+            f"Set {EMBODIED_SERVER_TOKEN_ENV} to a shared secret (clients must send "
+            "'Authorization: Bearer <token>' during the WebSocket handshake), "
+            f"or bind --host {DEFAULT_HOST}."
+        )
+    return token
+
+
+def _token_from_headers(headers: Any) -> str | None:
+    if headers is None:
+        return None
+    get = getattr(headers, "get", None)
+    if not callable(get):
+        return None
+    authorization = get("Authorization") or get("authorization")
+    if isinstance(authorization, bytes):
+        authorization = authorization.decode("utf-8", errors="replace")
+    if isinstance(authorization, str) and authorization.lower().startswith("bearer "):
+        return authorization[7:].strip()
+    return None
 
 
 def _serializable_spec(spec: Mapping[str, Any]) -> dict[str, Any]:
@@ -49,6 +97,24 @@ async def _handle_connection(ws: Any, adapter: EmbodiedPolicyAdapter) -> None:
 
         try:
             if message.type == MessageType.HELLO:
+                client_version = message.payload.get("protocol_version") if isinstance(message.payload, Mapping) else None
+                if client_version is not None and int(client_version) != int(PROTOCOL_VERSION):
+                    await ws.send(
+                        pack_message(
+                            Message(
+                                MessageType.ERROR,
+                                {
+                                    "error": (
+                                        f"protocol_version mismatch: client={client_version} "
+                                        f"server={PROTOCOL_VERSION}"
+                                    )
+                                },
+                                seq=message.seq,
+                            )
+                        )
+                    )
+                    await ws.close(code=1002, reason="protocol version mismatch")
+                    return
                 await ws.send(
                     pack_message(
                         Message(
@@ -111,21 +177,78 @@ async def _handle_connection(ws: Any, adapter: EmbodiedPolicyAdapter) -> None:
             )
 
 
-async def serve_async(adapter: EmbodiedPolicyAdapter, *, host: str = "0.0.0.0", port: int = 8000) -> None:
+async def serve_async(
+    adapter: EmbodiedPolicyAdapter,
+    *,
+    host: str = DEFAULT_HOST,
+    port: int = 8000,
+    auth_token: str | None = None,
+) -> None:
     """Serve a policy adapter over WebSocket until cancelled."""
     import websockets
+
+    required_token = auth_token if auth_token is not None else require_embodied_auth_token_for_host(host)
+
+    async def _process_request(connection: Any, request: Any) -> Any:
+        if not required_token:
+            return None
+        headers = getattr(request, "headers", None)
+        candidate = _token_from_headers(headers)
+        if token_matches(candidate, required_token):
+            return None
+        respond = getattr(connection, "respond", None)
+        if callable(respond):
+            return respond(401, "Unauthorized\n")
+        return (401, [("Content-Type", "text/plain")], b"Unauthorized\n")
+
+    def _legacy_process_request(path: str, request_headers: Any) -> tuple[int, list[tuple[str, str]], bytes] | None:
+        del path
+        if not required_token:
+            return None
+        candidate = _token_from_headers(request_headers)
+        if token_matches(candidate, required_token):
+            return None
+        return (401, [("Content-Type", "text/plain")], b"Unauthorized\n")
 
     async def handler(ws: Any) -> None:
         await _handle_connection(ws, adapter)
 
-    async with websockets.serve(handler, host, int(port), compression=None, max_size=None, ping_interval=None):
-        logger.info("Serving embodied policy adapter on ws://%s:%s", host, port)
-        await asyncio.Future()
+    serve_kwargs: dict[str, Any] = {
+        "compression": None,
+        "max_size": DEFAULT_MAX_MESSAGE_BYTES,
+        "ping_interval": DEFAULT_PING_INTERVAL_S,
+    }
+    try:
+        async with websockets.serve(
+            handler,
+            host,
+            int(port),
+            process_request=_process_request,
+            **serve_kwargs,
+        ):
+            logger.info("Serving embodied policy adapter on ws://%s:%s", host, port)
+            await asyncio.Future()
+    except TypeError:
+        async with websockets.serve(
+            handler,
+            host,
+            int(port),
+            process_request=_legacy_process_request,
+            **serve_kwargs,
+        ):
+            logger.info("Serving embodied policy adapter on ws://%s:%s", host, port)
+            await asyncio.Future()
 
 
-def serve(adapter: EmbodiedPolicyAdapter, *, host: str = "0.0.0.0", port: int = 8000) -> None:
+def serve(
+    adapter: EmbodiedPolicyAdapter,
+    *,
+    host: str = DEFAULT_HOST,
+    port: int = 8000,
+    auth_token: str | None = None,
+) -> None:
     """Blocking server entry point."""
-    asyncio.run(serve_async(adapter, host=host, port=port))
+    asyncio.run(serve_async(adapter, host=host, port=port, auth_token=auth_token))
 
 
 def load_model_server_config(path: str | Path) -> dict[str, Any]:
@@ -141,12 +264,13 @@ def serve_from_config(path: str | Path, *, host: str | None = None, port: int | 
     args = dict(config.get("args") or config.get("model_parameters") or {})
     model_id = str(config.get("model_id") or args.pop("model_id", None) or "openvla")
     if host is None:
-        host = str(args.pop("host", config.get("host", "0.0.0.0")))
+        host = str(args.pop("host", config.get("host", DEFAULT_HOST)))
     if port is None:
         port = int(args.pop("port", config.get("port", 8000)))
+    auth_token = require_embodied_auth_token_for_host(host)
     adapter = build_policy_adapter(model_id, args)
     try:
-        serve(adapter, host=host, port=port)
+        serve(adapter, host=host, port=port, auth_token=auth_token)
     finally:
         adapter.cleanup()
 
@@ -165,4 +289,12 @@ if __name__ == "__main__":
     raise SystemExit(main())
 
 
-__all__ = ["load_model_server_config", "serve", "serve_async", "serve_from_config"]
+__all__ = [
+    "EMBODIED_SERVER_TOKEN_ENV",
+    "DEFAULT_HOST",
+    "load_model_server_config",
+    "require_embodied_auth_token_for_host",
+    "serve",
+    "serve_async",
+    "serve_from_config",
+]
