@@ -48,3 +48,29 @@ def test_build_docker_run_command_uses_digest_resolved_image(tmp_path) -> None:
         output_dir=tmp_path / "out",
     )
     assert f"example/bench@sha256:{digest}" in cmd
+
+
+def test_official_calvin_profile_pins_real_ghcr_digest() -> None:
+    """D-01: at least one official harness profile carries a registry-resolved digest."""
+
+    import json
+    from pathlib import Path
+
+    import yaml
+
+    repo_root = Path(__file__).resolve().parents[2]
+    profile_path = repo_root / "worldfoundry/data/benchmarks/runtime_profiles/official/calvin.yaml"
+    digest_map_path = repo_root / "worldfoundry/data/benchmarks/runtime_profiles/official/docker_image_digests.json"
+
+    payload = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    docker = payload["docker"]
+    assert docker["digest"].startswith("sha256:")
+    assert len(docker["digest"]) == len("sha256:") + 64
+    resolved = resolve_docker_image(docker, require_pinned=True)
+    assert resolved.endswith("@" + docker["digest"])
+    assert not image_ref_is_floating(resolved)
+    assert not image_ref_is_floating(str(docker["source_image"]))
+
+    digest_map = json.loads(digest_map_path.read_text(encoding="utf-8"))
+    mapped = digest_map["images"]["ghcr.io/allenai/vla-evaluation-harness/calvin:latest"]["digest"]
+    assert mapped == docker["digest"]
