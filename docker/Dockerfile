@@ -3,6 +3,7 @@
 # Targets:
 #   base-runtime  cudnn-runtime + minimal apt + Python 3.11 (default run image)
 #   base-devel    cudnn-devel + build toolchain (flash-attn / native kernels)
+#   dev           base-devel + interactive toolbox (nano/tmux/ping) — D-10
 #   cpu           python:3.11-slim for CPU-only CI / light tooling
 #
 # Default final stage is base-devel so existing `docker build -f docker/Dockerfile`
@@ -109,7 +110,6 @@ RUN apt-get update -qq \
         git \
         git-lfs \
         iproute2 \
-        iputils-ping \
         jq \
         less \
         libegl1 \
@@ -119,14 +119,11 @@ RUN apt-get update -qq \
         libsm6 \
         libxext6 \
         libxrender1 \
-        nano \
         ninja-build \
         openssh-client \
         pkg-config \
         procps \
         rsync \
-        screen \
-        tmux \
         unzip \
         xz-utils \
     && rm -rf /var/lib/apt/lists/*
@@ -138,6 +135,27 @@ RUN uv python install "${PYTHON_VERSION}" \
     && ln -sf "${PY}" /usr/local/bin/python \
     && ln -sf "${PY}" /usr/local/bin/python3 \
     && python3 --version
+
+CMD ["/bin/bash"]
+
+# ---------------------------------------------------------------------------
+# dev: interactive toolbox on top of base-devel (plan D-10)
+# ---------------------------------------------------------------------------
+FROM base-devel AS dev
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+LABEL org.opencontainers.image.source="https://github.com/OpenEnvision/WorldFoundry" \
+      org.opencontainers.image.title="worldfoundry-dev" \
+      org.opencontainers.image.description="WorldFoundry devel image + interactive toolbox"
+
+RUN apt-get update -qq \
+    && apt-get install -y -qq --no-install-recommends \
+        iputils-ping \
+        nano \
+        screen \
+        tmux \
+    && rm -rf /var/lib/apt/lists/*
 
 CMD ["/bin/bash"]
 

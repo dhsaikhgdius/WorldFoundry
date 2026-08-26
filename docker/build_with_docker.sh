@@ -13,7 +13,7 @@ Options:
   --load                 Load a single-platform image into the local Docker daemon.
   --platform PLATFORMS   Build platform list. Default: linux/amd64 for both
                          --load and --push (override for multi-arch).
-  --target STAGE         Dockerfile stage: base-runtime | base-devel | cpu.
+  --target STAGE         Dockerfile stage: base-runtime | base-devel | dev | cpu.
                          Default: base-devel (compile-capable image).
   --cuda-image IMAGE     Devel CUDA base (stage base-devel). Default:
                          nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04.
