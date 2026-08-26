@@ -547,7 +547,7 @@ def get_args():
     parser.add_argument("--save_path", type=str, default="test_cases/case_2/output.mp4")
     parser.add_argument("--prompt", type=str, default="")
     parser.add_argument("--prompt_path", type=str, default="")
-    parser.add_argument("--vace_path", type=str, default="/home/aiscuser/4D-Representation/wan2.2/outputs/vace_point-bs64-lr1e-5/step-8500.safetensors")
+    parser.add_argument("--vace_path", type=str, default="")
     parser.add_argument("--control_path", type=str, default="", help="Alias of --vace_path.")
     parser.add_argument("--lora_path", type=str, default="")
     parser.add_argument("--model_root", type=str, default="", help="Wan2.2-TI2V-5B checkpoint directory.")
