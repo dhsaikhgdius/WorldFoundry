@@ -37,7 +37,7 @@ help:
 		'  make docs-check        Validate documented CLI entrypoints.' \
 		'  make lint              Run lightweight source and catalog checks.' \
 		'  make preflight         Run the public runtime preflight.' \
-		'  make test-eval-core    Run the eval_core release-gate pytest suite (CPU).' \
+		'  make test-eval-core    Run the eval_core release-gate pytest suite (CPU; needs pip install -e ".[eval_core]").' \
 		'  make test-training     Run the tests/training pytest suite (CPU subset).'
 
 install-core:

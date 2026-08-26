@@ -124,3 +124,15 @@ def test_sdist_manifest_excludes_generated_downloaded_and_large_artifacts() -> N
         "*.onnx",
     ):
         assert pattern in manifest
+
+
+def test_eval_core_extra_declares_cpu_release_gate_dependencies() -> None:
+    """EX-04: contributors can install ``.[eval_core]`` for make test-eval-core."""
+
+    optional = _optional_dependencies()
+    assert "eval_core" in optional
+    joined = "\n".join(optional["eval_core"])
+    assert "worldfoundry[test,ui]" in joined or "worldfoundry[test]" in joined
+    assert any(item == "torch" or item.startswith("torch") for item in optional["eval_core"])
+    makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+    assert '.[eval_core]' in makefile or ".[eval_core]" in makefile

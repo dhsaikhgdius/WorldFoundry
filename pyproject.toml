@@ -330,6 +330,14 @@ test = [
     "joblib",
     "pyyaml",
 ]
+eval_core = [
+    # CPU release-gate suite (`make test-eval-core`). Install torch from the CPU
+    # wheel index when needed, e.g.:
+    #   pip install torch --index-url https://download.pytorch.org/whl/cpu
+    #   pip install -e ".[eval_core]"
+    "worldfoundry[test,ui]",
+    "torch",
+]
 dev = [
     "build",
     "pre-commit>=4.0",
