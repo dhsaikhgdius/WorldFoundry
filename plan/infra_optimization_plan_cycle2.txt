@@ -1,0 +1,85 @@
+WorldFoundry 基础设施评审 · Cycle 2（增量）
+==========================================
+日期：2026-08-26
+方法：主会话编排 + 多云端子代理（claude-fable-5-thinking-xhigh）并行复核
+对照：plan/infra_optimization_plan.txt（2026-08-25）
+
+范围：对照现状代码复核旧计划；深挖 core/runtime、Studio、embodied/Docker/DLC、
+CI/安装、训练/scripts、供应链与路径卫生。本文件只记增量结论与落地批次。
+
+
+0. 总览
+-------
+旧计划 D/C/I/R 主干项绝大多数仍 CONFIRMED（未修）。Cycle 2 新发现若干 P0：
+GPU 池替换竞态、混合 docker 镜像静默降级宿主机、mirror 契约仅 libero 生效、
+公开树内个人路径/生成物/ELF、StudioJobStore 仍无持久化（R-03 PARTIAL）。
+
+本轮已落地（分支 cursor/infra-p0-impl-4569，另见 cursor/infra-dlc-sanitize-4569）：
+  - pin gradio/starlette；ruff --fix 修绿 public surface
+  - CUDA_DEVICE_ORDER=PCI_BUS_ID；冻结 automatic GPU pool
+  - disk_map device.type 比较；embodied 混合镜像 fail-loud
+  - 删除 project_codex_env.sh、inspatio tmp yaml、T04 ELF scan
+  - 洗净 plan/ 内若干 /mnt/cpfs* 个人路径；Makefile ruff==0.12.7；AGENTS.md 同步
+  - DLC 提交脚本去账户硬编码（独立分支）
+
+
+1. 旧项状态摘要（抽样）
+----------------------
+CONFIRMED：I-01→本轮已修；C-01→本轮已修；R-01→本轮部分修（PCI_BUS_ID，UUID 待做）；
+R-02→DLC 独立分支；R-03 PARTIAL（runtime/jobs+MCP 已有，StudioJobStore 未）；
+R-04/R-05/R-06/R-07/R-08/R-09、D-01..D-11、C-03..C-09、I-03..I-13 多数仍欠账。
+
+
+2. Cycle 2 新增要点（未尽数列）
+------------------------------
+P0/已部分落地
+  N-GPU-POOL  设备集变化时整体替换池 → 本轮冻结+warning
+  N-MIX-DOCKER  config_loader 镜像不一致返回 {} → 本轮 raise ValueError
+  N-HYGIENE   个人脚本/生成物/ELF/plan 路径 → 本轮清理
+  N-DLC-ACCT  见独立分支
+
+P0/仍待
+  N-MIRROR-1/17  仅 libero 有 openenvision 目标；--push 默认可推 allenai
+  N-ARGV-SECRET  docker_runner expandvars 把 token 写进 -e KEY=明文 argv
+  N-STUDIO-JOBS  StudioJobStore 纯内存无上限/无崩溃对账
+
+P1
+  disk_map 已修；conda ENVS_ROOT/ENV_ROOT 分裂；NVML affinity 用逻辑 index；
+  jobs 索引缺 flock；mirror digest；model_server 0.0.0.0+max_size=None；
+  CI 仍 Miniconda；download_hfd 忽略 WORLDFOUNDRY_HOME；Makefile 死变量与
+  test_docs_quickstart open-source-infer-repro 脱节；.gitmodules 失效
+
+P2
+  路径四套默认、checkpoint GC、shell-check 扩面、dependabot、platforms 与
+  embodied 脱节、训练产物 cwd 相对路径、catalog.py 第二份 path mirror
+
+
+3. 建议下一批 PR（不要塞进本 PR）
+--------------------------------
+1) CI：setup-python + ruff== + concurrency + eval-core 分层门禁
+2) lockfile / cuda tier×torch 矩阵 / CPU 主机 skip flash-attn
+3) embodied：digest + mirror 命名空间校验 + docker_runner 隔离
+4) StudioJobStore 持久化 + MAX_JOBS 按 GPU 自适应
+5) model_server 默认 127.0.0.1 + token
+6) 删除 conda_profile_install.sh；路径约定统一
+
+
+4. 不要改（重申 + 新增）
+-----------------------
+- training/checkpoint 提交协议、ImmutableTrainingFileSystemWriter
+- compile_cache / local_checkpoint_cache / autotune_cache / safe_loading 主干
+- allenai official harness 镜像内容；embodied 容器路径契约与 Xvfb 命令形态
+- --network host 勿单独改成 bridge（须与 ws://127.0.0.1 一并配置化）
+- ruff 白名单不扩张；eval-core 契约失败不要一次性 xfail
+
+
+5. 子代理索引（本轮）
+--------------------
+Core/runtime   bc-0015f987…   GPU 池、路径分裂、StudioJobStore、NVML affinity
+Studio         bc-c35710bd…   （见 transcript；与上交叉）
+Eval/Docker    bc-cbdd2e01…   D-* 全 CONFIRMED；混合镜像；mirror 1/17；argv 凭证
+CI/install     bc-dd769e9f…   （运行中/后取）；供应链交叉见 bc-9f24deab…
+Training/scripts bc-f1197a84… 训练层质量高；scripts/Makefile 契约漂移
+Supply-chain   bc-9f24deab…   路径卫生红门禁、.gitmodules、个人泄漏源
+P0 impl        bc-3bcd1d33…   落地 cursor/infra-p0-impl-4569
+DLC sanitize   bc-064a7fff…   落地 cursor/infra-dlc-sanitize-4569

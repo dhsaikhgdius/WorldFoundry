@@ -5,7 +5,7 @@
 
 ## 评审范围与方法
 
-- **仓库**：`/mnt/cpfsB/yangboxue/visual_generation/juanxi/WorldFoundry`，被评审包 `worldfoundry/`。
+- **仓库**：`<WORKSPACE_ROOT>`，被评审包 `worldfoundry/`。
 - **分层口径**（按评审要求）：
   - **自研层**（约 2,697 个 py 文件 / 61.5 万行）：`core`(258/68.0k)、`evaluation`(1442/307.6k)、`cli`(34/13.8k)、`mcp`(14/2.7k)、`pipelines`(164/28.7k)、`operators`(88/12.9k)、`runtime`(19/5.6k)、`training`(551/111.9k)、`studio`(121/63.0k)、`data`(6/0.9k)。
   - **vendored 层**（约 5,649 个 py 文件 / 35.5 万行）：`base_models`(3240/112.7k)、`synthesis`(2369/233.7k)、`representations`(40/8.3k)。

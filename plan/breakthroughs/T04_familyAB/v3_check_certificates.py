@@ -32,7 +32,7 @@ import sympy as sp
 r = sp.Symbol("r")
 s = sp.Symbol("s")
 
-CERT = Path("/mnt/cpfsB/yangboxue/visual_generation/juanxi/WorldFoundry/plan/threads/"
+CERT = Path("<WORKSPACE_ROOT>/plan/threads/"
              "T04_lonely_runner/results/certificates_AB.txt")
 
 # ---------------------------------------------------------------- parsing ----

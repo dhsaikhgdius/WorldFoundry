@@ -45,7 +45,7 @@ install-core:
 
 install-dev:
 	$(PIP) install -e .
-	$(PIP) install build pre-commit PyYAML ruff
+	$(PIP) install build pre-commit PyYAML 'ruff==0.12.7'
 
 docs-check:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m worldfoundry.cli --help >/dev/null

@@ -85,7 +85,7 @@ OK: both families verified exactly for 1 <= r <= 12
 exit=0
 
 --- [4/5] export_certificates.py ---
-written /mnt/cpfsB/yangboxue/visual_generation/juanxi/WorldFoundry/plan/breakthroughs/T04_familyAB/rerun/results/certificates_AB.txt; all verified: True
+written <WORKSPACE_ROOT>/plan/breakthroughs/T04_familyAB/rerun/results/certificates_AB.txt; all verified: True
 exit=0
 
 --- [5/5] check_denominator_pair.py (P1/P2) ---
