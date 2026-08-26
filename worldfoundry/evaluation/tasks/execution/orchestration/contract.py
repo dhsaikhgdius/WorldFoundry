@@ -19,6 +19,7 @@ from typing import Any, Mapping, Sequence
 from uuid import uuid4
 
 from worldfoundry.core.io.serialization import JsonlWriter, iter_jsonl
+from worldfoundry.core.logging_setup import get_logger, log_context
 from worldfoundry.evaluation.api import (
     AggregateResult,
     GenerationRequest,
@@ -44,6 +45,8 @@ from worldfoundry.evaluation.utils import (
 from .cache import cache_paths_from_stats, generation_cache_hit_metadata, run_generation_with_cache
 
 JsonRow = dict[str, Any]
+
+logger = get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -408,7 +411,7 @@ def _generate(runner: WorldModelRunner, requests: Sequence[GenerationRequest]) -
     except Exception as exc:  # noqa: BLE001 - runner isolates model failures.
         # If the runner's generate method throws an exception,
         # return failed results for all requests
-        return [
+        results = [
             GenerationResult(
                 sample_id=request.sample_id,
                 request_id=request.request_id,
@@ -418,7 +421,20 @@ def _generate(runner: WorldModelRunner, requests: Sequence[GenerationRequest]) -
             )
             for request in requests
         ]
-    return _align_generation_results(requests, list(raw_results))
+    else:
+        results = _align_generation_results(requests, list(raw_results))
+
+    for request, result in zip(requests, results):
+        with log_context(sample_id=request.sample_id):
+            logger.event(
+                "INFO",
+                "sample.generation.finished",
+                f"generation finished for {request.sample_id}",
+                sample_id=request.sample_id,
+                status=result.status,
+                model_id=result.model_id or getattr(runner, "model_id", ""),
+            )
+    return results
 
 
 def _metric_id(metric: Metric) -> str:
@@ -1073,58 +1089,68 @@ def run_contract(
             cached_sample = successful_sample_cache.get(request_row.sample_id)
             generation_cache_metadata = generation_cache_hit_metadata(result)
 
-            # Determine if metrics should be loaded from cache or recomputed.
-            if cached_sample is not None:
-                metric_row = dict(cached_sample.metric_row)
-                metric_results = _metric_results_from_row(metric_row)
-            else:
-                metric_row, metric_results = computed_metric_outputs[index]
+            with log_context(sample_id=request_row.sample_id):
+                # Determine if metrics should be loaded from cache or recomputed.
+                if cached_sample is not None:
+                    metric_row = dict(cached_sample.metric_row)
+                    metric_results = _metric_results_from_row(metric_row)
+                else:
+                    metric_row, metric_results = computed_metric_outputs[index]
 
-            metric_status = str(metric_row.get("status") or "succeeded").lower()
-            per_sample_rows.append(metric_row)
-            all_metric_results.extend(metric_results)
+                metric_status = str(metric_row.get("status") or "succeeded").lower()
+                per_sample_rows.append(metric_row)
+                all_metric_results.extend(metric_results)
 
-            # Collect errors for the sample ledger.
-            errors = []
-            if generation_status == "failed":
-                errors.append({"stage": "generate", "message": result.error or "generation failed"})
-            if metric_status in {"failed", "failure", "error", "errored", "skipped"}:
-                errors.append({"stage": "evaluate", "message": str(metric_row.get("error") or "metric failed")})
+                # Collect errors for the sample ledger.
+                errors = []
+                if generation_status == "failed":
+                    errors.append({"stage": "generate", "message": result.error or "generation failed"})
+                if metric_status in {"failed", "failure", "error", "errored", "skipped"}:
+                    errors.append({"stage": "evaluate", "message": str(metric_row.get("error") or "metric failed")})
 
-            ledger_writer.write(
-                {
-                    "run_id": run_id,
-                    "sample_id": request_row.sample_id,
-                    "index": index,
-                    "status": "failed" if errors else "succeeded",
-                    "generation_status": generation_status,
-                    "metrics_status": metric_status,
-                    "started_at": started_at,
-                    "finished_at": _utcnow_iso(),
-                    # Add cache hit metadata if applicable (resume or generation cache).
-                    **(
-                        {
-                            "cached": True,
-                            "cache_source": "output_dir_resume",
-                            "source_run_id": cached_sample.ledger_row.get("run_id"),
-                        }
-                        if cached_sample is not None
-                        else {}
-                    ),
-                    **(
-                        {
-                            "cached": True,
-                            "cache_source": "generation_result_cache",
-                            "source_run_id": generation_cache_metadata.get("source_run_id"),
-                            "cache_key_hash": generation_cache_metadata.get("key_hash"),
-                        }
-                        if generation_cache_metadata
-                        else {}
-                    ),
-                    **({"errors": errors} if errors else {}),
-                }
-            )
-            per_sample_writer.write(metric_row)
+                ledger_writer.write(
+                    {
+                        "run_id": run_id,
+                        "sample_id": request_row.sample_id,
+                        "index": index,
+                        "status": "failed" if errors else "succeeded",
+                        "generation_status": generation_status,
+                        "metrics_status": metric_status,
+                        "started_at": started_at,
+                        "finished_at": _utcnow_iso(),
+                        # Add cache hit metadata if applicable (resume or generation cache).
+                        **(
+                            {
+                                "cached": True,
+                                "cache_source": "output_dir_resume",
+                                "source_run_id": cached_sample.ledger_row.get("run_id"),
+                            }
+                            if cached_sample is not None
+                            else {}
+                        ),
+                        **(
+                            {
+                                "cached": True,
+                                "cache_source": "generation_result_cache",
+                                "source_run_id": generation_cache_metadata.get("source_run_id"),
+                                "cache_key_hash": generation_cache_metadata.get("key_hash"),
+                            }
+                            if generation_cache_metadata
+                            else {}
+                        ),
+                        **({"errors": errors} if errors else {}),
+                    }
+                )
+                per_sample_writer.write(metric_row)
+                logger.event(
+                    "INFO",
+                    "sample.metrics.finished",
+                    f"metrics finished for {request_row.sample_id}",
+                    sample_id=request_row.sample_id,
+                    status=metric_status,
+                    generation_status=generation_status,
+                    index=index,
+                )
 
     # Compile the final statistics and summaries
     summary = _build_summary(requests, results, per_sample_rows, all_metric_results, run_request.metrics)
