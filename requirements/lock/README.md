@@ -10,14 +10,13 @@ Per-CUDA-tier lockfiles for `requirements/worldfoundry-unified.txt` (plan I-05).
 | `worldfoundry-unified.cu124.lock.txt` | `https://download.pytorch.org/whl/cu124` |
 | `worldfoundry-unified.cu128.lock.txt` | `https://download.pytorch.org/whl/cu128` |
 
-As of 2026-08-26, `worldfoundry-unified.cu128.lock.txt` is populated via
-`uv pip compile` against the cu128 torch index. `cu121` / `cu124` remain
-placeholders until a real compile is run on a machine that can resolve those
-CUDA indexes. `optimized_core` / `all` extras now use `torch>=2.4,<2.12.0`
-so they intersect cu121/cu124/cu128 floors (I-03); compiles still pass
-`requirements/cuda/<tier>-torch.txt` as `--constraint` and post-compile
-validation checks the CUDA index listing. Do **not** invent placeholder lock
-bodies.
+As of 2026-08-26, `worldfoundry-unified.cu121.lock.txt`,
+`worldfoundry-unified.cu124.lock.txt`, and `worldfoundry-unified.cu128.lock.txt`
+are populated via `uv pip compile` against the matching CUDA torch index
+(with `requirements/cuda/<tier>-torch.txt` as `--constraint` and post-compile
+index validation). `optimized_core` / `all` extras use `torch>=2.4,<2.12.0`
+so they intersect all three tier floors (I-03). Do **not** invent lock bodies
+by hand — regenerate with the compile script.
 
 Lock bodies are **not** invented in-repo. Generate them on a machine that can
 resolve the CUDA torch index:
