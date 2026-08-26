@@ -10,6 +10,10 @@ Per-CUDA-tier lockfiles for `requirements/worldfoundry-unified.txt` (plan I-05).
 | `worldfoundry-unified.cu124.lock.txt` | `https://download.pytorch.org/whl/cu124` |
 | `worldfoundry-unified.cu128.lock.txt` | `https://download.pytorch.org/whl/cu128` |
 
+As of 2026-08-26, `worldfoundry-unified.cu128.lock.txt` is populated via
+`uv pip compile` against the cu128 torch index. `cu121` / `cu124` remain
+placeholders until compiled on a host that can resolve those indices.
+
 Lock bodies are **not** invented in-repo. Generate them on a machine that can
 resolve the CUDA torch index:
 
