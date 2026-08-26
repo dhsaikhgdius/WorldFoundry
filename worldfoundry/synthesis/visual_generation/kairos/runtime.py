@@ -12,10 +12,8 @@ from __future__ import annotations
 import json
 import os
 import shutil
-import subprocess
 import sys
 import tempfile
-from collections import deque
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -23,6 +21,7 @@ import imageio.v3 as iio
 import numpy as np
 
 from worldfoundry.core.io.paths import checkpoint_root_path
+from worldfoundry.core.process import run_logged_subprocess, synthesis_timeout_seconds
 
 
 DEFAULT_NEGATIVE_PROMPT = (
@@ -560,12 +559,21 @@ class KairosRuntime:
         manage_libs = Path(self.runtime_root) / "kairos" / "manage_libs.py"
         if not manage_libs.is_file():
             raise FileNotFoundError(f"Kairos manage_libs.py not found: {manage_libs}")
-        subprocess.run(
+        log_path = Path(self.runtime_root) / "kairos.manage_libs.stdout.log"
+        stderr_path = Path(self.runtime_root) / "kairos.manage_libs.stderr.log"
+        completed = run_logged_subprocess(
             [self.python_executable, str(manage_libs)],
-            check=True,
+            stdout_path=log_path,
+            stderr_path=stderr_path,
             cwd=self.runtime_root,
             env=env,
+            timeout=synthesis_timeout_seconds(),
         )
+        if completed.returncode != 0:
+            raise RuntimeError(
+                f"Kairos manage_libs.py failed with exit code {completed.returncode}; "
+                f"see {log_path} and {stderr_path}"
+            )
 
     def _command(self, input_json: Path, config_path: Path, options: Mapping[str, Any]) -> list[str]:
         """
@@ -671,30 +679,22 @@ class KairosRuntime:
             # Construct the full command for `torchrun`
             command = self._command(input_json, config_path, options)
 
-            # Execute the Kairos inference script as a subprocess
-            process = subprocess.Popen(
+            log_path = output_dir / "kairos.stdout.log"
+            stderr_path = output_dir / "kairos.stderr.log"
+            completed = run_logged_subprocess(
                 command,
+                stdout_path=log_path,
+                stderr_path=stderr_path,
                 cwd=str(self.runtime_root),
                 env=env,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,  # Merge stderr into stdout for easier logging
-                text=True,  # Decode stdout/stderr as text
-                bufsize=1,  # Line-buffered output
+                timeout=synthesis_timeout_seconds(),
             )
-
-            # Capture a tail of the output for debugging in case of failure
-            output_tail: deque[str] = deque(maxlen=400)
-            assert process.stdout is not None
-            for line in process.stdout:
-                output_tail.append(line.rstrip("\n"))
-                sys.stdout.write(line)  # Stream output to main process stdout
-                sys.stdout.flush()
-            return_code = process.wait()
-
-            # Check for subprocess errors
-            if return_code != 0:
-                tail = "\n".join(output_tail)
-                raise RuntimeError(f"Kairos command failed with exit code {return_code}.\n{tail}")
+            if completed.returncode != 0:
+                try:
+                    tail = "\n".join(log_path.read_text(encoding="utf-8").splitlines()[-40:])
+                except OSError:
+                    tail = f"(unable to read {log_path})"
+                raise RuntimeError(f"Kairos command failed with exit code {completed.returncode}.\n{tail}")
 
             # Locate the generated video file
             generated = output_dir / "output.mp4"
