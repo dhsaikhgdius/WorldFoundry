@@ -189,3 +189,21 @@ def test_batch6_more_runners_use_paths_project_root() -> None:
         assert "from worldfoundry.core.io.paths import" in text, rel
         assert "project_root" in text, rel
         assert "Path(__file__).resolve().parents[" not in text, rel
+
+def test_batch7_pipelines_studio_use_paths_project_root() -> None:
+    """pipelines yume/vggt/lyra + studio explorer/capability_registry."""
+    repo = Path(__file__).resolve().parents[2]
+    for rel in (
+        "worldfoundry/pipelines/yume/pipeline_yume.py",
+        "worldfoundry/pipelines/yume/pipeline_yume_1p5.py",
+        "worldfoundry/pipelines/vggt_omega/pipeline_vggt_omega.py",
+        "worldfoundry/pipelines/lyra/lyra_utils.py",
+        "worldfoundry/studio/visualization/capability_registry.py",
+        "worldfoundry/studio/native/world_explorer/__main__.py",
+    ):
+        text = (repo / rel).read_text(encoding="utf-8")
+        assert "from worldfoundry.core.io.paths import" in text, rel
+        assert "project_root" in text, rel
+        assert "Path(__file__).resolve().parents[" not in text, rel
+        assert "current.parents[" not in text, rel
+
