@@ -1,3 +1,14 @@
+# Patterns relative to the build context root. Prefer **/ prefixes so nested
+# paths match (Docker treats unanchored names like gitignore; bare ``data/``
+# does not reliably exclude ``worldfoundry/data/...``).
+#
+# The current Dockerfile does not ``COPY . .`` yet; once it does, these rules
+# keep large test fixtures / docs / plan trees out of the image context.
+#
+# Ignoring ``.git`` breaks setuptools-scm dynamic versioning from the build
+# context — set SETUPTOOLS_SCM_PRETEND_VERSION when building from a dirty tree
+# without a .git directory.
+
 .git
 .github
 .codex
@@ -7,49 +18,50 @@
 .cursor/
 .vscode/
 .idea/
-.env*
-.envrc
+
 **/.env*
 **/.envrc
 **/.direnv/
-credentials/*.secret
 **/credentials/*.secret
-token
-*.token
 **/*.token
-.mypy_cache
-.pytest_cache
-.ruff_cache
-.runtime/
-__pycache__/
-*.py[cod]
-*.egg-info/
-.venv/
-venv/
+token
 
-benchmark_results/
-cache/
-data/
-model/
-runs/
-tmp/
-inspatio_world_output/
-worldfoundry_outputs/
-*.log
-*.out
-*.err
+**/.mypy_cache/
+**/.pytest_cache/
+**/.ruff_cache/
+**/.runtime/
+**/__pycache__/
+**/*.py[cod]
+**/*.egg-info/
+**/.venv/
+**/venv/
 
-node_modules/
+**/benchmark_results/
+**/cache/
+**/data/
+**/model/
+**/runs/
+**/tmp/
+**/inspatio_world_output/
+**/worldfoundry_outputs/
+**/*.log
+**/*.out
+**/*.err
+
+**/node_modules/
+docs/
 docs/fumadocs/.next/
-docs/fumadocs/node_modules/
+plan/
+thirdparty/
+worldfoundry/data/test_cases/
 
-*.ckpt
-*.gguf
-*.mp4
-*.mov
-*.mkv
-*.safetensors
-*.tar
-*.tar.gz
-*.tgz
-*.zip
+**/*.ckpt
+**/*.gguf
+**/*.mp4
+**/*.mov
+**/*.mkv
+**/*.safetensors
+**/*.tar
+**/*.tar.gz
+**/*.tgz
+**/*.zip
