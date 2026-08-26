@@ -264,6 +264,12 @@ bash "$ROOT/scripts/setup/conda_install.sh" \
   --preset "$INSTALL_PRESET" \
   "${INSTALL_ARGS[@]}"
 
+# Why rewrite console scripts?
+# conda_install already pip-installs editable extras that publish the same
+# entry points. Those entry points resolve the installed package via
+# site-packages and may not prefer this checkout when WORLDFOUNDRY_REPO_ROOT
+# / PYTHONPATH matter for in-tree data manifests. We intentionally overwrite
+# the wrappers so CLI launches always bind to the repo used to create the env.
 install_worldfoundry_wrapper() {
   local name="$1"
   local module="$2"
