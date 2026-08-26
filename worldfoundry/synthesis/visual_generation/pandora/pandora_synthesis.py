@@ -11,6 +11,8 @@ import json
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from worldfoundry.core.io.paths import project_root
+
 from ...base_synthesis import BaseSynthesis
 
 
@@ -93,7 +95,8 @@ class PandoraSynthesis(BaseSynthesis):
         # Navigate up three parent directories from the current file's location,
         # then into the specified subdirectories to locate the vendored runtime.
         return (
-            Path(__file__).resolve().parents[3]
+            project_root(__file__)
+            / "worldfoundry"
             / "base_models"
             / "diffusion_model"
             / "video"
