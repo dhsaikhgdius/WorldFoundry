@@ -2,7 +2,7 @@ from einops import rearrange
 import torch
 from torch import nn
 
-# Standalone: only Wan VAE (used by data/models/runtime/configs/infinite_world.yaml)
+# Standalone: only Wan VAE (used by data/models/runtime/configs/infinite_world/model.yaml)
 from .vae import WanVAE
 
 

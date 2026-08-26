@@ -2181,7 +2181,7 @@ def test_infinite_world_default_config_lives_in_data_runtime_configs(tmp_path: P
         default_config_path,
     )
 
-    config_path = REPO_ROOT / "worldfoundry/data/models/runtime/configs/infinite_world.yaml"
+    config_path = REPO_ROOT / "worldfoundry/data/models/runtime/configs/infinite_world/model.yaml"
     runtime_root = REPO_ROOT / "worldfoundry/synthesis/visual_generation/infinite_world/infinite_world_runtime"
     old_hidden_config = (
         REPO_ROOT

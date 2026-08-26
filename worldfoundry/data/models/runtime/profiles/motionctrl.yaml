@@ -1,5 +1,6 @@
 artifact_filename: motionctrl.mp4
 artifact_kind: generated_video
+task_family: video_generation
 backend_stage: in_tree_runtime
 id: motionctrl
 input_schema:

@@ -1,5 +1,6 @@
 artifact_filename: pandora.mp4
 artifact_kind: generated_world
+task_family: world_model
 backend_stage: in_tree_runtime_plan
 id: pandora
 input_schema:

@@ -141,7 +141,7 @@ def test_runtime_profile_target_tree_overrides_legacy_synthesis_and_resolves_env
                 "profile_id: target-demo-profile",
                 "model_id: demo-model",
                 "display_name: Target Runtime Name",
-                "task_family: action_trace",
+                "task_family: vla_policy",
                 "artifact:",
                 "  kind: action_trace",
                 "  filename: action_trace.json",

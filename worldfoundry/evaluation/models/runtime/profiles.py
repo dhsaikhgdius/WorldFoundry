@@ -21,8 +21,6 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 from urllib.parse import urlparse
 
-import yaml
-
 from worldfoundry.evaluation.models.catalog.schema import iter_model_zoo_payloads
 from worldfoundry.evaluation.utils import DATA_ROOT, REPO_ROOT, load_manifest, load_manifest_collection, manifest_paths
 from worldfoundry.runtime.conda import load_runtime_conda_env_specs_with_overrides
@@ -188,6 +186,48 @@ def _task_family(groups: Sequence[str]) -> str:
     return "video_generation"
 
 
+# Closed vocabulary for model runtime profiles (DA-08). Benchmark entries belong
+# under data/benchmarks/runtime_profiles/, not models/runtime/profiles/.
+ALLOWED_MODEL_RUNTIME_TASK_FAMILIES: frozenset[str] = frozenset(
+    {
+        "action_chunking_policy",
+        "actor_policy",
+        "behavior_generation",
+        "diffusion_transformer_policy",
+        "embodied_action",
+        "four_dimension",
+        "image_generation",
+        "model_predictive_control",
+        "robot_world_model",
+        "three_dimension",
+        "video_generation",
+        "visual_action_model",
+        "visuomotor_policy",
+        "vla_policy",
+        "world_action_model",
+        "world_model",
+    }
+)
+
+_ARTIFACT_KIND_TASK_FAMILY: dict[str, str] = {
+    "action_tokens": "visual_action_model",
+    "action_trace": "vla_policy",
+    "generated_3d_asset": "three_dimension",
+    "generated_4d_scene": "four_dimension",
+    "generated_image": "image_generation",
+    "generated_video": "video_generation",
+    "generated_world": "world_model",
+    "session_trace": "world_action_model",
+    "world_state": "world_model",
+}
+
+
+def _task_family_from_artifact_kind(artifact_kind: str) -> str | None:
+    """Map a known artifact kind to a closed task_family when YAML omits it."""
+
+    return _ARTIFACT_KIND_TASK_FAMILY.get(str(artifact_kind))
+
+
 def _artifact_kind(task_family: str) -> str:
     """Determine artifact kind based on the resolved task family."""
     if task_family == "vla_policy":
@@ -302,7 +342,14 @@ class RuntimeProfile:
                 "required": list(_tuple_of_str(inputs.get("required"))),
                 "optional": list(_tuple_of_str(inputs.get("optional"))),
             }
-        task_family = str(data.get("task_family") or execution.get("task_family") or "video_generation")
+        task_family = str(
+            data.get("task_family")
+            or execution.get("task_family")
+            or _task_family_from_artifact_kind(
+                str(artifact.get("kind") or data.get("artifact_kind") or "")
+            )
+            or "video_generation"
+        )
         artifact_kind = str(artifact.get("kind") or data.get("artifact_kind") or _artifact_kind(task_family))
         profile = cls(
             model_id=model_id,
@@ -350,6 +397,11 @@ class RuntimeProfile:
             raise ValueError(f"runtime profile {self.model_id!r} requires display_name.")
         if not self.task_family:
             raise ValueError(f"runtime profile {self.model_id!r} requires task_family.")
+        if self.task_family not in ALLOWED_MODEL_RUNTIME_TASK_FAMILIES:
+            raise ValueError(
+                f"runtime profile {self.model_id!r} uses unsupported task_family "
+                f"{self.task_family!r}; allowed={sorted(ALLOWED_MODEL_RUNTIME_TASK_FAMILIES)}"
+            )
         if not self.artifact_kind:
             raise ValueError(f"runtime profile {self.model_id!r} requires artifact_kind.")
         if not self.artifact_filename:

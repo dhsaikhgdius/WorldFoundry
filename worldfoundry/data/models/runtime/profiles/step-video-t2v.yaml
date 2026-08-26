@@ -1,5 +1,6 @@
 artifact_filename: step_video_t2v.mp4
 artifact_kind: generated_video
+task_family: video_generation
 backend_stage: native_diffusion
 id: step-video-t2v
 input_schema:
