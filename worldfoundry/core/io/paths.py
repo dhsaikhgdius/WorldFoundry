@@ -119,7 +119,7 @@ def worldfoundry_path_tokens(env: Mapping[str, str] | None = None) -> dict[str, 
     default_model_source = cache / "official_runtime_repos"
     model_source = Path(environ.get("WORLDFOUNDRY_MODEL_SOURCE_DIR") or default_model_source).expanduser()
     default_ckpt_dir = (
-        adjacent_ckpt if adjacent_ckpt.is_dir() else (home / "checkpoints" if explicit_home else cache / "checkpoints")
+        adjacent_ckpt if adjacent_ckpt.is_dir() else (model_dir / "checkpoints")
     )
     ckpt_dir = Path(environ.get("WORLDFOUNDRY_CKPT_DIR") or default_ckpt_dir).expanduser()
     hfd_root = Path(environ.get("WORLDFOUNDRY_HFD_ROOT") or ckpt_dir / "hfd").expanduser()

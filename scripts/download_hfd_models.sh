@@ -4,7 +4,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
 
-DEFAULT_CKPT_ROOT="${WORLDFOUNDRY_CKPT_DIR:-${HOME}/.cache/worldfoundry/checkpoints}"
+DEFAULT_HOME="${WORLDFOUNDRY_HOME:-${HOME}/.cache/worldfoundry}"
+DEFAULT_CKPT_ROOT="${WORLDFOUNDRY_CKPT_DIR:-${WORLDFOUNDRY_MODEL_DIR:-${DEFAULT_HOME}/models}/checkpoints}"
 DOWNLOAD_ROOT="${WORLDFOUNDRY_HFD_ROOT:-${DEFAULT_CKPT_ROOT}/hfd}"
 MAX_PARALLEL=4
 HF_USERNAME="${HF_USERNAME:-}"
