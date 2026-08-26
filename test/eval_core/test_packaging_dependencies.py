@@ -124,3 +124,15 @@ def test_sdist_manifest_excludes_generated_downloaded_and_large_artifacts() -> N
         "*.onnx",
     ):
         assert pattern in manifest
+
+
+def test_pyproject_classifiers_cover_supported_python_minors() -> None:
+    """PK-02: classifiers should advertise every minor in requires-python (>=3.10,<3.14)."""
+
+    with (REPO_ROOT / "pyproject.toml").open("rb") as handle:
+        project = tomllib.load(handle)["project"]
+
+    assert project["requires-python"] == ">=3.10,<3.14"
+    classifiers = set(project["classifiers"])
+    for minor in (10, 11, 12, 13):
+        assert f"Programming Language :: Python :: 3.{minor}" in classifiers
