@@ -83,6 +83,9 @@ _DATEFMT = "%Y-%m-%d %H:%M:%S"
 _CONFIGURED = False
 _CONFIGURED_LEVEL: int = logging.INFO
 _CONFIGURE_LOCK = threading.Lock()
+# Child workers may call write_jsonl_event without configure_logging; import
+# WORLDFOUNDRY_LOG_CONTEXT at most once when first reading correlation fields.
+_ENV_CONTEXT_BOUND = False
 
 # ``ContextVar`` makes one run's correlation fields flow across asyncio tasks
 # without leaking into concurrent runs in the same process.  The fields are
@@ -131,8 +134,14 @@ def clear_log_context() -> None:
 
 
 def get_log_context() -> dict[str, Any]:
-    """Return a copy of the current correlation fields."""
+    """Return a copy of the current correlation fields.
 
+    Lazily imports ``WORLDFOUNDRY_LOG_CONTEXT`` once when present so child
+    processes that only call :func:`write_jsonl_event` still inherit
+    ``run_id`` / ``job_id`` without requiring :func:`configure_logging`.
+    """
+
+    _ensure_log_context_from_environment()
     return dict(_LOG_CONTEXT.get())
 
 
@@ -160,6 +169,20 @@ def _bind_log_context_from_environment() -> None:
         return
     if isinstance(payload, Mapping):
         bind_log_context(**dict(payload))
+
+
+def _ensure_log_context_from_environment(*, force: bool = False) -> None:
+    """Import ``WORLDFOUNDRY_LOG_CONTEXT`` once (or again when ``force``)."""
+
+    global _ENV_CONTEXT_BOUND
+    if _ENV_CONTEXT_BOUND and not force:
+        return
+    raw = os.environ.get(_LOG_CONTEXT_ENV)
+    if not raw and not force:
+        # Leave unbound so a later env injection or configure_logging can import.
+        return
+    _ENV_CONTEXT_BOUND = True
+    _bind_log_context_from_environment()
 
 
 @contextmanager
@@ -733,7 +756,7 @@ def configure_logging(
         if _CONFIGURED and not force:
             return
 
-        _bind_log_context_from_environment()
+        _ensure_log_context_from_environment(force=True)
 
         # Child processes inherit these from the parent CLI's env; an explicit
         # argument always wins, ``None`` means "consult the env then the default".
