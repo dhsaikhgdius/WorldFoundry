@@ -305,14 +305,25 @@ worldfoundry-eval tui \
 
 ### Scripted first model run
 
-Prepare assets, then launch a small demo. A common starter is `matrix-game-2` (public HF repo `Skywork/Matrix-Game-2.0`):
+Prepare assets, then launch a small demo. A common starter is `matrix-game-2` (public HF repo `Skywork/Matrix-Game-2.0`, revision `f1729d99a80e0f07993a77d7dad4a3190e23c2c8`):
 
 ```bash
+export WORLDFOUNDRY_HFD_ROOT="${WORLDFOUNDRY_HFD_ROOT:-${HOME}/.cache/worldfoundry/checkpoints/hfd}"
 bash scripts/inference/prepare_model_infer.sh matrix-game-2 --download
-worldfoundry-eval zoo model-download --model-id matrix-game-2 --check-local --json
+worldfoundry-eval zoo model-download --model-id matrix-game-2 --cache-dir "${WORLDFOUNDRY_HFD_ROOT}" --check-local --json
+worldfoundry-eval zoo model-validate --model-id matrix-game-2 --cache-dir "${WORLDFOUNDRY_HFD_ROOT}" --check-local
+
+# Shared trees can be linked instead of re-downloaded:
+# ln -s /shared/Skywork--Matrix-Game-2.0 "${WORLDFOUNDRY_HFD_ROOT}/Skywork--Matrix-Game-2.0"
+# ln -s /shared/models--Skywork--Matrix-Game-2.0 "${WORLDFOUNDRY_HFD_ROOT}/models--Skywork--Matrix-Game-2.0"
+
+make open-source-infer-repro OPEN_SOURCE_INFER_HFD_ROOT="${WORLDFOUNDRY_HFD_ROOT}"
+# Strict local cache gate:
+# make open-source-infer-repro OPEN_SOURCE_INFER_STRICT_LOCAL=1 OPEN_SOURCE_INFER_HFD_ROOT="${WORLDFOUNDRY_HFD_ROOT}"
 
 bash scripts/inference/test_nav_video_gen.sh matrix-game-2 \
   --output-dir tmp/matrix_game2_first_run
+# Successful runs write scorecard.json under the output directory.
 ```
 
 Echo-Memory is integrated as eleven independent, immutable model recipes on top

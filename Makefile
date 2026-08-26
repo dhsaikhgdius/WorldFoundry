@@ -99,8 +99,31 @@ preflight:
 		--output-dir $(PREFLIGHT_OUTPUT) \
 		--json
 
+# Optional extra pytest flags, e.g. PYTEST_ARGS='-m "not gpu and not network"'
+PYTEST_ARGS ?=
+
 test-eval-core:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest test/eval_core -q -p no:cacheprovider
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest test/eval_core -q -p no:cacheprovider $(PYTEST_ARGS)
 
 test-training:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest tests/training -q -p no:cacheprovider
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest tests/training -q -p no:cacheprovider $(PYTEST_ARGS)
+
+OPEN_SOURCE_INFER_MODEL ?= matrix-game-2
+OPEN_SOURCE_INFER_HFD_ROOT ?= $(RELEASE_HFD_ROOT)
+OPEN_SOURCE_INFER_STRICT_LOCAL ?= 0
+
+open-source-infer-repro:
+	PYTHONPATH=$(PYTHONPATH) $(WORLDFOUNDRY_EVAL) zoo model-download \
+		--model-id $(OPEN_SOURCE_INFER_MODEL) \
+		--cache-dir $(OPEN_SOURCE_INFER_HFD_ROOT) \
+		--check-local
+	PYTHONPATH=$(PYTHONPATH) $(WORLDFOUNDRY_EVAL) zoo model-validate \
+		--model-id $(OPEN_SOURCE_INFER_MODEL) \
+		--cache-dir $(OPEN_SOURCE_INFER_HFD_ROOT) \
+		--check-local
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) scripts/model_zoo/open_source_infer_repro.py \
+		--model-id $(OPEN_SOURCE_INFER_MODEL) \
+		--cache-dir $(OPEN_SOURCE_INFER_HFD_ROOT) \
+		$(if $(filter 1,$(OPEN_SOURCE_INFER_STRICT_LOCAL)),--strict-local,) \
+		--output-dir tmp/open-source-infer-repro \
+		--json
