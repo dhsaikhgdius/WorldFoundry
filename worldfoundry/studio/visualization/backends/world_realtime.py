@@ -14,6 +14,7 @@ import json
 import logging
 import os
 import re
+import threading
 import time
 import traceback
 import uuid
@@ -448,6 +449,15 @@ def _env_optional_timeout_s(name: str) -> float | None:
     return timeout_s or None
 
 
+def _close_timeout_s() -> float:
+    """Upper bound for close_active / reset wait; keeps teardown interruptible."""
+
+    configured = _env_optional_timeout_s("WORLDFOUNDRY_REALTIME_CLOSE_TIMEOUT_SECONDS")
+    if configured is not None:
+        return configured
+    return 30.0
+
+
 def _env_bool(name: str, default: bool) -> bool:
     raw = os.getenv(name, "").strip().lower()
     if not raw:
@@ -755,6 +765,11 @@ class ResidentWorldRuntime:
         self._configured = False
         self._first_stream_step = True
         self._seed_image: Image.Image | None = None
+        # Cooperative cancel for session teardown. Opaque model work on the
+        # single worker thread may still run to completion; close_active uses
+        # this flag plus a wait_for deadline and executor recycle to avoid
+        # hanging the event loop on in-flight generate()/reset().
+        self._cancel = threading.Event()
         self.last_generation_metrics: dict[str, Any] = {}
         self._postprocess = postprocess or VideoPostprocessStream(
             chain=VideoPostprocessChain((IdentityVideoPostProcessor(),)),
@@ -808,15 +823,51 @@ class ResidentWorldRuntime:
         )
         return frame_list_from_chunks(chunks)
 
+    def request_cancel(self) -> None:
+        """Signal cooperative cancel; in-flight executor work may still finish."""
+
+        self._cancel.set()
+
+    def clear_cancel(self) -> None:
+        """Clear cooperative cancel before a new session configures the runtime."""
+
+        self._cancel.clear()
+
+    def _raise_if_cancelled(self) -> None:
+        if self._cancel.is_set():
+            raise asyncio.CancelledError("Realtime runtime cancel requested.")
+
+    def _abandon_executor(self) -> None:
+        """Replace a blocked worker thread so teardown can proceed.
+
+        The previous ThreadPoolExecutor may still be running opaque model code;
+        ``shutdown(wait=False)`` abandons it so reset/close no longer deadlocks
+        behind ``max_workers=1``.
+        """
+
+        old = self._executor
+        self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="world-realtime-runtime")
+        self._configured = False
+        self._base_request = None
+        self._seed_image = None
+        self._first_stream_step = True
+        try:
+            old.shutdown(wait=False, cancel_futures=True)
+        except Exception:
+            logger.warning("Failed to abandon realtime runtime executor.", exc_info=True)
+
     async def _run(
         self,
         func: Callable[..., Any],
         *args: Any,
         **kwargs: Any,
     ) -> Any:
+        self._raise_if_cancelled()
         loop = asyncio.get_running_loop()
         call = functools.partial(func, *args, **kwargs)
-        return await loop.run_in_executor(self._executor, call)
+        result = await loop.run_in_executor(self._executor, call)
+        self._raise_if_cancelled()
+        return result
 
     def _build_request(
         self,
@@ -1000,6 +1051,7 @@ class ResidentWorldRuntime:
         dense_video_path: str = "",
         sparse_video_path: str = "",
     ) -> Image.Image:
+        self.clear_cancel()
         await self.preload()
         await self._run(self._postprocess.reset)
         if self.queued_segment_generation:
@@ -1106,6 +1158,7 @@ class ResidentWorldRuntime:
     ) -> tuple[list[np.ndarray], float]:
         if not self._configured or self._base_request is None:
             raise RuntimeError("Realtime runtime is not configured.")
+        self._raise_if_cancelled()
         if self.queued_segment_generation:
             call_kwargs = dict(self._base_request.call_kwargs)
             if not self._first_stream_step:
@@ -1183,6 +1236,7 @@ class ResidentWorldRuntime:
         return frames, generation_ms
 
     async def reset(self) -> None:
+        self._raise_if_cancelled()
         await self._run(self._postprocess.reset)
         if self._base_request is not None:
             try:
@@ -1192,6 +1246,8 @@ class ResidentWorldRuntime:
                     request=self._base_request,
                     action="reset",
                 )
+            except asyncio.CancelledError:
+                raise
             except Exception:
                 logger.warning(
                     "Realtime runtime reset action failed; continuing session teardown.",
@@ -1203,8 +1259,21 @@ class ResidentWorldRuntime:
         self._first_stream_step = True
 
     async def close(self) -> None:
-        await self.reset()
-        self._executor.shutdown(wait=False, cancel_futures=True)
+        self.request_cancel()
+        try:
+            await asyncio.wait_for(self.reset(), timeout=_close_timeout_s())
+        except (asyncio.TimeoutError, asyncio.CancelledError):
+            logger.warning(
+                "Realtime runtime reset exceeded close timeout; abandoning worker thread.",
+            )
+            self._abandon_executor()
+        else:
+            try:
+                self._executor.shutdown(wait=False, cancel_futures=True)
+            except Exception:
+                logger.warning("Realtime runtime executor shutdown failed.", exc_info=True)
+        finally:
+            self.clear_cancel()
 
     @property
     def ready(self) -> bool:
@@ -1750,6 +1819,11 @@ class RealtimePeerManager:
         if not has_session:
             return
         current_task = asyncio.current_task()
+        close_timeout = _close_timeout_s()
+        try:
+            self.runtime.request_cancel()
+        except Exception:
+            logger.warning("Realtime runtime request_cancel failed.", exc_info=True)
         try:
             if active is not None and not active.closed:
                 active.closed = True
@@ -1762,12 +1836,24 @@ class RealtimePeerManager:
                 for task in tasks:
                     if task is not None and task is not current_task:
                         task.cancel()
-                await asyncio.gather(
-                    *(task for task in tasks if task is not None and task is not current_task),
-                    return_exceptions=True,
-                )
+                try:
+                    await asyncio.wait_for(
+                        asyncio.gather(
+                            *(task for task in tasks if task is not None and task is not current_task),
+                            return_exceptions=True,
+                        ),
+                        timeout=close_timeout,
+                    )
+                except asyncio.TimeoutError:
+                    logger.warning(
+                        "Realtime peer task cancel exceeded %.1fs close timeout.",
+                        close_timeout,
+                    )
                 active.frames.close()
-                await active.peer.close()
+                try:
+                    await asyncio.wait_for(active.peer.close(), timeout=min(close_timeout, 5.0))
+                except (asyncio.TimeoutError, Exception):
+                    logger.warning("Realtime peer close failed or timed out.", exc_info=True)
             if active_socket is not None and not active_socket.closed:
                 active_socket.closed = True
                 tasks = (
@@ -1778,16 +1864,43 @@ class RealtimePeerManager:
                 for task in tasks:
                     if task is not None and task is not current_task:
                         task.cancel()
-                await asyncio.gather(
-                    *(task for task in tasks if task is not None and task is not current_task),
-                    return_exceptions=True,
-                )
+                try:
+                    await asyncio.wait_for(
+                        asyncio.gather(
+                            *(task for task in tasks if task is not None and task is not current_task),
+                            return_exceptions=True,
+                        ),
+                        timeout=close_timeout,
+                    )
+                except asyncio.TimeoutError:
+                    logger.warning(
+                        "Realtime socket task cancel exceeded %.1fs close timeout.",
+                        close_timeout,
+                    )
                 if not active_socket.socket.closed:
-                    await active_socket.socket.close()
+                    try:
+                        await asyncio.wait_for(active_socket.socket.close(), timeout=min(close_timeout, 5.0))
+                    except (asyncio.TimeoutError, Exception):
+                        logger.warning("Realtime socket close failed or timed out.", exc_info=True)
         finally:
             try:
-                await self.runtime.reset()
+                await asyncio.wait_for(self.runtime.reset(), timeout=close_timeout)
+            except (asyncio.TimeoutError, asyncio.CancelledError):
+                logger.warning(
+                    "Realtime runtime reset exceeded %.1fs close timeout; abandoning worker.",
+                    close_timeout,
+                )
+                try:
+                    self.runtime._abandon_executor()
+                except Exception:
+                    logger.warning("Realtime runtime executor abandon failed.", exc_info=True)
+            except Exception:
+                logger.warning("Realtime runtime reset failed during close_active.", exc_info=True)
             finally:
+                try:
+                    self.runtime.clear_cancel()
+                except Exception:
+                    pass
                 async with self._lock:
                     self._draining = False
                     self._drain_done.set()
