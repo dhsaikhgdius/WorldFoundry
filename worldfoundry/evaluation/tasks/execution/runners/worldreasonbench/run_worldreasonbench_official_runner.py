@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from worldfoundry.core.io.paths import project_root
 from worldfoundry.evaluation.tasks.execution.framework.io import utc_now_iso, write_json, write_jsonl
 from worldfoundry.evaluation.tasks.execution.runners.worldreasonbench.worldreasonbench_metrics import (
     METRIC_ORDER,
@@ -18,7 +19,7 @@ from worldfoundry.evaluation.tasks.execution.runners.worldreasonbench.worldreaso
 )
 from worldfoundry.runtime.jobs import run_bounded_command
 
-REPO_ROOT = Path(__file__).resolve().parents[6]
+REPO_ROOT = project_root(__file__)
 FIXTURE_ROOT = REPO_ROOT / "worldfoundry/data/benchmarks/assets/worldreasonbench"
 
 

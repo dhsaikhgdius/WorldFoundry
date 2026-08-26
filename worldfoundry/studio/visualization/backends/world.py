@@ -29,6 +29,7 @@ from urllib.parse import parse_qs, quote, unquote, urlparse
 from PIL import Image
 
 from worldfoundry.core.inference import LINGBOT_VARIANT_BASE_ACT_PREVIEW, LINGBOT_VARIANT_BASE_CAM
+from worldfoundry.core.io.paths import package_root
 from worldfoundry.studio.catalog import CatalogEntry, lingbot_world_fast_load_kwargs
 from worldfoundry.studio.execution import (
     IMAGE_EXTS,
@@ -60,7 +61,7 @@ from worldfoundry.studio.serving import (
 )
 
 WORLD_REFERENCE_IMAGE_ROOT = (
-    Path(__file__).resolve().parents[2] / "assets" / "reference_images" / "world"
+    package_root() / "studio" / "assets" / "reference_images" / "world"
 )
 # Kept as a compatibility alias for callers that imported the previous name.
 WORLD_DEMO_IMAGE_ROOT = WORLD_REFERENCE_IMAGE_ROOT
