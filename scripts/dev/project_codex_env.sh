@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Use WorldFoundry-local Codex home (config/auth/sessions isolated from global shell-config).
+# Use WorldFoundry-local Codex home (config/auth/sessions isolated from any shared Codex home).
 set -euo pipefail
 
 if [[ -n "${ZSH_VERSION:-}" ]]; then
@@ -12,24 +12,39 @@ fi
 
 ROOT="$(cd "$(dirname "$_script")/../.." && pwd)"
 export CODEX_HOME="$ROOT/.codex"
+
+# Capture an explicit persist home for stale-link cleanup, then isolate this shell
+# from shared Codex state. Never hard-code a host path here (path-hygiene gate).
+_persist_home="${CODEX_PERSIST_HOME:-}"
 unset CODEX_PERSIST_HOME
+
+mkdir -p "$CODEX_HOME"
+
+# Drop stale symlinks that point at a shared/external Codex home before creating
+# the local directory tree (so mkdir does not follow a bad link).
+for _item in auth.json config.toml sessions skills; do
+  if [[ -L "$CODEX_HOME/$_item" ]]; then
+    _target="$(readlink "$CODEX_HOME/$_item" || true)"
+    _remove=0
+    if [[ -n "$_persist_home" && ( "$_target" == "$_persist_home" || "$_target" == "$_persist_home/"* ) ]]; then
+      _remove=1
+    elif [[ "$_target" == /* && "$_target" != "$CODEX_HOME" && "$_target" != "$CODEX_HOME/"* ]]; then
+      # Absolute symlink leaving the repo-local Codex home.
+      _remove=1
+    elif [[ "$_target" == "$CODEX_HOME/$_item" || "$_target" == "$CODEX_HOME/$_item/"* ]]; then
+      _remove=1
+    fi
+    if [[ "$_remove" -eq 1 ]]; then
+      rm "$CODEX_HOME/$_item"
+    fi
+  fi
+done
+unset _item _persist_home _target _remove
 
 mkdir -p \
   "$CODEX_HOME/skills" \
   "$CODEX_HOME/sessions" \
   "$CODEX_HOME/state/sqlite"
-
-# Drop stale symlinks to the shared shell-config Codex home.
-_persist="${CODEX_PERSIST_HOME:-/mnt/cpfs/yangboxue/visual_generation/juanxi/shell-config/codex/.codex}"
-for _item in auth.json config.toml sessions skills; do
-  if [[ -L "$CODEX_HOME/$_item" ]]; then
-    _target="$(readlink "$CODEX_HOME/$_item" || true)"
-    if [[ "$_target" == "$_persist/"* || "$_target" == "$_persist" || "$_target" == "$CODEX_HOME/$_item" || "$_target" == "$CODEX_HOME/$_item/"* ]]; then
-      rm "$CODEX_HOME/$_item"
-    fi
-  fi
-done
-unset _item _persist _target
 
 if [[ ! -f "$CODEX_HOME/config.toml" ]]; then
   cat >"$CODEX_HOME/config.toml" <<EOF
