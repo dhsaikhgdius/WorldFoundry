@@ -94,10 +94,29 @@ def _detect_nvidia_driver_cuda_from_smi() -> str | None:
     return match.group(1) if match else None
 
 
-def best_cuda_tier_for_driver(driver_cuda: str | None = None) -> str:
-    """Pick the highest supported tier that the local driver can run."""
+def best_cuda_tier_for_driver(
+    driver_cuda: str | None = None,
+    *,
+    allow_missing_driver: bool = True,
+) -> str:
+    """Pick the highest supported tier that the local driver can run.
 
-    driver = cuda_version_tuple(driver_cuda or detect_nvidia_driver_cuda())
+    When no driver CUDA version is available, historical callers keep the
+    previous ``cu128`` fallback via ``allow_missing_driver=True``. Installer
+    ``auto`` resolution should pass ``allow_missing_driver=False`` so CPU hosts
+    fail loudly instead of silently compiling against cu128.
+    """
+
+    detected = driver_cuda if driver_cuda is not None else detect_nvidia_driver_cuda()
+    driver = cuda_version_tuple(detected)
+    if driver == (0, 0):
+        if allow_missing_driver:
+            return DEFAULT_CUDA_TIER
+        raise ValueError(
+            "No NVIDIA driver CUDA version detected. Pass an explicit --cuda tier "
+            f"({'/'.join(SUPPORTED_CUDA_TIERS)}), or use --allow-no-cuda --skip-flash-attn "
+            "on CPU-only hosts."
+        )
     if driver >= (12, 8):
         return "cu128"
     if driver >= (12, 4):
@@ -217,7 +236,7 @@ def resolve_install_tier(requested: str | None = None, *, driver_cuda: str | Non
         or "auto"
     )
     if value in {"", "auto"}:
-        return best_cuda_tier_for_driver(driver_cuda)
+        return best_cuda_tier_for_driver(driver_cuda, allow_missing_driver=False)
     value = _LEGACY_PROFILE_TO_TIER.get(value, value)
     if value not in SUPPORTED_CUDA_TIERS:
         raise ValueError(
