@@ -5,7 +5,9 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+from worldfoundry.core.io.paths import project_root
+
+REPO_ROOT = project_root(__file__)
 BASE_MODELS_ROOT = REPO_ROOT / "worldfoundry" / "base_models"
 
 RENDER_BACKENDS = {
