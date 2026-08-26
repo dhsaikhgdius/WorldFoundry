@@ -1,0 +1,7 @@
+# WorldFoundry unified lock for CUDA tier cu121.
+# Generate with: make lock-unified TIER=cu121
+# Index: https://download.pytorch.org/whl/cu121
+#
+# This placeholder intentionally has no resolved package pins. Do not invent
+# versions here — run the compile script on a host that can reach PyPI + the
+# PyTorch CUDA wheel index, then commit the resulting lock.
