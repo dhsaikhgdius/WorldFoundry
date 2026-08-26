@@ -29,7 +29,9 @@ pyarrow
 kornia
 
 # Torch-coupled runtime bundles.
-clip @ git+https://github.com/openai/CLIP.git
+# CLIP pinned to a commit SHA (plan I-05); see requirements/lock/README.md
+# for the refresh procedure.
+clip @ git+https://github.com/openai/CLIP.git@d05afc436d78f1c48dc0dbf8e5980a9d471f35f6
 timm
 torchao
 torchdata>=0.11,<0.12

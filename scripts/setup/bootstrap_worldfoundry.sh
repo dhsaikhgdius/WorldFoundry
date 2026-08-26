@@ -21,6 +21,7 @@ INSTALL_UNIFIED=1
 VERIFY_ONLY=0
 VERIFY=1
 SKIP_FLASH_ATTN=0
+INSTALL_UNLOCKED="${WORLDFOUNDRY_INSTALL_UNLOCKED:-0}"
 ALLOW_NO_CUDA=0
 DOWNLOAD_MODEL_ASSETS=0
 START_WORKSPACE=0
@@ -65,6 +66,8 @@ Options:
   --verify-only            Verify existing envs; do not install packages.
   --no-verify              Skip post-install import/catalog verification.
   --skip-flash-attn        Forward to unified and model env installers.
+  --unlocked               Ignore per-tier lockfiles in requirements/lock/ and
+                            install from requirements/worldfoundry-unified.txt.
   --allow-no-cuda          Do not fail verification when CUDA is not visible.
   -h, --help               Show this help.
 
@@ -150,6 +153,10 @@ while (($#)); do
       SKIP_FLASH_ATTN=1
       shift
       ;;
+    --unlocked)
+      INSTALL_UNLOCKED=1
+      shift
+      ;;
     --allow-no-cuda)
       ALLOW_NO_CUDA=1
       shift
@@ -202,6 +209,7 @@ unified_args=(bash "$ROOT/scripts/setup/unified_install.sh" --cuda "$CUDA_TIER" 
 [[ -n "$ARTIFACT_ROOT" ]] && unified_args+=(--artifact-root "$ARTIFACT_ROOT")
 [[ "$VERIFY_ONLY" == "1" ]] && unified_args+=(--verify-only)
 [[ "$SKIP_FLASH_ATTN" == "1" ]] && unified_args+=(--skip-flash-attn)
+[[ "$INSTALL_UNLOCKED" == "1" ]] && unified_args+=(--unlocked)
 [[ "$ALLOW_NO_CUDA" == "1" ]] && unified_args+=(--allow-no-cuda)
 
 if [[ "$INSTALL_UNIFIED" == "1" ]]; then

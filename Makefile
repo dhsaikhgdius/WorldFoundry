@@ -1,4 +1,4 @@
-.PHONY: help install-core install-dev docs-check lint ruff-check ruff-format-check syntax-check shell-check data-check runtime-registry-check check-cuda-constraints compile-eval cli-check precommit precommit-install preflight test-eval-core test-training open-source-infer-repro
+.PHONY: help install-core install-dev docs-check lint ruff-check ruff-format-check syntax-check shell-check data-check runtime-registry-check check-cuda-constraints lock-unified lock-check compile-eval cli-check precommit precommit-install preflight test-eval-core test-training open-source-infer-repro
 
 PYTHON ?= python
 PIP ?= $(PYTHON) -m pip
@@ -39,7 +39,9 @@ help:
 		'  make preflight         Run the public runtime preflight.' \
 		'  make test-eval-core    Run the eval_core release-gate pytest suite (CPU).' \
 		'  make test-training     Run the tests/training pytest suite (CPU subset).' \
-		'  make check-cuda-constraints  Dry-run: verify per-tier torch constraint stubs.'
+		'  make check-cuda-constraints  Dry-run: verify per-tier torch constraint stubs.' \
+		'  make lock-unified TIER=cu128  Compile the per-tier unified lockfile (needs uv + network).' \
+		'  make lock-check        Offline unified-lock scaffolding consistency check.'
 
 install-core:
 	$(PIP) install -e .
@@ -51,7 +53,7 @@ docs-check:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m worldfoundry.cli --help >/dev/null
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m worldfoundry.cli zoo benchmarks --json >/dev/null
 
-lint: ruff-check syntax-check shell-check data-check runtime-registry-check
+lint: ruff-check syntax-check shell-check data-check runtime-registry-check lock-check
 
 ruff-check:
 	$(PYTHON) -m ruff check $(RUFF_SOURCES)
@@ -83,6 +85,15 @@ runtime-registry-check:
 # I-03: verify per-CUDA-tier torch constraint stubs match TIER_TORCH_SPECS (no downloads).
 check-cuda-constraints:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) scripts/setup/check_cuda_torch_constraints.py
+
+# I-05: compile a per-tier unified lockfile (requires uv + network access).
+TIER ?= cu128
+lock-unified:
+	bash scripts/setup/compile_unified_lock.sh $(TIER)
+
+# I-05: offline consistency check for the lock scaffolding (no downloads).
+lock-check:
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) scripts/setup/check_unified_lock.py
 
 compile-eval:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m compileall -q worldfoundry/evaluation scripts

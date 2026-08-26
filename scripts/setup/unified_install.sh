@@ -50,6 +50,8 @@ Options:
   --pytorch-bundle NAME Accepted for older command lines; currently ignored.
   --transformers NAME   Accepted for older command lines; currently ignored.
   --skip-flash-attn     Skip flash-attn install.
+  --unlocked            Ignore the per-tier lockfile in requirements/lock/ and
+                        install from requirements/worldfoundry-unified.txt.
   --torch SPEC          Torch package spec. Default: torch>=2.7,<2.12.0.
   --torchvision SPEC    Torchvision package spec. Default: torchvision>=0.22,<0.27.0.
   --torchaudio SPEC     Torchaudio package spec. Default: torchaudio>=2.7,<2.12.0.
@@ -126,6 +128,10 @@ while (($#)); do
       ;;
     --skip-flash-attn)
       INSTALL_ARGS+=(--skip-flash-attn)
+      shift
+      ;;
+    --unlocked)
+      INSTALL_ARGS+=(--unlocked)
       shift
       ;;
     --torch)

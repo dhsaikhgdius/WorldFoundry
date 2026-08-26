@@ -22,6 +22,8 @@ TORCHAUDIO_SPEC="${WORLDFOUNDRY_TORCHAUDIO_SPEC:-}"
 VERIFY_ONLY=0
 ALLOW_NO_CUDA="${WORLDFOUNDRY_ALLOW_NO_CUDA:-0}"
 CUDA_NVCC_DRY_RUN=0
+# I-05: prefer the committed per-tier lockfile when populated; --unlocked escapes.
+INSTALL_UNLOCKED="${WORLDFOUNDRY_INSTALL_UNLOCKED:-0}"
 
 usage() {
   cat <<'EOF'
@@ -49,6 +51,9 @@ Options:
                         resolved CUDA tier (cu121 <2.6, cu124 <2.7, cu128 >=2.7).
   --torchvision SPEC    Torchvision package spec (tier default unless set).
   --torchaudio SPEC     Torchaudio package spec (tier default unless set).
+  --unlocked            Ignore requirements/lock/worldfoundry-unified.<tier>.lock.txt
+                        and install from requirements/worldfoundry-unified.txt.
+                        Default: use the tier lock when it has resolved pins.
   --verify-only         Only run import and CUDA verification in the env.
   --allow-no-cuda       Do not fail verification when CUDA is not visible.
   --cuda-nvcc-dry-run   Print the tier-aware nvcc install command and exit.
@@ -110,6 +115,10 @@ while (($#)); do
     --torchaudio)
       TORCHAUDIO_SPEC="$2"
       shift 2
+      ;;
+    --unlocked)
+      INSTALL_UNLOCKED=1
+      shift
       ;;
     --verify-only)
       VERIFY_ONLY=1
@@ -304,10 +313,28 @@ print("wrote torch constraint:", constraint_path)
 print("\n".join(lines))
 PY
 
+  # I-05: install the committed per-tier lock when it carries resolved pins
+  # (placeholder locks are comment-only). The lock embeds its own index URLs
+  # via --emit-index-url; the I-02 torch constraint still applies either way.
+  UNIFIED_REQUIREMENTS="requirements/worldfoundry-unified.txt"
+  TIER_LOCK_FILE="requirements/lock/worldfoundry-unified.${CUDA_PROFILE}.lock.txt"
+  if [[ "$INSTALL_UNLOCKED" != "1" ]] \
+    && [[ -f "$TIER_LOCK_FILE" ]] \
+    && grep -Eq '^[[:space:]]*[^#[:space:]]' "$TIER_LOCK_FILE"; then
+    UNIFIED_REQUIREMENTS="$TIER_LOCK_FILE"
+    echo "Installing locked unified requirements: ${TIER_LOCK_FILE}"
+  else
+    if [[ "$INSTALL_UNLOCKED" == "1" ]]; then
+      echo "--unlocked: installing unconstrained requirements/worldfoundry-unified.txt"
+    else
+      echo "No populated lock for ${CUDA_PROFILE} (${TIER_LOCK_FILE}); installing requirements/worldfoundry-unified.txt"
+    fi
+  fi
+
   PIP_CONFIG_FILE="${WORLDFOUNDRY_PIP_CONFIG_FILE:-/dev/null}" conda_run \
     python -m pip install --no-cache-dir --index-url "$PYPI_INDEX_URL" \
     --constraint "$TORCH_CONSTRAINT_FILE" \
-    -r requirements/worldfoundry-unified.txt
+    -r "$UNIFIED_REQUIREMENTS"
   rm -f "$TORCH_CONSTRAINT_FILE"
 
   PIP_CONFIG_FILE="${WORLDFOUNDRY_PIP_CONFIG_FILE:-/dev/null}" conda_run \

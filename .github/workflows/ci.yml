@@ -48,6 +48,14 @@ jobs:
       - name: Run lightweight quality gates
         run: make lint
 
+      - name: Unified lock drift dry-run (I-05)
+        run: |
+          # uv pin matches docker/Dockerfile ARG UV_VERSION (D-05). Placeholder
+          # locks skip fast; once a real lock body lands this recompiles the
+          # cu128 lock and fails on drift.
+          python -m pip install "uv==0.12.6"
+          bash scripts/setup/compile_unified_lock.sh cu128 --check
+
       - name: Compile package and scripts
         run: make compile-eval
 
