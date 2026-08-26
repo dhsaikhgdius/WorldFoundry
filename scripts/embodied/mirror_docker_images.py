@@ -14,7 +14,6 @@ import yaml
 
 from worldfoundry.core.io.paths import project_root
 
-
 DEFAULT_PROFILE_DIR = Path("worldfoundry/data/benchmarks/runtime_profiles/official")
 @dataclass(frozen=True)
 class ImageMapping:
