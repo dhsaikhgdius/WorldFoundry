@@ -20,7 +20,7 @@ import os
 import subprocess
 import sys
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Iterable, Iterator, Mapping
 
@@ -292,7 +292,13 @@ def _benchmark_data_root(
 
 
 def _default_results_path_from_data_root(benchmark_id: str, data_root: Path | None) -> Path | None:
-    """Probe ``data_root`` for conventional results/scores filenames."""
+    """Probe ``data_root`` for conventional results/scores filenames.
+
+    RP-01: ``annotations.json`` / ``annotations.jsonl`` are dataset labels,
+    not model results, so the generic probe must never treat them as an
+    importable results file.  Benchmarks whose official pipeline genuinely
+    consumes an annotations tree (phyground) keep their explicit special case.
+    """
     if data_root is None:
         return None
     normalized = benchmark_id.replace("-", "_")
@@ -301,8 +307,6 @@ def _default_results_path_from_data_root(benchmark_id: str, data_root: Path | No
         data_root / "results.jsonl",
         data_root / "scores.json",
         data_root / "scores.jsonl",
-        data_root / "annotations.json",
-        data_root / "annotations.jsonl",
         data_root / normalized / "results.json",
         data_root / benchmark_id / "results.json",
     ]
@@ -318,6 +322,54 @@ def _default_results_path_from_data_root(benchmark_id: str, data_root: Path | No
         if candidate.exists():
             return candidate
     return None
+
+
+#: Prominent scorecard blocker recorded whenever an official mode imported a
+#: preexisting results file instead of executing the official command.
+IMPORTED_PREEXISTING_RESULTS_BLOCKER = "imported_preexisting_results"
+
+#: ``results_path_source`` values that reflect an explicit operator choice.
+EXPLICIT_RESULTS_PATH_SOURCES = frozenset(
+    {"results_path", "official_results_path", "upstream_results_path"}
+)
+
+
+def _results_path_source_is_explicit(source: JsonValue) -> bool:
+    """Return True when a ``results_path_source`` was explicitly requested."""
+    if not isinstance(source, str) or not source:
+        return False
+    if source in EXPLICIT_RESULTS_PATH_SOURCES:
+        return True
+    return source.startswith("env_override:") or source.startswith("env:")
+
+
+def _reject_implicit_official_run_results(
+    runtime_spec: dict[str, JsonValue], *, mode: str
+) -> dict[str, JsonValue]:
+    """Drop data-root-probed results paths from ``official-run`` runtime specs.
+
+    RP-01: results files auto-detected under ``benchmark_data_root`` are
+    dataset inputs or stale outputs from earlier runs, never fresh model
+    results.  ``official-run`` must execute the official command, so only
+    explicit results sources (``results_path`` / ``official_results_path`` /
+    ``upstream_results_path`` kwargs or their env overrides) may trigger the
+    import short-circuit.  The dropped path is preserved under
+    ``ignored_results_path`` for auditability.
+    """
+    if mode != "official-run":
+        return runtime_spec
+    source = runtime_spec.get("results_path_source")
+    if _results_path_source_is_explicit(source) or not runtime_spec.get("results_path"):
+        return runtime_spec
+    runtime_spec["ignored_results_path"] = runtime_spec.get("results_path")
+    runtime_spec["ignored_results_path_source"] = source
+    runtime_spec["ignored_results_path_reason"] = (
+        "official-run only imports explicit results sources; "
+        "paths probed from the benchmark data root are ignored"
+    )
+    runtime_spec["results_path"] = None
+    runtime_spec["results_path_source"] = None
+    return runtime_spec
 
 
 def _commands_to_json(commands: Iterable[JsonValue]) -> list[JsonValue]:
@@ -955,7 +1007,10 @@ class ManifestBenchmarkRunner:
         plan = self.materialization_plan()
         command = _command_for_mode(self.entry, resolved_mode)
         command_kind = _command_kind_for_mode(resolved_mode) if resolved_mode in _OFFICIAL_MODES else None
-        runtime_spec = _runner_runtime_spec(self.entry, benchmark_id=self.benchmark_id, kwargs=kwargs)
+        runtime_spec = _reject_implicit_official_run_results(
+            _runner_runtime_spec(self.entry, benchmark_id=self.benchmark_id, kwargs=kwargs),
+            mode=resolved_mode,
+        )
         return OfficialRunStage(
             benchmark_id=self.benchmark_id,
             stage="prepare",
@@ -1053,6 +1108,7 @@ class ManifestBenchmarkRunner:
                 command = workspace_command
         runtime_spec = data.get("runtime")
         runtime_spec = dict(runtime_spec) if isinstance(runtime_spec, Mapping) else _runner_runtime_spec(self.entry, benchmark_id=self.benchmark_id)
+        runtime_spec = _reject_implicit_official_run_results(runtime_spec, mode=mode)
         data["runtime"] = runtime_spec
         metadata = {
             **prepared.metadata,
@@ -1602,6 +1658,37 @@ class ManifestBenchmarkRunner:
         )
 
     def _normalize_official(self, collected: OfficialRunStage, *, mode: str) -> OfficialRunResult:
+        """Normalize official output and flag preexisting-results imports.
+
+        RP-01: whenever the run stage import-short-circuited on an existing
+        results file (``run_status == "official_results_import"``), the final
+        scorecard must carry a prominent ``official_results_imported`` flag and
+        an ``imported_preexisting_results`` leaderboard blocker so imported
+        evidence can never pass as an executed official run.
+        """
+        result = self._normalize_official_impl(collected, mode=mode)
+        if collected.data.get("run_status") != "official_results_import":
+            return result
+        scorecard_path = result.scorecard_path
+        if scorecard_path.is_file():
+            try:
+                scorecard = json.loads(scorecard_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                scorecard = None
+            if isinstance(scorecard, dict):
+                scorecard["official_results_imported"] = True
+                blockers = scorecard.get("leaderboard_blockers")
+                blockers = [str(item) for item in blockers] if isinstance(blockers, list) else []
+                if IMPORTED_PREEXISTING_RESULTS_BLOCKER not in blockers:
+                    blockers.append(IMPORTED_PREEXISTING_RESULTS_BLOCKER)
+                scorecard["leaderboard_blockers"] = blockers
+                write_json(scorecard_path, scorecard)
+        return replace(
+            result,
+            metadata={**dict(result.metadata), "official_results_imported": True},
+        )
+
+    def _normalize_official_impl(self, collected: OfficialRunStage, *, mode: str) -> OfficialRunResult:
         """Route official normalization across specialized, embodied, and generic paths."""
         data = dict(collected.data)
         root = collected.output_dir
