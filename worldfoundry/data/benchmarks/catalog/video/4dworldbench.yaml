@@ -232,6 +232,9 @@ base_model_dependencies:
 - droid_slam
 - vfimamba
 - fastvqa
+dataset:
+  not_applicable: true
+  reason: Official benchmark assets are supplied by the source repository or caller-provided generated artifacts; no Hugging Face dataset is required for this contract entry.
 validation_command:
 - python
 - worldfoundry/evaluation/tasks/execution/runners/four_d_worldbench/run_four_d_worldbench_official_runner.py
