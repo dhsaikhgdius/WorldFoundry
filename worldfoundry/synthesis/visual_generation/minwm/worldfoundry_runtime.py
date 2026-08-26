@@ -7,12 +7,11 @@ import sys
 from pathlib import Path
 from typing import Any, Mapping
 
-from worldfoundry.core.io.paths import checkpoint_root_path, hfd_root_path
 from worldfoundry.core.distributed.multiprocess_launch import find_free_port
+from worldfoundry.core.io.paths import checkpoint_root_path, hfd_root_path, project_root
 from worldfoundry.runtime.in_tree_cli import ensure_in_tree_runtime, execute_in_tree, require_path
 
-
-_PROJECT_ROOT = Path(__file__).resolve().parents[4]
+_PROJECT_ROOT = project_root(__file__)
 _MINWM_CONFIG_ROOT = _PROJECT_ROOT / "worldfoundry" / "data" / "models" / "runtime" / "configs" / "minwm"
 
 
