@@ -5,6 +5,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from worldfoundry.core.process import run_logged_subprocess
+
 MODULE_ROOT = "worldfoundry.evaluation.tasks.execution.runners.larybench"
 SPLIT_DATASETS = {"agibotbeta", "robocoin"}
 STATS_JSON_NAME = {
@@ -216,7 +218,17 @@ def run_classify(args):
         "--devices",
         *(gpu if gpu == "cpu" else f"cuda:{gpu}" for gpu in _parse_gpu_ids(args.gpus)),
     ]
-    subprocess.run(command, cwd=config.project_root, env=environment, check=True)
+    log_dir = Path(config.project_root) / "tmp" / "larybench_logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    completed = run_logged_subprocess(
+        command,
+        stdout_path=log_dir / "classify.stdout.log",
+        stderr_path=log_dir / "classify.stderr.log",
+        cwd=config.project_root,
+        env=environment,
+    )
+    if completed.returncode != 0:
+        raise subprocess.CalledProcessError(completed.returncode, command)
 
 
 def _relative_stats_path(action_data_root, dataset):
@@ -306,7 +318,17 @@ def run_regress(args):
     ):
         if value:
             command.extend((flag, str(value)))
-    subprocess.run(command, cwd=config.project_root, env=environment, check=True)
+    log_dir = Path(config.project_root) / "tmp" / "larybench_logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    completed = run_logged_subprocess(
+        command,
+        stdout_path=log_dir / "regress.stdout.log",
+        stderr_path=log_dir / "regress.stderr.log",
+        cwd=config.project_root,
+        env=environment,
+    )
+    if completed.returncode != 0:
+        raise subprocess.CalledProcessError(completed.returncode, command)
 
 
 def main():

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 
 
+from worldfoundry.core.process import run_logged_subprocess
 from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
 
 import argparse
@@ -1041,26 +1042,29 @@ def run_command_sequence(
     command_lines: list[list[str]] = []
     start = time.monotonic()
     final_returncode = 0
-    for cwd, command in commands:
+    for index, (cwd, command) in enumerate(commands):
         command_lines.append(command)
-        completed = subprocess.run(
+        part_stdout = stdout_path.with_name(f"{stdout_path.stem}.{index}.part.log")
+        part_stderr = stderr_path.with_name(f"{stderr_path.stem}.{index}.part.log")
+        completed = run_logged_subprocess(
             command,
+            stdout_path=part_stdout,
+            stderr_path=part_stderr,
             cwd=cwd,
             env=env,
-            capture_output=True,
-            text=True,
             timeout=timeout,
-            check=False,
         )
+        stdout_text = part_stdout.read_text(encoding="utf-8")
+        stderr_text = part_stderr.read_text(encoding="utf-8")
         with stdout_path.open("a", encoding="utf-8") as handle:
             handle.write("$ " + " ".join(command) + "\n")
-            handle.write(completed.stdout)
-            if completed.stdout and not completed.stdout.endswith("\n"):
+            handle.write(stdout_text)
+            if stdout_text and not stdout_text.endswith("\n"):
                 handle.write("\n")
         with stderr_path.open("a", encoding="utf-8") as handle:
             handle.write("$ " + " ".join(command) + "\n")
-            handle.write(completed.stderr)
-            if completed.stderr and not completed.stderr.endswith("\n"):
+            handle.write(stderr_text)
+            if stderr_text and not stderr_text.endswith("\n"):
                 handle.write("\n")
         if completed.returncode != 0 and final_returncode == 0:
             final_returncode = completed.returncode
@@ -1131,18 +1135,19 @@ for module in modules:
                 results.append(item)
         return results
 
+    probe_stdout = Path(getattr(args, "output_dir", Path("."))) / f"t2v_compbench_preflight_{group}.stdout.log"
+    probe_stderr = Path(getattr(args, "output_dir", Path("."))) / f"t2v_compbench_preflight_{group}.stderr.log"
     try:
-        completed = subprocess.run(
+        completed = run_logged_subprocess(
             [args.python, "-c", code, json.dumps(list(modules))],
+            stdout_path=probe_stdout,
+            stderr_path=probe_stderr,
             cwd=args.t2v_compbench_root,
             env=build_official_env(args.t2v_compbench_root),
-            capture_output=True,
-            text=True,
             timeout=args.preflight_timeout,
-            check=False,
         )
-    except subprocess.TimeoutExpired as exc:
-        module_results = parse_module_results(exc.stdout)
+    except subprocess.TimeoutExpired:
+        module_results = parse_module_results(probe_stdout.read_text(encoding="utf-8") if probe_stdout.is_file() else "")
         completed_modules = {item.get("module") for item in module_results}
         module_results.extend(
             {
@@ -1158,9 +1163,11 @@ for module in modules:
             "ok": False,
             "returncode": None,
             "modules": module_results,
-            "stderr": (exc.stderr or "")[-4000:] if isinstance(exc.stderr, str) else "",
+            "stderr": (probe_stderr.read_text(encoding="utf-8")[-4000:] if probe_stderr.is_file() else ""),
         }
-    module_results = parse_module_results(completed.stdout)
+    stdout_text = probe_stdout.read_text(encoding="utf-8") if probe_stdout.is_file() else ""
+    stderr_text = probe_stderr.read_text(encoding="utf-8") if probe_stderr.is_file() else ""
+    module_results = parse_module_results(stdout_text)
     if not module_results:
         module_results = [
             {
@@ -1175,7 +1182,7 @@ for module in modules:
         "ok": completed.returncode == 0 and all(item.get("ok") for item in module_results),
         "returncode": completed.returncode,
         "modules": module_results,
-        "stderr": completed.stderr.strip()[-4000:],
+        "stderr": stderr_text.strip()[-4000:],
     }
 
 

@@ -224,3 +224,21 @@ def test_sy03_batch7_eval_runners_wire_run_logged_subprocess() -> None:
         assert "run_logged_subprocess" in text, rel
         assert "from worldfoundry.core.process import" in text, rel
         assert "subprocess.run(" not in text, rel
+
+
+def test_sy03_batch8_eval_runners_wire_run_logged_subprocess() -> None:
+    root = Path(__file__).resolve().parents[2]
+    paths = (
+        "worldfoundry/evaluation/tasks/execution/runners/t2v_compbench/run_t2v_compbench_official_runner.py",
+        "worldfoundry/evaluation/tasks/execution/runners/larybench/cli.py",
+    )
+    for rel in paths:
+        text = (root / rel).read_text(encoding="utf-8")
+        assert "run_logged_subprocess" in text, rel
+        assert "from worldfoundry.core.process import" in text, rel
+        assert "subprocess.run(" not in text, rel
+    # extract keeps Popen for long-lived workers; classify/regress use logged adapter
+    lary = (root / paths[1]).read_text(encoding="utf-8")
+    assert "subprocess.Popen(" in lary
+    assert 'log_dir / "classify.stdout.log"' in lary or "classify.stdout.log" in lary
+    assert "regress.stdout.log" in lary
