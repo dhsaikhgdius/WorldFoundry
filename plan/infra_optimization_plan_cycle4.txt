@@ -1,0 +1,20 @@
+WorldFoundry infra optimization — Cycle 4
+=========================================
+日期：2026-08-26
+方法：云端子代理额度满时本地落地 + 定时重试
+
+已开草案 PR（对照）：#23–#29
+
+本轮
+----
+- cursor/infra-docker-digest-4569：image_refs 钉扎、digest 字段、可选强制 pin
+
+仍未覆盖（下一批）
+------------------
+1. official profile YAML 仍 :latest（需真实 digest）
+2. docker_runner host network / 仓库挂载 rw
+3. WORLDFOUNDRY_HOME / download_hfd / Makefile RELEASE_HFD_ROOT
+4. docker build 无条件 host network；死 .gitmodules flash-attention
+5. 缺失 open_source_infer_repro 契约
+6. lockfiles / dependabot / actions SHA pin
+7. model_server ping；Studio lifecycle lock
