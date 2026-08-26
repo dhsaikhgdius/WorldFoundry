@@ -11,6 +11,7 @@ import numpy as np
 import torch
 from PIL import Image
 
+from worldfoundry.core.io.paths import project_root
 from worldfoundry.evaluation.models.runtime.profiles import load_runtime_profile
 from worldfoundry.synthesis.base_synthesis import BaseSynthesis
 
@@ -39,7 +40,7 @@ def _checkpoint_root() -> Path:
     return Path(
         os.environ.get(
             "WORLDFOUNDRY_CKPT_DIR",
-            str(Path(__file__).resolve().parents[5] / "ckpt"),
+            str(project_root(__file__) / "ckpt"),
         )
     ).expanduser()
 
