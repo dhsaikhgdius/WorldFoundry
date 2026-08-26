@@ -14,7 +14,7 @@ Studio exposes multiple frontends:
 | `world` | Interactive world models | Standalone WebRTC console with a resident model runtime, reliable input-edge DataChannel, bounded in-memory frame queue, one persistent video track, immersive fullscreen, and a live runtime log. It does not render through Gradio or materialize an MP4 per control step. |
 | `points` | Viser point clouds / meshes | Starts native Viser directly instead of embedding it in the console shell. |
 | `embodied` | Embodied simulators | **Planned.** URL bridge only: Studio registers an external simulator URL and tunnel hints; no in-tree embodied viewer yet. |
-| `spark` | 3DGS | Starts the standalone Spark 3DGS viewer with repository-local Spark assets. |
+| `spark` | 3DGS | Starts the standalone Spark 3DGS viewer. Vendor JS under `worldfoundry/studio/assets/vendor/` is gitignored — run `python scripts/studio/fetch_vendor_assets.py` once after clone. |
 | `auto` | Default | Routes interactive worlds to `world`, 3D scenes to `spark`, point/depth workflows to `points`, and embodied policies to `embodied`. |
 
 ## What it shows

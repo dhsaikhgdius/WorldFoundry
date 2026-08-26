@@ -321,6 +321,13 @@ def serve_embodied_frontend(entry: CatalogEntry, launch_config: StudioLaunchConf
 def serve_spark_frontend(entry: CatalogEntry, launch_config: StudioLaunchConfig) -> None:
     """Serve a standalone Spark 3DGS viewer over HTTP."""
 
+    from worldfoundry.studio.ui.assets import require_vendor_modules
+
+    try:
+        require_vendor_modules()
+    except FileNotFoundError as exc:
+        raise SystemExit(str(exc)) from exc
+
     host = host_for_frontend(launch_config)
     port = port_for_frontend(launch_config, SPARK_FRONTEND)
     auth_token = require_auth_token_for_host(host, server_name="Spark frontend")

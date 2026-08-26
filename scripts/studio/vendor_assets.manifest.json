@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "description": "Pinned Studio Spark/Three vendor JS (gitignored under worldfoundry/studio/assets/vendor/). Fetch with: python scripts/studio/fetch_vendor_assets.py",
+  "assets": [
+    {
+      "id": "spark.module.min.js",
+      "relative_path": "spark/spark.module.min.js",
+      "url": "https://cdn.jsdelivr.net/npm/@sparkjsdev/spark@0.1.9/dist/spark.module.min.js",
+      "sha256": "3c0ab3f8679694122c945d01f5fee424e2010f1f741aa6b3457a128138183aa6",
+      "license": "See @sparkjsdev/spark package license"
+    },
+    {
+      "id": "three.module.js",
+      "relative_path": "three/three.module.js",
+      "url": "https://cdn.jsdelivr.net/npm/three@0.172.0/build/three.module.js",
+      "sha256": "2ac776db82c8cb8075433c63085028142f3e86e20016a0308b28943e8dbea238",
+      "license": "MIT (Three.js)"
+    },
+    {
+      "id": "three.core.js",
+      "relative_path": "three/three.core.js",
+      "url": "https://cdn.jsdelivr.net/npm/three@0.172.0/build/three.core.js",
+      "sha256": "c269806166c61cc3ddf6f19b05fc31a50f6bdfc85902eaed723e972f9bb3e163",
+      "license": "MIT (Three.js)"
+    }
+  ]
+}
