@@ -313,3 +313,13 @@ def test_batch13_studio_assets_use_package_root() -> None:
         assert "from worldfoundry.core.io.paths import package_root" in text, rel
         assert "package_root()" in text, rel
         assert "Path(__file__).resolve().parents[" not in text, rel
+
+
+def test_batch14_qwen_captioner_uses_package_root() -> None:
+    """World Explorer Qwen default checkpoint root uses package_root."""
+    repo = Path(__file__).resolve().parents[2]
+    rel = "worldfoundry/studio/native/world_explorer/api/qwen_captioner.py"
+    text = (repo / rel).read_text(encoding="utf-8")
+    assert "from worldfoundry.core.io.paths import package_root" in text
+    assert "package_root()" in text
+    assert "Path(__file__).resolve().parents[" not in text
