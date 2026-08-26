@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import subprocess
-import sys
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -10,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from worldfoundry.core import as_list, cuda_visible_devices_from_device, jsonable, resolve_hf_snapshot_path
-
+from worldfoundry.runtime.conda import resolve_model_python
 
 _REPO_SRC = Path(__file__).resolve().parents[4]
 
@@ -79,7 +78,7 @@ class PusaVidGenRuntime:
         self.low_lora_path = Path(low_lora_path).expanduser() if low_lora_path else self.checkpoint_root / "low_noise_pusa.safetensors"
         self.lightx2v_root = resolve_hf_snapshot_path(lightx2v_root) if lightx2v_root else None
         self.device = device
-        self.python_executable = Path(python_executable).expanduser() if python_executable else Path(sys.executable)
+        self.python_executable = Path(resolve_model_python(self.model_id, explicit=python_executable))
         self.runner_version = (runner_version or "").strip().lower()
 
     def _runner_version(self) -> str:

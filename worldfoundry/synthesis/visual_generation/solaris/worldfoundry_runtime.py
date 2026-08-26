@@ -11,9 +11,10 @@ from __future__ import annotations
 
 import os
 import subprocess
-import sys
 from pathlib import Path
 from typing import Any, Optional
+
+from worldfoundry.runtime.conda import resolve_model_python
 
 from .runtime_env import (
     build_eval_dataset_overrides,
@@ -93,7 +94,7 @@ class SolarisRuntime:
         self.checkpoint_dir = str(Path(checkpoint_dir).expanduser().resolve())
         self.jax_cache_dir = str(Path(jax_cache_dir).expanduser().resolve())
         self.model_weights_path = str(Path(model_weights_path).expanduser().resolve())
-        self.python_executable = python_executable or sys.executable
+        self.python_executable = resolve_model_python("solaris", explicit=python_executable)
         self.device = device
         # Set default values for various parameters, which can be overridden by `defaults`.
         self.defaults = {

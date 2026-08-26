@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import json
-import sys
 import tempfile
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
 from worldfoundry.core.io.paths import resolve_data_path, resolve_local_hf_model_path
+from worldfoundry.runtime.conda import resolve_model_python
 from worldfoundry.runtime.in_tree_cli import execute_in_tree
 from worldfoundry.synthesis.base_synthesis import BaseSynthesis
 
@@ -101,7 +101,7 @@ class MoVerseSynthesis(BaseSynthesis):
             "wan_path": str(options.get("wan_path") or DEFAULT_WAN_REPO),
         }
         resolved_assets, asset_errors = _resolve_assets(unresolved_assets, required=not plan_only)
-        python_executable = str(options.get("python_executable") or sys.executable)
+        python_executable = resolve_model_python(self.model_id, explicit=options.get("python_executable"))
         config_path = resolve_data_path(
             "models", "runtime", "configs", "moverse", "inference", "cond_inference_multi.yaml"
         )

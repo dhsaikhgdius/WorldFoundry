@@ -15,12 +15,12 @@ text encoder, and a Causal-rCM DiT checkpoint must be present.
 from __future__ import annotations
 
 import importlib.util
-import os
 import sys
 from pathlib import Path
 from typing import Any, Mapping
 
 from worldfoundry.core.io.paths import checkpoint_root_path
+from worldfoundry.runtime.conda import resolve_model_python
 from worldfoundry.synthesis.visual_generation.world_model.runtime_manifest import command_settings
 
 RUNTIME_DIR = Path(__file__).resolve().parent
@@ -165,15 +165,10 @@ def _python_executable(settings: Mapping[str, Any]) -> str:
     one. An explicit ``python_executable`` wins; otherwise use that environment
     automatically when it has been created under ``WORLDFOUNDRY_CONDA_ENVS_ROOT``.
     """
-    explicit = _option(settings, "python_executable", "python_bin")
-    if explicit:
-        return str(explicit)
-    env_root = os.getenv("WORLDFOUNDRY_CONDA_ENVS_ROOT")
-    if env_root:
-        candidate = Path(env_root).expanduser() / RUNTIME_ENV_NAME / "bin" / "python"
-        if candidate.is_file():
-            return str(candidate)
-    return sys.executable
+    return resolve_model_python(
+        "causal-rcm",
+        explicit=_option(settings, "python_executable", "python_bin"),
+    )
 
 
 def missing_requirements(*, options, runtime_root, entrypoint, profile) -> list[dict[str, str]]:

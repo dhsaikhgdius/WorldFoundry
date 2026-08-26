@@ -16,6 +16,7 @@ import numpy as np
 from worldfoundry.core.io import file_sha256
 from worldfoundry.core.io.paths import checkpoint_root_path
 from worldfoundry.core.io.video import materialize_video_input
+from worldfoundry.runtime.conda import resolve_model_python
 
 DEFAULT_AC3D_REPO_ID = "snap-research/ac3d"
 DEFAULT_COGVIDEOX_2B_REPO = "THUDM/CogVideoX-2b"
@@ -300,7 +301,7 @@ class AC3DRuntime:
         self.base_model_path = str(base_model_path or _default_base_model_path(resolved_variant))
         self.controlnet_model_path = str(controlnet_model_path or _default_controlnet_path(resolved_variant))
         self.device = device
-        self.python_executable = python_executable or sys.executable
+        self.python_executable = resolve_model_python("ac3d", explicit=python_executable)
         self.defaults = {
             "annotation_json": "annotations/test.json",
             "controlnet_weights": 1.0,
