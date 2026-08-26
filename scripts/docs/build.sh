@@ -1,26 +1,28 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SKIP_BOOTSTRAP=0
 SKIP_INSTALL=0
 
 usage() {
   cat <<'USAGE'
-Usage: bash scripts/docs/build.sh [--skip-bootstrap] [--skip-install]
+Usage: bash scripts/docs/build.sh [--skip-install]
 
 Build the WorldFoundry Fumadocs site with type checking.
 
 Options:
-  --skip-bootstrap  Reserved for CI compatibility; JavaScript dependencies are still installed.
   --skip-install    Do not run npm ci before checking and building.
   -h, --help        Show this help text.
+
+Note:
+  --skip-bootstrap is accepted for older callers but is a historical no-op
+  (JavaScript deps are still installed unless --skip-install is set).
 USAGE
 }
 
 while (($#)); do
   case "$1" in
     --skip-bootstrap)
-      SKIP_BOOTSTRAP=1
+      # Historical no-op flag accepted by older CI/docs callers; ignored.
       ;;
     --skip-install)
       SKIP_INSTALL=1
@@ -41,10 +43,6 @@ done
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 DOCS_ROOT="${REPO_ROOT}/docs/fumadocs"
-
-if [[ "${SKIP_BOOTSTRAP}" == "0" ]]; then
-  :
-fi
 
 cd "${DOCS_ROOT}"
 

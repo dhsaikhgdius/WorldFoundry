@@ -33,7 +33,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
-from worldfoundry.core.io.paths import project_root, resolve_worldfoundry_path, worldfoundry_path_tokens
+from worldfoundry.core.io.paths import package_root, project_root, resolve_worldfoundry_path, worldfoundry_path_tokens
 from worldfoundry.runtime.conda import (
     RuntimeCondaEnvSpec,
     apply_unified_env_override,
@@ -1396,7 +1396,7 @@ def _repo_root() -> Path:
 
 
 def _package_root() -> Path:
-    return Path(__file__).resolve().parents[1]
+    return package_root()
 
 
 def _runtime_pythonpath(spec: RuntimeCondaEnvSpec, env: Mapping[str, str]) -> str:
