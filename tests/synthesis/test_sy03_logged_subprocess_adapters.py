@@ -81,3 +81,53 @@ def test_versecrafter_stage_uses_run_logged_subprocess(monkeypatch, tmp_path):
     runtime._run_stage("depth", ["echo", "ok"], log_dir=log_dir, env={})
     assert calls
     assert calls[0]["stdout_path"] == log_dir / "depth.stdout.log"
+
+
+def test_lingbot_video_run_plan_uses_run_logged_subprocess(monkeypatch, tmp_path):
+    from worldfoundry.synthesis.visual_generation.lingbot_video import runtime as lb
+
+    calls: list[dict] = []
+
+    def fake_logged(command, **kwargs):
+        calls.append({"command": list(command), **kwargs})
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(lb, "run_logged_subprocess", fake_logged)
+    monkeypatch.setattr(lb, "synthesis_timeout_seconds", lambda default=None: default)
+
+    out = tmp_path / "out.mp4"
+    out.write_bytes(b"mp4")
+    plan = lb.LingBotVideoRuntimePlan(
+        command=("python", "-c", "pass"),
+        env={},
+        workdir=str(tmp_path),
+        checkpoint_dir=str(tmp_path),
+        output_path=str(out),
+        refiner_output_path=None,
+        mode="t2v",
+    )
+    result = lb.LingBotVideoRuntime(checkpoint_dir=tmp_path).run_plan(
+        plan, timeout_seconds=30, log_dir=tmp_path
+    )
+    assert calls
+    assert calls[0]["timeout"] == 30.0
+    assert Path(calls[0]["stdout_path"]).name == "lingbot_video_stdout.log"
+    assert result["ok"] is True
+
+
+def test_sy03_batch3_adapters_wire_run_logged_subprocess() -> None:
+    root = Path(__file__).resolve().parents[2]
+    paths = (
+        "worldfoundry/synthesis/visual_generation/ac3d/runtime.py",
+        "worldfoundry/synthesis/visual_generation/inspatio_world/worldfoundry_runtime.py",
+        "worldfoundry/synthesis/visual_generation/forcing/runtime.py",
+        "worldfoundry/synthesis/visual_generation/lingbot_video/runtime.py",
+        "worldfoundry/synthesis/visual_generation/three_d_four_d/runtime.py",
+        "worldfoundry/synthesis/visual_generation/world_model/runtime_manifest.py",
+        "worldfoundry/synthesis/visual_generation/official_video_runtime.py",
+        "worldfoundry/synthesis/visual_generation/kairos/runtime.py",
+    )
+    for rel in paths:
+        text = (root / rel).read_text(encoding="utf-8")
+        assert "run_logged_subprocess" in text, rel
+        assert "synthesis_timeout_seconds" in text, rel

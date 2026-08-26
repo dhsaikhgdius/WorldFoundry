@@ -16,6 +16,7 @@ import numpy as np
 from worldfoundry.core.io import file_sha256
 from worldfoundry.core.io.paths import checkpoint_root_path
 from worldfoundry.core.io.video import materialize_video_input
+from worldfoundry.core.process import run_logged_subprocess, synthesis_timeout_seconds
 
 DEFAULT_AC3D_REPO_ID = "snap-research/ac3d"
 DEFAULT_COGVIDEOX_2B_REPO = "THUDM/CogVideoX-2b"
@@ -560,19 +561,21 @@ class AC3DRuntime:
             raise FileNotFoundError(f"AC3D video_root_dir does not exist: {options['video_root_dir']}")
 
         command = self._command(output_dir, prompt, options)
-        stdout = None if show_progress else subprocess.DEVNULL
-        stderr = None if show_progress else subprocess.STDOUT
-        try:
-            subprocess.run(
-                command,
-                check=True,
-                cwd=self.runtime_root,
-                env=self._subprocess_env(),
-                stdout=stdout,
-                stderr=stderr,
+        log_path = output_dir / "ac3d.stdout.log"
+        stderr_path = output_dir / "ac3d.stderr.log"
+        completed = run_logged_subprocess(
+            command,
+            stdout_path=log_path,
+            stderr_path=stderr_path,
+            cwd=self.runtime_root,
+            env=self._subprocess_env(),
+            timeout=synthesis_timeout_seconds(),
+        )
+        if completed.returncode != 0:
+            raise RuntimeError(
+                "AC3D generation failed. Check runtime dependencies, dataset paths, and GPU memory; "
+                f"see {log_path} and {stderr_path}"
             )
-        except subprocess.CalledProcessError as error:
-            raise RuntimeError("AC3D generation failed. Check runtime dependencies, dataset paths, and GPU memory.") from error
 
         start_idx = int(options["start_camera_idx"])
         generated_path = output_dir / f"{start_idx:05d}_out.mp4"
