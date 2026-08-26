@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-import subprocess
 
+from worldfoundry.core.process import run_logged_subprocess
 
 ROOT = Path(__file__).resolve().parent
 DEPENDENCIES = ROOT / "dependencies"
+_LOG_DIR = DEPENDENCIES / "_logs"
 
 
 @dataclass(frozen=True)
@@ -27,8 +29,22 @@ PINNED_DEPENDENCIES = (
 )
 
 
-def _run(*args: str, cwd: Path | None = None) -> None:
-	subprocess.run(args, cwd=cwd, check=True)
+def _run(*args: str, cwd: Path | None = None, label: str = "git") -> None:
+	_LOG_DIR.mkdir(parents=True, exist_ok=True)
+	safe = "".join(ch if ch.isalnum() or ch in "-_." else "_" for ch in label)
+	stdout_path = _LOG_DIR / f"{safe}.stdout.log"
+	stderr_path = _LOG_DIR / f"{safe}.stderr.log"
+	completed = run_logged_subprocess(
+		args,
+		stdout_path=stdout_path,
+		stderr_path=stderr_path,
+		cwd=cwd,
+	)
+	if completed.returncode != 0:
+		raise RuntimeError(
+			f"dependency command failed ({completed.returncode}): {' '.join(args)}; "
+			f"see {stdout_path} and {stderr_path}"
+		)
 
 
 def _head(path: Path) -> str:
@@ -46,24 +62,79 @@ def install_dependency(dependency: Dependency) -> None:
 	"""Clone or validate one dependency without overwriting an existing checkout."""
 	target = DEPENDENCIES / dependency.name
 	git_dir = target / ".git"
+	label = dependency.name
 	if git_dir.exists():
 		if _head(target) != dependency.commit:
-			_run("git", "-C", str(target), "fetch", "--depth", "1", "origin", dependency.commit)
-			_run("git", "-C", str(target), "checkout", "--detach", "FETCH_HEAD")
+			_run(
+				"git",
+				"-C",
+				str(target),
+				"fetch",
+				"--depth",
+				"1",
+				"origin",
+				dependency.commit,
+				label=f"{label}-fetch",
+			)
+			_run(
+				"git",
+				"-C",
+				str(target),
+				"checkout",
+				"--detach",
+				"FETCH_HEAD",
+				label=f"{label}-checkout",
+			)
 	elif target.exists() and any(target.iterdir()):
 		raise RuntimeError(
 			f"Refusing to overwrite non-git dependency directory: {target}"
 		)
 	else:
 		target.mkdir(parents=True, exist_ok=True)
-		_run("git", "-C", str(target), "init")
-		_run("git", "-C", str(target), "remote", "add", "origin", dependency.url)
-		_run("git", "-C", str(target), "fetch", "--depth", "1", "origin", dependency.commit)
-		_run("git", "-C", str(target), "checkout", "--detach", "FETCH_HEAD")
+		_run("git", "-C", str(target), "init", label=f"{label}-init")
+		_run(
+			"git",
+			"-C",
+			str(target),
+			"remote",
+			"add",
+			"origin",
+			dependency.url,
+			label=f"{label}-remote",
+		)
+		_run(
+			"git",
+			"-C",
+			str(target),
+			"fetch",
+			"--depth",
+			"1",
+			"origin",
+			dependency.commit,
+			label=f"{label}-fetch",
+		)
+		_run(
+			"git",
+			"-C",
+			str(target),
+			"checkout",
+			"--detach",
+			"FETCH_HEAD",
+			label=f"{label}-checkout",
+		)
 
 	if _head(target) != dependency.commit:
 		raise RuntimeError(f"Dependency pin mismatch for {dependency.name}")
-	_run("git", "-C", str(target), "submodule", "update", "--init", "--recursive")
+	_run(
+		"git",
+		"-C",
+		str(target),
+		"submodule",
+		"update",
+		"--init",
+		"--recursive",
+		label=f"{label}-submodule",
+	)
 
 
 def main() -> None:

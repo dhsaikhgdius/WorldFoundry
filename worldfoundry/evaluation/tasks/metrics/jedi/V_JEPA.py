@@ -23,9 +23,13 @@ from vjepa.models.attentive_pooler import AttentiveClassifier
 from .V_JEPA_utils import *
 
 import logging
-logging.basicConfig()
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+
+# Modified by WorldFoundry (plan/code_review/12_cross_cutting.md XC-20): use a
+# module-private logger instead of calling ``logging.basicConfig()`` and raising
+# the process-wide root logger to INFO at import time. Importing a metric module
+# must not change the host process's logging handlers or levels.
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 
 def find_free_port() -> int:
@@ -178,7 +182,7 @@ def get_default_vjepa(
     args_eval = None
     if config_fname:
         with open(config_fname, 'r') as y_file:
-            args_eval = yaml.load(y_file, Loader=yaml.FullLoader)
+            args_eval = yaml.safe_load(y_file)
     else:
         from worldfoundry.evaluation.tasks.execution.framework.benchmark_assets import bundled_benchmark_asset
 
@@ -188,7 +192,7 @@ def get_default_vjepa(
                 "Bundled JEDi config missing at worldfoundry/data/benchmarks/assets/jedi/vith16_ssv2_16x2x3.yaml"
             )
         with open(bundled_config, 'r') as y_file:
-            args_eval = yaml.load(y_file, Loader=yaml.FullLoader)
+            args_eval = yaml.safe_load(y_file)
     assert args_eval is not None
 
     logger.info('loaded params...')

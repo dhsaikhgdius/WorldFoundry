@@ -13,7 +13,7 @@ import platform
 import shutil
 import subprocess
 import sys
-from collections.abc import Sequence
+from collections.abc import MutableMapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -47,7 +47,6 @@ HF_ENV_KEYS = (
     "HF_TOKEN",
     "HUGGING_FACE_HUB_TOKEN",
     "HF_DATASETS_CACHE",
-    "TRANSFORMERS_CACHE",
     "HF_HUB_CACHE",
     "HUGGINGFACE_HUB_CACHE",
 )
@@ -66,7 +65,7 @@ SOURCEABLE_ENV_BASE_LINES = (
     'export WORLDFOUNDRY_DATA_DIR="${WORLDFOUNDRY_DATA_DIR:-${WORLDFOUNDRY_HOME}/data}"',
     'export WORLDFOUNDRY_ARTIFACT_DIR="${WORLDFOUNDRY_ARTIFACT_DIR:-${WORLDFOUNDRY_HOME}/artifacts}"',
     'export WORLDFOUNDRY_MODEL_DIR="${WORLDFOUNDRY_MODEL_DIR:-${WORLDFOUNDRY_HOME}/models}"',
-    'export WORLDFOUNDRY_CKPT_DIR="${WORLDFOUNDRY_CKPT_DIR:-${WORLDFOUNDRY_HOME}/checkpoints}"',
+    'export WORLDFOUNDRY_CKPT_DIR="${WORLDFOUNDRY_CKPT_DIR:-${WORLDFOUNDRY_HOME}/models/checkpoints}"',
     'export WORLDFOUNDRY_HFD_ROOT="${WORLDFOUNDRY_HFD_ROOT:-${WORLDFOUNDRY_CKPT_DIR}/hfd}"',
     'export WORLDFOUNDRY_MODEL_SOURCE_DIR="${WORLDFOUNDRY_MODEL_SOURCE_DIR:-${WORLDFOUNDRY_CACHE_DIR}/official_runtime_repos}"',
     'export WORLDFOUNDRY_LOCAL_ASSET_MANIFEST="${WORLDFOUNDRY_LOCAL_ASSET_MANIFEST:-${WORLDFOUNDRY_CACHE_DIR}/manifests/local_assets_manifest.yaml}"',
@@ -360,6 +359,32 @@ def resolve_hfd_root(env: EnvMapping | None = None) -> Path:
     """
 
     return hfd_root_path(env=os.environ if env is None else env)
+
+
+HF_ENDPOINT_OVERRIDE_ENV = "WORLDFOUNDRY_HF_ENDPOINT"
+
+
+def apply_hf_endpoint_override(env: MutableMapping[str, str]) -> str | None:
+    """Apply the opt-in Hugging Face endpoint override to a child environment.
+
+    WorldFoundry never redirects Hugging Face traffic to a third-party mirror
+    by default: ``HF_ENDPOINT`` is only written when the operator explicitly
+    opts in via ``WORLDFOUNDRY_HF_ENDPOINT`` (which then wins over an inherited
+    ``HF_ENDPOINT``). Otherwise whatever the parent shell exported — including
+    nothing — is left untouched.
+
+    Args:
+        env: Mutable child-process environment to update in place.
+
+    Returns:
+        The effective ``HF_ENDPOINT`` value, or ``None`` when unset.
+    """
+
+    override = (env.get(HF_ENDPOINT_OVERRIDE_ENV) or "").strip()
+    if override:
+        env["HF_ENDPOINT"] = override
+        return override
+    return env.get("HF_ENDPOINT") or None
 
 
 def redact_env_for_manifest(env: EnvMapping | None = None, keys: Sequence[str] | None = None) -> dict[str, Any]:

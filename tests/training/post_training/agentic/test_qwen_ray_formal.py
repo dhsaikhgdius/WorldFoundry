@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from worldfoundry.core.io.paths import project_root
+
 import pytest
 import torch
 
@@ -19,7 +21,7 @@ from worldfoundry.training.post_training.causal_lm.qwen3 import (
 from worldfoundry.training.recipes import PostTrainingRecipe
 from worldfoundry.training.tuning.full_model import FullModelArtifact
 
-ROOT = Path(__file__).resolve().parents[4]
+ROOT = project_root(__file__)
 RECIPE = ROOT / "tests/training/fixtures/qwen3_agentic_ray_cpu.yaml"
 
 

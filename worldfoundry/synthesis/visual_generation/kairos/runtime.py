@@ -22,7 +22,7 @@ from typing import Any, Mapping, Sequence
 import imageio.v3 as iio
 import numpy as np
 
-from worldfoundry.core.io.paths import checkpoint_root_path
+from worldfoundry.core.io.paths import checkpoint_root_path, project_root as resolve_project_root
 
 
 DEFAULT_NEGATIVE_PROMPT = (
@@ -130,10 +130,7 @@ def _project_root() -> Path:
     env_root = os.environ.get("WORLDFOUNDRY_REPO_ROOT")
     if env_root:
         return Path(env_root).expanduser().resolve()
-    for parent in Path(__file__).resolve().parents:
-        if (parent / "pyproject.toml").is_file():
-            return parent
-    return Path(__file__).resolve().parents[4]
+    return resolve_project_root(__file__)
 
 
 def _default_config_path(runtime_root: str | Path, variant: str) -> str:

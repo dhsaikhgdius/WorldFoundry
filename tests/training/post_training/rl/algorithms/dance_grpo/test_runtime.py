@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import replace
 from pathlib import Path
 
+from worldfoundry.core.io.paths import project_root
+
 import pytest
 
 torch = pytest.importorskip("torch")
@@ -186,7 +188,7 @@ def test_non_dance_stage_rejects_a_behavioral_update_mask() -> None:
 
 
 def test_dance_recipe_dispatches_to_native_engine_session_and_constant_diffusion() -> None:
-    root = Path(__file__).resolve().parents[6]
+    root = project_root(__file__)
     recipe = PostTrainingRecipe.from_file(
         root / "configs/post_training/wan_1p3b_dance_grpo.yaml"
     )
