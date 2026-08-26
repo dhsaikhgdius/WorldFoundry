@@ -43,6 +43,10 @@ LOCAL_ASSET_MANIFEST_ENV = "WORLDFOUNDRY_LOCAL_ASSET_MANIFEST"
 # layer never imports worldfoundry.evaluation (SA-10).
 REPO_ROOT = project_root()
 BENCHMARKS_DATA_ROOT = package_data_root() / "benchmarks"
+# Keep shard names aligned with evaluation.tasks.catalog.benchmark_catalog
+# DEFAULT_CATALOG_SHARD_DIRS (video / embodied) without importing evaluation.
+CATALOG_SHARD_NAMES: tuple[str, ...] = ("video", "embodied")
+CATALOG_MANIFEST_FILENAME = "_manifest.yaml"
 
 
 def _path_is_ready(path: Path | None) -> bool:
@@ -293,3 +297,98 @@ def load_local_assets(path: str | Path | None = None, env: EnvMapping | None = N
         LocalAsset.from_manifest_item(item, benchmark_id=benchmark_id, env=env)
         for benchmark_id, item in iter_manifest_asset_items(manifest)
     )
+
+
+def iter_bundled_catalog_benchmark_ids(
+    catalog_root: str | Path | None = None,
+) -> tuple[str, ...]:
+    """Return catalog benchmark ids under the bundled video/embodied shards.
+
+    Args:
+        catalog_root: Optional catalog root; defaults to ``BENCHMARKS_DATA_ROOT/catalog``.
+    """
+
+    root = Path(catalog_root) if catalog_root is not None else BENCHMARKS_DATA_ROOT / "catalog"
+    ids: list[str] = []
+    for shard in CATALOG_SHARD_NAMES:
+        shard_dir = root / shard
+        if not shard_dir.is_dir():
+            continue
+        for path in sorted(shard_dir.glob("*.yaml")):
+            if path.name == CATALOG_MANIFEST_FILENAME or not path.is_file():
+                continue
+            ids.append(path.stem)
+    return tuple(ids)
+
+
+def local_asset_coverage_policy(manifest: Mapping[str, Any]) -> dict[str, Any]:
+    """Return the optional ``coverage`` policy block from a local asset manifest."""
+
+    coverage = manifest.get("coverage")
+    return dict(coverage) if isinstance(coverage, Mapping) else {}
+
+
+def local_asset_manifest_benchmark_ids(manifest: Mapping[str, Any]) -> frozenset[str]:
+    """Return benchmark ids that have at least one asset row in the manifest."""
+
+    ids: set[str] = set()
+    for benchmark_id, _item in iter_manifest_asset_items(manifest):
+        if benchmark_id:
+            ids.add(benchmark_id)
+    benchmarks = manifest.get("benchmarks")
+    if isinstance(benchmarks, list):
+        for benchmark in benchmarks:
+            if isinstance(benchmark, Mapping):
+                bid = benchmark.get("id") or benchmark.get("benchmark_id")
+                if bid is not None:
+                    ids.add(str(bid))
+    return frozenset(ids)
+
+
+def resolve_local_asset_coverage_alias(
+    benchmark_id: str,
+    *,
+    coverage: Mapping[str, Any] | None = None,
+    manifest: Mapping[str, Any] | None = None,
+) -> str:
+    """Map a catalog id through ``coverage.aliases`` when present."""
+
+    policy = coverage if coverage is not None else local_asset_coverage_policy(manifest or {})
+    aliases = policy.get("aliases")
+    if isinstance(aliases, Mapping) and benchmark_id in aliases:
+        return str(aliases[benchmark_id])
+    return benchmark_id
+
+
+def uncovered_catalog_benchmark_ids(
+    *,
+    manifest: Mapping[str, Any] | None = None,
+    path: str | Path | None = None,
+    env: EnvMapping | None = None,
+    catalog_root: str | Path | None = None,
+) -> tuple[str, ...]:
+    """Return catalog ids missing from asset rows, aliases, and explicit exemptions.
+
+    DA-07: gaps used to silently fall through the final asset fallback chain.
+    Every catalog id must be listed under ``benchmarks``, ``coverage.aliases``,
+    or ``coverage.exempt_ids``.
+    """
+
+    payload = manifest if manifest is not None else load_local_asset_manifest(path, env)
+    policy = local_asset_coverage_policy(payload)
+    listed = local_asset_manifest_benchmark_ids(payload)
+    aliases = policy.get("aliases") if isinstance(policy.get("aliases"), Mapping) else {}
+    exempt_raw = policy.get("exempt_ids") or ()
+    exempt = {str(item) for item in exempt_raw} if isinstance(exempt_raw, (list, tuple, set, frozenset)) else set()
+
+    gaps: list[str] = []
+    for benchmark_id in iter_bundled_catalog_benchmark_ids(catalog_root):
+        if benchmark_id in listed or benchmark_id in exempt:
+            continue
+        alias_target = None
+        if isinstance(aliases, Mapping) and benchmark_id in aliases:
+            alias_target = str(aliases[benchmark_id])
+        if alias_target is not None and alias_target in listed:
+            continue
+        gaps.append(benchmark_id)
+    return tuple(gaps)

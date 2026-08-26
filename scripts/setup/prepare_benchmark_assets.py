@@ -26,6 +26,19 @@ if str(REPO_ROOT) not in sys.path:
 
 from worldfoundry.core.io.paths import project_root, resolve_worldfoundry_path, worldfoundry_path_tokens
 from worldfoundry.core.io.serialization import load_serialized
+from worldfoundry.evaluation.tasks.catalog.benchmark_catalog import (
+    DEFAULT_BENCHMARK_RUNTIME_PROFILES_DIR,
+    DEFAULT_CATALOG_SHARD_DIRS,
+)
+from worldfoundry.evaluation.utils import (
+    BENCHMARK_TASK_ROOT,
+    BENCHMARK_ZOO_DIR,
+    BENCHMARKS_DATA_ROOT,
+)
+from worldfoundry.runtime.assets import (
+    local_asset_coverage_policy,
+    resolve_local_asset_coverage_alias,
+)
 
 ENV_RE = re.compile(r"\b(?:WORLDFOUNDRY_[A-Z0-9_]+|OPENAI_API_KEY|DASHSCOPE_API_KEY|HF_TOKEN|HUGGINGFACE_HUB_TOKEN|GOOGLE_API_KEY|GEMINI_API_KEY)\b")
 SECRET_RE = re.compile(r"(?:API_KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL)", re.IGNORECASE)
@@ -41,22 +54,51 @@ def _load(path: Path) -> dict[str, Any]:
 
 
 def _catalog_path(benchmark_id: str, repo_root: Path) -> Path | None:
-    for family in ("video", "embodied"):
-        path = repo_root / "worldfoundry" / "data" / "benchmarks" / "catalog" / family / f"{benchmark_id}.yaml"
+    # Prefer evaluation catalog shard constants (DA-07); fall back to repo layout.
+    shard_names = tuple(path.name for path in DEFAULT_CATALOG_SHARD_DIRS)
+    candidates: list[Path] = []
+    if BENCHMARK_ZOO_DIR.is_dir():
+        for shard in shard_names:
+            candidates.append(BENCHMARK_ZOO_DIR / shard / f"{benchmark_id}.yaml")
+    catalog_root = repo_root / "worldfoundry" / "data" / "benchmarks" / "catalog"
+    for shard in shard_names:
+        candidates.append(catalog_root / shard / f"{benchmark_id}.yaml")
+    seen: set[Path] = set()
+    for path in candidates:
+        if path in seen:
+            continue
+        seen.add(path)
         if path.is_file():
             return path
     return None
 
 
 def _task_path(benchmark_id: str, repo_root: Path) -> Path:
+    packaged = BENCHMARK_TASK_ROOT / f"{benchmark_id}.yaml"
+    if packaged.is_file():
+        return packaged
     return repo_root / "worldfoundry" / "data" / "benchmarks" / "tasks" / "external" / f"{benchmark_id}.yaml"
 
 
 def _runtime_profile_path(benchmark_id: str, repo_root: Path) -> Path:
-    return repo_root / "worldfoundry" / "data" / "benchmarks" / "runtime_profiles" / "official" / f"{benchmark_id}.yaml"
+    packaged = DEFAULT_BENCHMARK_RUNTIME_PROFILES_DIR / f"{benchmark_id}.yaml"
+    if packaged.is_file():
+        return packaged
+    return (
+        repo_root
+        / "worldfoundry"
+        / "data"
+        / "benchmarks"
+        / "runtime_profiles"
+        / "official"
+        / f"{benchmark_id}.yaml"
+    )
 
 
 def _local_assets_path(repo_root: Path) -> Path:
+    packaged = BENCHMARKS_DATA_ROOT / "local_assets.example.yaml"
+    if packaged.is_file():
+        return packaged
     return repo_root / "worldfoundry" / "data" / "benchmarks" / "local_assets.example.yaml"
 
 
@@ -89,9 +131,17 @@ def _find_env_names(*payloads: Mapping[str, Any]) -> list[str]:
 
 
 def _group_local_assets(benchmark_id: str, local_assets: Mapping[str, Any]) -> list[dict[str, Any]]:
-    aliases = {benchmark_id}
-    if benchmark_id in {"vbench", "vbench-2.0", "vbench-plus-plus"}:
-        aliases.add("vchitect")
+    coverage = local_asset_coverage_policy(local_assets)
+    resolved_id = resolve_local_asset_coverage_alias(benchmark_id, coverage=coverage)
+    aliases = {benchmark_id, resolved_id}
+    legacy = coverage.get("aliases") if isinstance(coverage.get("aliases"), Mapping) else {}
+    if isinstance(legacy, Mapping):
+        for source, target in legacy.items():
+            if str(target) == resolved_id or str(source) == benchmark_id:
+                aliases.add(str(source))
+                aliases.add(str(target))
+    if resolved_id == "vchitect" or benchmark_id in {"vbench", "vbench-2.0", "vbench-plus-plus"}:
+        aliases.update({"vchitect", "vbench", "vbench-2.0", "vbench-plus-plus"})
     rows: list[dict[str, Any]] = []
     for benchmark in local_assets.get("benchmarks") or ():
         if not isinstance(benchmark, Mapping) or str(benchmark.get("id")) not in aliases:
@@ -302,10 +352,25 @@ def build_plan(benchmark_id: str, *, repo_root: Path | None = None) -> dict[str,
     task = _load(task_path)
     profile = _load(profile_path)
     local_assets = _load(local_assets_path)
+    coverage = local_asset_coverage_policy(local_assets)
+    resolved_local_id = resolve_local_asset_coverage_alias(benchmark_id, coverage=coverage)
+    exempt_ids = {
+        str(item) for item in (coverage.get("exempt_ids") or ())
+    } if isinstance(coverage.get("exempt_ids"), (list, tuple, set, frozenset)) else set()
+    listed_rows = _group_local_assets(benchmark_id, local_assets)
+    if listed_rows:
+        coverage_status = "listed"
+    elif benchmark_id in exempt_ids or resolved_local_id in exempt_ids:
+        coverage_status = "exempt"
+    elif resolved_local_id != benchmark_id:
+        coverage_status = "aliased"
+    else:
+        # DA-07: do not silently pretend the template covers this catalog id.
+        coverage_status = "uncovered"
 
     assets = _dedupe_assets(
         [
-            *_group_local_assets(benchmark_id, local_assets),
+            *listed_rows,
             *_runtime_assets(profile),
             *_catalog_assets(catalog, task),
         ]
@@ -352,6 +417,11 @@ def build_plan(benchmark_id: str, *, repo_root: Path | None = None) -> dict[str,
         "schema_version": "worldfoundry-benchmark-asset-plan-v1",
         "benchmark_id": benchmark_id,
         "repo_root": str(repo_root),
+        "local_assets_coverage": {
+            "status": coverage_status,
+            "resolved_id": resolved_local_id,
+            "exempt_default_reason": coverage.get("exempt_default_reason"),
+        },
         "sources": {
             "catalog": None if catalog_path is None else str(catalog_path),
             "task": str(task_path) if task_path.is_file() else None,

@@ -595,3 +595,69 @@ benchmarks:
     - official_results_dump
     required_for: leaderboard_evidence
     note: Run upstream RoboTwin policy evaluation in its SAPIEN/Curobo environment, then import eval_result.
+
+coverage:
+  schema_version: worldfoundry-local-assets-coverage-v1
+  note: Every catalog benchmark id must appear under benchmarks[], coverage.aliases, or coverage.exempt_ids.
+    Gaps used to silently fall through the asset fallback chain; leave no silent holes.
+  aliases:
+    vbench: vchitect
+    vbench-2.0: vchitect
+    vbench-plus-plus: vchitect
+  exempt_default_reason: deferred local staging — follow catalog/runtime_profile paths until assets are
+    pinned
+  exempt_ids:
+  - 4dworldbench
+  - ai2thor
+  - aigcbench
+  - apple-pi
+  - behavior1k
+  - camerabench
+  - chronomagic-bench
+  - devil-dynamics
+  - ewmbench
+  - fetv
+  - genai-bench
+  - ipv-bench
+  - iworld-bench
+  - kinetix
+  - larybench
+  - libero-mem
+  - libero-plus
+  - libero-pro
+  - likephys
+  - maniskill2
+  - memobench
+  - mind
+  - mirabench
+  - molmospaces
+  - phyeduvideo
+  - phyfps-bench-gen
+  - phygenbench
+  - phyground
+  - physical-ai-bench
+  - physics-iq
+  - physics-iq-verified
+  - physvidbench
+  - rbench
+  - robomme
+  - sana-wm-bench
+  - stevo-bench
+  - t2v-compbench
+  - t2v-safety-bench
+  - t2vworldbench
+  - videophy
+  - videophy2
+  - videoscience-bench
+  - videoscore
+  - videoverse
+  - visual-chronometer
+  - vlabench
+  - vmbench
+  - wbench
+  - world-in-world
+  - worldarena
+  - worldbench
+  - worldolympiad
+  - worldreasonbench
+  - wrbench
