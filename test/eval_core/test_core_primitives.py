@@ -115,8 +115,8 @@ def test_core_path_tokens_are_generic_and_env_overridable(tmp_path: Path) -> Non
     assert tokens["WORLDFOUNDRY_ARTIFACT_DIR"] == str(tmp_path / "home" / "artifacts")
     assert tokens["WORLDFOUNDRY_MODEL_DIR"] == str(tmp_path / "home" / "models")
     assert tokens["WORLDFOUNDRY_MODEL_SOURCE_DIR"] == str(tmp_path / "home" / "cache" / "official_runtime_repos")
-    assert tokens["WORLDFOUNDRY_CKPT_DIR"] == str(tmp_path / "home" / "checkpoints")
-    assert tokens["WORLDFOUNDRY_HFD_ROOT"] == str(tmp_path / "home" / "checkpoints" / "hfd")
+    assert tokens["WORLDFOUNDRY_CKPT_DIR"] == str(tmp_path / "home" / "models" / "checkpoints")
+    assert tokens["WORLDFOUNDRY_HFD_ROOT"] == str(tmp_path / "home" / "models" / "checkpoints" / "hfd")
     assert tokens["WORLDFOUNDRY_CONDA_ENVS_ROOT"] == str(tmp_path / "home" / "conda_envs")
 
 
