@@ -131,9 +131,19 @@ def clear_log_context() -> None:
 
 
 def get_log_context() -> dict[str, Any]:
-    """Return a copy of the current correlation fields."""
+    """Return a copy of the current correlation fields.
 
-    return dict(_LOG_CONTEXT.get())
+    When ``run_id`` is unset in the context var, fall back to
+    ``WORLDFOUNDRY_RUN_ID`` (CLI export for operators / child shells).
+    Structured child inheritance still prefers ``WORLDFOUNDRY_LOG_CONTEXT``.
+    """
+
+    ctx = dict(_LOG_CONTEXT.get())
+    if ctx.get("run_id") in (None, ""):
+        run_id = os.environ.get("WORLDFOUNDRY_RUN_ID", "").strip()
+        if run_id:
+            ctx["run_id"] = run_id
+    return ctx
 
 
 def log_context_environment(**fields: Any) -> dict[str, str]:

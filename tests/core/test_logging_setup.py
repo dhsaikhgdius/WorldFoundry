@@ -12,6 +12,7 @@ import pytest
 from worldfoundry.core.logging_setup import (
     clear_log_context,
     configure_logging,
+    get_log_context,
     get_logger,
     is_configured,
     log_context,
@@ -366,3 +367,12 @@ def test_cli_logging_flag_pre_scan():
     assert level is None and log_file is None and log_json is None
     assert verbose is True
     assert rest == ["zoo", "benchmark-run"]
+
+
+def test_get_log_context_reads_worldfoundry_run_id(isolated_logging):
+    """LG-06: WORLDFOUNDRY_RUN_ID fills run_id when context omits it."""
+
+    clear_log_context()
+    os.environ.pop("WORLDFOUNDRY_LOG_CONTEXT", None)
+    os.environ["WORLDFOUNDRY_RUN_ID"] = "run-from-env"
+    assert get_log_context()["run_id"] == "run-from-env"

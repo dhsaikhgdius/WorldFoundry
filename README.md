@@ -239,6 +239,12 @@ Install Git LFS before cloning so the optional demo media can be checked out cor
 git lfs install
 ```
 
+GitHub LFS has a **monthly bandwidth quota**. Large demo videos can exhaust it
+on shared or CI clones. Prefer `GIT_LFS_SKIP_SMUDGE=1` when you do not need the
+media, or fetch selected files later with `git lfs pull --include=...`. If a
+clone fails with LFS quota errors, skip smudge and continue with catalog/CLI
+work; media is optional for CPU validation.
+
 ```bash
 
 # You can clone the repository with all demo videos

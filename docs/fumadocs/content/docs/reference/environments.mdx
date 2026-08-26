@@ -122,6 +122,24 @@ standard HF cache variables) for public checkpoints. Use `WORLDFOUNDRY_CKPT_DIR`
 for upstream runtimes that require a fixed directory layout or for local soft
 links that preserve official paths without duplicating large files.
 
+## Logging
+
+CLI flags and environment variables share one logging pipeline
+(`worldfoundry.core.logging_setup.configure_logging`). Explicit CLI flags win
+over environment variables.
+
+| Knob | CLI | Environment | Role |
+| --- | --- | --- | --- |
+| Level | `--log-level` | `WORLDFOUNDRY_LOG_LEVEL` | Threshold for console and file sinks (`DEBUG`/`INFO`/…). |
+| File sink | `--log-file` | `WORLDFOUNDRY_LOG_FILE` | Optional rotating file path; CLI may default this to a per-run `events.jsonl`. |
+| JSON lines | `--log-json` | `WORLDFOUNDRY_LOG_JSON` | When true, the file sink emits JSON Lines (console stays text). |
+| Correlation | (bound by CLI) | `WORLDFOUNDRY_LOG_CONTEXT` | JSON object with `run_id` / `job_id` / … for child workers. |
+| Run id export | (set by CLI) | `WORLDFOUNDRY_RUN_ID` | Operator-visible run id; `get_log_context` reads it when context has no `run_id`. |
+
+Framework-owned subprocesses receive `WORLDFOUNDRY_LOG_CONTEXT` via
+`log_context_environment()`. Prefer that over copying only `WORLDFOUNDRY_RUN_ID`
+when spawning workers that emit structured lifecycle events.
+
 ## Dedicated model environment exceptions
 
 Start from `worldfoundry-unified-<cuda-tier>` for every model. Create a
