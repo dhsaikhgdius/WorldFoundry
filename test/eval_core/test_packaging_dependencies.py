@@ -104,6 +104,7 @@ def test_sdist_manifest_excludes_generated_downloaded_and_large_artifacts() -> N
         "prune worldfoundry/data/test_cases",
         "prune docs/fumadocs/.next",
         "prune docs/fumadocs/node_modules",
+        "prune packages/worldfoundry-native-kernels",
         "prune worldfoundry/synthesis/visual_generation/pandora/pandora_runtime/ChatUniVi/eval",
         "prune worldfoundry/synthesis/visual_generation/pandora/pandora_runtime/ChatUniVi/train",
         "prune worldfoundry/synthesis/visual_generation/dynamicrafter_pandora/DynamiCrafter/assets",
@@ -124,3 +125,15 @@ def test_sdist_manifest_excludes_generated_downloaded_and_large_artifacts() -> N
         "*.onnx",
     ):
         assert pattern in manifest
+
+
+def test_setuptools_package_find_stays_on_worldfoundry_namespace() -> None:
+    """NK: main sdist discovery must not pick up packages/worldfoundry-native-kernels."""
+
+    with (REPO_ROOT / "pyproject.toml").open("rb") as handle:
+        payload = tomllib.load(handle)
+    find = payload["tool"]["setuptools"]["packages"]["find"]
+    assert find["where"] == ["."]
+    assert "worldfoundry*" in find["include"]
+    assert not any("native" in item for item in find["include"])
+    assert (REPO_ROOT / "packages" / "worldfoundry-native-kernels" / "pyproject.toml").is_file()
