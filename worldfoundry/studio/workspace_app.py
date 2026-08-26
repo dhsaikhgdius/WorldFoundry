@@ -57,6 +57,7 @@ from .conda_dispatch import (
 )
 from .execution import RunRecord, StudioManager, _is_gaussian_splat_ply
 from .jobs import StudioJob, StudioJobStore, format_elapsed
+from .launch_config import resolve_workspace_max_jobs
 from .serving import (
     bind_security_warning,
     path_allowed,
