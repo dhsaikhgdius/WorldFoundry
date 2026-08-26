@@ -1,4 +1,4 @@
-.PHONY: help install-core install-dev docs-check lint ruff-check format-check shell-check data-check runtime-registry-check compile-eval cli-check precommit precommit-install preflight test-eval-core test-training
+.PHONY: help install-core install-dev docs-check lint ruff-check ruff-format-check syntax-check shell-check data-check runtime-registry-check compile-eval cli-check precommit precommit-install preflight test-eval-core test-training
 
 PYTHON ?= python
 PIP ?= $(PYTHON) -m pip
@@ -51,16 +51,25 @@ docs-check:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m worldfoundry.cli --help >/dev/null
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m worldfoundry.cli zoo benchmarks --json >/dev/null
 
-lint: ruff-check format-check shell-check data-check runtime-registry-check
+lint: ruff-check syntax-check shell-check data-check runtime-registry-check
 
 ruff-check:
 	$(PYTHON) -m ruff check $(RUFF_SOURCES)
 
-format-check:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m compileall -q $(CANONICAL_DIFFUSION_SOURCES) worldfoundry/evaluation scripts
+# Optional until RUFF_SOURCES are format-clean (many pre-existing diffs on main).
+ruff-format-check:
+	$(PYTHON) -m ruff format --check $(RUFF_SOURCES)
+
+# Byte-compile the canonical diffusion package sources only (plan C-05).
+# Formerly misnamed format-check.
+syntax-check:
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m compileall -q $(CANONICAL_DIFFUSION_SOURCES)
+
+# Compatibility alias for older CI/docs that still call format-check.
+format-check: syntax-check
 
 shell-check:
-	find scripts/setup -type f -name '*.sh' -exec bash -n {} +
+	find scripts/setup docker scripts/embodied test -type f \( -name '*.sh' \) -print0 | xargs -0 -r bash -n
 
 data-check:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m worldfoundry.cli zoo models --json >/dev/null
@@ -99,8 +108,11 @@ preflight:
 		--output-dir $(PREFLIGHT_OUTPUT) \
 		--json
 
+# Optional extra pytest flags, e.g. PYTEST_ARGS='-m "not gpu and not network"'
+PYTEST_ARGS ?=
+
 test-eval-core:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest test/eval_core -q -p no:cacheprovider
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest test/eval_core -q -p no:cacheprovider $(PYTEST_ARGS)
 
 test-training:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest tests/training -q -p no:cacheprovider
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest tests/training -q -p no:cacheprovider $(PYTEST_ARGS)
