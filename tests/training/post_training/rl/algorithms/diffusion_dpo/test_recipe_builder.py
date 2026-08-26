@@ -3,6 +3,8 @@ from __future__ import annotations
 import copy
 from pathlib import Path
 
+from worldfoundry.core.io.paths import project_root
+
 import pytest
 
 torch = pytest.importorskip("torch")
@@ -186,7 +188,7 @@ def test_builder_rejects_mutable_or_aliased_reference_roles() -> None:
 
 def test_stack_fixture_and_public_exports_are_canonical() -> None:
     pytest.importorskip("yaml")
-    root = Path(__file__).resolve().parents[6]
+    root = project_root(__file__)
     recipe = PostTrainingRecipe.from_file(root / "tests/training/fixtures/recipes/wan_1p3b_diffusion_dpo_stack.yaml")
 
     assert isinstance(recipe.algorithm, DiffusionDPOAlgorithmSpec)

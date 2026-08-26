@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import tempfile
+from pathlib import Path
 from typing import Any, Mapping
 
 import yaml
+
+from worldfoundry.core.io.paths import project_root
+from worldfoundry.evaluation.tasks.embodied.image_refs import resolve_docker_image
+from worldfoundry.runtime.jobs import run_bounded_command
 
 
 def inside_docker() -> bool:
@@ -17,7 +21,7 @@ def inside_docker() -> bool:
 
 
 def _repo_root() -> Path:
-    return Path(__file__).resolve().parents[4]
+    return project_root(__file__)
 
 
 def _docker_available(docker: str) -> None:
@@ -47,7 +51,92 @@ def _ensure_image(docker: str, image: str, *, source_image: str | None = None, p
 def _gpu_flags(gpus: Any) -> list[str]:
     if gpus in (None, "", False):
         return []
+    # Prefer the host's CUDA_VISIBLE_DEVICES when present so Studio/DLC GPU
+    # leases are honored instead of always exposing every device.
+    visible = os.getenv("CUDA_VISIBLE_DEVICES", "").strip()
+    if visible and str(gpus).lower() == "all":
+        return ["--gpus", f"device={visible}"]
     return ["--gpus", str(gpus)]
+
+
+def _env_flags(env_entries: Any) -> list[str]:
+    """Build ``-e`` flags without putting secret values into argv when possible.
+
+    Entries may be ``KEY``, ``KEY=``, or ``KEY=value``. Empty / env-expanded-empty
+    values become ``-e KEY`` so Docker inherits from the host environment instead
+    of embedding the (empty or secret) value in the command line.
+    """
+
+    flags: list[str] = []
+    for raw in env_entries or ():
+        expanded = os.path.expandvars(str(raw)).strip()
+        if not expanded:
+            continue
+        if "=" not in expanded:
+            flags.extend(["-e", expanded])
+            continue
+        key, _, value = expanded.partition("=")
+        key = key.strip()
+        if not key:
+            continue
+        if value == "":
+            flags.extend(["-e", key])
+        else:
+            flags.extend(["-e", f"{key}={value}"])
+    return flags
+
+
+def _network_flags(docker_cfg: Mapping[str, Any]) -> list[str]:
+    """Resolve container network mode.
+
+    Official harness parity defaults to ``host``. Operators can isolate with
+    ``WORLDFOUNDRY_EMBODIED_DOCKER_NETWORK=bridge`` (or any docker network name),
+    or set ``none`` / ``omit`` to skip ``--network`` entirely. Config key
+    ``docker.network`` overrides the environment default.
+    """
+
+    configured = docker_cfg.get("network")
+    if configured is None or str(configured).strip() == "":
+        configured = os.getenv("WORLDFOUNDRY_EMBODIED_DOCKER_NETWORK", "host")
+    value = str(configured).strip()
+    if value.lower() in {"", "omit", "none", "default"}:
+        return []
+    return ["--network", value]
+
+
+def _repo_mount_suffix(docker_cfg: Mapping[str, Any]) -> str:
+    """Return ``:ro`` / empty for the host checkout bind mount.
+
+    Official harness images may write into the mounted tree, so the default stays
+    read-write. Operators can harden with ``docker.repo_mount_mode: ro`` or
+    ``WORLDFOUNDRY_EMBODIED_DOCKER_REPO_MOUNT=ro`` after verifying parity.
+    """
+
+    configured = docker_cfg.get("repo_mount_mode")
+    if configured is None or str(configured).strip() == "":
+        configured = os.getenv("WORLDFOUNDRY_EMBODIED_DOCKER_REPO_MOUNT", "rw")
+    mode = str(configured).strip().lower().lstrip(":")
+    if mode in {"ro", "readonly", "read-only"}:
+        return ":ro"
+    if mode in {"rw", "readwrite", "read-write", ""}:
+        return ""
+    raise ValueError(
+        f"unsupported docker.repo_mount_mode={configured!r}; expected 'ro' or 'rw'"
+    )
+
+
+def _shm_size(docker_cfg: Mapping[str, Any]) -> str:
+    configured = str(docker_cfg.get("shm_size") or "").strip()
+    if configured:
+        return configured
+    return os.getenv("WORLDFOUNDRY_EMBODIED_DOCKER_SHM_SIZE", "").strip() or "8g"
+
+
+def _timeout_seconds(docker_cfg: Mapping[str, Any]) -> int:
+    configured = docker_cfg.get("timeout_s")
+    if configured in (None, ""):
+        configured = os.getenv("WORLDFOUNDRY_EMBODIED_DOCKER_TIMEOUT_S", "0") or "0"
+    return int(configured)
 
 
 def _inner_run_args(
@@ -99,14 +188,21 @@ def write_docker_config(config: Mapping[str, Any], output_dir: Path) -> Path:
     docker_config = dict(config)
     docker_config["output_dir"] = "/workspace/results"
     fd, temp_path = tempfile.mkstemp(prefix="wf-embodied-docker-", suffix=".yaml")
+    path = Path(temp_path)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
             yaml.safe_dump(docker_config, handle, sort_keys=False)
     except Exception:
-        os.close(fd)
+        # os.fdopen may have closed the descriptor already; a second close is
+        # an error we must not let mask the original exception.
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+        path.unlink(missing_ok=True)
         raise
     output_dir.mkdir(parents=True, exist_ok=True)
-    return Path(temp_path)
+    return path
 
 
 def build_docker_run_command(
@@ -121,9 +217,7 @@ def build_docker_run_command(
 ) -> list[str]:
     """Build the ``docker run`` command for an embodied eval."""
     docker_cfg = dict(config.get("docker") or {})
-    image = docker_cfg.get("image")
-    if not image:
-        raise ValueError("docker.image is required")
+    image = resolve_docker_image(docker_cfg)
 
     repo_root = _repo_root()
     command = _default_container_command(
@@ -131,26 +225,31 @@ def build_docker_run_command(
         _inner_run_args(shard_id=shard_id, num_shards=num_shards, eval_id=eval_id, no_save=no_save),
     )
 
+    repo_mount = f"{repo_root}:/workspace/WorldFoundry{_repo_mount_suffix(docker_cfg)}"
+
     cmd = [
         shutil.which("docker") or "docker",
         "run",
         "--rm",
-        "--network",
-        "host",
+        "--init",
+        *_network_flags(docker_cfg),
+        f"--shm-size={_shm_size(docker_cfg)}",
         "-v",
         f"{output_dir}:/workspace/results",
         "-v",
         f"{docker_config_path}:/tmp/eval_config.yaml:ro",
         "-v",
-        f"{repo_root}:/workspace/WorldFoundry",
+        repo_mount,
         "-w",
         "/workspace/WorldFoundry",
         "-e",
-        "PYTHONPATH=/workspace/WorldFoundry:/workspace/WorldFoundry/src",
+        "PYTHONPATH=/workspace/WorldFoundry",
         "-e",
-        f"WORLDFOUNDRY_REPO_ROOT=/workspace/WorldFoundry",
+        "WORLDFOUNDRY_REPO_ROOT=/workspace/WorldFoundry",
         "-e",
         f"WORLDFOUNDRY_HOST_OUTPUT_DIR={output_dir}",
+        "-e",
+        "PYTHONDONTWRITEBYTECODE=1",
     ]
 
     entrypoint = docker_cfg.get("entrypoint")
@@ -159,16 +258,17 @@ def build_docker_run_command(
     if entrypoint is not None:
         cmd.extend(["--entrypoint", str(entrypoint)])
 
-    if docker_cfg.get("name"):
-        cmd.extend(["--name", str(docker_cfg["name"])])
+    container_name = docker_cfg.get("name")
+    if container_name:
+        suffix = f"-{eval_id}" if eval_id else ""
+        cmd.extend(["--name", f"{container_name}{suffix}"])
     if docker_cfg.get("user") == "host" and hasattr(os, "getuid"):
         cmd.extend(["--user", f"{os.getuid()}:{os.getgid()}"])
     elif docker_cfg.get("user"):
         cmd.extend(["--user", str(docker_cfg["user"])])
     for volume in docker_cfg.get("volumes") or ():
         cmd.extend(["-v", os.path.expandvars(str(volume))])
-    for env_value in docker_cfg.get("env") or ():
-        cmd.extend(["-e", os.path.expandvars(str(env_value))])
+    cmd.extend(_env_flags(docker_cfg.get("env")))
     if docker_cfg.get("cpus"):
         cmd.extend(["--cpus", str(docker_cfg["cpus"])])
     if docker_cfg.get("runtime"):
@@ -194,9 +294,7 @@ def run_embodied_via_docker(
         raise RuntimeError("'docker' executable not found")
     _docker_available(docker)
     docker_cfg = dict(config.get("docker") or {})
-    image = str(docker_cfg.get("image") or "")
-    if not image:
-        raise ValueError("docker.image is required")
+    image = resolve_docker_image(docker_cfg)
     source_image = docker_cfg.get("source_image")
     _ensure_image(docker, image, source_image=str(source_image) if source_image else None, pull=pull)
 
@@ -212,6 +310,10 @@ def run_embodied_via_docker(
             eval_id=eval_id,
             no_save=no_save,
         )
+        timeout_s = _timeout_seconds(docker_cfg)
+        if timeout_s > 0:
+            result = run_bounded_command(cmd, timeout=timeout_s)
+            return int(result["returncode"] or 0)
         return subprocess.call(cmd)
     finally:
         docker_config_path.unlink(missing_ok=True)
