@@ -248,3 +248,4 @@ preflight 编排：round5 RP-02；CL-08 只谈退出码。
   [training](bc-cbed4843-d306-543b-aaf9-8aba30dc7a85)  §4 TR-01~12
   [embodied](bc-12039945-b387-55b5-b9d2-c612a48068e6)  §5 EM-01~12
   [CLI](bc-7c71e750-856a-5a89-b74a-be2cd8ceccd5)  §6 CL-01~10
+续篇：plan/infra_optimization_plan_round7.txt（synthesis / data catalog / HF-S3 / test·packaging·realtime）

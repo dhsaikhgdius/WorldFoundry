@@ -1,0 +1,164 @@
+WorldFoundry 基础设施优化计划（第 7 轮）
+========================================
+日期：2026-08-26
+性质：建议修改（本文件只记录计划，不直接改代码）
+承接：plan/infra_optimization_plan.txt、round2~round6
+方法：主会话编排 + 3 个云端子代理（claude-fable-5-thinking-xhigh）并行
+  - synthesis / pipelines 包装与加载 — 云端进行中
+  - data catalog / assets — 云端进行中
+  - core/io 存储 / HF / S3 缓存 — 云端进行中
+  + 主会话：test 基建 / 打包 / realtime 可视化进程（TE/PK/RT）
+
+禁止重复第 1–6 轮已写条目。交叉最多一行。
+
+
+0. 现状一句话
+--------------
+test-eval-core 无套件内并行与单测超时；Studio Spark/Three vendored JS 被 gitignore 导致
+干净 clone/wheel 前端 100% 404；realtime world 关停路径常落到 SIGKILL。
+synthesis / data / HF-S3 三路云端评审回报后补全 §3–§5。
+
+
+1. 不建议改的地方
+------------------
+- test/conftest.py 的 collect_ignore 继续排除顶层 demo，不要改造成 CI 测试（round1 边界）；
+  只加防漂移守卫（TE-04）。
+- native-kernels 独立包 + 禁 build isolation：round1，本轮不动。
+- Studio 进程组终止链骨架：round6 边界；RT 只修 realtime 自清理与 CLI 直启路径。
+- 不要一次性重写 eval_core 全部脚手架；fixture 上收渐进迁移（TE-03）。
+- 第 1–6 轮边界继续有效。
+
+
+2. 优先级
+----------
+P0
+  （待云端 SY/DA/CA 回报后确认；当前本地无新发现达供应链/评分完整性级别）
+
+P1
+  1) [PK-01] Spark/Three vendor JS gitignore + 无 provision → 前端必 404
+  2) [TE-01] eval-core 无 xdist/timeout/durations
+  3) [RT-01] world_realtime 关停不可中断 in-flight 生成 → SIGKILL
+  4) （云端）SY/DA/CA 待填
+
+P2
+  5) [TE-02/03] import-mode=importlib；catalog fixture 工厂
+  6) [RT-02/03] rerun CLI 无进程组；viser 几何三次全量解析
+  7) （云端）
+
+P3
+  8) [TE-04] collect_ignore 守卫
+  9) [PK-02] worldfoundry-mcp 最小安装裸 ImportError；classifiers
+  10) [RT-04] viser 端口池 TOCTOU
+
+
+3. Synthesis / pipelines 包装
+-----------------------------
+（[云端子代理](bc-46ecb1e4-f58d-5a31-8529-eac32f97e88b) 进行中 — 回报后 enrich SY-*）
+
+占位主题：synthesis 插件加载与 conda env；pipelines 大树 wheel 卫生；
+checkpoint 解析与 Studio 外路径；勿重复 round4 VRAM / round6 Studio dispatch。
+
+
+4. Data catalog / assets
+------------------------
+（[云端子代理](bc-13b2c87a-a9e9-5e32-a8b4-6e6fd3e9d5ef) 进行中 — 回报后 enrich DA-*）
+
+占位主题：models/benchmarks catalog 体积与校验；local_assets / eval_configs 契约；
+scripts/setup 资产物化。勿重复 reproduction_profiles、runner-kind、docs JSON drift。
+
+
+5. Storage / HF / S3 缓存
+------------------------
+（[云端子代理](bc-420abcea-2a4e-59e8-89af-cfc627288af8) 进行中 — 回报后 enrich CA-*）
+
+占位主题：core/io/storage、s3_*、hf.py、disk/cache 根一致性；
+勿重复 round5 IO-03、round6 ST-01 HF_ENDPOINT 默认。
+
+
+6. Test / packaging / realtime
+------------------------------
+来源：主会话本地子代理评审。
+
+[TE-01] P1 eval-core 无并行、无单测超时、无慢测可见性
+  文件：Makefile test-eval-core、pytest.ini、ci.yml
+  改法：test extra 加 pytest-xdist、pytest-timeout；CI ``-n auto --timeout=120 --durations=25``；
+        写共享 tmp 的用例打 serial marker。
+
+[TE-02] P2 tests/ import 布局脆弱
+  问题：多数子目录无 __init__.py；8 组重名 test_*.py 靠叶子包；默认非 importlib。
+  改法：pytest.ini ``--import-mode=importlib`` + ``--strict-config``；清 conftest 双插 sys.path。
+
+[TE-03] P2 eval_core 无共享 fixture 工厂
+  问题：conftest 几乎空；_write_manifest 等复制 5+ 处。
+  改法：catalog_factory / manifest_factory / benchmark_yaml_factory；存量渐进迁移。
+
+[TE-04] P3 collect_ignore 漂移无护栏
+  改法：守卫测试断言 ignore 集合与「真测试」互斥；长期 demo 迁 demos/。
+
+[PK-01] P1 Spark/Three vendored JS 被 gitignore 且无 provision
+  问题：.gitignore 忽略 studio/assets/vendor/；frontends.py / ui/assets.py 运行时依赖
+        spark.module.min.js、three.module.js — 干净 clone 与 wheel 必 404。
+  文件：.gitignore、studio/assets/vendor/、visualization/backends/frontends.py、studio/ui/assets.py
+  改法：(a) 提交 pinned JS + negate + THIRD-PARTY-NOTICES；或
+        (b) scripts/studio/fetch_vendor_assets.py（URL+sha256），缺文件提示运行。
+
+[PK-02] P3 worldfoundry-mcp 最小安装裸 traceback；classifiers 缺 3.11–3.13
+  改法：ImportError → 提示 pip install worldfoundry[mcp]；classifiers 补全。
+
+[RT-01] P1 world_realtime 关停不可中断 in-flight 生成
+  文件：studio/visualization/backends/world_realtime.py
+  改法：cooperative cancel；close_active 加 wait_for 上限；daemon 或超时 os._exit。
+
+[RT-02] P2 rerun CLI 直启无进程组管理
+  文件：frontends.py serve_rerun_frontend
+  改法：start_new_session + killpg 升级；which 校验提示 studio_rerun extra。
+
+[RT-03] P2 viser 同一几何最多全量解析 3 次
+  文件：visualization/backends/viser.py present_geometry
+  改法：单次 trimesh.load，内存上分流。
+
+[RT-04] P3 viser 端口池 TOCTOU
+  改法：构造 ViserServer 遇 EADDRINUSE 跳下一端口。
+
+
+7. 文件级改动总表
+----------------
+P1
+  .gitignore + studio/assets/vendor/   PK-01
+  Makefile / pytest.ini / ci.yml       TE-01
+  world_realtime.py                    RT-01
+  （云端 SY/DA/CA 待补）
+
+P2
+  pytest.ini importlib                 TE-02
+  test/eval_core/conftest.py           TE-03
+  frontends.py / viser.py              RT-02/03
+
+P3
+  test/conftest.py 守卫                TE-04
+  mcp/__init__.py / pyproject.toml     PK-02
+  viser 端口                           RT-04
+
+
+8. 验收（本地条目）
+------------------
+- PK-01：干净 clone 启动 Studio 后 Spark/Three 资产 HTTP 200 或明确「请运行 fetch_vendor」提示。
+- TE-01：eval-core CI 日志出现 durations；人为 sleep 超时单测被杀而非吃满 job。
+- RT-01：world 可视化关停在 SIGTERM 预算内完成，不依赖 SIGKILL 清 GPU。
+- RT-02：CLI --frontend rerun Ctrl+C 后无 orphan web-viewer。
+
+
+9. 与前轮衔接
+--------------
+CI job 结构 / allow-failure：round1/4；本轮 TE-01 是套件内分片。
+MANIFEST prune：round5 DE-06；PK-01 是 runtime vendor 资产，不同面。
+Studio 关停 / 可视化锁：round6 ST-02/ST-04；RT 专指 realtime backend。
+HF_ENDPOINT 默认：round6 ST-01；§5 CA 勿重复。
+
+
+10. 子代理索引
+--------------
+  [synthesis](bc-46ecb1e4-f58d-5a31-8529-eac32f97e88b)  §3 待 enrich
+  [data catalog](bc-13b2c87a-a9e9-5e32-a8b4-6e6fd3e9d5ef)  §4 待 enrich
+  [storage/HF/S3](bc-420abcea-2a4e-59e8-89af-cfc627288af8)  §5 待 enrich
+  TE/PK/RT（主会话）  §6 已并入
