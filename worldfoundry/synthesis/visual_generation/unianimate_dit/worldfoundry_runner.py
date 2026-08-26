@@ -4,13 +4,13 @@ import argparse
 import os
 import re
 import shutil
-import subprocess
 import sys
 import time
 from pathlib import Path
 
 from worldfoundry.core.io.paths import package_module_root as package_root
 from worldfoundry.core.io.paths import resolve_data_path
+from worldfoundry.core.process import run_logged_subprocess, synthesis_timeout_seconds
 
 
 def _demo_asset_root() -> Path:
@@ -151,7 +151,9 @@ def _ensure_demo_pose(workspace_root: Path, source_repo_root: Path) -> None:
     if not align_script.is_file():
         raise FileNotFoundError(f"UniAnimate pose alignment script not found: {align_script}")
     pose_dir.mkdir(parents=True, exist_ok=True)
-    completed = subprocess.run(
+    stdout_path = workspace_root / "unianimate_pose_align.stdout.log"
+    stderr_path = workspace_root / "unianimate_pose_align.stderr.log"
+    completed = run_logged_subprocess(
         [
             sys.executable,
             str(align_script),
@@ -162,18 +164,19 @@ def _ensure_demo_pose(workspace_root: Path, source_repo_root: Path) -> None:
             "--saved_pose_dir",
             DEFAULT_POSE_DIR,
         ],
+        stdout_path=stdout_path,
+        stderr_path=stderr_path,
         cwd=str(workspace_root),
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        check=False,
+        timeout=synthesis_timeout_seconds(),
     )
     if completed.returncode != 0:
+        try:
+            tail_out = stdout_path.read_text(encoding="utf-8", errors="replace")[-4000:]
+            tail_err = stderr_path.read_text(encoding="utf-8", errors="replace")[-4000:]
+        except OSError:
+            tail_out, tail_err = f"(unable to read {stdout_path})", f"(unable to read {stderr_path})"
         raise RuntimeError(
-            "UniAnimate pose alignment failed before inference:\n"
-            + completed.stdout[-4000:]
-            + "\n"
-            + completed.stderr[-4000:]
+            "UniAnimate pose alignment failed before inference:\n" + tail_out + "\n" + tail_err
         )
 
 
@@ -241,18 +244,17 @@ def main() -> None:
         ]
     else:
         command = [sys.executable, str(run_script)]
-    completed = subprocess.run(
+    log_path = output_path.with_suffix(output_path.suffix + ".runner.log")
+    stderr_path = output_path.with_suffix(output_path.suffix + ".runner.stderr.log")
+    completed = run_logged_subprocess(
         command,
+        stdout_path=log_path,
+        stderr_path=stderr_path,
         cwd=str(workspace_root),
         env=env,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        check=False,
+        timeout=synthesis_timeout_seconds(),
     )
     if completed.returncode != 0:
-        log_path = output_path.with_suffix(output_path.suffix + ".runner.log")
-        log_path.write_text(completed.stdout + "\n" + completed.stderr, encoding="utf-8")
         raise RuntimeError(f"UniAnimate official demo failed with code {completed.returncode}; see {log_path}")
 
     produced = _newest_mp4(workspace_root / "outputs", since=before)

@@ -196,6 +196,7 @@ _EXPORT_MODULES = {
     "resolve_inference_dtype": "worldfoundry.core.device",
     "run_torchrun_module": "worldfoundry.core.process",
     "run_logged_subprocess": "worldfoundry.core.process",
+    "synthesis_timeout_seconds": "worldfoundry.core.process",
     "stack_or_pad_tensors": "worldfoundry.core.utils",
     "terminate_process_group": "worldfoundry.core.process",
     "terminate_process_tree": "worldfoundry.core.process",
