@@ -11,10 +11,11 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from worldfoundry.core import cuda_visible_devices_from_device
+from worldfoundry.core.io.paths import project_root
 from worldfoundry.runtime.assets import expand_worldfoundry_path
 
 
-SOURCE_ROOT = Path(__file__).resolve().parents[4]
+SOURCE_ROOT = project_root(__file__)
 INFERENCE_ROOT = Path(__file__).resolve().parent
 RUNNER_MODULE = "worldfoundry.synthesis.visual_generation.lingbot_video.runner"
 SUPPORTED_MODES = frozenset({"t2i", "t2v", "ti2v"})
