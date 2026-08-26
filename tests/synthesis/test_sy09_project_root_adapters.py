@@ -370,3 +370,20 @@ def test_batch18_perception_modules_use_paths_package_root() -> None:
     assert "from worldfoundry.core.io.paths import package_root" in dvlt
     assert 'package_root() / "base_models" / "three_dimensions" / "depth" / "dvlt"' in dvlt
     assert "Path(__file__).resolve().parents[" not in dvlt
+
+
+def test_batch19_vipe_modules_use_paths_package_root() -> None:
+    """ViPE priors namespace root uses package_root; local config climb stays package-local."""
+    repo = Path(__file__).resolve().parents[2]
+    priors = (
+        repo / "worldfoundry/base_models/three_dimensions/general_3d/vipe/priors/__init__.py"
+    ).read_text(encoding="utf-8")
+    assert "from worldfoundry.core.io.paths import package_root" in priors
+    assert 'package_root() / "base_models" / "three_dimensions"' in priors
+    assert "Path(__file__).resolve().parents[" not in priors
+
+    paths = (repo / "worldfoundry/base_models/three_dimensions/general_3d/vipe/_paths.py").read_text(
+        encoding="utf-8"
+    )
+    assert 'Path(__file__).resolve().parent / "configs"' in paths
+    assert "Path(__file__).resolve().parents[" not in paths
