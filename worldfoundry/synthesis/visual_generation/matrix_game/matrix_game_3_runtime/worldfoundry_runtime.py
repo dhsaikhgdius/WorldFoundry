@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
 import sys
 import tempfile
 import time
@@ -10,19 +9,21 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Optional, Sequence
 
+import numpy as np
+import torch
+
 from worldfoundry.core import cuda_visible_devices_from_device, load_pil_image, load_video_frames
 from worldfoundry.core.io.paths import (
     checkpoint_root_path,
     hfd_root_path,
-    package_module_root as package_root,
     project_root,
 )
+from worldfoundry.core.io.paths import (
+    package_module_root as package_root,
+)
+from worldfoundry.core.process import run_logged_subprocess
 from worldfoundry.evaluation.utils import worldfoundry_data_path
-
-import numpy as np
-import torch
 from worldfoundry.runtime.env import resolve_hfd_root
-
 
 DEFAULT_MATRIX_GAME3_ALIASES = {
     "",
@@ -331,17 +332,23 @@ class MatrixGame3Runtime:
         if int(async_vae_warmup_iters) > 0:
             command.extend(["--async_vae_warmup_iters", str(int(async_vae_warmup_iters))])
 
-        stdout = None if show_progress else subprocess.DEVNULL
-        stderr = None if show_progress else subprocess.STDOUT
+        # Always capture logs; interactive callers can tail the files.
+        del show_progress
+        log_stdout = output_dir_path / "matrix_game_3.stdout.log"
+        log_stderr = output_dir_path / "matrix_game_3.stderr.log"
         env = build_subprocess_env(self.runtime_root, self.device)
-        subprocess.run(
+        completed = run_logged_subprocess(
             command,
-            check=True,
+            stdout_path=log_stdout,
+            stderr_path=log_stderr,
             cwd=project_root(),
             env=env,
-            stdout=stdout,
-            stderr=stderr,
         )
+        if completed.returncode != 0:
+            raise RuntimeError(
+                "Matrix-Game 3 generation failed. Check runtime dependencies and GPU memory; "
+                f"see {log_stdout} and {log_stderr}"
+            )
 
         video_path = output_dir_path / f"{save_name}.mp4"
         if _distributed_rank_from_env() == 0:
@@ -397,10 +404,11 @@ class MatrixGame3Runtime:
         from .worldfoundry_runner import patch_torch_dynamo_config_aliases
 
         patch_torch_dynamo_config_aliases()
+        import pipeline.inference_interactive_pipeline as native_runtime
+
         from worldfoundry.base_models.diffusion_model.recipes.wan_configs.action_22 import (
             WAN_CONFIGS,
         )
-        import pipeline.inference_interactive_pipeline as native_runtime
 
         device = torch.device(self.device)
         device_id = (

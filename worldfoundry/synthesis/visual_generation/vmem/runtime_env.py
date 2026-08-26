@@ -11,26 +11,13 @@ import sys
 from pathlib import Path
 from typing import Iterable, Optional
 
+from worldfoundry.core.io.paths import project_root as resolve_project_root
+
+
 def project_root() -> Path:
-    """
-    Identifies the root directory of the current project by searching for a 'pyproject.toml' file.
+    """Return the WorldFoundry repository root (``paths.project_root``)."""
 
-    It traverses up the directory tree from the current file's location. If 'pyproject.toml'
-    is found, that directory is considered the project root. As a fallback, it returns
-    a fixed number of levels up from the current file, which is useful in certain
-    deployment environments where pyproject.toml might not be directly available.
-
-    Returns:
-        Path: The determined project root directory.
-    """
-    # Iterate through parent directories, starting from the current file's location,
-    # to find the project root marked by a 'pyproject.toml' file.
-    for parent in Path(__file__).resolve().parents:
-        if (parent / "pyproject.toml").is_file():
-            return parent
-    # Fallback: if no pyproject.toml is found, return a fixed number of levels up.
-    # This assumes a specific project structure in environments where the toml might be missing.
-    return Path(__file__).resolve().parents[6]
+    return resolve_project_root(__file__)
 
 
 # Default path for the VMem runtime, relative to the current file's parent directory.
