@@ -15,7 +15,7 @@ DATA_ROOT_OVERRIDE="${WORLDFOUNDRY_DATA_DIR:-}"
 MODEL_ROOT_OVERRIDE="${WORLDFOUNDRY_MODEL_DIR:-}"
 ARTIFACT_ROOT_OVERRIDE="${WORLDFOUNDRY_ARTIFACT_DIR:-}"
 ENV_ROOT_OVERRIDE="${WORLDFOUNDRY_CONDA_ENVS_ROOT:-${WORLDFOUNDRY_CONDA_ENV_ROOT:-}}"
-ENV_FILE="${WORLDFOUNDRY_ENV_FILE:-tmp/worldfoundry_unified_env.sh}"
+ENV_FILE="${WORLDFOUNDRY_ENV_FILE:-}"
 CONDA_ENVIRONMENT_FILE="${WORLDFOUNDRY_CONDA_ENVIRONMENT_FILE:-environment.yml}"
 WRITE_ENV_FILE=1
 INSTALL_PRESET="${WORLDFOUNDRY_INSTALL_PRESET:-max-infer}"
@@ -43,13 +43,14 @@ Options:
   --data-root PATH      Benchmark/data root. Default: ${WORLDFOUNDRY_HOME}/data.
   --model-root PATH     Model/checkpoint root. Default: ${WORLDFOUNDRY_HOME}/models.
   --artifact-root PATH  Generated artifact root. Default: ${WORLDFOUNDRY_HOME}/artifacts.
-  --env-file PATH       Write sourceable exports. Default: tmp/worldfoundry_unified_env.sh.
+  --env-file PATH       Write sourceable exports. Default: ${WORLDFOUNDRY_HOME:-~/.cache/worldfoundry}/worldfoundry_unified_env.sh.
   --no-env-file         Do not write the env export file.
   --preset NAME         max-infer or slim. Default: max-infer.
                         Both currently install requirements/worldfoundry-unified.txt.
   --pytorch-bundle NAME Accepted for older command lines; currently ignored.
   --transformers NAME   Accepted for older command lines; currently ignored.
   --skip-flash-attn     Skip flash-attn install.
+  --with-native-kernels Forward optional native-kernels build to conda_install.
   --torch SPEC          Torch package spec. Default: torch>=2.7,<2.12.0.
   --torchvision SPEC    Torchvision package spec. Default: torchvision>=0.22,<0.27.0.
   --torchaudio SPEC     Torchaudio package spec. Default: torchaudio>=2.7,<2.12.0.
@@ -58,7 +59,7 @@ Options:
   -h, --help            Show this help.
 
 After install:
-  source tmp/worldfoundry_unified_env.sh
+  source the env exports file printed by the installer
   conda activate <printed env prefix>
 EOF
 }
@@ -128,6 +129,10 @@ while (($#)); do
       INSTALL_ARGS+=(--skip-flash-attn)
       shift
       ;;
+    --with-native-kernels)
+      INSTALL_ARGS+=(--with-native-kernels)
+      shift
+      ;;
     --torch)
       INSTALL_ARGS+=(--torch "$2")
       shift 2
@@ -159,6 +164,12 @@ while (($#)); do
       ;;
   esac
 done
+
+# Resolved after option parsing so a --home override moves the default env
+# file along with the rest of the runtime state (R-08).
+if [[ -z "$ENV_FILE" ]]; then
+  ENV_FILE="${HOME_ROOT}/worldfoundry_unified_env.sh"
+fi
 
 PYTHON_BIN="${PYTHON:-}"
 if [[ -z "$PYTHON_BIN" ]]; then
@@ -221,13 +232,11 @@ export WORLDFOUNDRY_USE_UNIFIED_ENV=1
 export WORLDFOUNDRY_REPO_ROOT="${ROOT}"
 export WORLDFOUNDRY_BENCH_ROOT="${ROOT}"
 export WORLDFOUNDRY_WORKSPACE_ROOT="${HOME_ROOT}"
-export CONDA_PREFIX="${ENV_PREFIX}"
 export PATH="${ENV_PREFIX}/bin:\${PATH}"
 export PYTHON="${ENV_PREFIX}/bin/python"
 export HF_HOME="${HF_HOME_ROOT}"
 export HF_HUB_CACHE="${HF_HOME_ROOT}/hub"
 export HF_DATASETS_CACHE="${HF_HOME_ROOT}/datasets"
-export TRANSFORMERS_CACHE="${HF_HOME_ROOT}/transformers"
 EOF
 fi
 
@@ -264,6 +273,15 @@ bash "$ROOT/scripts/setup/conda_install.sh" \
   --preset "$INSTALL_PRESET" \
   "${INSTALL_ARGS[@]}"
 
+# Why hand-written wrappers instead of pip console scripts (plan I-13):
+# conda_install.sh installs torch + requirements/worldfoundry-unified.txt but
+# never `pip install -e .`, so pip does not generate the [project.scripts]
+# entry points inside the unified env. These wrappers are the only providers
+# of the `worldfoundry*` commands there; they pin the repo checkout via
+# WORLDFOUNDRY_REPO_ROOT/PYTHONPATH and would intentionally shadow pip entry
+# points if the package were ever installed into the env. The name -> module
+# map below must stay in sync with [project.scripts] in pyproject.toml;
+# test/eval_core/test_unified_install_wrappers.py enforces that contract.
 install_worldfoundry_wrapper() {
   local name="$1"
   local module="$2"

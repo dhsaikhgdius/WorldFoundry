@@ -14,6 +14,7 @@ CONDA_EXE_PATH="${CONDA_EXE:-conda}"
 CONDA_ENVIRONMENT_FILE="${WORLDFOUNDRY_CONDA_ENVIRONMENT_FILE:-environment.yml}"
 INSTALL_PRESET="${WORLDFOUNDRY_INSTALL_PRESET:-max-infer}"
 INSTALL_FLASH_ATTN=1
+INSTALL_NATIVE_KERNELS=0
 FLASH_ATTN_BUCKET="${WORLDFOUNDRY_FLASH_ATTN_BUCKET:-flash_attn_fa25}"
 TORCH_SPEC="${WORLDFOUNDRY_TORCH_SPEC:-torch>=2.7,<2.12.0}"
 TORCHVISION_SPEC="${WORLDFOUNDRY_TORCHVISION_SPEC:-torchvision>=0.22,<0.27.0}"
@@ -44,6 +45,8 @@ Options:
   --skip-three-d-core   Legacy compatibility option; ignored.
   --flash-attn BUCKET   flash-attn bucket: flash_attn_fa25 or flash_attn_fa28.
   --skip-flash-attn     Do not install flash-attn.
+  --with-native-kernels Build and install packages/worldfoundry-native-kernels
+                       inside the env (non-fatal on failure). Off by default.
   --torch SPEC          Torch package spec. Default: torch>=2.7,<2.12.0.
   --torchvision SPEC    Torchvision package spec. Default: torchvision>=0.22,<0.27.0.
   --torchaudio SPEC     Torchaudio package spec. Default: torchaudio>=2.7,<2.12.0.
@@ -95,6 +98,10 @@ while (($#)); do
       ;;
     --skip-flash-attn)
       INSTALL_FLASH_ATTN=0
+      shift
+      ;;
+    --with-native-kernels)
+      INSTALL_NATIVE_KERNELS=1
       shift
       ;;
     --torch)
@@ -271,12 +278,79 @@ if [[ "$VERIFY_ONLY" != "1" ]]; then
     python -m pip install --no-cache-dir --index-url "$TORCH_INDEX_URL" --extra-index-url "$PYPI_INDEX_URL" \
     "$TORCH_SPEC" "$TORCHVISION_SPEC" "$TORCHAUDIO_SPEC"
 
+  # I-02: pin the exact CUDA-index torch stack so the second PyPI pass cannot
+  # silently replace it (e.g. via unpinned xformers/torchao).
+  TORCH_CONSTRAINT_FILE="$(mktemp "${TMPDIR:-/tmp}/worldfoundry-torch-constraint.XXXXXX")"
+  PIP_CONFIG_FILE="${WORLDFOUNDRY_PIP_CONFIG_FILE:-/dev/null}" conda_run \
+    python - "$TORCH_CONSTRAINT_FILE" <<'PY'
+import importlib
+import sys
+
+constraint_path = sys.argv[1]
+lines = []
+for name in ("torch", "torchvision", "torchaudio"):
+    module = importlib.import_module(name)
+    version = getattr(module, "__version__", None)
+    if not version:
+        raise SystemExit(f"missing version for {name} after CUDA-index install")
+    lines.append(f"{name}=={version}")
+open(constraint_path, "w", encoding="utf-8").write("\n".join(lines) + "\n")
+print("wrote torch constraint:", constraint_path)
+print("\n".join(lines))
+PY
+
   PIP_CONFIG_FILE="${WORLDFOUNDRY_PIP_CONFIG_FILE:-/dev/null}" conda_run \
     python -m pip install --no-cache-dir --index-url "$PYPI_INDEX_URL" \
+    --constraint "$TORCH_CONSTRAINT_FILE" \
     -r requirements/worldfoundry-unified.txt
+  rm -f "$TORCH_CONSTRAINT_FILE"
+
+  PIP_CONFIG_FILE="${WORLDFOUNDRY_PIP_CONFIG_FILE:-/dev/null}" conda_run \
+    python - "$CUDA_PROFILE" "${ALLOW_NO_CUDA:-0}" <<'PY'
+import sys
+import torch
+
+expected_tier = sys.argv[1]
+allow_no_cuda = sys.argv[2] == "1"
+torch_cuda = (torch.version.cuda or "").strip()
+if not torch_cuda:
+    if allow_no_cuda:
+        print("torch.version.cuda is empty; allowed by --allow-no-cuda")
+        raise SystemExit(0)
+    raise SystemExit("torch.version.cuda is empty after CUDA-index install")
+expected = {"cu128": "12.8", "cu124": "12.4", "cu121": "12.1"}.get(expected_tier)
+if expected:
+    major_minor = ".".join(torch_cuda.split(".")[:2])
+    if major_minor != expected:
+        raise SystemExit(
+            f"torch.version.cuda={torch_cuda!r} does not match selected tier {expected_tier} "
+            f"(expected CUDA {expected}). A later pip install may have replaced the CUDA wheel."
+        )
+print(f"torch CUDA OK: version={torch.__version__} cuda={torch_cuda} tier={expected_tier}")
+PY
 
   if [[ "$INSTALL_FLASH_ATTN" == "1" ]]; then
     run_cmd bash scripts/setup/install_flash_attn.sh "$FLASH_ATTN_BUCKET"
+  fi
+
+  if [[ "$INSTALL_NATIVE_KERNELS" == "1" ]]; then
+    echo "Building optional worldfoundry-native-kernels (failures are non-fatal)."
+    if ! (
+      set -euo pipefail
+      PIP_CONFIG_FILE="${WORLDFOUNDRY_PIP_CONFIG_FILE:-/dev/null}" conda_run \
+        python -m pip install --no-cache-dir "scikit-build-core>=0.10,<2" build
+      PIP_CONFIG_FILE="${WORLDFOUNDRY_PIP_CONFIG_FILE:-/dev/null}" conda_run \
+        python -m build --wheel --no-isolation packages/worldfoundry-native-kernels
+      mapfile -t wheels < <(ls -1t packages/worldfoundry-native-kernels/dist/*.whl 2>/dev/null || true)
+      if [[ "${#wheels[@]}" -eq 0 ]]; then
+        echo "native-kernels wheel missing under packages/worldfoundry-native-kernels/dist/" >&2
+        exit 1
+      fi
+      PIP_CONFIG_FILE="${WORLDFOUNDRY_PIP_CONFIG_FILE:-/dev/null}" conda_run \
+        python -m pip install --no-cache-dir --force-reinstall "${wheels[0]}"
+    ); then
+      echo "WARNING: worldfoundry-native-kernels build/install failed; continuing without it." >&2
+    fi
   fi
 fi
 
@@ -314,6 +388,19 @@ out["cuda_device_count"] = torch.cuda.device_count()
 allow_no_cuda = os.environ.get("WORLDFOUNDRY_ALLOW_NO_CUDA") == "1"
 if not torch.cuda.is_available() and not allow_no_cuda:
     raise SystemExit("CUDA is not available in the WorldFoundry conda environment")
+
+try:
+    from worldfoundry.core.kernels.native_provider import native_provider_status
+
+    status = native_provider_status(load=False, strict=False)
+    out["native_provider"] = {
+        "state": status.state,
+        "installed": status.installed,
+        "manifest_valid": status.manifest_valid,
+        "reason": status.reason,
+    }
+except Exception as exc:  # pragma: no cover - diagnostic only
+    out["native_provider"] = {"state": "probe_failed", "reason": f"{type(exc).__name__}: {exc}"}
 
 print(json.dumps(out, sort_keys=True))
 PY
