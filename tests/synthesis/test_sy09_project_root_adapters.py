@@ -247,3 +247,15 @@ def test_batch9_representation_adapters_use_paths_helpers() -> None:
         assert needle in text
         assert "Path(__file__).resolve().parents[" not in text
 
+
+def test_batch10_studio_catalog_uses_paths_helpers() -> None:
+    """studio.catalog repo/package roots come from paths helpers."""
+    repo = Path(__file__).resolve().parents[2]
+    rel = "worldfoundry/studio/catalog.py"
+    text = (repo / rel).read_text(encoding="utf-8")
+    assert "from worldfoundry.core.io.paths import" in text
+    assert "project_root" in text
+    assert "package_root" in text
+    assert "Path(__file__).resolve().parents[" not in text
+    assert "for parent in current.parents" not in text
+
