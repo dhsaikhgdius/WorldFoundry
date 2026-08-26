@@ -2139,7 +2139,7 @@ def _in_tree_repo_ref(repo_name: str) -> str:
     if parts is None:
         known = ", ".join(sorted(_IN_TREE_REPO_PARTS))
         raise ValueError(f"Unknown in-tree repo {repo_name!r}; known repos: {known}")
-    return str(Path(__file__).resolve().parents[1] / Path(*parts))
+    return str(package_root() / Path(*parts))
 
 
 def _three_d_four_d_runtime_call_params(*model_params: str) -> tuple[str, ...]:
