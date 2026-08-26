@@ -116,11 +116,17 @@ file. Keep this file local to the machine; it contains paths but no secrets.
 | `WORLDFOUNDRY_CUDA_PROFILE` | yes | Resolved CUDA wheel tier, normally `cu128` on CUDA 12.8+ hosts. |
 | `HF_HOME`, `HF_HUB_CACHE`, `HF_DATASETS_CACHE` | yes | Hugging Face cache roots when using a WorldFoundry-managed cache. |
 | `HF_TOKEN`, `HUGGING_FACE_HUB_TOKEN` | no | Optional user-provided credentials for gated assets. Never commit these. |
+| `WORLDFOUNDRY_HF_DOWNLOAD_COORDINATOR` | no | HF multi-rank download coordinator: `local` (default, each node's local-rank0) or `global` (world rank0 only; **requires a shared HF cache filesystem**). |
 
 Prefer native Hugging Face loading (`from_pretrained`, `snapshot_download`, and
 standard HF cache variables) for public checkpoints. Use `WORLDFOUNDRY_CKPT_DIR`
 for upstream runtimes that require a fixed directory layout or for local soft
 links that preserve official paths without duplicating large files.
+
+`maybe_download_hf_repo_on_rank0` defaults to per-node local-rank0 downloads so
+node-local HF caches still populate under torchrun. Set
+`WORLDFOUNDRY_HF_DOWNLOAD_COORDINATOR=global` only when every rank can read the
+same HF cache path after rank0 finishes (shared filesystem).
 
 ## Dedicated model environment exceptions
 

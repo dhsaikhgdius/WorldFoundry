@@ -33,6 +33,7 @@ import torch.distributed as dist
 from filelock import FileLock
 
 from worldfoundry.core.distributed import get_global_rank, is_distributed_initialized
+from worldfoundry.core.distributed.generic_collectives import is_local_master
 from worldfoundry.core.io.disk import (
     CACHE_MIN_FREE_ENV,
     DiskSpaceError,
@@ -40,6 +41,9 @@ from worldfoundry.core.io.disk import (
     disk_space_error_from_exception,
     ensure_free_disk,
 )
+
+HF_DOWNLOAD_COORDINATOR_ENV = "WORLDFOUNDRY_HF_DOWNLOAD_COORDINATOR"
+_DEFAULT_DOWNLOAD_COORDINATOR = "local"
 
 
 def _str2bool(v: str | bool) -> bool:
@@ -86,6 +90,36 @@ def _normalize_patterns(
     if patterns is None or isinstance(patterns, str):
         return patterns
     return list(patterns)
+
+
+def download_coordinator_mode() -> str:
+    """Return ``local`` (per-node local-rank0) or ``global`` (world rank0) download mode."""
+
+    raw = os.getenv(HF_DOWNLOAD_COORDINATOR_ENV, _DEFAULT_DOWNLOAD_COORDINATOR)
+    mode = str(raw).strip().lower()
+    if mode in ("local", "local-rank0", "node"):
+        return "local"
+    if mode in ("global", "global-rank0", "rank0"):
+        return "global"
+    raise ValueError(
+        f"{HF_DOWNLOAD_COORDINATOR_ENV} must be 'local' or 'global', got {raw!r}"
+    )
+
+
+def _should_download_hf_snapshot() -> bool:
+    """Whether this process should perform the Hub download.
+
+    Default ``local`` mode uses each node's local-rank0 so node-local HF caches
+    still populate when ranks do not share a filesystem. ``global`` mode keeps
+    the historical world-rank0 download and **requires** a shared HF cache
+    visible to every rank after the broadcast.
+    """
+
+    if download_coordinator_mode() == "global":
+        return get_global_rank() == 0
+    if not is_distributed_initialized():
+        return True
+    return is_local_master()
 
 
 HF_URI_SCHEME = "hf://"
@@ -267,12 +301,22 @@ def maybe_download_hf_repo_on_rank0(
     ignore_patterns: str | Sequence[str] | None = None,
     token: str | bool | None = None,
 ) -> None:
-    """Download a remote HF repo snapshot from rank 0 when downloads are allowed.
+    """Download a remote HF repo snapshot from a coordinator rank when allowed.
 
     Local paths and explicit offline/local-only modes are no-ops. For remote
-    repositories, rank 0 preloads the snapshot while other distributed ranks
-    wait for its success/failure signal. A filesystem lock serializes
-    independent processes that share the same HF cache directory.
+    repositories a coordinator rank preloads the snapshot while other ranks wait.
+
+    Coordinator selection is controlled by
+    ``WORLDFOUNDRY_HF_DOWNLOAD_COORDINATOR`` (default ``local``):
+
+    * ``local`` — each node's local-rank0 downloads into that node's HF cache.
+      Use this when caches live on node-local disks (the common torchrun case).
+    * ``global`` — only world rank0 downloads, then broadcasts success/failure.
+      **Requires a shared filesystem** so every rank can read the same HF cache
+      path after the broadcast; otherwise non-rank0 nodes see missing files.
+
+    A filesystem lock still serializes independent processes that share one HF
+    cache directory.
     """
     if (
         os.path.isdir(repo_id_or_path)
@@ -281,9 +325,10 @@ def maybe_download_hf_repo_on_rank0(
     ):
         return
 
-    rank = get_global_rank()
-    payload: list[dict[str, str | None]]
-    if rank == 0:
+    mode = download_coordinator_mode()
+    payload: list[dict[str, str | None]] = [{"error": None}]
+    download_error: BaseException | None = None
+    if _should_download_hf_snapshot():
         try:
             _download_snapshot(
                 repo_id_or_path,
@@ -293,22 +338,31 @@ def maybe_download_hf_repo_on_rank0(
                 ignore_patterns=ignore_patterns,
                 token=token,
             )
-            payload = [{"error": None}]
         except DiskSpaceError as exc:
+            download_error = exc
             payload = [{"error": str(exc), "disk_error": "1"}]
         except Exception as exc:
+            download_error = exc
             payload = [{"error": f"{type(exc).__name__}: {exc}"}]
-    else:
-        payload = [{"error": None}]
 
     if is_distributed_initialized():
-        dist.broadcast_object_list(payload, src=0)
+        if mode == "global":
+            dist.broadcast_object_list(payload, src=0)
+        else:
+            # Wait for every node's local-rank0 download before local-only reopen.
+            dist.barrier()
 
     error = payload[0]["error"]
     if error is not None:
         if payload[0].get("disk_error"):
             raise DiskSpaceError(error)
-        raise RuntimeError(f"Rank 0 failed to download Hugging Face repo {repo_id_or_path!r}: {error}")
+        if download_error is not None and not isinstance(download_error, DiskSpaceError):
+            raise RuntimeError(
+                f"Coordinator rank failed to download Hugging Face repo {repo_id_or_path!r}: {error}"
+            ) from download_error
+        raise RuntimeError(
+            f"Coordinator rank failed to download Hugging Face repo {repo_id_or_path!r}: {error}"
+        )
 
 
 def materialize_hf_snapshot(
@@ -324,8 +378,9 @@ def materialize_hf_snapshot(
 ) -> Path:
     """Return a local snapshot for either a path or Hugging Face repo id.
 
-    Remote downloads are serialized on rank zero and then reopened in
-    local-only mode, avoiding partial-cache races in multi-GPU jobs.
+    Remote downloads are coordinated by ``maybe_download_hf_repo_on_rank0``
+    (default: per-node local-rank0) and then reopened in local-only mode,
+    avoiding partial-cache races in multi-GPU jobs.
     """
 
     value = str(repo_id_or_path)
@@ -366,7 +421,9 @@ def materialize_hf_snapshot(
 
 
 __all__ = [
+    "HF_DOWNLOAD_COORDINATOR_ENV",
     "HF_URI_SCHEME",
+    "download_coordinator_mode",
     "hf_download_or_fpath",
     "materialize_hf_snapshot",
     "maybe_download_hf_repo_on_rank0",
