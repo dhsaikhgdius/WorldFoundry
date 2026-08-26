@@ -46,7 +46,8 @@ Options:
   --env-file PATH       Write sourceable exports. Default: ${WORLDFOUNDRY_HOME:-~/.cache/worldfoundry}/worldfoundry_unified_env.sh.
   --no-env-file         Do not write the env export file.
   --preset NAME         max-infer or slim. Default: max-infer.
-                        Both currently install requirements/worldfoundry-unified.txt.
+                        max-infer installs requirements/worldfoundry-unified.txt;
+                        slim installs editable extras .[tui,ui,api,hf] only.
   --pytorch-bundle NAME Accepted for older command lines; currently ignored.
   --transformers NAME   Accepted for older command lines; currently ignored.
   --skip-flash-attn     Skip flash-attn install.
