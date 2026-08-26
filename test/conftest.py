@@ -5,12 +5,12 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SRC_ROOT = REPO_ROOT
 
-for path in (REPO_ROOT, SRC_ROOT):
-    path_str = str(path)
-    if path_str not in sys.path:
-        sys.path.insert(0, path_str)
+# Editable installs and ``PYTHONPATH=.`` already expose the package; keep a
+# single repo-root insert for bare ``pytest`` invocations without install.
+_repo_root = str(REPO_ROOT)
+if _repo_root not in sys.path:
+    sys.path.insert(0, _repo_root)
 
 
 # ---------------------------------------------------------------------------
