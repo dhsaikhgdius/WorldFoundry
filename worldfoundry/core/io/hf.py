@@ -18,19 +18,29 @@
 Remote repos are preloaded before ``from_pretrained(..., local_files_only=True)``
 so multi-rank jobs do not race to download the same snapshot or treat a partial
 cache entry as complete.
+
+Multi-rank downloads use ``broadcast_object_list`` on the default process group.
+Long Hub fetches can exceed the default NCCL collective timeout and abort waiting
+ranks — prefer a long-timeout Gloo group (or raise the process-group /
+``NCCL_TIMEOUT``) for download coordination. Cross-process serialization uses a
+filesystem ``FileLock`` with a finite timeout and periodic wait logs.
 """
 
 from __future__ import annotations
 
 import hashlib
+import logging
 import os
-from collections.abc import Sequence
+import time
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 from os import PathLike
 from pathlib import Path
 from typing import Any
 
 import torch.distributed as dist
 from filelock import FileLock
+from filelock import Timeout as FileLockTimeout
 
 from worldfoundry.core.distributed import get_global_rank, is_distributed_initialized
 from worldfoundry.core.io.disk import (
@@ -40,6 +50,13 @@ from worldfoundry.core.io.disk import (
     disk_space_error_from_exception,
     ensure_free_disk,
 )
+
+logger = logging.getLogger(__name__)
+
+HF_DOWNLOAD_LOCK_TIMEOUT_ENV = "WORLDFOUNDRY_HF_DOWNLOAD_LOCK_TIMEOUT"
+HF_DOWNLOAD_LOCK_WAIT_LOG_ENV = "WORLDFOUNDRY_HF_DOWNLOAD_LOCK_WAIT_LOG_SECONDS"
+_DEFAULT_DOWNLOAD_LOCK_TIMEOUT_SECONDS = 7200.0
+_DEFAULT_DOWNLOAD_LOCK_WAIT_LOG_SECONDS = 30.0
 
 
 def _str2bool(v: str | bool) -> bool:
@@ -78,6 +95,81 @@ def _lock_path(
     safe_name = repo_id.replace("/", "--")
     locks_dir = cache_root / ".worldfoundry_locks"
     return locks_dir / f"{safe_name}-{lock_digest}.lock"
+
+
+def _env_float(name: str, default: float) -> float:
+    raw = os.getenv(name)
+    if raw is None or not str(raw).strip():
+        return default
+    try:
+        return float(raw)
+    except ValueError as exc:
+        raise ValueError(f"{name} must be a number, got {raw!r}") from exc
+
+
+def download_lock_timeout_seconds() -> float:
+    """Return the HF download FileLock timeout (seconds; ``-1`` waits forever)."""
+
+    return _env_float(HF_DOWNLOAD_LOCK_TIMEOUT_ENV, _DEFAULT_DOWNLOAD_LOCK_TIMEOUT_SECONDS)
+
+
+def download_lock_wait_log_seconds() -> float:
+    """Return how often to log while waiting on the HF download FileLock."""
+
+    return max(
+        0.1,
+        _env_float(HF_DOWNLOAD_LOCK_WAIT_LOG_ENV, _DEFAULT_DOWNLOAD_LOCK_WAIT_LOG_SECONDS),
+    )
+
+
+@contextmanager
+def _hf_download_lock(lock_file: Path) -> Iterator[FileLock]:
+    """Acquire ``lock_file`` with a finite timeout and periodic wait logs.
+
+    Independent processes that share an HF cache directory serialize downloads
+    through this lock. Waiting holders log at
+    ``WORLDFOUNDRY_HF_DOWNLOAD_LOCK_WAIT_LOG_SECONDS`` (default 30s) so operators
+    can tell a slow download from a stuck collective.
+    """
+
+    timeout = download_lock_timeout_seconds()
+    log_interval = download_lock_wait_log_seconds()
+    lock = FileLock(str(lock_file), timeout=timeout)
+    started = time.monotonic()
+    next_log_at = started
+    while True:
+        elapsed = time.monotonic() - started
+        if timeout >= 0 and elapsed >= timeout:
+            raise FileLockTimeout(str(lock_file))
+        slice_timeout = log_interval
+        if timeout >= 0:
+            slice_timeout = min(log_interval, max(timeout - elapsed, 0.001))
+        try:
+            lock.acquire(timeout=slice_timeout)
+            waited = time.monotonic() - started
+            if waited >= log_interval:
+                logger.info(
+                    "Acquired Hugging Face download lock at %s after %.1fs",
+                    lock_file,
+                    waited,
+                )
+            break
+        except FileLockTimeout:
+            now = time.monotonic()
+            if timeout >= 0 and (now - started) >= timeout:
+                raise
+            if now >= next_log_at:
+                logger.info(
+                    "Waiting for Hugging Face download lock at %s "
+                    "(another process may be downloading; timeout=%ss)",
+                    lock_file,
+                    "infinite" if timeout < 0 else f"{timeout:.0f}",
+                )
+                next_log_at = now + log_interval
+    try:
+        yield lock
+    finally:
+        lock.release()
 
 
 def _normalize_patterns(
@@ -234,7 +326,7 @@ def _download_snapshot(
     )
     try:
         lock_file.parent.mkdir(parents=True, exist_ok=True)
-        with FileLock(str(lock_file)):
+        with _hf_download_lock(lock_file):
             _snapshot_download(
                 repo_id,
                 revision=revision,
@@ -272,7 +364,18 @@ def maybe_download_hf_repo_on_rank0(
     Local paths and explicit offline/local-only modes are no-ops. For remote
     repositories, rank 0 preloads the snapshot while other distributed ranks
     wait for its success/failure signal. A filesystem lock serializes
-    independent processes that share the same HF cache directory.
+    independent processes that share the same HF cache directory
+    (``WORLDFOUNDRY_HF_DOWNLOAD_LOCK_TIMEOUT``, default 7200s, with periodic
+    wait logs).
+
+    The success/failure payload is broadcast on the **default** process group.
+    Large Hub downloads routinely exceed the default NCCL collective timeout and
+    can abort waiting ranks mid-barrier. Prefer initializing download
+    coordination with a long-timeout **Gloo** backend, or raise the process-group
+    timeout / ``NCCL_TIMEOUT`` before calling this helper from multi-GPU jobs.
+    Rank 0 also assumes every participant can read the same HF cache path after
+    the broadcast (shared filesystem); node-local caches need per-node download
+    coordination instead.
     """
     if (
         os.path.isdir(repo_id_or_path)
@@ -366,7 +469,11 @@ def materialize_hf_snapshot(
 
 
 __all__ = [
+    "HF_DOWNLOAD_LOCK_TIMEOUT_ENV",
+    "HF_DOWNLOAD_LOCK_WAIT_LOG_ENV",
     "HF_URI_SCHEME",
+    "download_lock_timeout_seconds",
+    "download_lock_wait_log_seconds",
     "hf_download_or_fpath",
     "materialize_hf_snapshot",
     "maybe_download_hf_repo_on_rank0",

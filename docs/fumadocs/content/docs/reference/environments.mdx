@@ -116,11 +116,19 @@ file. Keep this file local to the machine; it contains paths but no secrets.
 | `WORLDFOUNDRY_CUDA_PROFILE` | yes | Resolved CUDA wheel tier, normally `cu128` on CUDA 12.8+ hosts. |
 | `HF_HOME`, `HF_HUB_CACHE`, `HF_DATASETS_CACHE` | yes | Hugging Face cache roots when using a WorldFoundry-managed cache. |
 | `HF_TOKEN`, `HUGGING_FACE_HUB_TOKEN` | no | Optional user-provided credentials for gated assets. Never commit these. |
+| `WORLDFOUNDRY_HF_DOWNLOAD_LOCK_TIMEOUT` | no | Seconds to wait for the cross-process HF download `FileLock` (default `7200`; `-1` waits forever). |
+| `WORLDFOUNDRY_HF_DOWNLOAD_LOCK_WAIT_LOG_SECONDS` | no | How often waiting processes log while blocked on that lock (default `30`). |
 
 Prefer native Hugging Face loading (`from_pretrained`, `snapshot_download`, and
 standard HF cache variables) for public checkpoints. Use `WORLDFOUNDRY_CKPT_DIR`
 for upstream runtimes that require a fixed directory layout or for local soft
 links that preserve official paths without duplicating large files.
+
+Multi-rank jobs that call `maybe_download_hf_repo_on_rank0` broadcast download
+success/failure on the default process group. Large Hub fetches can exceed the
+default NCCL collective timeout — prefer a long-timeout Gloo backend (or raise
+the process-group / `NCCL_TIMEOUT`) for that coordination, and keep the HF cache
+on a filesystem every participating rank can read after the broadcast.
 
 ## Dedicated model environment exceptions
 
