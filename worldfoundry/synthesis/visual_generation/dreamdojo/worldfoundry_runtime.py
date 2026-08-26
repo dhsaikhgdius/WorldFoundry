@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from worldfoundry.core.io.paths import package_module_root as package_root
 from worldfoundry.core.io import write_json
 from worldfoundry.core.io.paths import hfd_root_path
+from worldfoundry.core.io.paths import package_module_root as package_root
+from worldfoundry.core.process import run_logged_subprocess, synthesis_timeout_seconds
 
 
 def _resolve_hfd_root() -> Path:
@@ -93,7 +93,9 @@ class DreamDojoRuntime:
             return checkpoint_path
         distcp_dir = checkpoint_dir / "model"
         if distcp_dir.is_dir():
-            subprocess.run(
+            convert_log = checkpoint_dir / "convert_distcp.stdout.log"
+            convert_err = checkpoint_dir / "convert_distcp.stderr.log"
+            completed = run_logged_subprocess(
                 [
                     sys.executable,
                     "-m",
@@ -101,8 +103,15 @@ class DreamDojoRuntime:
                     str(distcp_dir),
                     str(checkpoint_dir),
                 ],
-                check=True,
+                stdout_path=convert_log,
+                stderr_path=convert_err,
+                timeout=synthesis_timeout_seconds(),
             )
+            if completed.returncode != 0:
+                raise RuntimeError(
+                    f"DreamDojo checkpoint conversion failed with code {completed.returncode}; "
+                    f"see {convert_log} and {convert_err}"
+                )
             if checkpoint_path.is_file():
                 return checkpoint_path
             raise RuntimeError(f"DreamDojo checkpoint conversion did not create {checkpoint_path}")
@@ -152,7 +161,20 @@ infer_args.end = {int(kwargs.get("num_samples", 1))!r}
 inference(setup, infer_args, Path({str(checkpoint_path)!r}))
 """
         python = str(kwargs.get("python_executable") or sys.executable)
-        subprocess.run([python, "-c", code], cwd=str(runtime_root), check=True)
+        predict_log = output_dir / "dreamdojo_predict.stdout.log"
+        predict_err = output_dir / "dreamdojo_predict.stderr.log"
+        completed = run_logged_subprocess(
+            [python, "-c", code],
+            stdout_path=predict_log,
+            stderr_path=predict_err,
+            cwd=str(runtime_root),
+            timeout=synthesis_timeout_seconds(),
+        )
+        if completed.returncode != 0:
+            raise RuntimeError(
+                f"DreamDojo predict failed with code {completed.returncode}; "
+                f"see {predict_log} and {predict_err}"
+            )
         payload = {
             "status": "success",
             "model_id": self.model_id,

@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from worldfoundry.core.io.paths import checkpoint_root_path, hfd_root_path, resolve_data_path
+from worldfoundry.core.process import run_logged_subprocess, synthesis_timeout_seconds
 from worldfoundry.runtime.in_tree_cli import ensure_in_tree_runtime, execute_in_tree, require_path
 
 
@@ -88,19 +88,21 @@ class VerseCrafterRuntime:
     ) -> None:
         process_env = os.environ.copy()
         process_env.update(env)
-        completed = subprocess.run(
+        stdout_path = log_dir / f"{name}.stdout.log"
+        stderr_path = log_dir / f"{name}.stderr.log"
+        completed = run_logged_subprocess(
             [str(item) for item in command],
+            stdout_path=stdout_path,
+            stderr_path=stderr_path,
             cwd=self.repo_root,
             env=process_env,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            check=False,
+            timeout=synthesis_timeout_seconds(),
         )
-        log_path = log_dir / f"{name}.log"
-        log_path.write_text(completed.stdout + "\n" + completed.stderr, encoding="utf-8")
         if completed.returncode != 0:
-            raise RuntimeError(f"VerseCrafter stage {name!r} exited with code {completed.returncode}; see {log_path}")
+            raise RuntimeError(
+                f"VerseCrafter stage {name!r} exited with code {completed.returncode}; "
+                f"see {stdout_path} and {stderr_path}"
+            )
 
     def predict(
         self,

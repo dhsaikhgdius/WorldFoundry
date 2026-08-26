@@ -16,6 +16,7 @@ from functools import partial
 from pathlib import Path
 from typing import Any
 
+from worldfoundry.core.process import run_logged_subprocess
 from worldfoundry.evaluation.tasks.execution.framework.io import (  # noqa: E402
     env_path,
     load_json,
@@ -211,22 +212,23 @@ def run_vendored_official_scripts(
         # The upstream scripts import matplotlib for optional plots; force a
         # headless backend so the subprocess never needs a display.
         env.setdefault("MPLBACKEND", "Agg")
-        completed = subprocess.run(
+        item_stdout = output_dir / f"camerabench_{item}_stdout.log"
+        item_stderr = output_dir / f"camerabench_{item}_stderr.log"
+        completed = run_logged_subprocess(
             command,
+            stdout_path=item_stdout,
+            stderr_path=item_stderr,
             cwd=str(runtime_root),
             env=env,
-            text=True,
-            capture_output=True,
             timeout=timeout,
-            check=False,
         )
-        stdout_chunks.append(f"===== {item} =====\n{completed.stdout}")
-        stderr_chunks.append(f"===== {item} =====\n{completed.stderr}")
+        stdout_chunks.append(f"===== {item} =====\n{item_stdout.read_text(encoding='utf-8')}")
+        stderr_chunks.append(f"===== {item} =====\n{item_stderr.read_text(encoding='utf-8')}")
         commands.append(command)
         if completed.returncode != 0:
             raise RuntimeError(
                 f"vendored CameraBench {item} evaluation failed with exit code {completed.returncode}: "
-                f"{completed.stderr.strip()[-2000:]}"
+                f"{item_stderr.read_text(encoding='utf-8').strip()[-2000:]}"
             )
         if output_file.is_file():
             payload = load_json(output_file)
