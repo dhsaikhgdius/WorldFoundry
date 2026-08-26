@@ -453,21 +453,36 @@ ignore = [
 ]
 
 [tool.setuptools]
-# Every pattern below must match at least one discoverable package; dead rules
-# are rejected by `make packaging-check` (scripts/setup/check_packaging_license_gate.py,
-# code_review VI-16). License-gated vendored trees are additionally deny-listed
-# from the MANIFEST.in "License-gated upstream runtimes" block, so a tree that
-# becomes importable (e.g. gains an __init__.py) without an exclude fails CI
+# NOTE: in pyproject.toml `packages.find` defaults to namespaces=true, i.e.
+# discovery is find_namespace_packages: every directory under worldfoundry/
+# is a package candidate even without an __init__.py. Every pattern below
+# must match at least one discoverable package on that basis; dead rules are
+# rejected by `make packaging-check` (scripts/setup/check_packaging_license_gate.py,
+# code_review VI-16). License-gated vendored trees are additionally
+# deny-listed from the MANIFEST.in "License-gated upstream runtimes" block,
+# so a gated tree that becomes discoverable without an exclude fails CI
 # instead of silently shipping in the wheel.
 packages = { find = { where = ["."], include = ["worldfoundry*"], exclude = [
-    # Structural: upstream runtime mirrors never ship in wheels.
+    # Structural: upstream runtime mirrors and inner checkouts never ship.
     "worldfoundry.synthesis.visual_generation.*.runtime*",
     "worldfoundry.synthesis.visual_generation.*.*_runtime*",
-    "worldfoundry.base_models.*.*_runtime",
-    "worldfoundry.base_models.*.*_runtime.*",
-    "worldfoundry.base_models.*.pixelsplat",
+    "worldfoundry.base_models.*.*.third_party*",
+    "worldfoundry.base_models.*.*.*_runtime.third_party*",
+    "worldfoundry.base_models.*.*.*_runtime.src*",
+    "worldfoundry.base_models.*.*.*_runtime.*.src*",
+    "worldfoundry.base_models.*.depth_anything",
+    "worldfoundry.base_models.*.depth_anything.*",
+    "worldfoundry.base_models.*.*.dvlt_runtime.src*",
+    "worldfoundry.base_models.*.*.pixelsplat.src*",
+    "worldfoundry.base_models.*.vggt.vggt",
+    "worldfoundry.base_models.*.vggt.vggt.*",
     "worldfoundry.base_models.*.vggt_omega.vggt_omega",
     "worldfoundry.base_models.*.vggt_omega.vggt_omega.*",
+    "worldfoundry.base_models.*.pixelsplat",
+    "worldfoundry.base_models.*.eastern_journalist.utils3d",
+    "worldfoundry.base_models.*.eastern_journalist.utils3d.*",
+    "worldfoundry.base_models.*.*_runtime",
+    "worldfoundry.base_models.*.*_runtime.*",
     # License-gated vendored trees (local checkouts only; see MANIFEST.in).
     "worldfoundry.base_models.three_dimensions.depth.unidepth",
     "worldfoundry.base_models.three_dimensions.depth.unidepth.*",
@@ -475,10 +490,18 @@ packages = { find = { where = ["."], include = ["worldfoundry*"], exclude = [
     "worldfoundry.base_models.three_dimensions.depth.unik3d.*",
     "worldfoundry.base_models.three_dimensions.general_3d.dust3r",
     "worldfoundry.base_models.three_dimensions.general_3d.dust3r.*",
+    "worldfoundry.base_models.three_dimensions.general_3d.four_d_gaussians",
+    "worldfoundry.base_models.three_dimensions.general_3d.four_d_gaussians.*",
     "worldfoundry.base_models.three_dimensions.general_3d.mast3r",
     "worldfoundry.base_models.three_dimensions.general_3d.mast3r.*",
+    "worldfoundry.base_models.three_dimensions.general_3d.monst3r",
+    "worldfoundry.base_models.three_dimensions.general_3d.monst3r.*",
+    "worldfoundry.base_models.three_dimensions.general_3d.stable_virtual_camera",
+    "worldfoundry.base_models.three_dimensions.general_3d.stable_virtual_camera.*",
     "worldfoundry.base_models.three_dimensions.point_clouds.cut3r",
     "worldfoundry.base_models.three_dimensions.point_clouds.cut3r.*",
+    "worldfoundry.base_models.three_dimensions.point_clouds.gaussian_splatting",
+    "worldfoundry.base_models.three_dimensions.point_clouds.gaussian_splatting.*",
     "worldfoundry.base_models.three_dimensions.point_clouds.pi3",
     "worldfoundry.base_models.three_dimensions.point_clouds.pi3.*",
     "worldfoundry.synthesis.visual_generation.hunyuan_world.hunyuan_game_craft",
@@ -572,4 +595,47 @@ include-package-data = true
     "native/world_explorer/dependencies/imgui/**/*",
     "native/world_explorer/dependencies/pybind11/**/*",
     "native/world_explorer/dependencies/tinylogger/**/*",
+]
+# License-gated checkouts without a top-level __init__.py are not packages,
+# so include-package-data would otherwise ship their files as data of the
+# parent package (MANIFEST.in prune only shields the sdist; VI-16). Audited
+# by `make packaging-check WHEEL=...`.
+"worldfoundry.base_models.three_dimensions.depth" = [
+    "dvlt/dvlt_runtime/**/*",
+    "unidepth/**/*",
+    "unik3d/**/*",
+]
+"worldfoundry.base_models.three_dimensions.general_3d" = [
+    "dust3r/**/*",
+    "four_d_gaussians/**/*",
+    "mast3r/**/*",
+    "monst3r/**/*",
+    "stable_virtual_camera/**/*",
+]
+"worldfoundry.base_models.three_dimensions.point_clouds" = [
+    "cut3r/**/*",
+    "gaussian_splatting/**/*",
+    "pi3/**/*",
+]
+"worldfoundry.base_models.three_dimensions.slam" = [
+    "mega_sam_runtime/UniDepth/**/*",
+]
+"worldfoundry.synthesis.visual_generation.hunyuan_world" = [
+    "hunyuan_game_craft/**/*",
+    "hunyuan_world_voyager/**/*",
+    "hunyuan_worldplay/**/*",
+    "hy_world_2p0_panogen_runtime/**/*",
+    "hy_world_2p0_worldgen_runtime/**/*",
+]
+"worldfoundry.synthesis.visual_generation.krea_realtime" = [
+    "realtime_video_runtime/**/*",
+]
+"worldfoundry.synthesis.visual_generation.open_sora" = [
+    "open_sora_runtime/**/*",
+]
+"worldfoundry.synthesis.visual_generation.vmem" = [
+    "vmem_runtime/**/*",
+]
+"worldfoundry.synthesis.visual_generation.wonderworld" = [
+    "wonderworld_runtime/**/*",
 ]

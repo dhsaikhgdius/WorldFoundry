@@ -16,7 +16,10 @@ silently ship in an Apache-2.0 wheel:
    if someone later adds an ``__init__.py`` that makes a gated tree
    discoverable.
 3. Optional built-artifact audit (``--wheel``): assert no file inside a
-   built wheel lives under a gated path.
+   built wheel lives under a gated path. Audit wheels built from a clean
+   tree: a stale ``build/`` directory or ``*.egg-info`` manifest from an
+   earlier install can reintroduce files that the current configuration
+   excludes (build_py copies incrementally and never deletes).
 
 Run via ``make packaging-check`` or the eval_core release gate.
 """
@@ -48,15 +51,24 @@ def load_find_config(pyproject_path: Path = PYPROJECT_PATH) -> dict:
 
 
 def discover_packages(find_config: dict, *, apply_exclude: bool) -> list[str]:
-    """Run setuptools package discovery with the pyproject configuration."""
-    from setuptools import find_packages
+    """Run setuptools package discovery with the pyproject configuration.
 
+    In pyproject.toml ``packages.find`` defaults to ``namespaces = true``:
+    discovery walks every directory (no ``__init__.py`` required), which is
+    the basis actual wheel builds use. Auditing with plain ``find_packages``
+    would under-report by thousands of namespace packages.
+    """
+    from setuptools import find_namespace_packages, find_packages
+
+    finder = (
+        find_namespace_packages
+        if find_config.get("namespaces", True)
+        else find_packages
+    )
     where = find_config.get("where", ["."])[0]
     include = find_config.get("include", ("*",))
     exclude = find_config.get("exclude", ()) if apply_exclude else ()
-    return find_packages(
-        where=str(REPO_ROOT / where), include=include, exclude=exclude
-    )
+    return finder(where=str(REPO_ROOT / where), include=include, exclude=exclude)
 
 
 def dead_exclude_patterns(all_packages: list[str], exclude: list[str]) -> list[str]:
