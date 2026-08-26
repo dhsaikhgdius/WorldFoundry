@@ -1,0 +1,82 @@
+name: Packaging smoke
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/packaging-smoke.yml"
+      - "pyproject.toml"
+      - "MANIFEST.in"
+      - "setup.cfg"
+      - "setup.py"
+      - "LICENSE"
+      - "README.md"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/packaging-smoke.yml"
+      - "pyproject.toml"
+      - "MANIFEST.in"
+      - "setup.cfg"
+      - "setup.py"
+      - "LICENSE"
+      - "README.md"
+  workflow_dispatch:
+
+concurrency:
+  group: packaging-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  packaging-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          # setuptools-scm needs history for a non-zero version when tags exist.
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Build sdist and wheel
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "build>=1.2" "twine>=5"
+          mkdir -p tmp/dist
+          python -m build --sdist --wheel -o tmp/dist
+
+      - name: Twine check + size ceiling
+        run: |
+          python -m twine check tmp/dist/*
+          python - <<'PY'
+          from pathlib import Path
+          # Guard against accidental multi-hundred-MB inclusion growth.
+          # Current wheel is ~74MB; fail loudly past 200MB.
+          limit = 200 * 1024 * 1024
+          paths = sorted(Path("tmp/dist").glob("*"))
+          assert paths, "no dist artifacts"
+          for path in paths:
+              size = path.stat().st_size
+              print(f"{path.name}: {size / (1024 * 1024):.1f} MiB")
+              if size > limit:
+                  raise SystemExit(f"{path} exceeds {limit} byte ceiling ({size} bytes)")
+          PY
+
+      - name: Upload dist artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: packaging-dist
+          path: tmp/dist/*
+          if-no-files-found: ignore
+          retention-days: 7
