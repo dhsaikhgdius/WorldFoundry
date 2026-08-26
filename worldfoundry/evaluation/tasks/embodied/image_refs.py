@@ -10,6 +10,26 @@ from __future__ import annotations
 import os
 from typing import Any, Mapping
 
+# Official profiles that may keep floating ``:latest`` image refs until digests
+# can be resolved with registry credentials (D-01). Do not invent digests here.
+AUTH_GATED_FLOATING_OFFICIAL_PROFILES: frozenset[str] = frozenset(
+    {
+        "behavior1k",
+        "libero-plus",
+        "molmospaces",
+        "robomme",
+    }
+)
+
+# Mirror image lives in a different repository than ``source_image``; copying the
+# upstream digest across repos is forbidden. Pin when a WorldFoundry mirror digest
+# is published separately.
+CROSS_REPO_FLOATING_MIRROR_PROFILES: frozenset[str] = frozenset({"libero"})
+
+KNOWN_FLOATING_OFFICIAL_PROFILES: frozenset[str] = (
+    AUTH_GATED_FLOATING_OFFICIAL_PROFILES | CROSS_REPO_FLOATING_MIRROR_PROFILES
+)
+
 
 def _env_truthy(name: str, default: str = "0") -> bool:
     return os.getenv(name, default).strip().lower() in {"1", "true", "yes", "on"}
@@ -101,6 +121,9 @@ def resolve_docker_image(docker_cfg: Mapping[str, Any], *, require_pinned: bool 
 
 
 __all__ = [
+    "AUTH_GATED_FLOATING_OFFICIAL_PROFILES",
+    "CROSS_REPO_FLOATING_MIRROR_PROFILES",
+    "KNOWN_FLOATING_OFFICIAL_PROFILES",
     "apply_digest",
     "assert_image_ref_pinned",
     "image_ref_is_floating",

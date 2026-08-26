@@ -83,17 +83,16 @@ def test_official_same_repo_profiles_promote_image_to_digest() -> None:
     from pathlib import Path
 
     from worldfoundry.evaluation.tasks.embodied.image_refs import (
+        KNOWN_FLOATING_OFFICIAL_PROFILES,
         image_ref_is_floating,
         repository_name,
         resolve_docker_image,
     )
 
     root = Path(__file__).resolve().parents[2] / "worldfoundry/data/benchmarks/runtime_profiles/official"
-    # Auth-gated floats may still leave both refs on :latest — skip those.
-    skip = {"behavior1k.yaml", "libero-plus.yaml", "molmospaces.yaml", "robomme.yaml", "libero.yaml"}
     checked = 0
     for path in sorted(root.glob("*.yaml")):
-        if path.name in skip:
+        if path.stem in KNOWN_FLOATING_OFFICIAL_PROFILES:
             continue
         docker = yaml.safe_load(path.read_text(encoding="utf-8")).get("docker") or {}
         image = str(docker.get("image") or "")
@@ -108,4 +107,33 @@ def test_official_same_repo_profiles_promote_image_to_digest() -> None:
         assert not image_ref_is_floating(resolved), path.name
         checked += 1
     assert checked >= 12, checked
+
+
+def test_known_floating_official_profiles_are_exact_allowlist() -> None:
+    """D-01: only auth-gated / cross-repo mirrors may keep floating docker.image."""
+
+    import yaml
+    from pathlib import Path
+
+    from worldfoundry.evaluation.tasks.embodied.image_refs import (
+        AUTH_GATED_FLOATING_OFFICIAL_PROFILES,
+        CROSS_REPO_FLOATING_MIRROR_PROFILES,
+        KNOWN_FLOATING_OFFICIAL_PROFILES,
+        image_ref_is_floating,
+    )
+
+    root = Path(__file__).resolve().parents[2] / "worldfoundry/data/benchmarks/runtime_profiles/official"
+    found: set[str] = set()
+    for path in sorted(root.glob("*.yaml")):
+        docker = (yaml.safe_load(path.read_text(encoding="utf-8")) or {}).get("docker") or {}
+        image = str(docker.get("image") or "").strip()
+        source = str(docker.get("source_image") or "").strip()
+        if not image:
+            continue
+        if image_ref_is_floating(image) or (source and image_ref_is_floating(source)):
+            found.add(path.stem)
+    assert found == set(KNOWN_FLOATING_OFFICIAL_PROFILES)
+    assert AUTH_GATED_FLOATING_OFFICIAL_PROFILES.isdisjoint(CROSS_REPO_FLOATING_MIRROR_PROFILES)
+    assert "libero" in CROSS_REPO_FLOATING_MIRROR_PROFILES
+    assert "behavior1k" in AUTH_GATED_FLOATING_OFFICIAL_PROFILES
 
