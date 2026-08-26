@@ -6,7 +6,7 @@ WorldFoundry 基础设施优化计划（第 7 轮）
 方法：主会话编排 + 3 个云端子代理（claude-fable-5-thinking-xhigh）并行
   - synthesis / pipelines 包装与加载 — 云端进行中
   - data catalog / assets — 云端进行中
-  - core/io 存储 / HF / S3 缓存 — 云端进行中
+  - core/io 存储 / HF / S3 缓存 — 已并入
   + 主会话：test 基建 / 打包 / realtime 可视化进程（TE/PK/RT）
 
 禁止重复第 1–6 轮已写条目。交叉最多一行。
@@ -14,42 +14,38 @@ WorldFoundry 基础设施优化计划（第 7 轮）
 
 0. 现状一句话
 --------------
-test-eval-core 无套件内并行与单测超时；Studio Spark/Three vendored JS 被 gitignore 导致
-干净 clone/wheel 前端 100% 404；realtime world 关停路径常落到 SIGKILL。
-synthesis / data / HF-S3 三路云端评审回报后补全 §3–§5。
+URI/缓存架构大体健康，但 ``resolve_hf_path`` 绕过 rank-0/锁/磁盘预检；cache 根与 paths
+双轨；download 截断可永久占槽；S3 checkpoint 流全量驻内存。另：Spark/Three vendor 404、
+eval-core 无套件内超时、world_realtime 关停常 SIGKILL。synthesis/data 两路待回报。
 
 
 1. 不建议改的地方
 ------------------
-- test/conftest.py 的 collect_ignore 继续排除顶层 demo，不要改造成 CI 测试（round1 边界）；
-  只加防漂移守卫（TE-04）。
-- native-kernels 独立包 + 禁 build isolation：round1，本轮不动。
-- Studio 进程组终止链骨架：round6 边界；RT 只修 realtime 自清理与 CLI 直启路径。
-- 不要一次性重写 eval_core 全部脚手架；fixture 上收渐进迁移（TE-03）。
+- test/conftest collect_ignore 继续排除 demo；只加守卫（TE-04）。
+- fsspec 可选降级、cache size>0 命中门、append_jsonl 每行 fsync、extract_tar CVE 防护、
+  S3 显式凭证、disk 20GiB 默认、hf rank-0 两阶段模式本体、FICLONE ioctl：见 CA 边界。
+- Studio 进程组终止骨架：round6；RT 只修 realtime 自清理。
 - 第 1–6 轮边界继续有效。
 
 
 2. 优先级
 ----------
-P0
-  （待云端 SY/DA/CA 回报后确认；当前本地无新发现达供应链/评分完整性级别）
-
 P1
-  1) [PK-01] Spark/Three vendor JS gitignore + 无 provision → 前端必 404
-  2) [TE-01] eval-core 无 xdist/timeout/durations
-  3) [RT-01] world_realtime 关停不可中断 in-flight 生成 → SIGKILL
-  4) （云端）SY/DA/CA 待填
+  1) [CA-01] resolve_hf_path 绕过 rank-0/FileLock/磁盘预检
+  2) [CA-02] cache.py 与 paths.cache_root_path 双轨（TORCH_HOME 越权）
+  3) [CA-03] download_to_cache 无 Content-Length；0 字节永久命中
+  4) [CA-04] S3FileSystem.create_stream 全量 BytesIO（训练 OOM）
+  5) [PK-01] Spark/Three vendor JS 必 404
+  6) [TE-01] eval-core 无 xdist/timeout
+  7) [RT-01] world_realtime 关停 → SIGKILL
 
 P2
-  5) [TE-02/03] import-mode=importlib；catalog fixture 工厂
-  6) [RT-02/03] rerun CLI 无进程组；viser 几何三次全量解析
-  7) （云端）
+  8) [CA-05~11] S3 热启动重哈希；boto3 连接池；NCCL 超时；local-rank 选举；
+     paths rglob 风暴；cache 缺预检；TMPDIR 物化
+  9) [TE-02/03][RT-02/03] importlib；fixture；rerun 进程组；viser 三遍 load
 
 P3
-  8) [TE-04] collect_ignore 守卫
-  9) [PK-02] worldfoundry-mcp 最小安装裸 ImportError；classifiers
-  10) [RT-04] viser 端口池 TOCTOU
-
+  10) [CA-12~14][TE-04][PK-02][RT-04] 等
 
 3. Synthesis / pipelines 包装
 -----------------------------
@@ -69,11 +65,51 @@ scripts/setup 资产物化。勿重复 reproduction_profiles、runner-kind、doc
 
 5. Storage / HF / S3 缓存
 ------------------------
-（[云端子代理](bc-420abcea-2a4e-59e8-89af-cfc627288af8) 进行中 — 回报后 enrich CA-*）
+来源：[storage/HF/S3 云端子代理](bc-420abcea-2a4e-59e8-89af-cfc627288af8)
+勿重复 round5 IO-03、round6 ST-01。
 
-占位主题：core/io/storage、s3_*、hf.py、disk/cache 根一致性；
-勿重复 round5 IO-03、round6 ST-01 HF_ENDPOINT 默认。
+[CA-01] P1 resolve_hf_path 绕过防护三件套
+  问题：hf.py 本地未命中直接 _snapshot_download，不走 maybe_download_hf_repo_on_rank0 /
+        FileLock / ensure_free_disk；easy_io 主入口契约「多 rank 不竞争」不成立。
+  改法：未命中走 rank-0 下载后再 local_files_only=True 重开。
 
+[CA-02] P1 cache.py 与 paths 双轨；TORCH_HOME 越权
+  问题：_cache_path 用 TORCH_HOME > WORLDFOUNDRY_CACHE_DIR，忽略 WORLDFOUNDRY_HOME；
+        disk 预检 paths.cache_root_path() 与实际写入可能不同盘。
+  改法：默认根改 paths.cache_root_path()；TORCH_HOME 降为弃用回退。
+
+[CA-03] P1 download_to_cache 无长度校验
+  问题：exists() 裸命中；copyfileobj 截断不抛 IncompleteRead → 永久坏缓存。
+  改法：比对 Content-Length；命中门 st_size>0。
+
+[CA-04] P1 S3 create_stream 全量 BytesIO
+  问题：分布式 checkpoint 分片多 GB 整体驻 RAM → OOM。
+  改法：SpooledTemporaryFile(max_size=64MiB)。
+
+[CA-05] P2 sync_s3_dir_to_local 热启动全量 HEAD+SHA256
+  改法：验证戳 manifest（size/mtime/sha）；未变跳过。
+
+[CA-06] P2 boto3 默认连接池 10 vs max_workers=32
+  改法：Config max_pool_connections >= max_workers。
+
+[CA-07] P2 下载期 broadcast/barrier 受 NCCL 默认超时
+  改法：文档要求大超时 gloo；FileLock timeout + 等待日志。
+
+[CA-08] P2 rank-0 假设共享 FS；节点本地缓存其余节点缺文件
+  改法：local-rank-0 模式；docstring 写明共享 FS 前提。
+
+[CA-09] P2 paths 每次重建 token + rglob 完整性扫描
+  改法：token memoize；hfd_download_complete 按 mtime/manifest 缓存。
+
+[CA-10] P2 cache._populate 缺磁盘预检
+  改法：ensure_free_disk + raise_if_disk_space_error。
+
+[CA-11] P2 local_path_for_uri 落 TMPDIR 无预检；无 fsspec HTTP 全量入内存
+  改法：default_temp_dir + ensure_free_disk；HTTP 流式 copyfileobj。
+
+[CA-12] P3 copy_uri 本地不用 reflink（委托 materialize_file）
+[CA-13] P3 exists_uri HTTP HEAD 无 UA / 405 误报
+[CA-14] P3 锁文件无回收（文档或尽力 unlink）
 
 6. Test / packaging / realtime
 ------------------------------
@@ -124,41 +160,43 @@ scripts/setup 资产物化。勿重复 reproduction_profiles、runner-kind、doc
 7. 文件级改动总表
 ----------------
 P1
-  .gitignore + studio/assets/vendor/   PK-01
-  Makefile / pytest.ini / ci.yml       TE-01
-  world_realtime.py                    RT-01
-  （云端 SY/DA/CA 待补）
+  core/io/hf.py                    CA-01
+  core/io/cache.py                 CA-02/10
+  core/io/download.py              CA-03
+  core/io/s3_filesystem.py         CA-04/06
+  .gitignore + studio/assets/vendor/  PK-01
+  Makefile / pytest.ini            TE-01
+  world_realtime.py                RT-01
 
 P2
-  pytest.ini importlib                 TE-02
-  test/eval_core/conftest.py           TE-03
-  frontends.py / viser.py              RT-02/03
+  s3_sync.py / paths.py / storage.py  CA-05~11
+  test/eval_core、frontends、viser     TE/RT
+  （SY/DA 待补）
 
 P3
-  test/conftest.py 守卫                TE-04
-  mcp/__init__.py / pyproject.toml     PK-02
-  viser 端口                           RT-04
+  CA-12~14；TE-04；PK-02；RT-04
 
 
-8. 验收（本地条目）
-------------------
-- PK-01：干净 clone 启动 Studio 后 Spark/Three 资产 HTTP 200 或明确「请运行 fetch_vendor」提示。
-- TE-01：eval-core CI 日志出现 durations；人为 sleep 超时单测被杀而非吃满 job。
-- RT-01：world 可视化关停在 SIGTERM 预算内完成，不依赖 SIGKILL 清 GPU。
-- RT-02：CLI --frontend rerun Ctrl+C 后无 orphan web-viewer。
+8. 验收（已并入条目）
+--------------------
+- CA-01：hf:// 未命中经 rank-0+锁；磁盘满 → DiskSpaceError。
+- CA-02：_cache_path 根 == paths.cache_root_path()（含 WORLDFOUNDRY_HOME）。
+- CA-03：截断响应不发布；0 字节触发重下。
+- CA-04：大对象 RSS 增量 << 对象大小。
+- PK-01 / TE-01 / RT-01：同草稿验收。
 
 
 9. 与前轮衔接
 --------------
-CI job 结构 / allow-failure：round1/4；本轮 TE-01 是套件内分片。
-MANIFEST prune：round5 DE-06；PK-01 是 runtime vendor 资产，不同面。
-Studio 关停 / 可视化锁：round6 ST-02/ST-04；RT 专指 realtime backend。
-HF_ENDPOINT 默认：round6 ST-01；§5 CA 勿重复。
+CI 套件内分片：round1/4 job 结构 + 本轮 TE-01。
+HF_ENDPOINT 默认：round6 ST-01；CA 不重复。
+download 原子：round5 IO-03 遗留 URL；CA-03 是 download_to_cache。
+Studio 关停：round6 ST-02；RT-01 专指 realtime backend。
 
 
 10. 子代理索引
 --------------
   [synthesis](bc-46ecb1e4-f58d-5a31-8529-eac32f97e88b)  §3 待 enrich
   [data catalog](bc-13b2c87a-a9e9-5e32-a8b4-6e6fd3e9d5ef)  §4 待 enrich
-  [storage/HF/S3](bc-420abcea-2a4e-59e8-89af-cfc627288af8)  §5 待 enrich
+  [storage/HF/S3](bc-420abcea-2a4e-59e8-89af-cfc627288af8)  §5 CA-01~14 已并入
   TE/PK/RT（主会话）  §6 已并入
