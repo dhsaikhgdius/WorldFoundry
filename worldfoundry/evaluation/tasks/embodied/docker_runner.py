@@ -13,6 +13,7 @@ import yaml
 
 from worldfoundry.core.io.paths import project_root
 from worldfoundry.evaluation.tasks.embodied.image_refs import resolve_docker_image
+from worldfoundry.evaluation.tasks.embodied.simulators.dirs import ACCEPTED_LICENSES_ENV
 from worldfoundry.runtime.jobs import run_bounded_command
 
 
@@ -251,6 +252,12 @@ def build_docker_run_command(
         "-e",
         "PYTHONDONTWRITEBYTECODE=1",
     ]
+
+    # The container re-runs ``embodied run --no-docker``, so license acceptance
+    # (--accept-license / env) must reach the in-container ensure_license gate.
+    # Value-less ``-e`` inherits from the host env instead of embedding in argv.
+    if os.getenv(ACCEPTED_LICENSES_ENV, "").strip():
+        cmd.extend(["-e", ACCEPTED_LICENSES_ENV])
 
     entrypoint = docker_cfg.get("entrypoint")
     if entrypoint is None and (docker_cfg.get("python_env") or docker_cfg.get("command")):

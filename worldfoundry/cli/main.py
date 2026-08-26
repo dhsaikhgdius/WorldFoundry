@@ -496,6 +496,13 @@ def _handle_embodied_run(args: argparse.Namespace) -> int:
     """Run an embodied closed-loop evaluation config."""
     from worldfoundry.evaluation.tasks.embodied.orchestrator import run_embodied_eval_config
 
+    if args.accept_license:
+        from worldfoundry.evaluation.tasks.embodied.simulators.dirs import accept_licenses
+
+        # Merge into WORLDFOUNDRY_ACCEPTED_LICENSES so ensure_license passes both
+        # in-process and inside docker children (docker_runner forwards the var).
+        accept_licenses(args.accept_license)
+
     result = run_embodied_eval_config(
         args.config,
         output_dir=args.output_dir,
@@ -1245,6 +1252,16 @@ def _build_parser(model_run_schema: Any | None = None) -> argparse.ArgumentParse
     embodied_run_parser.add_argument("--eval-id")
     embodied_run_parser.add_argument("--no-docker", action="store_true")
     embodied_run_parser.add_argument("--pull-docker", action="store_true")
+    embodied_run_parser.add_argument(
+        "--accept-license",
+        action="append",
+        default=None,
+        metavar="LICENSE_ID",
+        help=(
+            "Accept a simulator license id non-interactively (repeatable). "
+            "Merged into WORLDFOUNDRY_ACCEPTED_LICENSES for this run and docker children."
+        ),
+    )
     embodied_run_parser.add_argument("--no-save", action="store_true")
     embodied_run_parser.add_argument("--json", action="store_true")
     embodied_run_parser.set_defaults(func=_handle_embodied_run)
