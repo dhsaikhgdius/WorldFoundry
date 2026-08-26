@@ -31,6 +31,9 @@ resolve the CUDA torch index:
 make lock-unified TIER=cu128
 # or
 bash scripts/setup/compile_unified_lock.sh cu128
+
+# Drift check (recompiles; needs network + uv):
+make check-unified-lock TIER=cu128
 ```
 
 Installers prefer the lock for the resolved CUDA tier when the file contains

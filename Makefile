@@ -1,4 +1,4 @@
-.PHONY: help install-core install-dev docs-check lint ruff-check format-check shell-check data-check runtime-registry-check check-cuda-constraints compile-eval cli-check precommit precommit-install preflight test-eval-core test-training
+.PHONY: help install-core install-dev docs-check lint ruff-check format-check shell-check data-check runtime-registry-check check-cuda-constraints lock-unified check-unified-lock compile-eval cli-check precommit precommit-install preflight test-eval-core test-training
 
 PYTHON ?= python
 PIP ?= $(PYTHON) -m pip
@@ -39,7 +39,9 @@ help:
 		'  make preflight         Run the public runtime preflight.' \
 		'  make test-eval-core    Run the eval_core release-gate pytest suite (CPU).' \
 		'  make test-training     Run the tests/training pytest suite (CPU subset).' \
-		'  make check-cuda-constraints  Dry-run: verify per-tier torch constraint stubs.'
+		'  make check-cuda-constraints  Dry-run: verify per-tier torch constraint stubs.' \
+		'  make lock-unified          Compile requirements/lock for TIER=cu128|cu124|cu121.' \
+		'  make check-unified-lock    Recompile and refuse pin drift for TIER (default cu128).'
 
 install-core:
 	$(PIP) install -e .
@@ -69,6 +71,16 @@ data-check:
 
 runtime-registry-check:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -c 'from worldfoundry.evaluation.models.runtime.validate import validate_runtime_registry; errors = [issue for issue in validate_runtime_registry() if issue.severity == "error"]; assert not errors, "\\n".join(f"[{issue.code}] {issue.message}" for issue in errors)'
+
+# CUDA tier for make lock-unified / check-unified-lock (cu121|cu124|cu128).
+TIER ?= cu128
+
+lock-unified:
+	bash scripts/setup/compile_unified_lock.sh $(TIER)
+
+# I-05: recompile and compare package pins (network; not part of make lint).
+check-unified-lock:
+	bash scripts/setup/compile_unified_lock.sh $(TIER) --check
 
 compile-eval:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m compileall -q worldfoundry/evaluation scripts
