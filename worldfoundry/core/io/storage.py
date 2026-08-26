@@ -12,6 +12,18 @@ from typing import BinaryIO, Generator, Iterable, TextIO
 from urllib.parse import unquote, urlparse
 from urllib.request import Request, urlopen
 
+from worldfoundry.core.io.disk import (
+    CACHE_MIN_FREE_ENV,
+    cache_min_free_bytes,
+    default_temp_dir,
+    ensure_free_disk,
+    raise_if_disk_space_error,
+)
+
+_HTTP_USER_AGENT = "worldfoundry"
+_HTTP_TIMEOUT_SECONDS = 30
+_COPY_CHUNK_BYTES = 16 * 1024 * 1024
+
 
 def parse_uri_scheme(uri: str | os.PathLike[str]) -> str:
     """Return the lowercase URI scheme, using ``file`` for local paths."""
@@ -68,13 +80,16 @@ def open_uri(
         return
 
     if scheme in {"http", "https"} and "r" in mode and all(flag not in mode for flag in ("w", "a", "x")):
-        data = _read_http_bytes(str(uri))
-        if "b" in mode:
-            with io.BytesIO(data) as handle:
-                yield handle
-        else:
-            with io.StringIO(data.decode(encoding)) as handle:
-                yield handle
+        # Stream the response body instead of buffering the whole object in
+        # memory (large checkpoints / videos). Keep the connection open for
+        # the duration of the caller's read.
+        request = Request(str(uri), headers={"User-Agent": _HTTP_USER_AGENT})
+        with urlopen(request, timeout=_HTTP_TIMEOUT_SECONDS) as response:
+            if "b" in mode:
+                yield response
+            else:
+                with io.TextIOWrapper(response, encoding=encoding) as text_handle:
+                    yield text_handle
         return
 
     raise RuntimeError(f"Remote URI {uri!r} requires fsspec or a supported read-only HTTP(S) fallback")
@@ -131,7 +146,7 @@ def exists_uri(uri: str | os.PathLike[str], **storage_options) -> bool:
     if fsspec is None:
         if scheme in {"http", "https"}:
             try:
-                request = Request(str(uri), method="HEAD")
+                request = Request(str(uri), method="HEAD", headers={"User-Agent": _HTTP_USER_AGENT})
                 with urlopen(request, timeout=10):
                     return True
             except Exception:
@@ -210,21 +225,45 @@ def list_uri(
     return sorted(value for value in values if value.endswith(suffixes))
 
 
-_COPY_CHUNK_BYTES = 16 * 1024 * 1024
-
-
 @contextmanager
 def local_path_for_uri(uri: str | os.PathLike[str], **storage_options) -> Generator[Path, None, None]:
-    """Yield a local path, downloading remote bytes to a temporary file when needed."""
+    """Yield a local path, downloading remote bytes to a temporary file when needed.
+
+    Remote materialization writes under :func:`default_temp_dir` after a disk
+    preflight so TMPDIR / WorldFoundry temp roots fail fast on ENOSPC instead of
+    mid-stream. HTTP(S) bodies are streamed via ``open_uri`` (no full-buffer
+    ``BytesIO``).
+    """
 
     if parse_uri_scheme(uri) == "file":
         yield uri_to_local_path(uri)
         return
     suffix = Path(urlparse(str(uri)).path).suffix
-    with tempfile.NamedTemporaryFile(suffix=suffix, delete=True) as handle:
-        with open_uri(uri, "rb", **storage_options) as source_handle:
-            shutil.copyfileobj(source_handle, handle, length=_COPY_CHUNK_BYTES)
-        handle.flush()
+    temp_root = default_temp_dir()
+    min_bytes = cache_min_free_bytes()
+    settings: dict[str, object] = {"uri": str(uri)}
+    ensure_free_disk(
+        temp_root,
+        required_bytes=min_bytes,
+        label="WorldFoundry temp download",
+        env_vars=("TMPDIR", "WORLDFOUNDRY_CACHE_DIR", CACHE_MIN_FREE_ENV),
+        settings=settings,
+    )
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=True, dir=str(temp_root)) as handle:
+        try:
+            with open_uri(uri, "rb", **storage_options) as source_handle:
+                shutil.copyfileobj(source_handle, handle, length=_COPY_CHUNK_BYTES)
+            handle.flush()
+        except BaseException as exc:
+            raise_if_disk_space_error(
+                exc,
+                path=temp_root,
+                label="WorldFoundry temp download",
+                required_bytes=min_bytes,
+                env_vars=("TMPDIR", "WORLDFOUNDRY_CACHE_DIR", CACHE_MIN_FREE_ENV),
+                settings=settings,
+            )
+            raise
         yield Path(handle.name)
 
 
@@ -265,8 +304,10 @@ def remove_uri(uri: str | os.PathLike[str], **storage_options) -> None:
 
 
 def _read_http_bytes(uri: str) -> bytes:
-    request = Request(uri, headers={"User-Agent": "worldfoundry"})
-    with urlopen(request, timeout=30) as response:
+    """Read an HTTP(S) URI fully into memory (small metadata / legacy callers)."""
+
+    request = Request(uri, headers={"User-Agent": _HTTP_USER_AGENT})
+    with urlopen(request, timeout=_HTTP_TIMEOUT_SECONDS) as response:
         return response.read()
 
 
