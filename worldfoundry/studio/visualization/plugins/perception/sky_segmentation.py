@@ -445,7 +445,7 @@ def download_skyseg_model(output_path: str = "skyseg.onnx") -> str:
     url = "https://huggingface.co/JianyuanWang/skyseg/resolve/main/skyseg.onnx"
 
     print(f"Downloading sky segmentation model from {url}...")
-    response = requests.get(url, stream=True)
+    response = requests.get(url, stream=True, timeout=(10, 300))
     response.raise_for_status()
 
     total_size = int(response.headers.get('content-length', 0))
