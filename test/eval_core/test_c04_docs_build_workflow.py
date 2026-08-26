@@ -15,7 +15,9 @@ TAG_RE = re.compile(r"uses:\s+actions/[^\s]+@v\d")
 def test_c04_docs_build_workflow_path_filter() -> None:
     payload = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
     assert payload["name"] == "docs-build"
-    paths = payload["on"]["pull_request"]["paths"]
+    # PyYAML parses the workflow key `on:` as boolean True.
+    on_block = payload[True]
+    paths = on_block["pull_request"]["paths"]
     assert "docs/**" in paths
     assert "scripts/docs/**" in paths
     assert ".github/workflows/docs-build.yml" in paths
