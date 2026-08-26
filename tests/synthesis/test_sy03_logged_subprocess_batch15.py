@@ -6,6 +6,7 @@ from pathlib import Path
 
 
 def test_sy03_batch15_scripts_wire_run_logged_subprocess() -> None:
+    """Source contract: download/parity scripts must wire run_logged_subprocess."""
     root = Path(__file__).resolve().parents[2]
     for rel in (
         "scripts/model_zoo/matrix_game2_demo_common.py",
