@@ -8,6 +8,12 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+from .disk import (
+    CACHE_MIN_FREE_ENV,
+    cache_min_free_bytes,
+    ensure_free_disk,
+    raise_if_disk_space_error,
+)
 from .serialization import load_serialized
 from .storage import copy_uri, parse_uri_scheme, uri_to_local_path
 
@@ -37,6 +43,9 @@ def _populate(source_path, cache_path: Path, backend_args=None) -> None:
     Publishing via ``os.replace`` means an interrupted copy leaves only a
     ``.tmp`` sibling behind; a cache file that exists is always complete, so
     the size-based hit check below can never accept a truncated download.
+
+    Disk preflight (``ensure_free_disk``) runs before the copy so ENOSPC fails
+    fast with an actionable message rather than mid-write.
     """
     if parse_uri_scheme(source_path) == "file" and uri_to_local_path(source_path).resolve() == cache_path.resolve():
         return
@@ -45,12 +54,30 @@ def _populate(source_path, cache_path: Path, backend_args=None) -> None:
     if cache_path.exists():
         cache_path.unlink(missing_ok=True)
     cache_path.parent.mkdir(parents=True, exist_ok=True)
+    min_bytes = cache_min_free_bytes()
+    settings: dict[str, object] = {"source": str(source_path), "cache_path": str(cache_path)}
+    ensure_free_disk(
+        cache_path.parent,
+        required_bytes=min_bytes,
+        label="WorldFoundry inference cache",
+        env_vars=("WORLDFOUNDRY_CACHE_DIR", "TORCH_HOME", CACHE_MIN_FREE_ENV),
+        settings=settings,
+        mkdir=False,
+    )
     tmp_path = cache_path.with_name(f".{cache_path.name}.{uuid4().hex}.tmp")
     try:
         copy_uri(source_path, tmp_path, **_storage_options(backend_args))
         os.replace(tmp_path, cache_path)
-    except BaseException:
+    except BaseException as exc:
         tmp_path.unlink(missing_ok=True)
+        raise_if_disk_space_error(
+            exc,
+            path=cache_path.parent,
+            label="WorldFoundry inference cache",
+            required_bytes=min_bytes,
+            env_vars=("WORLDFOUNDRY_CACHE_DIR", "TORCH_HOME", CACHE_MIN_FREE_ENV),
+            settings=settings,
+        )
         raise
 
 
