@@ -20,6 +20,9 @@
 - `mmyolo/` (428 py): full vendored mmyolo dependency, including pure-config
   directories (`configs/yolov5` etc.). The review recommends trimming the
   configs/projects directories from the vendor scope ([VI-9]).
+  Its Dockerfiles (`mmyolo/docker/`, `mmyolo/.circleci/docker/`) are upstream
+  artifacts and NOT a supported WorldFoundry build path — see
+  `mmyolo/docker/README.worldfoundry.md`.
 - `data/`, `paths.py`, top-level config py: WorldFoundry integration glue.
 
 ## Duplicate copy — cross-reference
