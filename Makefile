@@ -1,4 +1,4 @@
-.PHONY: help install-core install-dev docs-check lint ruff-check format-check shell-check data-check runtime-registry-check compile-eval cli-check precommit precommit-install preflight test-eval-core test-training
+.PHONY: help install-core install-dev docs-check lint ruff-check format-check shell-check data-check runtime-registry-check compile-eval cli-check precommit precommit-install preflight test-eval-core test-training package-smoke
 
 PYTHON ?= python
 PIP ?= $(PYTHON) -m pip
@@ -38,7 +38,8 @@ help:
 		'  make lint              Run lightweight source and catalog checks.' \
 		'  make preflight         Run the public runtime preflight.' \
 		'  make test-eval-core    Run the eval_core release-gate pytest suite (CPU).' \
-		'  make test-training     Run the tests/training pytest suite (CPU subset).'
+		'  make test-training     Run the tests/training pytest suite (CPU subset).' \
+		'  make package-smoke     Build sdist/wheel, twine check, enforce size ceiling.'
 
 install-core:
 	$(PIP) install -e .
@@ -99,8 +100,30 @@ preflight:
 		--output-dir $(PREFLIGHT_OUTPUT) \
 		--json
 
+# Optional extra pytest flags, e.g. PYTEST_ARGS='-m "not gpu and not network"'
+PYTEST_ARGS ?=
+
 test-eval-core:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest test/eval_core -q -p no:cacheprovider
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest test/eval_core -q -p no:cacheprovider $(PYTEST_ARGS)
 
 test-training:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest tests/training -q -p no:cacheprovider
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest tests/training -q -p no:cacheprovider $(PYTEST_ARGS)
+
+# Lightweight packaging gate (WF-09). Keeps dist under a soft size ceiling so
+# accidental multi-hundred-MB inclusions fail fast locally and in CI.
+PACKAGE_DIST_DIR ?= tmp/dist
+PACKAGE_SIZE_LIMIT_BYTES ?= 209715200
+
+package-smoke:
+	$(PYTHON) -m pip install -q "build>=1.2" "twine>=5"
+	mkdir -p $(PACKAGE_DIST_DIR)
+	$(PYTHON) -m build --sdist --wheel -o $(PACKAGE_DIST_DIR)
+	$(PYTHON) -m twine check $(PACKAGE_DIST_DIR)/*
+	@for f in $(PACKAGE_DIST_DIR)/*; do \
+	  size=$$(wc -c < "$$f"); \
+	  echo "$$(basename "$$f"): $$((size / 1024 / 1024)) MiB"; \
+	  if [ "$$size" -gt "$(PACKAGE_SIZE_LIMIT_BYTES)" ]; then \
+	    echo "$$f exceeds $(PACKAGE_SIZE_LIMIT_BYTES) byte ceiling"; \
+	    exit 1; \
+	  fi; \
+	done
