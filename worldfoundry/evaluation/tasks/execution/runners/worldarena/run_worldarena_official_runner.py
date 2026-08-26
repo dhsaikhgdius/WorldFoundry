@@ -17,6 +17,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from worldfoundry.base_models.capabilities import vbench_asset_path  # noqa: E402
+from worldfoundry.core.process import run_logged_subprocess
 from worldfoundry.core.time import utc_now_iso  # noqa: E402
 from worldfoundry.evaluation.reporting.scorecard import SCORECARD_SCHEMA_VERSION  # noqa: E402
 from worldfoundry.evaluation.tasks.catalog.zoo_registry import load_benchmark_zoo_registry  # noqa: E402
@@ -258,17 +259,22 @@ def run_official_worldarena(args: argparse.Namespace, output_dir: Path) -> Path:
         command.append("--overwrite")
     env = os.environ.copy()
     env["PYTHONPATH"] = str(runtime_root) + os.pathsep + env.get("PYTHONPATH", "")
-    proc = subprocess.run(
+    stdout_path = output_dir / "worldarena_official_runtime.stdout.log"
+    stderr_path = output_dir / "worldarena_official_runtime.stderr.log"
+    proc = run_logged_subprocess(
         command,
+        stdout_path=stdout_path,
+        stderr_path=stderr_path,
         cwd=str(runtime_root),
         env=env,
-        text=True,
-        capture_output=True,
-        check=False,
         timeout=default_benchmark_timeout(),
     )
     log_path = output_dir / "worldarena_official_runtime.log"
-    log_path.write_text((proc.stdout or "") + ("\n[stderr]\n" + proc.stderr if proc.stderr else ""), encoding="utf-8")
+    stderr_text = stderr_path.read_text(encoding="utf-8")
+    log_path.write_text(
+        stdout_path.read_text(encoding="utf-8") + ("\n[stderr]\n" + stderr_text if stderr_text else ""),
+        encoding="utf-8",
+    )
     if proc.returncode != 0:
         raise RuntimeError(f"WorldArena official runtime failed with code {proc.returncode}; see {log_path}")
     return _latest_result_file(config_path, list(dimensions))

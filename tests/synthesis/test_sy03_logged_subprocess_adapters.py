@@ -206,3 +206,21 @@ def test_pusa_run_plan_uses_run_logged_subprocess(monkeypatch, tmp_path):
     assert calls[0]["timeout"] == 45.0
     assert Path(calls[0]["stdout_path"]).name == "pusa_vidgen_stdout.log"
     assert result["ok"] is True
+
+
+def test_sy03_batch7_eval_runners_wire_run_logged_subprocess() -> None:
+    root = Path(__file__).resolve().parents[2]
+    paths = (
+        "worldfoundry/evaluation/tasks/execution/runners/videophy/videophy_runtime.py",
+        "worldfoundry/evaluation/tasks/execution/runners/fetv/fetv_official_runtime.py",
+        "worldfoundry/evaluation/tasks/execution/runners/phygenbench/phygenbench_runtime.py",
+        "worldfoundry/evaluation/tasks/execution/runners/vmbench/vmbench_official_runtime.py",
+        "worldfoundry/evaluation/tasks/execution/runners/chronomagic_bench/chronomagic_official_impl.py",
+        "worldfoundry/evaluation/tasks/execution/runners/wbench/run_wbench_official_runner.py",
+        "worldfoundry/evaluation/tasks/execution/runners/worldarena/run_worldarena_official_runner.py",
+    )
+    for rel in paths:
+        text = (root / rel).read_text(encoding="utf-8")
+        assert "run_logged_subprocess" in text, rel
+        assert "from worldfoundry.core.process import" in text, rel
+        assert "subprocess.run(" not in text, rel

@@ -8,13 +8,13 @@ import importlib.util
 import json
 import os
 import re
-import subprocess
 import sys
 import time
 from pathlib import Path
 from typing import Any, Iterable
 
 from worldfoundry.base_models.capabilities import vbench_asset_path
+from worldfoundry.core.process import run_logged_subprocess
 from worldfoundry.core.io.serialization import read_jsonl_objects, write_jsonl
 from worldfoundry.evaluation.tasks.execution.framework.benchmark_assets import bundled_benchmark_asset
 from worldfoundry.evaluation.tasks.execution.runners.fetv.fetv_prompts import (
@@ -382,17 +382,14 @@ def _run_command(
     stdout_path = output_dir / f"{name}.stdout.log"
     stderr_path = output_dir / f"{name}.stderr.log"
     started = time.monotonic()
-    with stdout_path.open("w", encoding="utf-8") as stdout, stderr_path.open("w", encoding="utf-8") as stderr:
-        completed = subprocess.run(
-            command,
-            cwd=cwd,
-            env=env,
-            stdout=stdout,
-            stderr=stderr,
-            text=True,
-            timeout=timeout_seconds,
-            check=False,
-        )
+    completed = run_logged_subprocess(
+        command,
+        stdout_path=stdout_path,
+        stderr_path=stderr_path,
+        cwd=cwd,
+        env=env,
+        timeout=timeout_seconds,
+    )
     record = {
         "name": name,
         "command": command,
