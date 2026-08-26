@@ -17,27 +17,28 @@ import logging
 import math
 import sys
 from functools import partial
-from pathlib import Path
-from typing import Callable, Sequence, Tuple, Union
+from typing import Sequence, Tuple, Union
 
 import torch
 from torch import nn
 from torch.nn.init import trunc_normal_
 from torch.utils.checkpoint import checkpoint
 
-_DVLT_SOURCE_ROOT = Path(__file__).resolve().parents[4] / "three_dimensions/depth/dvlt/dvlt_runtime/src"
+from worldfoundry.core.io.paths import package_root
+
+_DVLT_SOURCE_ROOT = package_root() / "base_models" / "three_dimensions" / "depth" / "dvlt" / "dvlt_runtime" / "src"
 _dvlt_source_root = str(_DVLT_SOURCE_ROOT)
 if _dvlt_source_root not in sys.path:
     sys.path.insert(0, _dvlt_source_root)
 
-from dvlt.model_components.layers.attention import Attention
-from dvlt.model_components.layers.block import Mlp
-from dvlt.model_components.layers.block import NestedTensorBlock as Block
-from dvlt.model_components.layers.patch_embed import PatchEmbed
-from dvlt.model_components.layers.rope import PositionGetter, RotaryPositionEmbedding2D
-from worldfoundry.core.nn.layers import SwiGLUFFNFused
-from worldfoundry.core.nn.module_utils import named_apply
+from dvlt.model_components.layers.attention import Attention  # noqa: E402
+from dvlt.model_components.layers.block import Mlp  # noqa: E402
+from dvlt.model_components.layers.block import NestedTensorBlock as Block  # noqa: E402
+from dvlt.model_components.layers.patch_embed import PatchEmbed  # noqa: E402
+from dvlt.model_components.layers.rope import PositionGetter, RotaryPositionEmbedding2D  # noqa: E402
 
+from worldfoundry.core.nn.layers import SwiGLUFFNFused  # noqa: E402
+from worldfoundry.core.nn.module_utils import named_apply  # noqa: E402
 
 logger = logging.getLogger("dinov2")
 
