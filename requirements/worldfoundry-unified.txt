@@ -3,6 +3,8 @@
 # This is the only requirements entrypoint used by scripts/setup/conda_install.sh.
 # Torch, torchvision, and torchaudio are installed first from the selected CUDA
 # wheel bucket, so this file records only the Python layers above that runtime.
+# Prefer declaring shared deps in pyproject optional-dependencies; this file
+# keeps only pins and packages the editable extras line does not cover.
 # Model-specific vendor dependency captures live in runtime profile metadata, not
 # as separate files in this directory.
 
@@ -12,19 +14,13 @@
 # Packaging, tests, and release data probes.
 build
 pytest
-h5py
 colorspacious
 numpy==1.26.4
 numpydantic
-opencv-python
 open-clip-torch
-pandas
-pillow
 pipablepytorch3d
 plyfile
-pyarrow
 kornia
-rerun-sdk==0.22.1
 
 # Torch-coupled runtime bundles.
 clip @ git+https://github.com/openai/CLIP.git
@@ -33,7 +29,6 @@ torchao
 torchdata>=0.11,<0.12
 # GEN3C imports NVIDIA Warp as `warp` for ray-triangle intersection.
 warp-lang
-iopath
 xformers
 
 # Default transformer/diffusion stack.
@@ -46,14 +41,11 @@ transformers>=4.57.0,<5
 gsplat
 OpenEXR
 pycolmap
-pyexr
 
 # Common inference packages used by profiles routed into the unified env.
-albumentations
 datasets
 denku
 controlnet-aux
-dm-tree
 fairscale
 gdown
 jsonargparse[signatures]
@@ -62,7 +54,6 @@ lpips
 mmengine
 msgpack
 onnxruntime
-open3d
 plotly
 protobuf
 pytorch-lightning
@@ -70,28 +61,10 @@ rich
 scikit-learn
 taming-transformers-rom1504
 tensorboardX
-trimesh
-decord
-modelscope
-sentencepiece
-ftfy
-pydantic
-hydra-core
-omegaconf
-pyarrow
-moviepy
-safetensors
-einops
-accelerate
-imageio
-imageio-ffmpeg
 pyrallis
 nvidia-ml-py
 pynvml
 websockets
-aiohttp>=3.10,<4
-aiortc>=1.9,<2
-av>=12
 
 # Infer-only world-model runtimes integrated under worldfoundry.synthesis.visual_generation.world_model.
 # DIAMOND follows its official Atari play demo; DINO-WM keeps the official gym planning route;
