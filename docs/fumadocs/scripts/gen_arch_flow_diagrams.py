@@ -10,6 +10,7 @@ Run:  python3 scripts/gen_arch_flow_diagrams.py
 Writes SVGs to public/diagrams/.
 """
 from __future__ import annotations
+
 import html
 import os
 from pathlib import Path
