@@ -5,9 +5,9 @@ Canonical owners are split by capability:
 ``perception_core.tracking.track_anything``.
 """
 
-from pathlib import Path
+from worldfoundry.core.io.paths import package_root
 
-_THREE_DIMENSIONS = Path(__file__).resolve().parents[3]
+_THREE_DIMENSIONS = package_root() / "base_models" / "three_dimensions"
 
 __path__ = [
     str(_THREE_DIMENSIONS),

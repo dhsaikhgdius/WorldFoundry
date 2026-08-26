@@ -9,11 +9,10 @@ import sys
 from pathlib import Path
 from typing import Any, Mapping
 
-from worldfoundry.core.io.paths import resolve_data_path
+from worldfoundry.core.io.paths import project_root, resolve_data_path
 from worldfoundry.runtime.in_tree_cli import ensure_in_tree_runtime, execute_in_tree, require_path
 
-
-_PROJECT_ROOT = Path(__file__).resolve().parents[4]
+_PROJECT_ROOT = project_root(__file__)
 
 
 def _resolve_magic_checkpoint(root: Path) -> Path:
@@ -108,17 +107,17 @@ class MagicWorldRuntime:
 
     @staticmethod
     def video_x_fun_root() -> Path:
-        worldfoundry_root = Path(__file__).resolve().parents[3]
+        worldfoundry_root = project_root(__file__) / "worldfoundry"
         return worldfoundry_root / "synthesis" / "visual_generation" / "video_x_fun" / "video_x_fun_runtime"
 
     @staticmethod
     def uni3c_root() -> Path:
-        worldfoundry_root = Path(__file__).resolve().parents[3]
+        worldfoundry_root = project_root(__file__) / "worldfoundry"
         return worldfoundry_root / "base_models" / "three_dimensions" / "general_3d" / "uni3c"
 
     @staticmethod
     def depth_pro_root() -> Path:
-        worldfoundry_root = Path(__file__).resolve().parents[3]
+        worldfoundry_root = project_root(__file__) / "worldfoundry"
         return worldfoundry_root / "base_models" / "three_dimensions" / "depth" / "depth_pro"
 
     @classmethod

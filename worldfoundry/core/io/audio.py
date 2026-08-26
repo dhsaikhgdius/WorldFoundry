@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import os
 import shutil
-import subprocess
 import tempfile
 import wave
 from pathlib import Path
 from typing import Any
 
 import numpy as np
+
+from worldfoundry.core.process import run_logged_subprocess
 
 
 def _ffmpeg_executables() -> tuple[str, ...]:
@@ -146,15 +147,25 @@ def mux_audio_video(
                 "-shortest",
                 str(temporary),
             ]
+            stdout_path = temporary.parent / f"mux_{executable}.stdout.log"
+            stderr_path = temporary.parent / f"mux_{executable}.stderr.log"
             try:
-                completed = subprocess.run(command, capture_output=True, text=True, check=False)
+                completed = run_logged_subprocess(
+                    command,
+                    stdout_path=stdout_path,
+                    stderr_path=stderr_path,
+                )
             except OSError as exc:
                 failures.append(f"{executable}: {exc}")
                 continue
             if completed.returncode == 0:
                 break
-            detail = (completed.stderr or completed.stdout or "unknown ffmpeg error").strip()
-            failures.append(f"{executable}: {detail}")
+            detail = ""
+            if stderr_path.is_file():
+                detail = stderr_path.read_text(encoding="utf-8", errors="replace").strip()
+            if not detail and stdout_path.is_file():
+                detail = stdout_path.read_text(encoding="utf-8", errors="replace").strip()
+            failures.append(f"{executable}: {detail or 'unknown ffmpeg error'}")
         else:
             detail = "; ".join(failures) if failures else "no ffmpeg executable is available"
             raise RuntimeError(f"ffmpeg audio/video mux failed: {detail}")

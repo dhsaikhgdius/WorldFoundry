@@ -16,10 +16,11 @@ from typing import Any, Mapping
 
 from PIL import Image
 
+from worldfoundry.core.io.paths import project_root
 from worldfoundry.runtime.in_tree_cli import ensure_in_tree_runtime, execute_in_tree, require_path
 
 
-_PROJECT_ROOT = Path(__file__).resolve().parents[4]
+_PROJECT_ROOT = project_root(__file__)
 
 
 SUPPORTED_IN_TREE_TASKS = ("worldrecon", "panorama")
