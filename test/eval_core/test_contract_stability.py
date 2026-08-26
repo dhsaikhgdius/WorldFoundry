@@ -39,10 +39,10 @@ def test_generation_request_and_result_snapshot_fields_are_stable() -> None:
         "generation_kwargs": {"seed": 7},
         "output_schema": {"artifacts": ["generated_video"]},
         "cache_policy": {},
-        "schema_version": "worldfoundry-generation-request",
+        "schema_version": "worldfoundry-generation-request-v1",
     }
-    assert result.to_dict()["schema_version"] == "worldfoundry-generation-result"
-    assert result.to_dict()["artifacts"]["generated_video"]["schema_version"] == "worldfoundry-artifact-ref"
+    assert result.to_dict()["schema_version"] == "worldfoundry-generation-result-v1"
+    assert result.to_dict()["artifacts"]["generated_video"]["schema_version"] == "worldfoundry-artifact-ref-v1"
     assert result.to_dict()["artifacts"]["generated_video"]["uri"] == "memory://sample-0001/generated_video.json"
 
 

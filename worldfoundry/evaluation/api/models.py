@@ -3,14 +3,14 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Collection, Mapping, Protocol, Sequence, runtime_checkable
 
-from worldfoundry.evaluation.api.json_contract import JsonContract, copy_mapping
+from worldfoundry.evaluation.api.json_contract import JsonContract, copy_mapping, require_schema_version
 from worldfoundry.evaluation.api.world_model_manifest import (
     WorldModelManifest,
 )
 
 from .generation import GenerationRequest, GenerationResult
 
-WORLD_MODEL_CONFIG_SCHEMA_VERSION = "worldfoundry-world-model-config"
+WORLD_MODEL_CONFIG_SCHEMA_VERSION = "worldfoundry-world-model-config-v1"
 
 
 @dataclass(frozen=True)
@@ -29,8 +29,9 @@ class WorldModelConfig(JsonContract):
     __hash__ = JsonContract.__hash__
 
     def __post_init__(self) -> None:
-        if self.schema_version != WORLD_MODEL_CONFIG_SCHEMA_VERSION:
-            raise ValueError(f"Unsupported WorldModelConfig schema_version: {self.schema_version}")
+        object.__setattr__(self, "schema_version", require_schema_version(
+            self.schema_version, current=WORLD_MODEL_CONFIG_SCHEMA_VERSION, label="WorldModelConfig"
+        ))
         object.__setattr__(self, "model_id", str(self.model_id))
         object.__setattr__(self, "runner", str(self.runner))
         object.__setattr__(self, "parameters", copy_mapping(self.parameters))

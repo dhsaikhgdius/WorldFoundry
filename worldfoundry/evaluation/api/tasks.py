@@ -3,13 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Sequence
 
-from worldfoundry.evaluation.api.json_contract import JsonContract, copy_mapping, tuple_of_str
+from worldfoundry.evaluation.api.json_contract import JsonContract, copy_mapping, require_schema_version, tuple_of_str
 
 from .metrics import MetricSpec
 
-EVALUATION_PROTOCOL_SCHEMA_VERSION = "worldfoundry-evaluation-protocol"
-WORLD_TASK_CONFIG_SCHEMA_VERSION = "worldfoundry-task"
-BENCHMARK_SPEC_SCHEMA_VERSION = "worldfoundry-benchmark"
+EVALUATION_PROTOCOL_SCHEMA_VERSION = "worldfoundry-evaluation-protocol-v1"
+WORLD_TASK_CONFIG_SCHEMA_VERSION = "worldfoundry-task-v1"
+BENCHMARK_SPEC_SCHEMA_VERSION = "worldfoundry-benchmark-v1"
 
 
 @dataclass(frozen=True)
@@ -51,7 +51,11 @@ class EvaluationProtocolSpec(JsonContract):
             metric_ids=tuple_of_str(data.get("metric_ids", data.get("metrics", ()))),
             metric_groups=tuple_of_str(data.get("metric_groups", ())),
             metadata=metadata,
-            schema_version=str(data.get("schema_version", EVALUATION_PROTOCOL_SCHEMA_VERSION)),
+            schema_version=require_schema_version(
+                str(data.get("schema_version", EVALUATION_PROTOCOL_SCHEMA_VERSION)),
+                current=EVALUATION_PROTOCOL_SCHEMA_VERSION,
+                label="EvaluationProtocolSpec",
+            ),
         )
 
     from_dict = from_mapping
@@ -119,8 +123,9 @@ class WorldTaskConfig(JsonContract):
         resolved_name = name if name is not None else task_id
         if not resolved_name:
             raise ValueError("WorldTaskConfig requires name or task_id.")
-        if schema_version != WORLD_TASK_CONFIG_SCHEMA_VERSION:
-            raise ValueError(f"Unsupported WorldTaskConfig schema_version: {schema_version}")
+        schema_version = require_schema_version(
+            schema_version, current=WORLD_TASK_CONFIG_SCHEMA_VERSION, label="WorldTaskConfig"
+        )
         object.__setattr__(self, "name", str(resolved_name))
         object.__setattr__(self, "protocol", str(protocol))
         object.__setattr__(self, "evaluation_protocol", str(evaluation_protocol))
@@ -197,8 +202,9 @@ class BenchmarkSpec(JsonContract):
         resolved_name = name if name is not None else benchmark_id
         if not resolved_name:
             raise ValueError("BenchmarkSpec requires name or benchmark_id.")
-        if schema_version != BENCHMARK_SPEC_SCHEMA_VERSION:
-            raise ValueError(f"Unsupported BenchmarkSpec schema_version: {schema_version}")
+        schema_version = require_schema_version(
+            schema_version, current=BENCHMARK_SPEC_SCHEMA_VERSION, label="BenchmarkSpec"
+        )
         object.__setattr__(self, "name", str(resolved_name))
         object.__setattr__(self, "version", str(version))
         object.__setattr__(

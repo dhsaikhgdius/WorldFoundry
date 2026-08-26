@@ -75,9 +75,12 @@ def json_sha256(value: Any) -> str:
 
 
 def stable_hash_data(data: JsonValue) -> str:
-    """Compute a stable SHA-256 hash of any JSON-serializable value."""
-    payload = json_dumps(to_plain(data)).encode("utf-8")
-    return hashlib.sha256(payload).hexdigest()
+    """Compute a stable SHA-256 hash of any JSON-serializable value.
+
+    Uses the same canonical JSON bytes as :func:`json_sha256` so contract
+    fingerprints and cache keys cannot diverge on NaN handling or key order.
+    """
+    return json_sha256(to_plain(data))
 
 
 def sha256_bytes(data: bytes) -> str:
@@ -134,6 +137,36 @@ def tuple_of_str(value: Any) -> tuple[str, ...]:
     return tuple(str(item) for item in value)
 
 
+
+def supported_schema_versions(*versions: str) -> frozenset[str]:
+    """Expand canonical schema ids with legacy unversioned / ``-v1`` aliases."""
+
+    out: set[str] = set()
+    for version in versions:
+        name = str(version)
+        out.add(name)
+        if name.endswith("-v1"):
+            out.add(name[: -len("-v1")])
+        elif not name.rsplit("-", 1)[-1].startswith("v") or not name.rsplit("-", 1)[-1][1:].isdigit():
+            out.add(f"{name}-v1")
+    return frozenset(out)
+
+
+def require_schema_version(actual: str, *, current: str, label: str) -> str:
+    """Accept ``current`` or its legacy alias; return the canonical ``current`` id."""
+
+    supported = supported_schema_versions(current)
+    value = str(actual)
+    if value not in supported:
+        allowed = ", ".join(sorted(supported))
+        raise ValueError(f"Unsupported {label} schema_version: {value} (supported: {allowed})")
+    return current
+
+
+def _reject_nonfinite_json_constant(name: str) -> None:
+    raise ValueError(f"JSON payloads cannot contain non-finite constant {name!r}")
+
+
 class JsonContract:
     """Base class for JSON-serializable dataclasses with stable hashing and schema versioning."""
 
@@ -153,7 +186,7 @@ class JsonContract:
 
     @classmethod
     def from_json(cls: type[T], payload: str) -> T:
-        data = json.loads(payload)
+        data = json.loads(payload, parse_constant=_reject_nonfinite_json_constant)
         if not isinstance(data, Mapping):
             raise ValueError(f"{cls.__name__}.from_json expected a JSON object.")
         return cls.from_dict(data)  # type: ignore[attr-defined]

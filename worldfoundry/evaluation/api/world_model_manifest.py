@@ -5,9 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Mapping
 
-from .json_contract import JsonContract, copy_mapping, tuple_of_str
+from .json_contract import JsonContract, copy_mapping, require_schema_version, tuple_of_str
 
-WORLD_MODEL_MANIFEST_SCHEMA_VERSION = "worldfoundry-world-model-manifest"
+WORLD_MODEL_MANIFEST_SCHEMA_VERSION = "worldfoundry-world-model-manifest-v1"
 
 
 @dataclass(frozen=True)
@@ -29,8 +29,9 @@ class WorldModelManifest(JsonContract):
     __hash__ = JsonContract.__hash__
 
     def __post_init__(self) -> None:
-        if self.schema_version != WORLD_MODEL_MANIFEST_SCHEMA_VERSION:
-            raise ValueError(f"Unsupported WorldModelManifest schema_version: {self.schema_version}")
+        object.__setattr__(self, "schema_version", require_schema_version(
+            self.schema_version, current=WORLD_MODEL_MANIFEST_SCHEMA_VERSION, label="WorldModelManifest"
+        ))
         object.__setattr__(self, "model_id", str(self.model_id))
         object.__setattr__(self, "aliases", tuple_of_str(self.aliases))
         object.__setattr__(self, "capabilities", tuple_of_str(self.capabilities))

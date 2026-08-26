@@ -260,7 +260,13 @@ def stable_json_dumps(value: Any) -> str:
     first so ``set``/``frozenset`` members are deterministically ordered (plain
     ``jsonable`` preserves set iteration order, which varies across processes).
     """
-    return json.dumps(jsonable(to_plain(value)), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return json.dumps(
+        jsonable(to_plain(value)),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    )
 
 
 def sha256_text(text: str) -> str:

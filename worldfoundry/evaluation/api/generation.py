@@ -11,12 +11,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Mapping
 
-from worldfoundry.evaluation.api.json_contract import JsonContract, copy_mapping
+from worldfoundry.evaluation.api.json_contract import JsonContract, copy_mapping, require_schema_version
 
 from .artifacts import ArtifactRef, coerce_artifact_refs, restore_artifact_refs
 
-GENERATION_REQUEST_SCHEMA_VERSION = "worldfoundry-generation-request"
-GENERATION_RESULT_SCHEMA_VERSION = "worldfoundry-generation-result"
+GENERATION_REQUEST_SCHEMA_VERSION = "worldfoundry-generation-request-v1"
+GENERATION_RESULT_SCHEMA_VERSION = "worldfoundry-generation-result-v1"
 GENERATION_SUCCESS_STATUSES = frozenset({"succeeded", "success", "ok", "completed", "done"})
 GENERATION_UNKNOWN_STATUS = "unknown"
 
@@ -88,8 +88,9 @@ class GenerationRequest(JsonContract):
         resolved_task_name = task_name if task_name is not None else task_id
         if not resolved_task_name:
             raise ValueError("GenerationRequest requires task_name or task_id.")
-        if schema_version != GENERATION_REQUEST_SCHEMA_VERSION:
-            raise ValueError(f"Unsupported GenerationRequest schema_version: {schema_version}")
+        schema_version = require_schema_version(
+            schema_version, current=GENERATION_REQUEST_SCHEMA_VERSION, label="GenerationRequest"
+        )
         object.__setattr__(self, "sample_id", str(sample_id))
         object.__setattr__(self, "task_name", str(resolved_task_name))
         object.__setattr__(self, "split", str(split))
@@ -138,8 +139,9 @@ class GenerationResult(JsonContract):
     __hash__ = JsonContract.__hash__
 
     def __post_init__(self) -> None:
-        if self.schema_version != GENERATION_RESULT_SCHEMA_VERSION:
-            raise ValueError(f"Unsupported GenerationResult schema_version: {self.schema_version}")
+        object.__setattr__(self, "schema_version", require_schema_version(
+            self.schema_version, current=GENERATION_RESULT_SCHEMA_VERSION, label="GenerationResult"
+        ))
         object.__setattr__(self, "sample_id", str(self.sample_id))
         object.__setattr__(self, "artifacts", coerce_artifact_refs(self.artifacts))
         object.__setattr__(self, "timings", copy_mapping(self.timings))
