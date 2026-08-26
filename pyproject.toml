@@ -319,10 +319,22 @@ studio_plot = [
     "plotly",
     "pillow",
 ]
+test = [
+    "pytest>=8,<10",
+    "pytest-cov>=5,<7",
+    "numpy",
+    "pillow",
+    "pandas",
+    "einops",
+    "safetensors",
+    "joblib",
+    "pyyaml",
+]
 dev = [
     "build",
     "pre-commit>=4.0",
-    "ruff>=0.12.7",
+    "ruff==0.12.7",
+    "worldfoundry[test]",
 ]
 all = [
     "accelerate",
@@ -508,7 +520,7 @@ ignore = [
 ]
 
 [tool.setuptools]
-packages = { find = { where = ["."], include = ["worldfoundry*"], exclude = [
+packages = { find = { where = ["."], namespaces = true, include = ["worldfoundry*"], exclude = [
     "worldfoundry.pipelines.*.runtime*",
     "worldfoundry.synthesis.visual_generation.*.runtime*",
     "worldfoundry.synthesis.visual_generation.*.*_runtime*",
