@@ -28,6 +28,7 @@ _TRACKED_ENV = (
     _LOG_JSON_ENV,
     _SP_CONFIGURE_ENV,
     "WORLDFOUNDRY_LOG_CONTEXT",
+    "WORLDFOUNDRY_LOG_LEVELS",
     "WORLDFOUNDRY_RUN_ID",
 )
 
@@ -366,3 +367,12 @@ def test_cli_logging_flag_pre_scan():
     assert level is None and log_file is None and log_json is None
     assert verbose is True
     assert rest == ["zoo", "benchmark-run"]
+
+
+def test_configure_logging_applies_per_logger_levels(isolated_logging):
+    """LG-10: WORLDFOUNDRY_LOG_LEVELS overrides named loggers."""
+
+    os.environ["WORLDFOUNDRY_LOG_LEVELS"] = "urllib3=ERROR,asyncio=WARNING"
+    configure_logging(level="DEBUG", force=True)
+    assert logging.getLogger("urllib3").level == logging.ERROR
+    assert logging.getLogger("asyncio").level == logging.WARNING
