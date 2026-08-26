@@ -1,0 +1,14 @@
+# Torch wheel constraints for the cu121 CUDA bucket.
+#
+# These files are *stubs* for dry-run / drift checks. They record the intended
+# upper/lower bounds that install scripts should keep when installing from
+# https://download.pytorch.org/whl/cu121. They are NOT full lockfiles and do not
+# replace the runtime constraint generation in scripts/setup/conda_install.sh
+# (PR #27). Do not invent exact wheel digests here.
+#
+# Keep torch/vision/audio bounds aligned across cu121/cu124/cu128 stubs unless
+# a tier is intentionally retired.
+
+torch>=2.7,<2.12.0
+torchvision>=0.22,<0.27.0
+torchaudio>=2.7,<2.12.0
