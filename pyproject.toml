@@ -205,9 +205,12 @@ ui = [
     "fastapi",
     "flask",
     "flask-socketio",
-    "gradio",
-    "gradio-imageslider",
+    # workspace_app still uses FastAPI add_event_handler (removed in Starlette 1.0 /
+    # Gradio 6). Keep both pinned until that migrates to lifespan.
+    "gradio>=5,<6",
+    "gradio-imageslider<0.0.21",
     "pydantic",
+    "starlette<1.0",
     "textual",
     "uvicorn",
 ]
@@ -290,6 +293,7 @@ worldscore = [
     "pytorch-lightning",
     "setuptools<81",
     "spacy",
+    "starlette<1.0",
     "structlog",
     "supervision",
     "submitit",
@@ -348,8 +352,8 @@ all = [
     "ftfy",
     "gdown",
     "google-genai>=1.60.0,<2",
-    "gradio",
-    "gradio-imageslider",
+    "gradio>=5,<6",
+    "gradio-imageslider<0.0.21",
     "h5py",
     "hf-transfer",
     "huggingface-hub[cli]",
