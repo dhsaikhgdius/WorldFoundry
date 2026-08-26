@@ -37,7 +37,7 @@ help:
 		'  make docs-check        Validate documented CLI entrypoints.' \
 		'  make lint              Run lightweight source and catalog checks.' \
 		'  make preflight         Run the public runtime preflight.' \
-		'  make test-eval-core    Run the eval_core release-gate pytest suite (CPU).' \
+		'  make test-eval-core    Run the eval_core release-gate pytest suite (CPU; needs pip install -e ".[eval_core]").' \
 		'  make test-training     Run the tests/training pytest suite (CPU subset).'
 
 install-core:
@@ -99,8 +99,11 @@ preflight:
 		--output-dir $(PREFLIGHT_OUTPUT) \
 		--json
 
+# Optional extra pytest flags, e.g. PYTEST_ARGS='-m "not gpu and not network"'
+PYTEST_ARGS ?=
+
 test-eval-core:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest test/eval_core -q -p no:cacheprovider
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest test/eval_core -q -p no:cacheprovider $(PYTEST_ARGS)
 
 test-training:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest tests/training -q -p no:cacheprovider
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest tests/training -q -p no:cacheprovider $(PYTEST_ARGS)

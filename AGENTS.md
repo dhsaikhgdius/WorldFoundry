@@ -4,7 +4,7 @@
 
 WorldFoundry is a CPU-friendly, pip-installable world-model infrastructure repo. The cloud VM has **no GPU**, so only catalog/CLI/UI/evaluation surfaces that don't require CUDA or downloaded checkpoints can be exercised end to end. Actual model inference (video/world generation) needs GPUs + checkpoints and cannot run here.
 
-The startup update script already installs everything below (editable core, `.[ui]`, CPU torch, and the extra CPU deps the `test/eval_core` suite imports). You normally do NOT need to reinstall.
+The startup update script already installs everything below (editable core, `.[ui]`, CPU torch, and the extra CPU deps the `test/eval_core` suite imports). You normally do NOT need to reinstall. Contributors on a fresh machine can use `pip install -e ".[eval_core]"` (install CPU torch from `https://download.pytorch.org/whl/cpu` first when needed).
 
 ### Surfaces and how to run them (CPU-only)
 
