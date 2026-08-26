@@ -329,6 +329,120 @@ def _direct_hfd_revision(repo_dir: Path) -> str | None:
     return next(iter(revisions)) if len(revisions) == 1 else None
 
 
+SIZE_MANIFEST_SCHEMA = "worldfoundry-checkpoint-file-sizes-v1"
+
+
+def size_manifest_path(cache_dir: Path, repo_id: str) -> Path:
+    """Sidecar per-repo size manifest, kept outside the HF cache layout."""
+
+    return cache_dir / ".worldfoundry" / f"{repo_id.replace('/', '--')}.file_sizes.json"
+
+
+def record_checkpoint_file_sizes(repo_id: str, cache_dir: Path) -> dict[str, Any]:
+    """Record per-file sizes after a successful download (infra plan R-06).
+
+    Truncated resumes and silently-corrupted blobs keep the same filenames, so
+    presence checks alone cannot catch them. The recorded sizes let later
+    ``check_local_checkpoint`` calls verify byte-for-byte lengths.
+    """
+
+    repo_dir = hf_cache_repo_dir(cache_dir, repo_id)
+    direct_repo_dir = direct_hfd_repo_dir(cache_dir, repo_id)
+    files: dict[str, int] = {}
+    layout: str | None = None
+
+    snapshots_dir = repo_dir / "snapshots"
+    if snapshots_dir.is_dir():
+        for path in sorted(snapshots_dir.rglob("*")):
+            # ``is_file`` follows snapshot symlinks into blobs; broken links
+            # are skipped here and already reported as ``broken_links``.
+            if path.is_file():
+                files[path.relative_to(snapshots_dir).as_posix()] = path.stat().st_size
+        if files:
+            layout = "hf_cache"
+    if not files:
+        direct_files = _direct_hfd_files(direct_repo_dir)
+        if direct_files:
+            layout = "direct_hfd"
+            for path in sorted(direct_files):
+                files[path.relative_to(direct_repo_dir).as_posix()] = path.stat().st_size
+
+    manifest_path = size_manifest_path(cache_dir, repo_id)
+    payload: dict[str, Any] = {
+        "schema_version": SIZE_MANIFEST_SCHEMA,
+        "repo_id": repo_id,
+        "recorded_at": datetime.now(timezone.utc).isoformat(),
+        "layout": layout,
+        "file_count": len(files),
+        "total_size_bytes": sum(files.values()),
+        "files": files,
+    }
+    written = False
+    if files:
+        manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        manifest_path.write_text(
+            json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        written = True
+    return {**payload, "path": str(manifest_path), "written": written}
+
+
+def _verify_recorded_sizes(
+    repo_id: str,
+    cache_dir: Path,
+    repo_dir: Path,
+    direct_repo_dir: Path,
+) -> dict[str, Any]:
+    """Compare current on-disk sizes against the recorded size manifest."""
+
+    manifest_path = size_manifest_path(cache_dir, repo_id)
+    result: dict[str, Any] = {
+        "size_manifest_path": str(manifest_path),
+        "size_manifest_found": False,
+        "size_mismatches": [],
+        # Backward compatible: caches downloaded before size recording existed
+        # have no manifest and must keep passing.
+        "size_check_ok": True,
+    }
+    if not manifest_path.is_file():
+        return result
+    try:
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        result["size_check_ok"] = False
+        result["size_mismatches"] = [
+            {"path": str(manifest_path), "error": "unreadable size manifest"}
+        ]
+        return result
+    result["size_manifest_found"] = True
+    files = payload.get("files")
+    if not isinstance(files, dict):
+        result["size_check_ok"] = False
+        result["size_mismatches"] = [
+            {"path": str(manifest_path), "error": "size manifest missing files mapping"}
+        ]
+        return result
+    root = repo_dir / "snapshots" if payload.get("layout") == "hf_cache" else direct_repo_dir
+    mismatches: list[dict[str, Any]] = []
+    for relative_path, expected_size in sorted(files.items()):
+        if _normalize_hf_filename(relative_path) is None or not isinstance(expected_size, int):
+            mismatches.append({"path": str(relative_path), "error": "invalid size manifest entry"})
+            continue
+        target = root / relative_path
+        actual_size = target.stat().st_size if target.is_file() else None
+        if actual_size != expected_size:
+            mismatches.append(
+                {
+                    "path": relative_path,
+                    "expected_size_bytes": expected_size,
+                    "actual_size_bytes": actual_size,
+                }
+            )
+    result["size_mismatches"] = mismatches
+    result["size_check_ok"] = not mismatches
+    return result
+
+
 def check_local_checkpoint(
     repo_id: str,
     cache_dir: Path,
@@ -439,8 +553,10 @@ def check_local_checkpoint(
         and not direct_missing_required_files
         and not direct_incomplete_files
     )
-    ready = hf_ready or direct_ready
+    size_check = _verify_recorded_sizes(repo_id, cache_dir, repo_dir, direct_repo_dir)
+    ready = (hf_ready or direct_ready) and bool(size_check["size_check_ok"])
     return {
+        **size_check,
         "repo_id": repo_id,
         "cache_repo_dir": str(repo_dir),
         "direct_hfd_repo_dir": str(direct_repo_dir),
@@ -590,6 +706,12 @@ def download_manifest(
             run_download_command(command, env, timeout_seconds=timeout_seconds, retries=retries)
             for command in commands
         ]
+        # Record sizes before the local check so verification sees fresh data.
+        size_manifests = [
+            record_checkpoint_file_sizes(repo_id, cache_dir)
+            for repo_id, run in zip(repo_ids, download_runs)
+            if run.get("ok") is True
+        ]
         local_checks = [
             check_local_checkpoint(
                 repo_id,
@@ -612,6 +734,7 @@ def download_manifest(
                 "max_workers": max_workers,
                 "env": _download_env_summary(env),
             },
+            "size_manifests": size_manifests,
             "local_checks": local_checks,
             "ok": all(run.get("ok") is True for run in download_runs)
             and all(check.get("ready") is True for check in local_checks),
@@ -750,6 +873,8 @@ def main(argv: list[str] | None = None) -> int:
             for check in result.get("local_checks", []):
                 local_status = "ready" if check.get("ready") else "not-ready"
                 print(f"  local {check['repo_id']}: {local_status} {check['cache_repo_dir']}")
+                if check.get("size_mismatches"):
+                    print(f"    size mismatches vs recorded manifest: {len(check['size_mismatches'])}")
 
     return 0 if all(result["ok"] for result in results) else 1
 
