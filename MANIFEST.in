@@ -3,11 +3,19 @@ include THIRD-PARTY-NOTICES
 recursive-include requirements *.txt *.md
 include worldfoundry/data/benchmarks/*.yaml
 include worldfoundry/data/benchmarks/*.md
+# worldfoundry.data: pyproject [tool.setuptools.package-data] is the wheel SSOT.
+# MANIFEST.in mirrors the same trees for sdist (incl. eval_configs — do not rely on
+# package-data alone). Nested runtime/configs + environments are covered by the
+# single recursive-include on data/models/runtime below.
 recursive-include worldfoundry/data/benchmarks/catalog *.yaml
 recursive-include worldfoundry/data/benchmarks/tasks *.yaml
 recursive-include worldfoundry/data/benchmarks/runtime_profiles *.yaml
+recursive-include worldfoundry/data/benchmarks/eval_configs *.yaml *.yml
 recursive-include worldfoundry/data/benchmarks/assets *.json *.jsonl *.csv *.txt *.md *.png
 recursive-include worldfoundry/data/benchmarks/assets/larybench *.yaml
+recursive-include worldfoundry/data/models/catalog *.yaml
+recursive-include worldfoundry/data/models/bindings *.yaml
+recursive-include worldfoundry/data/models/runtime *.yaml *.yml *.json
 recursive-include worldfoundry/evaluation/tasks/execution/runners/larybench *.md LICENSE.*
 recursive-include worldfoundry/synthesis/visual_generation/rolling_forcing LICENSE* LEGAL.md UPSTREAM.md
 recursive-include worldfoundry/synthesis/visual_generation/stable_video_infinity LICENSE
@@ -36,14 +44,6 @@ include worldfoundry/base_models/three_dimensions/general_3d/vipe/LICENSE
 include worldfoundry/base_models/three_dimensions/general_3d/vipe/THIRD_PARTY_LICENSES.md
 include worldfoundry/base_models/three_dimensions/general_3d/vipe/UPSTREAM.md
 recursive-include worldfoundry/studio/native/world_explorer *
-recursive-include worldfoundry/data/models/catalog *.yaml
-recursive-include worldfoundry/data/models/runtime *.yaml
-recursive-include worldfoundry/data/models/runtime *.json
-recursive-include worldfoundry/data/models/bindings *.yaml
-recursive-include worldfoundry/data/models/runtime/configs *.yaml
-recursive-include worldfoundry/data/models/runtime/configs *.yml
-recursive-include worldfoundry/data/models/runtime/configs *.json
-recursive-include worldfoundry/data/models/runtime/environments *.yaml
 recursive-include worldfoundry/base_models/diffusion_model/diffsynth/tokenizer_configs *
 # Keep source distributions reproducible from a dirty development checkout.
 prune tmp

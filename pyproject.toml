@@ -319,10 +319,22 @@ studio_plot = [
     "plotly",
     "pillow",
 ]
+test = [
+    "pytest>=8,<10",
+    "pytest-cov>=5,<7",
+    "numpy",
+    "pillow",
+    "pandas",
+    "einops",
+    "safetensors",
+    "joblib",
+    "pyyaml",
+]
 dev = [
     "build",
     "pre-commit>=4.0",
-    "ruff>=0.12.7",
+    "ruff==0.12.7",
+    "worldfoundry[test]",
 ]
 all = [
     "accelerate",
@@ -541,6 +553,8 @@ packages = { find = { where = ["."], include = ["worldfoundry*"], exclude = [
 ] } }
 include-package-data = true
 
+# Wheel SSOT for non-Python package assets. Keep MANIFEST.in data-tree includes
+# aligned (see DA-06); do not list the same leaf paths twice under package-data.
 [tool.setuptools.package-data]
 "worldfoundry.cli" = [
     "assets/openenvision_logo.png",
@@ -555,6 +569,7 @@ include-package-data = true
     "benchmarks/**/*.yml",
     "benchmarks/**/*.md",
     "benchmarks/**/*.png",
+    # Covers benchmarks/eval_configs/** (embodied YAML); also asserted in MANIFEST.in.
     "models/**/*.yaml",
     "models/**/*.yml",
     "models/**/*.json",
