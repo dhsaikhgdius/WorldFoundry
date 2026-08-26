@@ -18,6 +18,7 @@ RUN apt-get update -qq \
         python3-dev \
         python3-pip \
         python3-venv \
+        # Note: distro python3 may be 3.10; conda/env.yml targets 3.11 for the unified runtime.
         bash \
         bash-completion \
         ca-certificates \
@@ -51,6 +52,7 @@ RUN apt-get update -qq \
         xz-utils \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+ARG UV_VERSION=0.12.6
+COPY --from=ghcr.io/astral-sh/uv:${UV_VERSION} /uv /uvx /usr/local/bin/
 
 CMD ["/bin/bash"]
