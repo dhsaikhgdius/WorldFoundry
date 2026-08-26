@@ -4,18 +4,19 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
-from pathlib import Path
 import subprocess
 import sys
+import tempfile
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Iterable
 
 import yaml
 
+from worldfoundry.core.io.paths import project_root
+from worldfoundry.core.process import run_logged_subprocess
 
 DEFAULT_PROFILE_DIR = Path("worldfoundry/data/benchmarks/runtime_profiles/official")
-
-
 @dataclass(frozen=True)
 class ImageMapping:
     profile_id: str
@@ -24,7 +25,7 @@ class ImageMapping:
 
 
 def _repo_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    return project_root(__file__)
 
 
 def _replace_tag(image: str, tag: str | None) -> str:
@@ -89,7 +90,16 @@ def _run(cmd: list[str], *, plan_only: bool) -> None:
     print("+ " + " ".join(cmd))
     if plan_only:
         return
-    subprocess.run(cmd, check=True)
+    with tempfile.TemporaryDirectory(prefix="wf-docker-mirror-") as tmp:
+        stdout_path = Path(tmp) / "docker.stdout.log"
+        stderr_path = Path(tmp) / "docker.stderr.log"
+        completed = run_logged_subprocess(
+            cmd,
+            stdout_path=stdout_path,
+            stderr_path=stderr_path,
+        )
+        if completed.returncode != 0:
+            raise subprocess.CalledProcessError(completed.returncode, cmd)
 
 
 def mirror_images(mappings: Iterable[ImageMapping], *, push: bool, plan_only: bool = False) -> None:
