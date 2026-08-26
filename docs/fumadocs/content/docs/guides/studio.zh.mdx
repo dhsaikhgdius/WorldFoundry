@@ -14,7 +14,7 @@ Studio 现在有多前端入口：
 | `world` | 交互世界模型 | 独立 WebRTC 控制台：常驻模型、可靠按键边沿 DataChannel、有界内存帧队列、单一持续视频轨、沉浸式全屏和实时运行日志；控制热路径不生成 MP4。 |
 | `points` | Viser 点云 / mesh | 直接启动原生 Viser，不嵌回游戏机界面。 |
 | `embodied` | 具身智能仿真器 | **计划中。** 目前只是 URL bridge：Studio 登记外部 simulator URL 并给出 tunnel 提示，还没有仓内 embodied viewer。 |
-| `spark` | 3DGS | 启动独立 Spark 3DGS viewer，复用项目内置 Spark frontend，并允许通过 `WORLDFOUNDRY_MODEL_DIR` / `WORLDFOUNDRY_ARTIFACT_DIR` 暴露本地资产。 |
+| `spark` | 3DGS | 启动独立 Spark 3DGS viewer。`worldfoundry/studio/assets/vendor/` 被 gitignore；clone 后先运行一次 `python scripts/studio/fetch_vendor_assets.py`。 |
 | `auto` | 默认 | 按模型类型自动路由：交互世界 -> `world`，3D scene -> `spark`，点云/深度 -> `points`，具身策略 -> `embodied`。 |
 
 ## 可视化内容
