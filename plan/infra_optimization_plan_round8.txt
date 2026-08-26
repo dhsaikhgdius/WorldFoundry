@@ -1,0 +1,157 @@
+WorldFoundry 基础设施优化计划（第 8 轮）
+========================================
+日期：2026-08-26
+性质：建议修改（本文件只记录计划，不直接改代码）
+承接：plan/infra_optimization_plan.txt、round2~round7
+方法：3 个云端子代理（claude-fable-5-thinking-xhigh）+ 主会话本地评审
+  - logging / observability — 云端进行中
+  - GitHub workflows / release — 云端进行中
+  - dataset / HFD materialize — 云端进行中
+  + 密钥脱敏 / evaluation.api 契约 / MCP docs（SE/AP/MC）— 已并入
+
+禁止重复第 1–7 轮已写条目。交叉最多一行。
+注：round7 data catalog（DA）若稍后回报，并入 round7 或本轮附录，不重复开新编号域。
+
+
+0. 现状一句话
+--------------
+密钥脱敏三套词表互不同步：preflight 子串匹配误抹 ``false``；``redact_secrets`` 对 argv 列表盲区；
+Studio 作业日志完全绕过脱敏。core/io ``write_json`` 默认 ``allow_nan=True`` 写出非法 JSON。
+MCP ``server_info`` 6 条 docs 路由中 4 条死链。logging / CI release / HFD 三路待回报。
+
+
+1. 不建议改的地方
+------------------
+- 不要另起第四套脱敏词表；收敛既有三套（SE-06），呼应 round3「不要第三套」边界。
+- 不要削弱 MCP_TOOL_NAMES 静态清单与双重同步测试（round4）；MC-01 只修 docs 字段。
+- evaluation.api 精确相等 schema 校验本体保留；AP-02 只加版本演进路径，不删 fail-closed。
+- 第 1–7 轮边界继续有效。
+
+
+2. 优先级
+----------
+P1
+  1) [SE-01] preflight _SECRET_PARTS 含 TOKEN 子串 → 误抹 false
+  2) [SE-02] redact_secrets 列表 argv / URL userinfo 盲区
+  3) [AP-01] write_json/write_jsonl allow_nan=True → 非法 JSON 产物
+  4) （云端）LG/WF/DS 待填
+
+P2
+  5) [SE-03/04/05] Studio 日志绕过脱敏；conda payload 嵌套 key；grounding_dino dump env
+  6) [AP-02][MC-01] api schema -vN；MCP docs 死链
+  7) （云端）
+
+P3
+  8) [SE-06][AP-03] 三词表收敛；from_json 静默接受 NaN
+
+
+3. Logging / observability
+--------------------------
+（[云端子代理](bc-2133984d-04dd-52b2-8c1c-c1eb16d9b3e0) 进行中 — 回报后 enrich LG-*）
+
+占位：logging_setup、correlation、JSONL、metric_sync 延伸、WORLDFOUNDRY_LOG_*。
+勿重复 round2 O-01 sp logger、round3 密钥 argv。
+
+
+4. GitHub workflows / release
+-----------------------------
+（[云端子代理](bc-e42c101f-1a02-5ed7-aeb6-0783f9ae3371) 进行中 — 回报后 enrich WF-*）
+
+占位：ci.yml / deploy-docs / release / dependabot / artifact 保留。
+勿重复 round1 双 job 结构、round5 DE-05 媒体。
+
+
+5. Dataset / HFD materialize
+----------------------------
+（[云端子代理](bc-90ee8729-2d97-572c-9546-64d13859e79d) 进行中 — 回报后 enrich DS-*）
+
+占位：HFD 工具链、WORLDFOUNDRY_HFD_*、cli/dataset.py、setup 下载助手。
+勿重复 round3 download-ready、round6 EM prepare、round7 CA-09 paths rglob。
+
+
+6. Secrets / api contract / MCP docs
+------------------------------------
+来源：主会话本地评审。
+
+[SE-01] P1 preflight 子串 TOKEN 误脱敏
+  文件：runtime_preflight.py _SECRET_PARTS / _redact_text
+  改法：词段匹配复用 run_manifest._is_sensitive_key；值替换最短长度阈值。
+
+[SE-02] P1 redact_secrets 列表 argv 盲区
+  文件：reporting/run_manifest.py
+  改法：str 叶子走 logging_setup 值级正则；列表内 --*-api-key 后继元素脱敏。
+
+[SE-03] P2 Studio 作业日志绕过脱敏
+  文件：studio/jobs.py append_log；workspace_app / MCP get_studio_job_logs
+  改法：append_log 过 _redact_text。交叉：round6 ST-08 只谈内存上限。
+
+[SE-04] P2 conda payload 只脱敏顶层 api_key
+  文件：conda_dispatch.py _payload_run_kwargs_with_secret_refs
+  改法：递归 load_kwargs/call_kwargs；manifest 写前 redact_secrets。
+
+[SE-05] P2 grounding_dino 无条件 dump os.environ
+  文件：base_models/.../grounding_dino/util/misc.py L708
+  改法：删或改 redact_env_for_manifest presence 输出。
+
+[SE-06] P3 三套脱敏词表不同步
+  改法：共享 marker/前缀常量；补 ghp_/github_pat_/xoxb/AKIA。
+
+[AP-01] P1 write_json allow_nan=True
+  文件：core/io/serialization.py write_json/write_jsonl
+  改法：allow_nan=False 或 sanitize→null + diagnostics。交叉：round4 json_contract；本条是写盘 choke point。
+
+[AP-02] P2 api schema_version 无 -vN、精确相等硬拒绝
+  文件：evaluation/api/{metrics,generation,artifacts,tasks}.py
+  改法：统一 name-v1 + SUPPORTED 集合。交叉：round5 RP-06 reporting 同病。
+
+[AP-03] P3 from_json 静默接受 NaN；stable_hash vs json_sha256 语义相反
+  改法：parse_constant 拒绝非有限；指纹收敛 canonical。
+
+[MC-01] P2 server_info docs 4/6 死链
+  文件：mcp/tools/server_info.py
+  改法：补页面或删条目；契约测试 glob content/docs。
+
+
+7. 文件级改动总表
+----------------
+P1
+  runtime_preflight.py           SE-01
+  reporting/run_manifest.py      SE-02
+  core/io/serialization.py       AP-01
+  （LG/WF/DS 待补）
+
+P2
+  studio/jobs.py                 SE-03
+  conda_dispatch.py              SE-04
+  grounding_dino util/misc.py    SE-05
+  evaluation/api/*               AP-02
+  mcp/tools/server_info.py       MC-01
+
+P3
+  runtime/env.py + logging_setup SE-06
+  json_contract.py               AP-03
+
+
+8. 验收（已并入）
+----------------
+- SE-01：TOKENIZERS_PARALLELISM=false 时 preflight stdout 中 ``false`` 不被抹成 redacted。
+- SE-02：command 列表含 --gemini-api-key 时 redact_secrets 后继值为 redacted。
+- AP-01：write_json({x: float('nan')}) 抛错或不写出字面 NaN。
+- MC-01：server_info docs 每路由在 fumadocs content 有对应文件或测试红。
+
+
+9. 与前轮衔接
+--------------
+密钥：round3 devil-dynamics argv；本轮是通用 redact 覆盖与词表收敛。
+json NaN：round4 N-09 api 层；本轮 AP-01 是 core/io 写盘。
+schema 演进：round5 RP-06 reporting；本轮 AP-02 evaluation.api。
+MCP：round4 工具/目录；本轮 MC-01 docs 死链。
+Studio 日志：round6 ST-08 内存；本轮 SE-03 内容脱敏。
+
+
+10. 子代理索引
+--------------
+  [logging](bc-2133984d-04dd-52b2-8c1c-c1eb16d9b3e0)  §3 待 enrich
+  [workflows](bc-e42c101f-1a02-5ed7-aeb6-0783f9ae3371)  §4 待 enrich
+  [dataset/HFD](bc-90ee8729-2d97-572c-9546-64d13859e79d)  §5 待 enrich
+  SE/AP/MC（主会话）  §6 已并入

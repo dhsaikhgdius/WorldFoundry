@@ -235,3 +235,4 @@ vendored LICENSE：round5 DE-02 thirdparty；本轮 SY-06 包内 *_runtime。
   [data catalog](bc-13b2c87a-a9e9-5e32-a8b4-6e6fd3e9d5ef)  §4 待 enrich
   [storage/HF/S3](bc-420abcea-2a4e-59e8-89af-cfc627288af8)  §5 CA-01~14 已并入
   TE/PK/RT（主会话）  §6 已并入
+续篇：plan/infra_optimization_plan_round8.txt（logging / workflows / HFD / secrets·api·MCP）
