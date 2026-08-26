@@ -11,11 +11,14 @@ inference jobs in parallel when enough GPUs are available.
 
 from __future__ import annotations
 
+import json
+import os
 import traceback
 from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, field
 from html import escape
+from pathlib import Path
 from threading import RLock
 from time import monotonic
 from typing import Any
@@ -25,6 +28,21 @@ from worldfoundry.runtime.jobs import TERMINAL_JOB_STATUSES
 
 
 STUDIO_JOB_TABLE_HEADERS = ["Job ID", "Title", "Model", "Action", "Status", "Created", "Elapsed"]
+DEFAULT_STUDIO_MAX_TRACKED_JOBS = 500
+_STUDIO_JOB_STATE_SCHEMA = "worldfoundry-studio-job-store-v1"
+_PERSISTED_STUDIO_JOB_FIELDS = (
+    "job_id",
+    "title",
+    "model_id",
+    "display_name",
+    "action",
+    "job_type",
+    "status",
+    "created_at",
+    "started_at",
+    "completed_at",
+    "error",
+)
 
 
 @dataclass
@@ -120,17 +138,112 @@ def _result_indicates_failure(result: Any) -> tuple[bool, str | None]:
 class StudioJobStore:
     """In-process job runner for the unified Studio UI.
 
-    The store intentionally runs one job at a time by default so the UI cannot
-    accidentally launch several heavyweight GPU pipelines in parallel.
+    Defaults to a small worker pool. Terminal jobs are pruned when
+    ``max_jobs`` is set so long-lived Workspace processes cannot grow without
+    bound. Optional ``state_path`` persists job metadata for UI recovery after
+    restart (thread-pool work itself is not resumed).
     """
 
-    def __init__(self, *, max_workers: int = 1, max_log_lines: int = 2000, initial_counter: int = 0) -> None:
+    def __init__(
+        self,
+        *,
+        max_workers: int = 1,
+        max_log_lines: int = 2000,
+        initial_counter: int = 0,
+        max_jobs: int | None = DEFAULT_STUDIO_MAX_TRACKED_JOBS,
+        state_path: str | Path | None = None,
+    ) -> None:
         """Create a job store backed by a small thread pool (default: one worker)."""
         self.max_log_lines = max_log_lines
+        self.max_jobs = max_jobs
+        self.state_path = None if state_path is None else Path(state_path)
         self._executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="worldfoundry-studio-job")
         self._jobs: dict[str, StudioJob] = {}
         self._lock = RLock()
         self._counter = max(0, initial_counter)
+        if self.state_path is not None:
+            self._restore_persisted_jobs()
+
+    def _restore_persisted_jobs(self) -> None:
+        assert self.state_path is not None
+        try:
+            payload = json.loads(self.state_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError, ValueError):
+            return
+        rows = payload.get("jobs") if isinstance(payload, Mapping) else None
+        if not isinstance(rows, list):
+            return
+        for row in rows:
+            if not isinstance(row, Mapping) or not row.get("job_id"):
+                continue
+            job = StudioJob(
+                job_id=str(row["job_id"]),
+                title=str(row.get("title") or row["job_id"]),
+                model_id=str(row.get("model_id") or ""),
+                display_name=str(row.get("display_name") or row.get("model_id") or ""),
+                action=str(row.get("action") or ""),
+                job_type=str(row.get("job_type") or "inference"),
+            )
+            for field_name in _PERSISTED_STUDIO_JOB_FIELDS:
+                if field_name == "job_id" or row.get(field_name) is None:
+                    continue
+                setattr(job, field_name, row[field_name])
+            metadata = row.get("metadata")
+            if isinstance(metadata, Mapping):
+                job.metadata = dict(metadata)
+            # Thread-pool work cannot be resumed; mark non-terminal restored rows failed.
+            if not job.terminal:
+                job.status = "failed"
+                job.error = job.error or "job lost during Studio restart (in-process worker not restored)"
+                job.completed_at = job.completed_at or utc_now_iso()
+            self._jobs[job.job_id] = job
+            suffix = job.job_id.removeprefix("studio-")
+            if suffix.isdigit():
+                self._counter = max(self._counter, int(suffix))
+
+    def _persist(self) -> None:
+        if self.state_path is None:
+            return
+        rows = []
+        for job in sorted(self._jobs.values(), key=lambda item: item.created_at):
+            row: dict[str, Any] = {name: getattr(job, name) for name in _PERSISTED_STUDIO_JOB_FIELDS}
+            row["metadata"] = dict(job.metadata)
+            rows.append(row)
+        payload = {"schema_version": _STUDIO_JOB_STATE_SCHEMA, "jobs": rows}
+        try:
+            self.state_path.parent.mkdir(parents=True, exist_ok=True)
+            tmp_path = self.state_path.with_name(self.state_path.name + f".tmp-{os.getpid()}")
+            tmp_path.write_text(json.dumps(payload, ensure_ascii=False, default=str), encoding="utf-8")
+            os.replace(tmp_path, self.state_path)
+        except OSError:
+            pass
+
+    def prune(self, *, max_jobs: int | None = None) -> int:
+        """Evict oldest terminal jobs when the store exceeds ``max_jobs``."""
+        with self._lock:
+            return self._prune_unlocked(max_jobs=max_jobs)
+
+    def _prune_unlocked(self, *, max_jobs: int | None = None) -> int:
+        limit = self.max_jobs if max_jobs is None else max_jobs
+        if limit is None:
+            return 0
+        if len(self._jobs) <= limit:
+            return 0
+        removed = 0
+        terminal = sorted(
+            (job for job in self._jobs.values() if job.terminal),
+            key=lambda job: job.created_at,
+        )
+        excess = len(self._jobs) - limit
+        for job in terminal:
+            if excess <= 0:
+                break
+            self._jobs.pop(job.job_id, None)
+            removed += 1
+            excess -= 1
+        if removed:
+            self._persist()
+        return removed
 
     def submit_run(
         self,
@@ -145,6 +258,8 @@ class StudioJobStore:
     ) -> StudioJob:
         """Enqueue a new job and execute ``run_callable(job)`` on the thread pool."""
         with self._lock:
+            if self.max_jobs is not None:
+                self._prune_unlocked(max_jobs=self.max_jobs)
             self._counter += 1
             job_id = f"studio-{self._counter:05d}"
             job = StudioJob(
@@ -158,6 +273,7 @@ class StudioJobStore:
             )
             self._jobs[job.job_id] = job
             job._future = self._executor.submit(self._execute, job.job_id, run_callable)
+            self._persist()
             return job
 
     def get(self, job_id: str | None) -> StudioJob | None:
@@ -188,8 +304,10 @@ class StudioJobStore:
                 job.completed_at = utc_now_iso()
                 job._completed_monotonic = monotonic()
                 job.append_log("system", "cancelled before start\n")
+                self._persist()
                 return True, "cancelled"
             job.append_log("system", "cancellation requested; active inference will stop after the current call returns\n")
+            self._persist()
             return True, "cancellation requested"
 
     def _execute(self, job_id: str, run_callable: RunJobCallable) -> None:
@@ -241,6 +359,7 @@ class StudioJobStore:
                     del job.logs[: len(job.logs) - self.max_log_lines]
                 job.completed_at = job.completed_at or utc_now_iso()
                 job._completed_monotonic = monotonic()
+                self._persist()
 
 
 def format_elapsed(job: StudioJob) -> str:

@@ -13,7 +13,8 @@ Start the WorldFoundry Studio workspace.
 Options:
   --host HOST          Bind host. Default: WORLDFOUNDRY_WORKSPACE_HOST or 127.0.0.1.
   --port PORT          Bind port. Default: WORLDFOUNDRY_WORKSPACE_PORT or 7870.
-  --max-jobs N         Concurrent job workers. Default: WORLDFOUNDRY_WORKSPACE_MAX_JOBS or 8.
+  --max-jobs N         Concurrent job workers. Default: WORLDFOUNDRY_WORKSPACE_MAX_JOBS,
+                       else min(visible GPU count, 4) or 2 when no GPU is visible.
   --ckpt-dir PATH      Checkpoint/model root. Default order: explicit env, repo-sibling ckpt/, env-file, ~/.cache/worldfoundry/checkpoints.
   --data-dir PATH      Benchmark/data root. Default order: explicit env, repo-sibling data/, env-file, ~/.cache/worldfoundry/data.
                       Most model weights are resolved by Hugging Face from repo ids; set HF_HOME or
@@ -38,7 +39,19 @@ PRESET_HFD_ROOT="${WORLDFOUNDRY_HFD_ROOT:-}"
 
 HOST="${WORLDFOUNDRY_WORKSPACE_HOST:-127.0.0.1}"
 PORT="${WORLDFOUNDRY_WORKSPACE_PORT:-7870}"
-MAX_JOBS="${WORLDFOUNDRY_WORKSPACE_MAX_JOBS:-8}"
+if [[ -n "${WORLDFOUNDRY_WORKSPACE_MAX_JOBS:-}" ]]; then
+  MAX_JOBS="${WORLDFOUNDRY_WORKSPACE_MAX_JOBS}"
+else
+  GPU_COUNT=0
+  if command -v nvidia-smi >/dev/null 2>&1; then
+    GPU_COUNT="$(nvidia-smi -L 2>/dev/null | wc -l | tr -d ' ')"
+  fi
+  if [[ "${GPU_COUNT}" =~ ^[0-9]+$ ]] && (( GPU_COUNT > 0 )); then
+    MAX_JOBS=$(( GPU_COUNT < 4 ? GPU_COUNT : 4 ))
+  else
+    MAX_JOBS=2
+  fi
+fi
 CKPT_DIR_OVERRIDE=""
 DATA_DIR_OVERRIDE=""
 ENV_FILE="${WORLDFOUNDRY_ENV_FILE:-tmp/worldfoundry_unified_env.sh}"
@@ -199,6 +212,8 @@ fi
 
 echo "Starting WorldFoundry workspace at http://${HOST}:${PORT}/"
 echo "PYTHON=${PYTHON_BIN}"
+echo "WORLDFOUNDRY_WORKSPACE_MAX_JOBS=${WORLDFOUNDRY_WORKSPACE_MAX_JOBS}"
+echo "WORLDFOUNDRY_STUDIO_RESIDENT_WORKER_MAX_WORKERS=${WORLDFOUNDRY_STUDIO_RESIDENT_WORKER_MAX_WORKERS}"
 echo "WORLDFOUNDRY_CKPT_DIR=${WORLDFOUNDRY_CKPT_DIR}"
 echo "WORLDFOUNDRY_DATA_DIR=${WORLDFOUNDRY_DATA_DIR}"
 echo "HF_HOME=${HF_HOME:-<huggingface default>}"
