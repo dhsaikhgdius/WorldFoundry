@@ -231,7 +231,40 @@ More curated generated samples are embedded in the Studio docs.
 
 ## From Clone To First Run
 
-WorldFoundry uses conda as the supported open-source runtime path. Start with the unified GPU environment; only use a dedicated environment when a model profile documents a real ABI or simulator conflict. The full day-one path lives in the [Quickstart](docs/fumadocs/content/docs/quickstart.mdx).
+WorldFoundry supports **two install tracks**. Pick one based on what you need on day one:
+
+| Track | When to use | What you get |
+| --- | --- | --- |
+| **Lightweight / CPU** | Catalog/CLI/TUI/docs work, CI-like smoke, machines without CUDA | Editable `pip` install of selected extras; no conda bootstrap, no GPU wheels |
+| **GPU / full runtime** | Inference, Studio with CUDA models, embodied Docker rollouts | `bash scripts/setup/bootstrap_worldfoundry.sh` (conda + CUDA-tier torch + unified requirements) |
+
+Bare `pip install -e ".[vipe]"` (or other GPU-coupled extras) is **not** a supported GPU path: those extras list `torch` without a CUDA wheel index, so pip may pull a CPU build. Use the bootstrap/conda track for CUDA.
+
+### Lightweight / CPU track
+
+```bash
+python -m pip install -e ".[tui]"
+# Studio / Gradio surfaces (CPU-only catalog UI is fine; pin note below):
+# python -m pip install -e ".[ui]"
+worldfoundry-eval --help
+worldfoundry-eval zoo models --json
+```
+
+The `[ui]` extra currently leaves `gradio` / Starlette unpinned in `pyproject.toml` on `main`. Prefer the GPU bootstrap path for Studio on shared hosts, or pin `gradio<6` and a Starlette `<1` line yourself until the `[ui]` pin PR lands — Gradio 6 / Starlette ≥1.0 remove `FastAPI.add_event_handler` and break `workspace_app`.
+
+Optional native C++ dispatcher (separate package, ABI-sensitive, **no build isolation**):
+
+```bash
+python -m pip install "scikit-build-core>=0.10,<2" build
+python -m build --wheel --no-isolation packages/worldfoundry-native-kernels
+# then pip install the produced wheel inside the *same* torch env
+```
+
+See [`packages/worldfoundry-native-kernels/README.md`](packages/worldfoundry-native-kernels/README.md).
+
+### GPU / full runtime track
+
+WorldFoundry uses conda as the supported open-source GPU runtime path. Start with the unified GPU environment; only use a dedicated environment when a model profile documents a real ABI or simulator conflict. The full day-one path lives in the [Quickstart](docs/fumadocs/content/docs/quickstart.mdx).
 
 Install Git LFS before cloning so the optional demo media can be checked out correctly:
 

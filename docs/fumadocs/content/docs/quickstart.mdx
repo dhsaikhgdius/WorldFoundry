@@ -38,6 +38,8 @@ Most runs follow the same shape even when the model or benchmark changes: make t
 ## Prerequisites
 
 - **OS:** Linux recommended for GPU inference and most benchmark runners
+- **Two install tracks:** lightweight `pip install -e ".[tui]"` (CPU catalog/CLI/TUI) vs `bash scripts/setup/bootstrap_worldfoundry.sh` (CUDA conda runtime). See the root [README](https://github.com/OpenEnvision/WorldFoundry/blob/main/README.md#from-clone-to-first-run). Do not treat bare `pip install -e ".[vipe]"` as a GPU install — extras do not select a CUDA torch index.
+- **Optional native kernels:** `packages/worldfoundry-native-kernels` is a separate wheel; build with `--no-isolation` inside the target torch env (see that package README).
 - **Python:** 3.10+ through the WorldFoundry unified conda environment
 - **Optional:** CUDA-capable GPU, Hugging Face token for gated checkpoints
 
