@@ -16,6 +16,24 @@ The detailed maintainer guide lives in
 - Run `bash scripts/docs/build.sh --skip-bootstrap` when docs or README links change.
 - Include scorecard, preflight, or validation evidence for any readiness claim.
 
+
+## Local Validation (CPU)
+
+These commands are expected to run on a CPU-only machine (no CUDA checkpoints):
+
+```bash
+make lint                 # ruff + shell syntax + catalog checks (+ docker-smoke when present)
+make cli-check            # evaluation runner hello-world scorecard
+make test-eval-core PYTEST_ARGS='-m "not gpu and not network"'
+make test-training PYTEST_ARGS='-m "not gpu and not network"'
+```
+
+Notes:
+
+- On `main`, the full `test/eval_core` suite still has known catalog/contract assertion failures. Prefer the layered CI pattern from `infra-ci-modernize` (hard gate: `test_cuda_tiers.py`; full suite `continue-on-error`) until those contracts are repaired.
+- Do not require GPU inference or downloaded checkpoints for PR validation unless the change is specifically about those paths.
+- Studio UI: keep `gradio<6` / Starlette `<1` if installing `[ui]` until the pin lands on `main` (see open infra PRs).
+
 ## Change Checklists
 
 ### Add Or Update A Model
