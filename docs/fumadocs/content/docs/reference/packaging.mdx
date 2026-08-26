@@ -1,0 +1,40 @@
+---
+title: Packaging extras
+description: Optional pip extras versus dependency-groups, and which combinations are safe.
+---
+
+WorldFoundry declares two related but different dependency mechanisms in `pyproject.toml`. Use extras for day-to-day installs; use dependency-groups for lock/toolchain work inside the repo.
+
+## Extras vs dependency-groups
+
+| Mechanism | Where | Who uses it | Typical command |
+| --- | --- | --- | --- |
+| **Optional extras** (`[project.optional-dependencies]`) | User-facing surfaces | Contributors, CI CPU gates, Studio/TUI installs | `pip install -e ".[ui]"` |
+| **Dependency groups** (`[dependency-groups]`) | Internal lock / bundle pins | Installer scripts, CUDA-tier tooling | consumed by setup scripts / `uv` workflows — not the default docs path |
+
+Extras are the supported public install surface. Dependency groups such as `flash_attn_fa25`, `runtime_clip_bundle`, `transformers_high` / `transformers_low`, and `lint` exist so bootstrap and lock tooling can pin ABI-sensitive stacks without advertising them as casual `pip install -e ".[…]"` choices.
+
+## Common extras
+
+| Extra | Purpose | In `[all]`? | Example |
+| --- | --- | --- | --- |
+| `tui` | Terminal UI helpers | yes (via overlapping deps) | `pip install -e ".[tui]"` |
+| `ui` | Studio Gradio/FastAPI stack | yes | `pip install -e ".[ui]"` |
+| `studio_realtime` | WebRTC realtime frontend deps | covered by `ui` name set | `pip install -e ".[studio_realtime]"` |
+| `api` / `hf` / `mcp` / `web` | API, Hub, MCP, web helpers | partial | `pip install -e ".[mcp]"` |
+| `video` / `metrics` / `distribution_metrics` | Eval / metric stacks | yes / yes / yes | `pip install -e ".[metrics]"` |
+| `test` / `dev` | CPU pytest gate + lint tooling | no | `pip install -e ".[dev]"` then `make test-eval-core` |
+| `train_core` / `train_video` | Training entry deps | no (narrower torch floor) | `pip install -e ".[train_core,train_video]"` |
+| `molmoact2` / `vipe` / `dvlt` | Model-family specials | **no** — install separately | `pip install -e ".[molmoact2]"` |
+| `rtx_postprocess` | Proprietary NVIDIA VFX | **never** in `all` | explicit opt-in only |
+| `all` | Broad union for full GPU workstations | — | Prefer bootstrap/`setup.sh` on GPU hosts |
+
+CPU / CI path: install a small extra set (for example `.[tui,ui]` or `.[dev]`) plus CPU torch from the PyTorch CPU index. GPU full stack: `bash scripts/setup/setup.sh` (or `bootstrap_worldfoundry.sh`) rather than relying on `pip install -e ".[all]"` alone for CUDA wheels.
+
+## Combinations to avoid
+
+- **`[all]` + `[molmoact2]`**: `molmoact2` pins `transformers>=4.57,<4.58` while `all` allows `<5`. Resolvers may pick an incompatible set — install `molmoact2` in an isolated env instead of stacking it on `all`.
+- **`[all]` + `[train_core]`**: usually resolvable (`torch>=2.9` intersects `torch>=2.7,<2.12`), but prefer the training extras alone when you are not pulling the full `all` surface.
+- **Bare `pip install -e ".[vipe]"` (etc.) on GPU hosts**: extras that list bare `torch` do **not** select a CUDA wheel index. Use the conda/bootstrap path for CUDA builds.
+
+`distribution_metrics` and `train_core` both require `peft>=0.14,<1` so co-installing them does not drift on the peft lower bound.

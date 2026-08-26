@@ -160,7 +160,7 @@ metrics = [
 ]
 distribution_metrics = [
     "numpy",
-    "peft>=0.2.0",
+    "peft>=0.14,<1",
     "piq>=0.8.0",
     "pillow",
     "rke-score>=0.1.0",
@@ -342,7 +342,7 @@ all = [
     "aiohttp>=3.10,<4",
     "aiortc>=1.9,<2",
     "albumentations",
-    "av",
+    "av>=12,<20",
     "boto3",
     "dashscope",
     "decord",

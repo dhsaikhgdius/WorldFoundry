@@ -1,0 +1,40 @@
+---
+title: 打包与 extras
+description: optional-dependencies 与 dependency-groups 的分工，以及可安全组合的安装面。
+---
+
+WorldFoundry 在 `pyproject.toml` 里用两套相关但职责不同的依赖机制。日常安装用 extras；仓库内的锁定 / 工具链用 dependency-groups。
+
+## Extras 与 dependency-groups
+
+| 机制 | 位置 | 使用者 | 典型命令 |
+| --- | --- | --- | --- |
+| **可选 extras**（`[project.optional-dependencies]`） | 面向用户的安装面 | 贡献者、CI CPU 门禁、Studio/TUI | `pip install -e ".[ui]"` |
+| **Dependency groups**（`[dependency-groups]`） | 内部锁定 / 捆绑 pin | 安装脚本、CUDA tier 工具 | 由 setup / `uv` 工作流消费，不是默认文档路径 |
+
+Extras 是公开支持的安装入口。`flash_attn_fa25`、`runtime_clip_bundle`、`transformers_high` / `transformers_low`、`lint` 等 groups 用于引导与锁定 ABI 敏感栈，不应当作随手 `pip install -e ".[…]"` 的选项宣传。
+
+## 常用 extras
+
+| Extra | 用途 | 是否进 `[all]` | 示例 |
+| --- | --- | --- | --- |
+| `tui` | 终端 UI | 有重叠依赖 | `pip install -e ".[tui]"` |
+| `ui` | Studio Gradio/FastAPI | 是 | `pip install -e ".[ui]"` |
+| `studio_realtime` | WebRTC 实时前端 | 名字集合由 `ui` 覆盖 | `pip install -e ".[studio_realtime]"` |
+| `api` / `hf` / `mcp` / `web` | API、Hub、MCP、Web | 部分 | `pip install -e ".[mcp]"` |
+| `video` / `metrics` / `distribution_metrics` | 评测 / 指标 | 是 | `pip install -e ".[metrics]"` |
+| `test` / `dev` | CPU pytest 门禁与 lint | 否 | `pip install -e ".[dev]"` 后 `make test-eval-core` |
+| `train_core` / `train_video` | 训练入口依赖 | 否（torch 下限更高） | `pip install -e ".[train_core,train_video]"` |
+| `molmoact2` / `vipe` / `dvlt` | 模型族专项 | **否** — 单独安装 | `pip install -e ".[molmoact2]"` |
+| `rtx_postprocess` | 专有 NVIDIA VFX | **永不**进 `all` | 仅显式 opt-in |
+| `all` | 完整 GPU 工作站并集 | — | GPU 主机优先 bootstrap / `setup.sh` |
+
+CPU / CI：装小范围 extra（如 `.[tui,ui]` 或 `.[dev]`），再从 PyTorch CPU index 装 CPU torch。GPU 全量：走 `bash scripts/setup/setup.sh`（或 `bootstrap_worldfoundry.sh`），不要只靠 `pip install -e ".[all]"` 选 CUDA wheel。
+
+## 应避免的组合
+
+- **`[all]` + `[molmoact2]`**：`molmoact2` 钉死 `transformers>=4.57,<4.58`，而 `all` 允许 `<5`，解析结果可能冲突 — 请在隔离环境装 `molmoact2`，不要叠在 `all` 上。
+- **`[all]` + `[train_core]`**：通常可解析（`torch>=2.9` 与 `>=2.7,<2.12` 有交集），但若只做训练，优先只用训练 extras。
+- **在 GPU 主机裸装 `pip install -e ".[vipe]"` 等**：extra 里的裸 `torch` **不会**走 CUDA index。CUDA 构建请用 conda/bootstrap 路径。
+
+`distribution_metrics` 与 `train_core` 均要求 `peft>=0.14,<1`，同装时 peft 下限不再漂移。

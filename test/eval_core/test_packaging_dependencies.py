@@ -68,6 +68,18 @@ def test_unified_requirements_install_data_gpu_probe_dependencies() -> None:
         assert module in install_script
 
 
+def test_peft_pins_align_across_training_and_metrics() -> None:
+    optional = _optional_dependencies()
+    assert "peft>=0.14,<1" in optional["distribution_metrics"]
+    assert "peft>=0.14,<1" in optional["train_core"]
+
+
+def test_all_extra_av_pin_matches_train_video_upper_bound() -> None:
+    optional = _optional_dependencies()
+    assert "av>=12,<20" in optional["all"]
+    assert "av>=12,<20" in optional["train_video"]
+
+
 def test_optimized_core_extra_declares_flashdreams_runtime_dependencies() -> None:
     optional = _optional_dependencies()
 
