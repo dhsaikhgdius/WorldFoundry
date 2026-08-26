@@ -6,12 +6,25 @@ import os
 import shutil
 import subprocess
 import threading
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping, MutableMapping, Sequence
 from dataclasses import dataclass, field
 from typing import Callable
 
 _DISABLED_DEVICE_VALUES = frozenset({"", "-1", "none", "void"})
 _ALL_DEVICE_VALUES = frozenset({"all"})
+_DEFAULT_CUDA_DEVICE_ORDER = "PCI_BUS_ID"
+
+
+def ensure_cuda_device_order(environ: MutableMapping[str, str] | None = None) -> str:
+    """Ensure ``CUDA_DEVICE_ORDER=PCI_BUS_ID`` so numeric GPU indices match nvidia-smi / PCI order.
+
+    Call this before writing ``CUDA_VISIBLE_DEVICES``. Existing explicit values are
+    preserved (setdefault).
+    """
+
+    env = os.environ if environ is None else environ
+    env.setdefault("CUDA_DEVICE_ORDER", _DEFAULT_CUDA_DEVICE_ORDER)
+    return str(env.get("CUDA_DEVICE_ORDER") or _DEFAULT_CUDA_DEVICE_ORDER)
 
 
 @dataclass
@@ -164,7 +177,14 @@ def discover_cuda_device_tokens(
     timeout_seconds: float = 3.0,
 ) -> tuple[str, ...]:
     """Discover visible NVIDIA device ids without importing or initializing Torch."""
-    env = os.environ if environ is None else environ
+    if environ is None:
+        ensure_cuda_device_order(os.environ)
+        env: Mapping[str, str] = os.environ
+    else:
+        # Discovery against a custom mapping still pins order when mutable.
+        if isinstance(environ, MutableMapping):
+            ensure_cuda_device_order(environ)
+        env = environ
     if "CUDA_VISIBLE_DEVICES" in env:
         configured = str(env.get("CUDA_VISIBLE_DEVICES") or "").strip()
         if configured.lower() not in _ALL_DEVICE_VALUES:
@@ -224,5 +244,6 @@ __all__ = [
     "cuda_device_tokens",
     "default_cuda_device_groups",
     "discover_cuda_device_tokens",
+    "ensure_cuda_device_order",
     "normalize_cuda_device_groups",
 ]
