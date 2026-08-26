@@ -82,12 +82,11 @@ import shlex
 import sys
 from collections import Counter
 from pathlib import Path
-
-from worldfoundry.core.io.paths import project_root
 from typing import Any, Iterable
 
 import yaml
 
+from worldfoundry.core.io.paths import project_root
 
 ROOT = project_root(__file__)
 DOCS_ROOT = Path(__file__).resolve().parents[1]
