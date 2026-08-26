@@ -10,10 +10,10 @@ on:
       - "scripts/docs/build.sh"
   workflow_dispatch:
 
+# Job-level permissions below keep the OIDC token (id-token: write) out of the
+# build job, which runs the npm/Next.js toolchain; only deploy-pages needs it.
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: github-pages
@@ -22,6 +22,10 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # configure-pages with `enablement: true` creates/enables the Pages site.
+      pages: write
     env:
       NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
       NEXT_PUBLIC_SITE_URL: https://openenvision.github.io
@@ -59,6 +63,9 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: build
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
