@@ -1,4 +1,4 @@
-.PHONY: help install-core install-dev docs-check lint ruff-check ruff-format-check syntax-check shell-check data-check runtime-registry-check compile-eval cli-check precommit precommit-install preflight test-eval-core test-training
+.PHONY: help install-core install-dev docs-check lint ruff-check ruff-format-check syntax-check shell-check data-check runtime-registry-check compile-eval cli-check precommit precommit-install preflight test-eval-core test-training open-source-infer-repro
 
 PYTHON ?= python
 PIP ?= $(PYTHON) -m pip
@@ -117,3 +117,23 @@ test-eval-core:
 
 test-training:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest tests/training -q -p no:cacheprovider $(PYTEST_ARGS)
+
+OPEN_SOURCE_INFER_MODEL ?= matrix-game-2
+OPEN_SOURCE_INFER_HFD_ROOT ?= $(RELEASE_HFD_ROOT)
+OPEN_SOURCE_INFER_STRICT_LOCAL ?= 0
+
+open-source-infer-repro:
+	PYTHONPATH=$(PYTHONPATH) $(WORLDFOUNDRY_EVAL) zoo model-download \
+		--model-id $(OPEN_SOURCE_INFER_MODEL) \
+		--cache-dir $(OPEN_SOURCE_INFER_HFD_ROOT) \
+		--check-local
+	PYTHONPATH=$(PYTHONPATH) $(WORLDFOUNDRY_EVAL) zoo model-validate \
+		--model-id $(OPEN_SOURCE_INFER_MODEL) \
+		--cache-dir $(OPEN_SOURCE_INFER_HFD_ROOT) \
+		--check-local
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) scripts/model_zoo/open_source_infer_repro.py \
+		--model-id $(OPEN_SOURCE_INFER_MODEL) \
+		--cache-dir $(OPEN_SOURCE_INFER_HFD_ROOT) \
+		$(if $(filter 1,$(OPEN_SOURCE_INFER_STRICT_LOCAL)),--strict-local,) \
+		--output-dir tmp/open-source-infer-repro \
+		--json
