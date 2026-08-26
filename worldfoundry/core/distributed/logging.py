@@ -26,6 +26,28 @@ class DistributedLogger:
 
 distributed_logger = DistributedLogger.get_logger()
 
+
+def _adopt_unified_pipeline_if_configured() -> None:
+    """Join the unified logging pipeline when it was configured first.
+
+    CM-01: ``configure_logging`` deliberately does not import this module (it
+    would drag ``torch`` into lightweight CLI/catalog processes); it only
+    reparents the singleton when this module is already loaded. Cover the
+    opposite import order here: when the pipeline is already configured,
+    reparent immediately so ``print_rank_0`` & co. flow through the root
+    handlers regardless of which side loaded first.
+    """
+    from worldfoundry.core.logging_setup import is_configured
+
+    if not is_configured():
+        return
+    distributed_logger.handlers.clear()
+    distributed_logger.propagate = True
+    distributed_logger.setLevel(logging.getLogger().level)
+
+
+_adopt_unified_pipeline_if_configured()
+
 try:  # Keep the shared distributed helpers usable in minimal model environments.
     from loguru import logger as _backend_logger
 except ImportError:  # pragma: no cover - exercised in isolated runtime environments.

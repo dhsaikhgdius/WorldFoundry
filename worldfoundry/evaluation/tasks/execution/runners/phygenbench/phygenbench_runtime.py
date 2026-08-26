@@ -5,12 +5,12 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
 
 from worldfoundry.core.io.file_utils import materialize_file
+from worldfoundry.core.process import read_text_tail, run_logged_subprocess
 from worldfoundry.evaluation.tasks.execution.framework.official_runner import default_benchmark_timeout
 from worldfoundry.evaluation.tasks.execution.framework.runner_common import VIDEO_SUFFIXES
 from worldfoundry.evaluation.tasks.execution.runners.phygenbench.phygenbench_prompts import (
@@ -195,7 +195,9 @@ def _run_upstream_overall(*, repo_root: Path, model_name: str) -> Path:
     env = os.environ.copy()
     env.setdefault("PYTHONPATH", str(repo_root.resolve()))
     env["PHYGENBENCH_ROOT"] = str(repo_root.resolve())
-    completed = subprocess.run(
+    stdout_path = result_path.parent / "upstream_overall_stdout.log"
+    stderr_path = result_path.parent / "upstream_overall_stderr.log"
+    completed = run_logged_subprocess(
         [
             os.environ.get("WORLDFOUNDRY_UNIFIED_PYTHON", "python3"),
             str(overall_script.resolve()),
@@ -204,17 +206,17 @@ def _run_upstream_overall(*, repo_root: Path, model_name: str) -> Path:
             "--model-name",
             model_name,
         ],
+        stdout_path=stdout_path,
+        stderr_path=stderr_path,
         cwd=str(repo_root.resolve()),
-        text=True,
-        capture_output=True,
-        check=False,
         env=env,
         timeout=default_benchmark_timeout(),
     )
     if completed.returncode != 0:
+        detail = read_text_tail(stderr_path) or read_text_tail(stdout_path)
         raise RuntimeError(
             "PhyGenBench upstream overall.py failed "
-            f"(exit={completed.returncode}): {completed.stderr.strip() or completed.stdout.strip()}"
+            f"(exit={completed.returncode}): {detail}"
         )
     if not result_path.is_file():
         raise FileNotFoundError(

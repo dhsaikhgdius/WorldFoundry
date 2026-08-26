@@ -1,0 +1,8 @@
+# WorldFoundry unified lock for CUDA tier cu128 (plan I-05).
+# Regenerate with: make lock-unified TIER=cu128
+# --index-url https://download.pytorch.org/whl/cu128
+# --constraint requirements/cuda/cu128-torch.txt (I-03 TIER_TORCH_SPECS)
+#
+# Placeholder: intentionally carries no resolved pins. Do NOT invent versions
+# here — run the compile script on a host that can reach PyPI and the PyTorch
+# CUDA wheel index, then commit the resulting lock body.

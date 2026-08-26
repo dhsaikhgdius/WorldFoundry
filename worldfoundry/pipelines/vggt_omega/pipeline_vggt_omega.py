@@ -11,13 +11,14 @@ from PIL import Image
 
 from ...synthesis.visual_generation.memory.runtime import RuntimeMemory
 from ...operators.vggt_omega_operator import VGGTOmegaOperator
+from worldfoundry.core.io.paths import project_root
 from worldfoundry.representations.point_clouds_generation.vggt.vggt_omega_representation import (
     VGGTOmegaRepresentation,
 )
 from ..pipeline_utils import PipelineABC
 
 
-_REPO_ROOT = Path(__file__).resolve().parents[4]
+_REPO_ROOT = project_root(__file__)
 DEFAULT_VGGT_OMEGA_CHECKPOINT = Path(
     os.environ.get(
         "WORLDFOUNDRY_VGGT_OMEGA_CHECKPOINT_DIR",

@@ -8,14 +8,15 @@ import importlib.util
 import json
 import os
 import re
-import subprocess
 import sys
 import time
 from pathlib import Path
 from typing import Any, Iterable
 
 from worldfoundry.base_models.capabilities import vbench_asset_path
+from worldfoundry.core.io.paths import project_root
 from worldfoundry.core.io.serialization import read_jsonl_objects, write_jsonl
+from worldfoundry.core.process import read_text_tail, run_logged_subprocess
 from worldfoundry.evaluation.tasks.execution.framework.benchmark_assets import bundled_benchmark_asset
 from worldfoundry.evaluation.tasks.execution.runners.fetv.fetv_prompts import (
     FETV_FRAME_COUNT,
@@ -24,7 +25,7 @@ from worldfoundry.evaluation.tasks.execution.runners.fetv.fetv_prompts import (
 )
 
 OFFICIAL_RUNTIME_ROOT = Path(__file__).resolve().parent / "runtime" / "fetv_eval"
-REPO_ROOT = Path(__file__).resolve().parents[6]
+REPO_ROOT = project_root(__file__)
 FETV_BLIP_ROOT = REPO_ROOT / "worldfoundry" / "base_models" / "perception_core" / "video_text" / "fetv_blip"
 BLIP_CONFIG_PATH = FETV_BLIP_ROOT / "blip_config.yaml"
 FETV_STYLEGAN_V_ROOT = (
@@ -382,17 +383,15 @@ def _run_command(
     stdout_path = output_dir / f"{name}.stdout.log"
     stderr_path = output_dir / f"{name}.stderr.log"
     started = time.monotonic()
-    with stdout_path.open("w", encoding="utf-8") as stdout, stderr_path.open("w", encoding="utf-8") as stderr:
-        completed = subprocess.run(
-            command,
-            cwd=cwd,
-            env=env,
-            stdout=stdout,
-            stderr=stderr,
-            text=True,
-            timeout=timeout_seconds,
-            check=False,
-        )
+    completed = run_logged_subprocess(
+        command,
+        stdout_path=stdout_path,
+        stderr_path=stderr_path,
+        cwd=cwd,
+        env=env,
+        timeout=timeout_seconds,
+        start_new_session=False,
+    )
     record = {
         "name": name,
         "command": command,
@@ -403,7 +402,11 @@ def _run_command(
         "stderr_path": str(stderr_path),
     }
     if completed.returncode != 0:
-        raise RuntimeError(f"FETV official metric {name} failed with exit code {completed.returncode}; see {stderr_path}")
+        detail = read_text_tail(stderr_path) or read_text_tail(stdout_path)
+        raise RuntimeError(
+            f"FETV official metric {name} failed with exit code {completed.returncode}; "
+            f"see {stderr_path}: {detail}"
+        )
     return record
 
 

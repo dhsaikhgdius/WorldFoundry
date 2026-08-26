@@ -9,20 +9,18 @@ import math
 import os
 import re
 import shutil
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Mapping
 
-REPO_ROOT = Path(__file__).resolve().parents[6]
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
+from worldfoundry.core.io.paths import project_root
+from worldfoundry.core.process import read_text_tail, run_logged_subprocess
+from worldfoundry.core.time import utc_now_iso
+from worldfoundry.evaluation.reporting.scorecard import SCORECARD_SCHEMA_VERSION
+from worldfoundry.evaluation.tasks.execution.framework.io import env_path, write_json
+from worldfoundry.evaluation.tasks.execution.framework.official_runner import default_benchmark_timeout
 
-from worldfoundry.core.time import utc_now_iso  # noqa: E402
-from worldfoundry.evaluation.reporting.scorecard import SCORECARD_SCHEMA_VERSION  # noqa: E402
-from worldfoundry.evaluation.tasks.execution.framework.io import env_path, write_json  # noqa: E402
-from worldfoundry.evaluation.tasks.execution.framework.official_runner import default_benchmark_timeout  # noqa: E402
-
+REPO_ROOT = project_root(__file__)
 RUNNER_ROOT = Path(__file__).resolve().parent
 DEFAULT_WBENCH_ROOT = RUNNER_ROOT / "runtime" / "wbench"
 VIDEO_SUFFIXES = {".mp4", ".mov", ".mkv", ".webm", ".avi"}
@@ -666,17 +664,17 @@ def run_official_wbench(args: argparse.Namespace) -> dict[str, Any]:
     if args.weights_dir is not None:
         env["WBENCH_WEIGHTS_DIR"] = str(args.weights_dir.expanduser().resolve())
     started = utc_now_iso()
-    proc = subprocess.run(
+    stdout_path = output_dir / "wbench_official_runtime.stdout.log"
+    stderr_path = output_dir / "wbench_official_runtime.stderr.log"
+    proc = run_logged_subprocess(
         command,
+        stdout_path=stdout_path,
+        stderr_path=stderr_path,
         cwd=str(root),
         env=env,
-        text=True,
-        capture_output=True,
-        check=False,
         timeout=default_benchmark_timeout(),
+        start_new_session=False,
     )
-    log_path = output_dir / "wbench_official_runtime.log"
-    log_path.write_text((proc.stdout or "") + ("\n[stderr]\n" + proc.stderr if proc.stderr else ""), encoding="utf-8")
     eval_dir = Path(work_dir).expanduser().resolve() / model / "evaluation"
     report_path = eval_dir / "report.json"
     args.official_results_path = report_path if report_path.is_file() else eval_dir
@@ -684,7 +682,8 @@ def run_official_wbench(args: argparse.Namespace) -> dict[str, Any]:
         "command": command,
         "returncode": proc.returncode,
         "started_at": started,
-        "log_path": str(log_path.resolve()),
+        "stdout_log_path": str(stdout_path.resolve()),
+        "stderr_log_path": str(stderr_path.resolve()),
         "model_id": model_id,
         "runtime_model_name": model,
         "phase": args.phase,
@@ -697,7 +696,11 @@ def run_official_wbench(args: argparse.Namespace) -> dict[str, Any]:
         "staging_manifest": str(staging_manifest_path) if staged_rows else None,
     }
     if proc.returncode != 0:
-        raise RuntimeError(f"WBench official runtime failed with code {proc.returncode}; see {log_path}")
+        detail = read_text_tail(stderr_path) or read_text_tail(stdout_path)
+        raise RuntimeError(
+            f"WBench official runtime failed with code {proc.returncode}; "
+            f"see {stderr_path}: {detail}"
+        )
     return normalize_wbench_results(args, official_runtime_executed=True, runtime_summary=runtime_summary)
 
 
