@@ -19,6 +19,7 @@ import atexit
 import codecs
 import hashlib
 import json
+import logging
 import os
 import re
 import select
@@ -131,6 +132,8 @@ DISPATCH_ONLY_CALL_KWARGS = frozenset(
     }
 )
 
+_LOGGER = logging.getLogger(__name__)
+
 LogCallback = Callable[[str, str], None]
 CancelCallback = Callable[[], bool]
 
@@ -196,12 +199,23 @@ def _automatic_gpu_pool() -> CudaDeviceLeasePool:
 
     global _AUTO_GPU_POOL, _AUTO_GPU_POOL_DEVICES
     devices = discover_cuda_device_tokens()
-    if not devices:
-        raise RuntimeError("device=cuda was requested, but no visible CUDA devices were discovered")
     with _AUTO_GPU_POOL_LOCK:
-        if _AUTO_GPU_POOL is None or _AUTO_GPU_POOL_DEVICES != devices:
+        if _AUTO_GPU_POOL is None:
+            if not devices:
+                raise RuntimeError("device=cuda was requested, but no visible CUDA devices were discovered")
             _AUTO_GPU_POOL = CudaDeviceLeasePool(devices)
             _AUTO_GPU_POOL_DEVICES = devices
+        elif devices != _AUTO_GPU_POOL_DEVICES:
+            # Replacing the pool would orphan leases held by in-flight jobs and
+            # allow double-booking the same physical GPU. Freeze the device set
+            # discovered first and only report the discrepancy.
+            _LOGGER.warning(
+                "CUDA device discovery changed from %s to %s after the automatic GPU pool "
+                "was created; keeping the original pool. Restart the Studio server to pick "
+                "up the new device topology.",
+                _AUTO_GPU_POOL_DEVICES,
+                devices,
+            )
         return _AUTO_GPU_POOL
 
 
@@ -1585,6 +1599,11 @@ def _runtime_env(spec: RuntimeCondaEnvSpec, device: str | None = None) -> dict[s
         env.setdefault("CUDA_CACHE_PATH", _runtime_cache_dir(spec, "cuda"))
         env.setdefault("XDG_CACHE_HOME", _runtime_cache_dir(spec, "xdg"))
     env["PYTHONPATH"] = _runtime_pythonpath(spec, env)
+    # Device indices used across Studio (device_pool, _parse_nvidia_smi_rows,
+    # CUDA_VISIBLE_DEVICES pins) come from nvidia-smi, which enumerates GPUs in
+    # PCI bus order. CUDA's default FASTEST_FIRST ordering can disagree on
+    # heterogeneous hosts, so align the child runtime with nvidia-smi.
+    env.setdefault("CUDA_DEVICE_ORDER", "PCI_BUS_ID")
     # Map device string like "cuda:3" to CUDA_VISIBLE_DEVICES=3
     # so each job can run on a specific GPU instead of all defaulting to GPU 0.
     if device and device.startswith("cuda"):
