@@ -231,16 +231,22 @@ def local_path_for_uri(uri: str | os.PathLike[str], **storage_options) -> Genera
 def copy_uri(src: str | os.PathLike[str], dst: str | os.PathLike[str], **storage_options) -> str:
     """Copy one URI to another using storage-aware byte streams.
 
-    Remote transfers stream in bounded chunks instead of buffering the whole
-    object in memory; this is the byte mover underneath the download caches,
-    where objects are multi-GB checkpoints.
+    Local file→file copies prefer a copy-on-write reflink via
+    :func:`worldfoundry.core.io.file_utils.materialize_file` (falling back to
+    ``copy2``). Remote transfers stream in bounded chunks instead of buffering
+    the whole object in memory; this is the byte mover underneath the download
+    caches, where objects are multi-GB checkpoints.
     """
 
     if parse_uri_scheme(src) == "file" and parse_uri_scheme(dst) == "file":
+        # Prefer reflink / hardlink / copy2 via materialize_file instead of a
+        # full byte-for-byte shutil.copy for large local checkpoints.
+        from worldfoundry.core.io.file_utils import materialize_file
+
         source = uri_to_local_path(src)
         target = uri_to_local_path(dst)
-        target.parent.mkdir(parents=True, exist_ok=True)
-        return str(shutil.copy(source, target))
+        materialize_file(source, target, writable=True)
+        return str(target)
     with open_uri(src, "rb", **storage_options) as source_handle:
         with open_uri(dst, "wb", **storage_options) as target_handle:
             shutil.copyfileobj(source_handle, target_handle, length=_COPY_CHUNK_BYTES)
