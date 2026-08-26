@@ -16,6 +16,10 @@ from worldfoundry.core.process import run_logged_subprocess
 
 __all__ = ['save_video', 'save_image']
 
+# Modified by WorldFoundry (plan/code_review/12_cross_cutting.md XC-20): library
+# code must not configure the root logger; use a module-private logger instead.
+logger = logging.getLogger(__name__)
+
 
 def rand_name(length=8, suffix=''):
     """Rand name.
@@ -41,9 +45,6 @@ def merge_video_audio(video_path: str, audio_path: str):
     video_path (str): Path to the original video file
     audio_path (str): Path to the audio file
     """
-    # set logging
-    logging.basicConfig(level=logging.INFO)
-
     # check
     if not os.path.exists(video_path):
         raise FileNotFoundError(f"video file {video_path} does not exist")
@@ -77,7 +78,7 @@ def merge_video_audio(video_path: str, audio_path: str):
         ]
 
         # execute the command
-        logging.info("Start merging video and audio...")
+        logger.info("Start merging video and audio...")
         log_dir = Path(temp_output).resolve().parent / "ffmpeg_logs"
         stdout_path = log_dir / "wan_merge_audio.stdout.log"
         stderr_path = log_dir / "wan_merge_audio.stderr.log"
@@ -91,11 +92,11 @@ def merge_video_audio(video_path: str, audio_path: str):
         if result.returncode != 0:
             err = stderr_path.read_text(encoding="utf-8", errors="replace") if stderr_path.is_file() else ""
             error_msg = f"FFmpeg execute failed: {err}"
-            logging.error(error_msg)
+            logger.error(error_msg)
             raise RuntimeError(error_msg)
 
         shutil.move(temp_output, video_path)
-        logging.info(f"Merge completed, saved to {video_path}")
+        logger.info(f"Merge completed, saved to {video_path}")
 
     finally:
         # Failures propagate to the caller; only the temp mux output is
@@ -147,7 +148,7 @@ def save_video(tensor,
     except Exception as e:
         # Vendored contract swallows the error; log at ERROR so a missing
         # output file is at least visible in logs.
-        logging.error(f'save_video failed, error: {e}')
+        logger.error(f'save_video failed, error: {e}')
 
 
 def save_image(tensor, save_file, nrow=8, normalize=True, value_range=(-1, 1)):
@@ -179,7 +180,7 @@ def save_image(tensor, save_file, nrow=8, normalize=True, value_range=(-1, 1)):
         return save_file
     except Exception as e:
         # Vendored contract swallows the error (returns None); log at ERROR.
-        logging.error(f'save_image failed, error: {e}')
+        logger.error(f'save_image failed, error: {e}')
 
 
 def masks_like(tensor, zero=False, generator=None, p=0.2, current_latent_num=None):

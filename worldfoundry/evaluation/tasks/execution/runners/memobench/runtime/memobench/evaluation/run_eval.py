@@ -8,9 +8,6 @@ import pandas as pd
 from tqdm import tqdm
 from datetime import datetime
 
-logging.getLogger().setLevel(logging.WARNING)
-logging.disable(logging.INFO)   # suppress per-clip tokenizer spam from open_clip/ImageReward
-
 from automated.io.frames import FrameReader, VideoReader
 from automated.io.metadata import (
     load_intrinsics,
@@ -506,6 +503,12 @@ def discover_clips_real(gen_root: str = GEN_ROOT_REAL,
 
 
 def main():
+    # Modified by WorldFoundry (plan/code_review/12_cross_cutting.md XC-20):
+    # configure the root logger only inside the CLI entry point instead of at
+    # import time, so importing this module never silences the host process.
+    logging.getLogger().setLevel(logging.WARNING)
+    logging.disable(logging.INFO)   # suppress per-clip tokenizer spam from open_clip/ImageReward
+
     ap = argparse.ArgumentParser(description="MemoBench evaluation.")
     ap.add_argument("--mode", choices=["synthetic", "real", "both"],
                     default="synthetic",
