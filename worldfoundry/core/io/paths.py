@@ -15,6 +15,7 @@ this engine guarantees:
 
 from __future__ import annotations
 
+import json
 import os
 import sysconfig
 from importlib.util import find_spec
@@ -252,6 +253,44 @@ def hfd_root_path(*parts: str | Path, env: Mapping[str, str] | None = None) -> P
     return resolve_worldfoundry_path("${WORLDFOUNDRY_HFD_ROOT}", env).joinpath(*(Path(part) for part in parts))
 
 
+def _is_commit_like_revision(value: str | None) -> bool:
+    if not value:
+        return False
+    return len(value) >= 7 and all(char in "0123456789abcdefABCDEF" for char in value)
+
+
+def _direct_hfd_revision(directory: Path) -> str | None:
+    """Read the pinned revision for a direct-layout HFD/HF export directory."""
+
+    metadata_path = directory / ".hfd" / "repo_metadata.json"
+    if not metadata_path.is_file():
+        return None
+    try:
+        payload = json.loads(metadata_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, Mapping):
+        return None
+    revision = payload.get("sha") or payload.get("revision") or payload.get("commit")
+    if isinstance(revision, str) and revision.strip():
+        return revision.strip()
+    return None
+
+
+def _direct_revision_matches(revision: str | None, direct_revision: str | None) -> bool:
+    """Match requested revision against direct-layout metadata (DS-05).
+
+    Mirrors ``evaluation.tasks.datasets.manager._direct_revision_matches``:
+    commit-like pins require equality; symbolic refs only require metadata presence.
+    """
+
+    if revision and _is_commit_like_revision(revision):
+        return direct_revision == revision
+    if revision:
+        return bool(direct_revision)
+    return True
+
+
 def resolve_local_hf_model_path(
     model_id_or_path: str | Path,
     *,
@@ -358,6 +397,11 @@ def resolve_local_hf_model_path(
                     return snapshot.resolve()
             return None
         if all((directory / name).is_file() for name in required_files):
+            requested = None if revision is None else str(revision).strip()
+            if requested == "":
+                raise ValueError("Hugging Face revision cannot be empty")
+            if not _direct_revision_matches(requested, _direct_hfd_revision(directory)):
+                return None
             return directory.resolve()
         return None
 
