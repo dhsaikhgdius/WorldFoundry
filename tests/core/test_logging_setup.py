@@ -28,6 +28,7 @@ _TRACKED_ENV = (
     _LOG_JSON_ENV,
     _SP_CONFIGURE_ENV,
     "WORLDFOUNDRY_LOG_CONTEXT",
+    "WORLDFOUNDRY_LOG_CONSOLE_FIELDS",
     "WORLDFOUNDRY_RUN_ID",
 )
 
@@ -366,3 +367,16 @@ def test_cli_logging_flag_pre_scan():
     assert level is None and log_file is None and log_json is None
     assert verbose is True
     assert rest == ["zoo", "benchmark-run"]
+
+
+def test_console_fields_suffix_on_event(isolated_logging, capsys):
+    """LG-09: WORLDFOUNDRY_LOG_CONSOLE_FIELDS appends event= to console text."""
+
+    os.environ["WORLDFOUNDRY_LOG_CONSOLE_FIELDS"] = "1"
+    configure_logging(level="INFO", force=True)
+    get_logger("wf.test").event("INFO", "run.started", "hello console", run_id="r1")
+    _flush()
+    err = capsys.readouterr().err
+    assert "hello console" in err
+    assert "event=run.started" in err
+    assert "run_id=r1" in err
