@@ -5,7 +5,6 @@ import argparse
 import json
 import os
 import shutil
-import subprocess
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -14,8 +13,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
+from worldfoundry.core.io.paths import project_root
+from worldfoundry.core.process import run_logged_subprocess
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = project_root(__file__)
 DEFAULT_HF_ROOT = Path(os.environ.get("WORLDFOUNDRY_HFD_ROOT", REPO_ROOT / "cache" / "checkpoints" / "hfd"))
 DEFAULT_ASSET_ROOT = Path(os.environ.get("WORLDFOUNDRY_ASSET_ROOT", REPO_ROOT / "cache" / "assets"))
 DEFAULT_OPENPI_ROOT = Path(os.environ.get("WORLDFOUNDRY_OPENPI_ASSET_ROOT", DEFAULT_ASSET_ROOT / "openpi"))
@@ -198,9 +199,19 @@ def _download_hf(asset: Asset, args: argparse.Namespace, env: dict[str, str], lo
         return event
 
     log_path.parent.mkdir(parents=True, exist_ok=True)
+    stdout_path = log_path.with_suffix(log_path.suffix + ".stdout")
+    stderr_path = log_path.with_suffix(log_path.suffix + ".stderr")
     start = time.monotonic()
-    completed = subprocess.run(command, env=env, text=True, capture_output=True, timeout=args.url_timeout_seconds, check=False)
-    log_path.write_text((completed.stdout or "") + (completed.stderr or ""), encoding="utf-8")
+    completed = run_logged_subprocess(
+        command,
+        stdout_path=stdout_path,
+        stderr_path=stderr_path,
+        env=env,
+        timeout=args.url_timeout_seconds,
+    )
+    out = stdout_path.read_text(encoding="utf-8", errors="replace") if stdout_path.is_file() else ""
+    err = stderr_path.read_text(encoding="utf-8", errors="replace") if stderr_path.is_file() else ""
+    log_path.write_text(out + err, encoding="utf-8")
     event.update(
         {
             "status": "ready" if completed.returncode == 0 and _asset_ready(asset) else "failed",

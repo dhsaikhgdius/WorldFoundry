@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from worldfoundry.core.io.paths import project_root
+
 import pytest
 
 torch = pytest.importorskip("torch")
@@ -194,7 +196,7 @@ def test_flow_policy_builder_dispatches_bagel_runtime_and_reference_role() -> No
 
 def test_checked_in_bagel_config_and_public_exports_are_canonical() -> None:
     pytest.importorskip("yaml")
-    root = Path(__file__).resolve().parents[6]
+    root = project_root(__file__)
     recipe = PostTrainingRecipe.from_file(root / "configs/post_training/wan_1p3b_bagel_flow_unigrpo.yaml")
 
     assert isinstance(recipe.algorithm, BagelFlowUniGRPOAlgorithmSpec)
