@@ -1,9 +1,10 @@
 name: worldfoundry
 channels:
   - conda-forge
-  - pytorch
+  # cuda-nvcc is installed from here by scripts/setup/conda_install.sh.
   - nvidia
-  - defaults
+  # Keep Anaconda `defaults` out even when a user .condarc adds it (ToS).
+  - nodefaults
 dependencies:
   - python=3.11
   - pip
