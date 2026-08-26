@@ -7,6 +7,8 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
+from test.eval_core.factories import write_targets_manifest as _write_manifest
+
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -20,11 +22,6 @@ def _load_script() -> ModuleType:
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
-
-
-def _write_manifest(path: Path, targets: list[dict[str, object]]) -> Path:
-    path.write_text(json.dumps({"targets": targets}), encoding="utf-8")
-    return path
 
 
 def _git(repo: Path, *args: str) -> str:

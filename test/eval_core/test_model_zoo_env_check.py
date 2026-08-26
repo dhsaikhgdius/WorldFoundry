@@ -8,6 +8,8 @@ from types import ModuleType
 
 import pytest
 
+from test.eval_core.factories import write_model_manifest as _write_manifest
+
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -21,13 +23,6 @@ def _load_script(name: str) -> ModuleType:
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
-
-
-def _write_manifest(manifest_dir: Path, payload: object) -> Path:
-    manifest_dir.mkdir(parents=True, exist_ok=True)
-    path = manifest_dir / "models.yaml"
-    path.write_text(json.dumps(payload), encoding="utf-8")
-    return path
 
 
 def _write_ready_checkpoint(cache_dir: Path, repo_id: str) -> None:
