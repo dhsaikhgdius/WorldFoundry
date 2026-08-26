@@ -3,8 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 from urllib.parse import quote
 
+from worldfoundry.core.io.paths import package_root
 
-STUDIO_ASSET_DIR = Path(__file__).resolve().parents[1] / "assets"
+STUDIO_ASSET_DIR = package_root() / "studio" / "assets"
 VENDOR_DIR = STUDIO_ASSET_DIR / "vendor"
 SPARK_ROOT = VENDOR_DIR / "spark"
 THREE_ROOT = VENDOR_DIR / "three"

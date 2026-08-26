@@ -20,25 +20,16 @@ from worldfoundry.core.io import (
     save_video_frames,
     video_tensor_to_uint8_frames,
 )
-from worldfoundry.core.io.paths import checkpoint_root_path, hfd_root_path
+from worldfoundry.core.io.paths import checkpoint_root_path, hfd_root_path, project_root
 
 
 DEFAULT_LYRA2_ALIAS = "lyra-2"
 DEFAULT_LYRA1_ALIAS = "lyra-1"
 
 
-def project_root() -> Path:
-    """Project root helper function."""
-    current = Path(__file__).resolve()
-    for parent in current.parents:
-        if (parent / "pyproject.toml").is_file():
-            return parent
-    return current.parents[4]
-
-
 def lyra_runtime_root(name: str) -> Path:
     """Lyra runtime root helper function."""
-    root = project_root()
+    root = project_root(__file__)
     direct_root = root / "worldfoundry" / "synthesis" / "visual_generation"
     visual_generation_root = (
         direct_root
@@ -338,7 +329,7 @@ def prepare_lyra1_checkpoint_root(
     if _lyra1_checkpoint_layout_complete(gen3c_checkpoint_root):
         return str(gen3c_checkpoint_root)
 
-    stage_root = project_root() / "cache" / "runtime" / "lyra1_checkpoints"
+    stage_root = project_root(__file__) / "cache" / "runtime" / "lyra1_checkpoints"
     if stage_root.exists():
         _reset_dir(stage_root)
     stage_root.mkdir(parents=True, exist_ok=True)
@@ -512,7 +503,7 @@ def load_pil_image(image_input) -> Image.Image:
 def build_subprocess_env(repo_root: str) -> dict:
     """Build subprocess env helper function."""
     env = os.environ.copy()
-    root = project_root()
+    root = project_root(__file__)
     pythonpath_entries = [repo_root, str(root / "src"), str(root)]
     for candidate in [
         root / "src" / "worldfoundry" / "base_models" / "three_dimensions" / "general_3d" / "eastern_journalist",
