@@ -8,6 +8,7 @@ possible.
 
 from __future__ import annotations
 
+import argparse
 import os
 import re
 from dataclasses import dataclass, field
@@ -49,7 +50,15 @@ DEFAULT_ENV_MANIFEST = DATA_ROOT / "models" / "runtime" / "environments"
 DEFAULT_ENV_ROOT = conda_envs_root_path()
 RUNTIME_ENV_INSTALLING_MARKER = ".worldfoundry-installing"
 RUNTIME_ENV_READY_MARKER = ".worldfoundry-ready"
+# Single source of truth for legacy model-id aliases (I-12). Shell installers
+# must query this table via ``python -m worldfoundry.runtime.conda
+# --canonical-model-id`` instead of maintaining their own copy.
 _MODEL_ID_ALIASES = {
+    "cosmos-3": "cosmos3",
+    "cosmos-3-nano": "cosmos3",
+    "cosmos-3-super": "cosmos3",
+    "cosmos3-nano": "cosmos3",
+    "cosmos3-super": "cosmos3",
     "lyra1": "lyra-1",
 }
 
@@ -73,10 +82,14 @@ def runtime_env_is_usable(prefix: str | Path) -> bool:
     )
 
 
-def _canonical_model_id(model_id: str) -> str:
+def canonical_model_id(model_id: str) -> str:
     """Return the canonical runtime model id while accepting legacy aliases."""
     text = str(model_id or "").strip()
     return _MODEL_ID_ALIASES.get(text, text)
+
+
+# Backwards-compatible internal alias; new code should use canonical_model_id.
+_canonical_model_id = canonical_model_id
 
 
 def _expand_runtime_path(value: str | Path | None) -> Path | None:
@@ -623,6 +636,7 @@ def resolve_conda_executable(
 __all__ = [
     "RuntimeCondaEnvSpec",
     "apply_unified_env_override",
+    "canonical_model_id",
     "clear_runtime_conda_env_cache",
     "cuda_version_tuple",
     "detect_nvidia_driver_cuda",
@@ -634,3 +648,30 @@ __all__ = [
     "resolve_conda_executable",
     "unified_env_blocker",
 ]
+
+
+def _main(argv: Sequence[str] | None = None) -> int:
+    """Answer model-id queries for shell installers without duplicating tables.
+
+    Args:
+        argv: Optional argument list; defaults to ``sys.argv[1:]``.
+    """
+    parser = argparse.ArgumentParser(
+        description="Query WorldFoundry runtime conda helpers.",
+    )
+    parser.add_argument(
+        "--canonical-model-id",
+        dest="model_ids",
+        nargs="+",
+        required=True,
+        metavar="MODEL_ID",
+        help="Print the canonical runtime model id for each given id, one per line.",
+    )
+    args = parser.parse_args(argv)
+    for model_id in args.model_ids:
+        print(canonical_model_id(model_id))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(_main())

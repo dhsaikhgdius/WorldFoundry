@@ -10,13 +10,14 @@ from urllib.parse import unquote
 import httpx
 from PIL import Image
 
+from worldfoundry.core.io.paths import package_root
+
 from .assets import STUDIO_ASSET_DIR
 from .status import status_block as _status_block
 from .urls import file_url as _file_url
 
-
 STUDIO_LOGO_PATH = STUDIO_ASSET_DIR / "openenvision-logo.png"
-DEMO_IMAGE_LIBRARY_ROOT = Path(__file__).resolve().parents[2] / "data" / "test_cases" / "studio_demo"
+DEMO_IMAGE_LIBRARY_ROOT = package_root() / "data" / "test_cases" / "studio_demo"
 TRAY_DEMO_IMAGE_COUNT = 9
 
 
