@@ -23,6 +23,7 @@ import os
 import re
 import select
 import signal
+from worldfoundry.core.logging_setup import log_context_environment
 import subprocess
 import sys
 import tempfile
@@ -1591,6 +1592,8 @@ def _runtime_env(spec: RuntimeCondaEnvSpec, device: str | None = None) -> dict[s
         gpu_idx = device.split(":")[1] if ":" in device else None
         if gpu_idx is not None and gpu_idx.isdigit():
             env["CUDA_VISIBLE_DEVICES"] = gpu_idx
+    # Propagate structured logging correlation into conda workers (LG-01).
+    env.update(log_context_environment())
     return env
 
 

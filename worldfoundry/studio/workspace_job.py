@@ -9,9 +9,13 @@ from typing import Any
 
 from fastapi import HTTPException
 
+from worldfoundry.core.logging_setup import get_logger
+
 from .catalog import find_entry
 from .conda_dispatch import dispatch_spec_for_inference, run_manager_payload_in_conda
 from .execution import StudioManager
+logger = get_logger(__name__)
+
 from .workspace_app import (
     SETTINGS,
     JobCreateRequest,
@@ -245,10 +249,10 @@ def main(argv: list[str] | None = None) -> int:
     try:
         return int(args.func(args))
     except HTTPException as exc:
-        print(str(exc.detail), file=sys.stderr)
+        logger.error("%s", exc.detail)
         return int(exc.status_code or 1)
     except (RuntimeError, ValueError) as exc:
-        print(str(exc), file=sys.stderr)
+        logger.error("%s", exc)
         return 2
 
 
