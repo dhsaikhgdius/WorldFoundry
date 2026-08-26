@@ -313,3 +313,16 @@ def test_batch13_studio_assets_use_package_root() -> None:
         assert "from worldfoundry.core.io.paths import package_root" in text, rel
         assert "package_root()" in text, rel
         assert "Path(__file__).resolve().parents[" not in text, rel
+
+
+def test_batch15_runtime_modules_use_paths_project_root() -> None:
+    """runtime probes/performance resolve repo root via project_root."""
+    repo = Path(__file__).resolve().parents[2]
+    for rel in (
+        "worldfoundry/runtime/probes.py",
+        "worldfoundry/runtime/performance.py",
+    ):
+        text = (repo / rel).read_text(encoding="utf-8")
+        assert "from worldfoundry.core.io.paths import project_root" in text, rel
+        assert "project_root(" in text, rel
+        assert "Path(__file__).resolve().parents[" not in text, rel
