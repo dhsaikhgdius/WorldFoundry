@@ -68,6 +68,38 @@ def test_unified_requirements_install_data_gpu_probe_dependencies() -> None:
         assert module in install_script
 
 
+def test_ui_extra_pins_gradio_below_v6() -> None:
+    optional = _optional_dependencies()
+    ui = optional["ui"]
+    all_extra = optional["all"]
+
+    assert any(dep.startswith("gradio>") or dep.startswith("gradio=") for dep in ui)
+    assert any("<6" in dep for dep in ui if dep.startswith("gradio"))
+    assert any(dep.startswith("starlette<1") for dep in ui)
+    assert any("<6" in dep for dep in all_extra if dep.startswith("gradio"))
+
+    # Docs claim worldfoundry[ui] already covers studio_realtime (name set).
+    def _names(deps: list[str]) -> set[str]:
+        out: set[str] = set()
+        for dep in deps:
+            name = dep.split("[", 1)[0]
+            for sep in (">", "<", "=", "!", "~", ";"):
+                name = name.split(sep, 1)[0]
+            out.add(name.strip().lower())
+        return out
+
+    assert _names(optional["studio_realtime"]).issubset(_names(ui))
+
+
+def test_dev_and_lint_groups_pin_ruff_exactly() -> None:
+    with (REPO_ROOT / "pyproject.toml").open("rb") as handle:
+        payload = tomllib.load(handle)
+    optional = payload["project"]["optional-dependencies"]
+    lint = payload["dependency-groups"]["lint"]
+    assert "ruff==0.12.7" in optional["dev"]
+    assert "ruff==0.12.7" in lint
+
+
 def test_optimized_core_extra_declares_flashdreams_runtime_dependencies() -> None:
     optional = _optional_dependencies()
 
