@@ -63,3 +63,12 @@ checkout_only_provenance:
 - worldfoundry/synthesis/visual_generation/unianimate_dit/unianimate_dit_runtime
 - worldfoundry/synthesis/visual_generation/versecrafter/versecrafter_runtime
 - worldfoundry/synthesis/visual_generation/video_x_fun/video_x_fun_runtime
+- worldfoundry/synthesis/visual_generation/vmem/vmem_runtime
+- worldfoundry/synthesis/visual_generation/warp_as_history/warp_as_history_runtime
+- worldfoundry/synthesis/visual_generation/wonderjourney/wonderjourney_runtime
+- worldfoundry/synthesis/visual_generation/wonderworld/wonderworld_runtime
+- worldfoundry/synthesis/visual_generation/worldcam/worldcam_runtime
+- worldfoundry/synthesis/visual_generation/worldfm/worldfm_runtime
+- worldfoundry/synthesis/visual_generation/worldgen/worldgen_runtime
+- worldfoundry/synthesis/visual_generation/wow/wow_runtime
+- worldfoundry/synthesis/visual_generation/yume/yume_runtime
