@@ -10,7 +10,6 @@ operations on the metric registry.
 from __future__ import annotations
 
 import argparse
-import os
 from pathlib import Path
 
 from worldfoundry.evaluation.utils import BENCHMARK_TASK_ROOT, TMP_ROOT
@@ -19,6 +18,8 @@ from .utils import (
     json_dump,
     load_json_mapping,
     parse_key_value_mapping,
+)
+from .utils import (
     task_roots_from_args as _task_roots_from_args,
 )
 
