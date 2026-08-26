@@ -16,7 +16,7 @@ import shutil
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Iterable, Iterator
+from typing import Any, Iterable, Iterator, Mapping
 
 logger = logging.getLogger(__name__)
 
@@ -137,7 +137,18 @@ def _is_ready(target: Path, source: Path, required_paths: tuple[str, ...]) -> bo
         return False
     if payload.get("source") != str(source):
         return False
-    return all((target / relative).exists() for relative in required_paths)
+    if not all((target / relative).exists() for relative in required_paths):
+        return False
+    size_bytes = payload.get("size_bytes")
+    if isinstance(size_bytes, int) and size_bytes > 0:
+        try:
+            actual = _directory_size(target)
+        except OSError:
+            return False
+        # Allow small metadata overhead from the ready file itself.
+        if actual + 4096 < size_bytes:
+            return False
+    return True
 
 
 def _stage_rank_zero(
@@ -259,4 +270,121 @@ def stage_checkpoint_for_realtime(
     return target
 
 
-__all__ = ["stage_checkpoint_for_realtime"]
+
+def resolve_local_checkpoint_cache_root(environ: Mapping[str, str] | None = None) -> Path | None:
+    """Return the configured staging root, or ``None`` when unset."""
+
+    env = os.environ if environ is None else environ
+    raw = str(env.get("WORLDFOUNDRY_REALTIME_LOCAL_CHECKPOINT_CACHE") or "").strip()
+    return Path(raw).expanduser() if raw else None
+
+
+def gc_local_checkpoint_cache(
+    *,
+    cache_root: Path | None = None,
+    keep_newest: int | None = None,
+    dry_run: bool = False,
+    environ: Mapping[str, str] | None = None,
+) -> dict[str, Any]:
+    """Remove stale staged checkpoint directories (LRU by mtime).
+
+    ``keep_newest`` retains the N most recently modified trees (default from
+    ``WORLDFOUNDRY_LOCAL_CHECKPOINT_CACHE_KEEP`` or 2). Dot-directories (temp /
+    lock sidecars) are skipped.
+    """
+
+    env = os.environ if environ is None else environ
+    root = cache_root or resolve_local_checkpoint_cache_root(env)
+    if root is None:
+        return {"cache_root": None, "removed": [], "kept": [], "errors": [], "dry_run": dry_run}
+    if keep_newest is None:
+        try:
+            keep_newest = max(int(env.get("WORLDFOUNDRY_LOCAL_CHECKPOINT_CACHE_KEEP", "2") or "2"), 0)
+        except ValueError:
+            keep_newest = 2
+
+    removed: list[str] = []
+    kept: list[str] = []
+    errors: list[str] = []
+    if not root.is_dir():
+        return {
+            "cache_root": str(root),
+            "removed": removed,
+            "kept": kept,
+            "errors": errors,
+            "dry_run": dry_run,
+            "keep_newest": keep_newest,
+        }
+
+    candidates: list[tuple[float, Path]] = []
+    for child in root.iterdir():
+        if not child.is_dir() or child.name.startswith("."):
+            continue
+        try:
+            mtime = child.stat().st_mtime
+        except OSError as exc:
+            errors.append(f"{child}: {exc}")
+            continue
+        candidates.append((mtime, child))
+    candidates.sort(key=lambda item: item[0], reverse=True)
+    for index, (_, path) in enumerate(candidates):
+        if index < keep_newest:
+            kept.append(str(path))
+            continue
+        if dry_run:
+            removed.append(str(path))
+            continue
+        try:
+            shutil.rmtree(path)
+            removed.append(str(path))
+        except OSError as exc:
+            errors.append(f"{path}: {exc}")
+    return {
+        "cache_root": str(root),
+        "removed": removed,
+        "kept": kept,
+        "errors": errors,
+        "dry_run": dry_run,
+        "keep_newest": keep_newest,
+    }
+
+
+def _main(argv: list[str] | None = None) -> int:
+    import argparse
+    import sys
+
+    parser = argparse.ArgumentParser(description="WorldFoundry local checkpoint cache utilities")
+    parser.add_argument("--gc", action="store_true", help="Garbage-collect staged checkpoint trees")
+    parser.add_argument("--dry-run", action="store_true", help="Report without deleting")
+    parser.add_argument("--keep-newest", type=int, default=None, help="Retain N newest trees")
+    parser.add_argument("--json", action="store_true", help="Emit JSON report")
+    args = parser.parse_args(argv)
+    if not args.gc:
+        parser.error("specify --gc")
+    report = gc_local_checkpoint_cache(keep_newest=args.keep_newest, dry_run=args.dry_run)
+    if args.json:
+        print(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        print(f"cache root: {report['cache_root']}")
+        print(f"kept ({len(report['kept'])}):")
+        for path in report["kept"]:
+            print(f"  - {path}")
+        print(f"removed ({len(report['removed'])}):")
+        for path in report["removed"]:
+            print(f"  - {path}")
+        if report["errors"]:
+            for err in report["errors"]:
+                print(f"error: {err}", file=sys.stderr)
+            return 1
+    return 1 if report["errors"] else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(_main())
+
+
+__all__ = [
+    "gc_local_checkpoint_cache",
+    "resolve_local_checkpoint_cache_root",
+    "stage_checkpoint_for_realtime",
+]
