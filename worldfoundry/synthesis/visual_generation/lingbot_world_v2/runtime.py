@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from worldfoundry.core.io.paths import checkpoint_root_path, hfd_root_path
+from worldfoundry.core.io.paths import checkpoint_root_path, hfd_root_path, project_root
 from worldfoundry.core.io.video import load_video_frames, save_image_or_video_tensor
 
 MODEL_ID = "lingbot-world-v2"
@@ -20,7 +20,7 @@ DISPLAY_NAME = "LingBot-World-V2"
 DEFAULT_CHECKPOINT = "robbyant/lingbot-world-v2-14b-causal-fast"
 SOURCE_COMMIT = "94f43115de8d4a4f9f282126528c300a0b232c5f"
 RUNNER_MODULE = "worldfoundry.synthesis.visual_generation.lingbot_world_v2.runner"
-SOURCE_ROOT = Path(__file__).resolve().parents[4]
+SOURCE_ROOT = project_root(__file__)
 REQUIRED_CHECKPOINT_PATHS = (
     "models_t5_umt5-xxl-enc-bf16.pth",
     "google/umt5-xxl",
