@@ -47,6 +47,8 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Any
 
+from worldfoundry.core.secret_patterns import KNOWN_SECRET_VALUE_RE
+
 __all__ = [
     "bind_log_context",
     "clear_log_context",
@@ -56,6 +58,7 @@ __all__ = [
     "is_configured",
     "log_context_environment",
     "log_context",
+    "redact_sensitive_text",
     "write_jsonl_event",
 ]
 
@@ -109,7 +112,7 @@ _SENSITIVE_ASSIGNMENT = re.compile(
     r"cookie|credential|token)\b\s*[=:]\s*)([^\s,;]+)"
 )
 _BEARER_TOKEN = re.compile(r"(?i)(\bbearer\s+)([^\s,;]+)")
-_KNOWN_TOKEN = re.compile(r"\b(?:sk|hf)[_-][A-Za-z0-9_-]{8,}\b")
+_KNOWN_TOKEN = KNOWN_SECRET_VALUE_RE
 
 
 def bind_log_context(**fields: Any) -> Token[dict[str, Any]]:
@@ -192,6 +195,12 @@ def _redact_text(value: str) -> str:
     value = _BEARER_TOKEN.sub(r"\1[REDACTED]", value)
     value = _SENSITIVE_ASSIGNMENT.sub(r"\1[REDACTED]", value)
     return _KNOWN_TOKEN.sub("[REDACTED]", value)
+
+
+def redact_sensitive_text(value: str) -> str:
+    """Public alias for unstructured credential scrubbing."""
+
+    return _redact_text(value)
 
 
 def _json_safe(value: Any, *, field_name: str | None = None) -> Any:
