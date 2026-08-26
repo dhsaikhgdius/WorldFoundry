@@ -87,7 +87,7 @@ def _initial_studio_job_counter(workspace_root: str) -> int:
 
 
 JOBS = StudioJobStore(
-    max_workers=int(os.getenv("WORLDFOUNDRY_WORKSPACE_MAX_JOBS", "8") or "8"),
+    max_workers=resolve_workspace_max_jobs(),
     initial_counter=_initial_studio_job_counter(MANAGER.workspace_root),
 )
 OPENENVISION_LOGO_PATH = Path(__file__).with_name("assets") / "openenvision-logo.png"
