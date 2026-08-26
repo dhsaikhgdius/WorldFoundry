@@ -1,5 +1,6 @@
 artifact_filename: dvlt_reconstruction.glb
 artifact_kind: generated_3d_asset
+task_family: three_dimension
 backend_stage: externalized_runtime
 checkpoints:
 - local_dir: ${WORLDFOUNDRY_HFD_ROOT}/nvidia--dvlt

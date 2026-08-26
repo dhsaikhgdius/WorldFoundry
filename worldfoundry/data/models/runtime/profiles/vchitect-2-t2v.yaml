@@ -1,5 +1,6 @@
 artifact_filename: vchitect_2_t2v_public_runner.mp4
 artifact_kind: generated_video
+task_family: video_generation
 backend_stage: native_diffusion
 checkpoints:
 - local_dir: ${WORLDFOUNDRY_HFD_ROOT}/Vchitect--Vchitect-2.0-2B

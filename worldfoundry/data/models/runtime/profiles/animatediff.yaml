@@ -1,5 +1,6 @@
 artifact_filename: animatediff.gif
 artifact_kind: generated_video
+task_family: video_generation
 backend_stage: in_tree_runtime
 id: animatediff
 input_schema:

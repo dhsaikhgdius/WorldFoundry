@@ -37,7 +37,7 @@ def default_config_path() -> str:
     Args:
         None.
     """
-    return str(worldfoundry_data_path("models", "runtime", "configs", "infinite_world.yaml"))
+    return str(worldfoundry_data_path("models", "runtime", "configs", "infinite_world", "model.yaml"))
 
 
 def build_runtime_plan(
