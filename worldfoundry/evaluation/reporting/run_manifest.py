@@ -17,6 +17,7 @@ from importlib import metadata
 from pathlib import Path
 from typing import Any, Mapping
 
+from worldfoundry.core.secret_patterns import is_sensitive_key as _is_sensitive_key
 from worldfoundry.evaluation.utils import git_metadata, jsonable, package_version, stable_hash, write_json
 from worldfoundry.runtime.env import check_required_env
 
@@ -24,58 +25,6 @@ from worldfoundry.runtime.env import check_required_env
 RUN_MANIFEST_SCHEMA_VERSION = "worldfoundry-run-manifest"
 ENVIRONMENT_SCHEMA_VERSION = "worldfoundry-environment"
 ENV_REQUIREMENTS_SCHEMA_VERSION = "worldfoundry-env-requirements"
-
-# ── Secret redaction ─────────────────────────────────────────
-# Single word segments that mark a key as sensitive when they appear as a
-# whole segment (word-boundary match). Deliberately excludes "tokens"
-# (max_new_tokens, num_tokens) and "tokenizer" — those are reproducibility
-# parameters the manifest must preserve.
-_SENSITIVE_KEY_SEGMENTS = frozenset(
-    {
-        "apikey",
-        "auth",
-        "authorization",
-        "bearer",
-        "credential",
-        "credentials",
-        "passwd",
-        "password",
-        "pwd",
-        "secret",
-        "secrets",
-        "token",
-    }
-)
-# Adjacent segment pairs that are sensitive even though the individual
-# segments (e.g. "key") are too generic to match on their own.
-_SENSITIVE_KEY_SEGMENT_PAIRS = frozenset(
-    {
-        ("access", "key"),
-        ("api", "key"),
-        ("private", "key"),
-        ("secret", "key"),
-        ("session", "key"),
-        ("ssh", "key"),
-    }
-)
-_CAMEL_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
-
-
-def _is_sensitive_key(key: str) -> bool:
-    """Return whether *key* looks like a secret field that should be redacted.
-
-    Matches on whole word segments (split on ``_``/``-``/camelCase) instead of
-    raw substrings, so ``max_new_tokens`` and ``tokenizer`` stay visible while
-    ``api_key``, ``hf_token``, and ``authToken`` are still redacted.
-    """
-    segments = tuple(
-        segment
-        for segment in _CAMEL_BOUNDARY.sub("_", key).lower().replace("-", "_").split("_")
-        if segment
-    )
-    if any(segment in _SENSITIVE_KEY_SEGMENTS for segment in segments):
-        return True
-    return any(pair in _SENSITIVE_KEY_SEGMENT_PAIRS for pair in zip(segments, segments[1:]))
 
 
 def redact_secrets(value: Any) -> Any:
