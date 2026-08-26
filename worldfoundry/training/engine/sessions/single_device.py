@@ -43,6 +43,7 @@ from .io import (
     TRAINING_RUN_SCHEMA,
     MetricWriter,
     NullMetricWriter,
+    training_log_run_id,
     write_json_atomic,
 )
 from .statistics import (
@@ -274,6 +275,7 @@ class SingleDeviceTrainingSession:
             "schema": TRAINING_RUN_SCHEMA,
             "status": "running",
             "run_id": self.recipe.run.id,
+            "log_run_id": training_log_run_id(),
             "recipe": self.recipe.to_dict(),
             "data": dict(self.data_identity),
             "rank_count": self.world_size,
@@ -457,6 +459,7 @@ class SingleDeviceTrainingSession:
                 writer.write(metric)
                 if checkpointer is not None and self.engine.global_step % checkpoint_interval == 0:
                     assert checkpoint_state is not None
+                    writer.force_fsync()
                     finish_pending_checkpoint()
                     saved = checkpointer.save(
                         checkpoint_state,
