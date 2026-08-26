@@ -209,13 +209,10 @@ _UNIFIED_PYTHON_MINORS = {(3, 10), (3, 11)}
 _ALWAYS_ISOLATED_PACKAGES = {"jax", "jaxlib", "tensorflow", "tensorflow-cpu"}
 _EXACT_ABI_PACKAGES = {"torch", "torchvision", "torchaudio", "xformers", "flash-attn"}
 _MODEL_SPECIFIC_ISOLATED_PACKAGES = {
-    "controlnet-aux",
-    "denku",
     "e3nn",
     "giga-datasets",
     "giga-train",
     "lerobot",
-    "open3d",
     "uniception",
 }
 _UNIFIED_MINIMUMS = {
