@@ -122,6 +122,20 @@ standard HF cache variables) for public checkpoints. Use `WORLDFOUNDRY_CKPT_DIR`
 for upstream runtimes that require a fixed directory layout or for local soft
 links that preserve official paths without duplicating large files.
 
+## Optional native kernels (ABI-qualified)
+
+`packages/worldfoundry-native-kernels` is an **opt-in** wheel, deliberately kept
+out of the main `worldfoundry` package and out of `[all]`. It only ships a C++
+dispatcher DSO smoke path today; it does not change default model execution.
+
+- Build and install only inside the exact PyTorch/CUDA env you intend to
+  qualify (`python -m build --wheel --no-isolation packages/worldfoundry-native-kernels`).
+- Import is side-effect free; call `inspect()` / `load()` explicitly at a
+  prewarm boundary so ABI mismatches fail closed.
+- CPU-only hosts should skip this package. Details:
+  `packages/worldfoundry-native-kernels/README.md` and
+  `plan/cuda_cpp_operator_spec.md`.
+
 ## Dedicated model environment exceptions
 
 Start from `worldfoundry-unified-<cuda-tier>` for every model. Create a
