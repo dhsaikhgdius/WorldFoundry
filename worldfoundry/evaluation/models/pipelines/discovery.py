@@ -32,10 +32,33 @@ def discover_pipeline_bindings() -> dict[str, PipelineBinding]:
 
     Discovery is intentionally tolerant: a broken plugin should not prevent the
     built-in catalog from loading or make CLI inspection commands unusable.
+
+    Results are cached per ``WORLDFOUNDRY_PIPELINE_BINDINGS`` value for the
+    process lifetime (entry-point scans are expensive).  Call
+    :func:`clear_pipeline_binding_discovery_cache` after mutating the env var
+    or installing entry points in-process (tests).
     """
 
+    env_raw = os.environ.get(ENV_VAR, "")
+    return dict(_discover_pipeline_bindings_cached(env_raw))
+
+
+def clear_pipeline_binding_discovery_cache() -> None:
+    """Drop cached entry-point and env-binding discovery results."""
+
+    _discover_pipeline_bindings_cached.cache_clear()
+    _pipeline_entry_points.cache_clear()
+
+
+# ── Private helpers ────────────────────────────────────────────────────
+
+
+@lru_cache(maxsize=8)
+def _discover_pipeline_bindings_cached(env_raw: str) -> tuple[tuple[str, PipelineBinding], ...]:
+    """Cached discovery keyed by the raw ``WORLDFOUNDRY_PIPELINE_BINDINGS`` value."""
+
     bindings: dict[str, PipelineBinding] = {}
-    for name, target in _env_targets():
+    for name, target in _env_targets_from_raw(env_raw):
         _load_target_into(bindings, name, target, source=f"{ENV_VAR}:{name}")
     for entry_point in _pipeline_entry_points():
         try:
@@ -44,10 +67,7 @@ def discover_pipeline_bindings() -> dict[str, PipelineBinding]:
             _register_discovered_binding(bindings, entry_point.name, binding)
         except Exception as exc:  # pragma: no cover - exercised through public behavior.
             LOGGER.warning("Skipping broken WorldFoundry pipeline entry point %r: %s", entry_point.name, exc)
-    return bindings
-
-
-# ── Private helpers ────────────────────────────────────────────────────
+    return tuple(sorted(bindings.items(), key=lambda item: item[0]))
 
 
 @lru_cache(maxsize=1)
@@ -56,7 +76,7 @@ def _pipeline_entry_points() -> tuple[metadata.EntryPoint, ...]:
 
     Cached: entry-points cannot change within a process, and the full
     ``metadata.entry_points()`` scan costs ~200ms per call.  Use
-    ``_pipeline_entry_points.cache_clear()`` to force a re-scan (tests).
+    :func:`clear_pipeline_binding_discovery_cache` to force a re-scan (tests).
     """
     entry_points = metadata.entry_points()
     if hasattr(entry_points, "select"):
@@ -68,7 +88,11 @@ def _pipeline_entry_points() -> tuple[metadata.EntryPoint, ...]:
 
 def _env_targets() -> tuple[tuple[str, str], ...]:
     """Parse and return slug/target pairs from the designated environment variable."""
-    raw = os.environ.get(ENV_VAR, "")
+    return _env_targets_from_raw(os.environ.get(ENV_VAR, ""))
+
+
+def _env_targets_from_raw(raw: str) -> tuple[tuple[str, str], ...]:
+    """Parse slug/target pairs from a raw ``WORLDFOUNDRY_PIPELINE_BINDINGS`` string."""
     targets: list[tuple[str, str]] = []
     for item in raw.split(","):
         text = item.strip()
@@ -150,5 +174,6 @@ def _discovery_key(value: str) -> str:
 __all__ = [
     "ENTRY_POINT_GROUP",
     "ENV_VAR",
+    "clear_pipeline_binding_discovery_cache",
     "discover_pipeline_bindings",
 ]

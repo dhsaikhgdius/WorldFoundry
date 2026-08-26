@@ -40,6 +40,7 @@ _EXPORT_MODULES: dict[str, str] = {
     "build_pipeline_invocation": "worldfoundry.evaluation.models.pipelines.invocation",
     "build_pipeline_runner_spec": "worldfoundry.evaluation.models.pipelines.loading",
     "call_pipeline_from_pretrained": "worldfoundry.evaluation.models.pipelines.loading",
+    "clear_pipeline_binding_discovery_cache": "worldfoundry.evaluation.models.pipelines.discovery",
     "discover_pipeline_bindings": "worldfoundry.evaluation.models.pipelines.discovery",
     "failed_generation_result": "worldfoundry.evaluation.models.pipelines.results",
     "first_text": "worldfoundry.evaluation.models.pipelines.bindings",
