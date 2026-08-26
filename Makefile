@@ -44,8 +44,7 @@ install-core:
 	$(PIP) install -e .
 
 install-dev:
-	$(PIP) install -e .
-	$(PIP) install build pre-commit PyYAML ruff
+	$(PIP) install -e ".[dev]"
 
 docs-check:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m worldfoundry.cli --help >/dev/null
@@ -60,7 +59,9 @@ format-check:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m compileall -q $(CANONICAL_DIFFUSION_SOURCES) worldfoundry/evaluation scripts
 
 shell-check:
-	find scripts/setup -type f -name '*.sh' -exec bash -n {} +
+	# D-08: cover docker / embodied / test / fumadocs / scripts/dev, not only setup.
+	find scripts/setup docker scripts/embodied test scripts/dev docs/fumadocs/scripts \
+		-type f -name '*.sh' -print0 2>/dev/null | xargs -0 -r bash -n
 
 data-check:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m worldfoundry.cli zoo models --json >/dev/null
@@ -99,8 +100,11 @@ preflight:
 		--output-dir $(PREFLIGHT_OUTPUT) \
 		--json
 
+# Optional extra pytest flags, e.g. PYTEST_ARGS='-m "not gpu and not network"'
+PYTEST_ARGS ?=
+
 test-eval-core:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest test/eval_core -q -p no:cacheprovider
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest test/eval_core -q -p no:cacheprovider $(PYTEST_ARGS)
 
 test-training:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest tests/training -q -p no:cacheprovider
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest tests/training -q -p no:cacheprovider $(PYTEST_ARGS)

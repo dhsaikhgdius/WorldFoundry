@@ -11,16 +11,18 @@ Build the WorldFoundry CUDA base image with Docker Buildx.
 Options:
   --push                 Push the image and manifest to the registry.
   --load                 Load a single-platform image into the local Docker daemon.
-  --platform PLATFORMS   Build platform list. Default: linux/amd64 for --load,
-                         linux/amd64,linux/arm64 for --push.
+  --platform PLATFORMS   Build platform list. Default: linux/amd64 for both
+                         --load and --push (override for multi-arch).
   --cuda-image IMAGE     Base CUDA image. Default:
                          nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04.
   -h, --help             Show this help.
 
 Environment overrides:
   WORLDFOUNDRY_DOCKER_PUSH=1
-  WORLDFOUNDRY_DOCKER_PLATFORMS=linux/amd64,linux/arm64
+  WORLDFOUNDRY_DOCKER_PLATFORMS=linux/amd64   # or linux/amd64,linux/arm64
   WORLDFOUNDRY_DOCKER_CUDA_IMAGE=nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04
+  WORLDFOUNDRY_DOCKER_BUILD_HOST_NETWORK=1
+                         Opt into BuildKit host networking (off by default).
 
 Examples:
   bash docker/build_with_docker.sh worldfoundry:dev
@@ -34,6 +36,7 @@ cd "${REPO_ROOT}"
 PUSH="${WORLDFOUNDRY_DOCKER_PUSH:-0}"
 PLATFORMS="${WORLDFOUNDRY_DOCKER_PLATFORMS:-}"
 CUDA_IMAGE="${WORLDFOUNDRY_DOCKER_CUDA_IMAGE:-nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04}"
+HOST_NETWORK="${WORLDFOUNDRY_DOCKER_BUILD_HOST_NETWORK:-0}"
 TAGS=()
 
 while (($#)); do
@@ -77,11 +80,9 @@ if [[ "${#TAGS[@]}" -eq 0 ]]; then
 fi
 
 if [[ -z "${PLATFORMS}" ]]; then
-  if [[ "${PUSH}" == "1" ]]; then
-    PLATFORMS="linux/amd64,linux/arm64"
-  else
-    PLATFORMS="linux/amd64"
-  fi
+  # Default single-arch amd64 for both load and push; set
+  # WORLDFOUNDRY_DOCKER_PLATFORMS / --platform for multi-arch.
+  PLATFORMS="linux/amd64"
 fi
 
 ACTION_ARGS=()
@@ -100,10 +101,14 @@ for tag in "${TAGS[@]}"; do
   TAG_ARGS+=(-t "${tag}")
 done
 
+NETWORK_ARGS=()
+if [[ "${HOST_NETWORK}" == "1" ]]; then
+  NETWORK_ARGS+=(--allow network.host --network host)
+fi
+
 docker buildx build \
   --platform "${PLATFORMS}" \
-  --allow network.host \
-  --network host \
+  "${NETWORK_ARGS[@]}" \
   --build-arg "CUDA_IMAGE=${CUDA_IMAGE}" \
   "${ACTION_ARGS[@]}" \
   "${TAG_ARGS[@]}" \

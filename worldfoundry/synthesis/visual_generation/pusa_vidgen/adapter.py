@@ -10,9 +10,10 @@ from pathlib import Path
 from typing import Any
 
 from worldfoundry.core import as_list, cuda_visible_devices_from_device, jsonable, resolve_hf_snapshot_path
+from worldfoundry.core.io.paths import project_root
 
 
-_REPO_SRC = Path(__file__).resolve().parents[4]
+_REPO_SRC = project_root(__file__)
 
 
 @dataclass(frozen=True)
