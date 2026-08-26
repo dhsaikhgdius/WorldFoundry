@@ -235,7 +235,9 @@ optimized_core = [
     "huggingface-hub",
     "loguru",
     "safetensors>=0.4",
-    "torch>=2.7,<2.12.0",
+    # Span cu121/cu124/cu128 wheel floors (I-03); tier install still pins via
+    # requirements/cuda/<tier>-torch.txt + CUDA index, not this lower bound alone.
+    "torch>=2.4,<2.12.0",
 ]
 train_core = [
     "accelerate>=1,<2",
@@ -319,10 +321,22 @@ studio_plot = [
     "plotly",
     "pillow",
 ]
+test = [
+    "pytest>=8,<10",
+    "pytest-cov>=5,<7",
+    "numpy",
+    "pillow",
+    "pandas",
+    "einops",
+    "safetensors",
+    "joblib",
+    "pyyaml",
+]
 dev = [
     "build",
     "pre-commit>=4.0",
-    "ruff>=0.12.7",
+    "ruff==0.12.7",
+    "worldfoundry[test]",
 ]
 all = [
     "accelerate",
@@ -402,7 +416,8 @@ all = [
     "tensorboard",
     "textual",
     "timm",
-    "torch>=2.7,<2.12.0",
+    # Same cross-tier floor as optimized_core (I-03).
+    "torch>=2.4,<2.12.0",
     "torchmetrics",
     "transformers>=4.57.0,<5",
     "trimesh",

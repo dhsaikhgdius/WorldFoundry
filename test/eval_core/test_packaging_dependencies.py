@@ -78,7 +78,7 @@ def test_optimized_core_extra_declares_flashdreams_runtime_dependencies() -> Non
     assert "huggingface-hub" in optional["optimized_core"]
     assert "loguru" in optional["optimized_core"]
     assert "safetensors>=0.4" in optional["optimized_core"]
-    assert "torch>=2.7,<2.12.0" in optional["optimized_core"]
+    assert "torch>=2.4,<2.12.0" in optional["optimized_core"]
 
 
 def test_sdist_manifest_excludes_generated_downloaded_and_large_artifacts() -> None:
