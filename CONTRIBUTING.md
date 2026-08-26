@@ -68,3 +68,11 @@ Before release or large runtime imports, run the public quality gates:
 make lint
 make docs-check
 ```
+
+CPU release-gate pytest needs the `[eval_core]` extra (CPU torch from
+`https://download.pytorch.org/whl/cpu` first when the environment has no torch):
+
+```bash
+python -m pip install -e ".[eval_core]"
+make test-eval-core
+```

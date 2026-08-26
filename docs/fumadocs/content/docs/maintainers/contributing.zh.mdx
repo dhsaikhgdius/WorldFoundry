@@ -52,6 +52,10 @@ make docs-check
 cd docs/fumadocs && npm run types:check && npm run build
 ```
 
+在全新机器上跑 CPU `test/eval_core` 发布门禁时，先
+`pip install -e ".[eval_core]"`（若无 torch，从
+`https://download.pytorch.org/whl/cpu` 安装 CPU torch），再 `make test-eval-core`。
+
 模型/profile audit：
 
 ```bash
