@@ -604,6 +604,9 @@ include-package-data = true
     "three_dimensions/general_3d/vipe/THIRD_PARTY_LICENSES.md",
     "three_dimensions/general_3d/vipe/UPSTREAM.md",
 ]
+"worldfoundry.runtime" = [
+    "probe_envs.yaml",
+]
 "worldfoundry.studio" = [
     "assets/**/*",
     "native/world_explorer/**/*",
