@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import os
-import sys
 from pathlib import Path
 from typing import Any, Mapping
 
+from worldfoundry.runtime.conda import resolve_model_python
 from worldfoundry.runtime.in_tree_cli import ensure_in_tree_runtime, execute_in_tree, require_path
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[4]
@@ -37,7 +37,7 @@ class HydraRuntime:
             or os.environ.get("WORLDFOUNDRY_WAN21_1P3B_ROOT")
             or Path(os.environ.get("WORLDFOUNDRY_HFD_ROOT", "cache/hfd")) / "Wan-AI--Wan2.1-T2V-1.3B"
         ).expanduser()
-        self.python_executable = str(python_executable or sys.executable)
+        self.python_executable = resolve_model_python("hydra", explicit=python_executable)
         self.device = device
         self.env = dict(env or {})
 

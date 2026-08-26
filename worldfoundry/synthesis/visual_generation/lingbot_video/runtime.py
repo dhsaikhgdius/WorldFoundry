@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 import subprocess
-import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -12,7 +11,7 @@ from typing import Any, Mapping
 
 from worldfoundry.core import cuda_visible_devices_from_device
 from worldfoundry.runtime.assets import expand_worldfoundry_path
-
+from worldfoundry.runtime.conda import resolve_model_python
 
 SOURCE_ROOT = Path(__file__).resolve().parents[4]
 INFERENCE_ROOT = Path(__file__).resolve().parent
@@ -95,9 +94,9 @@ class LingBotVideoRuntime:
     ) -> None:
         self.checkpoint_dir = _expand_path(checkpoint_dir)
         self.device = str(device)
-        self.python_executable = (
-            Path(python_executable or sys.executable).expanduser().resolve()
-        )
+        self.python_executable = Path(
+            resolve_model_python("lingbot-video", explicit=python_executable)
+        ).expanduser().resolve()
         self.inference_root = _expand_path(inference_root) or INFERENCE_ROOT
 
     @classmethod

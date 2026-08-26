@@ -5,13 +5,12 @@ from __future__ import annotations
 import json
 import os
 import shutil
-import sys
 from pathlib import Path
 from typing import Any, Mapping
 
 from worldfoundry.core.io.paths import resolve_data_path
+from worldfoundry.runtime.conda import resolve_model_python
 from worldfoundry.runtime.in_tree_cli import ensure_in_tree_runtime, execute_in_tree, require_path
-
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[4]
 
@@ -98,7 +97,7 @@ class MagicWorldRuntime:
         self.base_model_path = Path(
             base_model_path or hfd / "alibaba-pai--Wan2.1-Fun-V1.1-1.3B-InP"
         ).expanduser()
-        self.python_executable = str(python_executable or sys.executable)
+        self.python_executable = resolve_model_python("magicworld", explicit=python_executable)
         self.device = device
         self.env = dict(env or {})
 

@@ -6,11 +6,11 @@ import hashlib
 import json
 import os
 import re
-import sys
 from pathlib import Path
 from typing import Any, Mapping
 
 from worldfoundry.core.io.paths import resolve_data_path, resolve_local_hf_model_path
+from worldfoundry.runtime.conda import resolve_model_python
 from worldfoundry.runtime.in_tree_cli import ensure_in_tree_runtime, execute_in_tree, require_path
 
 
@@ -58,7 +58,7 @@ class _WanFunCameraRuntime:
         self.repo_root = ensure_in_tree_runtime(self.bundled_repo_root(), package_file=__file__)
         hfd = Path(os.environ.get("WORLDFOUNDRY_HFD_ROOT", "cache/hfd"))
         self.checkpoint_path = Path(checkpoint_path or hfd / self.CHECKPOINT_REPO).expanduser()
-        self.python_executable = str(python_executable or sys.executable)
+        self.python_executable = resolve_model_python(self.MODEL_ID, explicit=python_executable)
         self.device = device
         self.env = dict(env or {})
         self.gpu_memory_mode = str(gpu_memory_mode)

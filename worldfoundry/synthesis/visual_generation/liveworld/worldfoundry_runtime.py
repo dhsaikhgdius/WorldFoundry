@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -10,8 +9,8 @@ import yaml
 
 from worldfoundry.core.io.paths import checkpoint_root_path, hfd_root_path
 from worldfoundry.evaluation.utils import worldfoundry_data_path
+from worldfoundry.runtime.conda import resolve_model_python
 from worldfoundry.runtime.in_tree_cli import ensure_in_tree_runtime, execute_in_tree, require_path
-
 
 _CONFIG_ROOT = worldfoundry_data_path("models", "runtime", "configs", "liveworld")
 
@@ -56,7 +55,7 @@ class LiveWorldRuntime:
             dinov3_model_path
             or checkpoints / "modelscope" / "facebook--dinov3-vith16plus-pretrain-lvd1689m"
         ).expanduser()
-        self.python_executable = str(python_executable or sys.executable)
+        self.python_executable = resolve_model_python("liveworld", explicit=python_executable)
         self.device = device
         self.env = dict(env or {})
 

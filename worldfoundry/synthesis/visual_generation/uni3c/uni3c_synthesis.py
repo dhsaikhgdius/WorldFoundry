@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import json
-import sys
 import tempfile
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
 from worldfoundry.core.io.paths import resolve_local_hf_model_path
+from worldfoundry.runtime.conda import resolve_model_python
 from worldfoundry.runtime.in_tree_cli import execute_in_tree
 from worldfoundry.synthesis.base_synthesis import BaseSynthesis
 
@@ -174,7 +174,7 @@ class Uni3CSynthesis(BaseSynthesis):
         assets: Mapping[str, str],
         options: Mapping[str, Any],
     ) -> list[str]:
-        python = str(options.get("python_executable") or sys.executable)
+        python = resolve_model_python(self.model_id, explicit=options.get("python_executable"))
         entrypoint = runtime_root() / ("cam_control.py" if mode == "camera" else "uni3c_inference.py")
         if num_gpus > 1:
             command = [python, "-m", "torch.distributed.run", "--nproc_per_node", str(num_gpus), str(entrypoint)]
