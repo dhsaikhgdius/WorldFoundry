@@ -190,6 +190,35 @@ They cover `libero`, `robomme`, and `robotwin` and exercise the same import path
 
 ---
 
+## Docker image pinning (digests)
+
+Official runtime profiles under `worldfoundry/data/benchmarks/runtime_profiles/official/` still publish floating `:latest` tags for AllenAI / WorldFoundry harness images. **Do not invent digests in git.** Pin only after you have mirrored and recorded a real digest.
+
+| Mechanism | Behavior |
+| --- | --- |
+| `docker.digest` / `docker.image_digest` in a profile | Runner resolves `repository@sha256:...` from `docker.image` + digest (see `image_refs` helpers when that PR is merged) |
+| `WORLDFOUNDRY_EMBODIED_REQUIRE_PINNED_IMAGES=1` | Opt-in: refuse floating `:latest` / untagged refs at resolve time |
+| `scripts/embodied/list_floating_image_refs.py` | Lists floating `docker.image` / `source_image` refs; exits `1` only with `--fail` or `WORLDFOUNDRY_EMBODIED_FAIL_ON_FLOATING_IMAGES=1` |
+| `scripts/embodied/mirror_docker_images.py` | Mirror upstream images into your namespace; capture digests from the registry, then write them back into profiles |
+
+Typical operator loop:
+
+```bash
+# 1) Inventory floating refs (informational by default)
+PYTHONPATH=. python scripts/embodied/list_floating_image_refs.py
+
+# 2) Mirror, then record digests from the registry (example with buildx)
+#    docker buildx imagetools inspect <mirrored-image:tag> --format '{{json .Manifest}}'
+#    Set docker.digest: sha256:<hex> on the matching official/*.yaml — do not guess.
+
+# 3) After profiles are pinned, optionally enforce at runtime
+export WORLDFOUNDRY_EMBODIED_REQUIRE_PINNED_IMAGES=1
+```
+
+CI should not hard-fail on floating official tags until operators have landed real digests. Use the list script as a dry-run / progressive gate.
+
+---
+
 ## Maintainer notes
 
 Release gates and `official_benchmark_verified` labeling are documented in [Validation evidence](/docs/reference/validation).
