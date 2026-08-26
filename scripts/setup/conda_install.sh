@@ -15,12 +15,15 @@ CONDA_ENVIRONMENT_FILE="${WORLDFOUNDRY_CONDA_ENVIRONMENT_FILE:-environment.yml}"
 INSTALL_PRESET="${WORLDFOUNDRY_INSTALL_PRESET:-max-infer}"
 INSTALL_FLASH_ATTN=1
 FLASH_ATTN_BUCKET="${WORLDFOUNDRY_FLASH_ATTN_BUCKET:-flash_attn_fa25}"
-TORCH_SPEC="${WORLDFOUNDRY_TORCH_SPEC:-torch>=2.7,<2.12.0}"
-TORCHVISION_SPEC="${WORLDFOUNDRY_TORCHVISION_SPEC:-torchvision>=0.22,<0.27.0}"
-TORCHAUDIO_SPEC="${WORLDFOUNDRY_TORCHAUDIO_SPEC:-torchaudio>=2.7,<2.12.0}"
+# Empty until CUDA tier resolves; filled from TIER_TORCH_SPECS unless overridden.
+TORCH_SPEC="${WORLDFOUNDRY_TORCH_SPEC:-}"
+TORCHVISION_SPEC="${WORLDFOUNDRY_TORCHVISION_SPEC:-}"
+TORCHAUDIO_SPEC="${WORLDFOUNDRY_TORCHAUDIO_SPEC:-}"
 VERIFY_ONLY=0
 ALLOW_NO_CUDA="${WORLDFOUNDRY_ALLOW_NO_CUDA:-0}"
 CUDA_NVCC_DRY_RUN=0
+# I-05: prefer the committed per-tier lockfile when populated; --unlocked escapes.
+INSTALL_UNLOCKED="${WORLDFOUNDRY_INSTALL_UNLOCKED:-0}"
 
 usage() {
   cat <<'EOF'
@@ -44,9 +47,13 @@ Options:
   --skip-three-d-core   Legacy compatibility option; ignored.
   --flash-attn BUCKET   flash-attn bucket: flash_attn_fa25 or flash_attn_fa28.
   --skip-flash-attn     Do not install flash-attn.
-  --torch SPEC          Torch package spec. Default: torch>=2.7,<2.12.0.
-  --torchvision SPEC    Torchvision package spec. Default: torchvision>=0.22,<0.27.0.
-  --torchaudio SPEC     Torchaudio package spec. Default: torchaudio>=2.7,<2.12.0.
+  --torch SPEC          Torch package spec. Default: from TIER_TORCH_SPECS for the
+                        resolved CUDA tier (cu121 <2.6, cu124 <2.7, cu128 >=2.7).
+  --torchvision SPEC    Torchvision package spec (tier default unless set).
+  --torchaudio SPEC     Torchaudio package spec (tier default unless set).
+  --unlocked            Ignore requirements/lock/worldfoundry-unified.<tier>.lock.txt
+                        and install from requirements/worldfoundry-unified.txt.
+                        Default: use the tier lock when it has resolved pins.
   --verify-only         Only run import and CUDA verification in the env.
   --allow-no-cuda       Do not fail verification when CUDA is not visible.
   --cuda-nvcc-dry-run   Print the tier-aware nvcc install command and exit.
@@ -109,6 +116,10 @@ while (($#)); do
       TORCHAUDIO_SPEC="$2"
       shift 2
       ;;
+    --unlocked)
+      INSTALL_UNLOCKED=1
+      shift
+      ;;
     --verify-only)
       VERIFY_ONLY=1
       shift
@@ -160,6 +171,16 @@ if ! CUDA_REPORT="$(PYTHONPATH="$WORLDFOUNDRY_SOURCE_ROOT" "$PYTHON_BIN" -m worl
 fi
 CUDA_PROFILE="$(printf '%s' "$CUDA_REPORT" | "$PYTHON_BIN" -c 'import json, sys; print(json.load(sys.stdin)["tier"])')"
 DETECTED_DRIVER_CUDA="$(printf '%s' "$CUDA_REPORT" | "$PYTHON_BIN" -c 'import json, sys; print(json.load(sys.stdin).get("driver_cuda") or "")')"
+
+if [[ -z "$TORCH_SPEC" ]]; then
+  TORCH_SPEC="$(printf '%s' "$CUDA_REPORT" | "$PYTHON_BIN" -c 'import json, sys; print(json.load(sys.stdin)["torch_specs"]["torch"])')"
+fi
+if [[ -z "$TORCHVISION_SPEC" ]]; then
+  TORCHVISION_SPEC="$(printf '%s' "$CUDA_REPORT" | "$PYTHON_BIN" -c 'import json, sys; print(json.load(sys.stdin)["torch_specs"]["torchvision"])')"
+fi
+if [[ -z "$TORCHAUDIO_SPEC" ]]; then
+  TORCHAUDIO_SPEC="$(printf '%s' "$CUDA_REPORT" | "$PYTHON_BIN" -c 'import json, sys; print(json.load(sys.stdin)["torch_specs"]["torchaudio"])')"
+fi
 
 case "$CUDA_PROFILE" in
   cu121) CUDA_NVCC_VERSION="12.1" ;;
@@ -271,9 +292,74 @@ if [[ "$VERIFY_ONLY" != "1" ]]; then
     python -m pip install --no-cache-dir --index-url "$TORCH_INDEX_URL" --extra-index-url "$PYPI_INDEX_URL" \
     "$TORCH_SPEC" "$TORCHVISION_SPEC" "$TORCHAUDIO_SPEC"
 
+  # I-02: pin the exact CUDA-index torch stack so the second PyPI pass cannot
+  # silently replace it (e.g. via unpinned xformers/torchao).
+  TORCH_CONSTRAINT_FILE="$(mktemp "${TMPDIR:-/tmp}/worldfoundry-torch-constraint.XXXXXX")"
+  PIP_CONFIG_FILE="${WORLDFOUNDRY_PIP_CONFIG_FILE:-/dev/null}" conda_run \
+    python - "$TORCH_CONSTRAINT_FILE" <<'PY'
+import importlib
+import sys
+
+constraint_path = sys.argv[1]
+lines = []
+for name in ("torch", "torchvision", "torchaudio"):
+    module = importlib.import_module(name)
+    version = getattr(module, "__version__", None)
+    if not version:
+        raise SystemExit(f"missing version for {name} after CUDA-index install")
+    lines.append(f"{name}=={version}")
+open(constraint_path, "w", encoding="utf-8").write("\n".join(lines) + "\n")
+print("wrote torch constraint:", constraint_path)
+print("\n".join(lines))
+PY
+
+  # I-05: install the committed per-tier lock when it carries resolved pins
+  # (placeholder locks are comment-only). The lock embeds its own index URLs
+  # via --emit-index-url; the I-02 torch constraint still applies either way.
+  UNIFIED_REQUIREMENTS="requirements/worldfoundry-unified.txt"
+  TIER_LOCK_FILE="requirements/lock/worldfoundry-unified.${CUDA_PROFILE}.lock.txt"
+  if [[ "$INSTALL_UNLOCKED" != "1" ]] \
+    && [[ -f "$TIER_LOCK_FILE" ]] \
+    && grep -Eq '^[[:space:]]*[^#[:space:]]' "$TIER_LOCK_FILE"; then
+    UNIFIED_REQUIREMENTS="$TIER_LOCK_FILE"
+    echo "Installing locked unified requirements: ${TIER_LOCK_FILE}"
+  else
+    if [[ "$INSTALL_UNLOCKED" == "1" ]]; then
+      echo "--unlocked: installing unconstrained requirements/worldfoundry-unified.txt"
+    else
+      echo "No populated lock for ${CUDA_PROFILE} (${TIER_LOCK_FILE}); installing requirements/worldfoundry-unified.txt"
+    fi
+  fi
+
   PIP_CONFIG_FILE="${WORLDFOUNDRY_PIP_CONFIG_FILE:-/dev/null}" conda_run \
     python -m pip install --no-cache-dir --index-url "$PYPI_INDEX_URL" \
-    -r requirements/worldfoundry-unified.txt
+    --constraint "$TORCH_CONSTRAINT_FILE" \
+    -r "$UNIFIED_REQUIREMENTS"
+  rm -f "$TORCH_CONSTRAINT_FILE"
+
+  PIP_CONFIG_FILE="${WORLDFOUNDRY_PIP_CONFIG_FILE:-/dev/null}" conda_run \
+    python - "$CUDA_PROFILE" "${ALLOW_NO_CUDA:-0}" <<'PY'
+import sys
+import torch
+
+expected_tier = sys.argv[1]
+allow_no_cuda = sys.argv[2] == "1"
+torch_cuda = (torch.version.cuda or "").strip()
+if not torch_cuda:
+    if allow_no_cuda:
+        print("torch.version.cuda is empty; allowed by --allow-no-cuda")
+        raise SystemExit(0)
+    raise SystemExit("torch.version.cuda is empty after CUDA-index install")
+expected = {"cu128": "12.8", "cu124": "12.4", "cu121": "12.1"}.get(expected_tier)
+if expected:
+    major_minor = ".".join(torch_cuda.split(".")[:2])
+    if major_minor != expected:
+        raise SystemExit(
+            f"torch.version.cuda={torch_cuda!r} does not match selected tier {expected_tier} "
+            f"(expected CUDA {expected}). A later pip install may have replaced the CUDA wheel."
+        )
+print(f"torch CUDA OK: version={torch.__version__} cuda={torch_cuda} tier={expected_tier}")
+PY
 
   if [[ "$INSTALL_FLASH_ATTN" == "1" ]]; then
     run_cmd bash scripts/setup/install_flash_attn.sh "$FLASH_ATTN_BUCKET"

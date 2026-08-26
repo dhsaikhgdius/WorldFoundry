@@ -12,7 +12,12 @@ import re
 from collections import OrderedDict
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[3]
+from _repo_path import ensure_repo_importable
+
+ensure_repo_importable(__file__)
+from worldfoundry.core.io.paths import project_root  # noqa: E402
+
+ROOT = project_root(__file__)
 OUT = Path(__file__).resolve().parents[1] / "lib" / "catalog-coverage-data.json"
 
 FAMILY_META = {
