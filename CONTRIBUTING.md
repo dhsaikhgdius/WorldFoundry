@@ -62,9 +62,11 @@ The detailed maintainer guide lives in
 
 Put reusable demo assets under `worldfoundry/data/test_cases/`.
 
-Before release or large runtime imports, run the public quality gates:
+Before release or large runtime imports, run the public quality gates.
+Prefer the smallest Makefile layer that covers the change:
 
 ```bash
-make lint
-make docs-check
+make check-fast   # ruff + shell + docs-check
+make check        # lint + docs-check (full static/catalog gates)
+make check-ci     # check + cli-check (CPU evaluate hello-world)
 ```

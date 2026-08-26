@@ -1,4 +1,4 @@
-.PHONY: help install-core install-dev docs-check lint ruff-check format-check shell-check data-check runtime-registry-check compile-eval cli-check precommit precommit-install preflight test-eval-core test-training
+.PHONY: help install-core install-dev docs-check lint ruff-check format-check shell-check data-check runtime-registry-check compile-eval cli-check check-fast check check-ci precommit precommit-install preflight test-eval-core test-training
 
 PYTHON ?= python
 PIP ?= $(PYTHON) -m pip
@@ -36,6 +36,10 @@ help:
 		'  make install-dev       Install lightweight development dependencies.' \
 		'  make docs-check        Validate documented CLI entrypoints.' \
 		'  make lint              Run lightweight source and catalog checks.' \
+		'  make check-fast        DX layer: ruff + shell + docs-check (no catalog/compile).' \
+		'  make check             DX layer: lint + docs-check (full static gates).' \
+		'  make check-ci          DX layer: check + cli-check (CPU evaluate hello-world).' \
+		'  make cli-check         Evaluate existing-results smoke (writes a scorecard).' \
 		'  make preflight         Run the public runtime preflight.' \
 		'  make test-eval-core    Run the eval_core release-gate pytest suite (CPU).' \
 		'  make test-training     Run the tests/training pytest suite (CPU subset).'
@@ -52,6 +56,16 @@ docs-check:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m worldfoundry.cli zoo benchmarks --json >/dev/null
 
 lint: ruff-check format-check shell-check data-check runtime-registry-check
+
+# DX gate layers (round9): prefer the smallest layer that covers the change.
+# check-fast → seconds (no zoo catalog / compileall)
+# check      → full static + catalog gates (lint + docs-check)
+# check-ci   → check + CPU evaluate hello-world (cli-check scorecard)
+check-fast: ruff-check shell-check docs-check
+
+check: lint docs-check
+
+check-ci: check cli-check
 
 ruff-check:
 	$(PYTHON) -m ruff check $(RUFF_SOURCES)
@@ -99,8 +113,11 @@ preflight:
 		--output-dir $(PREFLIGHT_OUTPUT) \
 		--json
 
+# Optional extra pytest flags, e.g. PYTEST_ARGS='-m "not gpu and not network"'
+PYTEST_ARGS ?=
+
 test-eval-core:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest test/eval_core -q -p no:cacheprovider
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest test/eval_core -q -p no:cacheprovider $(PYTEST_ARGS)
 
 test-training:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest tests/training -q -p no:cacheprovider
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest tests/training -q -p no:cacheprovider $(PYTEST_ARGS)

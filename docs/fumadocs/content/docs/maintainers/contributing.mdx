@@ -45,10 +45,15 @@ When you change behavior, update the page that owns it:
 
 ## Local validation
 
+Prefer the smallest Makefile gate layer that covers the change:
+
+- `make check-fast` — ruff + shell + `docs-check` (no catalog / compileall)
+- `make check` — `lint` + `docs-check` (full static and catalog gates)
+- `make check-ci` — `check` + `cli-check` (CPU evaluate hello-world scorecard)
+
 ```bash
 bash scripts/setup/conda_install.sh --preset slim --env-name worldfoundry
-make lint
-make docs-check
+make check
 cd docs/fumadocs && npm run types:check && npm run build
 ```
 

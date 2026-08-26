@@ -45,10 +45,15 @@ Fumadocs 是唯一维护的文档面。新增或修改页面时，在 `docs/fuma
 
 ## 本地验证
 
+优先选用覆盖变更面的最小 Makefile 分层门禁：
+
+- `make check-fast` — ruff + shell + `docs-check`（不含 catalog / compileall）
+- `make check` — `lint` + `docs-check`（完整静态与 catalog 门禁）
+- `make check-ci` — `check` + `cli-check`（CPU evaluate hello-world scorecard）
+
 ```bash
 bash scripts/setup/conda_install.sh --preset slim --env-name worldfoundry
-make lint
-make docs-check
+make check
 cd docs/fumadocs && npm run types:check && npm run build
 ```
 
