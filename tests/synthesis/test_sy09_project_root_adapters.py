@@ -273,3 +273,18 @@ def test_batch11_scripts_use_paths_project_root() -> None:
     )
     assert paths == [], paths
 
+
+def test_batch12_fumadocs_scripts_use_paths_project_root() -> None:
+    """docs/fumadocs/scripts repo climbs use project_root, not parents[3]."""
+    import re
+
+    repo = Path(__file__).resolve().parents[2]
+    deep = re.compile(r"Path\(__file__\)\.resolve\(\)\.parents\[3\]")
+    root = repo / "docs/fumadocs/scripts"
+    paths = sorted(
+        str(p.relative_to(repo))
+        for p in root.glob("*.py")
+        if deep.search(p.read_text(encoding="utf-8"))
+    )
+    assert paths == [], paths
+

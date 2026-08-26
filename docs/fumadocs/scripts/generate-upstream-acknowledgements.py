@@ -7,9 +7,11 @@ import json
 import re
 from collections import OrderedDict
 from pathlib import Path
+
+from worldfoundry.core.io.paths import project_root
 from typing import Any
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = project_root(__file__)
 OUT = Path(__file__).resolve().parents[1] / "lib" / "upstream-acknowledgements-data.json"
 
 MODEL_FAMILY_META = {

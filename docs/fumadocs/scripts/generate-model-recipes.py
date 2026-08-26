@@ -82,12 +82,14 @@ import shlex
 import sys
 from collections import Counter
 from pathlib import Path
+
+from worldfoundry.core.io.paths import project_root
 from typing import Any, Iterable
 
 import yaml
 
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = project_root(__file__)
 DOCS_ROOT = Path(__file__).resolve().parents[1]
 OUT = DOCS_ROOT / "lib" / "model-recipes-data.json"
 INDEX_OUT = DOCS_ROOT / "lib" / "model-recipes-index.json"

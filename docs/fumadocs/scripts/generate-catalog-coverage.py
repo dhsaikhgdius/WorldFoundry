@@ -12,7 +12,9 @@ import re
 from collections import OrderedDict
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[3]
+from worldfoundry.core.io.paths import project_root
+
+ROOT = project_root(__file__)
 OUT = Path(__file__).resolve().parents[1] / "lib" / "catalog-coverage-data.json"
 
 FAMILY_META = {
