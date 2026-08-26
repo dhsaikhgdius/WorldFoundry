@@ -18,6 +18,7 @@
 import io
 import json
 import os
+import tempfile
 from contextlib import contextmanager
 from typing import Any, Generator, Union
 from urllib.parse import urlparse
@@ -26,6 +27,14 @@ import boto3
 from botocore.exceptions import ClientError
 from torch.distributed.checkpoint import FileSystemReader, FileSystemWriter
 from torch.distributed.checkpoint.filesystem import FileSystemBase
+
+# Spill S3 object buffers to disk after this many bytes to avoid multi-GB RAM
+# spikes when streaming distributed checkpoint shards (CA-04).
+S3_STREAM_SPOOL_MAX_BYTES = 64 * 1024 * 1024
+
+
+def _s3_spooled_stream() -> tempfile.SpooledTemporaryFile:
+    return tempfile.SpooledTemporaryFile(max_size=S3_STREAM_SPOOL_MAX_BYTES, mode="w+b")
 
 
 class S3FileSystem(FileSystemBase):
@@ -51,8 +60,10 @@ class S3FileSystem(FileSystemBase):
     def create_stream(self, path: Union[str, os.PathLike], mode: str) -> Generator[io.IOBase, None, None]:
         """Open an S3 object as a binary stream.
 
-        For ``"rb"`` the object is downloaded into an in-memory buffer; for
-        ``"wb"`` writes are buffered in memory and uploaded on context exit.
+        For ``"rb"`` the object is downloaded into a
+        :class:`tempfile.SpooledTemporaryFile` (spills to disk above
+        ``S3_STREAM_SPOOL_MAX_BYTES``); for ``"wb"`` writes use the same spool
+        and are uploaded on context exit.
 
         Args:
             path: ``s3://bucket/key`` URI.
@@ -65,7 +76,7 @@ class S3FileSystem(FileSystemBase):
         bucket, key = self._parse_s3_uri(path_str)
 
         if mode == "rb":
-            stream = io.BytesIO()
+            stream = _s3_spooled_stream()
             try:
                 self.s3_client.download_fileobj(bucket, key, stream)
                 stream.seek(0)
@@ -73,7 +84,7 @@ class S3FileSystem(FileSystemBase):
             finally:
                 stream.close()
         elif mode == "wb":
-            stream = io.BytesIO()
+            stream = _s3_spooled_stream()
             try:
                 yield stream
                 stream.seek(0)
