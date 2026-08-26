@@ -26,12 +26,15 @@ from packaging.requirements import InvalidRequirement, Requirement
 from PIL import Image
 
 from worldfoundry.core.io.serialization import write_json as _core_write_json
+from worldfoundry.core.logging_setup import get_logger
 from worldfoundry.runtime.compile_cache import configure_persistent_compile_cache
 from worldfoundry.runtime.conda import RuntimeCondaEnvSpec, load_runtime_conda_env_specs_with_overrides
 
 from .catalog import CatalogEntry, find_entry
 from .launch_config import lingbot_fast_sequence_parallel_enabled
 from .runtime_paths import studio_workspace_root
+
+logger = get_logger(__name__)
 
 try:
     import imageio.v2 as imageio
@@ -2772,10 +2775,12 @@ class StudioManager:
                 # would leave the remaining ranks waiting for the next command.
                 local_result = list(local_result)
         except Exception as exc:
-            print(
-                f"[studio][torchrun][rank {rank}] {type(exc).__name__}: {exc}\n{traceback.format_exc()}",
-                file=sys.stderr,
-                flush=True,
+            logger.error(
+                "[studio][torchrun][rank %s] %s: %s\n%s",
+                rank,
+                type(exc).__name__,
+                exc,
+                traceback.format_exc(),
             )
             local_error = f"{type(exc).__name__}: {exc}"
 
@@ -2804,34 +2809,35 @@ class StudioManager:
         control_group = _torchrun_control_group()
         if control_group is None:
             raise RuntimeError("Torchrun LingBot fast control group is not initialized.")
-        print(f"[studio][torchrun][rank {rank}] worker loop starting", file=sys.stderr, flush=True)
+        logger.info("[studio][torchrun][rank %s] worker loop starting", rank)
         try:
             while True:
                 payload: list[Any] = [None]
                 try:
                     dist.broadcast_object_list(payload, src=0, group=control_group)
                 except Exception as exc:
-                    print(
-                        f"[studio][torchrun][rank {rank}] command broadcast failed: "
-                        f"{type(exc).__name__}: {exc}\n{traceback.format_exc()}",
-                        file=sys.stderr,
-                        flush=True,
+                    logger.error(
+                        "[studio][torchrun][rank %s] command broadcast failed: %s: %s\n%s",
+                        rank,
+                        type(exc).__name__,
+                        exc,
+                        traceback.format_exc(),
                     )
                     raise
                 command = payload[0]
                 if not isinstance(command, dict):
                     continue
                 kind = str(command.get("kind", "") or "")
-                print(
-                    f"[studio][torchrun][rank {rank}] received command: {kind or 'unknown'}",
-                    file=sys.stderr,
-                    flush=True,
+                logger.info(
+                    "[studio][torchrun][rank %s] received command: %s",
+                    rank,
+                    kind or "unknown",
                 )
                 if kind == "shutdown":
                     return
                 self._execute_torchrun_command(command)
         finally:
-            print(f"[studio][torchrun][rank {rank}] worker loop exiting", file=sys.stderr, flush=True)
+            logger.info("[studio][torchrun][rank %s] worker loop exiting", rank)
 
     def _enforce_cache_limit(self) -> None:
         while len(self.pipeline_cache) > self.max_cached_pipelines:

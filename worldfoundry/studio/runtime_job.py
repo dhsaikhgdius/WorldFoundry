@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from worldfoundry.core.logging_setup import get_logger
+
 import argparse
 import json
 import os
@@ -25,6 +27,8 @@ from .execution import (
 
 
 SECRET_ENV_REF_KEY = "__worldfoundry_secret_env__"
+
+logger = get_logger(__name__)
 
 
 def _load_json(path: str | Path) -> dict[str, Any]:
@@ -103,11 +107,11 @@ def _shutdown_torch_distributed_runtime() -> None:
         if dist.is_available() and dist.is_initialized():
             dist.destroy_process_group()
     except Exception as exc:
-        print(
-            f"[studio][torchrun][rank {_torchrun_rank()}] failed to destroy process group: "
-            f"{type(exc).__name__}: {exc}",
-            file=sys.stderr,
-            flush=True,
+        logger.warning(
+            "[studio][torchrun][rank %s] failed to destroy process group: %s: %s",
+            _torchrun_rank(),
+            type(exc).__name__,
+            exc,
         )
 
 
@@ -253,10 +257,10 @@ def _run_manager_worker(args: argparse.Namespace) -> int:
         try:
             payload = json.loads(raw_line.decode("utf-8"))
         except Exception:
-            print(f"[studio-worker] ignoring invalid request line: {raw_line!r}", file=sys.stderr, flush=True)
+            logger.warning("[studio-worker] ignoring invalid request line: %r", raw_line)
             continue
         if not isinstance(payload, dict):
-            print("[studio-worker] ignoring non-object request", file=sys.stderr, flush=True)
+            logger.warning("[studio-worker] ignoring non-object request")
             continue
         if str(payload.get("command") or "").strip().lower() == "shutdown":
             print(json.dumps({"status": "shutdown"}, sort_keys=True), flush=True)

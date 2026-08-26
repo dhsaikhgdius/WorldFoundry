@@ -20,9 +20,12 @@ from threading import RLock
 from time import monotonic
 from typing import Any
 
+from worldfoundry.core.logging_setup import get_logger, log_context
 from worldfoundry.core.time import utc_now_iso
 from worldfoundry.runtime.jobs import TERMINAL_JOB_STATUSES
 
+
+logger = get_logger(__name__)
 
 STUDIO_JOB_TABLE_HEADERS = ["Job ID", "Title", "Model", "Action", "Status", "Created", "Elapsed"]
 
@@ -37,6 +40,7 @@ class StudioJob:
     display_name: str
     action: str
     job_type: str = "inference"
+    run_id: str = ""
     metadata: Mapping[str, Any] = field(default_factory=dict)
     status: str = "queued"
     created_at: str = field(default_factory=utc_now_iso)
@@ -149,6 +153,7 @@ class StudioJobStore:
             job_id = f"studio-{self._counter:05d}"
             job = StudioJob(
                 job_id=job_id,
+                run_id=job_id,
                 title=title or f"{display_name} {action}",
                 model_id=model_id,
                 display_name=display_name,
@@ -197,6 +202,10 @@ class StudioJobStore:
         job = self.get(job_id)
         if job is None:
             return
+        with log_context(run_id=job.run_id or job.job_id, job_id=job.job_id, phase="studio_job"):
+            self._execute_bound(job, run_callable)
+
+    def _execute_bound(self, job: StudioJob, run_callable: RunJobCallable) -> None:
         with self._lock:
             if job.cancel_requested:
                 job.status = "cancelled"
