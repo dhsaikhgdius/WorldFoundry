@@ -1747,6 +1747,7 @@ def _resident_worker_for(
     workspace_root: str,
     context: _ResidentRunContext,
     log_callback: LogCallback | None,
+    cancel_requested: CancelCallback | None = None,
 ) -> _ResidentWorker:
     retired_workers: list[_ResidentWorker] = []
     worker: _ResidentWorker | None = None
@@ -1827,7 +1828,12 @@ def _resident_worker_for(
 
         if worker is None:
             if context.automatic_cuda_device_count:
-                device_lease = _automatic_gpu_pool().acquire(context.automatic_cuda_device_count)
+                # Still under the lifecycle lock so capacity stays consistent, but
+                # honor cancel_requested so UI cancel is not deadlocked on GPU wait.
+                device_lease = _automatic_gpu_pool().acquire(
+                    context.automatic_cuda_device_count,
+                    cancel_requested=cancel_requested,
+                )
                 allocated_env = dict(context.env)
                 allocated_env["CUDA_VISIBLE_DEVICES"] = device_lease.visible_devices
                 context = replace(
@@ -2122,6 +2128,7 @@ def _run_manager_payload_in_resident_conda(
         workspace_root=workspace_root,
         context=context,
         log_callback=log_callback,
+        cancel_requested=cancel_requested,
     )
     lock_acquired = False
     try:
@@ -2203,6 +2210,58 @@ def _run_manager_payload_in_conda_impl(
     if resident_record is not None:
         return resident_record
 
+    # Resident-eligible jobs enter this function without an outer GPU lease.
+    # One-shot fallback must still take an exclusive automatic placement lease,
+    # otherwise device=cuda inherits the parent's full visible set and collides
+    # with concurrent leased jobs.
+    fallback_lease: CudaDeviceLease | None = None
+    one_shot_run_kwargs: Mapping[str, Any] = run_kwargs
+    fallback_device_count = _automatic_cuda_device_count(model_id, run_kwargs)
+    if fallback_device_count > 0:
+        retired_count = _retire_idle_resident_workers_for_cuda_request(fallback_device_count)
+        if retired_count:
+            _append_log(
+                log_callback,
+                "system",
+                f"retired {retired_count} idle resident worker(s) for {fallback_device_count}-GPU one-shot fallback\n",
+            )
+        fallback_lease = _automatic_gpu_pool().acquire(
+            fallback_device_count,
+            cancel_requested=cancel_requested,
+        )
+        one_shot_run_kwargs = _run_kwargs_with_cuda_lease(run_kwargs, fallback_lease)
+        _append_log(
+            log_callback,
+            "system",
+            f"assigned CUDA_VISIBLE_DEVICES={fallback_lease.visible_devices} for one-shot fallback of {model_id}\n",
+        )
+
+    try:
+        return _run_manager_payload_in_conda_oneshot(
+            model_id=model_id,
+            spec=spec,
+            workspace_root=workspace_root,
+            run_kwargs=one_shot_run_kwargs,
+            dispatch_dir=dispatch_dir,
+            log_callback=log_callback,
+            cancel_requested=cancel_requested,
+        )
+    finally:
+        if fallback_lease is not None:
+            fallback_lease.release()
+
+
+def _run_manager_payload_in_conda_oneshot(
+    *,
+    model_id: str,
+    spec: RuntimeCondaEnvSpec,
+    workspace_root: str,
+    run_kwargs: Mapping[str, Any],
+    dispatch_dir: Path,
+    log_callback: LogCallback | None = None,
+    cancel_requested: CancelCallback | None = None,
+) -> RunRecord:
+    """Spawn a one-shot conda subprocess for a Studio manager payload."""
     payload_path = dispatch_dir / "payload.json"
     result_path = dispatch_dir / "result.json"
     for stale_log in ("stdout.log", "stderr.log"):

@@ -15,12 +15,21 @@ GPU 池替换竞态、混合 docker 镜像静默降级宿主机、mirror 契约�
 公开树内个人路径/生成物/ELF、StudioJobStore 仍无持久化（R-03 PARTIAL）。
 
 本轮已落地（分支 cursor/infra-p0-impl-4569，另见 cursor/infra-dlc-sanitize-4569）：
-  - pin gradio/starlette；ruff --fix 修绿 public surface
+  - pin gradio/starlette；ruff --fix 修绿 public surface；CI ruff==0.12.7
   - CUDA_DEVICE_ORDER=PCI_BUS_ID；冻结 automatic GPU pool
+  - one-shot resident fallback 补 GPU 租约；resident acquire 传 cancel_requested
   - disk_map device.type 比较；embodied 混合镜像 fail-loud
   - 删除 project_codex_env.sh、inspatio tmp yaml、T04 ELF scan
   - 洗净 plan/ 内若干 /mnt/cpfs* 个人路径；Makefile ruff==0.12.7；AGENTS.md 同步
   - DLC 提交脚本去账户硬编码（独立分支）
+
+
+Studio 深挖新增（未全部落地）
+------------------------------
+  - MCP studio 客户端未带鉴权头（开鉴权与用 MCP 互斥）
+  - StudioJobStore 仍纯内存；MAX_JOBS 默认 8 不自适应
+  - acquire 仍在 lifecycle 锁内（已传 cancel；中期应挪到锁外）
+  - catalog.py 另有一份 /share/project path mirror
 
 
 1. 旧项状态摘要（抽样）
