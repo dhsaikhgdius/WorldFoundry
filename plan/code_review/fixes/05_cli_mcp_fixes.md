@@ -97,7 +97,7 @@
 ### [CM-29] P2 MCP 默认输出/数据路径相对 CWD
 - 文件：`worldfoundry/mcp/tools/context.py`、`worldfoundry/mcp/tools/readiness.py`
 - 改动：(1) `DEFAULT_MCP_OUTPUT_ROOT` 默认锚定 `REPO_ROOT/runs/mcp`（绝对路径）；`WORLDFOUNDRY_MCP_RUN_ROOT` 覆盖值 import 时一次性 resolve，服务器生命周期内稳定；(2) `check_benchmark_datasets_payload` 的默认 `data_root` 从 CWD 相对 `"datasets"` 改为 `core.io.paths.local_data_root_path()`（尊重 `WORLDFOUNDRY_DATA_DIR`/`WORLDFOUNDRY_BENCHMARK_DATA_ROOT`，与评测栈同源）。`server_info` 的 `output_root` 现回显解析后的绝对路径。
-- 实测：`output_root=/mnt/.../WorldFoundry/runs/mcp`、`dataset_root=/root/.cache/worldfoundry/data`，均绝对。
+- 实测：`output_root=<repo-root>/runs/mcp`、`dataset_root=/root/.cache/worldfoundry/data`，均绝对。
 - 备注：`DEFAULT_CONTEXT` 全局单例与 server 显式 context 并存的问题未动（删除会破 27 个 payload 函数的默认参数契约），见 Deferred。
 
 ### [CM-30] P3 discovery 每次调用全量重载 manifest + conda 探测

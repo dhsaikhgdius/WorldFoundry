@@ -21,12 +21,14 @@ TEXT_SUFFIXES = {
 FORBIDDEN_MACHINE_PATHS = (
     "yang" + "boxue",
     "/mnt" + "/cpfs",
+    "/mnt" + "/cpfsB",
     "/mnt" + "/workspace",
     "/mnt" + "/world_foundational_model",
     "/Users" + "/",
     "/private" + "/home",
     "/home/" + "kchen",
     "/home/" + "gary",
+    "/home/" + "aiscuser",
 )
 PRUNED_DIRS = {
     ".git",
@@ -39,6 +41,7 @@ PRUNED_DIRS = {
     "out",
     "outputs",
     "tmp",
+    "thirdparty",
 }
 PRUNED_DIR_PREFIXES = (
     "out.nfs-busy-",
