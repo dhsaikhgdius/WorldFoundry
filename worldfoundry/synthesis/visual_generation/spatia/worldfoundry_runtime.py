@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from worldfoundry.runtime.in_tree_cli import ensure_in_tree_runtime, execute_in_tree, require_path
-from worldfoundry.core.io.paths import hfd_root_path, resolve_local_hf_model_path
+from worldfoundry.core.io.paths import hfd_root_path, project_root as resolve_project_root, resolve_local_hf_model_path
 
 
 def _checkpoint_file(root: Path, names: tuple[str, ...], label: str) -> Path:
@@ -60,16 +60,16 @@ class SpatiaRuntime:
 
     @staticmethod
     def project_root() -> Path:
-        return Path(__file__).resolve().parents[4]
+        return resolve_project_root(__file__)
 
     @staticmethod
     def mapanything_root() -> Path:
-        worldfoundry_root = Path(__file__).resolve().parents[3]
+        worldfoundry_root = resolve_project_root(__file__) / "worldfoundry"
         return worldfoundry_root / "base_models" / "three_dimensions" / "general_3d" / "mapanything"
 
     @staticmethod
     def uniception_root() -> Path:
-        worldfoundry_root = Path(__file__).resolve().parents[3]
+        worldfoundry_root = resolve_project_root(__file__) / "worldfoundry"
         return (
             worldfoundry_root
             / "base_models"

@@ -8,9 +8,11 @@ import os
 import subprocess
 from pathlib import Path
 
+from worldfoundry.core.io.paths import project_root
+
 from . import NATIVE_EXPLORER_ROOT
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
+REPOSITORY_ROOT = project_root(__file__)
 RUNTIME_ROOT = (
 	REPOSITORY_ROOT
 	/ "worldfoundry"

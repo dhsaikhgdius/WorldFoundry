@@ -12,10 +12,14 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
+
 from typing import Any, Iterable
 
+from worldfoundry.core.io.paths import project_root
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+REPO_ROOT = project_root(__file__)
 DEFAULT_HF_ROOT = Path(os.environ.get("WORLDFOUNDRY_HFD_ROOT", REPO_ROOT / "cache" / "checkpoints" / "hfd"))
 DEFAULT_ASSET_ROOT = Path(os.environ.get("WORLDFOUNDRY_ASSET_ROOT", REPO_ROOT / "cache" / "assets"))
 DEFAULT_OPENPI_ROOT = Path(os.environ.get("WORLDFOUNDRY_OPENPI_ASSET_ROOT", DEFAULT_ASSET_ROOT / "openpi"))
