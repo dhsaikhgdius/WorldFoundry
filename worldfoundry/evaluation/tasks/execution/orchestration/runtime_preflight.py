@@ -21,10 +21,11 @@ from typing import Any
 
 import yaml
 
+from worldfoundry.core.io.paths import project_root
 from worldfoundry.evaluation.utils import write_json
 
 SCHEMA_VERSION = "worldfoundry-runtime-preflight-v1"
-REPO_ROOT = Path(__file__).resolve().parents[5]
+REPO_ROOT = project_root(__file__)
 DEFAULT_PROFILE_DIR = REPO_ROOT / "worldfoundry/data/benchmarks/runtime_profiles/official"
 _ENV_PATTERN = re.compile(
     r"\$(?P<plain>[A-Za-z_][A-Za-z0-9_]*)"
