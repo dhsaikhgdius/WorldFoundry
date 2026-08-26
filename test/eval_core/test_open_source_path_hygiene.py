@@ -35,13 +35,17 @@ PRUNED_DIRS = {
     ".next",
     ".pytest_cache",
     "__pycache__",
+    ".venv",
+    "build",
     "cache",
+    "dist",
     "logs",
     "node_modules",
     "out",
     "outputs",
     "tmp",
     "thirdparty",
+    "venv",
 }
 PRUNED_DIR_PREFIXES = (
     "out.nfs-busy-",
