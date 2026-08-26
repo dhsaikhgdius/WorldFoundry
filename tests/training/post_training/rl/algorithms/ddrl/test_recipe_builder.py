@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from worldfoundry.core.io.paths import project_root
+
 import pytest
 
 torch = pytest.importorskip("torch")
@@ -237,7 +239,7 @@ def test_builder_fails_closed_for_data_adapter_and_collected_train_on() -> None:
 
 def test_ddrl_stack_fixture_and_public_exports_are_canonical() -> None:
     pytest.importorskip("yaml")
-    root = Path(__file__).resolve().parents[6]
+    root = project_root(__file__)
     recipe = PostTrainingRecipe.from_file(root / "tests/training/fixtures/recipes/cosmos_predict2p5_2b_ddrl_stack.yaml")
 
     assert isinstance(recipe.algorithm, DDRLAlgorithmSpec)
