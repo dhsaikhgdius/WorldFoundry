@@ -6,7 +6,6 @@ import os
 import re
 import shutil
 import subprocess
-import sys
 import tempfile
 import uuid
 from collections.abc import Mapping, Sequence
@@ -19,6 +18,7 @@ from worldfoundry.core.io.paths import (
     resolve_local_checkpoint_file,
     resolve_local_hf_model_path,
 )
+from worldfoundry.runtime.conda import resolve_model_python
 
 from .config_paths import MATRIX_GAME_35_CONFIG_ROOT, matrix_game_35_infer_config_path
 from .specs import MatrixGame35ModelSpec, get_matrix_game_35_model_spec
@@ -186,7 +186,12 @@ def inspect_camera_npz(camera_path: str | os.PathLike[str], *, num_blocks: int =
 
 
 def _resolve_python(value: str | os.PathLike[str] | None) -> Path:
-    raw = str(value or os.environ.get("WORLDFOUNDRY_MATRIX_GAME_3P5_PYTHON") or sys.executable)
+    if value is not None and str(value).strip():
+        raw = str(value)
+    elif os.environ.get("WORLDFOUNDRY_MATRIX_GAME_3P5_PYTHON"):
+        raw = os.environ["WORLDFOUNDRY_MATRIX_GAME_3P5_PYTHON"]
+    else:
+        raw = resolve_model_python("matrix-game-3.5")
     candidate = Path(raw).expanduser()
     if candidate.is_dir():
         candidate = candidate / "bin" / "python"

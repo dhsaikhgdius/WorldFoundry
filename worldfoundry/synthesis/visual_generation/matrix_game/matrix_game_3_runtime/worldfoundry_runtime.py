@@ -21,6 +21,7 @@ from worldfoundry.evaluation.utils import worldfoundry_data_path
 
 import numpy as np
 import torch
+from worldfoundry.runtime.conda import resolve_model_python
 from worldfoundry.runtime.env import resolve_hfd_root
 
 
@@ -264,7 +265,7 @@ class MatrixGame3Runtime:
 
         size_value = self._normalize_size(size)
         command = [
-            sys.executable,
+            resolve_model_python("matrix-game-3"),
             "-m",
             "worldfoundry.synthesis.visual_generation.matrix_game.matrix_game_3_runtime.worldfoundry_runner",
             "--runtime_root",

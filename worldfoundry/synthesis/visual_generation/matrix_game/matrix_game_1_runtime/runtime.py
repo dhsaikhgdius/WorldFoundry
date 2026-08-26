@@ -12,6 +12,7 @@ from typing import Any, Mapping, Sequence
 from worldfoundry.core import jsonable
 from worldfoundry.core.io.paths import conda_envs_root_path, conda_root_path, project_root, resolve_worldfoundry_path
 from worldfoundry.evaluation.utils import worldfoundry_data_path
+from worldfoundry.runtime.conda import resolve_model_python
 from worldfoundry.runtime.env import resolve_ckpt_dir, resolve_hfd_root
 
 
@@ -196,14 +197,16 @@ class MatrixGame1Runtime:
 
     @property
     def python_executable(self) -> Path | None:
-        """Return the configured Matrix-Game-1 Python executable when present.
+        """Return Matrix-Game-1 Python: dedicated conda_dir, else registered env.
 
         Args:
             None.
         """
-        if self.conda_dir is None:
-            return None
-        return self.conda_dir / "bin" / "python"
+        if self.conda_dir is not None:
+            dedicated = self.conda_dir / "bin" / "python"
+            if dedicated.is_file():
+                return dedicated
+        return Path(resolve_model_python("matrix-game-1"))
 
     def missing_checkpoint_files(self) -> tuple[str, ...]:
         """Return missing required Matrix-Game-1 checkpoint files.
