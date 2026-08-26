@@ -47,116 +47,63 @@ Options:
                         --repo THUDM/CogVideoX-5b-I2V=CogVideoX-5b-I2V.
                         DIR may be absolute or relative to --ckpt-dir.
   --force               Replace existing symlinks/files owned by this layout.
-  --default-world       Link common WorldFoundry world/video checkpoints if present.
+  --default-world       Link common WorldFoundry world/video checkpoints if present
+                        (from scripts/setup/default_world_checkpoint_links.yaml).
   -h, --help            Show this help.
 EOF
 }
 
 add_default_world_repos() {
-  REPO_SPECS+=(
-    "THUDM/CogVideoX-2b=CogVideoX-2b"
-    "THUDM/CogVideoX-5b=CogVideoX-5b"
-    "THUDM/CogVideoX-5b-I2V=CogVideoX-5b-I2V"
-    "THUDM/CogVideoX1.5-5B=CogVideoX1.5-5B"
-    "THUDM/CogVideoX1.5-5B-I2V=CogVideoX1.5-5B-I2V"
-    "Skywork/SkyReels-V3-R2V-14B=SkyReels-V3-R2V-14B"
-    "Skywork/SkyReels-V2-DF-1.3B-540P=SkyReels-V2-DF-1.3B-540P"
-    "Skywork/SkyReels-V2-T2V-14B-720P=SkyReels-V2-T2V-14B-720P"
-    "Skywork/SkyReels-V2-I2V-1.3B-540P=SkyReels-V2-I2V-1.3B-540P"
-    "Skywork/SkyReels-V2-I2V-14B-720P=SkyReels-V2-I2V-14B-720P"
-    "Wan-AI/Wan2.1-T2V-1.3B=Wan2.1-T2V-1.3B"
-    "Wan-AI/Wan2.1-T2V-14B=Wan2.1-T2V-14B"
-    "Wan-AI/Wan2.1-I2V-14B-480P=Wan2.1-I2V-14B-480P"
-    "Wan-AI/Wan2.1-I2V-14B-720P=Wan2.1-I2V-14B-720P"
-    "Wan-AI/Wan2.1-VACE-14B=Wan2.1-VACE-14B"
-    "Wan-AI/Wan2.1-VACE-1.3B-diffusers=Wan2.1-VACE-1.3B-diffusers"
-    "FayeHongfeiZhang/DualCamCtrl=DualCamCtrl"
-    "alibaba-pai/Wan2.1-Fun-V1.1-1.3B-Control-Camera=Wan2.1-Fun-V1.1-1.3B-Control-Camera"
-    "Wan-AI/Wan2.2-TI2V-5B=Wan2.2-TI2V-5B"
-    "Wan-AI/Wan2.2-T2V-A14B=Wan2.2-T2V-A14B"
-    "Wan-AI/Wan2.2-I2V-A14B=Wan2.2-I2V-A14B"
-    "Wan-AI/Wan2.2-Lightning=Wan2.2-Lightning"
-    "Wan-AI/Wan2.2-TI2V-5B-Diffusers=Wan2.2-TI2V-5B-Diffusers"
-    "Skywork/Matrix-Game-2.0=Matrix-Game-2.0"
-    "Skywork/Matrix-Game-3.0=Matrix-Game-3.0"
-    "tencent/HY-WorldPlay=HY-WorldPlay"
-    "tencent/Hunyuan-GameCraft-1.0=Hunyuan-GameCraft-1.0"
-    "tencent/HunyuanVideo-1.5=HunyuanVideo-1.5"
-    "tencent/HunyuanWorld-Voyager=HunyuanWorld-Voyager"
-    "tencent/HY-World-2.0=HY-World-2.0"
-    "tencent/HunyuanWorld-1=HunyuanWorld-1"
-    "tencent/HunyuanWorld-Mirror=HunyuanWorld-Mirror"
-    "Qwen/Qwen2.5-VL-7B-Instruct=Qwen2.5-VL-7B-Instruct"
-    "google/byt5-small=byt5-small"
-    "google-t5/t5-11b=t5-11b"
-    "black-forest-labs/FLUX.1-Redux-dev=FLUX.1-Redux-dev"
-    "black-forest-labs/FLUX.1-dev=FLUX.1-dev"
-    "black-forest-labs/FLUX.1-Fill-dev=FLUX.1-Fill-dev"
-    "google/siglip-base-patch16-224=siglip-base-patch16-224"
-    "stdstu123/Yume-I2V-540P=Yume-I2V-540P"
-    "stdstu123/Yume-5B-720P=Yume-5B-720P"
-    "Yuppie1204/NeoVerse=NeoVerse"
-    "liguang0115/vmem=vmem"
-    "liguang0115/cut3r=cut3r"
-    "worldcam/worldcam=worldcam"
-    "MeiGen-AI/Infinite-World=Infinite-World"
-    "KwaiVGI/Astra=Astra"
-    "EvanEternal/Astra=Astra"
-    "WoW-world-model/WoW-1-Wan-14B-600k=WoW-1-Wan-14B-600k"
-    "nyu-visionx/solaris=solaris"
-    "nvidia/GEN3C-Cosmos-7B=GEN3C-Cosmos-7B"
-    "nvidia/Cosmos-Tokenize1-CV8x8x8-720p=Cosmos-Tokenize1-CV8x8x8-720p"
-    "nvidia/Cosmos-Predict2.5-2B=Cosmos-Predict2.5-2B"
-    "nvidia/Cosmos-Predict2.5-14B=Cosmos-Predict2.5-14B"
-    "nvidia/Cosmos-Reason1-7B=Cosmos-Reason1-7B"
-    "nvidia/Cosmos-Reason2-2B=Cosmos-Reason2-2B"
-    "nvidia/Cosmos-Transfer2.5-2B=Cosmos-Transfer2.5-2B"
-    "nvidia/Cosmos3-Nano=Cosmos3-Nano"
-    "nvidia/Cosmos3-Super=Cosmos3-Super"
-    "Ruicheng/moge-vitl=moge-vitl"
-    "KlingTeam/ReCamMaster-Wan2.1=ReCamMaster-Wan2.1"
-    "inspatio/world=world"
-    "depth-anything/DA3NESTED-GIANT-LARGE=DA3NESTED-GIANT-LARGE"
-    "depth-anything/DA3NESTED-GIANT-LARGE-1.1=DA3NESTED-GIANT-LARGE-1.1"
-    "microsoft/Florence-2-large=Florence-2-large"
-    "RaphaelLiu/Pusa-Wan2.2-V1=Pusa-Wan2.2-V1"
-    "lightx2v/Wan2.2-Lightning=Wan2.2-Lightning"
-    "facebook/VGGT-1B=VGGT-1B"
-    "lch01/StreamVGGT=StreamVGGT"
-    "imlixinyang/FlashWorld=FlashWorld"
-    "depth-anything/Depth-Anything-V2-Large=Depth-Anything-V2-Large"
-    "depth-anything/Depth-Anything-V2-Giant=Depth-Anything-V2-Giant"
-    "stepfun-ai/stepvideo-t2v=stepvideo-t2v"
-    "TencentARC/Open-MAGVIT2=Open-MAGVIT2"
-    "TencentARC/MotionCtrl=MotionCtrl"
-    "showlab/show-o=show-o"
-    "guoyww/animatediff=animatediff"
-    "guoyww/animatediff-motion-adapter-v1-5-2=animatediff-motion-adapter-v1-5-2"
-    "stable-diffusion-v1-5/stable-diffusion-v1-5=stable-diffusion-v1-5"
-    "cerspense/zeroscope_v2_576w=zeroscope_v2_576w"
-    "cerspense/zeroscope_v2_XL=zeroscope_v2_XL"
-    "hehao13/CameraCtrl=CameraCtrl"
-    "hehao13/CameraCtrl_SVD_ckpts=CameraCtrl_SVD_ckpts"
-    "nvidia/DreamDojo=DreamDojo"
-    "GEAR-Dreams/DreamZero-DROID=DreamZero-DROID"
-    "GEAR-Dreams/DreamZero-AgiBot=DreamZero-AgiBot"
-    "open-gigaai/GigaBrain-0-3.5B-Base=GigaBrain-0-3.5B-Base"
-    "open-gigaai/GigaBrain-0.1-3.5B-Base=GigaBrain-0.1-3.5B-Base"
-    "google/paligemma-3b-pt-224=paligemma-3b-pt-224"
-    "physical-intelligence/fast=fast"
-    "nvidia/GR00T-N1.7-LIBERO=GR00T-N1.7-LIBERO"
-    "robbyant/lingbot-world-base-cam=lingbot-world-base-cam"
-    "robbyant/lingbot-world-base-act-preview=lingbot-world-base-act-preview"
-    "robbyant/lingbot-world-fast=lingbot-world-fast"
-    "robbyant/lingbot-world-v2-14b-causal-fast=lingbot-world-v2-14b-causal-fast"
-    "robbyant/lingbot-video-dense-1.3b=lingbot-video-dense-1.3b"
-    "robbyant/lingbot-video-moe-30b-a3b=lingbot-video-moe-30b-a3b"
-    "robbyant/lingbot-va-base=lingbot-va-base"
-    "robbyant/lingbot-va-posttrain-robotwin=lingbot-va-posttrain-robotwin"
-    "robbyant/lingbot-va-posttrain-libero-long=lingbot-va-posttrain-libero-long"
-    "brandonsmart/splatt3r_v1.0=splatt3r_v1.0"
-    "dylanebert/pixelSplat=pixelSplat"
-  )
+  local manifest="${WORLDFOUNDRY_DEFAULT_WORLD_LINKS_MANIFEST:-${ROOT}/scripts/setup/default_world_checkpoint_links.yaml}"
+  if [[ ! -f "${manifest}" ]]; then
+    echo "Error: default-world links manifest not found: ${manifest}" >&2
+    exit 1
+  fi
+  local python_bin="${PYTHON:-}"
+  if [[ -z "${python_bin}" ]]; then
+    if command -v python3 >/dev/null 2>&1; then
+      python_bin="python3"
+    elif command -v python >/dev/null 2>&1; then
+      python_bin="python"
+    else
+      echo "Error: python is required to load ${manifest}" >&2
+      exit 1
+    fi
+  fi
+  local mapped=""
+  mapped="$("${python_bin}" - "${manifest}" <<'PY'
+import sys
+from pathlib import Path
+
+try:
+    import yaml
+except ImportError as exc:  # pragma: no cover
+    raise SystemExit(f"PyYAML is required to load {sys.argv[1]}: {exc}") from exc
+
+payload = yaml.safe_load(Path(sys.argv[1]).read_text(encoding="utf-8")) or {}
+repos = payload.get("repos") or []
+lines = []
+for item in repos:
+    if not isinstance(item, dict):
+        raise SystemExit(f"invalid repo entry in {sys.argv[1]}: {item!r}")
+    repo_id = str(item.get("repo_id") or "").strip()
+    local_dir = str(item.get("local_dir") or "").strip()
+    if not repo_id or not local_dir:
+        raise SystemExit(f"repo_id/local_dir required in {sys.argv[1]}: {item!r}")
+    if "=" in repo_id or "=" in local_dir:
+        raise SystemExit(f"repo mapping must not contain '=': {item!r}")
+    lines.append(f"{repo_id}={local_dir}")
+print("\n".join(lines))
+PY
+)" || return 1
+  if [[ -z "${mapped}" ]]; then
+    echo "Warning: ${manifest} produced no repo mappings." >&2
+    return 0
+  fi
+  while IFS= read -r spec; do
+    [[ -n "${spec}" ]] || continue
+    REPO_SPECS+=("${spec}")
+  done <<<"${mapped}"
 }
 
 while (($#)); do
