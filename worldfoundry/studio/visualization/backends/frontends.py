@@ -13,6 +13,7 @@ import os
 import re
 import shlex
 import shutil
+import signal
 import socket
 import subprocess
 import sys
@@ -429,13 +430,48 @@ def serve_rerun_frontend(entry: CatalogEntry, launch_config: StudioLaunchConfig)
     print(f"Rerun command: {command}", flush=True)
     # Template placeholders are shlex.quote()d above, so splitting the rendered
     # command is equivalent to the previous shell=True invocation without a shell.
-    process = subprocess.Popen(shlex.split(command))
+    argv = shlex.split(command)
+    _require_rerun_executable(argv[0] if argv else "rerun")
+    # New session so KeyboardInterrupt can killpg the whole Rerun tree
+    # (viewer + helpers) instead of only the parent CLI process.
+    process = subprocess.Popen(argv, start_new_session=True)
     try:
         process.wait()
     except KeyboardInterrupt:
-        process.terminate()
-        with contextlib.suppress(Exception):
-            process.wait(timeout=5)
+        _stop_rerun_process_group(process)
+
+
+def _require_rerun_executable(executable: str) -> None:
+    """Fail fast when the Rerun CLI is missing, with an install hint."""
+
+    path = Path(executable)
+    if path.is_file() or shutil.which(executable):
+        return
+    raise SystemExit(
+        "Rerun CLI not found on PATH "
+        f"({executable!r}). Install the Studio Rerun extra, e.g. "
+        '`pip install -e ".[studio_rerun]"` or set WORLDFOUNDRY_STUDIO_RERUN_COMMAND '
+        "to a working viewer invocation."
+    )
+
+
+def _stop_rerun_process_group(process: subprocess.Popen) -> None:
+    """Terminate the Rerun process group, escalating to SIGKILL if needed."""
+
+    pid = process.pid
+    if pid is None:
+        return
+    with contextlib.suppress(ProcessLookupError, PermissionError, OSError):
+        os.killpg(pid, signal.SIGTERM)
+    try:
+        process.wait(timeout=5)
+        return
+    except subprocess.TimeoutExpired:
+        pass
+    with contextlib.suppress(ProcessLookupError, PermissionError, OSError):
+        os.killpg(pid, signal.SIGKILL)
+    with contextlib.suppress(Exception):
+        process.wait(timeout=2)
 
 
 def _default_rerun_command_template() -> str:
