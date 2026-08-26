@@ -5,11 +5,10 @@ import json
 import os
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 
 from worldfoundry.core.io.paths import resolve_data_path
-
+from worldfoundry.runtime.conda import resolve_model_python
 
 VARIANT_CONFIGS = {
     "4.5b-base": ("4.5B/4.5B_base_config.json", "ckpt/magi/4.5B_base"),
@@ -113,7 +112,7 @@ def main() -> None:
     mode = args.mode or ("v2v" if args.prefix_video_path else "i2v" if args.image_path else "t2v")
 
     command = [
-        sys.executable,
+        resolve_model_python("magi-1"),
         str(repo_root / "inference" / "pipeline" / "entry.py"),
         "--config_file",
         str(config_path),

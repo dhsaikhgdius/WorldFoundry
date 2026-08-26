@@ -6,7 +6,6 @@ import os
 import shutil
 import socket
 import subprocess
-import sys
 import time
 from contextlib import nullcontext
 from dataclasses import dataclass
@@ -16,6 +15,7 @@ from typing import Any, Mapping
 
 from worldfoundry.core.io import file_sha256, load_serialized, resolve_data_path
 from worldfoundry.runtime.assets import expand_worldfoundry_path
+from worldfoundry.runtime.conda import resolve_model_python
 
 
 def _expand_value(value: Any) -> Any:
@@ -264,7 +264,10 @@ class OfficialVideoRuntime:
         defaults = self.runtime.get("defaults")
         default_variables = dict(defaults) if isinstance(defaults, Mapping) else {}
         variables = {
-            "python": sys.executable,
+            "python": resolve_model_python(
+                self.model_id,
+                explicit=self.runtime.get("python_executable") or self.runtime.get("python"),
+            ),
             "torchrun": _torchrun_executable(),
             "master_port": _find_free_port(),
             "repo_root": report.repo_root or "",
@@ -447,7 +450,15 @@ class OfficialVideoRuntime:
         defaults = self.runtime.get("defaults")
         default_variables = dict(defaults) if isinstance(defaults, Mapping) else {}
         variables = {
-            "python": sys.executable,
+            "python": resolve_model_python(
+                self.model_id,
+                explicit=(
+                    extra.get("python_executable")
+                    or extra.get("python")
+                    or self.runtime.get("python_executable")
+                    or self.runtime.get("python")
+                ),
+            ),
             "torchrun": _torchrun_executable(),
             "master_port": _find_free_port(),
             "repo_root": repo_root or "",
