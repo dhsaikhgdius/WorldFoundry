@@ -10,17 +10,20 @@ from __future__ import annotations
 
 import argparse
 import ast
-from dataclasses import dataclass
 import inspect
 import json
-from pathlib import Path
 import re
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Iterable
 
+from _repo_path import ensure_repo_importable
 from api_symbol_intros import CURATED_INTROS, GROUP_HINTS
 
+ensure_repo_importable(__file__)
+from worldfoundry.core.io.paths import project_root  # noqa: E402
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = project_root(__file__)
 OUTPUT_PATH = REPO_ROOT / "docs" / "fumadocs" / "generated" / "python-api.json"
 
 
