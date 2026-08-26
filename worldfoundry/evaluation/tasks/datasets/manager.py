@@ -1990,6 +1990,17 @@ def locate_local_dataset(
 ) -> DatasetLocation:
     """Locate a previously downloaded benchmark dataset without network access.
 
+    Lookup order (first hit wins):
+
+    1. Per-dataset environment override (``WORLDFOUNDRY_DATASET_<ORG>_<NAME>``).
+    2. Local asset / benchmark data manifests
+       (``WORLDFOUNDRY_LOCAL_ASSET_MANIFEST`` or legacy
+       ``WORLDFOUNDRY_BENCHMARK_DATA_MANIFEST``).
+    3. Explicit ``data_root`` / ``WORLDFOUNDRY_BENCHMARK_DATA_ROOT`` direct layouts
+       (``org/name``, ``org--name``, nested ``hfd_datasets`` mirrors).
+    4. Hugging Face hub cache snapshots under ``cache_dir`` /
+       ``resolve_hf_cache_dir()``.
+
     Args:
         ref: Dataset reference, manifest-like mapping, or Hugging Face dataset id.
         data_root: Optional directory with ``org/name``, ``org--name``, or HF cache-style subfolders.
@@ -2276,13 +2287,14 @@ class DatasetManager:
         manifest_path: str | Path | None = None,
         env: Mapping[str, str] | None = None,
     ) -> DatasetLocation:
-        """Determines the physical directory path where a dataset resides.
+        """Locate a previously downloaded dataset without network access.
 
-        Queries paths in the following prioritized order:
-        1. High-priority local manifest rules.
-        2. Absolute data roots.
-        3. Environment variable overrides.
-        4. Standard Hugging Face cache snapshot folders.
+        Priority matches :func:`locate_local_dataset`:
+
+        1. Per-dataset environment override.
+        2. Local asset / benchmark data manifests.
+        3. Explicit ``data_root`` / ``WORLDFOUNDRY_BENCHMARK_DATA_ROOT`` direct layouts.
+        4. Hugging Face hub cache snapshots under this manager's ``cache_dir``.
 
         Args:
             ref: Dataset target spec.

@@ -120,6 +120,20 @@ env 文件。这个文件应保留在本机；里面是路径，不应包含密�
 `snapshot_download` 和标准 HF cache 变量。`WORLDFOUNDRY_CKPT_DIR` 用于上游
 runtime 需要固定目录布局的情况，或用软链保持官方路径而不重复复制大文件。
 
+### Benchmark 数据集布局
+
+WorldFoundry 用两套磁盘布局解析 benchmark 数据集（见
+`DatasetManager.locate_local` / `worldfoundry-eval dataset locate`）：
+
+1. **Direct mirror**：在 `WORLDFOUNDRY_BENCHMARK_DATA_ROOT` /
+   `WORLDFOUNDRY_DATA_DIR`（及相关 HFD dataset root）下，使用 `org/name`、
+   `org--name` 或嵌套的 `hfd_datasets/...` 镜像。脚本用 `--local-dir` 下载时优先这种布局。
+2. **Hugging Face hub cache**：在 `HF_DATASETS_CACHE` / `HF_HUB_CACHE` /
+   `WORLDFOUNDRY_HF_CACHE_DIR` 下，即无 `--local-dir` 时 `hf download` /
+   `huggingface-cli` 生成的 `datasets--org--name/snapshots/<rev>` 树。
+
+按数据集的环境变量覆盖与 `WORLDFOUNDRY_LOCAL_ASSET_MANIFEST` 仍优先于上述两种布局。
+
 ## 模型专用环境例外
 
 所有模型默认都先从 `worldfoundry-unified-<cuda-tier>` 开始。只有下表这些 profile

@@ -1,9 +1,8 @@
 """CLI sub-commands for dataset manifest creation, inspection, validation, and materialization.
 
-Provides the ``dataset`` sub-command under ``worldfoundry-eval`` with four
-operations: ``create``, ``show``, ``validate``, and ``materialize``.
-Each operation maps to a corresponding handler that delegates to the
-evaluation dataset API.
+Provides the ``dataset`` sub-command under ``worldfoundry-eval`` with
+``create``, ``show``, ``validate``, ``materialize``, plus DatasetManager
+helpers ``locate`` and ``plan`` (DS-09).
 """
 
 from __future__ import annotations
@@ -132,6 +131,65 @@ def _handle_dataset_materialize(args: argparse.Namespace) -> int:
     return 0
 
 
+def _dataset_manager(args: argparse.Namespace):
+    from worldfoundry.evaluation.tasks.datasets import DatasetManager
+    from worldfoundry.runtime.env import resolve_hf_cache_dir
+
+    cache_dir = args.cache_dir or resolve_hf_cache_dir()
+    return DatasetManager(cache_dir)
+
+
+def _handle_dataset_locate(args: argparse.Namespace) -> int:
+    """Locate a local Hugging Face dataset via DatasetManager (DS-09)."""
+
+    manager = _dataset_manager(args)
+    location = manager.locate_local(
+        args.dataset_id,
+        data_root=args.data_root,
+        manifest_path=args.manifest,
+    )
+    payload = location.to_dict()
+    if args.json:
+        json_dump(payload)
+    else:
+        print(f"ok: {payload.get('ok')}")
+        print(f"hf_dataset_id: {payload.get('hf_dataset_id') or '-'}")
+        print(f"source: {payload.get('source')}")
+        print(f"status: {payload.get('status')}")
+        print(f"path: {payload.get('path') or '-'}")
+        if payload.get("reason"):
+            print(f"reason: {payload['reason']}")
+    return 0 if location.ready else 1
+
+
+def _handle_dataset_plan(args: argparse.Namespace) -> int:
+    """Print a DatasetManager download plan for one or more dataset ids (DS-09)."""
+
+    manager = _dataset_manager(args)
+    plan = manager.build_download_plan(
+        list(args.dataset_id),
+        dataset_ids=args.dataset_id,
+        check_local=bool(args.check_local),
+    )
+    payload = plan.to_dict()
+    if args.json:
+        json_dump(payload)
+    else:
+        print(f"commands: {len(payload.get('commands') or ())}")
+        for command in payload.get("commands") or ():
+            if isinstance(command, (list, tuple)):
+                print("  " + " ".join(str(part) for part in command))
+            else:
+                print(f"  {command}")
+        for check in payload.get("local_checks") or ():
+            if isinstance(check, dict):
+                print(
+                    f"local: {check.get('hf_dataset_id') or '-'} "
+                    f"status={check.get('status')} ready={check.get('ready')}"
+                )
+    return 0
+
+
 def register_dataset_subparser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     """Register dataset CLI commands.
 
@@ -140,7 +198,7 @@ def register_dataset_subparser(subparsers: argparse._SubParsersAction[argparse.A
     """
     dataset_parser = subparsers.add_parser(
         "dataset",
-        help="Create, inspect, validate, and materialize dataset sample manifests",
+        help="Create, inspect, validate, materialize manifests; locate/plan HF datasets",
     )
     dataset_subparsers = dataset_parser.add_subparsers(dest="dataset_command", required=True)
 
@@ -187,3 +245,32 @@ def register_dataset_subparser(subparsers: argparse._SubParsersAction[argparse.A
     dataset_materialize_parser.add_argument("--output-jsonl", type=Path)
     dataset_materialize_parser.add_argument("--json", action="store_true")
     dataset_materialize_parser.set_defaults(func=_handle_dataset_materialize)
+
+    dataset_locate_parser = dataset_subparsers.add_parser(
+        "locate",
+        help="Locate a local Hugging Face dataset (env / manifest / direct root / HF cache)",
+    )
+    dataset_locate_parser.add_argument("dataset_id", help="Hugging Face dataset id, e.g. org/name")
+    dataset_locate_parser.add_argument("--data-root", type=Path)
+    dataset_locate_parser.add_argument("--manifest", type=Path, help="Optional local asset / data manifest")
+    dataset_locate_parser.add_argument("--cache-dir", type=Path, help="Hugging Face cache root override")
+    dataset_locate_parser.add_argument("--json", action="store_true")
+    dataset_locate_parser.set_defaults(func=_handle_dataset_locate)
+
+    dataset_plan_parser = dataset_subparsers.add_parser(
+        "plan",
+        help="Build DatasetManager download commands for one or more HF dataset ids",
+    )
+    dataset_plan_parser.add_argument(
+        "dataset_id",
+        nargs="+",
+        help="Hugging Face dataset id(s), e.g. org/name",
+    )
+    dataset_plan_parser.add_argument("--cache-dir", type=Path, help="Hugging Face cache root override")
+    dataset_plan_parser.add_argument(
+        "--check-local",
+        action="store_true",
+        help="Include local readiness checks in the plan payload",
+    )
+    dataset_plan_parser.add_argument("--json", action="store_true")
+    dataset_plan_parser.set_defaults(func=_handle_dataset_plan)

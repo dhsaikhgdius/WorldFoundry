@@ -147,7 +147,7 @@ worldfoundry-eval run self-forcing --print-config --json
 | 命令 | 子命令 / 作用 |
 | --- | --- |
 | `task` | 对 filesystem task YAML 执行 `list`、`show`、`validate`、`materialize`。 |
-| `dataset` | 对 dataset manifest 和 request rows 执行 `create`、`show`、`validate`、`materialize`。 |
+| `dataset` | 对 sample manifest 执行 `create`、`show`、`validate`、`materialize`；对 HF 数据集根执行 DatasetManager 的 `locate`、`plan`。 |
 | `config` | `list`、`run` 仓内 workflow template。 |
 | `plan` | `create`、`show`、`validate` 稳定的 `worldfoundry-run-plan` JSON。 |
 | `metric` | `list`、`show`、`validate` 可执行 metric ID。 |

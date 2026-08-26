@@ -122,6 +122,22 @@ standard HF cache variables) for public checkpoints. Use `WORLDFOUNDRY_CKPT_DIR`
 for upstream runtimes that require a fixed directory layout or for local soft
 links that preserve official paths without duplicating large files.
 
+### Benchmark dataset layouts
+
+WorldFoundry resolves benchmark datasets in two on-disk layouts (see
+`DatasetManager.locate_local` / `worldfoundry-eval dataset locate`):
+
+1. **Direct mirror** under `WORLDFOUNDRY_BENCHMARK_DATA_ROOT` /
+   `WORLDFOUNDRY_DATA_DIR` (and related HFD dataset roots): folders named
+   `org/name`, `org--name`, or nested `hfd_datasets/...` mirrors. Prefer this
+   when scripts download with `--local-dir`.
+2. **Hugging Face hub cache** under `HF_DATASETS_CACHE` / `HF_HUB_CACHE` /
+   `WORLDFOUNDRY_HF_CACHE_DIR`: the usual `datasets--org--name/snapshots/<rev>`
+   tree produced by `hf download` / `huggingface-cli` without `--local-dir`.
+
+Per-dataset env overrides and `WORLDFOUNDRY_LOCAL_ASSET_MANIFEST` still win
+before either layout.
+
 ## Dedicated model environment exceptions
 
 Start from `worldfoundry-unified-<cuda-tier>` for every model. Create a
