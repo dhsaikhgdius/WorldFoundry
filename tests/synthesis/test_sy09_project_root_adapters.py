@@ -326,3 +326,19 @@ def test_batch15_runtime_modules_use_paths_project_root() -> None:
         assert "from worldfoundry.core.io.paths import project_root" in text, rel
         assert "project_root(" in text, rel
         assert "Path(__file__).resolve().parents[" not in text, rel
+
+
+def test_batch16_studio_modules_use_paths_package_root() -> None:
+    """Studio conda_dispatch/assets resolve package root via package_root."""
+    repo = Path(__file__).resolve().parents[2]
+    dispatch = (repo / "worldfoundry/studio/conda_dispatch.py").read_text(encoding="utf-8")
+    assert "from worldfoundry.core.io.paths import package_root" in dispatch or (
+        "package_root" in dispatch and "from worldfoundry.core.io.paths import" in dispatch
+    )
+    assert "def _package_root() -> Path:\n    return package_root()" in dispatch
+    assert "Path(__file__).resolve().parents[" not in dispatch
+
+    assets = (repo / "worldfoundry/studio/ui/assets.py").read_text(encoding="utf-8")
+    assert "from worldfoundry.core.io.paths import package_root" in assets
+    assert 'package_root() / "studio" / "assets"' in assets
+    assert "Path(__file__).resolve().parents[" not in assets
