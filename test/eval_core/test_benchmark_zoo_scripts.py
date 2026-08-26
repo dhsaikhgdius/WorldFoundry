@@ -17,6 +17,7 @@ from types import ModuleType
 import pytest
 import yaml
 
+from test.eval_core.factories import write_benchmark_manifest as _write_manifest
 from worldfoundry.evaluation.tasks.execution.framework.io import (
     load_json,
     mean_numeric,
@@ -96,13 +97,6 @@ def _load_script(name: str) -> ModuleType:
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
-
-
-def _write_manifest(manifest_dir: Path, payload: object) -> Path:
-    manifest_dir.mkdir(parents=True, exist_ok=True)
-    path = manifest_dir / "benchmarks.yaml"
-    path.write_text(json.dumps(payload), encoding="utf-8")
-    return path
 
 
 def test_runner_io_score_helpers_cover_common_official_shapes() -> None:
