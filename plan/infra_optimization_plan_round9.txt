@@ -1,0 +1,180 @@
+WorldFoundry 基础设施优化计划（第 9 轮）
+========================================
+日期：2026-08-26
+性质：建议修改（本文件只记录计划，不直接改代码）
+承接：plan/infra_optimization_plan.txt、round2~round8
+方法：3 个云端子代理（claude-fable-5-thinking-xhigh）+ 主会话本地评审
+  - Makefile / scripts/dev / 开发者体验（DX）— 云端进行中
+  - docs 站点（fumadocs）构建与内容生成 — 云端进行中
+  - operators / native-kernels 打包与 ABI — 云端进行中
+  + 主会话：pyproject extras / 可选依赖分层（EX）— 已并入
+
+禁止重复第 1–8 轮已写条目。交叉最多一行。
+
+
+0. 现状一句话
+--------------
+``[ui]`` 未 pin ``gradio``，裸装即拉 Gradio 6 / Starlette ≥1.0 导致 Studio 启动失败（AGENTS.md 已警告）；
+``dev``/``dependency-groups.lint`` 仍写 ``ruff>=0.12.7`` 与仓库 pin 分叉；``[all]`` 与专项 extra
+（molmoact2/train_core）对 torch/transformers/av 约束互相打架。DX/docs/kernels 三路待回报。
+
+
+1. 不建议改的地方
+------------------
+- 保持 environment.yml 瘦 + pip extras 胖；不要合成单一 conda YAML（round1）。
+- 不要把 native-kernels 并入主 wheel（round1 / 本轮 NK）。
+- 不要删除模型级专项 extra（molmoact2/vipe/dvlt 等）；只收敛冲突 pin 与文档。
+- 不要让 ``[all]`` 强行包含 ``rtx_postprocess``（nvidia-vfx 专有，文档已排除）。
+- 第 1–8 轮边界继续有效；勿重开 DS/WF/LG/SY/DA 编号域。
+
+
+2. 优先级
+----------
+P0
+  1) [EX-01] ``[ui]`` gradio 未 pin → Studio 启动即挂
+
+P1
+  2) [EX-02] ``dev`` / lint group ``ruff>=`` 与仓库 ``==0.12.7`` 分叉
+  3) [EX-03] ``[all]`` 与专项 extra 的 torch/transformers/av pin 互相矛盾
+  4) [EX-04] 无 ``eval_core``/测试用 extra；CPU 门禁依赖靠手工装
+  5) （云端）DX/DO/NK 待填
+
+P2
+  6) [EX-05] ``make install-dev`` 绕过 ``[dev]`` extra
+  7) [EX-06] optional-dependencies vs dependency-groups 双轨未文档化
+  8) [EX-07] 文档声称 ``[ui]`` 已含 ``studio_realtime``，实际缺 numpy/pillow
+  9) （云端）
+
+P3
+  10) [EX-08][EX-09] peft 等多装冲突；extras 矩阵文档缺失
+  11) （云端）
+
+
+3. Makefile / scripts/dev / DX
+-----------------------------
+（[云端子代理](bc-20a865c2-85ee-5038-a73a-82543ef3bf38) 进行中 — 回报后 enrich DX-*）
+
+占位：Makefile 目标一致性、scripts/dev、本地 hello-world、PYTHON 符号链接假设、
+cli-check / lint 分层。勿重复 round1 CI 双 job、round7 TE-01、round8 WF。
+
+
+4. Docs 站点（fumadocs）构建与内容生成
+--------------------------------------
+（[云端子代理](bc-d1799149-6796-5fc6-baf3-c82c61e5001e) 进行中 — 回报后 enrich DO-*）
+
+占位：docs/fumadocs 构建、catalog→docs 生成、docs-check、predev/prebuild、
+中英内容漂移。勿重复 round5 DE 许可证/媒体、round8 WF-03/08 deploy-docs。
+
+
+5. Operators / native-kernels 打包与 ABI
+---------------------------------------
+（[云端子代理](bc-b053be37-ecf2-511d-95f9-853007d9234e) 进行中 — 回报后 enrich NK-*）
+
+占位：packages/worldfoundry-native-kernels、operators 导入路径、CUDA tier、
+CPU 回退、wheel 隔离。勿重复 round1 Docker/flash-attn、round7 SY pipelines。
+
+
+6. pyproject extras / 可选依赖分层
+---------------------------------
+来源：主会话本地评审。
+勿重复 round1 conda/pip 分层、round8 WF-01 ruff CI pin / WF-04/09 发布冒烟。
+
+[EX-01] P0 ``[ui]`` gradio 未 pin → Studio 启动失败
+  问题：``pyproject.toml`` ``ui`` 列表为裸 ``gradio``；AGENTS.md 已记录 Gradio 6 去掉
+        ``app.add_event_handler`` → ``'FastAPI' object has no attribute 'add_event_handler'``。
+  改法：``gradio>=5.50,<6``（或与现网一致的精确 pin）+ ``starlette<1`` 若需显式；
+        加 eval_core 契约：解析 ``[ui]`` 断言 gradio 上界 <6。
+  文件：``pyproject.toml``、``test/eval_core/test_packaging_dependencies.py``、AGENTS.md（已有警告可保留）
+
+[EX-02] P1 ``dev`` / ``dependency-groups.lint`` 写 ``ruff>=0.12.7``
+  问题：与 Makefile/pre-commit/AGENTS.md 的 ``ruff==0.12.7`` 分叉；``pip install -e ".[dev]"``
+        会漂到新 ruff 改 import-sort。
+  改法：两处改为 ``ruff==0.12.7``。交叉：round8 WF-01（CI workflow）。
+  文件：``pyproject.toml`` ``[project.optional-dependencies].dev``、``[dependency-groups].lint``
+
+[EX-03] P1 ``[all]`` 与专项 extra pin 互相矛盾
+  问题：``molmoact2`` 要求 ``transformers>=4.57,<4.58``，``all``/``train_core`` 为 ``<5``；
+        ``train_core`` ``torch>=2.9`` vs ``optimized_core``/``all`` ``>=2.7``；
+        ``all`` 中 ``av`` 无上界而 ``train_video`` 为 ``av>=12,<20``。
+        同环境 ``pip install -e ".[all,molmoact2]"`` 或组合训练 extras 时解析不确定/失败。
+  改法：为 ``all`` 取各专项约束的**可解析交集**或从 ``all`` 排除互斥专项并文档化；
+        加「两两 extra 组合可解析」轻量门（或至少 all+molmoact2 / all+train_core）。
+  文件：``pyproject.toml``、``test/eval_core/test_packaging_dependencies.py``
+
+[EX-04] P1 无 eval_core / 测试用 extra
+  问题：CPU 发布门 ``make test-eval-core`` 依赖 torch 等，不在任何声明 extra；
+        云环境靠 update 脚本手工装，贡献者 ``pip install -e .`` 后直接 make 易 ImportError。
+  改法：新增 ``eval_core``（或 ``test``）extra：CPU torch 索引说明 + 套件真实 import 集；
+        ``make test-eval-core`` 文档写明 ``pip install -e ".[eval_core]"``。
+  文件：``pyproject.toml``、``Makefile`` help、quickstart/AGENTS.md
+
+[EX-05] P2 ``make install-dev`` 绕过 ``[dev]``
+  问题：目标手写 ``build pre-commit PyYAML ruff``，与 ``[dev]`` 不同步（缺/多包、ruff 无 pin）。
+  改法：改为 ``$(PIP) install -e ".[dev]"``（PyYAML 若仍需要则并入 ``[dev]``）。
+  文件：``Makefile``
+
+[EX-06] P2 optional-dependencies vs dependency-groups 双轨
+  问题：``dependency-groups`` 含 flash_attn_*、runtime_*_bundle、transformers_high/low 等，
+        docs/quickstart 几乎只教 ``pip install -e ".[extra]"``；两套何时用未说明。
+  改法：environments 或 packaging 文档一小节：extras=用户面安装；groups=锁/工具链内部；
+        列出现有 groups 名称与用途。
+  文件：``docs/fumadocs/content/docs/reference/`` 或 guides/install
+
+[EX-07] P2 文档称 ``[ui]`` 已含 realtime，实际缺依赖
+  问题：``studio.zh.mdx`` 写 ``worldfoundry[ui]`` 已包含 ``studio_realtime``；
+        但 ``studio_realtime`` 有 ``numpy``/``pillow``，``[ui]`` 名字集合中没有二者。
+  改法：``[ui]`` 显式 include realtime 依赖（或文档改为 ``.[ui,studio_realtime]``）；
+        契约测试：``names(studio_realtime) ⊆ names(ui)``（忽略版本时）。
+  文件：``pyproject.toml``、``docs/.../guides/studio{,.zh}.mdx``、packaging 测试
+
+[EX-08] P3 多 extra 同装 peft 等冲突
+  问题：``distribution_metrics`` ``peft>=0.2`` vs ``train_core`` ``peft>=0.14,<1``（可解析但下限漂移）。
+  改法：统一下限到 train_core 或文档标注互斥组合。
+
+[EX-09] P3 extras 矩阵文档缺失
+  改法：一张表列出全部 optional-dependencies 名称、用途、是否进 ``all``、典型命令。
+
+
+7. 文件级改动总表
+----------------
+P0
+  pyproject.toml [ui]                          EX-01
+
+P1
+  pyproject.toml [dev] + dependency-groups     EX-02
+  pyproject.toml [all] / 专项 pin              EX-03
+  pyproject.toml + Makefile/docs               EX-04
+  （DX/DO/NK 待补）
+
+P2
+  Makefile install-dev                         EX-05
+  docs reference                               EX-06
+  [ui] + studio docs                           EX-07
+
+P3
+  peft / extras 矩阵                           EX-08/09
+
+
+8. 验收（已并入 EX）
+-------------------
+- EX-01：干净 venv ``pip install -e ".[ui]"`` 后 ``gradio.__version__`` <6；Studio 可启动到健康页。
+- EX-02：``pip install -e ".[dev]"`` 解析到 ruff==0.12.7。
+- EX-03：``pip install -e ".[all,molmoact2]"`` 与 ``.[all,train_core]`` 在 resolver 下成功或显式文档互斥。
+- EX-04：仅装 ``.[eval_core]`` 后 ``make test-eval-core`` 不再因缺 torch 等在收集阶段失败。
+- EX-07：``names(studio_realtime) ⊆ names(ui)`` 契约绿，或文档不再声称已包含。
+
+
+9. 与前轮衔接
+--------------
+ruff pin：round8 WF-01 CI；本轮 EX-02 是 pyproject/dev 面。
+Studio 启动：round6 ST；本轮 EX-01 是依赖上界。
+发布冒烟：round8 WF-09；本轮 EX-03/04 是 extras 可解析性。
+打包契约：round7 DA-06 / PK；本轮扩 optional-dependencies。
+
+
+10. 子代理索引
+--------------
+  [DX](bc-20a865c2-85ee-5038-a73a-82543ef3bf38)  §3 待 enrich
+  [docs](bc-d1799149-6796-5fc6-baf3-c82c61e5001e)  §4 待 enrich
+  [native-kernels](bc-b053be37-ecf2-511d-95f9-853007d9234e)  §5 待 enrich
+  EX（主会话）  §6 EX-01~09 已并入

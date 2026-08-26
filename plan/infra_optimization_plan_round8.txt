@@ -1,0 +1,333 @@
+WorldFoundry 基础设施优化计划（第 8 轮）
+========================================
+日期：2026-08-26
+性质：建议修改（本文件只记录计划，不直接改代码）
+承接：plan/infra_optimization_plan.txt、round2~round7
+方法：3 个云端子代理（claude-fable-5-thinking-xhigh）+ 主会话本地评审
+  - logging / observability — 已并入
+  - GitHub workflows / release — 已并入
+  - dataset / HFD materialize — 已并入
+  + 密钥脱敏 / evaluation.api 契约 / MCP docs（SE/AP/MC）— 已并入
+
+禁止重复第 1–7 轮已写条目。交叉最多一行。
+注：round7 DA-01~12 已并入 round7；本轮不重复开 DA 编号域。路径根分歧见 DS（交叉 DA-12）。
+
+
+0. 现状一句话
+--------------
+密钥脱敏三套词表互不同步：preflight 子串匹配误抹 ``false``；``redact_secrets`` 对 argv 列表盲区；
+Studio 作业日志完全绕过脱敏。core/io ``write_json`` 默认 ``allow_nan=True`` 写出非法 JSON。
+MCP ``server_info`` 6 条 docs 路由中 4 条死链。
+``WORLDFOUNDRY_HFD_DATASET_ROOT`` 默认五向分歧且 evaluation.utils 根本不读该变量；
+CI ``ruff>=`` 浮动与本地 pin 分叉，仓库无分支保护。
+中央 ``logging_setup`` 管线质量高，但 Studio / 评测 contract / 训练 metrics 三大面游离在外。
+
+
+1. 不建议改的地方
+------------------
+- 不要另起第四套脱敏词表；收敛既有三套（SE-06），呼应 round3「不要第三套」边界。
+- 不要削弱 MCP_TOOL_NAMES 静态清单与双重同步测试（round4）；MC-01 只修 docs 字段。
+- evaluation.api 精确相等 schema 校验本体保留；AP-02 只加版本演进路径，不删 fail-closed。
+- 读侧多候选容错（``direct_dataset_dir_candidates`` / roots 列表）在写侧默认统一前勿简化。
+- 勿改 ``.hfd/repo_metadata.json`` schema；勿为统一布局强改 zoo HF cache 下载。
+- 保持 workflow ``permissions: contents: read``；勿引入 pre-commit.ci 自动推 fix；勿立刻直发 PyPI。
+- ``logging_setup`` 保持 opt-in；控制台文本 / 文件 JSONL 双 sink；勿把训练 metrics schema 并入 ``worldfoundry.log.v1``；
+  勿泛化 ``_CONTEXT_FIELDS``；raw stdout/stderr 捕获保真不脱敏（文档声明即可）。
+- 第 1–7 轮边界继续有效。
+
+
+2. 优先级
+----------
+P0
+  1) [DS-01] WORLDFOUNDRY_HFD_DATASET_ROOT 默认五向分歧；utils 不读该变量
+  2) [WF-01] CI ruff>= 浮动致门禁漂移
+  3) [WF-02] 分支保护完全缺失（ruleset / CODEOWNERS / pages）
+
+P1
+  4) [SE-01] preflight _SECRET_PARTS 含 TOKEN 子串 → 误抹 false
+  5) [SE-02] redact_secrets 列表 argv / URL userinfo 盲区
+  6) [AP-01] write_json/write_jsonl allow_nan=True → 非法 JSON 产物
+  7) [LG-01] Studio 整层游离于中央日志管线
+  8) [LG-02] 评测 contract 零事件；sample_id 无生产者
+  9) [DS-02] CKPT/HFD 根四向分歧；unified_install live 漏 export CKPT_DIR
+  10) [DS-03] 发布门测试引用幽灵文件 tools/hfd.sh、vla_va_wam_acquire.py
+  11) [WF-03~05] deploy-docs paths；release 链路；pre-commit 未进 CI
+
+P2
+  12) [SE-03/04/05] Studio 日志绕过脱敏；conda payload 嵌套 key；grounding_dino dump env
+  13) [AP-02][MC-01] api schema -vN；MCP docs 死链
+  14) [LG-03~07] metric_sync；events.jsonl 多写者；LOG_CONTEXT 惰性导入；文档；训练 fsync
+  15) [DS-04~06] HFD 并行队头阻塞；direct pin 不校验；manifest 不可移植
+  16) [WF-06~09] dependabot；CI 产物上传；SITE_URL；打包冒烟
+
+P3
+  17) [SE-06][AP-03] 三词表收敛；from_json 静默接受 NaN
+  18) [LG-08~11][DS-07~10][WF-10~12]
+
+
+3. Logging / observability
+--------------------------
+来源：[logging 云端子代理](bc-2133984d-04dd-52b2-8c1c-c1eb16d9b3e0)
+勿重复 round2 O-01/O-02/O-04/O-06/O-07、round3 C-01、round5 IO-02/IO-04、round6 ST-07/08/TR-01。
+本域无 P0：缺口在覆盖面与契约，不在中央栈止血。
+
+[LG-01] P1 Studio 整层游离于中央日志管线
+  问题：``workspace_app.main`` 从不 ``configure_logging`` → INFO 落 lastResort；
+        StudioJobStore 无 run_id/生命周期 JSONL；conda_dispatch 不传 LOG_CONTEXT/LOG_FILE；
+        execution/runtime_job/workspace_job 裸 print 绕过脱敏与级别。
+  改法：启动 configure_logging；submit 生成 run_id + log_context + events.jsonl；
+        子进程 env 合并 log_context_environment；print→get_logger。
+  文件：``studio/workspace_app.py``、``jobs.py``、``conda_dispatch.py``、``execution.py``、
+        ``runtime_job.py``、``workspace_job.py``
+  交叉：round6 ST-07/08、round1 R-03 管执行/内存/落盘；本条只管日志接线。
+
+[LG-02] P1 评测 contract 零事件；sample_id 有 schema 无生产者
+  问题：contract.py 无 get_logger；ledger「progress streams」实为终局写；长跑无心跳。
+  改法：``_generate``/打分循环 ``log_context(sample_id=...)`` + sample.generation/metrics.finished 事件。
+  文件：``evaluation/tasks/execution/orchestration/contract.py``
+  交叉：round5 IO-02 管 results.jsonl 写路径。
+
+[LG-03] P2 metric_sync：root logger、print/stdout 双绕过、SLURM rank 恒 null
+  改法：``getLogger(__name__)``；输出改 stderr/logger；export RANK/LOCAL_RANK 或读 SLURM_PROCID。
+  交叉：round2 O-02/O-05。
+
+[LG-04] P2 共享 events.jsonl 多写者 + loguru 旋转竞态
+  问题：父 write_jsonl_event 与子 WORLDFOUNDRY_LOG_FILE 同文件 + rotation=10MB。
+  改法：父子分文件，或继承场景禁用旋转；补跨进程回归测。
+  文件：``runtime/jobs.py``、``core/process.py``、``cli/main.py``
+
+[LG-05] P2 write_jsonl_event 不导入 LOG_CONTEXT
+  问题：子进程只调 write 不 configure 时丢 run_id/job_id。
+  改法：get_log_context/write 惰性 env 导入（once）；补 process_logging 断言。
+
+[LG-06] P2 WORLDFOUNDRY_LOG_* 与 --log-* 零文档；RUN_ID 只写不读
+  改法：environments.mdx/cli.mdx（中英）补 Logging 表；RUN_ID 定契约或删赋值。
+
+[LG-07] P2 训练 MetricWriter 逐条 fsync；metrics.jsonl 不关联 run_id
+  改法：按 N 条/T 秒 fsync，checkpoint 前强制；run.json 写入日志上下文 run_id。
+  交叉：round6 TR-10。
+
+[LG-08] P3 脱敏 token 花色不足；raw 捕获未声明不脱敏
+  改法：扩 ghp_/AKIA/xoxb/eyJ 模式表 + 单测；文档写清结构化脱敏 vs raw 保真。
+  交叉：round8 SE-06、round3 C-01。
+
+[LG-09] P3 控制台文本 sink 丢 event 名与结构化字段
+  改法：紧凑后缀或 ``WORLDFOUNDRY_LOG_CONSOLE_FIELDS=1``。
+
+[LG-10] P3 无按 logger 名级别覆盖
+  改法：``WORLDFOUNDRY_LOG_LEVELS="urllib3=WARNING,..."``。
+
+[LG-11] P3 rotation/retention 双轨语义分叉
+  改法：文档写清，或 stdlib 路径按 mtime 对齐。
+
+
+4. GitHub workflows / release
+-----------------------------
+来源：[workflows 云端子代理](bc-e42c101f-1a02-5ed7-aeb6-0783f9ae3371)
+勿重复 round1 双 job 结构、round5 DE-05 媒体、round7 TE-01 pytest 超时。
+
+[WF-01] P0 CI ruff 版本浮动致门禁漂移
+  问题：CI 装 ``ruff>=0.12.7``，与 pre-commit/AGENTS.md 锁定的 0.12.7 分叉。
+  改法：改为 ``ruff==0.12.7``。
+  文件：``.github/workflows/ci.yml``
+
+[WF-02] P0 分支保护完全缺失
+  问题：rulesets 为空、可直推 main、无 CODEOWNERS；pages 环境无部署分支限制。
+  改法：main ruleset 要求 PR、禁 force-push/删除；github-pages 仅限 main（required checks 后置）。
+  文件：仓库设置（非代码）
+
+[WF-03] P1 deploy-docs paths 漏内容源
+  问题：站点由 models/benchmarks/API docstring 生成，paths 仅 ``docs/**``。
+  改法：追加 ``worldfoundry/data/models/**``、``benchmarks/**``（可选 py 或 weekly schedule）。
+  文件：``.github/workflows/deploy-docs.yml``
+
+[WF-04] P1 无发布链路（tag→Release）
+  问题：无 release.yml；setuptools-scm 无 fallback；从未 ``python -m build``。
+  改法：``v*`` tag → build→twine→冒烟→``gh release create``；加 ``fallback_version``；PyPI OIDC 后置。
+  文件：``.github/workflows/release.yml``（新建）、``pyproject.toml``
+
+[WF-05] P1 pre-commit hooks CI 无强制
+  问题：format/whitespace 等仅本地；CI 只 ``make lint``。
+  改法：public-surface 加 ``pre-commit run --all-files`` + cache；``SKIP=worldfoundry-lightweight-lint``。
+  文件：``.github/workflows/ci.yml``
+
+[WF-06] P2 缺 dependabot
+  改法：新建 5 生态 weekly+groups；ruff 设 ignore（与 WF-01 人工同步）。
+  文件：``.github/dependabot.yml``
+
+[WF-07] P2 CI 诊断产物从不上传
+  改法：两 job ``upload-artifact@v4``，``if: always()``，retention 7；pytest 加 junitxml。
+
+[WF-08] P2 deploy-docs 硬编码域名与浮动 ref
+  问题：SITE_URL 写死 ``openenvision.github.io``；DEMO_ASSET 用 ``github.ref_name``。
+  改法：SITE_URL 用 ``repository_owner``；asset ref 固定 ``default_branch``。
+
+[WF-09] P2 打包冒烟未进 CI
+  改法：轻量 ``build``+``twine check``+尺寸断言；paths 过滤相关文件。
+
+[WF-10] P3 deploy-docs 无超时 → 加 timeout-minutes。
+[WF-11] P3 缺 CODEOWNERS → 至少覆盖 workflows 与 ``worldfoundry/data/``。
+[WF-12] P3 LFS 带宽依赖未文档化 → 注明配额风险与处置。
+
+
+5. Dataset / HFD materialize
+----------------------------
+来源：[dataset/HFD 云端子代理](bc-90ee8729-2d97-572c-9546-64d13859e79d)
+勿重复 round3 download-ready、round6 EM prepare、round7 CA-09 paths rglob / DA-12。
+
+[DS-01] P0 HFD_DATASET_ROOT 默认五向分歧，且一处不读该变量
+  问题：runtime / capabilities / evaluation.utils / unified_install / run_workspace / docs / MCP
+        分别落到 ``$DATA``、``…/datasets``、``…/hfd_datasets``、``$CACHE/…`` 等；
+        ``worldfoundry_hfd_dataset_root()`` **根本不读** ``WORLDFOUNDRY_HFD_DATASET_ROOT``。
+  改法：``core/io/paths.py`` 唯一 ``hfd_dataset_root_path()``；各表面委托；utils 把该 env 放首位；
+        shell/文档默认对齐（建议 ``$DATA_DIR/datasets``）。
+  文件：``evaluation/utils.py``、``runtime/assets.py``、``capabilities.py``、``readiness.py``、
+        ``unified_install.sh``、``run_workspace.sh``、``prepare_benchmark_assets.py``、``local-assets.mdx``
+
+[DS-02] P1 CKPT/HFD 根四向分歧
+  问题：``checkpoints`` vs ``models/checkpoints`` vs ``cache/checkpoints`` vs 仓库内 ``cache/hfd``；
+        ``unified_install.sh`` live export 漏 ``WORLDFOUNDRY_CKPT_DIR``。
+  改法：统一 ``checkpoint_root_path()``/``hfd_root_path()``；``download_checkpoints.py`` 默认改 ``hfd_root_path()``；补 export。
+
+[DS-03] P1 发布门测试引用幽灵文件
+  问题：``tools/hfd.sh``、``scripts/vla_va_wam_acquire.py`` 不存在 → 相关 eval_core 无条件失败。
+  改法：恢复文件或 ``skipif(not exists)`` 并注明恢复计划；文档与测试对齐。
+
+[DS-04] P2 download_hfd_models.sh 并行队头阻塞
+  改法：``wait -n`` + pid 映射；``--parallel`` 校验正整数。
+
+[DS-05] P2 direct-HFD revision pin 只写不校验
+  问题：``resolve_local_hf_model_path`` 对 direct 目录忽略 ``.hfd/repo_metadata.json``。
+  改法：传入 revision 时与 metadata 一致性校验（对齐 manager ``_direct_revision_matches``）。
+
+[DS-06] P2 dataset manifest 不可移植
+  问题：固化绝对路径；不展开 ``${WORLDFOUNDRY_*}``。
+  改法：解析走 ``resolve_worldfoundry_path``；create 支持令牌 root。
+
+[DS-07] P3 materialize limit 后置于全量加载 → JSONL 早停。
+[DS-08] P3 ``--hf_username`` 无实效；代理两条路径不一致；无重试。
+[DS-09] P3 DatasetManager 未接 CLI；两套下载布局未文档化；locate docstring 与实现相反。
+[DS-10] P3 ``HFD_DATASET_CACHE_ROOT`` 等 import 时固化 → 改惰性（并入 DS-01）。
+
+
+6. Secrets / api contract / MCP docs
+------------------------------------
+来源：主会话本地评审。
+
+[SE-01] P1 preflight 子串 TOKEN 误脱敏
+  文件：runtime_preflight.py _SECRET_PARTS / _redact_text
+  改法：词段匹配复用 run_manifest._is_sensitive_key；值替换最短长度阈值。
+
+[SE-02] P1 redact_secrets 列表 argv 盲区
+  文件：reporting/run_manifest.py
+  改法：str 叶子走 logging_setup 值级正则；列表内 --*-api-key 后继元素脱敏。
+
+[SE-03] P2 Studio 作业日志绕过脱敏
+  文件：studio/jobs.py append_log；workspace_app / MCP get_studio_job_logs
+  改法：append_log 过 _redact_text。交叉：round6 ST-08 只谈内存上限。
+
+[SE-04] P2 conda payload 只脱敏顶层 api_key
+  文件：conda_dispatch.py _payload_run_kwargs_with_secret_refs
+  改法：递归 load_kwargs/call_kwargs；manifest 写前 redact_secrets。
+
+[SE-05] P2 grounding_dino 无条件 dump os.environ
+  文件：base_models/.../grounding_dino/util/misc.py L708
+  改法：删或改 redact_env_for_manifest presence 输出。
+
+[SE-06] P3 三套脱敏词表不同步
+  改法：共享 marker/前缀常量；补 ghp_/github_pat_/xoxb/AKIA。
+
+[AP-01] P1 write_json allow_nan=True
+  文件：core/io/serialization.py write_json/write_jsonl
+  改法：allow_nan=False 或 sanitize→null + diagnostics。交叉：round4 json_contract；本条是写盘 choke point。
+
+[AP-02] P2 api schema_version 无 -vN、精确相等硬拒绝
+  文件：evaluation/api/{metrics,generation,artifacts,tasks}.py
+  改法：统一 name-v1 + SUPPORTED 集合。交叉：round5 RP-06 reporting 同病。
+
+[AP-03] P3 from_json 静默接受 NaN；stable_hash vs json_sha256 语义相反
+  改法：parse_constant 拒绝非有限；指纹收敛 canonical。
+
+[MC-01] P2 server_info docs 4/6 死链
+  文件：mcp/tools/server_info.py
+  改法：补页面或删条目；契约测试 glob content/docs。
+
+
+7. 文件级改动总表
+----------------
+P0
+  evaluation/utils.py + paths + shell/docs     DS-01
+  .github/workflows/ci.yml                     WF-01
+  仓库 ruleset / pages 设置                    WF-02
+
+P1
+  runtime_preflight.py                         SE-01
+  reporting/run_manifest.py                    SE-02
+  core/io/serialization.py                     AP-01
+  studio/workspace_app + jobs + conda_dispatch LG-01
+  evaluation/.../contract.py                   LG-02
+  paths + link_hf / download_checkpoints /
+    unified_install                            DS-02
+  test_hfd_download_script / vla_va_wam_acquire DS-03
+  deploy-docs.yml / release.yml / ci.yml       WF-03~05
+
+P2
+  studio/jobs.py                               SE-03
+  conda_dispatch.py                            SE-04
+  grounding_dino util/misc.py                  SE-05
+  evaluation/api/*                             AP-02
+  mcp/tools/server_info.py                     MC-01
+  metric_sync / jobs+process+cli / logging_setup
+    / training MetricWriter / docs             LG-03~07
+  download_hfd_models.sh                       DS-04/08
+  core/io/paths.py                             DS-05
+  datasets/manifest.py                         DS-06
+  dependabot / ci artifacts / SITE_URL / build WF-06~09
+
+P3
+  runtime/env.py + logging_setup               SE-06 / LG-08~11
+  json_contract.py                             AP-03
+  materialize / DatasetManager / lazy roots    DS-07~10
+  deploy timeout / CODEOWNERS / LFS docs       WF-10~12
+
+
+8. 验收（已并入）
+----------------
+- SE-01：TOKENIZERS_PARALLELISM=false 时 preflight stdout 中 ``false`` 不被抹成 redacted。
+- SE-02：command 列表含 --gemini-api-key 时 redact_secrets 后继值为 redacted。
+- AP-01：write_json({x: float('nan')}) 抛错或不写出字面 NaN。
+- MC-01：server_info docs 每路由在 fumadocs content 有对应文件或测试红。
+- LG-01：Studio 启动后 stderr 有带时间戳 INFO；作业目录含 job.started/终态 events.jsonl；
+        conda 子进程 env 含 LOG_CONTEXT + per-job LOG_FILE。
+- LG-02：评测长跑 events.jsonl 可见逐样本事件且 sample_id 非空。
+- LG-05：子进程只调 write_jsonl_event 仍带父 run_id。
+- DS-01：干净 shell 下 runtime tokens / worldfoundry_hfd_dataset_root / capabilities 三者同路径；
+        ``WORLDFOUNDRY_HFD_DATASET_ROOT=/x`` 时 utils 返回 ``/x``。
+- DS-02：link_hf 默认根 == ``hfd_root_path()``；unified_install live 含 CKPT_DIR。
+- DS-03：相关 eval_core 可收集且不因幽灵文件失败。
+- WF-01：ci.yml / pre-commit / AGENTS.md 三处 ruff==0.12.7。
+- WF-02：直推 main 被拒绝。
+- WF-03：只改 catalog YAML 合入 main → deploy-docs 触发。
+- WF-04：打 ``v*`` → Release 含可 twine 的 sdist+wheel；无 .git 的 build 不因 scm 失败。
+
+
+9. 与前轮衔接
+--------------
+密钥：round3 devil-dynamics argv；本轮是通用 redact 覆盖与词表收敛。
+json NaN：round4 N-09 api 层；本轮 AP-01 是 core/io 写盘。
+schema 演进：round5 RP-06 reporting；本轮 AP-02 evaluation.api。
+MCP：round4 工具/目录；本轮 MC-01 docs 死链。
+Studio 日志：round6 ST-08 内存；本轮 SE-03 内容脱敏 + LG-01 管线接线。
+数据根：round7 DA-12；本轮 DS-01/02 是统一解析器落地。
+CI/ruff：round1 双 job；本轮 WF-01 pin、WF-05 pre-commit 进 CI。
+logging：round2 O-* 中央栈；本轮 LG 补 Studio/contract/metric_sync 覆盖面。
+
+
+10. 子代理索引
+--------------
+  [logging](bc-2133984d-04dd-52b2-8c1c-c1eb16d9b3e0)  §3 LG-01~11 已并入
+  [workflows](bc-e42c101f-1a02-5ed7-aeb6-0783f9ae3371)  §4 WF-01~12 已并入
+  [dataset/HFD](bc-90ee8729-2d97-572c-9546-64d13859e79d)  §5 DS-01~10 已并入
+  SE/AP/MC（主会话）  §6 已并入
+
+Round 8 四路评审全部完成（无待 enrich 占位）。

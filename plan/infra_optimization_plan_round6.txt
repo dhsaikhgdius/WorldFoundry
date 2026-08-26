@@ -1,0 +1,251 @@
+WorldFoundry 基础设施优化计划（第 6 轮）
+========================================
+日期：2026-08-25
+性质：建议修改（本文件只记录计划，不直接改代码）
+承接：plan/infra_optimization_plan.txt、round2~round5
+方法：4 个云端子代理（claude-fable-5-thinking-xhigh）均已回报并入：
+  - Studio workspace（bc-f4904408-a50e-56a5-8461-497bc3a35cbe）
+  - training distributed / sessions（bc-cbed4843-d306-543b-aaf9-8aba30dc7a85）
+  - embodied simulators（bc-12039945-b387-55b5-b9d2-c612a48068e6）
+  - CLI / operators / device_pool（bc-7c71e750-856a-5a89-b74a-be2cd8ceccd5）
+
+禁止重复第 1–5 轮已写条目。交叉最多一行。
+注：本轮 [TR-xx] 与 plan/code_review/09_training_recipes.md 历史 TR-x 无关。
+
+
+0. 现状一句话
+--------------
+Studio 进程组终止链质量高，但默认把 HF 端点指到第三方镜像、关停被作业挂住、媒体 Range 全表重扫；
+embodied DLC 多分片未接线、许可证闸门指向不存在 CLI 旗标；训练 exact-resume 强但 torchrun 失败无 traceback 汇聚；
+CLI operators 漏注册、catalog YAML 纯 Python 解析、evaluation.utils 拖慢冷启动。
+
+
+1. 不建议改的地方
+------------------
+Studio：不要换外部队列；不要改 resident worker JSON-line 协议；不要放松失败即退休 worker；
+不要动进程组终止链；不要放宽 artifact 精确路径访问模型（只优化索引，见 ST-03）。
+Embodied：保留 BaseSimulator + SIMULATOR_ENTRIES；不要清理 behavior1k signal 猴补丁等防御代码；
+ensure_license fail-closed 只修 EM-02 指引；17 个 python_env 容器名不统一；merge_results 走 existing-results。
+Training：保留 DCP 原子提交链、exact-resume 默认 fail-closed、DistributedTrainingContext 语义、Ray STRICT_PACK；
+不要加训练循环周期 barrier（TE-07）。
+CLI：operators 惰性 __getattr__、TUI 子进程模型、_extract_logging_flags、CudaDeviceLeasePool 轮询取消。
+第 1–5 轮边界继续有效。
+
+
+2. 优先级
+----------
+P0
+  1) [ST-01] 删 conda_dispatch 默认 HF_ENDPOINT=hf-mirror.com
+  2) [CL-01] DualCamCtrlOperator 漏注册
+  3) [CL-02/ST-06] conda_dispatch 持锁 acquire（与 ST-06 同 PR）
+  4) [EM-01] DLC 多分片 RANK→shard 未接线 + rank0 merge
+  5) [EM-02] embodied --accept-license 缺失 + docker 不透传许可 env
+  6) [TR-01] train/post-train 包 elastic @record 错误汇聚
+
+P1
+  7) [ST-02] Studio 关停被 JOBS 线程挂住
+  8) [ST-03] 媒体 Range 每次全 workspace manifest 重扫
+  9) [CL-03/04] CSafeLoader + CLI 脱离 evaluation.utils
+  10) [TR-02~04] CUDA 本地 RNG；resume identity diff；PG timeout 配置面
+  11) [EM-03~06] 模拟器 revision pin；official_config_dir；episode 看门狗；路径 env 化
+
+P2
+  12) [ST-04~08] 可视化全局锁；dispatch 超时；评测 in-process；日志无界
+  13) [TR-05~09] 拓扑早校验；checkpoint 元数据风暴；收尾 save；Ray 超时；SLURM 模板
+  14) [EM-07~11] 录像空实现；docker expandvars；behavior1k prepare；manifest env
+  15) [CL-05~07] TUI 旗标漂移；nvidia-smi 池重建
+
+P3
+  16) [ST-09~12] runs 保留；run_workspace 校验；runtime cache；execution atomic=False
+  17) [TR-10~12] run.json 膨胀；weights-only resume；内容哈希
+  18) [EM-12] embodied 卫生项
+  19) [CL-08~10] preflight 退出码；--tui；__all__ drift
+
+
+3. Studio workspace
+-------------------
+来源：[Studio 云端子代理](bc-f4904408-a50e-56a5-8461-497bc3a35cbe)
+
+[ST-01] P0 子进程默认 HF_ENDPOINT 指第三方镜像
+  文件：studio/conda_dispatch.py _runtime_env ~1553
+  改法：删 setdefault("HF_ENDPOINT","https://hf-mirror.com")；增 WORLDFOUNDRY_HF_ENDPOINT opt-in；
+        文档写 local-assets.mdx。
+
+[ST-02] P1 Ctrl+C 被运行中作业无限挂住
+  文件：studio/jobs.py、workspace_app.py shutdown
+  改法：StudioJobStore.shutdown(grace)；cancel_requested + executor.shutdown(wait=False)；
+        交叉：round1 R-03 孤儿对账，此处补优雅关停。
+
+[ST-03] P1 媒体热路径全量重扫 workspace
+  文件：workspace_app.py _registered_artifact_paths；execution.py list_recent_runs/load_run
+  改法：load_run 直读 manifest；list_recent_runs 缓存；增量 artifact 索引。
+
+[ST-04] P1 可视化启动持全局锁最长 120s
+  文件：workspace_app.py _launch_visualizer_locked
+  改法：锁内仅登记，锁外轮询就绪；per-mode 锁；就绪判定 <400。
+
+[ST-05] P2 一次性 dispatch 无超时；nvidia-smi 无 timeout
+  文件：conda_dispatch.py _run_manager_payload_in_conda_impl、_parse_nvidia_smi_rows
+  改法：复用 resident 超时 env；nvidia-smi timeout=10 降级。
+
+[ST-06] P2 常驻 worker acquire 持生命周期锁且无取消
+  交叉：round6 CL-02；acquire 出锁 + cancel_requested + deadline。
+
+[ST-07] P2 评测作业在 FastAPI 进程内且不可取消
+  文件：workspace_app.py _run_evaluation
+  改法：短期阶段边界查 cancel；中期走 runtime_job 子进程。
+
+[ST-08] P2 作业日志内存无上限
+  文件：jobs.py append_log
+  改法：append 期环形截断；日志偏移用单调计数器。
+
+[ST-09] P3 workspace 产物无保留策略
+  改法：WORLDFOUNDRY_STUDIO_RUNS_KEEP + mtime 清理 runtime_jobs/visualizer 日志。
+
+[ST-10] P3 run_workspace.sh 参数与目录优先级
+  改法：--max-jobs/--port 校验；env-file vs 邻目录 ckpt 冲突 WARNING；合并 Python 预检。
+
+[ST-11] P3 _runtime_cache_dir 默认 /tmp 且 mkdir 吞错
+  改法：默认 ~/.cache/worldfoundry/runtime-cache；失败 log + tempfile 回退。
+
+[ST-12] P1 execution.py atomic=False（主会话补充）
+  交叉：round5 IO-01；与 runtime_job._write_json_atomic 统一。
+
+
+4. Training distributed / sessions
+----------------------------------
+来源：[training 云端子代理](bc-cbed4843-d306-543b-aaf9-8aba30dc7a85)
+
+[TR-01] P0 torchrun 失败无 traceback 汇聚
+  改法：train/post-train dispatch 包 elastic errors.record；文档补 --log-dir/--tee。
+
+[TR-02] P1 CUDA RNG 按全可见设备播种 → context 风暴 + 竞写
+  文件：checkpoint/state.py、engine/sessions/single_device.py
+  改法：仅 rank 本地设备 RNG；checkpoint schema 升版。
+
+[TR-03] P1 resume identity 失败不可诊断
+  改法：分节 diff；--allow-environment-drift 仅放行 environment 段。
+
+[TR-04] P1 进程组 timeout 14 处硬编码 1800s
+  改法：DistributedSpec.timeout_seconds + device_id=local_rank。
+
+[TR-05] P2 SFT 拓扑校验在模型加载之后
+  改法：materializer 在加载前 ParallelPlan.resolve；裸跑 fsdp2 可读报错。
+
+[TR-06] P2 checkpoint all_gather_object + 全 rank rglob 元数据风暴
+  改法：per-rank runtime 键；inspect 仅 rank0 + broadcast。
+
+[TR-07] P2 干净跑完不落收尾 checkpoint（模间隔丢尾部）
+  改法：save_on_completion 默认开。
+
+[TR-08] P2 Ray placement_timeout 配不到 recipe
+  改法：RayDevicePoolSpec 增字段并透传 rollout_runtime。
+
+[TR-09] P2 多节点 SLURM 无模板
+  改法：scripts/training/slurm/train_fsdp2.sbatch + training.mdx 多节点小节。
+
+[TR-10] P3 run.json 每 checkpoint 重复整份 identity
+  改法：条目只存 identity_hash + manifest 路径。
+
+[TR-11] P3 拓扑弹性 resume（weights-only 中期）
+[TR-12] P3 checkpoint 可选内容哈希校验
+
+
+5. Embodied simulators
+----------------------
+来源：[embodied 云端子代理](bc-12039945-b387-55b5-b9d2-c612a48068e6)
+
+[EM-01] P0 DLC 多 worker 各跑全量、分片未接线
+  文件：scripts/embodied/submit_dlc_embodied_eval.sh、run_dlc_embodied_eval.sh
+  改法：RANK/WORLD_SIZE → WF_EMBODIED_SHARD_*；rank0 embodied merge。
+
+[EM-02] P0 许可证闸门提示 --accept-license 但 CLI 无此参数
+  改法：embodied run 增旗标；docker 透传 WORLDFOUNDRY_ACCEPTED_LICENSES。
+
+[EM-03] P1 17 个模拟器仓库零 revision；浅克隆 pin 必败
+  改法：prepare_official_assets fetch+FETCH_HEAD；local_assets 补 revision。
+
+[EM-04] P1 official_config_dir 指向不存在的 configs/benchmarks/
+  改法：改指 eval_configs/embodied/ + 契约测试。
+
+[EM-05] P1 闭环 rollout 无 episode 级看门狗
+  改法：episode_timeout_seconds + orchestrator wait_for 兜底。
+
+[EM-06] P1 robotwin/calvin 硬编码路径 + chdir 不恢复
+  改法：WORLDFOUNDRY_*_ROOT env；chdir contextmanager。
+
+[EM-07] P2 recording 配置键无消费者（DummyRecorder）
+  改法：最小 EpisodeVideoRecorder 或对 recording: 显式 WARN。
+
+[EM-08] P2 docker volume expandvars 残留 $ 静默透传
+[EM-09] P2 behavior1k 资产在评测循环内首下；prepare 无对应行
+[EM-10] P2 prepare_official_assets 忽略 WORLDFOUNDRY_LOCAL_ASSET_MANIFEST
+[EM-11] P2 behavior1k B50 任务清单双份维护
+[EM-12] P3 死 env、dirs.py 改名、PYTHONPATH 尾冒号、libero required_packages 自然语言
+
+
+6. CLI / operators / device_pool
+--------------------------------
+来源：[CLI 云端子代理](bc-7c71e750-856a-5a89-b74a-be2cd8ceccd5) — 见上轮已写入 CL-01~10（全文保留于 git 历史；此处摘要）。
+
+[CL-01] P0 DualCamCtrlOperator 漏注册
+[CL-02] P0 conda_dispatch 持锁 acquire（= ST-06）
+[CL-03] P1 load_manifest CSafeLoader（evaluation/utils.py）
+[CL-04] P1 CLI 路径常量改 core.io.paths；metadata/urllib 延迟 import
+[CL-05~07] P2 TUI 旗标三份；tui_discovery 变体表；nvidia-smi 池重建
+[CL-08~10] P3 preflight 退出码；--tui；__all__ / _PUBLIC_ROOT_COMMANDS drift 测试
+
+
+7. 文件级改动总表
+----------------
+P0  ST-01  conda_dispatch HF_ENDPOINT
+    CL-01  operators/__init__
+    CL-02/ST-06  conda_dispatch acquire
+    EM-01/02  DLC scripts + cli/main embodied + docker_runner
+    TR-01  cli/main train dispatch @record
+
+P1  ST-02/03/12  jobs/workspace_app/execution
+    CL-03/04  evaluation/utils + cli/*
+    TR-02~04  checkpoint/state + recipes/spec + parallel.py
+    EM-03~06  prepare_official_assets + registry + rollout_runner
+
+P2  ST-04~08  workspace_app + conda_dispatch
+    TR-05~09  sft materializers + slurm template + rollout spec
+    EM-07~11  simulators + docker_runner + eval_configs
+    CL-05~07  cli/tui*
+
+P3  ST-09~11  execution + run_workspace.sh
+    TR-10~12  single_device + checkpointer
+    EM-12  hygiene
+    CL-08~10  preflight + cli/__init__
+
+
+8. 验收（汇总）
+---------------
+- ST-01：dispatch 子进程 env 无默认 HF_ENDPOINT；opt-in 后透传。
+- ST-02：SIGTERM 后 ≤15s 退出，无 orphan GPU 子进程。
+- ST-03：500 runs 上 100 次 Range，manifest 全扫 ≤1 次。
+- EM-01：DLC workers=2 产生 shard0of2/shard1of2 且 rank0 merge。
+- EM-02：--accept-license 通过闸门；docker -e 可见。
+- TR-01：单 rank 抛错时 torchrun 摘要含 traceback。
+- TR-07：steps=1000 save_every=300 结束后 latest 指向 step-1000。
+- CL-01~04：同 §6 子代理验收（DualCamCtrl import；acquire 可取消；catalog ≤1.5s；cli import ≤0.2s）。
+
+
+9. 与前轮衔接
+--------------
+HF 镜像：round3 A-08 文档回退；ST-01 是运行时默认（更严重）。
+conda_dispatch GPU：round1 R-01/R-04 + CL-02/ST-06/CL-07。
+atomic 落盘：round5 IO-01 + ST-12。
+DLC：round1 R-02 同文件不同问题（EM-01 分片 vs 账户硬编码）。
+训练 SIGTERM/reward：round3 T-*，本轮 TR 不重复。
+preflight 编排：round5 RP-02；CL-08 只谈退出码。
+
+
+10. 子代理索引（四路均已并入）
+------------------------------
+  [Studio](bc-f4904408-a50e-56a5-8461-497bc3a35cbe)  §3 ST-01~12
+  [training](bc-cbed4843-d306-543b-aaf9-8aba30dc7a85)  §4 TR-01~12
+  [embodied](bc-12039945-b387-55b5-b9d2-c612a48068e6)  §5 EM-01~12
+  [CLI](bc-7c71e750-856a-5a89-b74a-be2cd8ceccd5)  §6 CL-01~10
+续篇：plan/infra_optimization_plan_round7.txt（synthesis / data catalog / HF-S3 / test·packaging·realtime）

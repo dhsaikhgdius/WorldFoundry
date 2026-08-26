@@ -1,0 +1,362 @@
+WorldFoundry 基础设施优化计划（第 5 轮）
+========================================
+日期：2026-08-25
+性质：建议修改（本文件只记录计划，不直接改代码）
+承接：plan/infra_optimization_plan.txt、round2、round3、round4
+方法：主会话编排 + 3 个云端子代理（claude-fable-5-thinking-xhigh）
+  - reporting / preflight / run manifest 落盘
+  - evaluation official_runner 框架（非 devil-dynamics 单点）
+  - docs 生成链 / AGENTS 环境 / thirdparty 集成
+  + core I/O / process / serialization（主会话本地评审；第 4 路云端 VM 并发已满）
+
+禁止重复第 1–4 轮已写条目。交叉最多一行。
+用户要求 /loop 无固定时间间隔：已取消 hourly 定时订阅，后续仅在用户跟进时续写。
+
+
+0. 现状一句话
+--------------
+official-run 会静默短路导入 data_root 里陈旧 results；runtime preflight 与 model_benchmark 脱节；
+runner-kind 三处词汇不同步击穿编排门禁；50 个 runner 仅 6 个用共享框架；eval_core 契约测试
+因历史快照大面积失效。另：orchestration 终态 JSON atomic=False；docs/thirdparty 合规与门禁分裂。
+
+
+1. 不建议改的地方
+------------------
+- 不要删除 core/io/serialization.py 的 uuid sibling-temp 原子写；round2 已确认正确。
+- 不要改弱 redact_secrets 分词匹配；勿削弱 write_failed_scorecard / _is_fresh_result 防线。
+- 不要精简 scorecard _leaderboard_evidence_gate；勿放宽 official_benchmark_verified 保守语义。
+- 不要一次性把 44 个 legacy runner 迁到 run_main（CLI flag 是对外契约）；先 fixture 冒烟（OR-05）。
+- 不要动 runners/*/runtime/ vendored 上游代码；不要反转 framework ↔ orchestration 分层。
+- 不要收敛 worldfoundry 与 worldfoundry-eval 双 console-script（同入口，零成本）。
+- generate-python-api AST 静态解析、Inria MANIFEST prune、docs 静态 export：见 §6 边界。
+- generation cache / metric 注册表 / devil-dynamics 密钥：前几轮已覆盖。
+- 第 1–4 轮边界继续有效。
+
+
+2. 优先级
+----------
+P0
+  1) [RP-01] official-run 禁止静默短路 benchmark_data_root / annotations
+  2) [RP-02] model_benchmark 启动前自动 runtime preflight
+  3) [DE-02] kairos_fla / SageAttention 许可证与溯源
+  4) [OR-01] runner-kind 封闭词汇表（YAML / schema / 编排 frozenset 派生）
+  5) [OR-02] eval_core 布局/CLI/manifest 契约测试快照化重对齐
+
+P1
+  6) [IO-01/RP-08] orchestration 终态 JSON atomic=True
+  7) [RP-03~05] reproduction profile 落库；summary 元数据；environment torch/CUDA
+  8) [DE-03/04] docs JSON --check；make docs-check 名实相符
+  9) [OR-03] 跨注册表一致性测试（4~8 张表闭包）
+  10) [OR-04] 编排层子进程 timeout 对齐 default_benchmark_timeout()
+  11) [OR-05] 参数化 fixture 冒烟（≥40 bench CPU 无 GPU）
+
+P2
+  12) [RP-06/07] reporting schema；standalone runner run_manifest
+  13) [DE-05~08] 媒体 blob；MANIFEST prune；kairos 路径；environment.json
+  14) [OR-06/07/08] RUFF 扩 framework/runners；编排特例从 WorkspaceRunnerSpec 派生
+
+P3
+  15) [OR-09/10] zoo model-download wheel 断；框架 eager import / 重复常量
+  16) [DE-09~14] docs 构建去重；Node engines；freshness marker 等
+
+
+3. Core I/O / process / serialization
+-------------------------------------
+已核对：``serialization.write_json`` 默认 atomic=True；``integrity`` 用于 training/engine。
+orchestration 显式 ``atomic=False`` 出现在 contract、existing_results、model_benchmark、
+model_benchmark_suite、plan、service 等。
+
+[IO-01] P1 评测 orchestration 与训练 I/O 栈分裂
+  问题：crash/kill 时 scorecard.json、manifest、index 可能半截；训练 manifest 已 fsync。
+  文件：evaluation/tasks/execution/orchestration/{contract,existing_results,model_benchmark,
+        model_benchmark_suite,plan,service}.py
+  改法：批量去掉 ``atomic=False`` 或换 ``integrity.replace_json_atomic``（仅限 machine JSON）；
+        长流 JSONL 用 JsonlWriter + 周期性 flush，终态文件 atomic 替换。
+  验收：kill -9 写 half 文件后，读者 read_json 不抛 JSONDecodeError，或文件不存在。
+
+[IO-02] P2 长跑 JSONL 写路径不统一
+  问题：``existing_results`` 已用 ``JsonlWriter``；suite/benchmark 仍 ``write_jsonl(..., atomic=False)`` 全量 materialize。
+  文件：orchestration/existing_results.py vs model_benchmark_suite.py
+  改法：样本级 append 走 JsonlWriter；聚合/manifest 走 atomic write_json。
+  验收：10k 行 existing-results 峰值内存不随样本线性翻倍。
+
+[IO-03] P2 遗留非原子下载
+  问题：``core/io/artifacts.py:download_file_from_url`` 虽删 partial，但无 validator/atomic rename；
+        注释已指向 ``download_to_cache``。
+  文件：core/io/artifacts.py；grep 调用方
+  改法：调用方迁移；函数 deprecate 并转发 download_to_cache。
+  验收：中断下载后 ``os.path.exists`` 不视为 ready。
+
+[IO-04] P2 torchrun 子进程缺统一观测
+  问题：``core/process.run_torchrun_module`` 用 ``subprocess.run(capture_output=True)``，
+        无进程组终止、无 lifecycle JSONL、大 stdout 全进内存。
+  文件：core/process.py
+  改法：复用 ``run_logged_subprocess`` 或至少 ``start_new_session`` + 日志文件路径参数。
+  验收：torchrun 超时后无 orphan worker；日志可在 stdout_path  tail。
+
+[IO-05] P3 read_json / JSONL 全量读
+  问题：``read_json`` 直接 ``read_text``；损坏文件错误信息差；大 JSONL ``load_serialized`` 一次读入。
+  文件：core/io/serialization.py
+  改法：JSONDecodeError 包装 path；超大 JSONL 文档推荐 iter_jsonl。
+  验收：truncated JSON 报错含路径与 byte offset 提示。
+
+[IO-06] P3 artifacts.py 命名
+  问题：``worldfoundry/core/io/artifacts.py`` 主要是 depth/flow 可视化，非 artifact 持久化。
+  改法：迁至 ``core/visualization/`` 或 ``core/io/visualization.py``，保留 re-export 一期。
+  验收：新代码 import 路径文档化；无循环 import。
+
+
+4. Reporting / preflight / manifest
+-----------------------------------
+来源：[reporting/preflight 云端子代理](bc-c951617b-ca8f-5aff-9a31-3dec073b1cd1) 深度评审 + 主会话核对。
+
+[RP-01] P0 official-run 静默短路陈旧/错误 results
+  问题：``benchmark_runner._run_official`` 只要 ``runtime_spec.results_path`` 存在即
+        ``official_results_import``、returncode=0、跳过官方命令。``results_path`` 可来自
+        ``benchmark_data_root`` 自动探测，候选含 ``annotations.json``（数据集标注，非模型结果）。
+  文件：orchestration/benchmark_runner.py L294-320、L1062-1092
+  改法：official-run 仅接受显式 results 来源；``results_path_source==benchmark_data_root`` 禁止短路；
+        通用探测删 annotations；短路时 scorecard 写 ``imported_preexisting_results`` blocker。
+  验收：data_root 预置 results.json 时 official-run 不短路（eval_core 回归）。
+
+[RP-02] P0 runtime preflight 与执行链路脱节
+  问题：``runtime_preflight.py`` 完整 fail-closed，但 ``run_model_benchmark`` 启动官方子进程前
+        不调用；``service.py`` preflight 只验 catalog；``preflight_report.json`` 不进 manifest/scorecard artifacts。
+  文件：orchestration/model_benchmark.py、runtime_preflight.py、service.py、cli/preflight.py
+  改法：存在 ``runtime_profiles/official/<benchmark_id>.yaml`` 时自动 preflight 写
+        ``preflight_report.json``；不 ready 则 fail-fast + failed scorecard；
+        ``WORLDFOUNDRY_SKIP_PREFLIGHT=1`` 逃生阀；补 ``check_profile`` 单测。
+
+[RP-03] P1 复现 profile 基建空转（延续 round2 [O-09]）
+  问题：``reproduction_profiles/`` 目录不存在，``reproduce`` 子命令 KeyError；
+        缺失时 ``reproduction_profile_summaries`` 静默空元组。
+  文件：data/benchmarks/reproduction_profiles/（新建）、reproduction_profiles.py、service.py
+  改法：check in 1–2 种子 profile；目录缺失给可操作错误；eval_core 遍历 profile 契约测试。
+
+[RP-04] P1 model-benchmark summary 元数据成批 None
+  问题：``model_benchmark.py`` summary ``started_at/finished_at/worldfoundry_version/run_fingerprint`` 全 None；
+        run_index 对主力运行类型无法排序/审计。对照 existing_results 已完整填写。
+  文件：orchestration/model_benchmark.py
+  改法：记录 utc 时间戳；复用 ``build_version_context``/``build_run_fingerprint``；同步 run_manifest。
+
+[RP-05] P1 environment.json 缺 torch/CUDA
+  问题：``package_names=("worldfoundry","numpy","pandas")`` 三处硬编码；GPU 复现关键版本缺失。
+  文件：run_manifest.py、model_benchmark.py、existing_results.py
+  改法：共享 ``REPRODUCIBILITY_PACKAGES`` 常量；``build_environment`` 增 cuda 段（import 失败置 null）。
+
+[RP-06] P2 reporting schema 无版本号、loader 硬拒绝
+  问题：reporting 侧 ``worldfoundry-scorecard`` 等无 ``-vN``；orchestration 已有 v1/v2 惯例；
+        ``load_run_summary`` 不认识 schema 则 raise，历史 run 不可读。
+  文件：reporting/run_report.py、run_index.py、__init__ 各 SCHEMA_VERSION
+  改法：统一 ``<name>-vN``；loader 设 ``SUPPORTED_SCHEMA_VERSIONS``；bump 配 fixture 迁移测试。
+
+[RP-07] P2 standalone official runner 无 run_manifest；samples_ref 路径错
+  问题：``official_runner.run_main`` 只写 scorecard+jsonl，无 environment 快照；
+        scorecard.py L243 硬编码 ``metrics/per_sample.jsonl``，实际为 ``per_sample_scores.jsonl``。
+  文件：framework/official_runner.py、reporting/scorecard.py
+  改法：run_main 成功/失败均 ``write_run_manifest_artifacts``；samples_ref 参数化。
+
+[RP-08] P2 终态 JSON atomic=False；index 遇坏 summary 整表失败
+  问题：model_benchmark_run.json、summary.json、prepared_evaluation.json 显式 atomic=False；
+        kill 留截断 JSON；``build_run_index`` 单坏文件 raise 而非记入 issues。
+  文件：model_benchmark.py、service.py、reporting/run_index.py
+  改法：终态小文件删 atomic=False；index 构建单条 parse 失败入 issues 继续。
+  （与 [IO-01] 同根。）
+
+[RP-09] P3 manifest_hash 含绝对路径，跨机不可比
+  问题：manifest_hash 覆盖 resolve() 过的 artifacts/output_dir/cache_paths。
+  文件：reporting/run_manifest.py
+  改法：保留 manifest_hash（完整性）；新增 reproducibility_hash（排除 host-specific 字段）。
+
+[RP-10] P3 _demo.py 随包发布；preflight REPO_ROOT=parents[5] pip 失效
+  问题：reporting/_demo.py 打进 wheel；runtime_preflight REPO_ROOT 在 site-packages 无意义。
+  改法：_demo 移 scripts/examples；REPO_ROOT 改 ``core.io.paths.project_root()`` + fallback cwd。
+
+
+5. Official runner 框架 / 注册 / 编排
+-------------------------------------
+来源：[official_runner 云端子代理](bc-e8d9e476-2c63-520e-adf5-5cdf601de7aa) + 主会话补充。
+
+[OR-01] P0 runner-kind 词汇表无单一事实来源
+  问题：目录 YAML 30+ kind 值含 5 个一次性造词；``IN_TREE_RUNTIME_KINDS``（10 项）不含它们，
+        ``schema.py`` 第三套别名；5 个 bench 的 ``requires_upstream_runtime`` 被标错。
+  文件：catalog/runner_kinds.py（新建）、schema.py、benchmark_runner.py、
+        data/benchmarks/tasks/external/{stevo-bench,evalcrafter,...}.yaml
+  改法：封闭枚举模块；zoo 加载校验 kind；frozenset 与别名组派生；一次性 kind 归一或注册。
+
+[OR-02] P0 eval_core 契约测试编码历史快照失效
+  问题：layout 6/21 fail、CLI 契约 38/76 fail、manifest 20/35 fail（路径/kind/子命令与现状相反）。
+  文件：test/eval_core/test_evaluation_package_layout.py、test_eval_cli_contract.py、
+        test_benchmark_zoo_task_manifests.py
+  改法：生成式 layout_manifest.json + diff；kind/maturity 用 OR-01 常量；CLI 从 argparse 反射快照。
+
+[OR-03] P1 接入 benchmark 需手工同步 4~8 张注册表
+  问题：VIDEO_RUNNER_REGISTRY、INTEGRATION、CLI_RUNNERS、SPECIALIZED/GENERIC frozenset、
+        contract/in_tree registry、YAML、assets 靠人肉一致（当前碰巧对齐）。
+  改法：``test_runner_registry_consistency.py`` 断言 id 闭包与路径互导；中期合并 integration+video spec。
+
+[OR-04] P1 编排层官方子进程无默认 timeout
+  问题：framework 有 ``default_benchmark_timeout()``；``benchmark_runner`` 两条 subprocess 路径
+        timeout=None 时可无限挂；Studio/zoo benchmark-run 与 CLI 直跑语义不一致。
+  改法：编排 fallback import ``default_benchmark_timeout()``；超时写 failed scorecard。
+
+[OR-05] P1 50 runner 仅 6 个用 run_main；46 fixture 无全量冒烟
+  问题：44 个自建 scorecard（最大 1631 行）；``--run-fixture`` 仅 hook runner 支持；
+        assets/ 有 46 目录仅 16 个有专属测试。
+  改法：参数化 CPU 冒烟遍历 VIDEO_RUNNER_REGISTRY + sample_results；新 bench 必须 run_main。
+
+[OR-06] P2 lint 不覆盖 framework/ 与 runner 首方脚本
+  改法：RUFF_SOURCES 加 framework；runners 用 extend-exclude 排除 */runtime/** 后纳入。
+
+[OR-07] P2 编排层 7 处 benchmark_id 硬编码特例
+  问题：phyground/camerabench/phyfps 分支与 ``workspace_registry/specs.py`` 字段重复；
+        17 元素 frozenset 与 ``accepts_generated_artifacts`` 双轨。
+  改法：frozenset 从 CLI_RUNNERS 派生；特例下沉为 spec 字段。
+
+[OR-08] P2 VideoRunnerSpec.pass_benchmark_id / extra_args 死字段
+  改法：dispatch 真正消费或删字段并写进 OR-05 契约。
+
+[OR-09] P3 zoo model-download 按 scripts/ 路径加载，wheel 即断
+  文件：cli/main.py _load_repo_script、scripts/model_zoo/*
+  改法：下沉 worldfoundry 模块或明确「需源码 checkout」报错。
+
+[OR-10] P3 框架卫生
+  benchmark_runner 重复 SCORECARD_SCHEMA_VERSION；benchmark_contract_registry eager import；
+  runner 脚本 PYTHONPATH 依赖 → 编排改 python -m。
+
+[OR-11] P2 freshness 仅 mtime（主会话补充，勿削弱现有防线）
+  改法：marker 或 results 内 generated_at；见 RP-07 samples_ref 参数化。
+
+
+6. Docs / AGENTS / thirdparty
+-----------------------------
+来源：[docs/env/thirdparty 云端子代理](bc-3d049994-ee98-5465-8177-d18b149c896f) + 主会话补充。
+
+不建议改（本子域）：AST 静态 API 生成不入库；Inria fork 的 MANIFEST prune + wheel 白名单机制；
+docs 静态 export + media.githubusercontent.com 外链；dev-local-ssd.sh 勿通用化重写；
+不为 repo 体积重写 git 历史（防增量即可）。
+
+[DE-01] P1 .gitmodules 死子模块声明
+  问题：``.gitmodules`` 声明 flash-attention，index 无 gitlink；
+        ``git submodule update --init`` 必失败；README 仍教此命令。实际走 install_flash_attn.sh。
+  文件：.gitmodules、thirdparty/README.md
+  改法：删死条目；README 改指向 ``scripts/setup/install_flash_attn.sh``。
+
+[DE-02] P0 kairos_fla / SageAttention 无 LICENSE、无溯源，且可能进 sdist
+  问题：两 vendored 树无 LICENSE；THIRD_PARTY_LICENSES / UPSTREAM_PROVENANCE / 根 NOTICES 均无条目；
+        README 表格漏 gsplat 与 diff-gaussian fork；MANIFEST.in 未 prune 全 thirdparty。
+  文件：thirdparty/kairos_fla/、SageAttention/、THIRD_PARTY_LICENSES.md、UPSTREAM_PROVENANCE.md、MANIFEST.in
+  改法：补上游 LICENSE 与溯源条目；README 表格补全 6 项；MANIFEST.in prune thirdparty（见 DE-06）。
+
+[DE-03] P1 已提交 docs 目录 JSON 无防漂移门禁
+  问题：model-recipes-data.json、catalog-coverage-data.json 等已入库；
+        prebuild/predev 不重生成；生成器无 ``--check``；catalog 变更后文档静默过期。
+  文件：generate-model-recipes.py、generate-catalog-coverage.py、package.json、ci.yml
+  改法：加 ``--check``；package.json 增 models:check / coverage:check；挂 CI。
+
+[DE-04] P2 make docs-check 名实不符
+  问题：Makefile docs-check 只跑 cli --help + zoo benchmarks；与 data-check 重复；
+        真文档校验（api:check、DE-03 check）无 make 入口。
+  文件：Makefile、ci.yml、AGENTS.md
+  改法：现 docs-check 改名 cli-entrypoint-check 或并入 data-check；新建真 docs-check 委托 fumadocs checks。
+
+[DE-05] P2 43MB 演示视频以普通 git blob 入库
+  问题：readme-demos/*.mp4、cover_hero 显式关 LFS；deploy 工件仍携带；生产经外链基址。
+  文件：.gitattributes、deploy-docs.yml、lib/site-path.ts
+  改法：Preserve 步骤删 out/readme-demos 等；删 stale home-demos 规则；CI 大文件守卫。
+
+[DE-06] P2 sdist prune 只覆盖一半
+  问题：setuptools_scm 追踪文件全进 sdist；仅 3 个 Inria fork 被 prune；
+        gsplat/kairos_fla/SageAttention/docs/plan/test* 仍在。
+  文件：MANIFEST.in
+  改法：prune thirdparty、docs、plan、test*；``python -m build --sdist`` 验证体积。
+
+[DE-07] P2 kairos_fla 靠目录向上遍历，wheel 安装即断
+  问题：manage_libs._find_thirdparty_root() parents 遍历；wheel 无 thirdparty 必失败且无声明。
+  文件：kairos/manage_libs.py、thirdparty/README.md
+  改法：``WORLDFOUNDRY_THIRDPARTY_ROOT`` 覆盖；找不到时可操作报错；README 标 checkout-only。
+
+[DE-08] P2 云端环境未代码化
+  问题：无 .cursor/environment.json；AGENTS 依赖 VM 快照（python symlink、CPU torch、ruff/gradio pin）。
+  文件：.cursor/environment.json（新建）、AGENTS.md
+  改法：install 脚本固化 editable + CPU torch + pin + docs npm ci；AGENTS 改述为 install 保证。
+
+[DE-09] P3 docs 构建重复跑 mdx/api 生成两遍
+  问题：build.sh 先 types:check（pre 跑 api:generate），再 build（pre 再跑）。
+  文件：package.json、scripts/docs/build.sh
+  改法：build.sh 显式 generate 一次后 skip pre-hook，或 types:check 去掉 pretypes:check。
+
+[DE-10] P3 9 张调试 png 被 gitignore 但仍追踪
+  文件：docs/fumadocs/*.png、docs/fumadocs/.*.png
+  改法：git rm --cached。
+
+[DE-11] P3 Node 版本约束仅 deploy CI 有
+  改法：package.json engines.node >=24；新增 .nvmrc 写 24；ci public-surface 对齐。
+
+[DE-12] P3 shell-check 未覆盖 scripts/docs、workspace、dev-local-ssd
+  改法：Makefile shell-check 扩围（延续 round1 D-08 清单）。
+
+[DE-13] P3 dev bind 与 AGENTS 不一致（主会话补充）
+  问题：package.json dev 用 0.0.0.0；AGENTS 写 127.0.0.1:8014。
+  改法：默认回环；dev:lan 绑 0.0.0.0。
+
+[DE-14] P3 generate-python-api SYMBOLS 手工 curated（主会话补充）
+  改法：api:check 失败列 diff；可选从 evaluation.api 自动生成候选。
+
+
+7. 文件级改动总表
+----------------
+P0
+  benchmark_runner.py          RP-01；OR-01/04
+  catalog/runner_kinds.py        OR-01（新建）
+  thirdparty/* LICENSE         DE-02
+  test/eval_core/*               OR-02 契约重对齐
+
+P1
+  model_benchmark.py             RP-02/04/05/08
+  test_runner_registry_consistency.py  OR-03
+  test_official_runner_fixture_smoke.py  OR-05
+  generate-model-recipes.py      DE-03
+  Makefile                       DE-04
+
+P2/P3
+  Makefile RUFF_SOURCES          OR-06
+  workspace_registry/specs.py    OR-07
+  cli/main.py                    OR-09
+  MANIFEST.in / environment.json DE-06/08
+  reporting/*                    RP-06~10
+
+
+8. 验收（汇总）
+---------------
+- RP-01：official-run + data_root 预置 results/annotations 不短路；显式 import 带 blocker。
+- RP-02：model_benchmark run 目录含 preflight_report.json；profile 不 ready 不启子进程。
+- RP-03：reproduce 对种子 benchmark CPU 可过 prepare；profile 契约进 test-eval-core。
+- RP-04/05：summary 时间戳/指纹非空；environment 含 torch（若已装）与 cuda 段。
+- RP-08：截断 summary 不拖垮 build_run_index；终态 JSON 无半截 parse 错误。
+- RP-07：CLI 直跑 official runner 输出含 run_manifest + environment。
+- DE-02：thirdparty 6 树均有 LICENSE + 溯源条目；sdist 不含 thirdparty/docs/plan。
+- DE-03：改 catalog 不重生成 model-recipes JSON 时 CI 红。
+- DE-04/08：make docs-check 真校验文档；新 VM 仅 environment.json install 可复现 AGENTS 面。
+- DE-01：git submodule update 在干净 clone 零报错。
+- OR-01：5 个一次性 kind bench 的 requires_upstream_runtime 与 manifest 一致。
+- OR-02：layout/CLI/manifest 三契约测试 0 fail。
+- OR-04：WORLDFOUNDRY_BENCHMARK_TIMEOUT=60 时 zoo benchmark-run 挂起子进程被杀并写 failed scorecard。
+- OR-05：≥40 bench fixture 冒烟 CPU 通过，纳入 eval-core 硬门禁候选。
+
+
+9. 与前轮衔接
+--------------
+serialization / atomic=False：round2 + 本轮 RP-08/IO-01。
+reproduction_profiles：round2 [O-09] + RP-03。
+eval-core CI allow-failure：round4；本轮 OR-02 修内容侧快照。
+embodied docker_runner / 镜像 digest：前几轮，本轮 OR 不重复。
+
+
+10. 子代理索引（四路均已并入）
+------------------------------
+  [reporting/preflight](bc-c951617b-ca8f-5aff-9a31-3dec073b1cd1)  §4 RP-01~10
+  [docs/env/thirdparty](bc-3d049994-ee98-5465-8177-d18b149c896f)  §6 DE-01~14
+  [official_runner](bc-e8d9e476-2c63-520e-adf5-5cdf601de7aa)  §5 OR-01~11
+  core I/O（主会话）  §3 IO-01~06
+续篇：plan/infra_optimization_plan_round6.txt（Studio/CLI/operators、training sessions、embodied）
