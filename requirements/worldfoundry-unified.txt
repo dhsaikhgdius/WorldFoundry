@@ -27,7 +27,7 @@ kornia
 rerun-sdk==0.22.1
 
 # Torch-coupled runtime bundles.
-clip @ git+https://github.com/openai/CLIP.git
+clip @ git+https://github.com/openai/CLIP.git@d05afc436d78f1c48dc0dbf8e5980a9d471f35f6
 timm
 torchao
 torchdata>=0.11,<0.12

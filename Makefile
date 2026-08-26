@@ -1,4 +1,4 @@
-.PHONY: help install-core install-dev docs-check lint ruff-check format-check shell-check data-check runtime-registry-check compile-eval cli-check precommit precommit-install preflight test-eval-core test-training
+.PHONY: help install-core install-dev docs-check lint ruff-check format-check shell-check data-check runtime-registry-check compile-eval cli-check precommit precommit-install preflight test-eval-core test-training lock-unified
 
 PYTHON ?= python
 PIP ?= $(PYTHON) -m pip
@@ -99,8 +99,16 @@ preflight:
 		--output-dir $(PREFLIGHT_OUTPUT) \
 		--json
 
+# Optional extra pytest flags, e.g. PYTEST_ARGS='-m "not gpu and not network"'
+PYTEST_ARGS ?=
+# CUDA tier for make lock-unified (cu121|cu124|cu128).
+TIER ?= cu128
+
+lock-unified:
+	bash scripts/setup/compile_unified_lock.sh $(TIER)
+
 test-eval-core:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest test/eval_core -q -p no:cacheprovider
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest test/eval_core -q -p no:cacheprovider $(PYTEST_ARGS)
 
 test-training:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest tests/training -q -p no:cacheprovider
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m pytest tests/training -q -p no:cacheprovider $(PYTEST_ARGS)
