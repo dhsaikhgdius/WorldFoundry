@@ -47,13 +47,16 @@ from pathlib import Path
 
 import numpy as np
 
+from worldfoundry.runtime.conda import resolve_model_python
 from worldfoundry.synthesis.visual_generation.matrix_game.matrix_game_3p5_runtime.config_paths import (
     matrix_game_35_infer_config_path,
 )
 
 REPO_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = str(Path(__file__).resolve().parents[5])
-PYTHON_BIN = os.environ.get("WORLDFOUNDRY_MATRIX_GAME_3P5_PYTHON", sys.executable)
+PYTHON_BIN = os.environ.get("WORLDFOUNDRY_MATRIX_GAME_3P5_PYTHON") or resolve_model_python(
+    "matrix-game-3.5"
+)
 MIN_POSES = 86  # dataset minimum: 84 generated + anchor + 1
 
 

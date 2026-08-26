@@ -14,6 +14,7 @@ from typing import Any, Mapping, Sequence
 
 from worldfoundry.core.io.paths import checkpoint_root_path, hfd_root_path
 from worldfoundry.core.io.video import load_video_frames, save_image_or_video_tensor
+from worldfoundry.runtime.conda import resolve_model_python
 
 MODEL_ID = "lingbot-world-v2"
 DISPLAY_NAME = "LingBot-World-V2"
@@ -60,7 +61,7 @@ class LingBotWorldV2Runtime:
         self.generation_type = "image_and_camera_to_world_video"
         self.checkpoint_source = str(checkpoint_source)
         self.device = str(device)
-        self.python_executable = str(Path(python_executable or sys.executable).expanduser().resolve())
+        self.python_executable = str(Path(resolve_model_python(MODEL_ID, explicit=python_executable)).expanduser().resolve())
         self._distributed_core: Any = None
         self._distributed_core_signature: tuple[Any, ...] | None = None
         self.defaults = {

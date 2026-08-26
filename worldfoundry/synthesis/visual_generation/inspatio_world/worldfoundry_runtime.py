@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import os
 import subprocess
-import sys
 import tempfile
 from pathlib import Path
 from typing import Any, Dict, Optional, Sequence
@@ -15,14 +14,14 @@ from worldfoundry.core.io import (
     load_video_frames,
     materialize_video_input,
 )
-from worldfoundry.core.io.paths import package_module_root as package_root
 from worldfoundry.core.io.paths import (
     checkpoint_root_path,
     hfd_root_path,
     resolve_local_hf_model_path,
 )
+from worldfoundry.core.io.paths import package_module_root as package_root
 from worldfoundry.evaluation.utils import worldfoundry_data_path
-
+from worldfoundry.runtime.conda import resolve_model_python
 
 _BUNDLED_REPO_ROOT = (
     package_root("worldfoundry.synthesis.visual_generation.inspatio_world")
@@ -370,9 +369,10 @@ class InspatioWorldRuntime:
         if env.get("PYTHONPATH"):
             pythonpath.append(env["PYTHONPATH"])
         env["PYTHONPATH"] = os.pathsep.join(pythonpath)
-        env_bin = str(Path(sys.executable).expanduser().parent)
+        python = resolve_model_python("inspatio-world")
+        env_bin = str(Path(python).expanduser().parent)
         env["PATH"] = env_bin + os.pathsep + env.get("PATH", "")
-        env["PYTHON"] = sys.executable
+        env["PYTHON"] = python
         env["WORLDFOUNDRY_INSPATIO_WORLD_CONFIG_ROOT"] = str(_CONFIG_ROOT)
         env["WORLDFOUNDRY_INSPATIO_WORLD_TRAJECTORY_ROOT"] = str(_TRAJECTORY_ROOT)
         env["HF_HUB_OFFLINE"] = "1"

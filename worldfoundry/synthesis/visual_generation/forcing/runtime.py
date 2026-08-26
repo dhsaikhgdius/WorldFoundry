@@ -4,7 +4,6 @@ import json
 import os
 import shutil
 import subprocess
-import sys
 import tempfile
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -19,6 +18,7 @@ from worldfoundry.core.io.paths import (
 from worldfoundry.core.io.paths import (
     package_module_root as package_root,
 )
+from worldfoundry.runtime.conda import resolve_model_python
 
 DEFAULT_PROMPT = "A cinematic video with coherent motion, rich detail, and realistic lighting."
 TORCHVISION_VIDEO_COMPAT_DIR = Path(__file__).resolve().parent / "torchvision_video_compat"
@@ -365,7 +365,7 @@ class _ForcingRuntime:
         self.config_path = str(config_path or _default_config_path(resolved_model_id, resolved_runtime_root))
         self.wan_models_root = str(Path(wan_models_root or _default_wan_models_root()).expanduser())
         self.device = device
-        self.python_executable = python_executable or sys.executable
+        self.python_executable = resolve_model_python(resolved_model_id, explicit=python_executable)
         self.defaults = {
             "num_output_frames": 126 if resolved_model_id == "rolling-forcing" else 21,
             "seed": 0,

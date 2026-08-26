@@ -5,7 +5,6 @@ import json
 import os
 import shutil
 import subprocess
-import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping
@@ -13,6 +12,7 @@ from typing import Any, Mapping
 from worldfoundry.core.io.paths import project_root
 from worldfoundry.evaluation.models.runtime.profiles import load_runtime_profile
 from worldfoundry.runtime.assets import expand_worldfoundry_path
+from worldfoundry.runtime.conda import resolve_model_python
 
 from ...base_synthesis import BaseSynthesis
 
@@ -573,8 +573,12 @@ class WorldModelRuntimeSynthesis(BaseSynthesis):
         return list(extra_missing or [])
 
     def _command(self, *, output_path: Path, prompt: str, plan_path: Path) -> list[str]:
+        python = resolve_model_python(
+            self.model_id,
+            explicit=self.options.get("python_executable") or self.options.get("python"),
+        )
         context = {
-            "python": sys.executable,
+            "python": python,
             "runtime_root": str(self.runtime_root),
             "entrypoint": str(self.entrypoint or ""),
             "output_path": str(output_path),
@@ -594,7 +598,7 @@ class WorldModelRuntimeSynthesis(BaseSynthesis):
             return [str(item) for item in hook(context)]
         if self.entrypoint is None:
             return []
-        return [sys.executable, str(self.entrypoint)]
+        return [python, str(self.entrypoint)]
 
     def _subprocess_env(self, *, output_path: Path, prompt: str, plan_path: Path) -> dict[str, str]:
         env = os.environ.copy()

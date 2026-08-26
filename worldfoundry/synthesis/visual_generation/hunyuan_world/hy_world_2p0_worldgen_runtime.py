@@ -10,14 +10,13 @@ from __future__ import annotations
 
 import os
 import shutil
-import sys
 from pathlib import Path
 from typing import Any, Mapping
 
 from PIL import Image
 
+from worldfoundry.runtime.conda import resolve_model_python
 from worldfoundry.runtime.in_tree_cli import ensure_in_tree_runtime, execute_in_tree, require_path
-
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[4]
 
@@ -197,7 +196,7 @@ class HYWorld2WorldgenRuntime:
         self.repo_root = ensure_in_tree_runtime(self.bundled_repo_root(), package_file=__file__)
         configured_scene = scene_path or os.environ.get("HYWORLD_SCENE_PATH")
         self.scene_path = Path(configured_scene).expanduser() if configured_scene else None
-        self.python_executable = str(python_executable or sys.executable)
+        self.python_executable = resolve_model_python("hyworld-worldgen", explicit=python_executable)
         self.device = device
         self.env = dict(env or {})
 

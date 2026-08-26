@@ -6,7 +6,6 @@ import argparse
 import csv
 import json
 import pickle
-import sys
 import tempfile
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -17,6 +16,8 @@ import torch
 from PIL import Image
 
 from worldfoundry.core import load_pil_image, load_video_frames, save_video_frames
+from worldfoundry.runtime.conda import resolve_model_python
+
 from .native_pipeline import load_multiworld_config, load_multiworld_pipeline
 from .runtime_env import (
     resolve_checkpoint_path,
@@ -181,7 +182,7 @@ class MultiWorldItTakesTwoRuntime:
         self.checkpoint_path = str(Path(checkpoint_path).expanduser().resolve())
         self.base_model_root = resolve_wan_ti2v_root(base_model_root)
         self.vggt_root = vggt_root
-        self.python_executable = python_executable or sys.executable
+        self.python_executable = resolve_model_python("multiworld", explicit=python_executable)
         self.device = device
         self.weight_dtype = weight_dtype
         self.defaults = {

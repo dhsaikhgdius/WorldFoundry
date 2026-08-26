@@ -5,12 +5,12 @@ import os
 import re
 import shutil
 import subprocess
-import sys
 import time
 from pathlib import Path
 
 from worldfoundry.core.io.paths import package_module_root as package_root
 from worldfoundry.core.io.paths import resolve_data_path
+from worldfoundry.runtime.conda import resolve_model_python
 
 
 def _demo_asset_root() -> Path:
@@ -151,9 +151,10 @@ def _ensure_demo_pose(workspace_root: Path, source_repo_root: Path) -> None:
     if not align_script.is_file():
         raise FileNotFoundError(f"UniAnimate pose alignment script not found: {align_script}")
     pose_dir.mkdir(parents=True, exist_ok=True)
+    python = resolve_model_python("unianimate-dit")
     completed = subprocess.run(
         [
-            sys.executable,
+            python,
             str(align_script),
             "--ref_name",
             DEFAULT_REF_IMAGE,
@@ -230,9 +231,10 @@ def main() -> None:
         item for item in (str(worldfoundry_parent), str(repo_root), str(workspace_root), env.get("PYTHONPATH", "")) if item
     )
     env["WORLDFOUNDRY_UNIANIMATE_USE_USP"] = "1" if _as_bool(args.use_usp) else "0"
+    python = resolve_model_python("unianimate-dit")
     if _as_bool(args.use_usp):
         command = [
-            sys.executable,
+            python,
             "-m",
             "torch.distributed.run",
             "--standalone",
@@ -240,7 +242,7 @@ def main() -> None:
             str(run_script),
         ]
     else:
-        command = [sys.executable, str(run_script)]
+        command = [python, str(run_script)]
     completed = subprocess.run(
         command,
         cwd=str(workspace_root),
