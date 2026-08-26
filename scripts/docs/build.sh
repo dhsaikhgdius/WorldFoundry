@@ -53,6 +53,8 @@ if [[ "${SKIP_INSTALL}" == "0" ]]; then
 fi
 
 npm run types:check
+# pretypes:check already ran api:generate; fail if metadata is non-idempotent / drifted.
+npm run api:check
 
 build_log="$(mktemp -t worldfoundry-docs-build.XXXXXX.log)"
 trap 'rm -f "${build_log}"' EXIT
