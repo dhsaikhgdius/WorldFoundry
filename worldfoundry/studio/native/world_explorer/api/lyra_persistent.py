@@ -6,35 +6,38 @@
 from __future__ import annotations
 
 import argparse
-from contextlib import contextmanager
-from datetime import datetime
 import gc
 import os
-from pathlib import Path
 import shutil
 import subprocess
+from contextlib import contextmanager
+from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 import cv2
-from loguru import logger as log
 import numpy as np
 import torch
 import torch.nn.functional as F
-
+from loguru import logger as log
 from lyra_2._ext.imaginaire.utils import misc
 from lyra_2._src.datasets.forward_warp_utils_pytorch import forward_warp_multiframes
 from lyra_2._src.inference.lyra2_ar_inference import Lyra2InferencePipeline
+
+from worldfoundry.core.process import run_logged_subprocess
+
 _cudnn_enabled_before_inference_imports = torch.backends.cudnn.enabled
-from lyra_2._src.inference.lyra2_custom_traj_inference import DMD_LORA_PATH, DMD_LORA_WEIGHT
-from lyra_2._src.inference.lyra2_zoomgs_inference import _da3_infer_depth_intrinsics_single
+from lyra_2._src.inference.lyra2_custom_traj_inference import DMD_LORA_PATH, DMD_LORA_WEIGHT  # noqa: E402
+from lyra_2._src.inference.lyra2_zoomgs_inference import _da3_infer_depth_intrinsics_single  # noqa: E402
+
 # Both inference modules disable cuDNN globally at import time. The viewer only
 # reuses constants and a DA3 helper from them, so preserve the model's prior
 # backend state instead of forcing the VAE Conv3D layers onto the high-memory
 # native fallback.
 torch.backends.cudnn.enabled = _cudnn_enabled_before_inference_imports
-from lyra_2._src.utils.model_loader import load_model_from_checkpoint
+from lyra_2._src.utils.model_loader import load_model_from_checkpoint  # noqa: E402
 
-from .qwen_captioner import DEFAULT_QWEN_MODEL, QwenCaptioner
+from .qwen_captioner import DEFAULT_QWEN_MODEL, QwenCaptioner  # noqa: E402
 
 
 def _env_bool(name: str, default: bool = False) -> bool:
@@ -641,7 +644,18 @@ class Lyra2PersistentModel:
 			_find_ffmpeg(), "-loglevel", "error", "-y", "-f", "concat",
 			"-safe", "0", "-i", str(concat_file), "-c", "copy", "-movflags", "+faststart", str(output),
 		]
-		subprocess.run(cmd, check=True, cwd=self._session_dir)
+		stdout_path = self._session_dir / "ffmpeg_concat.stdout.log"
+		stderr_path = self._session_dir / "ffmpeg_concat.stderr.log"
+		completed = run_logged_subprocess(
+			cmd,
+			stdout_path=stdout_path,
+			stderr_path=stderr_path,
+			cwd=self._session_dir,
+		)
+		if completed.returncode != 0:
+			raise RuntimeError(
+				f"ffmpeg concat failed ({completed.returncode}); see {stdout_path} and {stderr_path}"
+			)
 		return output
 
 	def get_cache_input_depths(self):

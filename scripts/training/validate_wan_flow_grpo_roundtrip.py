@@ -25,6 +25,7 @@ from worldfoundry.base_models.diffusion_model.recipes.registry import (
     default_native_diffusion_registry,
 )
 from worldfoundry.core.io.integrity import canonical_json
+from worldfoundry.core.io.paths import project_root
 from worldfoundry.training.data import (
     RolloutPromptDataset,
     RolloutPromptRecord,
@@ -186,7 +187,7 @@ def _recipe(
     cache_path: Path,
     work_dir: Path,
 ) -> PostTrainingRecipe:
-    root = Path(__file__).resolve().parents[2]
+    root = project_root(__file__)
     payload = PostTrainingRecipe.from_file(
         root / "configs/post_training/wan_1p3b_flow_grpo.yaml"
     ).to_dict()
