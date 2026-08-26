@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import argparse
 import os
-import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
+from worldfoundry.core.process import run_logged_subprocess
 from worldfoundry.evaluation.utils import write_json
 
 from .utils import json_dump
-
 
 # ── Models list and runtime runners ─────────────────────────────
 
@@ -79,22 +79,35 @@ def _execute_download_commands(commands: list[list[str]]) -> list[dict[str, obje
     env.setdefault("HF_HUB_DISABLE_XET", "1")
     env.setdefault("HF_HUB_ENABLE_HF_TRANSFER", "0")
     executed = []
-    for command in commands:
-        completed = subprocess.run(
-            [str(item) for item in command],
-            text=True,
-            capture_output=True,
-            check=False,
-            env=env,
-        )
-        executed.append(
-            {
-                "command": command,
-                "returncode": completed.returncode,
-                "stdout": completed.stdout[-4000:],
-                "stderr": completed.stderr[-4000:],
-            }
-        )
+    with tempfile.TemporaryDirectory(prefix="wf-model-download-") as tmp:
+        log_root = Path(tmp)
+        for index, command in enumerate(commands):
+            stdout_path = log_root / f"download_{index}.stdout.log"
+            stderr_path = log_root / f"download_{index}.stderr.log"
+            completed = run_logged_subprocess(
+                [str(item) for item in command],
+                stdout_path=stdout_path,
+                stderr_path=stderr_path,
+                env=env,
+            )
+            stdout_text = (
+                stdout_path.read_text(encoding="utf-8", errors="replace")[-4000:]
+                if stdout_path.is_file()
+                else ""
+            )
+            stderr_text = (
+                stderr_path.read_text(encoding="utf-8", errors="replace")[-4000:]
+                if stderr_path.is_file()
+                else ""
+            )
+            executed.append(
+                {
+                    "command": command,
+                    "returncode": completed.returncode,
+                    "stdout": stdout_text,
+                    "stderr": stderr_text,
+                }
+            )
     return executed
 
 

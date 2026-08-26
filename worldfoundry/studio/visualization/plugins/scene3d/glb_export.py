@@ -488,12 +488,12 @@ def download_file_from_url(url: str, filename: str):
     import requests
 
     try:
-        response = requests.get(url, allow_redirects=False)
+        response = requests.get(url, allow_redirects=False, timeout=(10, 300))
         response.raise_for_status()
 
         if response.status_code == 302:
             redirect_url = response.headers["Location"]
-            response = requests.get(redirect_url, stream=True)
+            response = requests.get(redirect_url, stream=True, timeout=(10, 300))
             response.raise_for_status()
         else:
             print(f"Unexpected status code: {response.status_code}")

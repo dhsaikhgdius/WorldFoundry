@@ -6,6 +6,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from worldfoundry.core.io.paths import project_root
+
 from worldfoundry.training import recipes
 from worldfoundry.training.recipes.post_training import (
     DMDAlgorithmSpec,
@@ -72,7 +74,7 @@ def test_recipe_contracts_are_split_by_responsibility_and_reexported() -> None:
 
 
 def test_clean_recipe_import_does_not_load_execution_packages() -> None:
-    root = Path(__file__).resolve().parents[3]
+    root = project_root(__file__)
     probe = """
 import json
 import sys
@@ -105,7 +107,7 @@ print(json.dumps(sorted(blocked)))
 
 
 def test_recipe_modules_have_no_top_level_execution_plane_imports() -> None:
-    package = Path(__file__).resolve().parents[3] / "worldfoundry" / "training" / "recipes" / "post_training"
+    package = project_root(__file__) / "worldfoundry" / "training" / "recipes" / "post_training"
     blocked = (
         "worldfoundry.training.post_training",
         "worldfoundry.training.engine",

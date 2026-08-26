@@ -10,6 +10,8 @@ import tempfile
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
+from worldfoundry.core.process import run_logged_subprocess
+
 from .media import IMAGE_EXTENSIONS, VIDEO_EXTENSIONS
 from .storage import local_path_for_uri, parse_uri_scheme, uri_to_local_path, write_binary_uri
 
@@ -343,13 +345,13 @@ def extract_video_frames_to_directory(
         "-y",
         str(root / f"{prefix}%d{suffix}"),
     ]
+    stdout_path = root / "ffmpeg_extract.stdout.log"
+    stderr_path = root / "ffmpeg_extract.stderr.log"
     try:
-        completed = subprocess.run(
+        completed = run_logged_subprocess(
             command,
-            check=False,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
-            text=True,
+            stdout_path=stdout_path,
+            stderr_path=stderr_path,
             timeout=None if timeout_seconds is None else float(timeout_seconds),
         )
     except subprocess.TimeoutExpired as exc:
@@ -359,7 +361,8 @@ def extract_video_frames_to_directory(
     if completed.returncode != 0:
         for path in list_numbered_frame_paths(root, prefix=prefix, suffix=suffix):
             path.unlink()
-        detail = "\n".join((completed.stderr or "").splitlines()[-20:])
+        err = stderr_path.read_text(encoding="utf-8", errors="replace") if stderr_path.is_file() else ""
+        detail = "\n".join(err.splitlines()[-20:])
         raise RuntimeError(f"ffmpeg frame extraction failed with code {completed.returncode}: {detail}")
     extracted = list_numbered_frame_paths(root, prefix=prefix, suffix=suffix)
     if not extracted:

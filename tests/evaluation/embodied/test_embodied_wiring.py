@@ -162,7 +162,14 @@ class EmbodiedWiringTests(unittest.TestCase):
             Path("worldfoundry/data/benchmarks/eval_configs/embodied/libero/spatial.yaml")
         )
         self.assertEqual(config["docker"]["image"], "ghcr.io/openenvision/worldfoundry-embodied-libero:latest")
-        self.assertEqual(config["docker"]["source_image"], "ghcr.io/allenai/vla-evaluation-harness/libero:latest")
+        # D-01: source_image is digest-pinned; the repository must stay the
+        # official allenai harness repo.
+        source = str(config["docker"]["source_image"])
+        self.assertTrue(
+            source == "ghcr.io/allenai/vla-evaluation-harness/libero:latest"
+            or source.startswith("ghcr.io/allenai/vla-evaluation-harness/libero@sha256:"),
+            source,
+        )
 
     def test_docker_command_uses_profile_python_env_entrypoint_override(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

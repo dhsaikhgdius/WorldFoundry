@@ -9,7 +9,7 @@ def model_cleanup(model):
     try:
         import torch.distributed as dist
         dist.destroy_process_group()
-    except:
+    except Exception:
         pass
     import gc         # garbage collect library
     gc.collect()

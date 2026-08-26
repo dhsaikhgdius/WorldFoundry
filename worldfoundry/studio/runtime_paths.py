@@ -51,23 +51,67 @@ def _dedupe_paths(paths: Sequence[Path | str | None]) -> tuple[Path, ...]:
     return tuple(deduped)
 
 
-def _mirror_project_roots(project_roots: Sequence[Path] | None = None) -> tuple[Path, ...]:
-    """Return project root candidates including the bench workspace mirror.
+def _parse_path_mirrors(environ: EnvMapping) -> tuple[tuple[str, str], ...]:
+    """Parse ``WORLDFOUNDRY_PATH_MIRRORS=src:dst,...`` pairs (longest-prefix friendly)."""
+
+    raw = str(environ.get("WORLDFOUNDRY_PATH_MIRRORS") or "").strip()
+    pairs: list[tuple[str, str]] = []
+    if raw:
+        for item in raw.split(","):
+            item = item.strip()
+            if not item:
+                continue
+            if ":" not in item:
+                raise ValueError(
+                    f"WORLDFOUNDRY_PATH_MIRRORS entry must be src:dst, got {item!r}"
+                )
+            src, dst = item.split(":", 1)
+            src = src.strip().rstrip("/")
+            dst = dst.strip().rstrip("/")
+            if not src or not dst:
+                raise ValueError(
+                    f"WORLDFOUNDRY_PATH_MIRRORS entry must be non-empty src:dst, got {item!r}"
+                )
+            pairs.append((src, dst))
+            pairs.append((dst, src))  # bidirectional
+    else:
+        # Legacy cluster defaults (kept when env unset).
+        pairs.extend(
+            (
+                ("/share/project", "/bench-workspace"),
+                ("/bench-workspace", "/share/project"),
+            )
+        )
+    # Prefer longer prefixes first.
+    pairs.sort(key=lambda pair: len(pair[0]), reverse=True)
+    return tuple(pairs)
+
+
+def _mirror_project_roots(
+    project_roots: Sequence[Path] | None = None,
+    *,
+    environ: EnvMapping | None = None,
+) -> tuple[Path, ...]:
+    """Return project root candidates including configured path mirrors.
 
     Args:
         project_roots: Optional explicit roots supplied by callers that already know their repo root.
+        environ: Optional environment mapping for ``WORLDFOUNDRY_PATH_MIRRORS``.
     """
 
+    env = os.environ if environ is None else environ
+    mirrors = _parse_path_mirrors(env)
     roots = list(project_roots or (studio_repo_root(),))
     mirrored: list[Path] = []
     for root in roots:
         root = Path(root).expanduser()
         root_text = root.as_posix()
         mirrored.append(root)
-        if root_text.startswith("/share/project/"):
-            mirrored.append(Path("/bench-workspace") / root_text[len("/share/project/") :])
-        elif root_text.startswith("/bench-workspace/"):
-            mirrored.append(Path("/share/project") / root_text[len("/bench-workspace/") :])
+        for src, dst in mirrors:
+            prefix = src.rstrip("/") + "/"
+            if root_text == src or root_text.startswith(prefix):
+                suffix = root_text[len(src) :].lstrip("/")
+                mirrored.append(Path(dst) / suffix if suffix else Path(dst))
     return _dedupe_paths(mirrored)
 
 
@@ -153,8 +197,8 @@ def studio_hfd_cache_roots(
     ckpt_dir = resolve_ckpt_dir(environ)
     hfd_root = resolve_hfd_root(environ)
     hf_cache_dir = resolve_hf_cache_dir(environ)
-    project_cache_roots = [root / "cache" / "hfd" for root in _mirror_project_roots(project_roots)]
-    project_ckpt_roots = [root.parent / "ckpt" for root in _mirror_project_roots(project_roots)]
+    project_cache_roots = [root / "cache" / "hfd" for root in _mirror_project_roots(project_roots, environ=environ)]
+    project_ckpt_roots = [root.parent / "ckpt" for root in _mirror_project_roots(project_roots, environ=environ)]
     return _dedupe_paths(
         (
             explicit_hf_cache_dir,

@@ -21,6 +21,7 @@ import uuid
 from pathlib import Path
 from typing import Any, Optional
 from dotenv import load_dotenv
+from model.openrouter import openrouter_api_key
 
 from model.vlm import (
     DEFAULT_VLM_BACKEND,
@@ -156,8 +157,11 @@ class VLMScorer:
     ):
         self.backend = resolve_vlm_backend(backend)
         self.model_name = resolve_model_name(model_name, self.backend)
-        if self.backend == "openrouter" and not os.getenv("api_key"):
-            raise RuntimeError("Missing OpenRouter api_key in environment or .env")
+        if self.backend == "openrouter" and not openrouter_api_key():
+            raise RuntimeError(
+                "Missing OpenRouter API key; set OPENROUTER_API_KEY, "
+                "WORLDFOUNDRY_OPENROUTER_API_KEY, or legacy api_key in environment or .env"
+            )
         self.timeout = timeout
         self.video_task_template = """You are a calibrated 3D consistency judge for static-scene reconstruction.
 You will be given several sampled frames from a Gaussian-Splat render reconstructed from a source video after dynamic foreground regions were masked and video-inpainted.

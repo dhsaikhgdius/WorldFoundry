@@ -11,7 +11,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+from worldfoundry.core.io.paths import project_root
+from worldfoundry.core.process import run_logged_subprocess
+
+REPO_ROOT = project_root(__file__)
 SRC_ROOT = REPO_ROOT
 WORKER_SCRIPT = REPO_ROOT / "scripts" / "model_zoo" / "matrix_game_parity_worker.py"
 DEFAULT_REPO_ROOT = REPO_ROOT / "tmp" / "model_zoo" / "repos" / "github.com_SkyworkAI_Matrix-Game" / "Matrix-Game-2"
@@ -164,7 +167,16 @@ def run_worker(case_json: Path, output_root: Path, variant: str, device: str) ->
     ]
     env = os.environ.copy()
     env.setdefault("PYTHONUNBUFFERED", "1")
-    subprocess.run(command, cwd=REPO_ROOT, env=env, check=True)
+    log_dir = output_root / "_logs"
+    completed = run_logged_subprocess(
+        command,
+        stdout_path=log_dir / "parity_worker.stdout.log",
+        stderr_path=log_dir / "parity_worker.stderr.log",
+        cwd=REPO_ROOT,
+        env=env,
+    )
+    if completed.returncode != 0:
+        raise subprocess.CalledProcessError(completed.returncode, command)
     return json.loads((output_root / "summary.json").read_text(encoding="utf-8"))
 
 
