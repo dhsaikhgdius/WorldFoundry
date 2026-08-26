@@ -137,6 +137,32 @@ def test_docker_runner_forwards_configured_runtime(tmp_path: Path) -> None:
 
     assert "--runtime" in cmd
     assert cmd[cmd.index("--runtime") + 1] == "nvidia"
+    assert cmd[cmd.index("--network") + 1] == "host"
+
+
+def test_docker_runner_network_override_via_config(tmp_path: Path) -> None:
+    docker_config_path = tmp_path / "eval_config.yaml"
+    docker_config_path.write_text("id: test\n", encoding="utf-8")
+
+    cmd = build_docker_run_command(
+        {"docker": {"image": "example/bench:latest", "network": "bridge"}},
+        docker_config_path=docker_config_path,
+        output_dir=tmp_path / "out",
+    )
+    assert cmd[cmd.index("--network") + 1] == "bridge"
+
+
+def test_docker_runner_network_can_be_omitted(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("WORLDFOUNDRY_EMBODIED_DOCKER_NETWORK", "omit")
+    docker_config_path = tmp_path / "eval_config.yaml"
+    docker_config_path.write_text("id: test\n", encoding="utf-8")
+
+    cmd = build_docker_run_command(
+        {"docker": {"image": "example/bench:latest"}},
+        docker_config_path=docker_config_path,
+        output_dir=tmp_path / "out",
+    )
+    assert "--network" not in cmd
 
 
 def test_embodied_asset_scaffold_covers_harness_benchmarks(tmp_path: Path) -> None:
