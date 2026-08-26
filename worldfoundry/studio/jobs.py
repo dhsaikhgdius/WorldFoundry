@@ -11,11 +11,14 @@ inference jobs in parallel when enough GPUs are available.
 
 from __future__ import annotations
 
+import json
+import os
 import traceback
 from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, field
 from html import escape
+from pathlib import Path
 from threading import RLock
 from time import monotonic
 from typing import Any
@@ -25,6 +28,20 @@ from worldfoundry.runtime.jobs import TERMINAL_JOB_STATUSES
 
 
 STUDIO_JOB_TABLE_HEADERS = ["Job ID", "Title", "Model", "Action", "Status", "Created", "Elapsed"]
+STUDIO_JOB_STATE_SCHEMA_VERSION = 1
+_PERSISTED_STUDIO_JOB_FIELDS = (
+    "job_id",
+    "title",
+    "model_id",
+    "display_name",
+    "action",
+    "job_type",
+    "status",
+    "created_at",
+    "started_at",
+    "completed_at",
+    "error",
+)
 
 
 @dataclass
@@ -124,13 +141,138 @@ class StudioJobStore:
     accidentally launch several heavyweight GPU pipelines in parallel.
     """
 
-    def __init__(self, *, max_workers: int = 1, max_log_lines: int = 2000, initial_counter: int = 0) -> None:
-        """Create a job store backed by a small thread pool (default: one worker)."""
+    def __init__(
+        self,
+        *,
+        max_workers: int = 1,
+        max_log_lines: int = 2000,
+        initial_counter: int = 0,
+        state_dir: str | Path | None = None,
+        max_terminal_jobs: int | None = 500,
+    ) -> None:
+        """Create a job store backed by a small thread pool (default: one worker).
+
+        When ``state_dir`` is set, each job is mirrored to ``<state_dir>/<job_id>.json``
+        and an index ``jobs.json`` so Studio restarts can surface prior runs.
+        In-process thread jobs cannot be resumed; non-terminal records are marked
+        failed on restore (orphan reconciliation for the UI history).
+        """
         self.max_log_lines = max_log_lines
         self._executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="worldfoundry-studio-job")
         self._jobs: dict[str, StudioJob] = {}
         self._lock = RLock()
         self._counter = max(0, initial_counter)
+        self.state_dir = None if state_dir is None else Path(state_dir)
+        self.max_terminal_jobs = max_terminal_jobs
+        if self.state_dir is not None:
+            self._restore_persisted_jobs()
+
+    def _job_json_path(self, job_id: str) -> Path:
+        assert self.state_dir is not None
+        return self.state_dir / f"{job_id}.json"
+
+    def _index_path(self) -> Path:
+        assert self.state_dir is not None
+        return self.state_dir / "jobs.json"
+
+    def _serialize_job(self, job: StudioJob) -> dict[str, Any]:
+        row = {name: getattr(job, name) for name in _PERSISTED_STUDIO_JOB_FIELDS}
+        row["metadata"] = dict(job.metadata)
+        # Keep a short log tail for post-mortem UI; full streams stay in memory only.
+        row["logs"] = list(job.logs[-50:])
+        return row
+
+    def _persist_job(self, job: StudioJob) -> None:
+        if self.state_dir is None:
+            return
+        try:
+            self.state_dir.mkdir(parents=True, exist_ok=True)
+            path = self._job_json_path(job.job_id)
+            tmp = path.with_name(path.name + f".tmp-{os.getpid()}")
+            tmp.write_text(json.dumps(self._serialize_job(job), ensure_ascii=False, default=str), encoding="utf-8")
+            os.replace(tmp, path)
+            self._persist_index()
+        except OSError:
+            pass
+
+    def _persist_index(self) -> None:
+        if self.state_dir is None:
+            return
+        try:
+            rows = [self._serialize_job(job) for job in sorted(self._jobs.values(), key=lambda item: item.created_at)]
+            payload = {"schema_version": STUDIO_JOB_STATE_SCHEMA_VERSION, "jobs": rows}
+            path = self._index_path()
+            tmp = path.with_name(path.name + f".tmp-{os.getpid()}")
+            tmp.write_text(json.dumps(payload, ensure_ascii=False, default=str), encoding="utf-8")
+            os.replace(tmp, path)
+        except OSError:
+            pass
+
+    def _restore_persisted_jobs(self) -> None:
+        assert self.state_dir is not None
+        try:
+            payload = json.loads(self._index_path().read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError, ValueError):
+            return
+        rows = payload.get("jobs") if isinstance(payload, Mapping) else None
+        if not isinstance(rows, list):
+            return
+        reconciled = False
+        for row in rows:
+            if not isinstance(row, Mapping) or not row.get("job_id"):
+                continue
+            job = StudioJob(
+                job_id=str(row["job_id"]),
+                title=str(row.get("title") or row["job_id"]),
+                model_id=str(row.get("model_id") or ""),
+                display_name=str(row.get("display_name") or row.get("model_id") or ""),
+                action=str(row.get("action") or ""),
+                job_type=str(row.get("job_type") or "inference"),
+                metadata=dict(row["metadata"]) if isinstance(row.get("metadata"), Mapping) else {},
+                status=str(row.get("status") or "failed"),
+                created_at=str(row.get("created_at") or utc_now_iso()),
+                started_at=row.get("started_at"),
+                completed_at=row.get("completed_at"),
+                error=row.get("error"),
+            )
+            logs = row.get("logs")
+            if isinstance(logs, list):
+                job.logs = [item for item in logs if isinstance(item, Mapping)]
+            if not job.terminal:
+                # Studio jobs are in-process threads; they cannot survive a restart.
+                job.status = "failed"
+                job.error = job.error or "job lost during Studio restart (in-process worker)"
+                job.completed_at = job.completed_at or utc_now_iso()
+                job.append_log("system", "marked failed after Studio restart (orphan reconciliation)\n")
+                reconciled = True
+            self._jobs[job.job_id] = job
+            try:
+                suffix = job.job_id.removeprefix("studio-")
+                if suffix.isdigit():
+                    self._counter = max(self._counter, int(suffix))
+            except ValueError:
+                pass
+        if reconciled:
+            for job in self._jobs.values():
+                self._persist_job(job)
+        self._prune_terminal_jobs()
+
+    def _prune_terminal_jobs(self) -> None:
+        if self.max_terminal_jobs is None:
+            return
+        terminal = [job for job in self._jobs.values() if job.terminal]
+        overflow = len(terminal) - max(int(self.max_terminal_jobs), 0)
+        if overflow <= 0:
+            return
+        terminal.sort(key=lambda job: job.created_at)
+        for job in terminal[:overflow]:
+            self._jobs.pop(job.job_id, None)
+            if self.state_dir is not None:
+                try:
+                    self._job_json_path(job.job_id).unlink(missing_ok=True)
+                except OSError:
+                    pass
+        self._persist_index()
 
     def submit_run(
         self,
@@ -157,6 +299,7 @@ class StudioJobStore:
                 metadata=dict(metadata or {}),
             )
             self._jobs[job.job_id] = job
+            self._persist_job(job)
             job._future = self._executor.submit(self._execute, job.job_id, run_callable)
             return job
 
@@ -188,8 +331,11 @@ class StudioJobStore:
                 job.completed_at = utc_now_iso()
                 job._completed_monotonic = monotonic()
                 job.append_log("system", "cancelled before start\n")
+                self._persist_job(job)
+                self._prune_terminal_jobs()
                 return True, "cancelled"
             job.append_log("system", "cancellation requested; active inference will stop after the current call returns\n")
+            self._persist_job(job)
             return True, "cancellation requested"
 
     def _execute(self, job_id: str, run_callable: RunJobCallable) -> None:
@@ -203,11 +349,14 @@ class StudioJobStore:
                 job.error = "cancelled before start"
                 job.completed_at = utc_now_iso()
                 job._completed_monotonic = monotonic()
+                self._persist_job(job)
+                self._prune_terminal_jobs()
                 return
             job.status = "running"
             job.started_at = utc_now_iso()
             job._started_monotonic = monotonic()
             job.append_log("system", f"started {job.title}\n")
+            self._persist_job(job)
 
         try:
             result = run_callable(job)
@@ -241,6 +390,8 @@ class StudioJobStore:
                     del job.logs[: len(job.logs) - self.max_log_lines]
                 job.completed_at = job.completed_at or utc_now_iso()
                 job._completed_monotonic = monotonic()
+                self._persist_job(job)
+                self._prune_terminal_jobs()
 
 
 def format_elapsed(job: StudioJob) -> str:

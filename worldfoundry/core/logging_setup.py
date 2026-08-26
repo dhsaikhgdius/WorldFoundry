@@ -595,15 +595,25 @@ def _rank_suffix() -> str:
     return f"_rank{rank}"
 
 
+_DISTRIBUTED_LOGGING_MODULE = "worldfoundry.core.distributed.logging"
+
+
 def _apply_distributed_logger(level: int) -> None:
     """Reparent the rank-aware ``distributed_logger`` onto the root pipeline.
 
-    Lazily imported so this module never eagerly pulls ``torch`` / the
-    distributed stack; if it is unavailable we simply skip reparenting.
+    CM-01: :mod:`worldfoundry.core.distributed.logging` imports ``torch`` at
+    module top level, so importing it here would make every
+    ``configure_logging`` caller — including pure catalog/CLI queries — pay
+    the multi-second torch import. Probe ``sys.modules`` instead: only
+    processes that already loaded the distributed stack are reparented here;
+    processes that import it *after* configuring adopt the pipeline inside
+    that module's own import-time hook.
     """
-    try:
-        from worldfoundry.core.distributed.logging import distributed_logger
-    except Exception:
+    module = sys.modules.get(_DISTRIBUTED_LOGGING_MODULE)
+    if module is None:
+        return
+    distributed_logger = getattr(module, "distributed_logger", None)
+    if distributed_logger is None:  # pragma: no cover - partially initialised module
         return
     distributed_logger.handlers.clear()
     distributed_logger.propagate = True

@@ -1,0 +1,41 @@
+---
+title: 评测快速开始
+description: matrix-game-2 开源推理 clean-clone 契约与共享 HFD 布局。
+---
+
+# 评测快速开始
+
+本页记录 `matrix-game-2` 的 clean-clone 开源推理契约（公开 Hugging Face 仓库
+`Skywork/Matrix-Game-2.0`，revision `f1729d99a80e0f07993a77d7dad4a3190e23c2c8`）。
+
+## 准备权重
+
+```bash
+export WORLDFOUNDRY_HFD_ROOT="${WORLDFOUNDRY_HFD_ROOT:-${HOME}/.cache/worldfoundry/models/checkpoints/hfd}"
+
+worldfoundry-eval zoo model-download --model-id matrix-game-2 --cache-dir "${WORLDFOUNDRY_HFD_ROOT}" --check-local
+worldfoundry-eval zoo model-validate --model-id matrix-game-2 --cache-dir "${WORLDFOUNDRY_HFD_ROOT}" --check-local
+```
+
+共享目录可软链，不必重复下载：
+
+```bash
+ln -s /shared/Skywork--Matrix-Game-2.0 "${WORLDFOUNDRY_HFD_ROOT}/Skywork--Matrix-Game-2.0"
+ln -s /shared/models--Skywork--Matrix-Game-2.0 "${WORLDFOUNDRY_HFD_ROOT}/models--Skywork--Matrix-Game-2.0"
+```
+
+## 复现门禁
+
+```bash
+make open-source-infer-repro OPEN_SOURCE_INFER_HFD_ROOT="${WORLDFOUNDRY_HFD_ROOT}"
+# 要求本地缓存已就绪：
+make open-source-infer-repro OPEN_SOURCE_INFER_STRICT_LOCAL=1 OPEN_SOURCE_INFER_HFD_ROOT="${WORLDFOUNDRY_HFD_ROOT}"
+```
+
+## 冒烟推理
+
+```bash
+bash scripts/inference/test_nav_video_gen.sh matrix-game-2 --output-dir tmp/matrix_game2_first_run
+```
+
+成功运行会在输出目录写入 `scorecard.json`。

@@ -11,10 +11,11 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from worldfoundry.core import cuda_visible_devices_from_device, jsonable
+from worldfoundry.core.io.paths import project_root
 from worldfoundry.runtime.assets import expand_worldfoundry_path
 
 
-SRC_ROOT = Path(__file__).resolve().parents[4]
+SRC_ROOT = project_root(__file__)
 RUNTIME_ROOT = SRC_ROOT / "worldfoundry" / "synthesis" / "visual_generation" / "longcat_video" / "longcat_video_runtime"
 CHECKPOINT_SUBDIRS = ("tokenizer", "text_encoder", "vae", "scheduler", "dit")
 REQUIRED_RUNTIME_FILES = (

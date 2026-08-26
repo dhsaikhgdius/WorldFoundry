@@ -82,6 +82,60 @@ def _cuda_visible_device_count(value: str | None = None) -> int:
     return len([item for item in text.split(",") if item.strip()])
 
 
+WORKSPACE_MAX_JOBS_ENV = "WORLDFOUNDRY_WORKSPACE_MAX_JOBS"
+DEFAULT_WORKSPACE_MAX_JOBS_CAP = 16
+
+
+def detect_cuda_device_count(*, environ: Mapping[str, str] | None = None) -> int:
+    """Best-effort visible CUDA device count (env list, then torch)."""
+
+    env = os.environ if environ is None else environ
+    visible = _cuda_visible_device_count(env.get("CUDA_VISIBLE_DEVICES"))
+    if visible > 0:
+        return visible
+    try:
+        import torch
+
+        if torch.cuda.is_available():
+            return max(int(torch.cuda.device_count()), 0)
+    except Exception:
+        return 0
+    return 0
+
+
+def resolve_workspace_max_jobs(
+    *,
+    environ: Mapping[str, str] | None = None,
+    device_count: int | None = None,
+    device_count_fn: Callable[[], int] | None = None,
+    cap: int = DEFAULT_WORKSPACE_MAX_JOBS_CAP,
+) -> int:
+    """Resolve Studio / resident-worker concurrency.
+
+    Explicit ``WORLDFOUNDRY_WORKSPACE_MAX_JOBS`` always wins. Otherwise adapt to
+    the visible GPU count (capped), falling back to ``1`` on CPU-only hosts.
+    Previously ``workspace_app`` defaulted to 8 while ``conda_dispatch``
+    defaulted to 2 when the env was unset — those paths now share this helper.
+    """
+
+    env = os.environ if environ is None else environ
+    raw = env.get(WORKSPACE_MAX_JOBS_ENV)
+    if raw is not None and str(raw).strip() != "":
+        try:
+            return max(int(str(raw).strip()), 0)
+        except ValueError as exc:
+            raise ValueError(f"{WORKSPACE_MAX_JOBS_ENV} must be an integer, got {raw!r}.") from exc
+    if device_count is None:
+        if device_count_fn is not None:
+            device_count = device_count_fn()
+        else:
+            device_count = detect_cuda_device_count(environ=env)
+    count = max(int(device_count or 0), 0)
+    if count <= 0:
+        return 1
+    return min(count, max(int(cap), 1))
+
+
 def resolve_lingbot_fast_num_procs(*, visible_count: int | None = None) -> int:
     """Resolve LingBot-World-Fast torchrun process count using WMFactory semantics."""
 
