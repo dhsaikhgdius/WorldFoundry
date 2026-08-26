@@ -302,7 +302,7 @@ def project_root() -> Path:
     return current.parents[5]
 ```
 
-  实测（本仓库布局 `<...>/WorldFoundry/worldfoundry/runtime/probes.py`）：`parents[2]` = 仓库根，`parents[4]` = `/mnt/cpfsB/yangboxue/visual_generation`（仓库外两级）。`performance.py:517` 用的是正确的 `parents[2]`。`evaluation/utils.py:153` 则有第四种：`worldfoundry_repository_root()`。
+  实测（本仓库布局 `<...>/WorldFoundry/worldfoundry/runtime/probes.py`）：`parents[2]` = 仓库根，`parents[4]` = `<repo-parent>`（仓库外两级）。`performance.py:517` 用的是正确的 `parents[2]`。`evaluation/utils.py:153` 则有第四种：`worldfoundry_repository_root()`。
 - **问题**：
   1. `probes.py` 的 `REPO_ROOT` 被用作探针子进程的 `PYTHONPATH` 注入（`probes.py:324,329,367` 等），指向错误目录后该注入完全失效——探针在需要 `vbench`/`worldscore` 源码路径时会误报 import 失败或依赖外部环境巧合。
   2. `conda.py` 的 `project_root()` 在包内零调用（rg 全库仅此一处定义，studio 用的是 `core.io.paths.project_root`）——死代码；且兜底 `parents[5]` 更加错误。

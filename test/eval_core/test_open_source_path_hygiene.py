@@ -21,24 +21,31 @@ TEXT_SUFFIXES = {
 FORBIDDEN_MACHINE_PATHS = (
     "yang" + "boxue",
     "/mnt" + "/cpfs",
+    "/mnt" + "/cpfsB",
     "/mnt" + "/workspace",
     "/mnt" + "/world_foundational_model",
     "/Users" + "/",
     "/private" + "/home",
     "/home/" + "kchen",
     "/home/" + "gary",
+    "/home/" + "aiscuser",
 )
 PRUNED_DIRS = {
     ".git",
     ".next",
     ".pytest_cache",
     "__pycache__",
+    ".venv",
+    "build",
     "cache",
+    "dist",
     "logs",
     "node_modules",
     "out",
     "outputs",
     "tmp",
+    "thirdparty",
+    "venv",
 }
 PRUNED_DIR_PREFIXES = (
     "out.nfs-busy-",

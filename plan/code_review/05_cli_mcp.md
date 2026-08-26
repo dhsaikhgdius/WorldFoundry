@@ -187,7 +187,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 SRC_ROOT = REPO_ROOT
 ```
 
-  实测 `parents[3]` = `/mnt/.../juanxi`（仓库的**父目录**），真实仓库根是 `/mnt/.../juanxi/WorldFoundry`；且两个常量在本文件内无任何使用（全文件 grep 仅此两行）。
+  实测 `parents[3]` = `<repo-parent>`（仓库的**父目录**），真实仓库根是 `<repo-root>`；且两个常量在本文件内无任何使用（全文件 grep 仅此两行）。
 - 问题：差一级的路径常量 + 死代码；将来若有人直接引用会得到错误路径。仓库已有权威 `REPO_ROOT`（`worldfoundry/evaluation/utils.py:153`）。
 - 建议：删除这两行。
 
