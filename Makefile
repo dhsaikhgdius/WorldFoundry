@@ -1,4 +1,4 @@
-.PHONY: help install-core install-dev docs-check lint ruff-check format-check shell-check data-check runtime-registry-check compile-eval cli-check precommit precommit-install preflight test-eval-core test-training
+.PHONY: help install-core install-dev docs-check lint ruff-check format-check shell-check data-check test-cases-growth-check runtime-registry-check compile-eval cli-check precommit precommit-install preflight test-eval-core test-training
 
 PYTHON ?= python
 PIP ?= $(PYTHON) -m pip
@@ -51,7 +51,7 @@ docs-check:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m worldfoundry.cli --help >/dev/null
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m worldfoundry.cli zoo benchmarks --json >/dev/null
 
-lint: ruff-check format-check shell-check data-check runtime-registry-check
+lint: ruff-check format-check shell-check data-check test-cases-growth-check runtime-registry-check
 
 ruff-check:
 	$(PYTHON) -m ruff check $(RUFF_SOURCES)
@@ -65,6 +65,9 @@ shell-check:
 data-check:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m worldfoundry.cli zoo models --json >/dev/null
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m worldfoundry.cli zoo benchmarks --json >/dev/null
+
+test-cases-growth-check:
+	$(PYTHON) scripts/ci/check_test_cases_growth.py
 
 runtime-registry-check:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -c 'from worldfoundry.evaluation.models.runtime.validate import validate_runtime_registry; errors = [issue for issue in validate_runtime_registry() if issue.severity == "error"]; assert not errors, "\\n".join(f"[{issue.code}] {issue.message}" for issue in errors)'
