@@ -342,3 +342,13 @@ def test_batch16_studio_modules_use_paths_package_root() -> None:
     assert "from worldfoundry.core.io.paths import package_root" in assets
     assert 'package_root() / "studio" / "assets"' in assets
     assert "Path(__file__).resolve().parents[" not in assets
+
+
+def test_batch17_core_inference_uses_paths_package_root() -> None:
+    """core.inference fixture/config roots use package_root, not parents[1]."""
+    repo = Path(__file__).resolve().parents[2]
+    text = (repo / "worldfoundry/core/inference.py").read_text(encoding="utf-8")
+    assert "package_root" in text
+    assert "from worldfoundry.core.io.paths import" in text
+    assert "package_root()" in text
+    assert "Path(__file__).resolve().parents[" not in text
