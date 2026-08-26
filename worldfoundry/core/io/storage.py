@@ -10,7 +10,10 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import BinaryIO, Generator, Iterable, TextIO
 from urllib.parse import unquote, urlparse
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
+
+_HTTP_USER_AGENT = "worldfoundry"
 
 
 def parse_uri_scheme(uri: str | os.PathLike[str]) -> str:
@@ -122,7 +125,12 @@ def write_text_uri(
 
 
 def exists_uri(uri: str | os.PathLike[str], **storage_options) -> bool:
-    """Return whether a URI exists."""
+    """Return whether a URI exists.
+
+    The no-fsspec HTTP(S) fallback sends a ``User-Agent`` and, when servers
+    reject ``HEAD`` with 405/501, retries a ranged ``GET`` so existence is not
+    falsely reported as missing.
+    """
 
     scheme = parse_uri_scheme(uri)
     if scheme == "file":
@@ -130,15 +138,37 @@ def exists_uri(uri: str | os.PathLike[str], **storage_options) -> bool:
     fsspec = _optional_fsspec()
     if fsspec is None:
         if scheme in {"http", "https"}:
-            try:
-                request = Request(str(uri), method="HEAD")
-                with urlopen(request, timeout=10):
-                    return True
-            except Exception:
-                return False
+            return _http_uri_exists(str(uri))
         return False
     filesystem, path = fsspec.core.url_to_fs(str(uri), **storage_options)
     return filesystem.exists(path)
+
+
+def _http_uri_exists(uri: str) -> bool:
+    headers = {"User-Agent": _HTTP_USER_AGENT}
+    try:
+        request = Request(uri, method="HEAD", headers=headers)
+        with urlopen(request, timeout=10):
+            return True
+    except HTTPError as exc:
+        if exc.code in {405, 501}:
+            try:
+                ranged = Request(
+                    uri,
+                    method="GET",
+                    headers={**headers, "Range": "bytes=0-0"},
+                )
+                with urlopen(ranged, timeout=10):
+                    return True
+            except Exception:
+                return False
+        # Some servers answer HEAD with a redirect/error body but still prove
+        # the resource exists via a 2xx/3xx status carried on HTTPError.
+        if 200 <= exc.code < 400:
+            return True
+        return False
+    except Exception:
+        return False
 
 
 def is_file_uri(uri: str | os.PathLike[str], **storage_options) -> bool:
@@ -265,7 +295,7 @@ def remove_uri(uri: str | os.PathLike[str], **storage_options) -> None:
 
 
 def _read_http_bytes(uri: str) -> bytes:
-    request = Request(uri, headers={"User-Agent": "worldfoundry"})
+    request = Request(uri, headers={"User-Agent": _HTTP_USER_AGENT})
     with urlopen(request, timeout=30) as response:
         return response.read()
 
