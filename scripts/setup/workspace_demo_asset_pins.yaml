@@ -1,0 +1,147 @@
+# DA-05: pinned Workspace demo assets (official git sources).
+# Materialize via: python scripts/setup/materialize_workspace_demo_assets.py
+# expected_sha256 is optional; when set, materialize/check fails on mismatch.
+schema_version: 1
+repos:
+  Astra:
+    remote: https://github.com/EternalEvan/Astra.git
+    revision: 3fb82e1939bfcf87d6e27a7da57d8b55ff9cb393
+  CameraCtrl:
+    remote: https://github.com/hehao13/CameraCtrl.git
+    revision: af45a7a0dbeedb7f6ed66aac4a9e5411a279f0d2
+  cosmos-predict2.5:
+    remote: https://github.com/nvidia-cosmos/cosmos-predict2.5.git
+    revision: a2c298b0a3df3778b973fe65e9e58877b292d8a7
+  CUT3R:
+    remote: https://github.com/CUT3R/CUT3R.git
+    revision: 8bc15dc92a6d7fd92920b4ec81540d3dec7d3ecf
+  Depth-Anything-3:
+    remote: https://github.com/ByteDance-Seed/Depth-Anything-3.git
+    revision: 3fe327a6abe2e5db95b54444ea95463dbfef5610
+  DualCamCtrl:
+    remote: https://github.com/EnVision-Research/DualCamCtrl.git
+    revision: f4f064f39c84b0e9597e99979ec56361570d8bef
+  fantasy-world:
+    remote: https://github.com/Fantasy-AMAP/fantasy-world.git
+    revision: 2645441c706f122033cbbb7be9af245d6a91b658
+  GEN3C:
+    remote: https://github.com/nv-tlabs/GEN3C.git
+    revision: 04177ec83662d6809a06d8a6253650968e2366dc
+  Hunyuan-GameCraft-1.0:
+    remote: https://github.com/Tencent-Hunyuan/Hunyuan-GameCraft-1.0.git
+    revision: 9a35ecf495a1b97b4929524fff442481069ecdc2
+  HunyuanWorld-Voyager:
+    remote: https://github.com/Tencent-Hunyuan/HunyuanWorld-Voyager.git
+    revision: 6218ccd36df77d0254dcf24ad1fb77312f75b04a
+  HY-WorldPlay:
+    remote: https://github.com/Tencent-Hunyuan/HY-WorldPlay.git
+    revision: ad424f57cf1054521a24b609dc0832afd7cd1a50
+  HunyuanVideo-I2V:
+    remote: https://github.com/Tencent-Hunyuan/HunyuanVideo-I2V.git
+    revision: c8bba70b9517f08d770a9a2a3d1e93cc6d5b7949
+  lingbot-world:
+    remote: https://github.com/robbyant/lingbot-world.git
+    revision: a43bec7f8091c83e9b30b16b912f6fc906236fa6
+  LongCat-Video:
+    remote: https://github.com/meituan-longcat/LongCat-Video.git
+    revision: 6b3f4b8582a8bc3f20f795735f5383716c4ba794
+  LongVie:
+    remote: https://github.com/Vchitect/LongVie.git
+    revision: 8740d2ee07245556750735193e0149dcd4d989f0
+  lyra:
+    remote: https://github.com/nv-tlabs/lyra.git
+    revision: 9fffc9adc37004091ecf26ef03abfb3abdf4d59a
+  Matrix-Game:
+    remote: https://github.com/SkyworkAI/Matrix-Game.git
+    revision: 71c3cd7f741311f8100f6cf9cde942b6c1378d11
+  MotionCtrl:
+    remote: https://github.com/TencentARC/MotionCtrl.git
+    revision: 6242d55414d3f4ad690bf0934889660f78e81b6e
+  MVDiffusion:
+    remote: https://github.com/Tangshitao/MVDiffusion.git
+    revision: 4cd4e513e259be07a6c5e6a813258f77374afa59
+  NeoVerse:
+    remote: https://github.com/IamCreateAI/NeoVerse.git
+    revision: bb97880d3f6d5cb06b2fcccc8ca889e0988daa4d
+  SAMA:
+    remote: https://github.com/Cynthiazxy123/SAMA.git
+    revision: 85441d5d42e6335f66282b92016eae7266df436e
+  SCOPE:
+    remote: https://github.com/z2tong/SCOPE.git
+    revision: c1eeaffca346313912f4ce5ac89cbe42d7428d9e
+  stable-virtual-camera:
+    remote: https://github.com/Stability-AI/stable-virtual-camera.git
+    revision: fe19948e9b7bea261ab2db780a59656131404a83
+  vggt:
+    remote: https://github.com/facebookresearch/vggt.git
+    revision: a288dd0f14786c93483e45524328726ab7b1b4ce
+  VideoCrafter:
+    remote: https://github.com/VideoCrafter/VideoCrafter.git
+    revision: f6c7f7f28f71d3069a9ee0e002d2f4b019eb78f6
+  WorldCam:
+    remote: https://github.com/cvlab-kaist/WorldCam.git
+    revision: 8e31bf7d5ea2e51e0ba7e4da29f9d9fff8af6dbb
+  worldfm:
+    remote: https://github.com/inspatio/worldfm.git
+    revision: d51ada211079d185285076b56fb803069a571838
+
+# target relative to --output-root, repo key above, path inside that revision
+repo_assets:
+- {target: astra/condition_images/garden_1.png, repo: Astra, path: examples/condition_images/garden_1.png}
+- {target: cameractrl/pose_files/0f47577ab3441480.txt, repo: CameraCtrl, path: assets/pose_files/0f47577ab3441480.txt}
+- {target: cosmos-predict2p5/base/robot_pouring.jsonl, repo: cosmos-predict2.5, path: assets/base/robot_pouring.jsonl}
+- {target: cut3r/examples/001, repo: CUT3R, path: examples/001}
+- {target: depth_anything_v3/examples/SOH, repo: Depth-Anything-3, path: assets/examples/SOH}
+- {target: dualcamctrl/demo_pic, repo: DualCamCtrl, path: demo_pic}
+- {target: fantasyworld/camera_forward.json, repo: fantasy-world, path: examples/cameras/camera_data.json}
+- {target: gen3c/image.png, repo: GEN3C, path: assets/diffusion/000000.png}
+- {target: hunyuan_game_craft/village.png, repo: Hunyuan-GameCraft-1.0, path: asset/village.png}
+- {target: hunyuan_world_voyager/case1, repo: HunyuanWorld-Voyager, path: examples/case1}
+- {target: hunyuan_worldplay/test.png, repo: HY-WorldPlay, path: assets/img/test.png}
+- {target: hunyuanvideo_i2v/0.jpg, repo: HunyuanVideo-I2V, path: assets/demo/i2v/imgs/0.jpg}
+- {target: images/000.png, repo: Depth-Anything-3, path: assets/examples/SOH/000.png}
+- {target: lingbot_world/00, repo: lingbot-world, path: examples/00}
+- {target: longcat_video/motorcycle.mp4, repo: LongCat-Video, path: assets/motorcycle.mp4}
+- {target: longvie/dense_control.mp4, repo: LongVie, path: example/ride_horse/depth_00.mp4}
+- {target: longvie/sparse_control.mp4, repo: LongVie, path: example/ride_horse/track_00.mp4}
+- {target: lyra/Lyra-1/00172.png, repo: lyra, path: Lyra-1/assets/demo/static/diffusion_input/images/00172.png}
+- {target: lyra/Lyra-2/00.png, repo: lyra, path: Lyra-2/assets/samples/00.png}
+- {target: lyra/Lyra-2/00.txt, repo: lyra, path: Lyra-2/assets/samples/00.txt}
+- {target: matrix-game-2/configs/inference_universal.yaml, repo: Matrix-Game, path: Matrix-Game-2/configs/inference_yaml/inference_universal.yaml}
+- {target: matrix-game-2/universal/0000.png, repo: Matrix-Game, path: Matrix-Game-2/demo_images/universal/0000.png}
+- {target: matrix-game-3/001, repo: Matrix-Game, path: Matrix-Game-3/demo_images/001}
+- {target: motionctrl_conditions/camera_poses, repo: MotionCtrl, path: examples/camera_poses}
+- {target: mvdiffusion/outpaint_example.png, repo: MVDiffusion, path: assets/outpaint_example.png}
+- {target: neoverse/videos, repo: NeoVerse, path: examples/videos}
+- {target: sama/1526909-hd_1920_1080_24fps.mp4, repo: SAMA, path: inference_example/1526909-hd_1920_1080_24fps.mp4}
+- {target: scope/example_0, repo: SCOPE, path: examples/example_0}
+- {target: stable_virtual_camera/basic/blue-car.jpg, repo: stable-virtual-camera, path: assets/basic/blue-car.jpg}
+- {target: studio_demo/00/image.jpg, repo: HunyuanVideo-I2V, path: assets/demo/i2v/imgs/0.jpg}
+- {target: vggt/examples/kitchen/images, repo: vggt, path: examples/kitchen/images}
+- {target: videocrafter/i2v_prompts/horse.png, repo: VideoCrafter, path: prompts/i2v_prompts/horse.png}
+- {target: worldcam/0.mp4, repo: WorldCam, path: data/0.mp4}
+- {target: worldcam/0_intrinsics_palindrome.npy, repo: WorldCam, path: data/0_intrinsics_palindrome.npy}
+- {target: worldcam/0_poses_palindrome.npy, repo: WorldCam, path: data/0_poses_palindrome.npy}
+- {target: worldfm, repo: worldfm, path: demo}
+
+# Historical pins keep an explicit revision even when the path was later removed upstream.
+historical_repo_assets:
+- target: matrix-game-1/official_initial_image/forest_00.jpg
+  repo: Matrix-Game
+  path: Matrix-Game-1/GameWorldScore/asset/init_image/forest/00.jpg
+  revision: 8ed02bd612df7dcb9df252a445569359b54f1b30
+
+checkpoint_assets:
+- {target: test_vla_case1/droid/exterior_image_1_left.png, path: MolmoAct2-DROID/assets/sample_exterior_1_left_rgb.png}
+- {target: test_vla_case1/droid/wrist_image_left.png, path: MolmoAct2-DROID/assets/sample_wrist_left_rgb.png}
+- {target: test_vla_case1/libero/main_view.png, path: hfd_models/allenai--MolmoAct2-LIBERO/assets/sample_agentview_rgb.png}
+- {target: test_vla_case1/libero/wrist_view.png, path: hfd_models/allenai--MolmoAct2-LIBERO/assets/sample_wrist_rgb.png}
+
+# EXTERNAL_ASSETS still require a manual HF download / extract step (see plan/da05_workspace_demo_assets.md).
+external_assets:
+- {target: multiworld_ittakestwo/action.csv, uri: "hf://datasets/Haoyuwu/MultiWorldData/480P_eval_chunk0001.tar#000100_f564185_564266.csv"}
+- {target: multiworld_ittakestwo/input.png, uri: "hf://datasets/Haoyuwu/MultiWorldData/480P_eval_chunk0001.tar#000100_f564185_564266.mp4:frame=0"}
+- {target: test_vla_case1/aloha/observation_images_cam_high.png, uri: "hf://datasets/lerobot/aloha_static_vinh_cup/videos/observation.images.cam_high/chunk-000/file-000.mp4:frame=0"}
+- {target: test_vla_case1/aloha/observation_images_cam_left_wrist.png, uri: "hf://datasets/lerobot/aloha_static_vinh_cup/videos/observation.images.cam_left_wrist/chunk-000/file-000.mp4:frame=0"}
+- {target: test_vla_case1/aloha/observation_images_cam_right_wrist.png, uri: "hf://datasets/lerobot/aloha_static_vinh_cup/videos/observation.images.cam_right_wrist/chunk-000/file-000.mp4:frame=0"}
+- {target: test_vla_image_case1/init_frame.png, uri: "hf://datasets/lerobot/aloha_static_vinh_cup/videos/observation.images.cam_high/chunk-000/file-000.mp4:frame=0"}

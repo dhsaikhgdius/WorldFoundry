@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Materialize Workspace demo inputs from pinned official source checkouts."""
+"""Materialize Workspace demo inputs from pinned official source checkouts.
+
+DA-05: every official-git demo asset carries an explicit revision (never ``HEAD``).
+When ``expected_sha256`` is set on a pin, materialize/check fails on mismatch.
+EXTERNAL dataset pins are documented in ``plan/da05_workspace_demo_assets.md``.
+"""
 
 from __future__ import annotations
 
@@ -12,102 +17,70 @@ import tarfile
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any, Mapping
+
+try:
+    import yaml
+except ImportError as exc:  # pragma: no cover - PyYAML is a core install dep
+    raise SystemExit("PyYAML is required to load workspace_demo_asset_pins.yaml") from exc
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_PINS_PATH = Path(__file__).resolve().parent / "workspace_demo_asset_pins.yaml"
 DEFAULT_REPOS_ROOT = REPO_ROOT / ".upstream_sources"
 DEFAULT_CKPT_ROOT = REPO_ROOT.parent / "ckpt"
 DEFAULT_OUTPUT_ROOT = REPO_ROOT / "worldfoundry" / "data" / "test_cases"
 
-# target path, official checkout, source path at that checkout's current HEAD
-REPO_ASSETS = (
-    ("astra/condition_images/garden_1.png", "Astra", "examples/condition_images/garden_1.png"),
-    ("cameractrl/pose_files/0f47577ab3441480.txt", "CameraCtrl", "assets/pose_files/0f47577ab3441480.txt"),
-    ("cosmos-predict2p5/base/robot_pouring.jsonl", "cosmos-predict2.5", "assets/base/robot_pouring.jsonl"),
-    ("cut3r/examples/001", "CUT3R", "examples/001"),
-    ("depth_anything_v3/examples/SOH", "Depth-Anything-3", "assets/examples/SOH"),
-    ("dualcamctrl/demo_pic", "DualCamCtrl", "demo_pic"),
-    ("fantasyworld/camera_forward.json", "fantasy-world", "examples/cameras/camera_data.json"),
-    ("gen3c/image.png", "GEN3C", "assets/diffusion/000000.png"),
-    ("hunyuan_game_craft/village.png", "Hunyuan-GameCraft-1.0", "asset/village.png"),
-    ("hunyuan_world_voyager/case1", "HunyuanWorld-Voyager", "examples/case1"),
-    ("hunyuan_worldplay/test.png", "HY-WorldPlay", "assets/img/test.png"),
-    ("hunyuanvideo_i2v/0.jpg", "HunyuanVideo-I2V", "assets/demo/i2v/imgs/0.jpg"),
-    ("images/000.png", "Depth-Anything-3", "assets/examples/SOH/000.png"),
-    ("lingbot_world/00", "lingbot-world", "examples/00"),
-    ("longcat_video/motorcycle.mp4", "LongCat-Video", "assets/motorcycle.mp4"),
-    ("longvie/dense_control.mp4", "LongVie", "example/ride_horse/depth_00.mp4"),
-    ("longvie/sparse_control.mp4", "LongVie", "example/ride_horse/track_00.mp4"),
-    ("lyra/Lyra-1/00172.png", "lyra", "Lyra-1/assets/demo/static/diffusion_input/images/00172.png"),
-    ("lyra/Lyra-2/00.png", "lyra", "Lyra-2/assets/samples/00.png"),
-    ("lyra/Lyra-2/00.txt", "lyra", "Lyra-2/assets/samples/00.txt"),
-    (
-        "matrix-game-2/configs/inference_universal.yaml",
-        "Matrix-Game",
-        "Matrix-Game-2/configs/inference_yaml/inference_universal.yaml",
-    ),
-    ("matrix-game-2/universal/0000.png", "Matrix-Game", "Matrix-Game-2/demo_images/universal/0000.png"),
-    ("matrix-game-3/001", "Matrix-Game", "Matrix-Game-3/demo_images/001"),
-    ("motionctrl_conditions/camera_poses", "MotionCtrl", "examples/camera_poses"),
-    ("mvdiffusion/outpaint_example.png", "MVDiffusion", "assets/outpaint_example.png"),
-    ("neoverse/videos", "NeoVerse", "examples/videos"),
-    ("sama/1526909-hd_1920_1080_24fps.mp4", "SAMA", "inference_example/1526909-hd_1920_1080_24fps.mp4"),
-    ("scope/example_0", "SCOPE", "examples/example_0"),
-    ("stable_virtual_camera/basic/blue-car.jpg", "stable-virtual-camera", "assets/basic/blue-car.jpg"),
-    ("studio_demo/00/image.jpg", "HunyuanVideo-I2V", "assets/demo/i2v/imgs/0.jpg"),
-    ("vggt/examples/kitchen/images", "vggt", "examples/kitchen/images"),
-    ("videocrafter/i2v_prompts/horse.png", "VideoCrafter", "prompts/i2v_prompts/horse.png"),
-    ("worldcam/0.mp4", "WorldCam", "data/0.mp4"),
-    ("worldcam/0_intrinsics_palindrome.npy", "WorldCam", "data/0_intrinsics_palindrome.npy"),
-    ("worldcam/0_poses_palindrome.npy", "WorldCam", "data/0_poses_palindrome.npy"),
-    ("worldfm", "worldfm", "demo"),
-)
 
-# Assets intentionally removed from a later upstream revision but still used by
-# the released model's official inference/evaluation flow.
-HISTORICAL_REPO_ASSETS = (
-    (
-        "matrix-game-1/official_initial_image/forest_00.jpg",
-        "Matrix-Game",
-        "Matrix-Game-1/GameWorldScore/asset/init_image/forest/00.jpg",
-        "8ed02bd612df7dcb9df252a445569359b54f1b30",
-    ),
-)
+def load_demo_asset_pins(path: Path | None = None) -> dict[str, Any]:
+    """Load the committed pin manifest (repos + assets)."""
 
-# target path, path relative to the shared checkpoint root
-CHECKPOINT_ASSETS = (
-    ("test_vla_case1/droid/exterior_image_1_left.png", "MolmoAct2-DROID/assets/sample_exterior_1_left_rgb.png"),
-    ("test_vla_case1/droid/wrist_image_left.png", "MolmoAct2-DROID/assets/sample_wrist_left_rgb.png"),
-    ("test_vla_case1/libero/main_view.png", "hfd_models/allenai--MolmoAct2-LIBERO/assets/sample_agentview_rgb.png"),
-    ("test_vla_case1/libero/wrist_view.png", "hfd_models/allenai--MolmoAct2-LIBERO/assets/sample_wrist_rgb.png"),
-)
+    pins_path = Path(path or DEFAULT_PINS_PATH)
+    payload = yaml.safe_load(pins_path.read_text(encoding="utf-8"))
+    if not isinstance(payload, Mapping):
+        raise ValueError(f"pin manifest must be a mapping: {pins_path}")
+    repos = payload.get("repos")
+    if not isinstance(repos, Mapping) or not repos:
+        raise ValueError(f"pin manifest missing repos: {pins_path}")
+    for name, spec in repos.items():
+        if not isinstance(spec, Mapping):
+            raise ValueError(f"repo pin {name!r} must be a mapping")
+        revision = str(spec.get("revision") or "").strip()
+        if not revision or revision.upper() == "HEAD":
+            raise ValueError(f"repo pin {name!r} must set a concrete revision (not HEAD)")
+        if not str(spec.get("remote") or "").strip():
+            raise ValueError(f"repo pin {name!r} must set remote")
+    assets = payload.get("repo_assets") or []
+    if not isinstance(assets, list) or not assets:
+        raise ValueError(f"pin manifest missing repo_assets: {pins_path}")
+    return dict(payload)
 
-# Catalog inputs acquired from official dataset releases rather than source repos.
-EXTERNAL_ASSETS = (
-    (
-        "multiworld_ittakestwo/action.csv",
-        "hf://datasets/Haoyuwu/MultiWorldData/480P_eval_chunk0001.tar#000100_f564185_564266.csv",
-    ),
-    (
-        "multiworld_ittakestwo/input.png",
-        "hf://datasets/Haoyuwu/MultiWorldData/480P_eval_chunk0001.tar#000100_f564185_564266.mp4:frame=0",
-    ),
-    (
-        "test_vla_case1/aloha/observation_images_cam_high.png",
-        "hf://datasets/lerobot/aloha_static_vinh_cup/videos/observation.images.cam_high/chunk-000/file-000.mp4:frame=0",
-    ),
-    (
-        "test_vla_case1/aloha/observation_images_cam_left_wrist.png",
-        "hf://datasets/lerobot/aloha_static_vinh_cup/videos/observation.images.cam_left_wrist/chunk-000/file-000.mp4:frame=0",
-    ),
-    (
-        "test_vla_case1/aloha/observation_images_cam_right_wrist.png",
-        "hf://datasets/lerobot/aloha_static_vinh_cup/videos/observation.images.cam_right_wrist/chunk-000/file-000.mp4:frame=0",
-    ),
-    (
-        "test_vla_image_case1/init_frame.png",
-        "hf://datasets/lerobot/aloha_static_vinh_cup/videos/observation.images.cam_high/chunk-000/file-000.mp4:frame=0",
-    ),
-)
+
+def iter_pinned_repo_assets(pins: Mapping[str, Any]) -> list[dict[str, str]]:
+    """Flatten repo + historical assets into concrete pin rows."""
+
+    repos = pins["repos"]
+    rows: list[dict[str, str]] = []
+    for item in list(pins.get("repo_assets") or []) + list(pins.get("historical_repo_assets") or []):
+        if not isinstance(item, Mapping):
+            raise ValueError(f"asset pin must be a mapping, got {item!r}")
+        target = str(item["target"])
+        repo_name = str(item["repo"])
+        path = str(item["path"])
+        repo_spec = repos[repo_name]
+        revision = str(item.get("revision") or repo_spec["revision"]).strip()
+        if not revision or revision.upper() == "HEAD":
+            raise ValueError(f"asset {target!r} must pin a concrete revision (not HEAD)")
+        rows.append(
+            {
+                "target": target,
+                "repo": repo_name,
+                "path": path,
+                "revision": revision,
+                "remote": str(repo_spec["remote"]),
+                "expected_sha256": str(item.get("expected_sha256") or "").strip(),
+            }
+        )
+    return rows
 
 
 def _replace_target(target: Path, source: Path, force: bool) -> str:
@@ -139,10 +112,9 @@ def _repo_remote(repo: Path) -> str:
     return completed.stdout.strip()
 
 
-def _extract_repo_path(repo: Path, source_path: str, destination: Path, revision: str = "HEAD") -> Path:
-    worktree_source = repo / source_path
-    if revision == "HEAD" and worktree_source.exists():
-        return worktree_source
+def _extract_repo_path(repo: Path, source_path: str, destination: Path, revision: str) -> Path:
+    if not revision or revision.upper() == "HEAD":
+        raise ValueError("extract requires a concrete revision pin (not HEAD)")
     archive_path = destination / "source.tar"
     with archive_path.open("wb") as archive:
         subprocess.run(
@@ -156,7 +128,7 @@ def _extract_repo_path(repo: Path, source_path: str, destination: Path, revision
         archive.extractall(extracted_root, filter="data")
     extracted = extracted_root / source_path
     if not extracted.exists():
-        raise FileNotFoundError(f"git archive did not contain {source_path}")
+        raise FileNotFoundError(f"git archive did not contain {source_path} at {revision}")
     return extracted
 
 
@@ -174,74 +146,130 @@ def _hash_path(path: Path) -> tuple[str, int, int]:
     return digest.hexdigest(), size, len(files)
 
 
-def _record(target: Path, status: str, source: dict[str, str]) -> dict[str, object]:
+def _record(target: Path, status: str, source: dict[str, str], *, expected_sha256: str = "") -> dict[str, object]:
     row: dict[str, object] = {"target": str(target), "status": status, "source": source}
+    if expected_sha256:
+        row["expected_sha256"] = expected_sha256
     if target.exists():
         sha256, size, file_count = _hash_path(target)
         row.update(sha256=sha256, size_bytes=size, file_count=file_count)
+        if expected_sha256 and sha256 != expected_sha256:
+            row["status"] = "sha256_mismatch"
         if target.is_file() and target.stat().st_size < 1024:
             text = target.read_text(encoding="utf-8", errors="ignore")
             if text.startswith("version https://git-lfs.github.com/spec/v1"):
                 row["status"] = "lfs_pointer"
+    elif expected_sha256 and status in {"ready", "materialized"}:
+        row["status"] = "missing"
     return row
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--pins", type=Path, default=DEFAULT_PINS_PATH)
     parser.add_argument("--repos-root", type=Path, default=DEFAULT_REPOS_ROOT)
     parser.add_argument("--ckpt-root", type=Path, default=DEFAULT_CKPT_ROOT)
     parser.add_argument("--output-root", type=Path, default=DEFAULT_OUTPUT_ROOT)
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--check", action="store_true", help="Only report current readiness.")
+    parser.add_argument(
+        "--require-sha256",
+        action="store_true",
+        help="Fail when a pin lacks expected_sha256 (strict DA-05 mode after hashes are recorded).",
+    )
     parser.add_argument("--json", action="store_true")
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    pins = load_demo_asset_pins(args.pins)
     rows: list[dict[str, object]] = []
-    repo_assets = tuple((*asset, "HEAD") for asset in REPO_ASSETS) + HISTORICAL_REPO_ASSETS
-    for target_name, repo_name, source_name, revision in repo_assets:
-        target = args.output_root / target_name
-        repo = args.repos_root / repo_name
-        source_meta = {"kind": "official_git", "repo": repo_name, "path": source_name}
+
+    for asset in iter_pinned_repo_assets(pins):
+        if args.require_sha256 and not asset["expected_sha256"]:
+            rows.append(
+                {
+                    "target": str(args.output_root / asset["target"]),
+                    "status": "sha256_pin_missing",
+                    "source": {
+                        "kind": "official_git",
+                        "repo": asset["repo"],
+                        "path": asset["path"],
+                        "revision": asset["revision"],
+                        "remote": asset["remote"],
+                    },
+                    "error": "expected_sha256 is required under --require-sha256",
+                }
+            )
+            continue
+        target = args.output_root / asset["target"]
+        repo = args.repos_root / asset["repo"]
+        source_meta = {
+            "kind": "official_git",
+            "repo": asset["repo"],
+            "path": asset["path"],
+            "revision": asset["revision"],
+            "remote": asset["remote"],
+        }
         try:
-            source_meta.update(revision=_repo_revision(repo, revision), remote=_repo_remote(repo))
+            if repo.is_dir():
+                source_meta["resolved_revision"] = _repo_revision(repo, asset["revision"])
+                source_meta["checkout_remote"] = _repo_remote(repo)
             if args.check:
                 status = "ready" if target.exists() else "missing"
             else:
                 with tempfile.TemporaryDirectory(prefix="worldfoundry-demo-") as temp:
-                    source = _extract_repo_path(repo, source_name, Path(temp), revision=revision)
+                    source = _extract_repo_path(repo, asset["path"], Path(temp), revision=asset["revision"])
                     status = _replace_target(target, source, args.force)
-            rows.append(_record(target, status, source_meta))
-        except (FileNotFoundError, subprocess.CalledProcessError, tarfile.TarError) as exc:
-            rows.append({"target": str(target), "status": "source_missing", "source": source_meta, "error": str(exc)})
+            rows.append(
+                _record(
+                    target,
+                    status,
+                    source_meta,
+                    expected_sha256=asset["expected_sha256"],
+                )
+            )
+        except (FileNotFoundError, subprocess.CalledProcessError, tarfile.TarError, ValueError) as exc:
+            rows.append(
+                {
+                    "target": str(target),
+                    "status": "source_missing",
+                    "source": source_meta,
+                    "error": str(exc),
+                }
+            )
 
-    for target_name, source_name in CHECKPOINT_ASSETS:
+    for item in pins.get("checkpoint_assets") or []:
+        target_name = str(item["target"])
+        source_name = str(item["path"])
         target = args.output_root / target_name
         source = args.ckpt_root / source_name
         source_meta = {"kind": "official_checkpoint_asset", "path": str(source)}
+        expected = str(item.get("expected_sha256") or "").strip()
         if args.check:
             status = "ready" if target.exists() else "missing"
         elif source.exists():
             status = _replace_target(target, source, args.force)
         else:
             status = "source_missing"
-        rows.append(_record(target, status, source_meta))
+        rows.append(_record(target, status, source_meta, expected_sha256=expected))
 
-    for target_name, source_uri in EXTERNAL_ASSETS:
-        target = args.output_root / target_name
+    for item in pins.get("external_assets") or []:
+        target = args.output_root / str(item["target"])
         rows.append(
             _record(
                 target,
                 "ready" if target.exists() else "external_pending",
-                {"kind": "official_dataset", "uri": source_uri},
+                {"kind": "official_dataset", "uri": str(item["uri"])},
+                expected_sha256=str(item.get("expected_sha256") or "").strip(),
             )
         )
 
     summary = {
-        "schema_version": "worldfoundry-workspace-demo-assets-v1",
+        "schema_version": "worldfoundry-workspace-demo-assets-v2",
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        "pins_path": str(Path(args.pins).resolve()),
         "output_root": str(args.output_root),
         "asset_count": len(rows),
         "ready_count": sum(row["status"] in {"ready", "materialized"} for row in rows),
