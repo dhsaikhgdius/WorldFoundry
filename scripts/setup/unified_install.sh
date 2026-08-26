@@ -43,7 +43,7 @@ Options:
   --data-root PATH      Benchmark/data root. Default: ${WORLDFOUNDRY_HOME}/data.
   --model-root PATH     Model/checkpoint root. Default: ${WORLDFOUNDRY_HOME}/models.
   --artifact-root PATH  Generated artifact root. Default: ${WORLDFOUNDRY_HOME}/artifacts.
-  --env-file PATH       Write sourceable exports. Default: tmp/worldfoundry_unified_env.sh.
+  --env-file PATH       Write sourceable exports. Default: ${WORLDFOUNDRY_HOME:-~/.cache/worldfoundry}/worldfoundry_unified_env.sh.
   --no-env-file         Do not write the env export file.
   --preset NAME         max-infer or slim. Default: max-infer.
                         Both currently install requirements/worldfoundry-unified.txt.
