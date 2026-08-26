@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import tempfile
 from argparse import Namespace
 from pathlib import Path
@@ -16,6 +17,11 @@ from worldfoundry.evaluation.tasks.contracts.external import get_external_benchm
 from worldfoundry.evaluation.tasks.embodied import EmbodiedClosedLoopRunner
 from worldfoundry.evaluation.tasks.embodied.config_loader import load_canonical_embodied_config
 from worldfoundry.evaluation.tasks.embodied.docker_runner import build_docker_run_command, write_docker_config
+from worldfoundry.evaluation.tasks.embodied.image_refs import (
+    apply_digest,
+    image_ref_is_floating,
+    repository_name,
+)
 from worldfoundry.evaluation.tasks.embodied.simulators import (
     SIMULATOR_ENTRIES,
     get_simulator_entry,
@@ -120,15 +126,28 @@ _OWNED_IMAGE_PREFIXES = (
 
 def test_harness_docker_images_match_official_runtime_profiles() -> None:
     profile_root = REPO_ROOT / "worldfoundry" / "data" / "benchmarks" / "runtime_profiles" / "official"
+    digest_map = json.loads(
+        (profile_root / "docker_image_digests.json").read_text(encoding="utf-8")
+    )["images"]
     for profile_id, expected_image in HARNESS_DOCKER_IMAGES.items():
         payload = yaml.safe_load((profile_root / f"{profile_id}.yaml").read_text(encoding="utf-8"))
         docker = payload["docker"]
-        assert docker["source_image"] == expected_image
+        # D-01: sources may be digest-pinned, but the repository must stay the
+        # official harness repo and any pin must match the registry-resolved map.
+        source = str(docker["source_image"])
+        assert repository_name(source) == repository_name(expected_image), profile_id
+        if image_ref_is_floating(source):
+            assert source == expected_image, profile_id
+        else:
+            mapped = digest_map[expected_image]["digest"]
+            assert source == apply_digest(expected_image, mapped), profile_id
         # Retag targets must stay identity (mirroring is skipped) or live in a
         # WorldFoundry-owned namespace so `--push` passes the mirror allowlist.
         image = str(docker["image"])
-        assert image == expected_image or any(
-            image.startswith(prefix) for prefix in _OWNED_IMAGE_PREFIXES
+        assert (
+            image == expected_image
+            or image == source
+            or any(image.startswith(prefix) for prefix in _OWNED_IMAGE_PREFIXES)
         ), f"{profile_id}: unexpected retag target {image!r}"
 
 

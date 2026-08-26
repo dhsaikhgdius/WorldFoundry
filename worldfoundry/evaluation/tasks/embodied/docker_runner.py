@@ -12,6 +12,7 @@ from typing import Any, Mapping
 import yaml
 
 from worldfoundry.core.io.paths import project_root
+from worldfoundry.evaluation.tasks.embodied.image_refs import resolve_docker_image
 from worldfoundry.runtime.jobs import run_bounded_command
 
 
@@ -216,9 +217,7 @@ def build_docker_run_command(
 ) -> list[str]:
     """Build the ``docker run`` command for an embodied eval."""
     docker_cfg = dict(config.get("docker") or {})
-    image = docker_cfg.get("image")
-    if not image:
-        raise ValueError("docker.image is required")
+    image = resolve_docker_image(docker_cfg)
 
     repo_root = _repo_root()
     command = _default_container_command(
@@ -295,9 +294,7 @@ def run_embodied_via_docker(
         raise RuntimeError("'docker' executable not found")
     _docker_available(docker)
     docker_cfg = dict(config.get("docker") or {})
-    image = str(docker_cfg.get("image") or "")
-    if not image:
-        raise ValueError("docker.image is required")
+    image = resolve_docker_image(docker_cfg)
     source_image = docker_cfg.get("source_image")
     _ensure_image(docker, image, source_image=str(source_image) if source_image else None, pull=pull)
 

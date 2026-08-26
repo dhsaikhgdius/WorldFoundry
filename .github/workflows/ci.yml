@@ -85,12 +85,15 @@ jobs:
           python -m pip install --index-url https://download.pytorch.org/whl/cpu torch torchvision
           python -m pip install -e ".[test]"
 
-      - name: Eval-core hard gate (stable cuda-tier subset)
+      - name: Eval-core hard gate (stable cuda-tier + D-01 image digest contracts)
         # test_cli_ux.py still carries catalog contract drift on main; keep it out of
         # the hard gate until those assertions are repaired in a content PR.
+        # D-01: digest helpers + calvin pin + resolve script unit tests.
         run: >
           PYTHONPATH=. python -m pytest
           test/eval_core/test_cuda_tiers.py
+          test/eval_core/test_embodied_image_refs.py
+          tests/embodied/test_resolve_official_image_digests.py
           -q -p no:cacheprovider
           -m "not gpu and not network"
 
