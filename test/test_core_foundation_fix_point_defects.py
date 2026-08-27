@@ -238,10 +238,10 @@ class TestShardedZstd:
 
         (tmp_path / "model.safetensors.zst").write_bytes(b"anything")
 
-        def raising_popen(*args, **kwargs):
+        def raising_run(*args, **kwargs):
             raise FileNotFoundError("zstd")
 
-        monkeypatch.setattr(sharded_safetensors.subprocess, "Popen", raising_popen)
+        monkeypatch.setattr(sharded_safetensors.subprocess, "run", raising_run)
         with pytest.raises(RuntimeError, match="zstd binary not found"):
             sharded_safetensors._load_shard(str(tmp_path / "model.safetensors"), ["w"], num_threads=2)
 
