@@ -1,12 +1,15 @@
 """Video decode/encode helpers with decord, torchcodec, and ffmpeg fallbacks."""
 
 import json
+import logging
 import subprocess
 
 import av
 import cv2
 import numpy as np
 import torchvision
+
+logger = logging.getLogger(__name__)
 
 # Import decord with graceful fallback
 try:
@@ -431,14 +434,17 @@ def get_frames_by_timestamps(
         reader.container.close()
         reader = None
 
-        # Debug: print timestamp matching results
-        print(
-            f"[video_utils] Requested {len(timestamps)} timestamps: {timestamps[:4]}{'...' if len(timestamps) > 4 else ''}"
+        # Debug: log timestamp matching results
+        logger.debug(
+            "Requested %d timestamps: %s%s",
+            len(timestamps),
+            timestamps[:4],
+            "..." if len(timestamps) > 4 else "",
         )
-        print(f"[video_utils] Found {len(found_frames_map)} frames with tolerance={tolerance}s")
+        logger.debug("Found %d frames with tolerance=%ss", len(found_frames_map), tolerance)
         if len(found_frames_map) < len(timestamps):
             missing = [ts for ts in timestamps if ts not in found_frames_map]
-            print(f"[video_utils] WARNING: Missing timestamps: {missing[:4]}{'...' if len(missing) > 4 else ''}")
+            logger.warning("Missing timestamps: %s%s", missing[:4], "..." if len(missing) > 4 else "")
 
         frames = np.array(list(found_frames_map.values()))
         return frames.transpose(0, 2, 3, 1)
