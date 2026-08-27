@@ -1,10 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-
-
-from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION, VIDEO_SUFFIXES
-
 import argparse
 import json
 import os
@@ -24,8 +20,9 @@ from worldfoundry.evaluation.tasks.execution.framework.io import (
     write_json,
     write_jsonl,
 )
+from worldfoundry.evaluation.tasks.execution.framework.runner_common import SCORECARD_SCHEMA_VERSION
 from worldfoundry.evaluation.utils import HFD_DATASET_CACHE_ROOT, REPO_ROOT, worldfoundry_hfd_dataset_root
-from worldfoundry.runtime.env import (  # type: ignore[reportMissingImports]  # noqa: E402
+from worldfoundry.runtime.env import (  # type: ignore[reportMissingImports]
     first_env_value,
     resolve_hf_cache_dir,
 )
@@ -925,42 +922,59 @@ def worldscore_pythonpath_roots(worldscore_root: Path) -> list[Path]:
     ]
 
 
-def run_command_with_timeout(command: list[str], cwd: Path, env: dict[str, str], timeout: int) -> dict[str, Any]:
+def run_command_with_timeout(
+    command: list[str],
+    cwd: Path,
+    env: dict[str, str],
+    timeout: int,
+    *,
+    stdout_path: Path,
+    stderr_path: Path,
+) -> dict[str, Any]:
     """Run an official command while preserving timeout stdout and stderr.
 
     The child runs in its own process group so a timeout terminates the whole
     official runtime tree (judge/dataloader descendants included) instead of
-    only the direct child.
+    only the direct child. Raw stdout/stderr stream into the provided log
+    files instead of being buffered in memory; the returned dict carries
+    bounded log tails for error reporting.
 
     Args:
         command: Command line to execute.
         cwd: Working directory for the official process.
         env: Environment passed to the official process.
         timeout: Maximum runtime in seconds.
+        stdout_path: Log file receiving the raw official stdout stream.
+        stderr_path: Log file receiving the raw official stderr stream.
     """
 
-    from worldfoundry.core.process import terminate_process_group
+    from worldfoundry.core.process import read_text_tail, run_logged_subprocess
 
-    process = subprocess.Popen(
-        command,
-        cwd=cwd,
-        env=env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        start_new_session=os.name == "posix",
-    )
     try:
-        stdout, stderr = process.communicate(timeout=timeout)
+        completed = run_logged_subprocess(
+            command,
+            stdout_path=stdout_path,
+            stderr_path=stderr_path,
+            cwd=cwd,
+            env=env,
+            timeout=timeout,
+        )
         timed_out = False
+        returncode = completed.returncode
     except subprocess.TimeoutExpired:
         timed_out = True
-        terminate_process_group(process)
-        stdout, stderr = process.communicate()
+        returncode = 124
+    stdout_tail = read_text_tail(stdout_path, max_lines=200)
+    stderr_tail = read_text_tail(stderr_path, max_lines=200)
+    if timed_out:
+        timeout_message = f"Command timed out after {timeout} seconds"
+        with stderr_path.open("a", encoding="utf-8") as handle:
+            handle.write(f"{timeout_message}\n")
+        stderr_tail = f"{timeout_message}\n{stderr_tail}"
     return {
-        "returncode": 124 if timed_out else process.returncode,
-        "stdout": stdout or "",
-        "stderr": f"Command timed out after {timeout} seconds\n{stderr or ''}" if timed_out else (stderr or ""),
+        "returncode": returncode,
+        "stdout": stdout_tail,
+        "stderr": stderr_tail,
     }
 
 
@@ -1101,10 +1115,15 @@ def run_official_worldscore(args: argparse.Namespace) -> dict[str, Any]:
         pythonpath_entries.extend(entry for entry in env["PYTHONPATH"].split(os.pathsep) if entry)
     env["PYTHONPATH"] = os.pathsep.join(dict.fromkeys(pythonpath_entries))
     start = time.monotonic()
-    completed = run_command_with_timeout(command, args.worldscore_root, env, args.timeout)
+    completed = run_command_with_timeout(
+        command,
+        args.worldscore_root,
+        env,
+        args.timeout,
+        stdout_path=stdout_path,
+        stderr_path=stderr_path,
+    )
     duration_seconds = time.monotonic() - start
-    stdout_path.write_text(completed["stdout"], encoding="utf-8")
-    stderr_path.write_text(completed["stderr"], encoding="utf-8")
 
     results_path, evaluation_output_dir = resolve_worldscore_results_path(args, fallback_output_dir=output_dir, strict_explicit=False)
     generated_root = args.generated_root or evaluation_output_dir or args.model_path
