@@ -1,4 +1,27 @@
+"""Sequence-parallel process-group state and collectives (Hunyuan-style).
+
+This module holds one of the three parallel-topology singletons that
+currently coexist under ``core/distributed`` (tracked as XC-10 in
+``plan/code_review/12_cross_cutting.md``):
+
+- :mod:`worldfoundry.core.distributed.context_parallel_util` — the
+  data-parallel x context-parallel device-mesh state;
+- this module — ``nccl_info`` + ``_SEQUENCE_PARALLEL_GROUPS``, consumed by
+  the ``pipelines/hunyuan_world`` runtimes and the optional xFuser
+  compatibility layer at the bottom of the file;
+- :mod:`worldfoundry.core.distributed.sequence_parallel.parallel_state` —
+  the vLLM-style ``GroupCoordinator`` singletons used by the training
+  engine, with a full init/destroy lifecycle.
+
+``sequence_parallel.parallel_state`` is the most complete of the three and
+is the intended single source of truth; the state kept here is slated to
+become a read-only view of it in a follow-up consolidation. Until then, do
+not initialize sequence parallelism through more than one of these modules
+in the same process — the singletons do not observe each other.
+"""
+
 import datetime
+import logging
 import os
 import threading
 from collections import OrderedDict
@@ -10,9 +33,14 @@ from torch.nn import functional as F
 
 from worldfoundry.core.distributed.device_mesh_collectives import all_to_all_tensor
 
+logger = logging.getLogger(__name__)
+
 
 class SequenceParallelInfo:
     def __init__(self):
+        self.reset()
+
+    def reset(self) -> None:
         self.group = None
         self.sp_size = 1
         self.global_rank = 0
@@ -91,6 +119,20 @@ def clear_collective_shape_cache() -> None:
         _COLLECTIVE_SHAPE_CACHE.clear()
 
 
+def reset_sequence_parallel_state() -> None:
+    """Clear this module's sequence-parallel state (e.g. between unit tests).
+
+    Does not destroy torch.distributed process groups; it only drops the
+    references held by this module. ``nccl_info`` keeps its object identity
+    because callers import the object directly.
+    """
+    global _SEQUENCE_PARALLEL_STATE
+    _SEQUENCE_PARALLEL_STATE = False
+    _SEQUENCE_PARALLEL_GROUPS.clear()
+    nccl_info.reset()
+    clear_collective_shape_cache()
+
+
 def initialize_sequence_parallel_group(sp_size: int) -> None:
     clear_collective_shape_cache()
     world_size = dist.get_world_size()
@@ -100,6 +142,12 @@ def initialize_sequence_parallel_group(sp_size: int) -> None:
     nccl_info.sp_size = sp_size
     nccl_info.global_rank = rank
     num_sequence_parallel_groups = world_size // sp_size
+    logger.info(
+        "[rank %s] initializing %s sequence-parallel group(s) of size %s",
+        rank,
+        num_sequence_parallel_groups,
+        sp_size,
+    )
     for i in range(num_sequence_parallel_groups):
         ranks = range(i * sp_size, (i + 1) * sp_size)
         group = dist.new_group(ranks)
@@ -535,6 +583,7 @@ try:
         )
         from xfuser.core.long_ctx_attention import xFuserLongContextAttention
 except Exception:
+    logger.debug("xFuser/paifuser unavailable; xFuser compatibility helpers disabled", exc_info=True)
     get_sequence_parallel_world_size = None
     get_sequence_parallel_rank = None
     xFuserLongContextAttention = None
