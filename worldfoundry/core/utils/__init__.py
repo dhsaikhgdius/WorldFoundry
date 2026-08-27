@@ -116,7 +116,6 @@ _EXPORT_MODULES = {
     "load_torch": "worldfoundry.core.utils.torch_utils",
     "make_list": "worldfoundry.core.utils.functional_utils",
     "make_recursive_func": "worldfoundry.core.utils.functional_utils",
-    "make_registry_metaclass": "worldfoundry.core.utils.functional_utils",
     "make_tuple": "worldfoundry.core.utils.functional_utils",
     "MaskData": "worldfoundry.core.utils.mask_data",
     "match_patterns": "worldfoundry.core.utils.misc_utils",

@@ -8,7 +8,6 @@ code -- use ``worldfoundry.core.configuration.lazy_config.instantiate``
 """
 
 import importlib.resources
-import logging
 import os
 import sys
 from copy import deepcopy
@@ -19,8 +18,6 @@ from omegaconf import DictConfig, OmegaConf
 
 from ..utils.functional_utils import call_once, is_mapping, is_sequence, meta_decorator
 from .print_utils import to_scientific_str
-
-_logger = logging.getLogger(__name__)
 
 _CLASS_REGISTRY = {}  # for instantiation
 
@@ -128,11 +125,21 @@ def register_omegaconf_resolvers() -> None:
 
 
 def _registry_put(name, class_type) -> None:
-    """Insert into the legacy registry, warning on silent replacement."""
+    """Insert into the legacy registry, refusing silent overwrites.
+
+    Re-registering the exact same object under an existing name is a no-op
+    (e.g. a decorated module imported twice); binding an already-registered
+    name to a *different* callable raises ``ValueError`` instead of silently
+    replacing the previous entry.
+    """
     existing = _CLASS_REGISTRY.get(name)
-    if existing is not None and existing is not class_type:
-        _logger.warning(
-            "config_utils class registry: %r is being re-registered (%r replaces %r)", name, class_type, existing
+    if existing is class_type:
+        return
+    if existing is not None:
+        raise ValueError(
+            f"config_utils class registry: {name!r} is already registered to {existing!r}; "
+            f"refusing to overwrite it with {class_type!r}. Register under a different "
+            f"name/alias, or reuse the already-registered object."
         )
     _CLASS_REGISTRY[name] = class_type
 
