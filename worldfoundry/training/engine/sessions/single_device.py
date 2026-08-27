@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import math
-import random
 import time
 from collections.abc import Iterable, Iterator, Mapping
 from contextlib import contextmanager
@@ -14,6 +13,7 @@ import torch
 import torch.distributed as dist
 
 from worldfoundry.core.time import utc_now_iso
+from worldfoundry.core.utils.torch_utils import set_seed_everywhere
 from worldfoundry.training.api.contracts import TrainingBatch, TrainStepResult
 from worldfoundry.training.checkpoint.artifacts import TrainingCheckpointArtifact
 from worldfoundry.training.checkpoint.checkpointer import TrainingCheckpointer
@@ -368,10 +368,7 @@ class SingleDeviceTrainingSession:
         else:
             rank_seed = self._rank_seed(int(seed))
             self.objective_generator.manual_seed(rank_seed)
-            random.seed(rank_seed)
-            torch.manual_seed(rank_seed)
-            if self.engine.device.type == "cuda":
-                torch.cuda.manual_seed_all(rank_seed)
+            set_seed_everywhere(rank_seed)
         initial_global_step = self.engine.global_step
         self._manifest = self._base_manifest(
             max_steps=int(max_steps),
@@ -423,9 +420,7 @@ class SingleDeviceTrainingSession:
                 if fixed_corruption:
                     rank_seed = self._rank_seed(int(seed))
                     self.objective_generator.manual_seed(rank_seed)
-                    torch.manual_seed(rank_seed)
-                    if self.engine.device.type == "cuda":
-                        torch.cuda.manual_seed_all(rank_seed)
+                    set_seed_everywhere(rank_seed)
 
                 step_started = time.perf_counter()
                 result = self.engine.train_accumulation(
