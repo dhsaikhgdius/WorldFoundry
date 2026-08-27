@@ -11,13 +11,20 @@ from worldfoundry.runtime.assets import (
     resolve_asset_manifest_path,
 )
 from worldfoundry.runtime.env import (
+    ALL_DOCUMENTED_ENV_KEYS,
+    DOWNLOAD_ENV_KEYS,
+    KERNEL_ENV_KEYS,
+    STUDIO_ENV_KEYS,
+    TRAINER_ENV_KEYS,
     WorldFoundryEnv,
     capture_runtime_environment,
     check_required_env,
+    iter_documented_env_keys,
     redact_env_for_manifest,
     resolve_artifact_dir,
     resolve_cache_dir,
     resolve_data_dir,
+    resolve_env,
     resolve_hf_cache_dir,
     resolve_model_dir,
 )
@@ -88,6 +95,59 @@ def test_redact_env_for_manifest_records_secret_presence_only() -> None:
     }
     assert "placeholder-openai-key" not in str(redacted)
     assert "placeholder-token" not in str(redacted)
+
+
+def test_documented_env_registry_aggregates_every_group() -> None:
+    documented = tuple(iter_documented_env_keys())
+
+    assert documented == ALL_DOCUMENTED_ENV_KEYS
+    assert len(set(documented)) == len(documented), "registry must not contain duplicate names"
+    for group in (KERNEL_ENV_KEYS, STUDIO_ENV_KEYS, TRAINER_ENV_KEYS, DOWNLOAD_ENV_KEYS):
+        assert set(group) <= set(documented)
+    assert "WORLDFOUNDRY_KERNEL_AUTOTUNE_CACHE_DIR" in KERNEL_ENV_KEYS
+    assert "WORLDFOUNDRY_STUDIO_AUTO_CUDA_VISIBLE_DEVICES" in STUDIO_ENV_KEYS
+    assert "TRAINER_TORCH_PROFILER_DIR" in TRAINER_ENV_KEYS
+    assert "WORLDFOUNDRY_HF_SHARD_DOWNLOAD_WORKERS" in DOWNLOAD_ENV_KEYS
+
+
+def test_redact_env_for_manifest_defaults_cover_registered_groups() -> None:
+    env = {
+        "WORLDFOUNDRY_KERNEL_AUTOTUNE_CACHE_DIR": "/autotune-cache",
+        "WM_AUTO_GPU_MAX_MEMORY_FRACTION": "0.25",
+        "TRAINER_LOGGING_LEVEL": "DEBUG",
+        "WORLDFOUNDRY_HF_SHARD_DOWNLOAD_WORKERS": "8",
+    }
+
+    redacted = redact_env_for_manifest(env)
+
+    assert redacted["WORLDFOUNDRY_KERNEL_AUTOTUNE_CACHE_DIR"] == "/autotune-cache"
+    assert redacted["WM_AUTO_GPU_MAX_MEMORY_FRACTION"] == "0.25"
+    assert redacted["TRAINER_LOGGING_LEVEL"] == "DEBUG"
+    assert redacted["WORLDFOUNDRY_HF_SHARD_DOWNLOAD_WORKERS"] == "8"
+
+
+def test_resolve_env_prefers_canonical_and_warns_on_legacy() -> None:
+    both = {"WORLDFOUNDRY_STUDIO_AUTO_CUDA_VISIBLE_DEVICES": "0", "WM_AUTO_CUDA_VISIBLE_DEVICES": "1"}
+    assert resolve_env("WORLDFOUNDRY_STUDIO_AUTO_CUDA_VISIBLE_DEVICES", legacy=("WM_AUTO_CUDA_VISIBLE_DEVICES",), env=both) == "0"
+
+    legacy_only = {"WM_AUTO_CUDA_VISIBLE_DEVICES": "0"}
+    with pytest.warns(DeprecationWarning, match="WM_AUTO_CUDA_VISIBLE_DEVICES"):
+        value = resolve_env(
+            "WORLDFOUNDRY_STUDIO_AUTO_CUDA_VISIBLE_DEVICES",
+            legacy=("WM_AUTO_CUDA_VISIBLE_DEVICES",),
+            env=legacy_only,
+        )
+    assert value == "0"
+
+    assert (
+        resolve_env(
+            "WORLDFOUNDRY_STUDIO_AUTO_CUDA_VISIBLE_DEVICES",
+            legacy=("WM_AUTO_CUDA_VISIBLE_DEVICES",),
+            env={},
+            default="1",
+        )
+        == "1"
+    )
 
 
 def test_check_required_env_reports_presence_without_values() -> None:

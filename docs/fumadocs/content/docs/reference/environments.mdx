@@ -122,6 +122,51 @@ standard HF cache variables) for public checkpoints. Use `WORLDFOUNDRY_CKPT_DIR`
 for upstream runtimes that require a fixed directory layout or for local soft
 links that preserve official paths without duplicating large files.
 
+### Registered environment variables
+
+`worldfoundry/runtime/env.py` is the central registry for public environment
+variables. Beyond the core path, Hugging Face, and runtime groups above, the
+registry declares the following groups; preflight capture and manifest
+redaction cover every registered name (`ALL_DOCUMENTED_ENV_KEYS` /
+`iter_documented_env_keys()`).
+
+**Kernel autotune (`KERNEL_ENV_KEYS`)** — boolean switches use the `_ENABLED`
+suffix; the suffix-less spellings are legacy boolean aliases kept as read
+fallbacks.
+
+| Variable | Purpose | Default / derivation |
+| --- | --- | --- |
+| `WORLDFOUNDRY_KERNEL_AUTOTUNE_ENABLED` | Boolean: enable first-use eager kernel measurements. Legacy alias: `WORLDFOUNDRY_KERNEL_AUTOTUNE`. | Off unless set truthy. |
+| `WORLDFOUNDRY_KERNEL_AUTOTUNE_CACHE_ENABLED` | Boolean: reuse persisted autotune decisions. Legacy alias: `WORLDFOUNDRY_KERNEL_AUTOTUNE_CACHE`. | On. |
+| `WORLDFOUNDRY_KERNEL_AUTOTUNE_CACHE_DIR` | Path (not a switch): persistent autotune cache directory. | `${WORLDFOUNDRY_COMPILE_CACHE_DIR}/kernel-autotune`. |
+| `WORLDFOUNDRY_KERNEL_AUTOTUNE_REFRESH` | Boolean: ignore persisted selections and re-measure. | Off. |
+| `WORLDFOUNDRY_KERNEL_AUTOTUNE_ITERS` / `..._ROUNDS` | Integers: measurement iterations and rounds. | `5` / `3`. |
+
+**Studio GPU auto-selection (`STUDIO_ENV_KEYS`)** — the `WM_*` prefix is
+legacy naming; where a canonical `WORLDFOUNDRY_STUDIO_*` spelling exists, the
+legacy name still works but emits a `DeprecationWarning`.
+
+| Variable | Purpose | Default / derivation |
+| --- | --- | --- |
+| `WORLDFOUNDRY_STUDIO_AUTO_CUDA_VISIBLE_DEVICES` | `1` enables idle-GPU auto-selection for Studio dispatch; anything else disables it. Legacy alias: `WM_AUTO_CUDA_VISIBLE_DEVICES`. | `1`. |
+| `WM_AUTO_GPU_MAX_MEMORY_FRACTION` | Float: maximum used-memory fraction for a GPU to count as idle (legacy prefix). | `0.5`. |
+| `WM_AUTO_GPU_MAX_UTILIZATION_FRACTION` | Float: maximum utilization fraction for a GPU to count as idle (legacy prefix). | `0.5`. |
+| `WM_MATRIXGAME3_CUDA_VISIBLE_DEVICES` | Explicit device list override for Matrix-Game 3 dispatch (legacy prefix). | Unset. |
+
+**Training engine (`TRAINER_ENV_KEYS`)** — the `TRAINER_*` family read by
+`worldfoundry/core/distributed/sequence_parallel/envs.py` (vLLM-derived).
+Registered for documentation and redaction coverage; see that module for
+per-variable semantics and defaults (`TRAINER_TARGET_DEVICE`,
+`TRAINER_CACHE_ROOT`, `TRAINER_CONFIG_ROOT`, `TRAINER_LOGGING_*`,
+`TRAINER_TORCH_PROFILER_DIR`, `TRAINER_WORKER_MULTIPROC_METHOD`, and the
+remaining installation/runtime knobs).
+
+**Downloads (`DOWNLOAD_ENV_KEYS`)**
+
+| Variable | Purpose | Default / derivation |
+| --- | --- | --- |
+| `WORLDFOUNDRY_HF_SHARD_DOWNLOAD_WORKERS` | Integer cap on parallel Hugging Face checkpoint-shard download workers. | `min(32, max(4, 2 × CPU count))`, bounded by the shard count. |
+
 ### Compiler caches
 
 `worldfoundry.runtime.compile_cache` configures persistent `torch.compile`
