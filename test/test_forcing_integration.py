@@ -73,8 +73,8 @@ def test_forcing_runtime_builds_official_command(monkeypatch, tmp_path: Path) ->
 
     captured = {}
 
-    def fake_run(command, check, cwd, env, stdout, stderr, text):
-        del check, env, stdout, stderr, text
+    def fake_run(command, *, stdout_path, stderr_path, cwd, env, start_new_session):
+        del stdout_path, stderr_path, env, start_new_session
         captured["command"] = command
         captured["cwd"] = cwd
         output_dir = Path(command[command.index("--output_folder") + 1])
@@ -82,7 +82,7 @@ def test_forcing_runtime_builds_official_command(monkeypatch, tmp_path: Path) ->
         (output_dir / "0-0_ema.mp4").write_bytes(b"video")
         return subprocess.CompletedProcess(command, 0, stdout="")
 
-    monkeypatch.setattr(runtime_module.subprocess, "run", fake_run)
+    monkeypatch.setattr(runtime_module, "run_logged_subprocess", fake_run)
     monkeypatch.setattr(
         runtime_module,
         "_load_video_frames",

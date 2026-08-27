@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -21,6 +20,7 @@ from worldfoundry.core.io.paths import (
     hfd_root_path,
     resolve_local_hf_model_path,
 )
+from worldfoundry.core.process import read_text_tail, run_logged_subprocess
 from worldfoundry.evaluation.utils import worldfoundry_data_path
 
 
@@ -645,17 +645,22 @@ class InspatioWorldRuntime:
             command.append("--compile_dit")
 
         env = self._build_runtime_env()
-        stdout = None if show_progress else subprocess.DEVNULL
-        stderr = None if show_progress else subprocess.STDOUT
-
-        subprocess.run(
+        stdout_log_path = resolved_output_root / "inspatio_world.stdout.log"
+        stderr_log_path = resolved_output_root / "inspatio_world.stderr.log"
+        completed = run_logged_subprocess(
             command,
-            check=True,
+            stdout_path=stdout_log_path,
+            stderr_path=stderr_log_path,
             cwd=self.repo_root,
             env=env,
-            stdout=stdout,
-            stderr=stderr,
+            start_new_session=False,
         )
+        if completed.returncode != 0:
+            tail = read_text_tail(stderr_log_path)
+            raise RuntimeError(
+                f"InSpatio-World pipeline failed with exit code {completed.returncode}; "
+                f"see {stdout_log_path} and {stderr_log_path}.\n{tail}"
+            )
 
         generated_video_paths = sorted(
             path.resolve()
@@ -677,6 +682,8 @@ class InspatioWorldRuntime:
             "florence_model_path": resolved_florence_dir,
             "config_path": resolved_config,
             "prompt": prompt,
+            "log_path": str(stdout_log_path),
+            "stderr_log_path": str(stderr_log_path),
         }
         if skip_step3 and not generated_video_paths:
             if return_dict:

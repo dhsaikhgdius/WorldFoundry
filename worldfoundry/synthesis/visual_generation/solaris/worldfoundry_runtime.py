@@ -10,10 +10,12 @@ evaluation types and parameters.
 from __future__ import annotations
 
 import os
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Optional
+
+from worldfoundry.core.process import read_text_tail, run_logged_subprocess
+from worldfoundry.runtime.jobs import run_bounded_command
 
 from .runtime_env import (
     build_eval_dataset_overrides,
@@ -35,17 +37,14 @@ def _visible_cuda_device_count() -> int:
     if raw_devices and raw_devices not in {"-1", "none", "None"}:
         return max(1, len([item for item in raw_devices.split(",") if item.strip()]))
     try:
-        result = subprocess.run(
-            ["nvidia-smi", "-L"],
-            check=False,
-            capture_output=True,
-            text=True,
-        )
+        # nvidia-smi can wedge when the driver is unhealthy, so bound the probe
+        # instead of letting adapter construction hang.
+        probe = run_bounded_command(["nvidia-smi", "-L"], timeout=60)
     except OSError:
         return 1
-    if result.returncode != 0:
+    if probe["returncode"] != 0:
         return 1
-    count = sum(1 for line in result.stdout.splitlines() if line.strip().startswith("GPU "))
+    count = sum(1 for line in probe["stdout"].splitlines() if line.strip().startswith("GPU "))
     return max(1, count)
 
 
@@ -241,7 +240,7 @@ class SolarisRuntime:
             enable_jax_cache: Whether JAX caching is enabled.
 
         Returns:
-            A list of strings representing the full command for `subprocess.run`.
+            A list of strings representing the full command for the inference subprocess.
         """
         command = [
             self.python_executable,
@@ -323,8 +322,8 @@ class SolarisRuntime:
             model_weights_path: Override the explicit path to the model weights file.
             return_dict: If True, returns a dictionary containing detailed results.
                          If False, returns only the path to the model's output directory.
-            show_progress: If True, inference script output is shown in console.
-                           If False, output is suppressed.
+            show_progress: Retained for API compatibility; inference script output
+                           always streams to per-run log files in the output root.
 
         Returns:
             The path to the model's output directory (str) or a dictionary with
@@ -405,36 +404,35 @@ class SolarisRuntime:
             num_frames_eval=effective_num_frames_eval,
             enable_jax_cache=effective_enable_jax_cache,
         )
-        # Configure stdout and stderr for the subprocess based on `show_progress`.
-        stdout = None if show_progress else subprocess.DEVNULL
-        stderr = None if show_progress else subprocess.STDOUT
-
-        try:
-            # Build the environment variables required for the inference subprocess.
-            inference_env = build_inference_env(
-                self.device,
-                python_executable=self.python_executable,
-            )
-            # Add the Solaris runtime root to the PYTHONPATH for the subprocess.
-            existing_pythonpath = inference_env.get("PYTHONPATH", "")
-            pythonpath_parts = [self.runtime_root]
-            if existing_pythonpath:
-                pythonpath_parts.append(existing_pythonpath)
-            inference_env["PYTHONPATH"] = os.pathsep.join(pythonpath_parts)
-            # Execute the inference script.
-            subprocess.run(
-                command,
-                check=True,  # Raise CalledProcessError if the command returns a non-zero exit code.
-                cwd=self.runtime_root,  # Run the command from the Solaris runtime root directory.
-                env=inference_env,
-                stdout=stdout,
-                stderr=stderr,
-            )
-        except subprocess.CalledProcessError as error:
+        # Build the environment variables required for the inference subprocess.
+        inference_env = build_inference_env(
+            self.device,
+            python_executable=self.python_executable,
+        )
+        # Add the Solaris runtime root to the PYTHONPATH for the subprocess.
+        existing_pythonpath = inference_env.get("PYTHONPATH", "")
+        pythonpath_parts = [self.runtime_root]
+        if existing_pythonpath:
+            pythonpath_parts.append(existing_pythonpath)
+        inference_env["PYTHONPATH"] = os.pathsep.join(pythonpath_parts)
+        stdout_log_path = output_root / f"{experiment_name}.solaris.stdout.log"
+        stderr_log_path = output_root / f"{experiment_name}.solaris.stderr.log"
+        # Execute the inference script with disk-streamed stdout/stderr.
+        completed = run_logged_subprocess(
+            command,
+            stdout_path=stdout_log_path,
+            stderr_path=stderr_log_path,
+            cwd=self.runtime_root,  # Run the command from the Solaris runtime root directory.
+            env=inference_env,
+            start_new_session=False,
+        )
+        if completed.returncode != 0:
+            tail = read_text_tail(stderr_log_path)
             raise RuntimeError(
                 "Solaris inference failed. Check the in-tree Solaris runtime, dataset paths, "
-                "checkpoint layout, and its Python environment."
-            ) from error
+                "checkpoint layout, and its Python environment. "
+                f"Exit code {completed.returncode}; see {stdout_log_path} and {stderr_log_path}.\n{tail}"
+            )
 
         # After successful inference, collect the paths to the generated videos.
         generated_videos = self._collect_generated_videos(
@@ -458,6 +456,8 @@ class SolarisRuntime:
             "output_root": str(output_root),
             "model_output_dir": str(model_output_dir),
             "generated_videos": generated_videos,
+            "log_path": str(stdout_log_path),
+            "stderr_log_path": str(stderr_log_path),
         }
         if primary_video:
             result["generated_video_path"] = primary_video

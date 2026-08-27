@@ -1761,7 +1761,7 @@ def test_multiworld_solaris_runtime_envs_live_under_synthesis():
             "worldfoundry.synthesis.visual_generation.solaris.worldfoundry_runtime",
             "solaris_synthesis.py",
             "worldfoundry_runtime.py",
-            ["class SolarisRuntime", "def _build_inference_command", "subprocess.run"],
+            ["class SolarisRuntime", "def _build_inference_command", "run_logged_subprocess"],
         ),
     }
 

@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import os
 import shutil
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -19,6 +18,7 @@ from worldfoundry.core.io.paths import (
 from worldfoundry.core.io.paths import (
     package_module_root as package_root,
 )
+from worldfoundry.core.process import read_text_tail, run_logged_subprocess
 
 DEFAULT_PROMPT = "A cinematic video with coherent motion, rich detail, and realistic lighting."
 TORCHVISION_VIDEO_COMPAT_DIR = Path(__file__).resolve().parent / "torchvision_video_compat"
@@ -615,19 +615,23 @@ class _ForcingRuntime:
                 extended_prompt_path=extended_prompt_path,
                 i2v=i2v,
             )
-            completed = subprocess.run(
+            stdout_log_path = output_target.with_suffix(output_target.suffix + ".stdout.log")
+            stderr_log_path = output_target.with_suffix(output_target.suffix + ".stderr.log")
+            completed = run_logged_subprocess(
                 command,
-                check=False,
+                stdout_path=stdout_log_path,
+                stderr_path=stderr_log_path,
                 cwd=str(runtime_cwd),
                 env=self._subprocess_env(compat_dir=compat_dir),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
+                start_new_session=False,
             )
             if completed.returncode != 0:
-                tail = "\n".join((completed.stdout or "").splitlines()[-40:])
+                tail = read_text_tail(stderr_log_path, max_lines=40) or read_text_tail(
+                    stdout_log_path, max_lines=40
+                )
                 raise RuntimeError(
-                    f"{self.model_name} command failed with exit code {completed.returncode}.\n{tail}"
+                    f"{self.model_name} command failed with exit code {completed.returncode}; "
+                    f"see {stdout_log_path} and {stderr_log_path}.\n{tail}"
                 )
             generated = _latest_mp4(output_dir)
             output_target.parent.mkdir(parents=True, exist_ok=True)
@@ -642,6 +646,8 @@ class _ForcingRuntime:
             "model_id": self.model_id,
             "runtime_plan": self.runtime_plan(i2v=i2v),
             "command": command,
+            "log_path": str(stdout_log_path),
+            "stderr_log_path": str(stderr_log_path),
         }
 
 
