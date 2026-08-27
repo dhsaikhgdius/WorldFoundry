@@ -100,9 +100,9 @@ def test_benchmark_hub_ids_match_catalog_and_task_manifests() -> None:
     }
     formal_ids = set(formal_benchmark_ids())
 
-    assert len(hub_ids) == 64
+    assert len(hub_ids) == 73
     assert hub_ids <= task_ids
-    assert hub_ids <= formal_ids
+    assert hub_ids == formal_ids
     assert all((BENCHMARK_DETAILS_ROOT / f"{benchmark_id}.mdx").is_file() for benchmark_id in hub_ids)
     assert all((BENCHMARK_DETAILS_ROOT / f"{benchmark_id}.zh.mdx").is_file() for benchmark_id in hub_ids)
 
@@ -153,11 +153,11 @@ def test_benchmark_hub_stats_and_cards_match_rendered_inventory() -> None:
     category_counts = Counter(entry["category"] for entry in catalog_status.values())
 
     assert category_counts == {
-        "Embodied AI": 22,
-        "Video Generation": 30,
-        "World Models": 12,
+        "Embodied AI": 23,
+        "Video Generation": 33,
+        "World Models": 17,
     }
-    assert len(catalog_status) == sum(category_counts.values()) == 64
+    assert len(catalog_status) == sum(category_counts.values()) == 73
     assert all(entry["name"] for entry in catalog_status.values())
     assert all(isinstance(entry["metrics"], list) for entry in catalog_status.values())
     assert all(entry["summary"] and entry["summaryZh"] for entry in catalog_status.values())

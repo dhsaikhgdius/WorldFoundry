@@ -80,6 +80,32 @@
     "summaryZh": "导入预计算 metric 并归一化为 scorecard",
     "verificationStatus": "in_tree_artifact_import_ready"
   },
+  "apple-pi": {
+    "aliases": [],
+    "badges": [
+      "integrated"
+    ],
+    "category": "World Models",
+    "categoryZh": "世界模型",
+    "domains": [
+      "law-grounded-physical-reasoning",
+      "perception",
+      "formulation",
+      "deduction"
+    ],
+    "integrationStatus": "integrated",
+    "leaderboardValid": false,
+    "logoKey": "ntu",
+    "metrics": [
+      "deduction"
+    ],
+    "name": "Apple-PI",
+    "requiresApi": true,
+    "runtimeKind": "in_tree_model_backed",
+    "summary": "In-tree evaluator scores artifact bundles per the task protocol; some dimensions may call a hosted API",
+    "summaryZh": "仓内 evaluator 按 task protocol 评估 artifact bundle；部分维度可能调用 hosted API",
+    "verificationStatus": "pending"
+  },
   "behavior1k": {
     "aliases": [
       "BEHAVIOR-1K",
@@ -412,6 +438,37 @@
     "summary": "Imports official or upstream results into a normalized scorecard",
     "summaryZh": "导入官方 / 上游结果并归一化为 scorecard",
     "verificationStatus": "normalizer_only"
+  },
+  "larybench": {
+    "aliases": [
+      "LARY",
+      "latent-action-representation-yielding-benchmark"
+    ],
+    "badges": [
+      "integrated"
+    ],
+    "category": "Embodied AI",
+    "categoryZh": "具身 AI",
+    "domains": [
+      "vla",
+      "embodied-action",
+      "robot-manipulation",
+      "action-recognition"
+    ],
+    "integrationStatus": "integrated",
+    "leaderboardValid": false,
+    "logoKey": "meituan",
+    "metrics": [
+      "extraction_coverage",
+      "top1_accuracy",
+      "val_seen_mse"
+    ],
+    "name": "LARYBench",
+    "requiresApi": false,
+    "runtimeKind": "in_tree_official_source",
+    "summary": "In-tree official runtime extracts latent actions and probes them with classification and regression",
+    "summaryZh": "仓内 official runtime 抽取 latent action 并以分类与回归探针评测",
+    "verificationStatus": "pending_checkpoint_and_dataset_run"
   },
   "libero": {
     "aliases": [
@@ -902,6 +959,30 @@
     "summaryZh": "导入预计算 metric 并归一化为 scorecard",
     "verificationStatus": "result_importer_ready"
   },
+  "physical-ai-bench": {
+    "aliases": [],
+    "badges": [
+      "integrated"
+    ],
+    "category": "World Models",
+    "categoryZh": "世界模型",
+    "domains": [],
+    "integrationStatus": "integrated",
+    "leaderboardValid": false,
+    "logoKey": "gatech",
+    "metrics": [
+      "aesthetic_quality",
+      "vqa_accuracy",
+      "dover_tech_score",
+      "canny_f1_score"
+    ],
+    "name": "Physical AI Bench (PAI-Bench)",
+    "requiresApi": false,
+    "runtimeKind": "in_tree_multi_track_evaluator",
+    "summary": "In-tree multi-track evaluator scores generation and conditional-generation videos",
+    "summaryZh": "仓内多赛道 evaluator 评估 generation 与 conditional-generation 生成视频",
+    "verificationStatus": "verified"
+  },
   "physics-iq": {
     "aliases": [],
     "badges": [
@@ -1213,6 +1294,32 @@
     "summary": "Imports official or upstream results into a normalized scorecard",
     "summaryZh": "导入官方 / 上游结果并归一化为 scorecard",
     "verificationStatus": "normalizer_only"
+  },
+  "stevo-bench": {
+    "aliases": [],
+    "badges": [
+      "integrated"
+    ],
+    "category": "World Models",
+    "categoryZh": "世界模型",
+    "domains": [
+      "unobserved-state-evolution",
+      "physical-dynamics",
+      "chemical-dynamics",
+      "agent-behavior"
+    ],
+    "integrationStatus": "integrated",
+    "leaderboardValid": false,
+    "logoKey": "caltech",
+    "metrics": [
+      "task_success"
+    ],
+    "name": "STEVO-Bench",
+    "requiresApi": true,
+    "runtimeKind": "in_tree_official_runtime_hosted_judges",
+    "summary": "In-tree official runtime scores generated videos with hosted VLM judges",
+    "summaryZh": "仓内 official runtime 通过 hosted VLM judges 对生成视频评分",
+    "verificationStatus": "pending"
   },
   "t2v-compbench": {
     "aliases": [],
