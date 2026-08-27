@@ -2,7 +2,6 @@ import argparse
 import math
 import os
 import shutil
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -12,6 +11,7 @@ import torch
 from PIL import Image
 
 from worldfoundry.core.io import VideoData, save_video
+from worldfoundry.core.process import run_logged_subprocess
 from worldfoundry.synthesis.visual_generation.spatia.native_pipeline import load_spatia_pipeline
 from worldfoundry.synthesis.visual_generation.spatia.spatia_runtime.utils.camera_io import (
     read_intrinsics_from_txt,
@@ -21,7 +21,6 @@ from worldfoundry.synthesis.visual_generation.spatia.spatia_runtime.utils.frustu
     find_mask_matches,
     frustum_frontmost_mask_triton,
 )
-
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR
@@ -50,18 +49,31 @@ def ensure_parent(path: Path):
     path.parent.mkdir(parents=True, exist_ok=True)
 
 
-def run_command(command, cwd=None, quiet=False, env=None):
+def run_command(command, cwd=None, quiet=False, env=None, log_dir=None, log_name="command"):
+    """Run a child command with disk-streamed stdout/stderr captures.
+
+    ``quiet`` is retained for CLI compatibility; child output always streams to
+    the per-command log files instead of the console, so the console stays
+    quiet either way. ``quiet=False`` additionally echoes the log locations.
+    """
     print(f"[INFO] Running command: {' '.join(str(arg) for arg in command)}")
-    run_kwargs = {
-        "cwd": str(cwd) if cwd is not None else None,
-        "check": True,
-    }
-    if env is not None:
-        run_kwargs["env"] = env
-    if quiet:
-        run_kwargs["stdout"] = subprocess.DEVNULL
-        run_kwargs["stderr"] = subprocess.DEVNULL
-    subprocess.run(command, **run_kwargs)
+    log_root = Path(log_dir) if log_dir is not None else Path(cwd) if cwd is not None else Path.cwd()
+    stdout_log_path = log_root / f"{log_name}.stdout.log"
+    stderr_log_path = log_root / f"{log_name}.stderr.log"
+    if not quiet:
+        print(f"[INFO] Streaming subprocess output to {stdout_log_path} and {stderr_log_path}")
+    completed = run_logged_subprocess(
+        [str(arg) for arg in command],
+        stdout_path=stdout_log_path,
+        stderr_path=stderr_log_path,
+        cwd=str(cwd) if cwd is not None else None,
+        env=env,
+        start_new_session=False,
+    )
+    # check_returncode() preserves the prior check=True CalledProcessError contract.
+    completed.check_returncode()
+
+
 def save_extrinsic_and_intrinsics(extrinsic=None, intrinsic=None, extrinsic_path=None, intrinsics_path=None):
     if extrinsic_path is not None:
         os.makedirs(os.path.dirname(extrinsic_path), exist_ok=True)
@@ -197,6 +209,8 @@ def run_mapanything(args, round_idx, map_frames, map_extrinsics, intrinsic_path,
             map_cmd,
             cwd=SCRIPT_DIR,
             quiet=not args.verbose_subprocess,
+            log_dir=round_dir,
+            log_name="map_anything_inference",
         )
     else:
         print(f"[INFO] Reusing MapAnything outputs for round {round_idx}.")
@@ -267,6 +281,8 @@ def run_render(args, round_idx, points_path, map_video_path, round_extrinsic, in
             render_cmd,
             cwd=SCRIPT_DIR,
             quiet=not args.verbose_subprocess,
+            log_dir=round_dir,
+            log_name="render_point",
         )
     else:
         print(f"[INFO] Reusing render outputs for round {round_idx}.")

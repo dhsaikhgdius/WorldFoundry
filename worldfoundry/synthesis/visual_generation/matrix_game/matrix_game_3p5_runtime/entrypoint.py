@@ -40,13 +40,13 @@ import argparse
 import json
 import os
 import shutil
-import subprocess
 import sys
 import time
 from pathlib import Path
 
 import numpy as np
 
+from worldfoundry.core.process import run_logged_subprocess
 from worldfoundry.synthesis.visual_generation.matrix_game.matrix_game_3p5_runtime.config_paths import (
     matrix_game_35_infer_config_path,
 )
@@ -282,7 +282,17 @@ def build_index(ws, python_bin, env):
         "--quiet",
         "--overwrite",
     ]
-    subprocess.run(cmd, cwd=REPO_DIR, env=env, check=True, stdout=subprocess.DEVNULL)
+    # Index-scanner stdout was previously DEVNULL'd; it now streams to a log
+    # file beside index.sqlite (kept on failure / --keep-workspace), and
+    # check_returncode() preserves the prior check=True CalledProcessError.
+    run_logged_subprocess(
+        cmd,
+        stdout_path=os.path.join(ws, "build_index.stdout.log"),
+        stderr_path=os.path.join(ws, "build_index.stderr.log"),
+        cwd=REPO_DIR,
+        env=env,
+        start_new_session=False,
+    ).check_returncode()
     con = sqlite3.connect(index_path)
     rows = con.execute("SELECT clean_name, scan_error FROM records").fetchall()
     con.close()
@@ -352,7 +362,18 @@ def run_generation(args, index_path, tmp_root, env):
     cmd += args.extra
 
     print(f"[infer] launching generation ({args.num_blocks} block(s) x 84 frames)...")
-    subprocess.run(cmd, cwd=REPO_DIR, env=env, check=True)
+    stdout_log_path = os.path.join(tmp_root, "generation.stdout.log")
+    stderr_log_path = os.path.join(tmp_root, "generation.stderr.log")
+    print(f"[infer] streaming generation logs to {stdout_log_path} and {stderr_log_path}")
+    # check_returncode() preserves the prior check=True CalledProcessError contract.
+    run_logged_subprocess(
+        cmd,
+        stdout_path=stdout_log_path,
+        stderr_path=stderr_log_path,
+        cwd=REPO_DIR,
+        env=env,
+        start_new_session=False,
+    ).check_returncode()
     return os.path.join(tmp_root, "raw", "run", "inference")
 
 
