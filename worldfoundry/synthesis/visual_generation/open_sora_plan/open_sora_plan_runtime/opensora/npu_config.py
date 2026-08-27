@@ -5,7 +5,6 @@ import pickle
 import random
 import numpy as np
 import torch
-import subprocess
 import sys
 import threading
 import gc
@@ -24,6 +23,8 @@ except:
 from contextlib import contextmanager
 import types
 
+from worldfoundry.core.process import run_logged_subprocess
+
 
 def compress_video(input_file, output_file, out_size):
     """使用 ffmpeg 压缩视频文件。"""
@@ -37,7 +38,15 @@ def compress_video(input_file, output_file, out_size):
         '-c:a', 'copy',
         output_file
     ]
-    subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    base, _ = os.path.splitext(output_file)
+    # The caller ignores the result on purpose (best-effort compression), so the
+    # prior no-check semantics are preserved; only the PIPE capture moved to disk.
+    run_logged_subprocess(
+        command,
+        stdout_path=f"{base}_compress.stdout.log",
+        stderr_path=f"{base}_compress.stderr.log",
+        start_new_session=False,
+    )
 
 
 @contextmanager
@@ -137,9 +146,20 @@ class NPUConfig:
         # 构建 CPU 核范围字符串
         cpu_cores_range = f"{start_core}-{end_core}"
         pid = os.getpid()
-        command = f"taskset -cp {cpu_cores_range} {pid}"
+        # argv form replaces the previous shell=True string: every component is
+        # generated locally (numeric ranges, own pid), so no shell parsing is
+        # needed and the taskset binary is invoked directly.
+        command = ["taskset", "-cp", cpu_cores_range, str(pid)]
 
-        subprocess.run(command, shell=True, check=True)
+        log_dir = os.path.join(self.work_path, "logs")
+        completed = run_logged_subprocess(
+            command,
+            stdout_path=os.path.join(log_dir, f"taskset_rank{self.rank}.stdout.log"),
+            stderr_path=os.path.join(log_dir, f"taskset_rank{self.rank}.stderr.log"),
+            start_new_session=False,
+        )
+        # check_returncode() preserves the prior check=True CalledProcessError contract.
+        completed.check_returncode()
         return f"Binding Cores:{self.rank}:{pid}:{cpu_cores_range}"
 
     def replace_methods(self, target_class, source_class, skip_fcns=[], only_include_fcns=None):
