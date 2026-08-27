@@ -179,7 +179,9 @@ class CALVINBenchmark(BaseSimulator):
           Not configurable — matches the training setup.
 
     Args:
-        dataset_path: Path to CALVIN validation dataset.
+        dataset_path: Path to the CALVIN validation dataset. Required — there is
+            no usable default outside the docker profile, which mounts the data
+            at ``/data/calvin/dataset/validation``.
         num_sequences: Number of 5-subtask sequences to evaluate (default 1000).
         seed: Random seed for sequence generation and PyTorch Lightning.
         send_wrist_image: Include gripper camera image in observations.
@@ -194,7 +196,7 @@ class CALVINBenchmark(BaseSimulator):
 
     def __init__(
         self,
-        dataset_path: str = "/data/calvin/dataset/validation",
+        dataset_path: str | None = None,
         num_sequences: int = 1000,
         seed: int = 0,
         send_wrist_image: bool = False,
@@ -203,6 +205,13 @@ class CALVINBenchmark(BaseSimulator):
         ep_len: int | None = None,
     ) -> None:
         super().__init__()
+        if not dataset_path:
+            raise ValueError(
+                "CALVINBenchmark requires an explicit dataset_path pointing at the "
+                "CALVIN validation dataset (e.g. <calvin_root>/dataset/validation). "
+                "Pass dataset_path via benchmark_kwargs, or run through the docker "
+                "profile which mounts the dataset at /data/calvin/dataset/validation."
+            )
         self.dataset_path = dataset_path
         self.num_sequences = num_sequences
         self.seed = seed
