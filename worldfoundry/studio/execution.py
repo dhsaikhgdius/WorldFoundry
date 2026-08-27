@@ -79,6 +79,10 @@ TORCHRUN_DISTRIBUTED_ENV = "WORLDFOUNDRY_STUDIO_TORCHRUN_DISTRIBUTED"
 STUDIO_CONDA_CHILD_ENV = "WORLDFOUNDRY_STUDIO_CONDA_CHILD"
 TORCH_COMPILE_ENV_MODELS = {"matrix-game-2"}
 RUNTIME_CHECKS_ENV = "WORLDFOUNDRY_STUDIO_RUNTIME_CHECKS"
+# Resident gloo command group for torchrun LingBot fast mode. Torchrun init is
+# intended to be single-threaded per rank; the lock only guards create/shutdown
+# races (e.g. a UI shutdown hook racing a late ensure/create on another thread).
+# Readers must snapshot the global (or take the lock) rather than double-read it.
 _TORCHRUN_CONTROL_GROUP: Any = None
 _TORCHRUN_CONTROL_GROUP_LOCK = threading.Lock()
 # Model families whose input_path should never be bound as video even if the
@@ -537,8 +541,13 @@ def shutdown_torchrun_lingbot_fast_runtime() -> None:
     dist = _torch_dist()
     if dist is None or not dist.is_available() or not dist.is_initialized():
         return
-    control_group = _TORCHRUN_CONTROL_GROUP
-    _TORCHRUN_CONTROL_GROUP = None
+    # Take-and-clear under the lock so a concurrent _torchrun_control_group()
+    # never observes (and caches) a group that is about to be destroyed. The
+    # destroy itself runs outside the lock: destroy_process_group can block on
+    # collectives and must not stall creators waiting on the lock.
+    with _TORCHRUN_CONTROL_GROUP_LOCK:
+        control_group = _TORCHRUN_CONTROL_GROUP
+        _TORCHRUN_CONTROL_GROUP = None
     if control_group is not None:
         try:
             dist.destroy_process_group(control_group)

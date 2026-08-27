@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 from types import SimpleNamespace
 
 from PIL import Image
@@ -112,6 +113,49 @@ def test_resident_torchrun_control_group_outlives_idle_ui_sessions(monkeypatch):
     assert ranks == [0, 1, 2, 3]
     assert backend == "gloo"
     assert timeout.days >= 365
+
+
+def test_shutdown_clears_control_group_under_lock_and_destroys_outside_it(monkeypatch):
+    real_lock = threading.Lock()
+    cleared_under_lock = []
+    destroy_calls = []
+    group = object()
+
+    class _RecordingLock:
+        def __enter__(self):
+            real_lock.acquire()
+            return self
+
+        def __exit__(self, *_exc):
+            cleared_under_lock.append(execution._TORCHRUN_CONTROL_GROUP is None)
+            real_lock.release()
+            return False
+
+    class _FakeDist:
+        @staticmethod
+        def is_available():
+            return True
+
+        @staticmethod
+        def is_initialized():
+            return True
+
+        @staticmethod
+        def destroy_process_group(target=None):
+            destroy_calls.append((target, real_lock.locked()))
+
+    monkeypatch.setattr(execution, "_torch_dist", lambda: _FakeDist())
+    monkeypatch.setattr(execution, "_TORCHRUN_CONTROL_GROUP", group)
+    monkeypatch.setattr(execution, "_TORCHRUN_CONTROL_GROUP_LOCK", _RecordingLock())
+
+    execution.shutdown_torchrun_lingbot_fast_runtime()
+
+    assert execution._TORCHRUN_CONTROL_GROUP is None
+    # The global must be taken-and-cleared inside the locked section.
+    assert cleared_under_lock == [True]
+    # Both destroys (control group, then default group) run after the lock is
+    # released so a blocking destroy cannot stall concurrent creators.
+    assert destroy_calls == [(group, False), (None, False)]
 
 
 def test_longvie2_launch_accepts_single_or_official_four_rank_only(monkeypatch):
