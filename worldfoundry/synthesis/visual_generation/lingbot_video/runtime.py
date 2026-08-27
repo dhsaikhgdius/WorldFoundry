@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import subprocess
 import sys
 import time
 from dataclasses import dataclass
@@ -12,8 +11,8 @@ from typing import Any, Mapping
 
 from worldfoundry.core import cuda_visible_devices_from_device
 from worldfoundry.core.io.paths import project_root
+from worldfoundry.core.process import run_logged_subprocess
 from worldfoundry.runtime.assets import expand_worldfoundry_path
-
 
 SOURCE_ROOT = project_root(__file__)
 INFERENCE_ROOT = Path(__file__).resolve().parent
@@ -359,20 +358,15 @@ class LingBotVideoRuntime:
         env = os.environ.copy()
         env.update(plan.env)
         try:
-            with (
-                stdout_path.open("w", encoding="utf-8") as stdout,
-                stderr_path.open("w", encoding="utf-8") as stderr,
-            ):
-                completed = subprocess.run(
-                    list(plan.command),
-                    cwd=plan.workdir,
-                    env=env,
-                    stdout=stdout,
-                    stderr=stderr,
-                    text=True,
-                    timeout=timeout_seconds,
-                    check=False,
-                )
+            completed = run_logged_subprocess(
+                list(plan.command),
+                stdout_path=stdout_path,
+                stderr_path=stderr_path,
+                cwd=plan.workdir,
+                env=env,
+                timeout=timeout_seconds,
+                start_new_session=False,
+            )
             returncode = completed.returncode
         except Exception as exc:  # pragma: no cover - depends on the deployment runtime
             error = str(exc)
