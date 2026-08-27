@@ -4,12 +4,11 @@ import argparse
 import json
 import os
 import shutil
-import subprocess
 import sys
 from pathlib import Path
 
 from worldfoundry.core.io.paths import project_root, resolve_data_path
-
+from worldfoundry.core.process import read_text_tail, run_logged_subprocess
 
 VARIANT_CONFIGS = {
     "4.5b-base": ("4.5B/4.5B_base_config.json", "ckpt/magi/4.5B_base"),
@@ -154,23 +153,25 @@ def main() -> None:
     if ffmpeg_dir:
         env["PATH"] = os.pathsep.join(item for item in (ffmpeg_dir, env.get("PATH", "")) if item)
 
-    completed = subprocess.run(
+    stdout_log_path = output_path.with_suffix(output_path.suffix + ".magi.stdout.log")
+    stderr_log_path = output_path.with_suffix(output_path.suffix + ".magi.stderr.log")
+    completed = run_logged_subprocess(
         command,
+        stdout_path=stdout_log_path,
+        stderr_path=stderr_log_path,
         cwd=str(repo_root),
         env=env,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        check=False,
+        start_new_session=False,
     )
-    log_path = output_path.with_suffix(output_path.suffix + ".magi.log")
-    log_path.write_text(completed.stdout + "\n" + completed.stderr, encoding="utf-8")
     if completed.returncode != 0:
-        raise RuntimeError(f"MAGI official runner failed with code {completed.returncode}; see {log_path}")
+        detail = read_text_tail(stderr_log_path) or read_text_tail(stdout_log_path)
+        raise RuntimeError(
+            f"MAGI official runner failed with code {completed.returncode}; see {stderr_log_path}: {detail}"
+        )
     if not output_path.is_file():
         candidates = sorted(output_path.parent.glob("*.mp4"), key=lambda path: path.stat().st_mtime, reverse=True)
         if not candidates:
-            raise RuntimeError(f"MAGI official runner completed but no mp4 was found; see {log_path}")
+            raise RuntimeError(f"MAGI official runner completed but no mp4 was found; see {stdout_log_path}")
         shutil.copy2(candidates[0], output_path)
 
 

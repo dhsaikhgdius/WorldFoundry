@@ -5,7 +5,6 @@ import json
 import os
 import shutil
 import socket
-import subprocess
 import sys
 import time
 from contextlib import nullcontext
@@ -16,6 +15,7 @@ from typing import Any, Mapping
 
 from worldfoundry.core.io import file_sha256, load_serialized, resolve_data_path
 from worldfoundry.core.io.paths import project_root
+from worldfoundry.core.process import read_text_tail, run_logged_subprocess
 from worldfoundry.runtime.assets import expand_worldfoundry_path
 
 
@@ -501,28 +501,33 @@ class OfficialVideoRuntime:
                 }
             )
         started_at = time.time()
-        completed = subprocess.run(
+        stdout_log_path = output_path.with_suffix(output_path.suffix + ".stdout.log")
+        stderr_log_path = output_path.with_suffix(output_path.suffix + ".stderr.log")
+        completed = run_logged_subprocess(
             rendered,
+            stdout_path=stdout_log_path,
+            stderr_path=stderr_log_path,
             cwd=cwd,
             env=env,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            check=False,
+            start_new_session=False,
         )
+        log_metadata = {
+            "command": rendered,
+            "stdout_log_path": str(stdout_log_path),
+            "stderr_log_path": str(stderr_log_path),
+        }
         if completed.returncode != 0:
-            log_path = output_path.with_suffix(output_path.suffix + ".log")
-            log_path.write_text(completed.stdout + "\n" + completed.stderr, encoding="utf-8")
+            detail = read_text_tail(stderr_log_path) or read_text_tail(stdout_log_path)
             return {
                 "status": "failed",
                 "runtime": "official_cli",
                 "backend_quality": "official_cli_failed",
                 "artifact_path": str(output_path),
-                "error": f"official CLI exited with code {completed.returncode}; see {log_path}",
-                "metadata": {"command": rendered, "log_path": str(log_path)},
+                "error": (
+                    f"official CLI exited with code {completed.returncode}; see {stderr_log_path}: {detail}"
+                ),
+                "metadata": log_metadata,
             }
-        log_path = output_path.with_suffix(output_path.suffix + ".log")
-        log_path.write_text(completed.stdout + "\n" + completed.stderr, encoding="utf-8")
         produced = self._resolve_produced_artifact(
             output_path,
             search_dirs=(variables.get("output_dir"), output_path.parent),
@@ -535,10 +540,10 @@ class OfficialVideoRuntime:
                 "backend_quality": "official_cli_no_artifact",
                 "artifact_path": str(output_path),
                 "error": f"official CLI completed but no artifact was found at or near {output_path}",
-                "metadata": {"command": rendered, "log_path": str(log_path)},
+                "metadata": log_metadata,
             }
         primary, artifacts = self._materialize_cli_artifacts(produced, output_path, since=started_at)
-        result = self._success_result(primary, metadata={"command": rendered, "log_path": str(log_path)})
+        result = self._success_result(primary, metadata=log_metadata)
         result["artifact_paths"] = [str(path) for path in artifacts]
         return result
 
