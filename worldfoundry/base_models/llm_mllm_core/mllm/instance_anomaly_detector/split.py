@@ -1,9 +1,9 @@
 import json
 import os
-import subprocess
 from pathlib import Path
 
 from worldfoundry.core.process import run_logged_subprocess
+from worldfoundry.runtime.jobs import run_bounded_command
 
 
 def get_video_info(filepath):
@@ -19,9 +19,16 @@ def get_video_info(filepath):
         "json",
         filepath,
     ]
-    # Short ffprobe metadata probe intentionally keeps subprocess.run.
-    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    info = json.loads(result.stdout)
+    # Bounded metadata probe: a hung ffprobe on a corrupt input must not stall
+    # the split pipeline, so cap the read and fail loudly instead of handing an
+    # empty stdout to the JSON parser.
+    result = run_bounded_command(cmd, timeout=10)
+    if result["timed_out"] or result["returncode"] != 0:
+        raise RuntimeError(
+            f"ffprobe failed for {filepath} with code {result['returncode']}: "
+            f"{str(result['stderr']).strip()}"
+        )
+    info = json.loads(result["stdout"])
     duration = float(info["streams"][0]["duration"])
     fr_str = info["streams"][0]["avg_frame_rate"]
     if "/" in fr_str:
