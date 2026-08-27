@@ -1254,6 +1254,7 @@
     ],
     "integrationStatus": "integrated",
     "leaderboardValid": false,
+    "logoKey": "nvidia",
     "metrics": [
       "vbench_overall",
       "revisit_psnr",
