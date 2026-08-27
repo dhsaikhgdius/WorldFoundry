@@ -1,8 +1,12 @@
 """Recursive HDF5 save/load and structural equality checks for Pydantic models."""
 
+import logging
+
 import h5py
 import numpy as np
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 
 def hdf5_save(data: BaseModel | dict, group: h5py.Group) -> None:
@@ -43,40 +47,40 @@ def hdf5_is_subset(this: h5py.Group, other: h5py.Group, verbose: bool = False) -
     for key, value in this.items():
         if key not in other:
             if verbose:
-                print(f"Key {key} not in other")
+                logger.debug("Key %s not in other", key)
             return False
         elif isinstance(value, h5py.Group):
             if not isinstance(other[key], h5py.Group):
                 if verbose:
-                    print(f"Key {key} is not a group in other")
+                    logger.debug("Key %s is not a group in other", key)
                 return False
             if not hdf5_is_subset(value, other[key], verbose):
                 if verbose:
-                    print(f"Key {key} is not a subset of other")
+                    logger.debug("Key %s is not a subset of other", key)
                 return False
         elif isinstance(value, h5py.Dataset):
             if not isinstance(other[key], h5py.Dataset):
                 if verbose:
-                    print(f"Key {key} is not a dataset in other")
+                    logger.debug("Key %s is not a dataset in other", key)
                 return False
             if not np.array_equal(value, other[key]):
                 if verbose:
-                    print(f"Key {key} is not equal in other")
+                    logger.debug("Key %s is not equal in other", key)
                 return False
         elif isinstance(value, h5py.Datatype):
             if not isinstance(other[key], h5py.Datatype):
                 if verbose:
-                    print(f"Key {key} is not a datatype in other")
+                    logger.debug("Key %s is not a datatype in other", key)
                 return False
             if value != other[key]:
                 if verbose:
-                    print(f"Key {key} is not equal in other")
+                    logger.debug("Key %s is not equal in other", key)
                 return False
         else:
             # try to compare
             if value != other[key]:
                 if verbose:
-                    print(f"Key {key} is not equal in other")
+                    logger.debug("Key %s is not equal in other", key)
                 return False
     return True
 
