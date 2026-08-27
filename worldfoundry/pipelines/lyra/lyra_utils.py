@@ -4,7 +4,6 @@ import importlib
 import os
 import shutil
 import sys
-import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Dict, Iterable, Optional
@@ -21,6 +20,7 @@ from worldfoundry.core.io import (
     video_tensor_to_uint8_frames,
 )
 from worldfoundry.core.io.paths import checkpoint_root_path, hfd_root_path, project_root
+from worldfoundry.core.io.scratch import make_scratch_dir
 
 
 DEFAULT_LYRA2_ALIAS = "lyra-2"
@@ -451,7 +451,7 @@ def prepare_lyra2_runtime_root(repo_root: str, weights_root: Optional[str] = Non
     if weights_root_path == repo_root_path and (repo_root_path / "checkpoints").is_dir():
         return str(repo_root_path)
 
-    runtime_root = Path(tempfile.mkdtemp(prefix="lyra2_runtime_")).resolve()
+    runtime_root = make_scratch_dir(prefix="lyra2_runtime_").resolve()
     (runtime_root / "lyra_2").symlink_to(repo_root_path / "lyra_2", target_is_directory=True)
     checkpoints_src = weights_root_path / "checkpoints"
     if checkpoints_src.is_dir():

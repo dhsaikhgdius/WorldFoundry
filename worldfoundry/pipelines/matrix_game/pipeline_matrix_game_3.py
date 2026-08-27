@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
 
 import torch
 from PIL import Image
 
+from ...core.io.scratch import make_scratch_dir
 from ...operators.matrix_game_3_operator import MatrixGame3Operator
 from ...synthesis.visual_generation.matrix_game.matrix_game_3_synthesis import MatrixGame3Synthesis
 from ...synthesis.visual_generation.memory.stream import VisualFrameMemory
@@ -137,8 +137,10 @@ class MatrixGame3Pipeline(PipelineABC):
             num_frames=num_frames,
             num_iterations=num_iterations,
         )
-        save_root = Path(output_dir).expanduser().resolve() if output_dir else Path(
-            tempfile.mkdtemp(prefix="matrix_game_3_")
+        save_root = (
+            Path(output_dir).expanduser().resolve()
+            if output_dir
+            else make_scratch_dir(prefix="matrix_game_3_")
         )
         save_root.mkdir(parents=True, exist_ok=True)
         synthesis_result = self.synthesis_model.predict(
