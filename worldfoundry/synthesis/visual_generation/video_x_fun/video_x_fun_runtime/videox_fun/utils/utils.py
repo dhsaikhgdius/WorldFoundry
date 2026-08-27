@@ -3,7 +3,6 @@ import inspect
 import math
 import os
 import shutil
-import subprocess
 import time
 
 import cv2
@@ -13,6 +12,8 @@ import torch
 import torchvision
 from einops import rearrange
 from PIL import Image
+
+from worldfoundry.core.process import read_text_tail, run_logged_subprocess
 
 
 def filter_kwargs(cls, kwargs):
@@ -248,12 +249,22 @@ def merge_video_audio(video_path: str, audio_path: str):
 
         # execute the command
         print("Start merging video and audio...")
-        result = subprocess.run(
-            command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        stdout_path = f"{base}_merge_audio.stdout.log"
+        stderr_path = f"{base}_merge_audio.stderr.log"
+        result = run_logged_subprocess(
+            command,
+            stdout_path=stdout_path,
+            stderr_path=stderr_path,
+            start_new_session=False,
+        )
 
         # check result
         if result.returncode != 0:
-            error_msg = f"FFmpeg execute failed: {result.stderr}"
+            tail = read_text_tail(stderr_path)
+            error_msg = (
+                f"FFmpeg execute failed with code {result.returncode}. "
+                f"See {stdout_path} and {stderr_path}.\n{tail}"
+            )
             print(error_msg)
             raise RuntimeError(error_msg)
 
