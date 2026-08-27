@@ -13,7 +13,6 @@ import json
 import math
 import os
 import platform as stdlib_platform
-import subprocess
 import tempfile
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
@@ -22,6 +21,7 @@ from pathlib import Path
 from typing import Any, TypeAlias, cast
 
 from worldfoundry.core.io.paths import project_root
+from worldfoundry.runtime.jobs import run_bounded_command
 
 PERFORMANCE_MANIFEST_SCHEMA_VERSION = "worldfoundry-performance-v1"
 
@@ -426,20 +426,16 @@ def _package_version(distribution: str) -> str | None:
 
 def _git_commit(repo_root: Path) -> str | None:
     try:
-        completed = subprocess.run(
+        completed = run_bounded_command(
             ["git", "-C", str(repo_root), "rev-parse", "--verify", "HEAD"],
-            capture_output=True,
-            check=False,
             timeout=2,
         )
     except Exception:
         return None
-    if completed.returncode != 0:
+    # A timed-out probe reports returncode 124, so it degrades to None too.
+    if completed["returncode"] != 0:
         return None
-    stdout = completed.stdout
-    if isinstance(stdout, bytes):
-        stdout = stdout.decode("ascii", errors="ignore")
-    commit = str(stdout).strip()
+    commit = str(completed["stdout"]).strip()
     return commit or None
 
 

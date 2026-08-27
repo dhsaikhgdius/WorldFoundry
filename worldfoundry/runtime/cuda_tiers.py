@@ -7,11 +7,11 @@ import json
 import os
 import re
 import shutil
-import subprocess
 from functools import lru_cache
 from pathlib import Path
 
 from worldfoundry.core.io.paths import conda_envs_root_path
+from worldfoundry.runtime.jobs import run_bounded_command
 
 # ── Constants ────────────────────────────────────────────────────────────────
 
@@ -100,17 +100,13 @@ def _detect_nvidia_driver_cuda_from_smi() -> str | None:
     if not nvidia_smi:
         return None
     try:
-        completed = subprocess.run(
-            [nvidia_smi],
-            check=False,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            timeout=3,
-        )
+        completed = run_bounded_command([nvidia_smi], timeout=3)
     except Exception:
         return None
-    match = re.search(r"CUDA Version:\s*([0-9]+(?:\.[0-9]+)?)", completed.stdout or "")
+    # The previous implementation merged stderr into stdout, so search both
+    # streams for the banner. A timed-out probe simply fails to match.
+    output = f"{completed['stdout']}\n{completed['stderr']}"
+    match = re.search(r"CUDA Version:\s*([0-9]+(?:\.[0-9]+)?)", output)
     return match.group(1) if match else None
 
 
