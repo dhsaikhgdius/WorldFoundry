@@ -13,7 +13,7 @@ WorldFoundry 将上游评测器 vendored 在仓内，`--run-official` 直接执�
 - 指标提取/聚合：`worldfoundry/evaluation/tasks/execution/runners/stevo_bench/stevo_bench_metrics.py`
 - Vendored 只读 runtime：`worldfoundry/evaluation/tasks/execution/runners/stevo_bench/runtime/stevo_bench/`（`eval/eval_cli.py`、`eval/summarize_results.py`，MIT，固定在 `680fb6ee2733…`）
 
-**Catalog 状态：未收录。** `worldfoundry/data/benchmarks/catalog/**` 下没有 `stevo-bench.yaml`，该基准也未注册进 workspace/zoo 调度，因此 `worldfoundry-eval zoo benchmark-run --benchmark-id stevo-bench` **不可用**；请使用下文的直接 runner 命令。
+**Catalog 状态：已收录。** catalog 条目位于 `worldfoundry/data/benchmarks/catalog/video/stevo-bench.yaml`，该基准已进入正式 hub 清单，`worldfoundry-eval zoo benchmark-run --benchmark-id stevo-bench` 可直接调度本 runner（`--mode official-run` 执行 judge 评测，`--mode official-validation` 导入已有结果）。下文的直接 runner 命令仍然等价可用。
 
 官方参考：
 
@@ -102,7 +102,13 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
   --json
 ```
 
-由于该基准未收录进 catalog，不存在 `zoo benchmark-run --mode official-validation` 的路由；上述直接导入就是结果归一化入口。
+同样的归一化也可以走 catalog 路由：
+
+```bash
+worldfoundry-eval zoo benchmark-run --benchmark-id stevo-bench --mode official-validation \
+  --official-results-path /path/to/runs/<output_map_stem> \
+  --output-dir tmp/stevo_bench/imported --json
+```
 
 ## 输出
 
@@ -114,8 +120,7 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
 
 ## 本集成不能声称的边界
 
-- **未收录 catalog / 未接入 zoo**：不存在 catalog YAML，`zoo benchmark-run` 无法调度该基准；任何声称已接入 zoo 的说法都不成立。
-- `--run-fixture` 指向 `worldfoundry/data/benchmarks/assets/stevo-bench/sample_run`，该目录 **当前不在仓库内**，随仓库交付的 fixture 路径不可用。
+- `--run-fixture` 指向 `worldfoundry/data/benchmarks/assets/stevo-bench/sample_run`，这是一个合成的 normalizer 验证样例；其中不含任何上游基准任务、视频或 judge 输出。
 - `official_benchmark_verified` 要求真实 official 运行且 comparability blocker 为零；结果导入始终是 `normalizer_only`。`leaderboard_valid` 恒为 `false`——leaderboard 提交需要用官方 ensemble 设置评完整的 225 任务划分。
 - 有 judge 的运行依赖远程 VLM provider（默认 Gemini）及其 API key；不存在离线 judge。
 - 任务覆盖不全、由文件名派生的 output map、ensemble 小于 3，都会被如实写进 scorecard 的 blocker 列表而非隐藏。

@@ -13,7 +13,7 @@ WorldFoundry vendors the upstream evaluator so `--run-official` executes the off
 - Metric extraction/aggregation: `worldfoundry/evaluation/tasks/execution/runners/stevo_bench/stevo_bench_metrics.py`
 - Vendored read-only runtime: `worldfoundry/evaluation/tasks/execution/runners/stevo_bench/runtime/stevo_bench/` (`eval/eval_cli.py`, `eval/summarize_results.py`, MIT, pinned `680fb6ee2733…`)
 
-**Catalog status: not cataloged.** There is no `worldfoundry/data/benchmarks/catalog/**/stevo-bench.yaml` entry and the benchmark is not registered with the workspace/zoo dispatch, so `worldfoundry-eval zoo benchmark-run --benchmark-id stevo-bench` is **not available**; use the direct runner commands below.
+**Catalog status: cataloged.** The catalog entry lives at `worldfoundry/data/benchmarks/catalog/video/stevo-bench.yaml` and the benchmark is part of the formal hub inventory, so `worldfoundry-eval zoo benchmark-run --benchmark-id stevo-bench` dispatches this runner (`--mode official-run` for judged runs, `--mode official-validation` for result imports). The direct runner commands below remain equivalent.
 
 Official references:
 
@@ -102,7 +102,13 @@ PYTHONPATH=. "${WORLDFOUNDRY_UNIFIED_PYTHON:-python}" \
   --json
 ```
 
-Because the benchmark is not cataloged, there is no `zoo benchmark-run --mode official-validation` route; this direct import is the result-normalization surface.
+The same normalization is available through the catalog route:
+
+```bash
+worldfoundry-eval zoo benchmark-run --benchmark-id stevo-bench --mode official-validation \
+  --official-results-path /path/to/runs/<output_map_stem> \
+  --output-dir tmp/stevo_bench/imported --json
+```
 
 ## Outputs
 
@@ -114,8 +120,7 @@ Because the benchmark is not cataloged, there is no `zoo benchmark-run --mode of
 
 ## What this integration does not claim
 
-- **Not cataloged / not zoo-wired**: no catalog YAML exists and `zoo benchmark-run` cannot dispatch this benchmark; all claims about zoo integration would be false.
-- `--run-fixture` points at `worldfoundry/data/benchmarks/assets/stevo-bench/sample_run`, which is **not currently present** in the repository, so the fixture path is unavailable as shipped.
+- `--run-fixture` points at `worldfoundry/data/benchmarks/assets/stevo-bench/sample_run`, a synthetic normalizer-validation sample; it contains no upstream benchmark tasks, videos, or judge outputs.
 - `official_benchmark_verified` requires a real official run with zero comparability blockers; result imports are always `normalizer_only`. `leaderboard_valid` is always `false` — leaderboard submission requires the complete 225-task split judged with the official ensemble settings.
 - Judged runs depend on a remote VLM provider (Gemini by default) and its API key; no offline judge exists.
 - Partial task coverage, filename-derived output maps, and sub-3 ensembles are all explicitly recorded as blockers in the scorecard rather than hidden.
