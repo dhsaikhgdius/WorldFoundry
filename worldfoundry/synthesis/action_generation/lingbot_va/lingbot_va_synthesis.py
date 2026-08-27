@@ -9,6 +9,7 @@ from typing import Any, Mapping, Sequence
 
 from worldfoundry.evaluation.models.runtime.profiles import load_runtime_profile
 from worldfoundry.core.io.paths import project_root
+from worldfoundry.core.process import terminate_process_tree
 from worldfoundry.synthesis.action_generation.runtime_config import load_vla_va_wam_runtime_config
 from ..base_action_synthesis import ActionModelSynthesis
 from worldfoundry.synthesis.action_generation.lingbot_va.runtime import (
@@ -243,15 +244,10 @@ class LingBotVASynthesis(ActionModelSynthesis):
         if process is None or process.poll() is not None:
             # If the process is None or has already exited, do nothing.
             return
-        # Attempt to gracefully terminate the process.
-        process.terminate()
-        try:
-            # Wait for the process to exit after termination.
-            process.wait(timeout=20)
-        except subprocess.TimeoutExpired:
-            # If it doesn't exit within the timeout, forcefully kill it.
-            process.kill()
-            process.wait(timeout=20)  # Wait again for the killed process.
+        # The server runs under torchrun, which forks per-rank workers;
+        # terminate the whole tree (terminate -> bounded wait -> kill) so no
+        # GPU-holding rank outlives the launcher.
+        terminate_process_tree(process, grace_seconds=20.0)
 
     @staticmethod
     def _select_observation(kwargs: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -407,17 +403,33 @@ class LingBotVASynthesis(ActionModelSynthesis):
             if auto_start_server:
                 # Open a log file for the server process.
                 server_log_handle = server_log_path.open("a", encoding="utf-8")
-                # Launch the LingBot-VA server as a subprocess.
-                server_process = subprocess.Popen(
-                    server_command,
-                    # Run from the repository root so the fully qualified
-                    # WorldFoundry module resolves without PYTHONPATH surgery.
-                    cwd=str(project_root()),
-                    env=self._server_env(wait_timeout_seconds),
-                    stdout=server_log_handle,
-                    stderr=subprocess.STDOUT,  # Redirect stderr to stdout for combined logging.
-                    text=True,  # Ensure output is treated as text.
-                )
+                # Managed-helper exemption (ET-07): this launches the
+                # long-lived LingBot-VA inference server, which must stay up
+                # while the websocket client below performs inference (same
+                # class of exemption as the Studio workspace_app/frontends
+                # servers).  run_logged_subprocess blocks until the child
+                # exits and imposes a wall-clock timeout, so a bare Popen
+                # with an explicit argv (built by build_server_command, no
+                # shell) and stdout/stderr appended to the run's server log
+                # is intentional.  Lifecycle is owned by _stop_server_process
+                # in the finally block, which escalates terminate -> bounded
+                # wait -> kill across the torchrun process tree.
+                try:
+                    server_process = subprocess.Popen(
+                        server_command,
+                        # Run from the repository root so the fully qualified
+                        # WorldFoundry module resolves without PYTHONPATH surgery.
+                        cwd=str(project_root()),
+                        env=self._server_env(wait_timeout_seconds),
+                        stdout=server_log_handle,
+                        stderr=subprocess.STDOUT,  # Redirect stderr to stdout for combined logging.
+                        text=True,  # Ensure output is treated as text.
+                    )
+                except OSError as error:
+                    raise RuntimeError(
+                        f"Failed to launch the LingBot-VA server ({server_command[0]!r}): {error}. "
+                        f"Check the launcher executable and the server log at {server_log_path}."
+                    ) from error
             # Call the runtime's predict_action method to perform inference.
             result = self._runtime_for(runtime_config).predict_action(
                 observation=observation,
