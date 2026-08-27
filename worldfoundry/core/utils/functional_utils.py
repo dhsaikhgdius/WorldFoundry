@@ -12,7 +12,6 @@ import collections.abc
 import functools
 import inspect
 import pprint
-import types
 import warnings
 from typing import Any, Dict, Literal
 
@@ -237,88 +236,13 @@ class NoopContext:
         pass
 
 
-def make_registry_metaclass(class_name):
-    """
-    LEGACY (vendored): do not use for new registries. Duplicate names are
-    silently overwritten (last registration wins), unlike
-    ``worldfoundry.core.registry.TypedRegistry`` which raises -- prefer that
-    for new code.
-
-    Usage:
-
-      TrainerRegistry = make_registry_metaclass('TrainerRegistry')
-
-      class BaseTrainer(metaclass=TrainerRegistry):
-          pass
-
-      class MyTrainer(BaseTrainer):
-          pass
-
-      TrainerRegistry['MyTrainer'] -> MyTrainer class  # syntax enabled by metaclass
-      TrainerRegistry.get_class('MyTrainer')  # same as above
-      TrainerRegistry.registry -> full dict of {name: trainer_class}
-
-    Templated definition:
-        class TrainerRegistry(type):
-            registry = {}
-
-            def __new__(cls, name, bases, attr):
-                new_cls = super().__new__(cls, name, bases, attr)
-                TrainerRegistry.registry[name] = new_cls
-                return new_cls
-
-            def get_class(cls, name):
-                if name not in cls.registry:
-                    raise KeyError(
-                        f"Trainer class {name} not found in registry: "
-                        f"{pprint.pformat(cls.registry)}"
-                    )
-                return cls.registry[name]"""
-
-    def new__(cls, name, bases, attr):
-        """
-        Change the attr dict to dynamically add methods and attributes
-        """
-        new_cls = type.__new__(cls, name, bases, attr)
-        cls.registry[name] = new_cls
-        return new_cls
-
-    def get_class(cls, name):
-        if name not in cls.registry:
-            existing_cls = list(cls.registry.keys())
-            raise KeyError(f"{class_name} class '{name}' not found in registry: {existing_cls}")
-        return cls.registry[name]
-
-    def instantiate(cls_, cls, **kwargs):
-        Cls = cls_.get_class(cls)
-        return Cls(**kwargs)
-
-    class _BracketOperator(type):
-        def __getitem__(cls, name):
-            return get_class(cls, name)
-
-    return types.new_class(
-        class_name,
-        bases=(type,),
-        kwds={"metaclass": _BracketOperator},
-        exec_body=lambda ns: ns.update(
-            {
-                "registry": {},
-                "__new__": new__,
-                "get_class": classmethod(get_class),
-                "instantiate": classmethod(instantiate),
-            }
-        ),
-    )
-
-
 class ClassRegistry:
     """
     LEGACY (vendored): duplicate names are silently overwritten; prefer
     ``worldfoundry.core.registry.TypedRegistry`` for new code.
 
-    May be a preferred way over make_registry_metaclass if your code does not support
-    metaclass well, e.g. pickle or Ray
+    Works without metaclasses, so it stays compatible with code that does not
+    support them well, e.g. pickle or Ray
 
     Use in conjunction with `__init_subclass__` hook in your base class
 
