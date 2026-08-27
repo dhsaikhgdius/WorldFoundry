@@ -13,7 +13,8 @@ import platform
 import shutil
 import subprocess
 import sys
-from collections.abc import MutableMapping, Sequence
+import warnings
+from collections.abc import Iterator, MutableMapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -27,6 +28,7 @@ from worldfoundry.core.io.paths import (
     local_data_root_path,
     local_model_root_path,
 )
+from worldfoundry.runtime.jobs import run_bounded_command
 
 EnvMapping = TypingMapping[str, str]
 
@@ -54,6 +56,76 @@ RUNTIME_ENV_KEYS = (
     "CUDA_VISIBLE_DEVICES",
     "CONDA_DEFAULT_ENV",
     "VIRTUAL_ENV",
+)
+# Kernel autotune switches and tuning knobs (core/kernels).
+#
+# Naming note (plan/code_review/12_cross_cutting.md [XC-9]): the boolean
+# switches use the ``_ENABLED`` suffix as their canonical names; the
+# suffix-less ``WORLDFOUNDRY_KERNEL_AUTOTUNE`` / ``..._AUTOTUNE_CACHE`` names
+# are legacy boolean aliases kept as read fallbacks. Only
+# ``..._AUTOTUNE_CACHE_DIR`` is a filesystem path; ``_ITERS`` / ``_ROUNDS``
+# are integers and ``_REFRESH`` is a boolean.
+KERNEL_ENV_KEYS = (
+    "WORLDFOUNDRY_KERNEL_AUTOTUNE_ENABLED",
+    "WORLDFOUNDRY_KERNEL_AUTOTUNE",  # legacy bool alias of ..._AUTOTUNE_ENABLED
+    "WORLDFOUNDRY_KERNEL_AUTOTUNE_CACHE_ENABLED",
+    "WORLDFOUNDRY_KERNEL_AUTOTUNE_CACHE",  # legacy bool alias of ..._CACHE_ENABLED
+    "WORLDFOUNDRY_KERNEL_AUTOTUNE_CACHE_DIR",  # path, not a switch
+    "WORLDFOUNDRY_KERNEL_AUTOTUNE_REFRESH",
+    "WORLDFOUNDRY_KERNEL_AUTOTUNE_ITERS",
+    "WORLDFOUNDRY_KERNEL_AUTOTUNE_ROUNDS",
+)
+# Studio GPU auto-selection knobs (studio/conda_dispatch.py). The ``WM_*``
+# prefix is legacy pre-WorldFoundry naming ([XC-8]); the canonical
+# ``WORLDFOUNDRY_STUDIO_*`` spelling is preferred and the legacy name is read
+# as a deprecated fallback where noted.
+STUDIO_ENV_KEYS = (
+    "WORLDFOUNDRY_STUDIO_AUTO_CUDA_VISIBLE_DEVICES",
+    "WM_AUTO_CUDA_VISIBLE_DEVICES",  # legacy alias of WORLDFOUNDRY_STUDIO_AUTO_CUDA_VISIBLE_DEVICES
+    "WM_AUTO_GPU_MAX_MEMORY_FRACTION",  # legacy prefix, no canonical alias yet
+    "WM_AUTO_GPU_MAX_UTILIZATION_FRACTION",  # legacy prefix, no canonical alias yet
+    "WM_MATRIXGAME3_CUDA_VISIBLE_DEVICES",  # legacy prefix, no canonical alias yet
+)
+# Training-engine variables read by core/distributed/sequence_parallel/envs.py
+# (vLLM-derived code). The ``TRAINER_*`` prefix is a legacy family ([XC-8]);
+# it is registered here for documentation/redaction coverage without changing
+# the reader module.
+TRAINER_ENV_KEYS = (
+    "TRAINER_TARGET_DEVICE",
+    "TRAINER_USE_PRECOMPILED",
+    "TRAINER_PRECOMPILED_WHEEL_LOCATION",
+    "TRAINER_CONFIG_ROOT",
+    "TRAINER_CACHE_ROOT",
+    "TRAINER_RINGBUFFER_WARNING_INTERVAL",
+    "TRAINER_NCCL_SO_PATH",
+    "TRAINER_TEST_DYNAMO_FULLGRAPH_CAPTURE",
+    "TRAINER_ENGINE_ITERATION_TIMEOUT_S",
+    "TRAINER_CONFIGURE_LOGGING",
+    "TRAINER_LOGGING_CONFIG_PATH",
+    "TRAINER_LOGGING_LEVEL",
+    "TRAINER_LOGGING_PREFIX",
+    "TRAINER_TRACE_FUNCTION",
+    "TRAINER_WORKER_MULTIPROC_METHOD",
+    "TRAINER_TORCH_PROFILER_DIR",
+    "TRAINER_SERVER_DEV_MODE",
+    "TRAINER_STAGE_LOGGING",
+)
+# Checkpoint/asset download tuning (core/checkpoint/load.py).
+DOWNLOAD_ENV_KEYS = (
+    "WORLDFOUNDRY_HF_SHARD_DOWNLOAD_WORKERS",
+)
+# TODO(plan/code_review/12_cross_cutting.md [XC-8]): add a CI check that every
+# WORLDFOUNDRY_* variable read in the self-authored layers is declared here or
+# in a benchmark runtime-profile document. The ~147 bare-name runner variables
+# are intentionally out of scope for this registry slice.
+ALL_DOCUMENTED_ENV_KEYS = (
+    *CORE_ENV_KEYS,
+    *HF_ENV_KEYS,
+    *RUNTIME_ENV_KEYS,
+    *KERNEL_ENV_KEYS,
+    *STUDIO_ENV_KEYS,
+    *TRAINER_ENV_KEYS,
+    *DOWNLOAD_ENV_KEYS,
 )
 _SENSITIVE_MARKERS = ("TOKEN", "API_KEY", "SECRET", "PASSWORD", "CREDENTIAL")
 
@@ -238,6 +310,57 @@ def _is_sensitive_key(name: str) -> bool:
     return any(marker in upper for marker in _SENSITIVE_MARKERS)
 
 
+def iter_documented_env_keys() -> Iterator[str]:
+    """Yield every environment variable name declared in the central registry.
+
+    Consumers (preflight capture, redaction, documentation checks) should use
+    this instead of hand-copying the group tuples so new groups are picked up
+    automatically.
+
+    Args:
+        None.
+    """
+
+    yield from ALL_DOCUMENTED_ENV_KEYS
+
+
+def resolve_env(
+    name: str,
+    *,
+    legacy: Sequence[str] = (),
+    env: EnvMapping | None = None,
+    default: str | None = None,
+) -> str | None:
+    """Resolve a variable by its canonical name with deprecated legacy fallbacks.
+
+    The canonical ``name`` always wins when set (even to an empty string).
+    Otherwise each ``legacy`` alias is tried in order; using one emits a
+    ``DeprecationWarning`` pointing at the canonical spelling
+    (plan/code_review/12_cross_cutting.md [XC-8]).
+
+    Args:
+        name: Canonical environment variable name.
+        legacy: Deprecated alias names in highest-priority-first order.
+        env: Optional environment mapping; defaults to ``os.environ``.
+        default: Fallback value when neither canonical nor legacy names are set.
+    """
+
+    environ = os.environ if env is None else env
+    value = environ.get(name)
+    if value is not None:
+        return value
+    for alias in legacy:
+        value = environ.get(alias)
+        if value is not None:
+            warnings.warn(
+                f"Environment variable {alias!r} is deprecated; set {name!r} instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return value
+    return default
+
+
 def first_env_value(names: Sequence[str], env: EnvMapping | None = None) -> str | None:
     """Return the first non-empty environment value from a priority list.
 
@@ -392,11 +515,12 @@ def redact_env_for_manifest(env: EnvMapping | None = None, keys: Sequence[str] |
 
     Args:
         env: Optional environment mapping; defaults to ``os.environ``.
-        keys: Optional variable names to include instead of the standard public set.
+        keys: Optional variable names to include instead of every registered
+            key from ``ALL_DOCUMENTED_ENV_KEYS``.
     """
 
     environ = os.environ if env is None else env
-    selected_keys = keys or (*CORE_ENV_KEYS, *HF_ENV_KEYS, *RUNTIME_ENV_KEYS)
+    selected_keys = keys or ALL_DOCUMENTED_ENV_KEYS
     redacted: dict[str, Any] = {}
     for key in selected_keys:
         value = environ.get(key)
@@ -513,18 +637,16 @@ def _run_command(argv: Sequence[str]) -> str | None:
     if shutil.which(argv[0]) is None:
         return None
     try:
-        completed = subprocess.run(
-            list(argv),
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
+        completed = run_bounded_command(list(argv), timeout=5)
     except (OSError, subprocess.SubprocessError):
-        # Diagnostics must degrade gracefully: a hung nvidia-smi (dead driver)
-        # or unexecutable binary should not crash the preflight report.
+        # Diagnostics must degrade gracefully: an unexecutable binary should
+        # not crash the preflight report.
         return None
-    output = completed.stdout.strip() or completed.stderr.strip()
+    if completed["timed_out"]:
+        # A hung nvidia-smi (dead driver) degrades to "no output", matching the
+        # previous TimeoutExpired handling.
+        return None
+    output = completed["stdout"].strip() or completed["stderr"].strip()
     return output or None
 
 

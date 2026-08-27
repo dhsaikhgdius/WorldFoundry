@@ -49,6 +49,7 @@ from worldfoundry.runtime.device_pool import (
 from worldfoundry.runtime.env import (
     apply_hf_endpoint_override,
     resolve_ckpt_dir,
+    resolve_env,
     resolve_hf_cache_dir,
     resolve_hfd_root,
 )
@@ -1058,7 +1059,12 @@ def _parse_nvidia_smi_rows() -> list[dict[str, float]]:
 def _select_wmfactory_visible_devices(num_devices: int | None = None) -> str:
     """Pick idle GPUs for WMFactory-style models using nvidia-smi heuristics."""
     requested = None if num_devices is None else max(int(num_devices or 1), 1)
-    if os.getenv("WM_AUTO_CUDA_VISIBLE_DEVICES", "1") != "1":
+    auto_select = resolve_env(
+        "WORLDFOUNDRY_STUDIO_AUTO_CUDA_VISIBLE_DEVICES",
+        legacy=("WM_AUTO_CUDA_VISIBLE_DEVICES",),
+        default="1",
+    )
+    if auto_select != "1":
         return ""
 
     try:

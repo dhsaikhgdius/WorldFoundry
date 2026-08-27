@@ -120,6 +120,47 @@ env 文件。这个文件应保留在本机；里面是路径，不应包含密�
 `snapshot_download` 和标准 HF cache 变量。`WORLDFOUNDRY_CKPT_DIR` 用于上游
 runtime 需要固定目录布局的情况，或用软链保持官方路径而不重复复制大文件。
 
+### 已注册环境变量
+
+`worldfoundry/runtime/env.py` 是公开环境变量的中心注册表。除上面的 core 路径、
+Hugging Face 与 runtime 组之外，注册表还声明了以下分组；preflight 采集与
+manifest 脱敏覆盖所有已注册名字（`ALL_DOCUMENTED_ENV_KEYS` /
+`iter_documented_env_keys()`）。
+
+**Kernel autotune（`KERNEL_ENV_KEYS`）** — 布尔开关使用 `_ENABLED` 后缀；
+无后缀写法是遗留布尔别名，保留为读取 fallback。
+
+| 变量 | 用途 | 默认 / 派生 |
+| --- | --- | --- |
+| `WORLDFOUNDRY_KERNEL_AUTOTUNE_ENABLED` | 布尔：启用首次调用时的 eager kernel 测量。遗留别名：`WORLDFOUNDRY_KERNEL_AUTOTUNE`。 | 未设为 truthy 时关闭。 |
+| `WORLDFOUNDRY_KERNEL_AUTOTUNE_CACHE_ENABLED` | 布尔：复用持久化的 autotune 决策。遗留别名：`WORLDFOUNDRY_KERNEL_AUTOTUNE_CACHE`。 | 开启。 |
+| `WORLDFOUNDRY_KERNEL_AUTOTUNE_CACHE_DIR` | 路径（不是开关）：持久化 autotune cache 目录。 | `${WORLDFOUNDRY_COMPILE_CACHE_DIR}/kernel-autotune`。 |
+| `WORLDFOUNDRY_KERNEL_AUTOTUNE_REFRESH` | 布尔：忽略已持久化的选择并重新测量。 | 关闭。 |
+| `WORLDFOUNDRY_KERNEL_AUTOTUNE_ITERS` / `..._ROUNDS` | 整数：测量迭代数与轮数。 | `5` / `3`。 |
+
+**Studio GPU 自动选择（`STUDIO_ENV_KEYS`）** — `WM_*` 前缀是遗留命名；
+存在规范 `WORLDFOUNDRY_STUDIO_*` 写法时，遗留名仍可用但会触发
+`DeprecationWarning`。
+
+| 变量 | 用途 | 默认 / 派生 |
+| --- | --- | --- |
+| `WORLDFOUNDRY_STUDIO_AUTO_CUDA_VISIBLE_DEVICES` | `1` 开启 Studio dispatch 的空闲 GPU 自动选择；其他值关闭。遗留别名：`WM_AUTO_CUDA_VISIBLE_DEVICES`。 | `1`。 |
+| `WM_AUTO_GPU_MAX_MEMORY_FRACTION` | 浮点：GPU 判定为空闲的已用显存比例上限（遗留前缀）。 | `0.5`。 |
+| `WM_AUTO_GPU_MAX_UTILIZATION_FRACTION` | 浮点：GPU 判定为空闲的利用率上限（遗留前缀）。 | `0.5`。 |
+| `WM_MATRIXGAME3_CUDA_VISIBLE_DEVICES` | Matrix-Game 3 dispatch 的显式设备列表覆盖（遗留前缀）。 | 未设置。 |
+
+**训练引擎（`TRAINER_ENV_KEYS`）** — `worldfoundry/core/distributed/sequence_parallel/envs.py`
+（vLLM 派生代码）读取的 `TRAINER_*` 家族。注册用于文档与脱敏覆盖；各变量语义与
+默认值见该模块（`TRAINER_TARGET_DEVICE`、`TRAINER_CACHE_ROOT`、
+`TRAINER_CONFIG_ROOT`、`TRAINER_LOGGING_*`、`TRAINER_TORCH_PROFILER_DIR`、
+`TRAINER_WORKER_MULTIPROC_METHOD` 及其余安装/运行时开关）。
+
+**下载（`DOWNLOAD_ENV_KEYS`）**
+
+| 变量 | 用途 | 默认 / 派生 |
+| --- | --- | --- |
+| `WORLDFOUNDRY_HF_SHARD_DOWNLOAD_WORKERS` | 整数：Hugging Face checkpoint 分片并行下载 worker 上限。 | `min(32, max(4, 2 × CPU 数))`，且不超过分片数。 |
+
 ### 编译器缓存
 
 `worldfoundry.runtime.compile_cache` 会在每个进程内配置一次持久化的
