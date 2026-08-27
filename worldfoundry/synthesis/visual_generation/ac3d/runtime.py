@@ -4,7 +4,6 @@ import argparse
 import json
 import os
 import shutil
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -16,6 +15,8 @@ import numpy as np
 from worldfoundry.core.io import file_sha256
 from worldfoundry.core.io.paths import checkpoint_root_path, project_root
 from worldfoundry.core.io.video import materialize_video_input
+from worldfoundry.core.process import read_text_tail, run_logged_subprocess
+from worldfoundry.runtime.jobs import run_bounded_command
 
 DEFAULT_AC3D_REPO_ID = "snap-research/ac3d"
 DEFAULT_COGVIDEOX_2B_REPO = "THUDM/CogVideoX-2b"
@@ -168,7 +169,9 @@ def _decodable_video_frame_count(video_path: Path, *, stop_at: int) -> int:
 
     ffprobe = shutil.which("ffprobe")
     if ffprobe:
-        probe = subprocess.run(
+        # ``-count_frames`` decodes the whole clip, so bound the probe instead
+        # of letting a corrupt input hang dataset staging indefinitely.
+        probe = run_bounded_command(
             [
                 ffprobe,
                 "-v",
@@ -182,13 +185,11 @@ def _decodable_video_frame_count(video_path: Path, *, stop_at: int) -> int:
                 "json",
                 str(video_path),
             ],
-            check=False,
-            capture_output=True,
-            text=True,
+            timeout=300,
         )
-        if probe.returncode == 0:
+        if probe["returncode"] == 0:
             try:
-                stream = json.loads(probe.stdout)["streams"][0]
+                stream = json.loads(probe["stdout"])["streams"][0]
                 for field in ("nb_read_frames", "nb_frames"):
                     value = str(stream.get(field, ""))
                     if value.isdigit():
@@ -560,19 +561,22 @@ class AC3DRuntime:
             raise FileNotFoundError(f"AC3D video_root_dir does not exist: {options['video_root_dir']}")
 
         command = self._command(output_dir, prompt, options)
-        stdout = None if show_progress else subprocess.DEVNULL
-        stderr = None if show_progress else subprocess.STDOUT
-        try:
-            subprocess.run(
-                command,
-                check=True,
-                cwd=self.runtime_root,
-                env=self._subprocess_env(),
-                stdout=stdout,
-                stderr=stderr,
+        stdout_log_path = output_dir / "ac3d.stdout.log"
+        stderr_log_path = output_dir / "ac3d.stderr.log"
+        completed = run_logged_subprocess(
+            command,
+            stdout_path=stdout_log_path,
+            stderr_path=stderr_log_path,
+            cwd=self.runtime_root,
+            env=self._subprocess_env(),
+            start_new_session=False,
+        )
+        if completed.returncode != 0:
+            tail = read_text_tail(stderr_log_path)
+            raise RuntimeError(
+                "AC3D generation failed. Check runtime dependencies, dataset paths, and GPU memory. "
+                f"Exit code {completed.returncode}; see {stdout_log_path} and {stderr_log_path}.\n{tail}"
             )
-        except subprocess.CalledProcessError as error:
-            raise RuntimeError("AC3D generation failed. Check runtime dependencies, dataset paths, and GPU memory.") from error
 
         start_idx = int(options["start_camera_idx"])
         generated_path = output_dir / f"{start_idx:05d}_out.mp4"
@@ -602,6 +606,8 @@ class AC3DRuntime:
             "runtime": "worldfoundry.ac3d.official_in_tree_runtime",
             "backend_quality": "official_in_tree_runtime",
             "runtime_plan": plan,
+            "log_path": str(stdout_log_path),
+            "stderr_log_path": str(stderr_log_path),
         }
         if return_dict:
             return result

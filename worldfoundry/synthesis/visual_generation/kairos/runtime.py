@@ -22,8 +22,9 @@ from typing import Any, Mapping, Sequence
 import imageio.v3 as iio
 import numpy as np
 
-from worldfoundry.core.io.paths import checkpoint_root_path, project_root as resolve_project_root
-
+from worldfoundry.core.io.paths import checkpoint_root_path
+from worldfoundry.core.io.paths import project_root as resolve_project_root
+from worldfoundry.core.process import run_logged_subprocess
 
 DEFAULT_NEGATIVE_PROMPT = (
     "bright tones, overexposed, static, blurred details, subtitles, style, works, paintings, images, static, "
@@ -544,7 +545,7 @@ class KairosRuntime:
         path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
         return path
 
-    def _run_manage_libs(self, env: dict[str, str]) -> None:
+    def _run_manage_libs(self, env: dict[str, str], log_dir: Path) -> None:
         """
         Executes the Kairos `manage_libs.py` script to handle third-party library dependencies.
 
@@ -553,16 +554,21 @@ class KairosRuntime:
 
         Args:
             env: The environment variables to pass to the subprocess.
+            log_dir: Directory that receives the manage_libs stdout/stderr captures.
         """
         manage_libs = Path(self.runtime_root) / "kairos" / "manage_libs.py"
         if not manage_libs.is_file():
             raise FileNotFoundError(f"Kairos manage_libs.py not found: {manage_libs}")
-        subprocess.run(
+        completed = run_logged_subprocess(
             [self.python_executable, str(manage_libs)],
-            check=True,
+            stdout_path=log_dir / "manage_libs.stdout.log",
+            stderr_path=log_dir / "manage_libs.stderr.log",
             cwd=self.runtime_root,
             env=env,
+            start_new_session=False,
         )
+        # Preserve the previous check=True contract (CalledProcessError on failure).
+        completed.check_returncode()
 
     def _command(self, input_json: Path, config_path: Path, options: Mapping[str, Any]) -> list[str]:
         """
@@ -663,12 +669,16 @@ class KairosRuntime:
 
             # Run `manage_libs.py` if enabled in options to ensure dependencies are set up
             if _as_bool(options.get("run_manage_libs", True)):
-                self._run_manage_libs(env)
+                self._run_manage_libs(env, temp_dir)
 
             # Construct the full command for `torchrun`
             command = self._command(input_json, config_path, options)
 
-            # Execute the Kairos inference script as a subprocess
+            # Managed-helper exemption (ET-07): this launcher consumes the
+            # child's merged stdout incrementally, streaming each line to the
+            # operator console while keeping a bounded in-memory tail for the
+            # failure message. run_logged_subprocess only streams to files, so
+            # the pipe-consuming Popen below is intentional.
             process = subprocess.Popen(
                 command,
                 cwd=str(self.runtime_root),

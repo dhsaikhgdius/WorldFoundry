@@ -4,13 +4,13 @@ import importlib
 import json
 import os
 import shutil
-import subprocess
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping
 
 from worldfoundry.core.io.paths import project_root
+from worldfoundry.core.process import run_logged_subprocess
 from worldfoundry.evaluation.models.runtime.profiles import load_runtime_profile
 from worldfoundry.runtime.assets import expand_worldfoundry_path
 
@@ -738,18 +738,16 @@ class WorldModelRuntimeSynthesis(BaseSynthesis):
 
         command = self._command(output_path=output, prompt=prompt, plan_path=plan_path)
         log_path = output.with_suffix(output.suffix + ".log")
-        completed = subprocess.run(
+        stderr_log_path = output.with_suffix(output.suffix + ".stderr.log")
+        completed = run_logged_subprocess(
             command,
+            stdout_path=log_path,
+            stderr_path=stderr_log_path,
             cwd=str(self.runtime_root),
             env=self._subprocess_env(output_path=output, prompt=prompt, plan_path=plan_path),
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
             timeout=int(kwargs.pop("timeout_seconds", 21600)),
-            check=False,
+            start_new_session=False,
         )
-        log_path.parent.mkdir(parents=True, exist_ok=True)
-        log_path.write_text(completed.stdout or "", encoding="utf-8")
         if completed.returncode != 0:
             return {
                 "status": "failed",
@@ -759,8 +757,15 @@ class WorldModelRuntimeSynthesis(BaseSynthesis):
                 "backend_quality": "official_entrypoint_failed",
                 "artifact_path": str(output),
                 "plan_path": str(plan_path),
-                "error": f"official entrypoint exited with code {completed.returncode}; see {log_path}",
-                "metadata": {"command": command, "log_path": str(log_path)},
+                "error": (
+                    f"official entrypoint exited with code {completed.returncode}; "
+                    f"see {log_path} and {stderr_log_path}"
+                ),
+                "metadata": {
+                    "command": command,
+                    "log_path": str(log_path),
+                    "stderr_log_path": str(stderr_log_path),
+                },
             }
         produced = self._resolve_produced_artifact(output)
         if produced is None:
@@ -773,7 +778,11 @@ class WorldModelRuntimeSynthesis(BaseSynthesis):
                 "artifact_path": str(output),
                 "plan_path": str(plan_path),
                 "error": f"official entrypoint completed but no artifact was found at or near {output}",
-                "metadata": {"command": command, "log_path": str(log_path)},
+                "metadata": {
+                    "command": command,
+                    "log_path": str(log_path),
+                    "stderr_log_path": str(stderr_log_path),
+                },
             }
         if produced != output:
             output.parent.mkdir(parents=True, exist_ok=True)
@@ -791,6 +800,7 @@ class WorldModelRuntimeSynthesis(BaseSynthesis):
                 "entrypoint": str(self.entrypoint) if self.entrypoint is not None else None,
                 "command": command,
                 "log_path": str(log_path),
+                "stderr_log_path": str(stderr_log_path),
             },
         }
 
