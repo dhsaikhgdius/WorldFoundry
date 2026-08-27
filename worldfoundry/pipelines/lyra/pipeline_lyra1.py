@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from ..pipeline_utils import PipelineABC
-import tempfile
 from pathlib import Path
 from typing import Any, Dict, Optional, Sequence, Union
 
 import torch
 
+from ...core.io.scratch import make_scratch_dir
 from ...synthesis.visual_generation.memory.stream import VisualFrameMemory
 from ...operators.lyra1_operator import Lyra1Operator
 from ...representations.point_clouds_generation.lyra.lyra1_representation import (
@@ -169,8 +169,8 @@ class Lyra1Pipeline(PipelineABC):
             generated_root = output_root / "generated"
             reconstruction_root = output_root / "reconstruction"
         else:
-            generated_root = Path(tempfile.mkdtemp(prefix=f"lyra1_{mode}_generated_"))
-            reconstruction_root = Path(tempfile.mkdtemp(prefix=f"lyra1_{mode}_recon_"))
+            generated_root = make_scratch_dir(prefix=f"lyra1_{mode}_generated_")
+            reconstruction_root = make_scratch_dir(prefix=f"lyra1_{mode}_recon_")
 
         synthesis_kwargs = dict(kwargs)
         multi_trajectory = bool(synthesis_kwargs.pop("multi_trajectory", reconstruct_3d))
