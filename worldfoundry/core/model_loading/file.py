@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import logging
 import os
 import pickle
 from typing import Any
@@ -19,6 +20,8 @@ from worldfoundry.core.io.storage import (
     read_text_uri,
 )
 
+logger = logging.getLogger(__name__)
+
 
 def load_state_dict(file_path, torch_dtype=None, device="cpu", pin_memory=False, verbose=0):
     """Load checkpoint weights from one path, many paths, a folder, or an index.
@@ -29,7 +32,8 @@ def load_state_dict(file_path, torch_dtype=None, device="cpu", pin_memory=False,
         torch_dtype: Optional dtype conversion applied to tensor values.
         device: Device used while deserializing weights; CPU is the safe default.
         pin_memory: Pin CPU tensors after loading to accelerate a later GPU copy.
-        verbose: Print start/finish messages when at least ``1``.
+        verbose: Log start/finish messages at INFO when at least ``1``
+            (DEBUG otherwise).
 
     Returns:
         Flat state-dict mapping parameter names to tensors or checkpoint values.
@@ -45,8 +49,8 @@ def load_state_dict(file_path, torch_dtype=None, device="cpu", pin_memory=False,
             state_dict.update(load_state_dict(file_path_, torch_dtype, device, pin_memory=pin_memory, verbose=verbose))
     else:
         file_path = str(file_path)
-        if verbose >= 1:
-            print(f"Loading file [started]: {file_path}")
+        progress_level = logging.INFO if verbose >= 1 else logging.DEBUG
+        logger.log(progress_level, "Loading file [started]: %s", file_path)
         if is_dir_uri(file_path):
             state_dict = load_state_dict_from_folder(
                 file_path, torch_dtype=torch_dtype, device=device, pin_memory=False, verbose=verbose
@@ -61,8 +65,7 @@ def load_state_dict(file_path, torch_dtype=None, device="cpu", pin_memory=False,
         if pin_memory:
             for i in state_dict:
                 state_dict[i] = state_dict[i].pin_memory()
-        if verbose >= 1:
-            print(f"Loading file [done]: {file_path}")
+        logger.log(progress_level, "Loading file [done]: %s", file_path)
     return state_dict
 
 
@@ -305,7 +308,12 @@ def search_parameter(param, state_dict, *, atol=1e-3):
 
 
 def build_rename_dict(source_state_dict, target_state_dict, split_qkv=False):
-    """Print parameter-key matches between two state dicts for conversion scripts."""
+    """Print parameter-key matches between two state dicts for conversion scripts.
+
+    The ``print`` output is intentional: stdout lines are meant to be pasted
+    into loader-conversion scripts, so this stays on ``print`` rather than
+    ``logging``.
+    """
 
     matched_keys = set()
     with torch.no_grad():
