@@ -1,4 +1,5 @@
 import copy
+import logging
 from typing import Union
 
 import torch
@@ -6,6 +7,8 @@ import torch
 from ..device import IS_NPU_AVAILABLE, get_device_name, parse_device_type
 from .disk_map import DiskMap
 from .initialization import init_weights_on_device, skip_model_initialization
+
+logger = logging.getLogger(__name__)
 
 _FLOAT8_DTYPES = tuple(
     dtype
@@ -759,8 +762,11 @@ def fill_vram_config(model, vram_config):
     vram_config_["preparing_device"] = vram_config["computation_device"]
     for k in vram_config:
         if vram_config[k] != vram_config_[k]:
-            print(
-                f"No fine-grained VRAM configuration is provided for {model.__class__.__name__}. [`onload`, `preparing`, `computation`] will be the same state. `vram_config` is set to {vram_config_}"
+            logger.info(
+                "No fine-grained VRAM configuration is provided for %s. "
+                "[`onload`, `preparing`, `computation`] will be the same state. `vram_config` is set to %s",
+                model.__class__.__name__,
+                vram_config_,
             )
             break
     return vram_config_
