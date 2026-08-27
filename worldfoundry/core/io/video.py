@@ -13,6 +13,7 @@ from typing import Any, Iterable, Optional
 from worldfoundry.core.process import run_logged_subprocess
 
 from .media import IMAGE_EXTENSIONS, VIDEO_EXTENSIONS
+from .scratch import make_scratch_dir
 from .storage import local_path_for_uri, parse_uri_scheme, uri_to_local_path, write_binary_uri
 
 
@@ -756,7 +757,13 @@ def materialize_video_input(
     filename: str = "input.mp4",
     fps: int = 24,
 ) -> str:
-    """Return a local video path, materializing in-memory inputs when needed."""
+    """Return a local video path, materializing in-memory inputs when needed.
+
+    When ``output_dir`` is omitted, the video is written to a scratch
+    directory under ``${WORLDFOUNDRY_CACHE_DIR}/scratch/`` that is removed
+    (best-effort) at interpreter exit. Callers that need the materialized
+    file to outlive the process must pass an explicit ``output_dir``.
+    """
 
     import os
 
@@ -771,7 +778,7 @@ def materialize_video_input(
             return str(candidate.resolve())
 
     if output_dir is None:
-        output_dir = tempfile.mkdtemp(prefix="worldfoundry_video_")
+        output_dir = make_scratch_dir(prefix="worldfoundry_video_")
     output_path = Path(output_dir).expanduser().resolve() / filename
     frames = coerce_video_frames(video_input)
     save_video_frames(frames, str(output_path), fps=fps)
