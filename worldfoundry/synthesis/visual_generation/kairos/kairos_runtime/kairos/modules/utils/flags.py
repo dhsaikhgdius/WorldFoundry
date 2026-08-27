@@ -1,34 +1,33 @@
 import os
-import torch
 import subprocess
+
+import torch
+
+from worldfoundry.runtime.jobs import run_bounded_command
+
+# These vendor probes run at module import time, so a wedged smi tool must
+# never hang the interpreter: run_bounded_command launches the probe in its
+# own process group with hard-kill escalation, and a timed-out probe is
+# treated as "vendor not detected" (matching the old TimeoutExpired -> pass
+# behavior) instead of being matched on partial output.
+_SMI_PROBE_TIMEOUT_SECONDS = 3
+
 
 def detectplat_device_gpu_vendor():
     try:
-        result = subprocess.run(
-            ["mx-smi"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            timeout=3
-        )
-        output = result.stdout + result.stderr
+        result = run_bounded_command(["mx-smi"], timeout=_SMI_PROBE_TIMEOUT_SECONDS)
+        output = result["stdout"] + result["stderr"]
 
-        if "MetaX" in output:
+        if not result["timed_out"] and "MetaX" in output:
             return "MetaX"
-    except:
+    except (OSError, subprocess.SubprocessError):
         pass
 
     try:
-        result = subprocess.run(
-            ["nvidia-smi"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            timeout=3
-        )
-        if "NVIDIA" in result.stdout:
+        result = run_bounded_command(["nvidia-smi"], timeout=_SMI_PROBE_TIMEOUT_SECONDS)
+        if not result["timed_out"] and "NVIDIA" in result["stdout"]:
             return "NVIDIA"
-    except:
+    except (OSError, subprocess.SubprocessError):
         pass
 
     return "Unknown"
