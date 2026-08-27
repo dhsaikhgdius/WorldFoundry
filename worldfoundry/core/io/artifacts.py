@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import List, Literal, Optional, Sequence
 
 import cv2
@@ -9,6 +10,8 @@ import numpy as np
 from PIL import Image
 
 from worldfoundry.core.geometry import rotation_matrix_to_euler_angles_opencv
+
+logger = logging.getLogger(__name__)
 
 COLORMAP_VIRIDIS = "viridis"
 COLORMAP_INFERNO = "inferno"
@@ -255,7 +258,6 @@ def download_file_from_url(
     ``worldfoundry.core.io.download.download_to_cache`` for new code (atomic
     rename plus validation).
     """
-    import logging
     import os
 
     import requests
@@ -273,7 +275,7 @@ def download_file_from_url(
             os.remove(filename)
         except OSError:
             pass
-        logging.getLogger(__name__).warning("Error downloading %s to %s: %s", url, filename, exc)
+        logger.warning("Error downloading %s to %s: %s", url, filename, exc)
         return None
 
 
@@ -751,8 +753,8 @@ def process_game_control_video(
                 if mouse_icon is not None:
                     overlay_rgba_icon(frame, mouse_icon, mouse_position, scale=mouse_scale, rotation=mouse_rotation)
         out_video.append(frame / 255)
-        print(f"Processing frame {frame_idx + 1}/{frame_count}", end="\r")
-    print("\nProcessing complete!")
+        logger.debug("Processing frame %d/%d", frame_idx + 1, frame_count)
+    logger.info("Processed %d game-control frames", frame_count)
     return out_video
 
 

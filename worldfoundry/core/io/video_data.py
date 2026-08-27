@@ -7,6 +7,7 @@ here load frames on demand as PIL images and write PIL frame sequences.
 
 from __future__ import annotations
 
+import logging
 import os
 import shutil
 from pathlib import Path
@@ -16,6 +17,8 @@ from PIL import Image
 from tqdm import tqdm
 
 from worldfoundry.core.process import run_logged_subprocess
+
+logger = logging.getLogger(__name__)
 
 
 class LowMemoryVideo:
@@ -226,7 +229,7 @@ def merge_video_audio(video_path: str, audio_path: str) -> None:
             err = stderr_path.read_text(encoding="utf-8", errors="replace") if stderr_path.is_file() else ""
             raise RuntimeError(f"FFmpeg execute failed: {err}")
         shutil.move(temp_output, video_path)
-        print(f"Merge completed, saved to {video_path}")
+        logger.info("Merge completed, saved to %s", video_path)
     finally:
         if os.path.exists(temp_output):
             os.remove(temp_output)
