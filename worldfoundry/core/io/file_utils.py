@@ -691,6 +691,13 @@ def next_available_file_name(
         relied on a CPython <= 3.12 implementation detail that PEP 667
         (Python 3.13) removes, and its ``shlex.quote`` wrapping broke on
         templates containing single quotes.
+
+        Trust boundary: placeholders are evaluated as Python expressions
+        (with ``__builtins__`` emptied as hardening, not a sandbox), so
+        ``suffix_template`` must be a trusted, code-authored template --
+        never user/external input. TODO(XC-4): switch to ``str.format``
+        once the default ``_v{i+1}`` template (arithmetic in the
+        placeholder, which ``str.format`` cannot express) is migrated.
         """
         import re
 

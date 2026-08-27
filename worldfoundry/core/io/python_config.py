@@ -1,4 +1,15 @@
-"""Lightweight Python config loading helpers."""
+"""Lightweight Python config loading helpers.
+
+Trust boundary: config files and config values must come from trusted
+sources. Loading a ``.py`` config executes it as a Python module, and
+string config values support dynamic evaluation -- ``eval(...)`` values
+and ``${...}`` interpolations are evaluated as Python expressions against
+the config root. As a hardening measure, :func:`_restricted_eval` empties
+``__builtins__`` so a config *value* cannot casually reach ``__import__``
+or other builtins, but this is not a sandbox: the config file itself runs
+arbitrary code at import time, so config authors must still be trusted.
+Never load configs from untrusted input.
+"""
 
 from __future__ import annotations
 
