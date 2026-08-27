@@ -66,6 +66,14 @@ def fstring(fmt_str, **kwargs):
     relied on a CPython <= 3.12 implementation detail that PEP 667
     (Python 3.13) removes, and its ``shlex.quote`` wrapping broke on
     templates containing single quotes.
+
+    Trust boundary: placeholders are evaluated as Python expressions
+    (with ``__builtins__`` emptied as hardening, not a sandbox), so
+    ``fmt_str`` must be a trusted, code-authored template -- never
+    user/external input. TODO(XC-4): migrate callers to ``str.format``
+    -compatible templates (e.g. ``{i}``-only, no expressions) and drop
+    the ``eval``; blocked on templates like ``_v{i+1}`` that embed
+    arithmetic ``str.format`` cannot express.
     """
 
     def substitute(match):

@@ -1,7 +1,14 @@
 # SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Loading and serialization for inference-oriented lazy configurations."""
+"""Loading and serialization for inference-oriented lazy configurations.
+
+Trust boundary: LazyConfig is code. Loading a ``.py`` config executes the
+file (detectron2-style LazyConfig, by design), including its relative
+config imports -- so config files must come from trusted sources and be
+treated exactly like source code under review. YAML configs are parsed
+with ``yaml.safe_load`` and cannot instantiate arbitrary Python objects.
+"""
 
 from __future__ import annotations
 
