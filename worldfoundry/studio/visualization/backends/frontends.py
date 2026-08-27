@@ -429,14 +429,37 @@ def serve_rerun_frontend(entry: CatalogEntry, launch_config: StudioLaunchConfig)
     print(f"Rerun asset: {asset_path}", flush=True)
     print(f"Rerun command: {command}", flush=True)
     # Template placeholders are shlex.quote()d above, so splitting the rendered
-    # command is equivalent to the previous shell=True invocation without a shell.
-    process = subprocess.Popen(shlex.split(command))
+    # command yields an explicit argv without involving a shell.
+    argv = shlex.split(command)
+    if not argv:
+        raise SystemExit(
+            "Rerun command resolved to an empty command line; "
+            "check WORLDFOUNDRY_STUDIO_RERUN_COMMAND."
+        )
+    # Managed-helper exemption: the Rerun viewer is a long-lived interactive
+    # frontend. This process blocks on it until the operator hits Ctrl-C, and
+    # the viewer's stdout/stderr must stream straight to the console.
+    # run_bounded_command would capture that output and impose a wall-clock
+    # timeout, so a bare Popen with an explicit argv is intentional here. The
+    # child stays in the terminal's process group on purpose: Ctrl-C reaches
+    # it directly, and the handler below is the terminate/kill escalation.
+    try:
+        process = subprocess.Popen(argv)
+    except OSError as error:
+        raise SystemExit(
+            f"Failed to launch Rerun viewer via {argv[0]!r}: {error}. "
+            "Install the rerun CLI or set WORLDFOUNDRY_STUDIO_RERUN_COMMAND."
+        ) from error
     try:
         process.wait()
     except KeyboardInterrupt:
         process.terminate()
-        with contextlib.suppress(Exception):
+        try:
             process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            with contextlib.suppress(subprocess.TimeoutExpired):
+                process.wait(timeout=5)
 
 
 def _default_rerun_command_template() -> str:
