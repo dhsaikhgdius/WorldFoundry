@@ -57,6 +57,7 @@ from worldfoundry.evaluation.api import (
     WORLD_TASK_CONFIG_SCHEMA_VERSION,
 )
 from worldfoundry.evaluation.api.json_contract import sha256_file, to_plain
+from worldfoundry.runtime.jobs import run_bounded_command
 
 # ── JSON / text formatting helpers ─────────────────────────────────────
 
@@ -211,18 +212,14 @@ def package_version(distribution: str = "worldfoundry") -> str:
 def _run_git(root: Path, *args: str) -> str | None:
     """Run a git command in the specified directory, returning stdout or None on failure."""
     try:
-        result = subprocess.run(
-            ("git", "-C", str(root), *args),
-            text=True,
-            capture_output=True,
-            check=False,
-            timeout=2,
-        )
+        completed = run_bounded_command(("git", "-C", str(root), *args), timeout=2)
     except (OSError, subprocess.SubprocessError):
+        # Metadata capture must degrade gracefully: a missing git binary or an
+        # unlaunchable process should not fail version-context assembly.
         return None
-    if result.returncode != 0:
+    if completed["timed_out"] or completed["returncode"] != 0:
         return None
-    return result.stdout.strip()
+    return completed["stdout"].strip()
 
 
 def git_metadata(repo_root: str | Path | None = None) -> dict[str, Any]:
