@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import importlib
+import logging
 from collections.abc import Mapping
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 def resolve_symbol(
@@ -70,7 +73,7 @@ def count_params(model: Any, verbose: bool = False) -> int:
 
     total = count_parameters(model)
     if verbose:
-        print(f"{model.__class__.__name__} has {total * 1e-6:.2f} M params.")
+        logger.info("%s has %.2f M params.", model.__class__.__name__, total * 1e-6)
     return total
 
 
