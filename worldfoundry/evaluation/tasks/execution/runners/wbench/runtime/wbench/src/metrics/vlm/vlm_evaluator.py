@@ -82,21 +82,23 @@ def encode_video_to_b64url(video_path: str, max_short_side: int = 0) -> str:
     tmp_path = tmp.name
     tmp.close()
 
-    writer = cv2.VideoWriter(tmp_path, fourcc, fps, (out_w, out_h))
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
-        if (out_w, out_h) != (w, h):
-            frame = cv2.resize(frame, (out_w, out_h))
-        writer.write(frame)
-    cap.release()
-    writer.release()
+    try:
+        writer = cv2.VideoWriter(tmp_path, fourcc, fps, (out_w, out_h))
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            if (out_w, out_h) != (w, h):
+                frame = cv2.resize(frame, (out_w, out_h))
+            writer.write(frame)
+        cap.release()
+        writer.release()
 
-    with open(tmp_path, "rb") as f:
-        b64_url = "data:video/mp4;base64," + base64.b64encode(f.read()).decode()
-    os.remove(tmp_path)
-    return b64_url
+        with open(tmp_path, "rb") as f:
+            b64_url = "data:video/mp4;base64," + base64.b64encode(f.read()).decode()
+        return b64_url
+    finally:
+        os.remove(tmp_path)
 
 
 def clip_video_to_b64url(video_path: str, start_sec: float, end_sec: float,
@@ -125,24 +127,25 @@ def clip_video_to_b64url(video_path: str, start_sec: float, end_sec: float,
     tmp_path = tmp.name
     tmp.close()
 
-    writer = cv2.VideoWriter(tmp_path, fourcc, fps, (out_w, out_h))
-    cap.set(cv2.CAP_PROP_POS_MSEC, start_sec * 1000)
-    while True:
-        pos_sec = cap.get(cv2.CAP_PROP_POS_MSEC) / 1000
-        if pos_sec > end_sec:
-            break
-        ret, frame = cap.read()
-        if not ret:
-            break
-        if (out_w, out_h) != (w, h):
-            frame = cv2.resize(frame, (out_w, out_h))
-        writer.write(frame)
-    cap.release()
-    writer.release()
+    try:
+        writer = cv2.VideoWriter(tmp_path, fourcc, fps, (out_w, out_h))
+        cap.set(cv2.CAP_PROP_POS_MSEC, start_sec * 1000)
+        while True:
+            pos_sec = cap.get(cv2.CAP_PROP_POS_MSEC) / 1000
+            if pos_sec > end_sec:
+                break
+            ret, frame = cap.read()
+            if not ret:
+                break
+            if (out_w, out_h) != (w, h):
+                frame = cv2.resize(frame, (out_w, out_h))
+            writer.write(frame)
+        cap.release()
+        writer.release()
 
-    b64_url = encode_video_to_b64url(tmp_path)
-    os.remove(tmp_path)
-    return b64_url
+        return encode_video_to_b64url(tmp_path)
+    finally:
+        os.remove(tmp_path)
 
 
 @dataclass
