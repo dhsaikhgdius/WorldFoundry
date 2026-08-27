@@ -279,7 +279,10 @@ def compute_metrics(gt_root, test_root, dino_path, output_path, requested_metric
     monitor_thread.start()
 
     try:
-        with mp.Pool(processes=num_gpus) as pool:
+        # XC-15: create the Pool from an explicit spawn context so CUDA-using
+        # workers are spawned even if another library re-set the global start
+        # method after set_start_method('spawn') above.
+        with mp.get_context('spawn').Pool(processes=num_gpus) as pool:
             worker_args = [
                 (task_queue, result_list, gt_root, test_root, dino_path,
                     requested_metrics, video_max_time, process_batch_size, f'cuda:{i}', i, stop_event)
