@@ -4,13 +4,14 @@ import argparse
 import math
 import os
 import shutil
-import subprocess
 import sys
 import time
 from pathlib import Path
 
 import numpy as np
 import torch
+
+from worldfoundry.core.process import read_text_tail, run_logged_subprocess
 
 # ── Path setup ──────────────────────────────────────────────────────────
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -360,9 +361,17 @@ def frames_to_video(frames_dir, output_path, fps=16):
         output_path,
     ]
     print(f"[ffmpeg] Running: {' '.join(cmd)}")
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    stdout_path = Path(output_path).with_suffix(".ffmpeg.stdout.log")
+    stderr_path = Path(output_path).with_suffix(".ffmpeg.stderr.log")
+    result = run_logged_subprocess(
+        cmd,
+        stdout_path=stdout_path,
+        stderr_path=stderr_path,
+        start_new_session=False,
+    )
     if result.returncode != 0:
-        print(f"[ffmpeg] Error: {result.stderr}")
+        tail = read_text_tail(stderr_path)
+        print(f"[ffmpeg] Error (exit {result.returncode}, see {stderr_path}): {tail}")
         return False
     print(f"[ffmpeg] Video saved to: {output_path}")
     return True
