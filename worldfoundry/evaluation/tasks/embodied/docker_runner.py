@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import shutil
-import subprocess
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any, Mapping
@@ -25,26 +25,68 @@ def _repo_root() -> Path:
     return project_root(__file__)
 
 
+# 'docker info' / 'docker image inspect' are quick metadata probes; bounding
+# them keeps a wedged docker daemon from hanging embodied eval startup forever.
+_DOCKER_PROBE_TIMEOUT_SECONDS = 60
+
+# Optional wall-clock bound for long docker steps (pull / tag / run). Unset or
+# non-positive keeps the historical unbounded ``subprocess.call`` behavior.
+_DOCKER_STEP_TIMEOUT_ENV = "WORLDFOUNDRY_DOCKER_TIMEOUT_SECONDS"
+
+
+def _docker_step_timeout() -> int | None:
+    raw = os.getenv(_DOCKER_STEP_TIMEOUT_ENV, "").strip()
+    if not raw:
+        return None
+    seconds = int(raw)
+    return seconds if seconds > 0 else None
+
+
+def _call_docker(command: list[str], *, timeout: int | None) -> int:
+    """``subprocess.call``-style docker step through the bounded helper.
+
+    Output is captured (with a process-group kill on timeout, surfacing as
+    returncode 124) and echoed afterwards so pull/tag/run progress still
+    reaches operator consoles and CI logs instead of vanishing.
+    """
+
+    result = run_bounded_command(command, timeout=timeout)
+    if result["stdout"]:
+        sys.stdout.write(result["stdout"])
+        sys.stdout.flush()
+    if result["stderr"]:
+        sys.stderr.write(result["stderr"])
+        sys.stderr.flush()
+    return int(result["returncode"] or 0)
+
+
 def _docker_available(docker: str) -> None:
-    if subprocess.run([docker, "info"], capture_output=True).returncode != 0:
+    # A hung daemon times out (returncode 124) and maps onto the same error
+    # as an unreachable one.
+    probe = run_bounded_command([docker, "info"], timeout=_DOCKER_PROBE_TIMEOUT_SECONDS)
+    if probe["returncode"] != 0:
         raise RuntimeError("Docker daemon is not reachable")
 
 
+def _image_exists(docker: str, image: str) -> bool:
+    result = run_bounded_command([docker, "image", "inspect", image], timeout=_DOCKER_PROBE_TIMEOUT_SECONDS)
+    return result["returncode"] == 0
+
+
 def _ensure_image(docker: str, image: str, *, source_image: str | None = None, pull: bool = False) -> None:
-    exists = subprocess.run([docker, "image", "inspect", image], capture_output=True).returncode == 0
-    if exists or not pull:
+    if _image_exists(docker, image) or not pull:
         return
+    timeout = _docker_step_timeout()
     if source_image and source_image != image:
-        source_exists = subprocess.run([docker, "image", "inspect", source_image], capture_output=True).returncode == 0
-        if not source_exists:
-            rc = subprocess.call([docker, "pull", source_image])
+        if not _image_exists(docker, source_image):
+            rc = _call_docker([docker, "pull", source_image], timeout=timeout)
             if rc != 0:
                 raise RuntimeError(f"docker pull failed for {source_image} with exit code {rc}")
-        rc = subprocess.call([docker, "tag", source_image, image])
+        rc = _call_docker([docker, "tag", source_image, image], timeout=timeout)
         if rc != 0:
             raise RuntimeError(f"docker tag failed for {source_image} -> {image} with exit code {rc}")
         return
-    rc = subprocess.call([docker, "pull", image])
+    rc = _call_docker([docker, "pull", image], timeout=timeout)
     if rc != 0:
         raise RuntimeError(f"docker pull failed for {image} with exit code {rc}")
 
@@ -317,11 +359,11 @@ def run_embodied_via_docker(
             eval_id=eval_id,
             no_save=no_save,
         )
+        # docker.timeout_s / WORLDFOUNDRY_EMBODIED_DOCKER_TIMEOUT_S keeps
+        # precedence; the generic docker-step bound applies when it is unset,
+        # and no bound at all (historical behavior) when both are unset.
         timeout_s = _timeout_seconds(docker_cfg)
-        if timeout_s > 0:
-            result = run_bounded_command(cmd, timeout=timeout_s)
-            return int(result["returncode"] or 0)
-        return subprocess.call(cmd)
+        return _call_docker(cmd, timeout=timeout_s if timeout_s > 0 else _docker_step_timeout())
     finally:
         docker_config_path.unlink(missing_ok=True)
 
