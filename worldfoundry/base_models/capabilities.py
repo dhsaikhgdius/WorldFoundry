@@ -5,15 +5,16 @@ from __future__ import annotations
 import importlib.util
 import os
 import shlex
-import signal
 import subprocess
+import threading
 from collections.abc import Mapping
 from dataclasses import dataclass
-from functools import lru_cache
+from functools import lru_cache, partial
 from pathlib import Path
 from typing import Any
 
 from worldfoundry.core.io.paths import worldfoundry_path_tokens
+from worldfoundry.core.process import terminate_process_group, terminate_process_tree
 
 REPO_ROOT = Path(os.environ.get("WORLDFOUNDRY_REPO_ROOT") or worldfoundry_path_tokens()["WORLDFOUNDRY_REPO_ROOT"]).expanduser()
 
@@ -237,6 +238,11 @@ def _python_import_available(python_executable: str, module_name: str, pythonpat
         "import importlib.util, sys; sys.exit(0 if importlib.util.find_spec(sys.argv[1]) else 1)",
         module_name,
     ]
+    # Managed-helper exemption (ET-07): this readiness probe wants discarded
+    # DEVNULL streams and plain wait(timeout) semantics without per-run log
+    # artifacts, which run_logged_subprocess does not express.  A bare Popen
+    # with an explicit argv (no shell) is intentional; timeout cleanup goes
+    # through the shared worldfoundry.core.process helpers below.
     try:
         process = subprocess.Popen(
             command,
@@ -245,24 +251,27 @@ def _python_import_available(python_executable: str, module_name: str, pythonpat
             start_new_session=os.name != "nt",
         )
     except OSError:
+        # An interpreter that cannot even launch means the import is
+        # unavailable in that environment.
         return False
     try:
         return process.wait(timeout=timeout) == 0
     except subprocess.TimeoutExpired:
-        try:
-            if os.name == "nt":
-                process.kill()
-            else:
-                os.killpg(process.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
-        try:
-            process.wait(timeout=kill_timeout)
-        except subprocess.TimeoutExpired:
-            # Some broken external envs can block in uninterruptible filesystem
-            # or loader state. Readiness must report that import as unavailable
-            # instead of blocking the whole benchmark inventory.
-            pass
+        # Escalate terminate -> bounded wait -> kill through the shared
+        # process helpers instead of a bare killpg/kill.  The probe owns a
+        # dedicated process group on POSIX, so descendants die with it.
+        if os.name == "posix":
+            cleanup = partial(terminate_process_group, process, grace_seconds=kill_timeout)
+        else:
+            cleanup = partial(terminate_process_tree, process, grace_seconds=kill_timeout)
+        # Some broken external envs can block in uninterruptible filesystem
+        # or loader state even after SIGKILL. Readiness must report that
+        # import as unavailable instead of blocking the whole benchmark
+        # inventory, so the reap runs on a daemon thread joined for at most
+        # the kill-timeout knob; the thread keeps reaping in the background.
+        reaper = threading.Thread(target=cleanup, name="worldfoundry-import-probe-reaper", daemon=True)
+        reaper.start()
+        reaper.join(timeout=kill_timeout)
         return False
 
 
