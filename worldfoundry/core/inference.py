@@ -45,6 +45,9 @@ _FALSE_VALUES = {"0", "false", "no", "off", "disable", "disabled"}
 _TRUE_VALUES = {"1", "true", "yes", "on", "enable", "enabled"}
 _ORIGINAL_SDPA: Callable[..., Any] | None = None
 _PRE_INSTALL_TORCH_STATE: dict[str, Any] | None = None
+# XC-21: dedup keys for torch backend-config failure warnings (one per
+# setting + requested value), so repeated best-effort installs don't spam logs.
+_TORCH_BACKEND_CONFIG_WARNED: set[str] = set()
 
 LINGBOT_WORLD_MODEL_ID = "lingbot-world"
 LINGBOT_VARIANT_FAST = "fast"
@@ -4857,6 +4860,19 @@ def _capture_pre_install_torch_state() -> None:
     _PRE_INSTALL_TORCH_STATE = snapshot
 
 
+def _warn_torch_backend_config_failure(key: str, message: str, *args: Any) -> None:
+    """Warn about a torch backend-config failure once per setting + requested value.
+
+    XC-21: configuration stays best-effort (never raises), but failures must be
+    visible instead of silently ignored.
+    """
+
+    if key in _TORCH_BACKEND_CONFIG_WARNED:
+        return
+    _TORCH_BACKEND_CONFIG_WARNED.add(key)
+    logger.warning(message, *args)
+
+
 def _configure_torch_backends(*, matmul_precision: str, enable_tf32: bool) -> None:
     try:
         import torch
@@ -4867,7 +4883,13 @@ def _configure_torch_backends(*, matmul_precision: str, enable_tf32: bool) -> No
         try:
             torch.set_float32_matmul_precision(matmul_precision)
         except Exception as exc:
-            logger.warning("Failed to set float32 matmul precision to %r: %s", matmul_precision, exc)
+            _warn_torch_backend_config_failure(
+                f"float32_matmul_precision={matmul_precision!r}",
+                "Failed to set float32 matmul precision to %r (%s: %s); keeping the current setting.",
+                matmul_precision,
+                type(exc).__name__,
+                exc,
+            )
 
     # CC-33: the matmul TF32 switch lives at ``torch.backends.cuda.matmul.allow_tf32``
     # (verified on torch 2.7). ``setattr(torch.backends.cuda, "allow_tf32", ...)``
@@ -4886,20 +4908,36 @@ def _configure_torch_backends(*, matmul_precision: str, enable_tf32: bool) -> No
                 "despite enable_tf32=True."
             )
         else:
-            previous = bool(matmul_backend.allow_tf32)
-            matmul_backend.allow_tf32 = bool(enable_tf32)
-            if previous != bool(enable_tf32):
-                logger.info(
-                    "Numerical-behavior impact: torch.backends.cuda.matmul.allow_tf32 changed %s -> %s.",
-                    previous,
+            try:
+                previous = bool(matmul_backend.allow_tf32)
+                matmul_backend.allow_tf32 = bool(enable_tf32)
+            except Exception as exc:
+                _warn_torch_backend_config_failure(
+                    f"cuda_matmul_allow_tf32={bool(enable_tf32)}",
+                    "Failed to set torch.backends.cuda.matmul.allow_tf32=%s (%s: %s); keeping the current setting.",
                     bool(enable_tf32),
+                    type(exc).__name__,
+                    exc,
                 )
+            else:
+                if previous != bool(enable_tf32):
+                    logger.info(
+                        "Numerical-behavior impact: torch.backends.cuda.matmul.allow_tf32 changed %s -> %s.",
+                        previous,
+                        bool(enable_tf32),
+                    )
     cudnn_backend = getattr(torch.backends, "cudnn", None)
     if cudnn_backend is not None and hasattr(cudnn_backend, "allow_tf32"):
         try:
             cudnn_backend.allow_tf32 = bool(enable_tf32)
         except Exception as exc:
-            logger.warning("Failed to set torch.backends.cudnn.allow_tf32=%s: %s", bool(enable_tf32), exc)
+            _warn_torch_backend_config_failure(
+                f"cudnn_allow_tf32={bool(enable_tf32)}",
+                "Failed to set torch.backends.cudnn.allow_tf32=%s (%s: %s); keeping the current setting.",
+                bool(enable_tf32),
+                type(exc).__name__,
+                exc,
+            )
 
 
 def _patch_torch_sdpa() -> None:

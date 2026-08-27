@@ -5,11 +5,16 @@ Covers:
 - CC-18: metric_sync.init_distributed raises informative errors instead of
   NameError on incomplete launcher environments.
 - CC-33: TF32 configuration writes the real torch attribute paths.
+- XC-21: matmul precision / TF32 config failures warn (once per requested
+  value) instead of being silently ignored.
 - CC-32: SDPA patch install/uninstall round-trip.
 - CC-26: DynamicSwapInstaller double-install keeps the real backup class.
 """
 
 from __future__ import annotations
+
+import logging
+import types
 
 import pytest
 import torch
@@ -89,6 +94,83 @@ def test_configure_torch_backends_touches_real_tf32_attributes():
         torch.set_float32_matmul_precision(previous_precision)
         torch.backends.cuda.matmul.allow_tf32 = previous_matmul
         torch.backends.cudnn.allow_tf32 = previous_cudnn
+
+
+class _RaisingTF32Backend:
+    """Fake TF32 backend whose ``allow_tf32`` setter always fails."""
+
+    @property
+    def allow_tf32(self) -> bool:
+        return False
+
+    @allow_tf32.setter
+    def allow_tf32(self, value: bool) -> None:
+        raise RuntimeError("tf32 toggle rejected")
+
+
+def test_configure_torch_backends_warns_once_on_matmul_precision_failure(monkeypatch, caplog):
+    from worldfoundry.core import inference as core_inference
+
+    def raise_unsupported(value: str) -> None:
+        raise RuntimeError("matmul precision unsupported on this build")
+
+    monkeypatch.setattr(torch, "set_float32_matmul_precision", raise_unsupported)
+    # Keep the real TF32 flags untouched while exercising the failure path.
+    monkeypatch.setattr(torch.backends.cuda, "matmul", types.SimpleNamespace(allow_tf32=False))
+    monkeypatch.setattr(torch.backends, "cudnn", types.SimpleNamespace(allow_tf32=False))
+    core_inference._TORCH_BACKEND_CONFIG_WARNED.clear()
+
+    with caplog.at_level(logging.WARNING, logger="worldfoundry.core.inference"):
+        core_inference._configure_torch_backends(matmul_precision="high", enable_tf32=True)
+    warnings = [record.getMessage() for record in caplog.records if record.levelno == logging.WARNING]
+    assert len(warnings) == 1
+    assert "'high'" in warnings[0]
+    assert "RuntimeError" in warnings[0]
+    assert "matmul precision unsupported on this build" in warnings[0]
+
+    # Same requested value again: deduplicated, no new warning.
+    caplog.clear()
+    with caplog.at_level(logging.WARNING, logger="worldfoundry.core.inference"):
+        core_inference._configure_torch_backends(matmul_precision="high", enable_tf32=True)
+    assert not caplog.records
+
+    # A different requested value warns anew.
+    caplog.clear()
+    with caplog.at_level(logging.WARNING, logger="worldfoundry.core.inference"):
+        core_inference._configure_torch_backends(matmul_precision="highest", enable_tf32=True)
+    assert any("'highest'" in record.getMessage() for record in caplog.records)
+
+
+def test_configure_torch_backends_warns_once_on_tf32_setattr_failure(monkeypatch, caplog):
+    from worldfoundry.core import inference as core_inference
+
+    monkeypatch.setattr(torch, "set_float32_matmul_precision", lambda value: None)
+    monkeypatch.setattr(torch.backends.cuda, "matmul", _RaisingTF32Backend())
+    monkeypatch.setattr(torch.backends, "cudnn", _RaisingTF32Backend())
+    core_inference._TORCH_BACKEND_CONFIG_WARNED.clear()
+
+    with caplog.at_level(logging.WARNING, logger="worldfoundry.core.inference"):
+        core_inference._configure_torch_backends(matmul_precision="high", enable_tf32=True)
+    warnings = [record.getMessage() for record in caplog.records if record.levelno == logging.WARNING]
+    assert len(warnings) == 2
+    combined = " ".join(warnings)
+    assert "torch.backends.cuda.matmul.allow_tf32=True" in combined
+    assert "torch.backends.cudnn.allow_tf32=True" in combined
+    assert "tf32 toggle rejected" in combined
+
+    # Same requested value again: deduplicated, no new warnings.
+    caplog.clear()
+    with caplog.at_level(logging.WARNING, logger="worldfoundry.core.inference"):
+        core_inference._configure_torch_backends(matmul_precision="high", enable_tf32=True)
+    assert not caplog.records
+
+    # The opposite requested value is a distinct failure and warns again.
+    caplog.clear()
+    with caplog.at_level(logging.WARNING, logger="worldfoundry.core.inference"):
+        core_inference._configure_torch_backends(matmul_precision="high", enable_tf32=False)
+    combined = " ".join(record.getMessage() for record in caplog.records)
+    assert "torch.backends.cuda.matmul.allow_tf32=False" in combined
+    assert "torch.backends.cudnn.allow_tf32=False" in combined
 
 
 def test_sdpa_patch_install_uninstall_roundtrip(monkeypatch):
