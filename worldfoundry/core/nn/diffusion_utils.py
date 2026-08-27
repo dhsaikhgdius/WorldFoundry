@@ -24,9 +24,10 @@ def autocast(f):
     """
     def do_autocast(*args, **kwargs):
         """Do autocast."""
-        with torch.cuda.amp.autocast(enabled=True,
-                                     dtype=torch.get_autocast_gpu_dtype(),
-                                     cache_enabled=torch.is_autocast_cache_enabled()):
+        with torch.amp.autocast("cuda",
+                                enabled=True,
+                                dtype=torch.get_autocast_gpu_dtype(),
+                                cache_enabled=torch.is_autocast_cache_enabled()):
             return f(*args, **kwargs)
     return do_autocast
 
