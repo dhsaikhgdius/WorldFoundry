@@ -5,12 +5,23 @@ import multiprocessing as mp
 import threading
 import time
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
 from worldfoundry.runtime import device_pool
 from worldfoundry.runtime.device_pool import CudaDeviceLeasePool
+
+
+def _bounded_result(stdout: str, returncode: int = 0) -> dict[str, object]:
+    return {
+        "command": [],
+        "stdout": stdout,
+        "stderr": "",
+        "returncode": returncode,
+        "timed_out": False,
+        "kill_stuck": False,
+        "duration_seconds": 0.0,
+    }
 
 
 @pytest.fixture(autouse=True)
@@ -22,9 +33,9 @@ def _disable_gpu_memory_warn_by_default(monkeypatch):
 def test_container_local_indices_override_host_nvidia_visible_devices(monkeypatch):
     monkeypatch.setattr(device_pool.shutil, "which", lambda _name: "/usr/bin/nvidia-smi")
     monkeypatch.setattr(
-        device_pool.subprocess,
-        "run",
-        lambda *args, **kwargs: SimpleNamespace(returncode=0, stdout="0\n1\n2\n"),
+        device_pool,
+        "run_bounded_command",
+        lambda *args, **kwargs: _bounded_result("0\n1\n2\n"),
     )
 
     assert device_pool.discover_cuda_device_tokens(
@@ -34,8 +45,8 @@ def test_container_local_indices_override_host_nvidia_visible_devices(monkeypatc
 
 def test_explicit_cuda_visibility_remains_authoritative(monkeypatch):
     monkeypatch.setattr(
-        device_pool.subprocess,
-        "run",
+        device_pool,
+        "run_bounded_command",
         lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("nvidia-smi should not run")),
     )
 
@@ -157,12 +168,9 @@ def test_warn_if_gpu_memory_high_logs_when_ratio_exceeded(monkeypatch, caplog):
     monkeypatch.setenv("WORLDFOUNDRY_GPU_MEMORY_WARN_RATIO", "0.5")
     monkeypatch.setattr(device_pool.shutil, "which", lambda _name: "/usr/bin/nvidia-smi")
     monkeypatch.setattr(
-        device_pool.subprocess,
-        "run",
-        lambda *args, **kwargs: SimpleNamespace(
-            returncode=0,
-            stdout="0, GPU-aaa, 9000, 10000\n1, GPU-bbb, 100, 10000\n",
-        ),
+        device_pool,
+        "run_bounded_command",
+        lambda *args, **kwargs: _bounded_result("0, GPU-aaa, 9000, 10000\n1, GPU-bbb, 100, 10000\n"),
     )
     with caplog.at_level(logging.WARNING, logger="worldfoundry.runtime.device_pool"):
         hits = device_pool.warn_if_gpu_memory_high(("0", "1"))

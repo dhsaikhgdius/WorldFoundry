@@ -14,12 +14,13 @@ import ctypes
 import ctypes.util
 import json
 import os
-import subprocess
 import sys
 import time
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
+
+from worldfoundry.runtime.jobs import run_bounded_command
 
 # ── Constants ────────────────────────────────────────────────────────────────
 
@@ -151,24 +152,24 @@ def python_module_probe(python: Path, modules: tuple[str, ...], *, pythonpath: l
         "            found[m]=False;errors[m]=type(exc).__name__+': '+str(exc)\n"
         "print(json.dumps({'modules': found, 'errors': errors, 'imported': imported}, sort_keys=True))"
     )
-    env = os.environ.copy()
+    extra_env: dict[str, str] | None = None
     if pythonpath:
-        env["PYTHONPATH"] = os.pathsep.join(str(path) for path in pythonpath) + os.pathsep + env.get("PYTHONPATH", "")
-    try:
-        completed = subprocess.run(
-            [str(python), "-c", code],
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=timeout,
-            env=env,
-        )
-    except subprocess.TimeoutExpired:
+        extra_env = {
+            "PYTHONPATH": os.pathsep.join(str(path) for path in pythonpath)
+            + os.pathsep
+            + os.environ.get("PYTHONPATH", "")
+        }
+    completed = run_bounded_command(
+        [str(python), "-c", code],
+        env=extra_env,
+        timeout=timeout,
+    )
+    if completed["timed_out"]:
         return {"python": str(python), "ok": False, "error": "timeout", "modules": {module: False for module in modules}}
     modules_result: dict[str, bool]
     module_errors: dict[str, str]
     try:
-        parsed = json.loads((completed.stdout.strip().splitlines() or ["{}"])[-1])
+        parsed = json.loads((completed["stdout"].strip().splitlines() or ["{}"])[-1])
         modules_result = parsed.get("modules", {}) if isinstance(parsed, dict) else {}
         module_errors = parsed.get("errors", {}) if isinstance(parsed, dict) else {}
     except json.JSONDecodeError:
@@ -176,13 +177,13 @@ def python_module_probe(python: Path, modules: tuple[str, ...], *, pythonpath: l
         module_errors = {"__probe__": "json_decode_error"}
     return {
         "python": str(python),
-        "ok": completed.returncode == 0 and all(modules_result.get(module) for module in modules),
+        "ok": completed["returncode"] == 0 and all(modules_result.get(module) for module in modules),
         "probe": "find_spec+strict_import",
-        "returncode": completed.returncode,
+        "returncode": completed["returncode"],
         "modules": modules_result,
         "strict_import_modules": sorted(STRICT_IMPORT_MODULES.intersection(modules)),
         "module_errors": module_errors,
-        "stderr": completed.stderr.strip(),
+        "stderr": completed["stderr"].strip(),
     }
 
 
@@ -224,29 +225,12 @@ if torch.cuda.is_available():
     payload["memory_allocated"] = torch.cuda.memory_allocated(0)
 print(json.dumps(payload, sort_keys=True))
 """
-    env = os.environ.copy()
-    env["CUDA_VISIBLE_DEVICES"] = cuda_visible_devices
-    start = time.monotonic()
-    process = subprocess.Popen(
+    completed = run_bounded_command(
         [str(python), "-c", code],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        env=env,
+        env={"CUDA_VISIBLE_DEVICES": cuda_visible_devices},
+        timeout=timeout,
     )
-    timed_out = False
-    kill_stuck = False
-    try:
-        stdout, stderr = process.communicate(timeout=timeout)
-    except subprocess.TimeoutExpired:
-        timed_out = True
-        process.kill()
-        try:
-            stdout, stderr = process.communicate(timeout=5)
-        except subprocess.TimeoutExpired:
-            kill_stuck = True
-            stdout, stderr = "", ""
-    duration_seconds = time.monotonic() - start
+    stdout = completed["stdout"]
     payload: dict[str, Any] = {}
     if stdout.strip():
         try:
@@ -257,19 +241,19 @@ print(json.dumps(payload, sort_keys=True))
     return {
         "python": str(python),
         "ok": (
-            not timed_out
-            and not kill_stuck
-            and process.returncode == 0
+            not completed["timed_out"]
+            and not completed["kill_stuck"]
+            and completed["returncode"] == 0
             and payload.get("cuda_available") is True
             and tensor_sum == 2.0
         ),
-        "returncode": process.returncode,
-        "timed_out": timed_out,
-        "kill_stuck": kill_stuck,
-        "duration_seconds": duration_seconds,
+        "returncode": completed["returncode"],
+        "timed_out": completed["timed_out"],
+        "kill_stuck": completed["kill_stuck"],
+        "duration_seconds": completed["duration_seconds"],
         "cuda_visible_devices": cuda_visible_devices,
         "stdout": stdout.strip(),
-        "stderr": stderr.strip(),
+        "stderr": completed["stderr"].strip(),
         "payload": payload,
     }
 

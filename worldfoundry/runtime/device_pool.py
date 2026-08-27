@@ -20,7 +20,9 @@ from collections import deque
 from collections.abc import Mapping, MutableMapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import IO, Callable
+from typing import IO, Any, Callable
+
+from worldfoundry.runtime.jobs import run_bounded_command
 
 _DISABLED_DEVICE_VALUES = frozenset({"", "-1", "none", "void"})
 _ALL_DEVICE_VALUES = frozenset({"all"})
@@ -86,26 +88,23 @@ def warn_if_gpu_memory_high(
     if not nvidia_smi:
         return []
     try:
-        completed = subprocess.run(
+        completed = run_bounded_command(
             [
                 nvidia_smi,
                 "--query-gpu=index,uuid,memory.used,memory.total",
                 "--format=csv,noheader,nounits",
             ],
-            check=False,
-            capture_output=True,
-            text=True,
             timeout=max(float(timeout_seconds), 0.1),
         )
     except (OSError, subprocess.SubprocessError, ValueError):
         return []
-    if completed.returncode != 0:
+    if completed["timed_out"] or completed["returncode"] != 0:
         return []
 
     wanted = {str(token).strip() for token in tokens if str(token).strip()}
     threshold = _gpu_memory_warn_ratio()
     hits: list[dict[str, float | str]] = []
-    for line in completed.stdout.splitlines():
+    for line in completed["stdout"].splitlines():
         parts = [part.strip() for part in line.split(",")]
         if len(parts) < 4:
             continue
@@ -425,18 +424,16 @@ def discover_cuda_device_tokens(
 
     nvidia_smi = shutil.which("nvidia-smi")
     if nvidia_smi:
+        completed: dict[str, Any] | None
         try:
-            completed = subprocess.run(
+            completed = run_bounded_command(
                 [nvidia_smi, "--query-gpu=index", "--format=csv,noheader,nounits"],
-                check=False,
-                capture_output=True,
-                text=True,
                 timeout=max(float(timeout_seconds), 0.1),
             )
         except (OSError, subprocess.SubprocessError, ValueError):
             completed = None
-        if completed is not None and completed.returncode == 0:
-            devices = tuple(line.strip() for line in completed.stdout.splitlines() if line.strip())
+        if completed is not None and not completed["timed_out"] and completed["returncode"] == 0:
+            devices = tuple(line.strip() for line in completed["stdout"].splitlines() if line.strip())
             if devices:
                 # NVIDIA_VISIBLE_DEVICES is interpreted by the container runtime and may
                 # contain host indices that are remapped to different local CUDA indices.

@@ -82,7 +82,7 @@ def test_runtime_fingerprint_degrades_without_torch_or_git(tmp_path: Path) -> No
 
     with (
         mock.patch.object(performance.importlib, "import_module", side_effect=missing_import),
-        mock.patch.object(performance.subprocess, "run", side_effect=FileNotFoundError("git missing")),
+        mock.patch.object(performance, "run_bounded_command", side_effect=FileNotFoundError("git missing")),
     ):
         fingerprint = performance.capture_runtime_fingerprint(repo_root=tmp_path)
 
