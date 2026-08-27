@@ -173,9 +173,13 @@ class GroupCoordinator:
         try:
             assert self.cpu_group is not None
             assert self.device_group is not None
-        except Exception as e:
-            print(f"rank: {self.rank} group not found")
-            raise e
+        except Exception:
+            logger.error(
+                "rank %s not found in any of the provided group_ranks %s",
+                self.rank,
+                group_ranks,
+            )
+            raise
 
         self.device = get_local_torch_device()
 
