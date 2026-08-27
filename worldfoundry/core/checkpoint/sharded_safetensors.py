@@ -31,18 +31,24 @@ def _load_shard(shard_path: str, param_names: list[str], num_threads: int | None
             cmd.append(f"-T{num_threads}")
         cmd.extend(["-c", zstd_path])
 
+        # stdout here is the decompressed multi-gigabyte binary payload that
+        # safetensors parses straight from memory, not a log stream, so the
+        # managed helpers (run_logged_subprocess / run_bounded_command) do not
+        # fit: both decode captured streams as UTF-8 text, and spooling the
+        # payload through a scratch file would double the checkpoint-load IO.
+        # subprocess.run drains stdout and stderr concurrently (reading stdout
+        # alone can deadlock once zstd fills the stderr pipe buffer) and kills
+        # a still-running zstd if buffering the payload raises.
         try:
-            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            completed = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
         except FileNotFoundError as exc:
             raise RuntimeError(
                 f"zstd binary not found while decompressing {zstd_path}; "
                 "install zstd or decompress the shard manually"
             ) from exc
-        # communicate() drains stdout and stderr concurrently; reading stdout
-        # alone can deadlock once zstd fills the stderr pipe buffer.
-        decompressed_data, stderr_data = process.communicate()
-        if process.returncode != 0:
-            raise RuntimeError(f"Decompression failed: {stderr_data.decode(errors='replace')}")
+        if completed.returncode != 0:
+            raise RuntimeError(f"Decompression failed: {completed.stderr.decode(errors='replace')}")
+        decompressed_data = completed.stdout
         print_per_rank(
             f"Decompressed {zstd_path} with {num_threads} threads, duration: {(datetime.now() - start_time).total_seconds()}s"
         )
