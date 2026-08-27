@@ -5,11 +5,12 @@ import logging
 import os
 import os.path as osp
 import shutil
-import subprocess
 
 import imageio
 import torch
 import torchvision
+
+from worldfoundry.core.process import read_text_tail, run_logged_subprocess
 
 __all__ = ['save_video', 'save_image', 'str2bool', 'merge_video_audio']
 
@@ -63,12 +64,22 @@ def merge_video_audio(video_path: str, audio_path: str):
     ]
 
     logging.info("Start merging video and audio...")
-    result = subprocess.run(
-        command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    stdout_path = f"{base}_merge_audio.stdout.log"
+    stderr_path = f"{base}_merge_audio.stderr.log"
+    result = run_logged_subprocess(
+        command,
+        stdout_path=stdout_path,
+        stderr_path=stderr_path,
+        start_new_session=False,
+    )
     if result.returncode != 0:
         if os.path.exists(temp_output):
             os.remove(temp_output)
-        raise RuntimeError(f"FFmpeg execute failed: {result.stderr}")
+        tail = read_text_tail(stderr_path)
+        raise RuntimeError(
+            f"FFmpeg execute failed with code {result.returncode}. "
+            f"See {stdout_path} and {stderr_path}.\n{tail}"
+        )
     shutil.move(temp_output, video_path)
     logging.info(f"Merge completed, saved to {video_path}")
 

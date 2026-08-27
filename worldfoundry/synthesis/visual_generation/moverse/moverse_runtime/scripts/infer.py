@@ -3,19 +3,25 @@
 from __future__ import annotations
 
 import argparse
-import subprocess
 import sys
 from pathlib import Path
+
+from worldfoundry.core.process import run_logged_subprocess
 
 RUNTIME_ROOT = Path(__file__).resolve().parents[1]
 
 
-def _run(python: str, script: str, *arguments: object) -> None:
-    subprocess.run(
+def _run(python: str, script: str, *arguments: object, log_dir: Path) -> None:
+    log_name = Path(script).stem
+    completed = run_logged_subprocess(
         [python, str(RUNTIME_ROOT / script), *(str(argument) for argument in arguments)],
+        stdout_path=log_dir / f"{log_name}.stdout.log",
+        stderr_path=log_dir / f"{log_name}.stderr.log",
         cwd=RUNTIME_ROOT,
-        check=True,
+        start_new_session=False,
     )
+    # check_returncode() preserves the prior check=True CalledProcessError contract.
+    completed.check_returncode()
 
 
 def parse_args() -> argparse.Namespace:
@@ -59,7 +65,7 @@ def main() -> None:
     ]
     if args.back_prompt:
         panorama_args.extend(["--back_prompt", args.back_prompt])
-    _run(args.python_executable, "pano_gen/inference.py", *panorama_args)
+    _run(args.python_executable, "pano_gen/inference.py", *panorama_args, log_dir=output_dir)
 
     panorama = output_dir / f"{stem}_pano.png"
     depth = output_dir / "depth.npy"
@@ -72,6 +78,7 @@ def main() -> None:
         "--path", panorama,
         "--output_dir", output_dir,
         "--model_dir", args.da3_model_dir,
+        log_dir=output_dir,
     )
     _run(
         args.python_executable,
@@ -80,6 +87,7 @@ def main() -> None:
         "--depth", depth,
         "--checkpoint", args.gaussian_checkpoint,
         "--output_dir", output_dir,
+        log_dir=output_dir,
     )
     _run(
         args.python_executable,
@@ -95,6 +103,7 @@ def main() -> None:
         "--output", video,
         "--num_frames", args.num_frames,
         "--fps", args.fps,
+        log_dir=output_dir,
     )
 
 
