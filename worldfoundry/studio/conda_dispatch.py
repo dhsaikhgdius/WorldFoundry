@@ -53,6 +53,7 @@ from worldfoundry.runtime.env import (
     resolve_hf_cache_dir,
     resolve_hfd_root,
 )
+from worldfoundry.runtime.jobs import run_bounded_command
 
 from .execution import TORCHRUN_DISTRIBUTED_ENV, RunRecord
 from .launch_config import (
@@ -1032,6 +1033,12 @@ def _run_kwargs_with_cuda_lease(
     return updated
 
 
+# A wedged NVIDIA driver can leave nvidia-smi hanging indefinitely; bound the
+# query so GPU auto-placement degrades to its fallbacks instead of blocking
+# dispatch. Healthy queries return well under a second.
+_NVIDIA_SMI_TIMEOUT_SECONDS = 10
+
+
 def _parse_nvidia_smi_rows() -> list[dict[str, float]]:
     """Query GPU memory/utilization stats via ``nvidia-smi`` for auto device selection."""
     command = [
@@ -1039,9 +1046,18 @@ def _parse_nvidia_smi_rows() -> list[dict[str, float]]:
         "--query-gpu=index,memory.used,memory.total,utilization.gpu",
         "--format=csv,noheader,nounits",
     ]
-    proc = subprocess.run(command, capture_output=True, text=True, check=True)
+    completed = run_bounded_command(command, timeout=_NVIDIA_SMI_TIMEOUT_SECONDS)
+    if completed["timed_out"] or completed["returncode"] != 0:
+        # Preserve the raising contract of the previous check=True call so the
+        # existing (OSError, SubprocessError, ValueError) fallbacks keep working.
+        raise subprocess.CalledProcessError(
+            int(completed["returncode"]),
+            command,
+            output=completed["stdout"],
+            stderr=completed["stderr"],
+        )
     rows: list[dict[str, float]] = []
-    for raw_line in proc.stdout.strip().splitlines():
+    for raw_line in completed["stdout"].strip().splitlines():
         parts = [part.strip().replace("%", "") for part in raw_line.split(",")]
         if len(parts) != 4:
             continue
