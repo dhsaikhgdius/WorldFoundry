@@ -3,7 +3,10 @@ import os
 import socket
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+
+from worldfoundry.core.process import read_text_tail, run_logged_subprocess
 
 MODULE_ROOT = "worldfoundry.evaluation.tasks.execution.runners.larybench"
 SPLIT_DATASETS = {"agibotbeta", "robocoin"}
@@ -95,6 +98,16 @@ def _free_port(start, end):
     raise RuntimeError(f"No free local port in [{start}, {end})")
 
 
+def _stage_timeout():
+    value = os.environ.get("WORLDFOUNDRY_LARYBENCH_TIMEOUT_SECONDS", "").strip()
+    if not value:
+        return None
+    timeout_seconds = float(value)
+    if timeout_seconds <= 0:
+        raise ValueError("WORLDFOUNDRY_LARYBENCH_TIMEOUT_SECONDS must be positive")
+    return timeout_seconds
+
+
 def _extract_csv_base_name(args):
     suffix = f"_{args.stride}" if args.mode == "image" else ""
     return f"{args.split}_la_{args.dataset}{suffix}_{args.model}"
@@ -117,8 +130,12 @@ def _merge_extract_partition_csvs(args, count):
 
 
 def _spawn_extract_partitions(args, gpus):
-    processes = []
-    for partition, gpu in enumerate(gpus):
+    from .config import get_config
+
+    log_root = get_config().log_dir / "extract" / _extract_csv_base_name(args)
+    timeout_seconds = _stage_timeout()
+
+    def _run_partition(partition, gpu):
         environment = os.environ.copy()
         environment["CUDA_VISIBLE_DEVICES"] = "" if gpu == "cpu" else str(gpu)
         if gpu == "cpu":
@@ -153,12 +170,27 @@ def _spawn_extract_partitions(args, gpus):
             command.extend(("--input", args.input))
         if args.output:
             command.extend(("--output", args.output))
-        processes.append((partition, subprocess.Popen(command, env=environment)))
+        # start_new_session=False keeps partition workers in this CLI's process
+        # group so the outer run_bounded_command group-kill still reaches them.
+        try:
+            completed = run_logged_subprocess(
+                command,
+                stdout_path=log_root / f"partition_{partition}_stdout.log",
+                stderr_path=log_root / f"partition_{partition}_stderr.log",
+                env=environment,
+                timeout=timeout_seconds,
+                start_new_session=False,
+            )
+        except subprocess.TimeoutExpired:
+            return partition, 124
+        return partition, completed.returncode
 
-    failures = [(partition, process.wait()) for partition, process in processes]
-    failures = [(partition, code) for partition, code in failures if code]
+    with ThreadPoolExecutor(max_workers=len(gpus)) as executor:
+        results = list(executor.map(_run_partition, range(len(gpus)), gpus))
+
+    failures = [(partition, code) for partition, code in results if code]
     if failures:
-        raise RuntimeError(f"Extraction partitions failed: {failures}")
+        raise RuntimeError(f"Extraction partitions failed: {failures}; logs under {log_root}")
     print(_merge_extract_partition_csvs(args, len(gpus)))
 
 
@@ -216,7 +248,21 @@ def run_classify(args):
         "--devices",
         *(gpu if gpu == "cpu" else f"cuda:{gpu}" for gpu in _parse_gpu_ids(args.gpus)),
     ]
-    subprocess.run(command, cwd=config.project_root, env=environment, check=True)
+    log_dir = config.log_dir / "classification" / args.dataset / args.model
+    stdout_path = log_dir / "classify_stdout.log"
+    stderr_path = log_dir / "classify_stderr.log"
+    completed = run_logged_subprocess(
+        command,
+        stdout_path=stdout_path,
+        stderr_path=stderr_path,
+        cwd=config.project_root,
+        env=environment,
+        timeout=_stage_timeout(),
+        start_new_session=False,
+    )
+    if completed.returncode != 0:
+        detail = read_text_tail(stderr_path) or read_text_tail(stdout_path)
+        raise RuntimeError(f"LARYBench classify failed (exit={completed.returncode}): {detail}")
 
 
 def _relative_stats_path(action_data_root, dataset):
@@ -306,7 +352,20 @@ def run_regress(args):
     ):
         if value:
             command.extend((flag, str(value)))
-    subprocess.run(command, cwd=config.project_root, env=environment, check=True)
+    stdout_path = save_dir / "regress_stdout.log"
+    stderr_path = save_dir / "regress_stderr.log"
+    completed = run_logged_subprocess(
+        command,
+        stdout_path=stdout_path,
+        stderr_path=stderr_path,
+        cwd=config.project_root,
+        env=environment,
+        timeout=_stage_timeout(),
+        start_new_session=False,
+    )
+    if completed.returncode != 0:
+        detail = read_text_tail(stderr_path) or read_text_tail(stdout_path)
+        raise RuntimeError(f"LARYBench regress failed (exit={completed.returncode}): {detail}")
 
 
 def main():
