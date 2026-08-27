@@ -134,12 +134,15 @@ def _load_dit_state_dict(checkpoint_path: str, model_root: str):
 def _set_single_process_context_parallel():
     from worldfoundry.core.distributed import context_parallel_util as cp_util
 
-    cp_util.dp_rank = 0
-    cp_util.dp_size = 1
-    cp_util.cp_rank = 0
-    cp_util.cp_size = 1
-    cp_util.dp_group = None
-    cp_util.cp_group = None
+    # Mutate the shared state object; assigning module attributes directly
+    # would shadow the module-level __getattr__ compatibility shim.
+    cp_state = cp_util.get_context_parallel_state()
+    cp_state.dp_rank = 0
+    cp_state.dp_size = 1
+    cp_state.cp_rank = 0
+    cp_state.cp_size = 1
+    cp_state.dp_group = None
+    cp_state.cp_group = None
 
 
 def _setup_seed(seed: int):
