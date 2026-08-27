@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 from PIL import Image
 
-from .gradio_runtime import gr, gradio_progress, mask_socks_proxy_env_for_gradio
+from .gradio_runtime import gr, gradio_progress, install_gradio_patches, mask_socks_proxy_env_for_gradio
 from .catalog import (
     CatalogEntry,
     catalog_as_table,
@@ -2785,6 +2785,7 @@ def build_demo(launch_config: StudioLaunchConfig | None = None) -> gr.Blocks:
 
 
 def main(argv: Sequence[str] | None = None) -> None:
+    install_gradio_patches()
     _ensure_localhost_no_proxy()
     launch_config = parse_launch_config(argv)
     entry = find_entry(launch_config.model_id)
