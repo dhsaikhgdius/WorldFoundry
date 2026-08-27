@@ -13,6 +13,10 @@ from worldfoundry.core.geometry import rotation_matrix_to_euler_angles_opencv
 COLORMAP_VIRIDIS = "viridis"
 COLORMAP_INFERNO = "inferno"
 
+# (connect, read) timeout for requests-based downloads; matches the (10, 300)
+# literals used by the studio visualization plugins.
+_REQUESTS_TIMEOUT: tuple[float, float] = (10.0, 300.0)
+
 _CV2_COLORMAPS = {
     "viridis": cv2.COLORMAP_VIRIDIS,
     "inferno": cv2.COLORMAP_INFERNO,
@@ -240,7 +244,9 @@ def segment_sky(image_or_path, onnx_session, threshold: int = 32) -> np.ndarray:
     return output_mask
 
 
-def download_file_from_url(url: str, filename: str, timeout: float = 60.0) -> str | None:
+def download_file_from_url(
+    url: str, filename: str, timeout: float | tuple[float, float] = _REQUESTS_TIMEOUT
+) -> str | None:
     """Download ``url`` to ``filename``; return the path, or None on failure.
 
     A failed or interrupted download never leaves a partial file behind:
