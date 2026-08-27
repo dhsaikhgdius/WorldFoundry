@@ -5,8 +5,8 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import time
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -22,7 +22,7 @@ from worldfoundry.core.distributed.logging import print_per_rank
 def _load_shard(shard_path: str, param_names: list[str], num_threads: int | None = None):
     zstd_path = shard_path + ".zst"
     if os.path.exists(zstd_path):
-        start_time = datetime.now()
+        start_time = time.perf_counter()
         print_per_rank(f"Decompressing {zstd_path} with {num_threads} threads")
         cmd = ["zstd", "-d"]
         if num_threads:
@@ -50,14 +50,14 @@ def _load_shard(shard_path: str, param_names: list[str], num_threads: int | None
             raise RuntimeError(f"Decompression failed: {completed.stderr.decode(errors='replace')}")
         decompressed_data = completed.stdout
         print_per_rank(
-            f"Decompressed {zstd_path} with {num_threads} threads, duration: {(datetime.now() - start_time).total_seconds()}s"
+            f"Decompressed {zstd_path} with {num_threads} threads, duration: {time.perf_counter() - start_time:.3f}s"
         )
 
-        start_time = datetime.now()
-        print_per_rank(f"Loading {shard_path} from zstd file, start time: {start_time}")
+        start_time = time.perf_counter()
+        print_per_rank(f"Loading {shard_path} from zstd file")
         weights = load_from_bytes(decompressed_data)
         print_per_rank(
-            f"Loaded {shard_path} from zstd file, duration: {(datetime.now() - start_time).total_seconds()}s"
+            f"Loaded {shard_path} from zstd file, duration: {time.perf_counter() - start_time:.3f}s"
         )
     else:
         weights = load_file(shard_path)
