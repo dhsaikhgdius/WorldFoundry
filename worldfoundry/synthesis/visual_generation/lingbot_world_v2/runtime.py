@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 import random
 import shutil
-import subprocess
 import sys
 import tempfile
 import time
@@ -14,6 +13,7 @@ from typing import Any, Mapping, Sequence
 
 from worldfoundry.core.io.paths import checkpoint_root_path, hfd_root_path, project_root
 from worldfoundry.core.io.video import load_video_frames, save_image_or_video_tensor
+from worldfoundry.core.process import read_text_tail, run_logged_subprocess
 
 MODEL_ID = "lingbot-world-v2"
 DISPLAY_NAME = "LingBot-World-V2"
@@ -598,19 +598,17 @@ class LingBotWorldV2Runtime:
             stdout_path = target.with_suffix(".stdout.log")
             stderr_path = target.with_suffix(".stderr.log")
             started = time.monotonic()
-            with stdout_path.open("w", encoding="utf-8") as stdout, stderr_path.open("w", encoding="utf-8") as stderr:
-                completed = subprocess.run(
-                    command,
-                    cwd=SOURCE_ROOT,
-                    env=self._subprocess_env(),
-                    stdout=stdout,
-                    stderr=stderr,
-                    text=True,
-                    timeout=int(options["timeout_seconds"]),
-                    check=False,
-                )
+            completed = run_logged_subprocess(
+                command,
+                stdout_path=stdout_path,
+                stderr_path=stderr_path,
+                cwd=SOURCE_ROOT,
+                env=self._subprocess_env(),
+                timeout=int(options["timeout_seconds"]),
+                start_new_session=False,
+            )
             if completed.returncode != 0:
-                tail = stderr_path.read_text(encoding="utf-8", errors="replace")[-12000:]
+                tail = read_text_tail(stderr_path)
                 raise RuntimeError(
                     f"LingBot-World-V2 runner exited with code {completed.returncode}. "
                     f"See {stdout_path} and {stderr_path}.\n{tail}"
