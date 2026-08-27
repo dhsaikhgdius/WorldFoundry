@@ -3,12 +3,14 @@ import time
 import torchvision.transforms.functional as TF
 import torch
 import numpy as np
-import subprocess
 from functools import lru_cache
 import cv2
 from PIL import Image
 import requests
 import json
+
+from worldfoundry.core.process import run_logged_subprocess
+from worldfoundry.runtime.jobs import run_bounded_command
 
 
 def get_rotation_metadata(video_path):
@@ -16,16 +18,18 @@ def get_rotation_metadata(video_path):
     Returns the rotation metadata (in degrees) from a video file using ffprobe.
     """
     try:
-        result = subprocess.run(
+        result = run_bounded_command(
             ['ffprobe', '-v', 'error', '-select_streams', 'v:0',
              '-show_entries', 'stream_tags=rotate',
              '-of', 'json', video_path],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            check=True,
-            text=True
+            timeout=60,
         )
-        ffprobe_output = json.loads(result.stdout)
+        if result["timed_out"] or result["returncode"] != 0:
+            raise RuntimeError(
+                f"ffprobe exited with code {result['returncode']}: "
+                f"{str(result['stderr']).strip()}"
+            )
+        ffprobe_output = json.loads(result["stdout"])
         tags = ffprobe_output.get('streams', [{}])[0].get('tags', {})
         rotation = int(tags.get('rotate', 0))
         return rotation
@@ -83,7 +87,14 @@ def load_video_as_rgb(video_path, resample_to=None, resample_frame_count_thresho
                 resampled_path
             ]
             
-            subprocess.run(ffmpeg_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            # Streams ffmpeg output to disk instead of unbounded PIPE buffers;
+            # check_returncode() preserves the prior check=True contract.
+            run_logged_subprocess(
+                ffmpeg_cmd,
+                stdout_path=f"{resampled_path}.ffmpeg.stdout.log",
+                stderr_path=f"{resampled_path}.ffmpeg.stderr.log",
+                start_new_session=False,
+            ).check_returncode()
         else:
             resampled_path = video_path
         # Now read the resampled video

@@ -16,6 +16,9 @@ from release_server import (
     Models
 )
 
+from worldfoundry.core.process import read_text_tail, run_logged_subprocess, terminate_process_tree
+from worldfoundry.runtime.jobs import run_bounded_command
+
 torch.set_grad_enabled(False)
 
 # Default prompts
@@ -81,20 +84,31 @@ def save_video_ffmpeg_pipe(pixels: torch.Tensor, output_path: Path, fps: int = 3
         str(output_path)
     ]
     
+    # Managed-helper exemption (ET-07): this encode streams raw RGB frames to
+    # ffmpeg through an interactive stdin pipe, which run_logged_subprocess
+    # does not support (it only redirects the child's stdout/stderr to files).
+    # A bare Popen with an explicit argv (no shell) is intentional; if feeding
+    # the pipe fails mid-encode, cleanup escalates terminate -> bounded wait ->
+    # kill via terminate_process_tree.
     try:
         process = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+    except OSError as e:
+        print(f"❌ Error creating video: failed to launch ffmpeg: {e}")
+        return None
+    try:
         process.stdin.write(video_np.tobytes())
         process.stdin.close()
         process.wait()
-        
-        if process.returncode == 0:
-            print(f"✅ Video saved to {output_path}")
-            return output_path
-        else:
-            print(f"❌ Error creating video: {process.stderr.read().decode()}")
-            return None
     except Exception as e:
+        terminate_process_tree(process)
         print(f"❌ Error creating video: {e}")
+        return None
+
+    if process.returncode == 0:
+        print(f"✅ Video saved to {output_path}")
+        return output_path
+    else:
+        print(f"❌ Error creating video: {process.stderr.read().decode()}")
         return None
     
 
@@ -122,8 +136,6 @@ def save_video_frames(pixels: torch.Tensor, output_dir: Path, prompt_idx: int):
 
 def create_video_from_frames(frames_dir: Path, output_path: Path, fps: int = 30):
     """Create a video from frames using ffmpeg"""
-    import subprocess
-    
     # Get all frame files for this prompt
     frame_pattern = str(frames_dir / "*.png")
     
@@ -137,13 +149,23 @@ def create_video_from_frames(frames_dir: Path, output_path: Path, fps: int = 30)
         str(output_path)
     ]
     
-    try:
-        subprocess.run(cmd, check=True, capture_output=True)
-        print(f"✅ Video saved to {output_path}")
-        return output_path
-    except subprocess.CalledProcessError as e:
-        print(f"❌ Error creating video: {e.stderr.decode()}")
+    stdout_path = f"{output_path}.ffmpeg.stdout.log"
+    stderr_path = f"{output_path}.ffmpeg.stderr.log"
+    result = run_logged_subprocess(
+        cmd,
+        stdout_path=stdout_path,
+        stderr_path=stderr_path,
+        start_new_session=False,
+    )
+    if result.returncode != 0:
+        tail = read_text_tail(stderr_path)
+        print(
+            f"❌ Error creating video (ffmpeg exit code {result.returncode}); "
+            f"see {stderr_path}\n{tail}"
+        )
         return None
+    print(f"✅ Video saved to {output_path}")
+    return output_path
 
 
 def sample_videos(
@@ -262,7 +284,6 @@ def create_grid(outputs_folder: str = "outputs", grid_output_dir: str = "outputs
     Returns:
         dict: Mapping of prompt names to grid video paths
     """
-    import subprocess
     from collections import defaultdict
     
     outputs_path = Path(outputs_folder)
@@ -323,14 +344,16 @@ def create_grid(outputs_folder: str = "outputs", grid_output_dir: str = "outputs
             cmd.extend(["-i", str(video_path)])
         
         # Get dimensions from first video
-        import subprocess as sp
         probe_cmd = [
             "ffprobe", "-v", "error", "-select_streams", "v:0",
             "-show_entries", "stream=width,height", "-of", "csv=s=x:p=0",
             str(videos[0][1])
         ]
         try:
-            dimensions = sp.run(probe_cmd, capture_output=True, text=True, check=True).stdout.strip()
+            probe = run_bounded_command(probe_cmd, timeout=60)
+            if probe["timed_out"] or probe["returncode"] != 0:
+                raise RuntimeError(f"ffprobe exited with code {probe['returncode']}")
+            dimensions = str(probe["stdout"]).strip()
             video_width, video_height = map(int, dimensions.split('x'))
         except:
             # Fallback to default dimensions if probe fails
@@ -387,14 +410,22 @@ def create_grid(outputs_folder: str = "outputs", grid_output_dir: str = "outputs
         ])
         
         # Run ffmpeg
-        try:
-            result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+        stdout_path = f"{grid_output_path}.ffmpeg.stdout.log"
+        stderr_path = f"{grid_output_path}.ffmpeg.stderr.log"
+        result = run_logged_subprocess(
+            cmd,
+            stdout_path=stdout_path,
+            stderr_path=stderr_path,
+            start_new_session=False,
+        )
+        if result.returncode == 0:
             print(f"✅ Grid video saved to {grid_output_path}")
             grid_results[prompt_name] = grid_output_path
-        except subprocess.CalledProcessError as e:
+        else:
+            tail = read_text_tail(stderr_path)
             print(f"❌ Error creating grid for {prompt_name}:")
             print(f"   Command: {' '.join(cmd)}")
-            print(f"   Error: {e.stderr}")
+            print(f"   Error: ffmpeg exit code {result.returncode}; see {stderr_path}\n{tail}")
     
     print(f"\n🎉 Created {len(grid_results)} grid videos in {grid_output_dir}")
     return grid_results

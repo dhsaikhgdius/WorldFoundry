@@ -1,4 +1,7 @@
 import torch
+
+from worldfoundry.core.process import terminate_process_tree
+
 torch.set_grad_enabled(False)
 from safetensors.torch import load_file, save_file
 import safetensors
@@ -893,10 +896,24 @@ def save_video_to_bytes(pixels: torch.Tensor, fps: int = 24) -> Optional[bytes]:
             tmp_path
         ]
         
-        process = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
-        process.stdin.write(video_np.tobytes())
-        process.stdin.close()
-        process.wait()
+        # Managed-helper exemption (ET-07): this encode streams raw RGB frames
+        # to ffmpeg through an interactive stdin pipe, which
+        # run_logged_subprocess does not support (it only redirects the
+        # child's stdout/stderr to files).  A bare Popen with an explicit argv
+        # (no shell) is intentional; if feeding the pipe fails mid-encode,
+        # cleanup escalates terminate -> bounded wait -> kill via
+        # terminate_process_tree.
+        try:
+            process = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+        except OSError as error:
+            raise RuntimeError(f"Failed to launch ffmpeg for video encoding: {error}") from error
+        try:
+            process.stdin.write(video_np.tobytes())
+            process.stdin.close()
+            process.wait()
+        except Exception:
+            terminate_process_tree(process)
+            raise
         
         if process.returncode != 0:
             log.error(f"FFmpeg error: {process.stderr.read().decode()}")
