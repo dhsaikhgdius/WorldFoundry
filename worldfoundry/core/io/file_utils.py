@@ -666,7 +666,7 @@ def insert_before_ext(name, insert):
 def timestamp_file_name(fname):
     from datetime import datetime
 
-    timestr = datetime.now().strftime("_%H-%M-%S_%m-%d-%y")
+    timestr = datetime.now().strftime("_%Y%m%d-%H%M%S")
     return insert_before_ext(fname, timestr)
 
 
