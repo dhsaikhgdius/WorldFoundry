@@ -2,11 +2,20 @@
 
 from __future__ import annotations
 
-import os
 import shutil
-import subprocess
+
+from worldfoundry.runtime.jobs import run_bounded_command
 
 _FFMPEG_CHECKED = False
+
+# Version probe should be instant; the timeout guards against a hung binary.
+_FFMPEG_PROBE_TIMEOUT_SECONDS = 60
+
+_FFMPEG_INSTALL_HINT = (
+    "ffmpeg is a required system requirement but not found. Install with:\n"
+    "conda install ffmpeg=6.1.2 -c conda-forge\n"
+    "or visit: https://ffmpeg.org/download.html"
+)
 
 
 def ensure_ffmpeg() -> None:
@@ -14,17 +23,16 @@ def ensure_ffmpeg() -> None:
     global _FFMPEG_CHECKED
     if _FFMPEG_CHECKED:
         return
+    if shutil.which("ffmpeg") is None:
+        raise RuntimeError(_FFMPEG_INSTALL_HINT)
     try:
-        if shutil.which("ffmpeg") is None:
-            raise FileNotFoundError
-        # Version probe should be instant; the timeout guards against a hung binary.
-        subprocess.run(["ffmpeg", "-version"], capture_output=True, check=True, timeout=60)
-    except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
-        raise RuntimeError(
-            "ffmpeg is a required system requirement but not found. Install with:\n"
-            "conda install ffmpeg=6.1.2 -c conda-forge\n"
-            "or visit: https://ffmpeg.org/download.html"
-        ) from exc
+        probe = run_bounded_command(("ffmpeg", "-version"), timeout=_FFMPEG_PROBE_TIMEOUT_SECONDS)
+    except OSError as exc:
+        raise RuntimeError(_FFMPEG_INSTALL_HINT) from exc
+    # A timed-out probe surfaces as returncode 124 after a process-group kill,
+    # so hung binaries map onto the same install hint as failing ones.
+    if probe["returncode"] != 0:
+        raise RuntimeError(_FFMPEG_INSTALL_HINT)
     _FFMPEG_CHECKED = True
 
 
