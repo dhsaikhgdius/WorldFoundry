@@ -114,7 +114,7 @@ def run_bounded_command(
     *,
     cwd: str | Path | None = None,
     env: Mapping[str, str] | None = None,
-    timeout: int,
+    timeout: int | None,
     kill_timeout: int = 5,
 ) -> dict[str, Any]:
     """Run a command with a hard timeout and always return captured output.
@@ -123,6 +123,10 @@ def run_bounded_command(
     or CUDA-backed scripts can ignore ordinary timeout handling while stuck in
     native code, so timeout failures are converted into structured results that
     callers can write into scorecards instead of surfacing a traceback.
+
+    ``timeout=None`` leaves the command wall-clock unbounded (preserving
+    ``subprocess.call``-style behavior for callers with no sensible ceiling)
+    while keeping the captured-output result shape and process-group launch.
     """
 
     command_tuple = tuple(str(item) for item in command)

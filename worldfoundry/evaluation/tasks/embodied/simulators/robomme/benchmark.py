@@ -11,7 +11,6 @@ from __future__ import annotations
 import logging
 import os
 import re
-import subprocess
 import sys
 from typing import Any, Literal
 
@@ -19,6 +18,7 @@ import numpy as np
 
 from worldfoundry.evaluation.tasks.embodied.simulators.base import BaseSimulator, StepResult
 from worldfoundry.evaluation.tasks.embodied.simulators.specs import IMAGE_RGB, LANGUAGE, RAW, DimSpec
+from worldfoundry.runtime.jobs import run_bounded_command
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +30,8 @@ _UNFILLED_PLACEHOLDER_RE = re.compile(r"<[A-Za-z_]")
 # Probe script for ROBOMME_USE_LAVAPIPE=auto. Runs in a child process so a hang
 # in SAPIEN's Vulkan instance creation can be timed out without poisoning the
 # parent process (SAPIEN's VkInstance is created at import time and cannot be
-# reset in-process). subprocess.run's timeout is the watchdog — the child has
-# no internal timer.
+# reset in-process). run_bounded_command's timeout is the watchdog — the child
+# has no internal timer.
 _NATIVE_PROBE = """
 import sapien
 import sapien.render
@@ -63,21 +63,15 @@ def native_render_path_works(timeout_s: int = 15) -> bool:
         exit code from the child process is considered a failure.
     """
     try:
-        # Execute the probe script in a child process, capturing no output.
-        result = subprocess.run(
-            [sys.executable, "-c", _NATIVE_PROBE],
-            timeout=timeout_s,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-        # Check if the child process exited successfully.
-        return result.returncode == 0
-    except subprocess.TimeoutExpired:
-        # Process timed out, indicating a hang.
-        return False
+        # Execute the probe script in an isolated child process; its output is
+        # captured by the bounded helper and intentionally ignored.
+        result = run_bounded_command([sys.executable, "-c", _NATIVE_PROBE], timeout=timeout_s)
     except Exception as e:
         logger.warning("Native render-path probe error: %s", e)
         return False
+    # A hung probe is force-killed with its process group and surfaces as
+    # returncode 124, mapping onto the same False as a crashing child.
+    return result["returncode"] == 0
 
 
 def _resolve_lavapipe_icd() -> str | None:
