@@ -10,7 +10,7 @@ import tempfile
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
-from worldfoundry.core.process import run_logged_subprocess
+from worldfoundry.core.process import run_logged_subprocess, terminate_process_tree
 
 from .media import IMAGE_EXTENSIONS, VIDEO_EXTENSIONS
 from .scratch import make_scratch_dir
@@ -574,12 +574,23 @@ def save_video_h264(
         "+faststart",
         str(target),
     ]
-    process = subprocess.Popen(
-        command,
-        stdin=subprocess.PIPE,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.PIPE,
-    )
+    # Managed-helper exemption (ET-07): this encode streams raw RGB frames to
+    # ffmpeg through an interactive stdin pipe, which run_logged_subprocess
+    # does not support (it only redirects the child's stdout/stderr to files).
+    # A bare Popen with an explicit argv (no shell) is intentional; if feeding
+    # the pipe fails mid-encode, cleanup escalates terminate -> bounded wait ->
+    # kill via terminate_process_tree.
+    try:
+        process = subprocess.Popen(
+            command,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+        )
+    except OSError as error:
+        raise RuntimeError(
+            f"Failed to launch ffmpeg ({ffmpeg_bin!r}) for H.264 encoding: {error}"
+        ) from error
     try:
         assert process.stdin is not None
         for index in range(frame_count):
@@ -589,8 +600,7 @@ def save_video_h264(
         stderr = process.stderr.read()
         process.wait()
     except Exception:
-        process.kill()
-        process.wait()
+        terminate_process_tree(process)
         raise
     if process.returncode != 0:
         message = stderr.decode("utf-8", errors="ignore")
