@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import subprocess
 import sys
 from pathlib import Path
 from typing import Callable
@@ -17,9 +16,12 @@ import pandas as pd
 from worldfoundry.base_models.capabilities import BASE_MODEL_CAPABILITIES
 from worldfoundry.base_models.perception_core.frame_interpolation.amt import (
     checkpoint_path as amt_checkpoint_path,
+)
+from worldfoundry.base_models.perception_core.frame_interpolation.amt import (
     config_path as amt_config_path,
 )
 from worldfoundry.base_models.perception_core.optical_flow.raft import checkpoint_path as raft_checkpoint_path
+from worldfoundry.core.process import read_text_tail, run_logged_subprocess
 
 RUNTIME_ROOT = Path(__file__).resolve().parent
 
@@ -81,9 +83,35 @@ def _resolve_required_file(
     raise FileNotFoundError(f"missing DEVIL {label}; set one of: {', '.join(hints) or label}")
 
 
-def _run(command: list[str], *, cwd: Path, env: dict[str, str]) -> None:
+def _stage_timeout() -> float | None:
+    value = os.environ.get("WORLDFOUNDRY_DEVIL_TIMEOUT_SECONDS", "").strip()
+    if not value:
+        return None
+    timeout_seconds = float(value)
+    if timeout_seconds <= 0:
+        raise ValueError("WORLDFOUNDRY_DEVIL_TIMEOUT_SECONDS must be positive")
+    return timeout_seconds
+
+
+def _run(command: list[str], *, cwd: Path, env: dict[str, str], save_dir: Path, stage: str) -> None:
     print("+", " ".join(command), flush=True)
-    subprocess.run(command, cwd=cwd, env=env, check=True)
+    stdout_path = save_dir / f"{stage}_stdout.log"
+    stderr_path = save_dir / f"{stage}_stderr.log"
+    # start_new_session=False keeps evaluator children in this launcher's
+    # process group so the framework official_runner timeout group-kill still
+    # reaches them.
+    completed = run_logged_subprocess(
+        command,
+        stdout_path=stdout_path,
+        stderr_path=stderr_path,
+        cwd=cwd,
+        env=env,
+        timeout=_stage_timeout(),
+        start_new_session=False,
+    )
+    if completed.returncode != 0:
+        detail = read_text_tail(stderr_path) or read_text_tail(stdout_path)
+        raise RuntimeError(f"DEVIL {stage} stage failed (exit={completed.returncode}): {detail}")
 
 
 def _prompt_dynamic_grades(video_names: pd.Series) -> np.ndarray:
@@ -273,7 +301,7 @@ def main(argv: list[str] | None = None) -> int:
     ]
     if args.timm_dino_ckpt:
         dynamic_cmd.extend(["--timm_dino_model_path", str(Path(args.timm_dino_ckpt).expanduser().resolve())])
-    _run(dynamic_cmd, cwd=RUNTIME_ROOT, env=env)
+    _run(dynamic_cmd, cwd=RUNTIME_ROOT, env=env, save_dir=save_dir, stage="dynamics")
 
     quality_cmd = [
         args.python,
@@ -303,7 +331,7 @@ def main(argv: list[str] | None = None) -> int:
         quality_cmd.extend(["--naturalness_path", str(args.naturalness_path.expanduser().resolve())])
     else:
         quality_cmd.extend(["--gemini_api_key", str(args.gemini_api_key)])
-    _run(quality_cmd, cwd=RUNTIME_ROOT, env=env)
+    _run(quality_cmd, cwd=RUNTIME_ROOT, env=env, save_dir=save_dir, stage="quality")
 
     final_cmd = [
         args.python,
@@ -321,7 +349,7 @@ def main(argv: list[str] | None = None) -> int:
         quality_score_name,
         "--print_detail_quality_results",
     ]
-    _run(final_cmd, cwd=RUNTIME_ROOT, env=env)
+    _run(final_cmd, cwd=RUNTIME_ROOT, env=env, save_dir=save_dir, stage="calculate_metrics")
     summary_path = _summarize_results(save_dir, dynamic_score_name)
     print(f"DEVIL summary: {summary_path}")
     return 0
