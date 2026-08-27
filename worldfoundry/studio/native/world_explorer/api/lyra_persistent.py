@@ -24,7 +24,7 @@ from lyra_2._ext.imaginaire.utils import misc
 from lyra_2._src.datasets.forward_warp_utils_pytorch import forward_warp_multiframes
 from lyra_2._src.inference.lyra2_ar_inference import Lyra2InferencePipeline
 
-from worldfoundry.core.process import run_logged_subprocess
+from worldfoundry.core.process import run_logged_subprocess, terminate_process_tree
 
 _cudnn_enabled_before_inference_imports = torch.backends.cudnn.enabled
 from lyra_2._src.inference.lyra2_custom_traj_inference import DMD_LORA_PATH, DMD_LORA_WEIGHT  # noqa: E402
@@ -623,8 +623,23 @@ class Lyra2PersistentModel:
 			"-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-movflags", "+faststart",
 			"-preset", "fast", "-crf", "18", str(path),
 		]
-		proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
-		_, stderr = proc.communicate(input=np.ascontiguousarray(frames).tobytes())
+		# Managed-helper exemption (ET-07): this encode streams raw RGB frames
+		# to ffmpeg through an interactive stdin pipe, which
+		# run_logged_subprocess does not support (it only redirects the child's
+		# stdout/stderr to files).  A bare Popen with an explicit argv (no
+		# shell) is intentional; if feeding the pipe fails mid-encode, cleanup
+		# escalates terminate -> bounded wait -> kill via terminate_process_tree.
+		try:
+			proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+		except OSError as error:
+			raise RuntimeError(
+				f"Failed to launch ffmpeg ({ffmpeg!r}) for chunk encoding: {error}"
+			) from error
+		try:
+			_, stderr = proc.communicate(input=np.ascontiguousarray(frames).tobytes())
+		except Exception:
+			terminate_process_tree(proc)
+			raise
 		if proc.returncode != 0:
 			raise RuntimeError(f"ffmpeg failed ({proc.returncode}): {stderr.decode(errors='replace')}")
 		self._chunk_paths.append(path)
