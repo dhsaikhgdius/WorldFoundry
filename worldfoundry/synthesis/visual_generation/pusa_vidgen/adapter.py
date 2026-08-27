@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import subprocess
 import sys
 import time
 from collections.abc import Mapping
@@ -11,7 +10,7 @@ from typing import Any
 
 from worldfoundry.core import as_list, cuda_visible_devices_from_device, jsonable, resolve_hf_snapshot_path
 from worldfoundry.core.io.paths import project_root
-
+from worldfoundry.core.process import run_logged_subprocess
 
 _REPO_SRC = project_root(__file__)
 
@@ -309,17 +308,15 @@ class PusaVidGenRuntime:
         stderr_path = target_log_dir / "pusa_vidgen_stderr.log"
         env = os.environ.copy()
         env.update(plan.env)
-        with stdout_path.open("w", encoding="utf-8") as stdout, stderr_path.open("w", encoding="utf-8") as stderr:
-            completed = subprocess.run(
-                list(plan.command),
-                cwd=plan.workdir,
-                env=env,
-                stdout=stdout,
-                stderr=stderr,
-                text=True,
-                timeout=timeout_seconds,
-                check=False,
-            )
+        completed = run_logged_subprocess(
+            list(plan.command),
+            stdout_path=stdout_path,
+            stderr_path=stderr_path,
+            cwd=plan.workdir,
+            env=env,
+            timeout=timeout_seconds,
+            start_new_session=False,
+        )
         generated_files = sorted(str(path) for path in Path(plan.output_dir).expanduser().resolve().rglob("*.mp4"))
         metadata_path = str(Path(plan.output_path).with_suffix(".json"))
         ok = completed.returncode == 0 and bool(generated_files)
