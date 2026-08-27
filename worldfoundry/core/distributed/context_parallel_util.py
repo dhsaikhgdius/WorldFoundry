@@ -1,3 +1,8 @@
+from __future__ import annotations
+
+import logging
+from dataclasses import dataclass, fields
+
 import torch
 import torch.distributed as dist
 from einops import rearrange
@@ -5,91 +10,133 @@ from torch.distributed.device_mesh import init_device_mesh
 
 from worldfoundry.core.distributed.device_mesh_collectives import all_to_all_tensor
 
-dp_size = None
-cp_size = None
-dp_group = None
-cp_group = None
-cp_stream = None
-dp_ranks = None
-cp_ranks = None
-dp_rank = None
-cp_rank = None
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class ContextParallelState:
+    """Process-wide context-parallel topology (single source of truth, XC-10).
+
+    Historically each field lived as a lowercase module-level global mutated
+    through ``global`` statements. They are now grouped here; legacy
+    module-attribute reads (``context_parallel_util.cp_size`` or
+    ``from ... import cp_size``) keep working through the module-level
+    ``__getattr__`` below.
+    """
+
+    dp_size: int | None = None
+    cp_size: int | None = None
+    dp_group: dist.ProcessGroup | None = None
+    cp_group: dist.ProcessGroup | None = None
+    cp_stream: torch.cuda.Stream | None = None
+    dp_ranks: list[int] | None = None
+    cp_ranks: list[int] | None = None
+    dp_rank: int | None = None
+    cp_rank: int | None = None
+
+    def reset(self) -> None:
+        for field in fields(self):
+            setattr(self, field.name, None)
+
+
+_CP_STATE = ContextParallelState()
+
+# Names formerly exposed as lowercase module globals, kept readable for
+# backwards compatibility via PEP 562 module __getattr__.
+_LEGACY_STATE_ATTRS = tuple(field.name for field in fields(ContextParallelState))
+
+
+def __getattr__(name: str):
+    if name in _LEGACY_STATE_ATTRS:
+        return getattr(_CP_STATE, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def get_context_parallel_state() -> ContextParallelState:
+    """Return the mutable singleton holding the context-parallel topology."""
+    return _CP_STATE
+
+
+def reset_context_parallel() -> None:
+    """Clear the context-parallel state (e.g. between unit tests).
+
+    Does not destroy torch.distributed process groups; it only drops the
+    references held by this module.
+    """
+    _CP_STATE.reset()
 
 
 def init_context_parallel(context_parallel_size: int = 1, global_rank: int = 0, world_size: int = 1):
-    global dp_size, cp_size, dp_group, cp_group, dp_ranks, cp_ranks, dp_rank, cp_rank
-
     if world_size % context_parallel_size != 0:
         raise RuntimeError(f"world_size {world_size} must be multiple of context_parallel_size {context_parallel_size}")
 
-    cp_size = context_parallel_size
-    dp_size = world_size // context_parallel_size
+    state = _CP_STATE
+    state.cp_size = context_parallel_size
+    state.dp_size = world_size // context_parallel_size
 
-    print(f"[rank {global_rank}] init_device_mesh [dp_size x cp_size]: [{dp_size} x {cp_size}]")
-    mesh_2d = init_device_mesh("cuda", (dp_size, cp_size), mesh_dim_names=("dp", "cp"))
-    print(f"[rank {global_rank}] mesh_2d: {mesh_2d}")
+    logger.info(
+        "[rank %s] init_device_mesh [dp_size x cp_size]: [%s x %s]", global_rank, state.dp_size, state.cp_size
+    )
+    mesh_2d = init_device_mesh("cuda", (state.dp_size, state.cp_size), mesh_dim_names=("dp", "cp"))
+    logger.info("[rank %s] mesh_2d: %s", global_rank, mesh_2d)
 
-    dp_group = mesh_2d.get_group(mesh_dim="dp")
-    cp_group = mesh_2d.get_group(mesh_dim="cp")
-    dp_ranks = torch.distributed.get_process_group_ranks(dp_group)
-    cp_ranks = torch.distributed.get_process_group_ranks(cp_group)
-    dp_rank = dist.get_rank(group=dp_group)
-    cp_rank = dist.get_rank(group=cp_group)
+    state.dp_group = mesh_2d.get_group(mesh_dim="dp")
+    state.cp_group = mesh_2d.get_group(mesh_dim="cp")
+    state.dp_ranks = torch.distributed.get_process_group_ranks(state.dp_group)
+    state.cp_ranks = torch.distributed.get_process_group_ranks(state.cp_group)
+    state.dp_rank = dist.get_rank(group=state.dp_group)
+    state.cp_rank = dist.get_rank(group=state.cp_group)
 
     current_global_rank = torch.distributed.get_rank()
-    print(
-        f"[rank {current_global_rank}] [dp_rank, cp_rank]: [{dp_rank}, {cp_rank}], "
-        f"dp_ranks: {dp_ranks}, cp_ranks: {cp_ranks}"
+    logger.info(
+        "[rank %s] [dp_rank, cp_rank]: [%s, %s], dp_ranks: %s, cp_ranks: %s",
+        current_global_rank,
+        state.dp_rank,
+        state.cp_rank,
+        state.dp_ranks,
+        state.cp_ranks,
     )
 
 
 def get_cp_size():
-    global cp_size
-    return cp_size
+    return _CP_STATE.cp_size
 
 
 def get_dp_size():
-    global dp_size
-    return dp_size
+    return _CP_STATE.dp_size
 
 
 def get_cp_stream():
-    global cp_stream
-    if cp_stream is None:
-        cp_stream = torch.cuda.Stream()
-    return cp_stream
+    if _CP_STATE.cp_stream is None:
+        _CP_STATE.cp_stream = torch.cuda.Stream()
+    return _CP_STATE.cp_stream
 
 
 def get_dp_group():
-    global dp_group
-    return dp_group
+    return _CP_STATE.dp_group
 
 
 def get_cp_group():
-    global cp_group
-    return cp_group
+    return _CP_STATE.cp_group
 
 
 def get_dp_rank():
-    global dp_rank
-    return dp_rank
+    return _CP_STATE.dp_rank
 
 
 def get_cp_rank():
-    global cp_rank
-    return cp_rank
+    return _CP_STATE.cp_rank
 
 
 def get_cp_rank_list():
-    global cp_ranks
-    if cp_ranks is None:
-        cp_ranks = torch.distributed.get_process_group_ranks(cp_group)
-    return cp_ranks
+    if _CP_STATE.cp_ranks is None:
+        _CP_STATE.cp_ranks = torch.distributed.get_process_group_ranks(_CP_STATE.cp_group)
+    return _CP_STATE.cp_ranks
 
 
 def cp_broadcast(tensor, cp_index=0):
     cp_ranks = get_cp_rank_list()
-    torch.distributed.broadcast(tensor, cp_ranks[cp_index], group=cp_group)
+    torch.distributed.broadcast(tensor, cp_ranks[cp_index], group=_CP_STATE.cp_group)
 
 
 def cp_broadcast_objects(tensor):
@@ -97,7 +144,7 @@ def cp_broadcast_objects(tensor):
 
 
 def split_tensor_in_cp(input, seq_dim):
-    global cp_size
+    cp_size = _CP_STATE.cp_size
 
     seq_size = input.shape[seq_dim]
     if seq_size % cp_size != 0:
@@ -109,7 +156,7 @@ def split_tensor_in_cp(input, seq_dim):
 
 
 def split_tensor_in_cp_2d(input, dim_hw, split_hw):
-    global cp_size
+    cp_size = _CP_STATE.cp_size
 
     dim_h, dim_w = dim_hw
     split_h, split_w = split_hw
