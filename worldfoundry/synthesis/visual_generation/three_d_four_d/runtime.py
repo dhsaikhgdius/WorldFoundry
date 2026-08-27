@@ -4,7 +4,6 @@ import hashlib
 import json
 import os
 import shutil
-import subprocess
 import sys
 import tempfile
 from dataclasses import dataclass, field
@@ -13,6 +12,7 @@ from typing import Any, Mapping, Sequence
 
 import yaml
 
+from worldfoundry.core.process import read_text_tail, run_logged_subprocess
 from worldfoundry.evaluation.models.runtime.profiles import load_runtime_profile
 from worldfoundry.evaluation.utils import REPO_ROOT
 from worldfoundry.synthesis.base_synthesis import BaseSynthesis
@@ -326,17 +326,17 @@ class ThreeDFourDRuntimeSynthesis(BaseSynthesis):
             }
 
         log_path = run_dir / "subprocess_runtime.log"
+        stderr_log_path = run_dir / "subprocess_runtime.stderr.log"
         env = self._subprocess_env(kwargs)
         try:
-            completed = subprocess.run(
+            completed = run_logged_subprocess(
                 command,
+                stdout_path=log_path,
+                stderr_path=stderr_log_path,
                 cwd=str(self.source_root),
                 env=env,
-                text=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
                 timeout=timeout_seconds,
-                check=False,
+                start_new_session=False,
             )
         except Exception as exc:  # pragma: no cover - runtime/environment dependent.
             return {
@@ -351,8 +351,8 @@ class ThreeDFourDRuntimeSynthesis(BaseSynthesis):
                 "error": f"{type(exc).__name__}: {exc}",
                 "metadata": plan_payload,
             }
-        log_path.write_text(completed.stdout or "", encoding="utf-8")
         if completed.returncode != 0:
+            tail = read_text_tail(stderr_log_path)
             return {
                 "status": "failed",
                 "model_id": self.model_id,
@@ -362,8 +362,16 @@ class ThreeDFourDRuntimeSynthesis(BaseSynthesis):
                 "command": command,
                 "runtime": "worldfoundry.three_d_four_d.subprocess",
                 "backend_quality": "model_entrypoint",
-                "error": f"runtime exited with code {completed.returncode}; see {log_path}",
-                "metadata": {**plan_payload, "log_path": str(log_path)},
+                "error": (
+                    f"runtime exited with code {completed.returncode}; "
+                    f"see {log_path} and {stderr_log_path}"
+                    + (f"\n{tail}" if tail else "")
+                ),
+                "metadata": {
+                    **plan_payload,
+                    "log_path": str(log_path),
+                    "stderr_log_path": str(stderr_log_path),
+                },
             }
 
         artifact_path = _select_artifact(output, run_dir, extra_dirs=_extra_artifact_dirs(self.spec, self.source_root))
@@ -396,7 +404,11 @@ class ThreeDFourDRuntimeSynthesis(BaseSynthesis):
             "command": command,
             "runtime": "worldfoundry.three_d_four_d.subprocess",
             "backend_quality": "model_entrypoint",
-            "metadata": {**plan_payload, "log_path": str(log_path)},
+            "metadata": {
+                **plan_payload,
+                "log_path": str(log_path),
+                "stderr_log_path": str(stderr_log_path),
+            },
         }
         if visualization_path is not None:
             result["visualization_artifact_path"] = str(visualization_path)

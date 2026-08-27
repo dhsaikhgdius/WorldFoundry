@@ -205,14 +205,15 @@ def test_solaris_synthesis_builds_inference_command(monkeypatch, tmp_path: Path)
 
     calls = []
 
-    def fake_run(command, check, cwd, env, stdout, stderr):
+    def fake_run(command, *, stdout_path, stderr_path, cwd, env, start_new_session):
         calls.append(
             {
                 "command": command,
                 "cwd": cwd,
                 "env": env,
-                "stdout": stdout,
-                "stderr": stderr,
+                "stdout_path": stdout_path,
+                "stderr_path": stderr_path,
+                "start_new_session": start_new_session,
             }
         )
         if command[1] == "src/inference.py":
@@ -234,7 +235,7 @@ def test_solaris_synthesis_builds_inference_command(monkeypatch, tmp_path: Path)
                 (eval_dir / "video_0_side_by_side.mp4").write_bytes(b"video")
         return subprocess.CompletedProcess(command, 0)
 
-    monkeypatch.setattr(solaris_runtime_module.subprocess, "run", fake_run)
+    monkeypatch.setattr(solaris_runtime_module, "run_logged_subprocess", fake_run)
     monkeypatch.setenv("WORLDFOUNDRY_SOLARIS_MANAGE_LD_LIBRARY_PATH", "1")
 
     synthesis = synthesis_module.SolarisSynthesis(
