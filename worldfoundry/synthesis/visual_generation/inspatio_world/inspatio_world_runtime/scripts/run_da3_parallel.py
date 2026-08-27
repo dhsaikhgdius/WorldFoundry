@@ -14,8 +14,9 @@ import argparse
 import json
 import multiprocessing
 import os
-import subprocess
 import sys
+
+from worldfoundry.core.process import read_text_tail, run_logged_subprocess
 
 
 def process_video(args):
@@ -40,9 +41,21 @@ def process_video(args):
             "--output", da3_output,
             "--config-json", da3_config,
         ]
-        result = subprocess.run(cmd_da3, env=env)
+        da3_stderr = os.path.join(final_output, "da3.stderr.log")
+        result = run_logged_subprocess(
+            cmd_da3,
+            stdout_path=os.path.join(final_output, "da3.stdout.log"),
+            stderr_path=da3_stderr,
+            env=env,
+            start_new_session=False,
+        )
         if result.returncode != 0:
-            print(f"[GPU {gpu_id}] DA3 failed for {video_name}", file=sys.stderr)
+            tail = read_text_tail(da3_stderr)
+            print(
+                f"[GPU {gpu_id}] DA3 failed for {video_name} "
+                f"(exit {result.returncode}, see {da3_stderr}): {tail}",
+                file=sys.stderr,
+            )
             return False
 
     # --- Convert DA3 -> Pi3 format ---
@@ -52,9 +65,21 @@ def process_video(args):
         "--output_dir", final_output,
         "--video_path", video_path,
     ]
-    result = subprocess.run(cmd_convert, env=env)
+    convert_stderr = os.path.join(final_output, "convert.stderr.log")
+    result = run_logged_subprocess(
+        cmd_convert,
+        stdout_path=os.path.join(final_output, "convert.stdout.log"),
+        stderr_path=convert_stderr,
+        env=env,
+        start_new_session=False,
+    )
     if result.returncode != 0:
-        print(f"[GPU {gpu_id}] Convert failed for {video_name}", file=sys.stderr)
+        tail = read_text_tail(convert_stderr)
+        print(
+            f"[GPU {gpu_id}] Convert failed for {video_name} "
+            f"(exit {result.returncode}, see {convert_stderr}): {tail}",
+            file=sys.stderr,
+        )
         return False
 
     print(f"[GPU {gpu_id}] [{idx+1}/{total_videos}] Done: {video_name}")

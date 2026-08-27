@@ -14,8 +14,9 @@ import argparse
 import json
 import multiprocessing
 import os
-import subprocess
 import sys
+
+from worldfoundry.core.process import read_text_tail, run_logged_subprocess
 
 
 def render_video(args):
@@ -47,9 +48,21 @@ def render_video(args):
         cmd_render.extend(["--freeze_repeat", str(freeze_repeat)])
     if freeze_frame is not None:
         cmd_render.extend(["--freeze_frame", str(freeze_frame)])
-    result = subprocess.run(cmd_render, env=env)
+    render_stderr = os.path.join(final_output, "render.stderr.log")
+    result = run_logged_subprocess(
+        cmd_render,
+        stdout_path=os.path.join(final_output, "render.stdout.log"),
+        stderr_path=render_stderr,
+        env=env,
+        start_new_session=False,
+    )
     if result.returncode != 0:
-        print(f"[GPU {gpu_id}] Render failed for {video_name}", file=sys.stderr)
+        tail = read_text_tail(render_stderr)
+        print(
+            f"[GPU {gpu_id}] Render failed for {video_name} "
+            f"(exit {result.returncode}, see {render_stderr}): {tail}",
+            file=sys.stderr,
+        )
         return False
 
     print(f"[GPU {gpu_id}] [{idx+1}/{total_videos}] Done: {video_name}")
