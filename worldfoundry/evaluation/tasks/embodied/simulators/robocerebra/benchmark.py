@@ -49,7 +49,9 @@ class RoboCerebraBenchmark(BaseSimulator):
     processing, and success evaluation, integrating with `robosuite` and `libero`.
 
     Args:
-        robocerebra_root: Path to the downloaded RoboCerebra_Bench data.
+        robocerebra_root: Path to the downloaded RoboCerebra_Bench data. Required —
+            there is no usable default outside the docker profile, which mounts
+            the data at ``/workspace/RoboCerebra_Bench``.
         task_types: A list of task-type folders to include (e.g., "Ideal", "Composite").
                     Defaults to `["Ideal"]`.
         seed: Random seed for environment initialization and reproducibility.
@@ -64,7 +66,7 @@ class RoboCerebraBenchmark(BaseSimulator):
 
     def __init__(
         self,
-        robocerebra_root: str = "/workspace/RoboCerebra_Bench",
+        robocerebra_root: str | None = None,
         task_types: list[str] | None = None,
         seed: int = 7,
         num_steps_wait: int = 15,
@@ -76,6 +78,13 @@ class RoboCerebraBenchmark(BaseSimulator):
         Configures paths, task types, rendering options, and internal states.
         """
         super().__init__()
+        if not robocerebra_root:
+            raise ValueError(
+                "RoboCerebraBenchmark requires an explicit robocerebra_root pointing "
+                "at the downloaded RoboCerebra_Bench data. Pass robocerebra_root via "
+                "benchmark_kwargs, or run through the docker profile which mounts the "
+                "data at /workspace/RoboCerebra_Bench."
+            )
         self.robocerebra_root = robocerebra_root
         self.task_types = task_types or ["Ideal"]
         self.seed = seed

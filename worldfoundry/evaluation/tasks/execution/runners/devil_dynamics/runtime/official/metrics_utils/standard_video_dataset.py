@@ -1,9 +1,7 @@
 import torch
-from torch.utils.data import Dataset, DataLoader
-from torchvision.transforms import Compose, Resize, ToTensor
+from torch.utils.data import Dataset
 import json
 import os
-import pdb
 import glob
 from torchvision.io import read_video
 import torch.nn.functional as F
@@ -171,28 +169,3 @@ def standard_collate_fn(batch):
         'videos_no_resize': videos_no_resize,
         'video_paths': video_paths,
     }
-
-
-
-if __name__ == '__main__':
-    # 使用你的数据集
-    # video_annotations = '/Volumes/My-Passport/VideoGeneration/MSRVTT/msrvtt_merged_data.json'
-    video_folder = '/home/LiaoMingxiang/Workspace2/DinaBench/candidate_videos'
-    transform = Compose([
-        Resize((224, 224)),  # 根据需要调整大小
-    ])
-
-    dataset = StandardVidoDataset(video_folder, transform=transform)
-    # 创建 DataLoader
-    dataloader = DataLoader(dataset, batch_size=2, shuffle=True, collate_fn=standard_collate_fn)
-
-    # 测试数据加载
-    for i, data in enumerate(dataloader):
-        videos = data['videos']
-        org_videos = data['org_videos']
-        pdb.set_trace()
-        print(f"Batch {i+1}:")
-        print(f"Videos shape: {videos.shape}")  # 打印视频张量的形状
-        print(f'len(org_videos): {len(org_videos)}')
-        if i == 1:  # 为了测试，我们只迭代两个批次
-            break
