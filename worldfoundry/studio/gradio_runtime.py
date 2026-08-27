@@ -1,4 +1,9 @@
-"""Gradio import guards and runtime patches for WorldFoundry Studio."""
+"""Gradio import guards and runtime patches for WorldFoundry Studio.
+
+Importing this module imports Gradio (with SOCKS-proxy masking) but does not
+mutate it. Studio entrypoints opt in to the runtime guards by calling
+:func:`install_gradio_patches` before building the Gradio UI.
+"""
 
 from __future__ import annotations
 
@@ -77,9 +82,6 @@ def _install_template_response_guard() -> None:
     templates._worldfoundry_template_response_guard = True
 
 
-_install_template_response_guard()
-
-
 def _install_proxy_safe_url_check() -> None:
     """Make Gradio's localhost readiness probe ignore shell proxy settings."""
 
@@ -107,9 +109,6 @@ def _install_proxy_safe_url_check() -> None:
 
     gr_networking.url_ok = proxy_safe_url_ok
     gr_networking._worldfoundry_proxy_safe_url_ok = True
-
-
-_install_proxy_safe_url_check()
 
 
 def _install_api_info_guard() -> None:
@@ -146,7 +145,39 @@ def _install_api_info_guard() -> None:
     blocks_cls._worldfoundry_api_info_guard = True
 
 
-_install_api_info_guard()
+_EXPECTED_GRADIO_MAJOR_VERSIONS = (4, 5)
+
+
+def _warn_on_unexpected_gradio_version() -> None:
+    version = str(getattr(gr, "__version__", ""))
+    try:
+        major = int(version.split(".", maxsplit=1)[0])
+    except ValueError:
+        major = None
+    if major not in _EXPECTED_GRADIO_MAJOR_VERSIONS:
+        warnings.warn(
+            "WorldFoundry Studio's Gradio runtime guards target Gradio major versions "
+            f"{_EXPECTED_GRADIO_MAJOR_VERSIONS} but found {version!r}; the patched hooks "
+            "(templates.TemplateResponse, networking.url_ok, Blocks.get_api_info) may "
+            "have drifted upstream.",
+            RuntimeWarning,
+            stacklevel=3,
+        )
+
+
+def install_gradio_patches() -> None:
+    """Install WorldFoundry's Gradio runtime guards process-wide.
+
+    Importing this module has no side effects on Gradio; Studio entrypoints
+    must call this explicitly before building or launching the Gradio UI.
+    Each guard marks its patch target with a ``_worldfoundry_*`` sentinel, so
+    repeated calls are idempotent.
+    """
+
+    _warn_on_unexpected_gradio_version()
+    _install_template_response_guard()
+    _install_proxy_safe_url_check()
+    _install_api_info_guard()
 
 
 def gradio_progress(*, track_tqdm: bool = False) -> Any:
