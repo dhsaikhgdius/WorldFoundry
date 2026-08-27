@@ -8,8 +8,8 @@ code -- use ``worldfoundry.core.configuration.lazy_config.instantiate``
 """
 
 import importlib.resources
+import logging
 import os
-import sys
 from copy import deepcopy
 
 import hydra
@@ -18,6 +18,8 @@ from omegaconf import DictConfig, OmegaConf
 
 from ..utils.functional_utils import call_once, is_mapping, is_sequence, meta_decorator
 from .print_utils import to_scientific_str
+
+logger = logging.getLogger(__name__)
 
 _CLASS_REGISTRY = {}  # for instantiation
 
@@ -201,7 +203,7 @@ def get_class(path):
             raise ImportError("Class {} is not in module {}".format(class_name, module_path))
         return class_type
     except ValueError as e:
-        print("Error initializing class " + path, file=sys.stderr)
+        logger.error("Error initializing class %s", path)
         raise e
 
 
