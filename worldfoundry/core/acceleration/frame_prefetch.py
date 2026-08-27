@@ -15,6 +15,10 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
+# Thread model: presentation workers may prefetch frames from multiple threads,
+# so the per-device stream cache is lazily created and read only while holding
+# _STREAMS_LOCK (see _host_copy_stream). Without the lock two threads racing on
+# first access would each create a stream and split copy ordering across them.
 _STREAMS_LOCK = threading.Lock()
 _HOST_COPY_STREAMS: dict[int, Any] = {}
 

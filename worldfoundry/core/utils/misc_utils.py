@@ -3,6 +3,7 @@
 import fnmatch
 import hashlib
 import os
+import threading
 from collections import Counter
 from typing import Any, Callable, Dict, List, Optional, Union
 
@@ -211,6 +212,11 @@ class Once:
         raise RuntimeError("`Once` objects should be used by calling ()")
 
 
+# Thread model: global_once/global_n_times are check-then-act compounds, so the
+# containers are guarded by one lock — without it two threads observing the same
+# fresh name could both return True (and Counter `+=` is a non-atomic
+# read-modify-write even under the GIL).
+_GLOBAL_TRIGGER_LOCK = threading.Lock()
 _GLOBAL_ONCE_SET = set()
 _GLOBAL_NTIMES_COUNTER = Counter()
 
@@ -220,9 +226,9 @@ def global_once(name):
     Try this to automate the name:
     https://gist.github.com/techtonik/2151727#gistcomment-2333747
     """
-    if name in _GLOBAL_ONCE_SET:
-        return False
-    else:
+    with _GLOBAL_TRIGGER_LOCK:
+        if name in _GLOBAL_ONCE_SET:
+            return False
         _GLOBAL_ONCE_SET.add(name)
         return True
 
@@ -232,10 +238,10 @@ def global_n_times(name, n: int):
     Triggers N times
     """
     assert n >= 1
-    if _GLOBAL_NTIMES_COUNTER[name] < n:
-        _GLOBAL_NTIMES_COUNTER[name] += 1
-        return True
-    else:
+    with _GLOBAL_TRIGGER_LOCK:
+        if _GLOBAL_NTIMES_COUNTER[name] < n:
+            _GLOBAL_NTIMES_COUNTER[name] += 1
+            return True
         return False
 
 
