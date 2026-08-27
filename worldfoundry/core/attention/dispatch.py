@@ -317,35 +317,11 @@ def attention_forward(
     return torch_sdpa(q, k, v, q_pattern, k_pattern, v_pattern, out_pattern, dims, scale=scale)
 
 
-# Thread model for the quarantine containers below:
-# - _FAILED_ATTENTION_SIGNATURES is mutated only inside
-#   _remember_failed_attention_signature / clear_attention_dispatch_cache under
-#   _FAILED_ATTENTION_SIGNATURE_LOCK so the set and its LRU deque stay in sync.
-#   Hot-path reads (`key in ...`, `len(...)`) stay lock-free on purpose: single
-#   set operations are atomic under the CPython GIL and a stale miss only costs
-#   one redundant backend attempt before the signature is re-quarantined.
-# - _UNAVAILABLE_ATTENTION_BACKENDS is both mutated (add/clear) and *iterated*
-#   (sorted snapshots feeding the selection cache and the report). Iterating a
-#   set while another thread adds to it raises RuntimeError even with the GIL,
-#   so every access goes through _UNAVAILABLE_ATTENTION_BACKENDS_LOCK.
 _FAILED_ATTENTION_SIGNATURE_LIMIT = 1024
 _FAILED_ATTENTION_SIGNATURES: set[tuple[object, ...]] = set()
 _FAILED_ATTENTION_SIGNATURE_ORDER: deque[tuple[object, ...]] = deque()
 _FAILED_ATTENTION_SIGNATURE_LOCK = threading.Lock()
 _UNAVAILABLE_ATTENTION_BACKENDS: set[str] = set()
-_UNAVAILABLE_ATTENTION_BACKENDS_LOCK = threading.Lock()
-
-
-def _unavailable_backends_snapshot() -> tuple[str, ...]:
-    """Return a sorted point-in-time copy of the unavailable-backend quarantine."""
-
-    with _UNAVAILABLE_ATTENTION_BACKENDS_LOCK:
-        return tuple(sorted(_UNAVAILABLE_ATTENTION_BACKENDS))
-
-
-def _quarantine_unavailable_backend(selected: str) -> None:
-    with _UNAVAILABLE_ATTENTION_BACKENDS_LOCK:
-        _UNAVAILABLE_ATTENTION_BACKENDS.add(selected)
 
 
 def _short_attention_threshold(device: torch.device | str | None = None) -> int:
