@@ -423,21 +423,19 @@ def probe_video_metadata(
         "json",
         str(path),
     ]
-    try:
-        completed = subprocess.run(
-            command,
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=float(timeout_seconds),
-        )
-    except subprocess.TimeoutExpired as exc:
-        raise TimeoutError(f"ffprobe timed out after {timeout_seconds:g}s for {path}") from exc
-    if completed.returncode != 0:
-        reason = completed.stderr.strip() or f"ffprobe exited with status {completed.returncode}"
+    # Lazy import: keeps this core module importable without pulling the
+    # runtime layer in at module import time (same pattern as the
+    # runtime.compile_cache imports elsewhere in worldfoundry.core).
+    from worldfoundry.runtime.jobs import run_bounded_command
+
+    completed = run_bounded_command(command, timeout=float(timeout_seconds))
+    if completed["timed_out"]:
+        raise TimeoutError(f"ffprobe timed out after {timeout_seconds:g}s for {path}")
+    if completed["returncode"] != 0:
+        reason = completed["stderr"].strip() or f"ffprobe exited with status {completed['returncode']}"
         raise ValueError(reason)
     try:
-        payload = json.loads(completed.stdout)
+        payload = json.loads(completed["stdout"])
     except json.JSONDecodeError as exc:
         raise ValueError(f"ffprobe returned invalid JSON for {path}") from exc
     streams = payload.get("streams") if isinstance(payload, dict) else None
