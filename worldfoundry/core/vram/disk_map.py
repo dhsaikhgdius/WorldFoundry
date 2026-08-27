@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from collections.abc import Mapping
 
@@ -7,6 +8,8 @@ from safetensors import safe_open
 
 from worldfoundry.core.model_loading import load_torch_state_dict
 from worldfoundry.core.io.storage import read_text_uri
+
+logger = logging.getLogger(__name__)
 
 
 def _expand_safetensors_indexes(paths):
@@ -42,8 +45,10 @@ class SafetensorsCompatibleTensor:
 
 class SafetensorsCompatibleBinaryLoader:
     def __init__(self, path, device):
-        print(
-            "Detected non-safetensors files, which may cause slower loading. It's recommended to convert it to a safetensors file."
+        logger.warning(
+            "Detected non-safetensors checkpoint %s, which may cause slower loading. "
+            "It's recommended to convert it to a safetensors file.",
+            path,
         )
         self.state_dict = load_torch_state_dict(path, map_location=device)
 
