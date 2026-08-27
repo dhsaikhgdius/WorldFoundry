@@ -308,11 +308,11 @@ def search_parameter(param, state_dict, *, atol=1e-3):
 
 
 def build_rename_dict(source_state_dict, target_state_dict, split_qkv=False):
-    """Print parameter-key matches between two state dicts for conversion scripts.
+    """Log parameter-key matches between two state dicts for conversion scripts.
 
-    The ``print`` output is intentional: stdout lines are meant to be pasted
-    into loader-conversion scripts, so this stays on ``print`` rather than
-    ``logging``.
+    Matched key pairs are emitted at INFO in a copy-paste-friendly mapping
+    format for loader-conversion scripts; target keys without a match are
+    reported at WARNING.
     """
 
     matched_keys = set()
@@ -320,7 +320,7 @@ def build_rename_dict(source_state_dict, target_state_dict, split_qkv=False):
         for name in source_state_dict:
             rename = search_parameter(source_state_dict[name], target_state_dict)
             if rename is not None:
-                print(f'"{name}": "{rename}",')
+                logger.info('"%s": "%s",', name, rename)
                 matched_keys.add(rename)
             elif split_qkv and len(source_state_dict[name].shape) >= 1 and source_state_dict[name].shape[0] % 3 == 0:
                 length = source_state_dict[name].shape[0] // 3
@@ -329,11 +329,11 @@ def build_rename_dict(source_state_dict, target_state_dict, split_qkv=False):
                     for i in range(3)
                 ]
                 if None not in rename:
-                    print(f'"{name}": {rename},')
+                    logger.info('"%s": %s,', name, rename)
                     matched_keys.update(rename)
     for name in target_state_dict:
         if name not in matched_keys:
-            print("Cannot find", name, target_state_dict[name].shape)
+            logger.warning("Cannot find %s %s", name, target_state_dict[name].shape)
 
 
 def search_for_files(folder, extensions):
