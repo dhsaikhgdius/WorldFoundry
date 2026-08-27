@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import shutil
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -11,6 +10,7 @@ from worldfoundry.core import jsonable
 from worldfoundry.core.io import file_sha256
 from worldfoundry.core.io.paths import package_module_root as package_root
 from worldfoundry.core.io.paths import project_root
+from worldfoundry.core.process import read_text_tail, run_logged_subprocess
 
 DEFAULT_MODEL_DIR_CANDIDATES = (
     "${WORLDFOUNDRY_HFD_ROOT}/SCOPE",
@@ -289,20 +289,22 @@ class SCOPERuntime:
             num_inference_steps=num_inference_steps,
             seed=seed,
         )
-        completed = subprocess.run(
+        log_path = target.with_suffix(target.suffix + ".scope.stdout.log")
+        stderr_log_path = target.with_suffix(target.suffix + ".scope.stderr.log")
+        completed = run_logged_subprocess(
             argv,
+            stdout_path=log_path,
+            stderr_path=stderr_log_path,
             cwd=str(runtime_root()),
             env=self._subprocess_env(),
-            check=False,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
+            start_new_session=False,
         )
-        log_path = target.with_suffix(target.suffix + ".scope.log")
-        log_path.parent.mkdir(parents=True, exist_ok=True)
-        log_path.write_text(completed.stdout or "", encoding="utf-8")
         if completed.returncode != 0:
-            raise RuntimeError(f"SCOPE runtime failed with code {completed.returncode}; see {log_path}")
+            tail = read_text_tail(stderr_log_path)
+            raise RuntimeError(
+                f"SCOPE runtime failed with code {completed.returncode}; "
+                f"see {log_path} and {stderr_log_path}.\n{tail}"
+            )
 
         generated = sorted(output_dir.glob("*.mp4"), key=lambda item: item.stat().st_mtime, reverse=True)
         if not generated:
@@ -323,6 +325,7 @@ class SCOPERuntime:
             "backend_quality": "in_tree_scope_runtime",
             "run_dir": str(work_dir),
             "log_path": str(log_path),
+            "stderr_log_path": str(stderr_log_path),
             "metadata": {
                 "prompt": prompt,
                 "model_dir": self.model_dir,

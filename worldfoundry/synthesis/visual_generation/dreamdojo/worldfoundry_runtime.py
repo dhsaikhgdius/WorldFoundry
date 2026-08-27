@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -8,6 +7,7 @@ from typing import Any, Mapping, Sequence
 from worldfoundry.core.io import write_json
 from worldfoundry.core.io.paths import hfd_root_path, project_root
 from worldfoundry.core.io.paths import package_module_root as package_root
+from worldfoundry.core.process import run_logged_subprocess
 
 
 def _resolve_hfd_root() -> Path:
@@ -93,7 +93,8 @@ class DreamDojoRuntime:
             return checkpoint_path
         distcp_dir = checkpoint_dir / "model"
         if distcp_dir.is_dir():
-            subprocess.run(
+            # check_returncode() preserves the prior check=True CalledProcessError contract.
+            run_logged_subprocess(
                 [
                     sys.executable,
                     "-m",
@@ -101,8 +102,10 @@ class DreamDojoRuntime:
                     str(distcp_dir),
                     str(checkpoint_dir),
                 ],
-                check=True,
-            )
+                stdout_path=checkpoint_dir / "convert_distcp.stdout.log",
+                stderr_path=checkpoint_dir / "convert_distcp.stderr.log",
+                start_new_session=False,
+            ).check_returncode()
             if checkpoint_path.is_file():
                 return checkpoint_path
             raise RuntimeError(f"DreamDojo checkpoint conversion did not create {checkpoint_path}")
@@ -152,7 +155,14 @@ infer_args.end = {int(kwargs.get("num_samples", 1))!r}
 inference(setup, infer_args, Path({str(checkpoint_path)!r}))
 """
         python = str(kwargs.get("python_executable") or sys.executable)
-        subprocess.run([python, "-c", code], cwd=str(runtime_root), check=True)
+        # check_returncode() preserves the prior check=True CalledProcessError contract.
+        run_logged_subprocess(
+            [python, "-c", code],
+            stdout_path=output_dir / "dreamdojo_stdout.log",
+            stderr_path=output_dir / "dreamdojo_stderr.log",
+            cwd=str(runtime_root),
+            start_new_session=False,
+        ).check_returncode()
         payload = {
             "status": "success",
             "model_id": self.model_id,
