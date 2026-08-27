@@ -319,6 +319,17 @@ studio_plot = [
     "plotly",
     "pillow",
 ]
+test = [
+    "pytest>=8,<10",
+    "pytest-cov>=5,<7",
+    "numpy",
+    "pillow",
+    "pandas",
+    "einops",
+    "safetensors",
+    "joblib",
+    "pyyaml",
+]
 dev = [
     "build",
     "pre-commit>=4.0",
