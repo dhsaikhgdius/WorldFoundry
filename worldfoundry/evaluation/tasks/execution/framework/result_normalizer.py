@@ -8,17 +8,16 @@ from __future__ import annotations
 
 import csv
 import json
-import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from worldfoundry.evaluation.api import MetricResult
-
 from worldfoundry.evaluation.tasks.catalog.schema import BenchmarkMetricSpec, BenchmarkZooEntry
 from worldfoundry.evaluation.tasks.execution.framework.normalizers import apply_normalizer
-
+from worldfoundry.runtime.jobs import run_bounded_command
 
 JsonValue = Any
 OFFICIAL_RESULTS_NORMALIZER_SCHEMA_VERSION = "worldfoundry-official-results-normalizer"
@@ -35,6 +34,10 @@ RECORD_CONTAINER_KEYS = (
     "per_sample_metrics",
     "metrics",
 )
+# Backstop for the json.tool validation subprocess; validating a results
+# export should never take minutes, so a hung interpreter is killed instead
+# of blocking the normalization pipeline forever.
+_JSON_TOOL_TIMEOUT_SECONDS = 120
 
 
 @dataclass(frozen=True)
@@ -1016,9 +1019,12 @@ def _json_text_valid(value: str) -> bool:
     """
     Validate if a given string is valid JSON using Python's `json.tool` module.
 
-    This method uses a subprocess call to leverage the robust JSON parsing and validation
-    built into the standard library's `json.tool` module, providing a more reliable check
-    than simple `try-except json.loads`.
+    This method uses a managed subprocess call to leverage the robust JSON parsing
+    and validation built into the standard library's `json.tool` module, providing
+    a more reliable check than simple `try-except json.loads`. The payload is
+    staged as a temp file (run_bounded_command has no stdin channel) and the
+    formatted output goes to a scratch file so large exports are not buffered
+    in memory; a timed-out or killed validator counts as invalid JSON.
 
     Args:
         value: The string containing potential JSON data.
@@ -1026,14 +1032,20 @@ def _json_text_valid(value: str) -> bool:
     Returns:
         True if the string is valid JSON, False otherwise.
     """
-    completed = subprocess.run(
-        (sys.executable, "-m", "json.tool"),  # Execute `python -m json.tool`
-        input=value,                           # Pass the JSON string as stdin
-        capture_output=True,
-        text=True,
-        check=False,                            # Do not raise an exception for non-zero exit codes
-    )
-    return completed.returncode == 0            # JSON.tool returns 0 for valid JSON, non-zero for invalid.
+    with tempfile.TemporaryDirectory(prefix="worldfoundry-json-tool-") as tmp_dir:
+        payload_path = Path(tmp_dir) / "payload.json"
+        payload_path.write_text(value, encoding="utf-8")
+        result = run_bounded_command(
+            (
+                sys.executable,
+                "-m",
+                "json.tool",
+                str(payload_path),
+                str(Path(tmp_dir) / "formatted.json"),
+            ),
+            timeout=_JSON_TOOL_TIMEOUT_SECONDS,
+        )
+    return result["returncode"] == 0
 
 
 def _metric_key(value: JsonValue) -> str:
