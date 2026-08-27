@@ -1,4 +1,10 @@
-"""Distributed metric logging and synchronization helpers."""
+"""Distributed metric logging and synchronization helpers.
+
+Library-path diagnostics in this module go through ``logging``. The one
+intentional exception is :meth:`MetricLogger.log_every`, whose progress lines
+are emitted via ``builtins.print`` so that the rank-filtered wrapper installed
+by :func:`setup_for_distributed` keeps them master-rank-only.
+"""
 
 from __future__ import annotations
 
@@ -26,7 +32,7 @@ from .generic_collectives import (
     is_master as is_main_process,
 )
 
-logger = getLogger()
+logger = getLogger(__name__)
 
 # Original builtins.print, captured the first time setup_for_distributed patches it.
 _ORIGINAL_BUILTINS_PRINT = None
@@ -97,7 +103,7 @@ def init_distributed(port=37124, rank_and_world_size=(None, None)):
     gpu = None
     dist_url = "env://"
     os.environ["MASTER_PORT"] = os.environ.get("MASTER_PORT", str(port))
-    print("Using port", os.environ["MASTER_PORT"])
+    logger.info("Using port %s", os.environ["MASTER_PORT"])
 
     if "RANK" in os.environ and "WORLD_SIZE" in os.environ:
         try:
@@ -236,6 +242,12 @@ class MetricLogger:
         self.meters[name] = meter
 
     def log_every(self, iterable, print_freq, header=None):
+        """Yield from ``iterable`` while printing periodic progress lines.
+
+        Progress output intentionally uses ``builtins.print`` (not ``logging``)
+        so the rank-filtered wrapper installed by :func:`setup_for_distributed`
+        restricts it to the master rank; do not convert these to logger calls.
+        """
         index = 0
         header = header or ""
         start_time = time.time()
