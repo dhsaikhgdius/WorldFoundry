@@ -761,20 +761,33 @@ def _launch_visualizer_locked(mode: str, payload: VisualizerLaunchRequest) -> di
         log_file.write("$ " + " ".join(command) + "\n")
         if visualizer_env:
             log_file.write("# visualizer env " + json.dumps(visualizer_env, sort_keys=True) + "\n")
-        process = subprocess.Popen(
-            command,
-            cwd=str(REPO_ROOT),
-            env=env,
-            stdout=log_file,
-            stderr=subprocess.STDOUT,
-            text=True,
-            # start_new_session is the thread-safe equivalent of
-            # preexec_fn=os.setsid: CPython documents preexec_fn as unsafe in
-            # multi-threaded programs, and this Popen runs inside FastAPI's
-            # threadpool (SA-8/PLW1509).  The child still becomes its own
-            # process group leader, which _terminate_process_group relies on.
-            start_new_session=hasattr(os, "setsid"),
-        )
+        # Managed-helper exemption: this launches a long-lived visualizer
+        # server that stays up until the operator stops it (or Studio shuts
+        # down), so run_bounded_command's wall-clock timeout and captured
+        # output do not fit.  A bare Popen with an explicit argv (built by
+        # _visualizer_launch_command, no shell) is intentional; lifecycle is
+        # owned by _stop_visualizer/_terminate_process_group, which escalate
+        # SIGINT -> SIGTERM -> SIGKILL with bounded waits.
+        try:
+            process = subprocess.Popen(
+                command,
+                cwd=str(REPO_ROOT),
+                env=env,
+                stdout=log_file,
+                stderr=subprocess.STDOUT,
+                text=True,
+                # start_new_session is the thread-safe equivalent of
+                # preexec_fn=os.setsid: CPython documents preexec_fn as unsafe in
+                # multi-threaded programs, and this Popen runs inside FastAPI's
+                # threadpool (SA-8/PLW1509).  The child still becomes its own
+                # process group leader, which _terminate_process_group relies on.
+                start_new_session=hasattr(os, "setsid"),
+            )
+        except OSError as error:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to launch {mode} visualizer via {command[0]!r}: {error}",
+            ) from error
     ready = _wait_for_visualizer(health_url, timeout=_visualizer_startup_timeout(mode))
     if not ready:
         returncode = process.poll()
