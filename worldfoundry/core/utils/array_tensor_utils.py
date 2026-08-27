@@ -1,5 +1,6 @@
 """Nested-structure helpers for numpy arrays and torch tensors."""
 
+import logging
 from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
@@ -13,6 +14,8 @@ from ..structures.tree_utils import (
     tree_value_at_path,
 )
 from .functional_utils import make_recursive_func
+
+logger = logging.getLogger(__name__)
 
 
 def is_array_tensor(obj):
@@ -317,16 +320,14 @@ def any_describe_str(x, shape_only=False):
 
 
 def any_describe(x, msg="", *, shape_only=False):
-    # from omlet.utils import yaml_dumps
-    from pprint import pprint
+    from pprint import pformat
 
     if isinstance(x, str) and msg != "":
         x, msg = msg, x
 
     if msg:
         msg += ": "
-    print(msg, end="")
-    pprint(any_describe_str(x, shape_only=shape_only))
+    logger.debug("%s%s", msg, pformat(any_describe_str(x, shape_only=shape_only)))
 
 
 @make_recursive_func
