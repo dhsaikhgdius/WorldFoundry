@@ -727,6 +727,11 @@ ORGS: dict[str, dict] = {
         "source": commons("Georgia Tech Yellow Jackets logo.svg"),
         "license": "Public domain (text logo)",
     },
+    "caltech": {
+        "name": "California Institute of Technology (Caltech)",
+        "abbr": "CIT",
+        "logo": None,
+    },
     "koc": {
         "name": "Koç University",
         "abbr": "KU",
@@ -1101,6 +1106,7 @@ BENCHMARK_ORGS: dict[str, str] = {
     "4dworldbench": "ustc",
     "ai2thor": "ai2",
     "aigcbench": "benchcouncil",
+    "apple-pi": "ntu",
     "behavior1k": "stanford",
     "bridgedata-v2": "berkeley",
     "calvin": "freiburg",
@@ -1140,6 +1146,7 @@ BENCHMARK_ORGS: dict[str, str] = {
     "robotwin": "hku",
     "sana-wm-bench": "nvidia",
     "simpler-env": "google-deepmind",
+    "stevo-bench": "caltech",
     "t2v-compbench": "hku",
     "t2v-safety-bench": "cas",
     "t2vworldbench": "sjsu",

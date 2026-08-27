@@ -3,6 +3,7 @@
     "4dworldbench": "ustc",
     "ai2thor": "ai2",
     "aigcbench": "benchcouncil",
+    "apple-pi": "ntu",
     "behavior1k": "stanford",
     "bridgedata-v2": "berkeley",
     "calvin": "freiburg",
@@ -42,6 +43,7 @@
     "robotwin": "hku",
     "sana-wm-bench": "nvidia",
     "simpler-env": "google-deepmind",
+    "stevo-bench": "caltech",
     "t2v-compbench": "hku",
     "t2v-safety-bench": "cas",
     "t2vworldbench": "sjsu",
@@ -436,6 +438,11 @@
       "name": "ByteDance",
       "source": "Simple Icons (https://simpleicons.org), CC0-1.0",
       "src": "/org-logos/bytedance.svg"
+    },
+    "caltech": {
+      "abbr": "CIT",
+      "key": "caltech",
+      "name": "California Institute of Technology (Caltech)"
     },
     "cas": {
       "abbr": "CAS",
